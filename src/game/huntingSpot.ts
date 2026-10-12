@@ -2,6 +2,7 @@ import type { Building, Entity, HuntingSpotPrey } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { isPlayerHuman } from './playerHuman';
+import { MAX_SKILL } from './skills';
 
 /**
  * The Hunting Spot's own rules: who works it, which animal it is after, how far it can *see*, and how
@@ -272,17 +273,9 @@ const HUNTING_PURSUIT_CLOSE_FRACTION = 0.6;
 
 /**
  * The wolf's fight-back: the chance it turns on the hunter instead of being taken, and what the bite
- * costs. **These are the numbers that were already here** (`isWolf && seededRandomForRun(...) < 0.35`),
- * kept exactly — the owner's reminder was *"dont forget animals fight back"*, not a request for new
- * odds, and the 85 % accuracy roll next to it is the hunter's own chance of winning the exchange.
- *
- * One consequence did have to change: the bite now lands on the **hunter** rather than on the Hunting
- * Spot. The old branch took 12 health off the building from a wolf the settler was never near (the shot
- * could be taken from 320 px); now that the hunter walks up to the animal, they are the one in range. A
- * settler's health *is* its energy — `worldEvents` applies damage as `energy = max(0, energy - N)`, and
- * the human loop's exhaustion path is what kills at zero.
+ * costs. One hunt in ten; the bite lands on the hunter, whose health is its energy.
  */
-export const HUNTING_FIGHT_BACK_CHANCE = 0.35;
+export const HUNTING_FIGHT_BACK_CHANCE = 0.1;
 export const HUNTING_FIGHT_BACK_BITE_ENERGY = 140;
 
 /**
@@ -290,15 +283,15 @@ export const HUNTING_FIGHT_BACK_BITE_ENERGY = 140;
  * fight-back roll itself.
  *
  * Owner's numbers: *"wolfs should kill sometimes a human like a 5% change and 11% change for hurting
- * a human"*. They are read as floor-to-ceiling bands on one roll — under 5 % the hunter is killed,
- * under 16 % (5 + 11) they are mauled, and above that the bite costs only energy. Rolling them as two
- * separate draws would make the real kill chance 5 % of the 11 % band rather than 5 % of bites.
+ * a human"*. They are read as floor-to-ceiling bands on one roll — under the kill band the hunter is
+ * killed, under kill + 11 % they are mauled, and above that the bite costs only energy. Rolling them
+ * as two separate draws would make the real kill chance 5 % of the 11 % band rather than 5 % of bites.
  *
- * A bite that kills is rare enough to matter and common enough to be seen: at the 35 % fight-back
- * chance this is ~1.75 % of wolf hunts.
+ * This is the untrained band: `huntingFightBackKillChance` narrows it with the hunter's own skill, so
+ * at the 10 % fight-back chance an untrained hunter dies in ~0.5 % of wolf hunts and a master in ~0.1 %.
  */
 export const HUNTING_FIGHT_BACK_KILL_CHANCE = 0.05;
-/** 0.11 = the band above the kill band, so a mauling is ~11 % of bites and ~3.9 % of wolf hunts. */
+/** 0.11 = the band above the kill band, so a mauling is ~11 % of bites and ~1.1 % of wolf hunts. */
 export const HUNTING_FIGHT_BACK_INJURY_CHANCE = 0.11;
 /**
  * 260 = the extra energy a mauling costs on top of the ordinary bite (140), which is well over half a
@@ -307,20 +300,37 @@ export const HUNTING_FIGHT_BACK_INJURY_CHANCE = 0.11;
  */
 export const HUNTING_FIGHT_BACK_MAUL_ENERGY = 260;
 
+/** What a skilled hunter keeps of the fatal band — a floor, never a guarantee. */
+export const HUNTING_FIGHT_BACK_SKILL_FLOOR = 0.2;
+
+/**
+ * The fatal band a hunter of this trade skill faces: linear from the 5 % base at skill 0 down to
+ * 1 % at skill 100. The injury band keeps its width, so a roll the skill saves becomes a mauling.
+ */
+export function huntingFightBackKillChance(skill: number): number {
+  const trained = Math.min(1, Math.max(0, skill / MAX_SKILL));
+  return HUNTING_FIGHT_BACK_KILL_CHANCE * (1 - trained * (1 - HUNTING_FIGHT_BACK_SKILL_FLOOR));
+}
+
 /** What a wolf's bite does to the hunter. */
 export type HuntingFightBackFate = 'killed' | 'mauled' | 'bitten';
 
+/** The hunter's own trade, as far as the bite is concerned — a named context, never a bare number. */
+export interface HuntingFightBackHunter {
+  readonly skill?: number;
+}
+
 /**
- * Resolve one bite from a roll in `[0, 1)`.
- *
- * Pure, and the single owner of the bands, so the odds are testable without steering a hash — the
- * economy layer supplies the roll from its stateless per-shot key. The bands are ordered
- * floor-to-ceiling: anything below the kill chance kills, anything still below kill + injury mauls,
- * and the rest is an ordinary bite.
+ * Resolve one bite from a roll in `[0, 1)` and the hunter: below the skill-aware kill band kills,
+ * below kill + injury mauls, the rest is an ordinary bite. Pure, so the odds are testable.
  */
-export function huntingFightBackFate(roll: number): HuntingFightBackFate {
-  if (roll < HUNTING_FIGHT_BACK_KILL_CHANCE) return 'killed';
-  if (roll < HUNTING_FIGHT_BACK_KILL_CHANCE + HUNTING_FIGHT_BACK_INJURY_CHANCE) return 'mauled';
+export function huntingFightBackFate(
+  roll: number,
+  hunter: HuntingFightBackHunter = {},
+): HuntingFightBackFate {
+  const killChance = huntingFightBackKillChance(hunter.skill ?? 0);
+  if (roll < killChance) return 'killed';
+  if (roll < killChance + HUNTING_FIGHT_BACK_INJURY_CHANCE) return 'mauled';
   return 'bitten';
 }
 

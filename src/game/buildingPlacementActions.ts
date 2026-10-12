@@ -13,8 +13,13 @@ import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenan
 import { assignMissingResidences } from './dayCycle';
 import { allPlayerHumans } from './playerHuman';
 import { notifyBuildingLocked } from './research';
-import { getBuildingFootprintForType, normalizeBuildingRotation, type BuildingRotation, type CornerRotation } from './buildingRotation';
+import {
+  getBuildingFootprintForType,
+  placementRotationFor,
+  type BuildingRotation,
+} from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
+import { getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
 import { buildStripPlanFromDrag } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
@@ -213,13 +218,6 @@ export function startBuilding(
   return state;
 }
 
-function segmentRotationForPlacement(
-  _placeType: BuildingType,
-  rotation: BuildingRotation | CornerRotation,
-): BuildingRotation {
-  return normalizeBuildingRotation(rotation);
-}
-
 export function buildStripPreview(
   state: WorldState,
   type: BuildingType,
@@ -234,35 +232,61 @@ export function buildStripPreview(
     rotation,
     enclosedAreas,
     segments: plan.map((piece) => {
-      const segmentRotation = segmentRotationForPlacement(piece.type, piece.rotation);
+      // The raw plan rotation is what the renderer reads for junction topology; validity is always
+      // asked with the normalised form, which is the only one the footprint owner accepts.
+      const segmentRotation = piece.rotation;
+      const placementRotation = placementRotationFor(segmentRotation);
       const replacing = piece.replacesBuildingId !== undefined
         ? state.buildings.find((building) => building.id === piece.replacesBuildingId)
         : undefined;
-      let valid = canPlaceBuilding(state, piece.type, piece.x, piece.y, segmentRotation);
+      let reason = getPlaceBuildingFailureReason(
+        state,
+        piece.type,
+        piece.x,
+        piece.y,
+        placementRotation,
+      );
       if (replacing !== undefined) {
         const withoutReplacement: WorldState = {
           ...state,
           buildings: state.buildings.filter((building) => building.id !== replacing.id),
         };
-        valid = getPlaceBuildingFailureReason(
+        reason = getPlaceBuildingFailureReason(
           withoutReplacement,
           piece.type,
           piece.x,
           piece.y,
-          segmentRotation,
-        ) == null;
+          placementRotation,
+        );
       }
       return {
         x: piece.x,
         y: piece.y,
         placeType: piece.type,
-        rotation: piece.rotation,
+        rotation: segmentRotation,
         junctionInfo: piece.junctionInfo,
         replacesBuildingId: piece.replacesBuildingId,
-        valid,
+        valid: reason == null,
+        reason: reason ?? undefined,
       };
     }),
   };
+}
+
+/**
+ * The one reason a whole stroke was refused, chosen from the per-segment verdicts the preview
+ * already carries. `research` outranks terrain because a locked piece is refused whichever ground
+ * it lands on, so naming the water would hide the real gate.
+ */
+const STRIP_REFUSAL_PRIORITY = ['research', 'terrain', 'unique', 'blocked'] as const;
+
+function worstStripRefusal(
+  segments: readonly StripSegment[],
+): StripSegment['reason'] | null {
+  for (const reason of STRIP_REFUSAL_PRIORITY) {
+    if (segments.some((segment) => segment.reason === reason)) return reason;
+  }
+  return null;
 }
 
 export function placeStripChain(
@@ -277,25 +301,38 @@ export function placeStripChain(
   let placed = 0;
   let firstX = 0;
   let firstY = 0;
+  let lastX = 0;
+  let lastY = 0;
   const replaced = new Set<number>();
   let lockedSkips = 0;
+  // A stroke paves what it can and says what it skipped, rather than refusing the whole run for one
+  // bad tile: the ground under a long drag is never uniform, and a silent no-op reads as a broken tool.
+  const refused: StripSegment[] = [];
+  let ranOut = false;
 
   for (const segment of segments) {
-    if (!segment.valid) continue;
+    if (!segment.valid) {
+      refused.push(segment);
+      continue;
+    }
     const placeType = segment.placeType ?? type;
     const placeRotation = segment.rotation ?? rotation;
-    const segmentRotation = segmentRotationForPlacement(placeType, placeRotation);
+    const segmentRotation = placementRotationFor(placeRotation);
     const config = BUILDING_CONFIGS[placeType];
 
     if (!isStripSegmentTechUnlocked(type, placeType, state)) {
       lockedSkips++;
+      refused.push(segment);
       continue;
     }
     if (
       state.resources.wood < config.cost.wood
       || state.resources.stone < config.cost.stone
       || state.resources.gold < config.cost.gold
-    ) break;
+    ) {
+      ranOut = true;
+      break;
+    }
 
     const replacementId = segment.replacesBuildingId;
     let placementChecked = false;
@@ -316,7 +353,10 @@ export function placeStripChain(
           segment.y,
           segmentRotation,
         );
-        if (failure) continue;
+        if (failure) {
+          refused.push({ ...segment, valid: false, reason: failure });
+          continue;
+        }
         // The replaced building leaves through the removal owner (counter, adjacency, road cache)
         // and is refunded through the capped refund owner — the plain demolition answers.
         removeBuildingFromState(state, existing);
@@ -328,14 +368,17 @@ export function placeStripChain(
 
     if (!placementChecked) {
       const failure = getPlaceBuildingFailureReason(state, placeType, segment.x, segment.y, segmentRotation);
-      if (failure) continue;
+      if (failure) {
+        refused.push({ ...segment, valid: false, reason: failure });
+        continue;
+      }
     }
 
     state.resources.wood -= config.cost.wood;
     state.resources.stone -= config.cost.stone;
     state.resources.gold -= config.cost.gold;
 
-    const cornerRotation = normalizeBuildingRotation(placeRotation);
+    const cornerRotation = placementRotationFor(placeRotation);
     const building = createBuilding(placeType, segment.x, segment.y, state.nextBuildingId++, cornerRotation);
     building.spriteScale = 0;
     state.buildings.push(building);
@@ -344,19 +387,42 @@ export function placeStripChain(
       firstX = segment.x;
       firstY = segment.y;
     }
+    lastX = segment.x;
+    lastY = segment.y;
     placed++;
   }
 
   if (placed === 0) {
     const sample = segments.find((segment) => segment.valid) ?? segments[0];
     if (lockedSkips > 0) return notifyBuildingLocked(state, sample.placeType ?? type);
-    addFloatingText(state, sample.x, sample.y, 'Cannot build strip here', '#ef4444');
+    const reason = worstStripRefusal(refused);
+    addFloatingText(
+      state,
+      sample.x,
+      sample.y,
+      reason
+        ? getPlaceBuildingFailureLabel(sample.placeType ?? type, reason, state.researchNodes)
+        : 'Cannot build strip here',
+      '#ef4444',
+    );
     return state;
   }
 
   createDeathParticles(state, firstX, firstY, '#ffd700', Math.min(12, 4 + placed), 'star');
   const label = placed === 1 ? BUILDING_CONFIGS[segments[0].placeType ?? type].label : `${placed} segments`;
   addFloatingText(state, firstX, firstY - 10, `🔨 ${label}`, '#22c55e', 'brief');
+  if (ranOut) {
+    addFloatingText(state, lastX, lastY - 10, 'Out of wood/stone — stroke stopped', '#ef4444');
+  } else if (refused.length > 0) {
+    const reason = worstStripRefusal(refused);
+    addFloatingText(
+      state,
+      lastX,
+      lastY - 10,
+      `${refused.length} skipped${reason ? ` — ${getPlaceBuildingFailureLabel(type, reason, state.researchNodes)}` : ''}`,
+      '#f59e0b',
+    );
+  }
   impulseScreenShake(state, placed > 3 ? 3 : 2);
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;

@@ -1,12 +1,14 @@
-import { BUILDING_CONFIGS } from '../buildings';
+import { BUILDING_CONFIGS, BuildingType } from '../buildings';
 import { isDecorType } from '../beautyGrid';
 import { getPlaceBuildingFailureLabel } from '../buildingPlacementLabels';
 import { drawProceduralDecor } from '../decorRender';
-import { getBuildingFootprintForType } from '../buildingRotation';
+import { getBuildingFootprintForType, placementRotationFor } from '../buildingRotation';
+import { getBuildingFootprintRect } from '../buildingGeometry';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { getSpriteFrame } from '../spriteLoader';
 import { isStripBuildType } from '../stripBuild';
 import type { RenderSnapshot } from '../renderSnapshot';
+import { drawProceduralStripBuilding } from '../stripRender';
 import { darkerColor, DEFAULT_SPRITE_DISPLAY_SCALE, motionTime } from './shared';
 import { footprintGroundRise } from './buildings';
 import { drawBuildingPad, drawBuildingSprite } from './spriteDrawing';
@@ -41,9 +43,109 @@ function previewGlowGradient(
   return gradient;
 }
 
+/**
+ * The whole drag stroke, drawn segment by segment while the button is held: green where the
+ * placement owner will pave, red where it will refuse. Read-only — the owner's `buildStripPreview`
+ * decides every verdict, this only paints it, so no second validator exists here.
+ */
+export function drawStripBuildPreview(
+  ctx: CanvasRenderingContext2D,
+  state: RenderSnapshot,
+  cw: number,
+  ch: number,
+): void {
+  const preview = state.buildStripPreview;
+  if (!preview || preview.segments.length === 0) return;
+  const cam = state.camera;
+  const zoom = cam.zoom > 0 ? cam.zoom : 1;
+  const pulse = 0.4 + Math.sin(motionTime * 4.5) * 0.12;
+  const labelSize = Math.max(10, Math.round(11 * zoom));
+  let blocked = 0;
+  let sampleX = 0;
+  let sampleY = 0;
+
+  ctx.save();
+  for (const segment of preview.segments) {
+    const footprint = getBuildingFootprintForType(segment.placeType, segment.rotation);
+    const sx = (segment.x - cam.x) * zoom + cw / 2;
+    const rect = getBuildingFootprintRect({
+      x: segment.x,
+      y: segment.y,
+      width: footprint.width,
+      height: footprint.height,
+    });
+    const sy = (segment.y - cam.y) * zoom + ch / 2
+      - footprintGroundRise(state.worldMap, {
+        x: segment.x,
+        y: segment.y,
+        width: footprint.width,
+        height: footprint.height,
+      }) * zoom;
+    const w = footprint.width * zoom;
+    const h = footprint.height * zoom;
+    if (w <= 0 || h <= 0) continue;
+    if (sx + w < 0 || sx - w > cw || sy + h < 0 || sy - h > ch) continue;
+    sampleX = sx;
+    sampleY = sy + h / 2;
+
+    ctx.globalAlpha = segment.valid ? 0.72 : 0.5;
+    ctx.fillStyle = segment.valid ? 'rgba(34, 197, 94, 0.22)' : 'rgba(239, 68, 68, 0.26)';
+    ctx.fillRect(sx - w / 2, sy - h / 2, w, h);
+    if (segment.valid) {
+      drawProceduralStripBuilding(
+        ctx,
+        segment.placeType,
+        sx,
+        sy,
+        w,
+        h,
+        placementRotationFor(segment.rotation),
+        0.72,
+      );
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = Math.max(1.2, 1.5 * zoom);
+    ctx.strokeStyle = segment.valid ? `rgba(16, 185, 129, ${pulse + 0.5})` : 'rgba(248, 113, 113, 0.95)';
+    ctx.setLineDash(segment.valid ? [] : [Math.max(3, 4 / zoom), Math.max(3, 3 / zoom)]);
+    ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
+    ctx.setLineDash([]);
+    if (!segment.valid) {
+      blocked++;
+      // The little "×" is the only mark a single refused tile gets; the reason rides the label below.
+      const arm = Math.min(w, h) * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(sx - arm, sy - arm * 0.5);
+      ctx.lineTo(sx + arm, sy + arm * 0.5);
+      ctx.moveTo(sx + arm, sy - arm * 0.5);
+      ctx.lineTo(sx - arm, sy + arm * 0.5);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // One label for the stroke: how much of it will land, and the reason the rest will not.
+  const reason = preview.segments.find((segment) => segment.reason)?.reason;
+  const text = blocked === 0
+    ? `${preview.segments.length} tiles — release to lay`
+    : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+  ctx.save();
+  ctx.font = `bold ${labelSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const width = ctx.measureText(text).width;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(sampleX - width / 2 - 6, sampleY + 6, width + 12, labelSize + 8);
+  ctx.fillStyle = blocked === 0 ? '#6ee7b7' : '#fca5a5';
+  ctx.fillText(text, sampleX, sampleY + 10);
+  ctx.restore();
+}
+
 export function drawBuildPreview(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (!state.buildMode) return;
-  if (state.buildStripPreview && isStripBuildType(state.buildMode)) return;
+  if (state.buildStripPreview && isStripBuildType(state.buildMode)) {
+    drawStripBuildPreview(ctx, state, cw, ch);
+    return;
+  }
   if (!state.buildGhost) return;
   const cfg = BUILDING_CONFIGS[state.buildMode];
   const footprint = getBuildingFootprintForType(state.buildMode, state.buildRotation);

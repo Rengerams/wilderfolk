@@ -548,6 +548,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplace?.type === BuildingType.Church &&
       workplace.completed &&
       isOnMoonHowlerNightShift(state.tick, hourOfDay);
+    // Ordinary service: the church is a day-shift post too, so the priest works the colony's window
+    // (`ordinaryWorkplace` excludes the church because this predicate, not the generic one, owns it).
+    const onPriestShift =
+      entity.job === JobType.Priest &&
+      workplace?.type === BuildingType.Church &&
+      workplace.completed &&
+      goWorkTime;
 
     const isPrisonGuardAtPost =
       entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
@@ -567,7 +574,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onJobShift || onOfficialShift,
       isInnkeeper,
     );
-    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift)) recordScheduleWorkTick(entity);
+    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
 
     const inFocus = !focus || isInFocus(entity, focus);
     const active =

@@ -50,6 +50,11 @@ export function toggleBuildingRotation(rotation: BuildingRotation): BuildingRota
   return rotation === 0 ? 90 : 0;
 }
 
+/** A plan piece's rotation reduced to the run axis — the only form the placement rules accept. */
+export function placementRotationFor(rotation: BuildingRotation | CornerRotation): BuildingRotation {
+  return normalizeBuildingRotation(rotation);
+}
+
 /**
  * The rotation to actually apply to a building — its stored rotation when the player may rotate that
  * type, and none otherwise.

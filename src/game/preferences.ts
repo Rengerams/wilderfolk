@@ -4,6 +4,7 @@ const JUICE_EFFECTS_KEY = 'wilderfolk-juice-effects';
 const FIRST_NIGHT_WARNING_KEY = 'wilderfolk-first-night-warning-dismissed';
 const SHOW_SIM_TICK_KEY = 'wilderfolk-show-sim-tick';
 const SHOW_FPS_KEY = 'wilderfolk-show-fps';
+const VALLEY_STAGE_WARNINGS_KEY = 'wilderfolk-valley-stage-warnings';
 const TUTORIAL_CHOICE_KEY = 'wilderfolk-tutorial-choice';
 const INTRO_SEEN_KEY = 'wilderfolk-intro-seen';
 
@@ -112,6 +113,15 @@ export function saveShowSimTick(enabled: boolean): void {
 
 export function loadShowFps(): boolean {
   return readBoolPreference(SHOW_FPS_KEY, false);
+}
+
+/** Valley stage warnings: notification + big news when the ladder moves. Default on. */
+export function loadValleyStageWarnings(): boolean {
+  return readBoolPreference(VALLEY_STAGE_WARNINGS_KEY, true);
+}
+
+export function saveValleyStageWarnings(enabled: boolean): void {
+  writeBoolPreference(VALLEY_STAGE_WARNINGS_KEY, enabled);
 }
 
 export function saveShowFps(enabled: boolean): void {

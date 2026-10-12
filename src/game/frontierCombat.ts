@@ -143,12 +143,6 @@ export function getRivalRaidStrength(rival: RivalSettlement): number {
 /** Adults the raid numbers are tuned for — the village size a camp's own war-band is a match for. */
 export const RAID_GROWTH_BASE_ADULTS = 8;
 
-/**
- * Ceiling on raid pressure. Growth is sublinear in adults and stops here, so a large colony is raided
- * hard but never by an unbounded war-band — measured against militia strength, not a fixed prize.
- */
-export const RAID_GROWTH_MAX_SCALE = 6;
-
 /** Ceiling on one raid's prize, in the same units as `getRaidGrowthScale` — the prize rides the raid. */
 export const RAID_LOOT_MAX_SCALE = 3.5;
 
@@ -156,14 +150,13 @@ export const RAID_LOOT_MAX_SCALE = 3.5;
  * Raid pressure as a multiple of the camp's own war-band: a village of `RAID_GROWTH_BASE_ADULTS` is
  * raided at the camp's raw strength, and every further band of adults scales the raid with it.
  *
- * The square root is what keeps the two sides from cancelling out: linear scaling matched militia
- * growth exactly, so the ratio (and the outcome tier) never moved, and a 1 600-settler colony was
- * raided at 54 strength forever. This reaches `RAID_GROWTH_MAX_SCALE` and holds.
+ * Linear is deliberate and pinned by `tests/frontierCombat.raidGold.test.ts`: militia strength grows
+ * with the same adults, so the ratio — and therefore `resolveDefenseRatio`'s tier — stays flat and
+ * growth never turns a raid into a walkover. Escalation comes from the camp's own growth instead.
  */
 export function getRaidGrowthScale(adultCount: number): number {
   const adults = Number.isFinite(adultCount) ? Math.max(0, adultCount) : 0;
-  const bands = adults / RAID_GROWTH_BASE_ADULTS;
-  return Math.max(1, Math.min(RAID_GROWTH_MAX_SCALE, Math.sqrt(bands)));
+  return Math.max(1, adults / RAID_GROWTH_BASE_ADULTS);
 }
 
 /** How much of the growth multiple a raid can carry off as loot — bounded by `RAID_LOOT_MAX_SCALE`. */
@@ -745,7 +738,10 @@ const RAID_LOOT_MIN_STORE_SHARE = 0.005;
 /** Gold carries no storage cap, so its floor is a share of the purse rather than a food-scaled one. */
 const RAID_LOOT_MIN_GOLD_SHARE = 0.02;
 
-/** Raises a rolled prize to that floor; it never lowers a roll, so a small colony keeps its own risk. */
+/**
+ * Raises a rolled prize to that floor. Applied to the take, never to the queued event: clamping to
+ * stores there would shrink a large camp's war-band to whatever the colony happened to be holding.
+ */
 export function raiseRaidLootToFloor(loot: RaidLootBundle, state: WorldState): RaidLootBundle {
   const food = Math.min(state.resources.food, Math.max(loot.food, Math.round(state.resources.food * RAID_LOOT_MIN_STORE_SHARE)));
   const wood = Math.min(state.resources.wood, Math.max(loot.wood, Math.round(state.resources.wood * RAID_LOOT_MIN_STORE_SHARE)));
@@ -779,7 +775,7 @@ function formatLootParts(loot: RaidLootBundle, prefix = ''): string {
 
 /** Deduct stores when raiders get through — returns what was actually taken. */
 function applyRaidLootTaken(state: WorldState, loot: RaidLootBundle, fraction = 1): RaidLootBundle {
-  const target = scaleRaidLoot(loot, fraction);
+  const target = scaleRaidLoot(raiseRaidLootToFloor(loot, state), fraction);
   const taken: RaidLootBundle = { food: 0, wood: 0, stone: 0, gold: 0 };
   if (target.food > 0) {
     // `spendFood` returns what was actually taken, which is exactly the `min(food, target)` this used
@@ -973,7 +969,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   // threat — and as real a loss — to a grown village as it was to a young one.
   const growth = getRaidGrowthScale(computeMilitiaBreakdown(state, allAlive).adultCount);
   const attackerStrength = Math.round(getRivalRaidStrength(rival) * growth);
-  const loot = raiseRaidLootToFloor(multiplyRaidLoot(rollIncomingRaidLoot(rival), growth), state);
+  const loot = multiplyRaidLoot(rollIncomingRaidLoot(rival), growth);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
   const marchDistanceTiles = getCampDistanceTiles(marchDistancePx);
   const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);

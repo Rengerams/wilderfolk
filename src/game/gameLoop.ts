@@ -962,7 +962,9 @@ export class GameLoop {
       v.showGrid ? 1 : 0,
       v.showPaths ? 1 : 0,
       ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
-      strip ? `${strip.segments.length}|${strip.rotation}` : '',
+      // The whole stroke, not just its length and axis: the preview is what the player is judging,
+      // and a stroke that slides one tile over keeps its count.
+      strip ? `${strip.segments.length}|${strip.rotation}|${strip.segments[0].x},${strip.segments[0].y}|${strip.segments[strip.segments.length - 1].x},${strip.segments[strip.segments.length - 1].y}|${strip.segments[0].valid ? 1 : 0}` : '',
       this.renderSoA ? 'soa' : 'obj',
     ].join('|');
   }

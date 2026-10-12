@@ -92,7 +92,7 @@ const MOBILE_BASE = {
   [EntityType.Wolf]: { speed: 4, fleeRange: 0, huntRange: 350, wanderRadius: 220 },
   [EntityType.Fox]: { speed: 3.0, fleeRange: 90, huntRange: 100, wanderRadius: 100 },
   [EntityType.Werewolf]: { speed: 3.4, fleeRange: 0, huntRange: 150, wanderRadius: 150 },
-  [EntityType.Wildkin]: { speed: 3.2, fleeRange: 100, huntRange: 0, wanderRadius: 90 },
+  [EntityType.Wildkin]: { speed: 3.2, fleeRange: 0, huntRange: 350, wanderRadius: 90 },
 } as const;
 
 describe('wildlife scales with the map', () => {

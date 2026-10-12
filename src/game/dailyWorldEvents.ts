@@ -89,7 +89,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     state.festival = { active: true, name: seasonalName, daysLeft: 5 };
     addReputation(state, 5);
     addBigNews(state, '🎉 Festival!', `${seasonalName} has begun! Production, courtship, and immigration are boosted for 5 days.`, 'positive');
-    logEvent(state, 'season', `${seasonalName} festival began in the village`);
+    logEvent(state, 'season', `${seasonalName} began in the village`);
     trackYearEvent(state, seasonalName);
     festivalStartedThisTick = true;
   }
@@ -110,7 +110,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
     state.townHallFestivalCooldownUntilTick = state.tick + getTownHallFestivalCooldownTicks();
     addReputation(state, 10);
     addBigNews(state, '🎉 Festival!', `${name} has begun! Production, courtship, and immigration are boosted for ${state.festival.daysLeft} days.`, 'positive');
-    logEvent(state, 'season', `${name} festival began in the village`);
+    logEvent(state, 'season', `${name} began in the village`);
     festivalStartedThisTick = true;
   }
 

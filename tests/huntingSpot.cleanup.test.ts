@@ -216,6 +216,9 @@ describe('Hunting Spot wildlife cleanup', () => {
         expect.objectContaining({ id: 2, type: EntityType.Deer }),
         undefined,
         TICKS_PER_DAY,
+        // The world, so a Wildkin's death can be chronicled from the one transition every wildlife
+        // death passes through (wildkinChronicle.logWildkinDeath).
+        state,
       );
       // The fourth argument is the tick's `byType` buckets: passing them scopes the reverse-hunt sweep
       // to HUNTER_TYPES instead of every living entity (`simulationEntities.clearHuntersTargetingPrey`,

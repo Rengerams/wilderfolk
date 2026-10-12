@@ -250,7 +250,13 @@ function SettlersTable({
               <td className="py-1 pr-2 capitalize text-sky-200">{s.role}</td>
               <td className="py-1 pr-2 text-stone-300">{s.hoursToday}h</td>
               <td className="py-1 pr-2 text-stone-300">{s.energyPct}%</td>
-              <td className={`py-1 ${STATUS_STYLE[s.status] ?? 'text-stone-400'}`}>{s.status}</td>
+              <td className={`py-1 ${STATUS_STYLE[s.status] ?? 'text-stone-400'}`}>
+                {s.status}
+                {/* A posted settler who logged no work is told why, from the absence owner. */}
+                {s.status === 'idle' && s.workReason.code !== 'no-post' && (
+                  <span className="block text-[9px] font-normal text-stone-400">{s.workReason.label}</span>
+                )}
+              </td>
               <td className="py-1">
                 {s.juvenile && (
                   <span className="mr-1 rounded bg-stone-800 px-1 py-0.5 text-[9px] text-sky-300" title="Child — too young to take a job">

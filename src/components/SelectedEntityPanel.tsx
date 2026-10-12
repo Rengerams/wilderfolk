@@ -177,6 +177,11 @@ export default function SelectedEntityPanel({
               {activityProjection.blockedReason && (
                 <p className="mt-1 rounded bg-rose-950/50 px-1.5 py-1 text-rose-200">Blocked: {activityProjection.blockedReason}</p>
               )}
+              {activityProjection.workReason.code !== 'working' && (
+                <p className="mt-1 rounded bg-amber-950/50 px-1.5 py-1 text-amber-100">
+                  🔨 {activityProjection.workReason.label}
+                </p>
+              )}
             </div>
           )}
           {movementExplanation && (

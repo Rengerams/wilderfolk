@@ -10,6 +10,7 @@
 import { EntityType, type Entity, type WorldState } from './gameTypes';
 import { BIOME_BY_IDX } from './terrain/biomes';
 import { TERRAIN_CELL } from './terrain/terrainGrid';
+import { gridCellAxis } from './spatialGrid';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
 
@@ -44,15 +45,19 @@ function compassSector(dx: number, dy: number): string {
   return COMPASS_SECTORS[Math.round(degrees / 45) % COMPASS_SECTORS.length];
 }
 
-/** The biome cell the generator classified at a world position, or `null` off-map / legacy map. */
+/**
+ * The biome cell the generator classified at a world position, or `null` off-map / legacy map.
+ * The cell axis comes from the one owner of the clamp (`spatialGrid.gridCellAxis`), so a world
+ * position lands on the same cell here as it does in every uniform grid.
+ */
 export function biomeNameAt(state: WorldState, x: number, y: number): string | null {
   const map = state.worldMap;
   const cols = map?.cols;
   const rows = map?.rows;
   const terrain = map?.terrain;
   if (!map || !cols || !rows || !terrain) return null;
-  const tx = Math.min(cols - 1, Math.max(0, Math.floor(x / TERRAIN_CELL)));
-  const ty = Math.min(rows - 1, Math.max(0, Math.floor(y / TERRAIN_CELL)));
+  const tx = gridCellAxis(x, TERRAIN_CELL, cols);
+  const ty = gridCellAxis(y, TERRAIN_CELL, rows);
   return BIOME_BY_IDX[terrain[ty * cols + tx]]?.name ?? null;
 }
 

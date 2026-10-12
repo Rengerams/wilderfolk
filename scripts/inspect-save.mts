@@ -5,19 +5,38 @@
  * load failure into a player-facing guess, so a sent-in save has to be run through the
  * real path outside the browser to see the failing step.
  *
- * Usage: npx tsx scripts/inspect-save.mts <save.json>
+ * Usage: npx tsx scripts/inspect-save.mts <save.json> [--days=N] [--shifts]
+ *
+ * `--days=N` walks the sim forward on the walkability grid; `--shifts` censuses one week of
+ * attendance per trade. Both unpause the loaded world first.
  */
 import { readFileSync } from 'node:fs';
 import { describeSaveReadFailure, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
-import { BuildingType, EntityType, PATH_CELL } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, PATH_CELL } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import {
+  getAbsoluteCalendarDay,
+  getHourOfDay,
+  getWeekdayLabel,
+  isStartOfClockHour,
+} from '../src/game/dayCycleClock';
 import { gameTick } from '../src/game/gameTick';
 import { getPathGrid, type PathGrid } from '../src/game/pathfinding';
 import { isWalkableTerrainType, tileAt, Walkability } from '../src/game/terrain/terrainGrid';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { humanDisplayName } from '../src/game/citizenId';
+import { prisonGuardIds } from '../src/game/prisonGuardDuty';
+import {
+  prisonRoster,
+  shiftCoversHour,
+  vacantPrisonShifts,
+} from '../src/game/prisonShifts';
+import { BUILDING_CONFIGS } from '../src/game/buildings';
+import { isNearBuilding } from '../src/game/simulation/humanRelationships';
+import { isAsleepAtHome } from '../src/game/humanSchedule';
+import { ticksForDays } from '../src/game/dayCycleClock';
 
 const file = process.argv[2];
 if (!file) {
@@ -283,4 +302,284 @@ function reportGroundAudit(world: WorldState, map: NonNullable<WorldState['world
       `  ${kind ?? '?'} #${entity.id} ${humanDisplayName(entity)} ${entity.x.toFixed(0)},${entity.y.toFixed(0)} tile=${tile?.type ?? 'none'} job=${String(entity.job ?? '-')}`,
     );
   }
+}
+
+/** The trades the attendance census samples, with the duty window each one is paid for. */
+const CENSUS_TRADES: ReadonlyArray<{ job: JobType; window: string }> = [
+  { job: JobType.Official, window: 'workday' },
+  { job: JobType.Priest, window: 'workday, plus the full-moon night' },
+  { job: JobType.PrisonGuard, window: 'rostered watch, all 24 h' },
+  { job: JobType.Innkeeper, window: 'tavern 17-23' },
+  { job: JobType.Hotelier, window: 'hotel 06-22' },
+];
+
+/**
+ * `--shifts`: one week of the loaded colony, sampled at 23:00 — does each trade record attendance?
+ *
+ * `scheduleWorkedTicksToday` is the live accumulator the day boundary settles into
+ * `scheduleLastWorkedHours`, so a trade that reads zero at every sample never recorded a shift.
+ * The load restores `paused: true` and `gameTick` returns immediately on that flag, so the flag is
+ * cleared first: without that the whole week reads a clean zero and proves nothing.
+ */
+function reportShiftAttendanceCensus(world: WorldState): void {
+  if (world.paused) {
+    console.log('  (the load restores the world paused — unpausing to run)');
+    world.paused = false;
+  }
+
+  const sampleHour = 23;
+  console.log(`\nshift attendance census — sampled at ${String(sampleHour).padStart(2, '0')}:00, ${TICKS_PER_HOUR} ticks per hour`);
+  console.log('  day  weekday  trade         n   ticksToday  h today  lastWorkedHours  window');
+  for (let day = 0; day < 7; day++) {
+    for (let step = 0; step < TICKS_PER_DAY; step++) {
+      gameTick(world);
+      if (getHourOfDay(world.tick) !== sampleHour || !isStartOfClockHour(world.tick)) continue;
+      for (const trade of CENSUS_TRADES) {
+        const crew = world.entities.filter(
+          (entity) => entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && entity.job === trade.job,
+        );
+        let ticksSum = 0;
+        let settledSum = 0;
+        for (const entity of crew) {
+          ticksSum += entity.scheduleWorkedTicksToday ?? 0;
+          settledSum += entity.scheduleLastWorkedHours ?? 0;
+        }
+        const ticks = crew.length > 0 ? ticksSum / crew.length : 0;
+        const settled = crew.length > 0 ? settledSum / crew.length : 0;
+        console.log(
+          `  ${String(getAbsoluteCalendarDay(world.tick)).padStart(4)}  ${getWeekdayLabel(world.tick).padEnd(7)}  `
+          + `${trade.job.padEnd(12)}  ${String(crew.length).padStart(3)}  `
+          + `${ticks.toFixed(2).padStart(10)}  ${(ticks / TICKS_PER_HOUR).toFixed(2).padStart(7)}  `
+          + `${settled.toFixed(2).padStart(15)}  ${trade.window}`,
+        );
+      }
+    }
+  }
+}
+
+if (process.argv.includes('--shifts')) reportShiftAttendanceCensus(loaded.world);
+
+/** The post radius the presence sampler uses, read once so the report states the same number. */
+const POST_RADIUS_PX = 55;
+
+/** One recorded unguarded hour: which prison, when, and why nobody stood on the post. */
+interface UnguardedHour {
+  prisonId: number;
+  day: number;
+  hour: number;
+  reason: string;
+}
+
+/** Distance from a settler to a building's centre — the measure `isNearBuilding` tests. */
+function distanceToCentre(entity: Entity, building: Building): number {
+  return Math.hypot(
+    entity.x - (building.x + building.width / 2),
+    entity.y - (building.y + building.height / 2),
+  );
+}
+
+/**
+ * Why nobody stood on the post this hour. Read-only: every fact comes from the owners the sampler
+ * itself reads, so the report cannot disagree with the roll it is explaining.
+ */
+function unguardedReason(
+  world: WorldState,
+  prison: Building,
+  guardIds: readonly number[],
+  hour: number,
+): string {
+  if (guardIds.length === 0) return 'no guard assigned to the prison';
+  const onPost = guardIds.filter((id) => {
+    const guard = world.entities.find((e) => e.id === id && e.alive);
+    return guard != null && isNearBuilding(guard, prison, POST_RADIUS_PX);
+  });
+  if (onPost.length > 0) return 'a guard stood on the post (not recorded by the code)';
+  const roster = prisonRoster(guardIds, world.tick);
+  const covering = roster.filter((entry) => entry.guardId != null && shiftCoversHour(entry.shift, hour));
+  if (covering.length === 0) {
+    return vacantPrisonShifts(roster).length > 0
+      ? `no shift staffed at ${hour}:00 (${vacantPrisonShifts(roster).length} vacant)`
+      : 'no roster shift covers this hour';
+  }
+  const states: string[] = [];
+  for (const entry of covering) {
+    const guard = world.entities.find((e) => e.id === entry.guardId && e.alive);
+    if (!guard) continue;
+    const dist = distanceToCentre(guard, prison);
+    const moving = Math.hypot(guard.vx ?? 0, guard.vy ?? 0) > 0.01;
+    const asleep = isAsleepAtHome(guard, world.buildings, hour);
+    states.push(
+      `${entry.shift.key} guard #${guard.id} ${dist.toFixed(0)}px ${moving ? 'walking' : 'standing'}`
+      + `${asleep ? ' asleep at home' : ''}`,
+    );
+  }
+  if (states.length === 0) return 'the rostered guard is missing or dead';
+  const walking = states.some((state) => state.includes('walking'));
+  const asleep = states.some((state) => state.includes('asleep'));
+  if (asleep) return `the on-duty guard was asleep at home (${states.join('; ')})`;
+  if (walking) return `the on-duty guard was walking, ${POST_RADIUS_PX}px from the post (${states.join('; ')})`;
+  return `the on-duty guard stood away from the post (${states.join('; ')})`;
+}
+
+/** One prisoner, shaped the way the arrest path shapes one (no job, no home, a long sentence). */
+function imprisonForWatch(world: WorldState, prison: Building, settler: Entity): void {
+  world.buildings.forEach((building) => {
+    if (building.occupants?.includes(settler.id)) {
+      building.occupants = building.occupants.filter((id) => id !== settler.id);
+    }
+  });
+  settler.homeBuildingId = undefined;
+  settler.residenceBuildingId = undefined;
+  settler.job = JobType.Settler;
+  settler.occupation = 'settler';
+  settler.prisonBuildingId = prison.id;
+  settler.prisonSentenceCrime = 'scandal';
+  settler.prisonerUntilTick = world.tick + ticksForDays(30);
+  settler.x = prison.x + 4;
+  settler.y = prison.y + 10;
+  settler.vx = 0;
+  settler.vy = 0;
+  if (!prison.occupants.includes(settler.id)) prison.occupants.push(settler.id);
+}
+
+/**
+ * `--prison=DAYS`: runs the loaded colony forward and reports what the escape rule actually does.
+ *
+ * A load has no prisoners, so the watch lends each staffed Prison one prisoner per day — the arrest
+ * path's own shape — which is the state the roll needs to be measurable at all.
+ */
+function reportPrisonEscapeWatch(world: WorldState, days: number): void {
+  if (world.paused) {
+    console.log('  (the load restores the world paused — unpausing to run)');
+    world.paused = false;
+  }
+
+  const prisons = (): Building[] =>
+    world.buildings.filter(
+      (b) => b.completed && b.type === BuildingType.Prison && b.faction !== 'rival'
+        && (b.occupants ?? []).length > 0,
+    );
+
+  console.log(`\nprison escape watch — ${days} day(s) from tick ${world.tick}`);
+  console.log('  prisons at load (completed, player, occupied):');
+  for (const prison of prisons()) {
+    const guards = prisonGuardIds(world, prison.occupants ?? []);
+    const roster = prisonRoster(guards, world.tick);
+    console.log(
+      `    #${prison.id} at ${prison.x},${prison.y} · occupants ${(prison.occupants ?? []).length}`
+      + ` · guards ${guards.length} (cap ${BUILDING_CONFIGS[BuildingType.Prison].maxOccupants} slots)`
+      + ` · roster ${roster.map((r) => `${r.shift.key}:${r.guardId ?? '-'}`).join(' ')}`,
+    );
+  }
+
+  const used = new Set<number>();
+  let rolls = 0;
+  let sampled = 0;
+  const unguarded: UnguardedHour[] = [];
+  const escapeMessages: string[] = [];
+  const logStart = world.eventLog.length;
+  const running = new Map<number, Set<number>>();
+  const dayRows: string[] = [];
+
+  for (let day = 0; day < days; day++) {
+    // A prisoner per staffed prison: without one the sampler and the roll both skip the building.
+    for (const prison of prisons()) {
+      if (prisonGuardIds(world, prison.occupants ?? []).length === 0) continue;
+      if (world.entities.some((e) => e.alive && e.prisonBuildingId === prison.id)) continue;
+      const settler = world.entities.find(
+        (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile && e.job !== JobType.PrisonGuard
+          && e.prisonBuildingId == null && e.homeBuildingId == null && !used.has(e.id),
+      );
+      if (!settler) continue;
+      used.add(settler.id);
+      imprisonForWatch(world, prison, settler);
+    }
+
+    let daySamples = 0;
+    let dayRolls = 0;
+    for (let step = 0; step < TICKS_PER_DAY; step++) {
+      gameTick(world);
+      // The roll runs in the daily layer of the boundary tick and clears the list there, so the hour
+      // it sampled for the new day is the one this observation cannot see.
+      const rolledNow = world.tick % TICKS_PER_DAY === 0;
+      for (const prison of world.buildings) {
+        if (prison.type !== BuildingType.Prison || prison.faction === 'rival') continue;
+        const set = running.get(prison.id) ?? new Set<number>();
+        for (const hour of prison.uncoveredPrisonHours ?? []) {
+          if (set.has(hour)) continue;
+          set.add(hour);
+          daySamples++;
+          sampled++;
+          unguarded.push({
+            prisonId: prison.id,
+            day: getAbsoluteCalendarDay(world.tick),
+            hour,
+            reason: unguardedReason(
+              world,
+              prison,
+              prisonGuardIds(world, prison.occupants ?? []),
+              hour,
+            ),
+          });
+        }
+        running.set(prison.id, set);
+        if (!rolledNow) continue;
+        // The roll's own hour set: the day's samples unioned with every vacant shift's hours.
+        const guards = prisonGuardIds(world, prison.occupants ?? []);
+        const roster = prisonRoster(guards, world.tick);
+        const vacantHours = new Set<number>();
+        for (const entry of roster) {
+          if (entry.guardId != null) continue;
+          for (let hour = 0; hour < 24; hour++) {
+            if (shiftCoversHour(entry.shift, hour)) vacantHours.add(hour);
+          }
+        }
+        const held = world.entities.some((e) => e.alive && e.prisonBuildingId === prison.id);
+        const rolled = held ? new Set<number>([...set, ...vacantHours]).size : 0;
+        dayRolls += rolled;
+        rolls += rolled;
+        set.clear();
+      }
+    }
+    for (const event of world.eventLog.slice(logStart)) {
+      if (event.message.includes('slipped out') && !escapeMessages.includes(event.message)) {
+        escapeMessages.push(event.message);
+      }
+    }
+    dayRows.push(
+      `  day ${String(day + 1).padStart(2)}  tick ${String(world.tick).padStart(6)}`
+      + `  sampled hours ${String(daySamples).padStart(2)}  escape rolls ${String(dayRolls).padStart(2)}`
+      + `  prisoners held ${String(world.entities.filter((e) => e.alive && e.prisonBuildingId != null).length).padStart(2)}`,
+    );
+  }
+  for (const row of dayRows) console.log(row);
+
+  const hours = new Map<number, number>();
+  for (const sample of unguarded) hours.set(sample.hour, (hours.get(sample.hour) ?? 0) + 1);
+  const reasons = new Map<string, number>();
+  for (const sample of unguarded) {
+    const key = sample.reason.replace(/#\d+/g, '#N').replace(/\d+px/g, 'Npx');
+    reasons.set(key, (reasons.get(key) ?? 0) + 1);
+  }
+  const perPrison = new Map<number, number>();
+  for (const sample of unguarded) perPrison.set(sample.prisonId, (perPrison.get(sample.prisonId) ?? 0) + 1);
+
+  console.log(`  unguarded hours recorded: ${sampled} over ${days} day(s) — ${(sampled / days).toFixed(2)}/day`);
+  console.log(`  escape rolls: ${rolls} — ${(rolls / days).toFixed(2)}/day`);
+  console.log(`  escapes: ${escapeMessages.length} — ${(escapeMessages.length / days).toFixed(3)}/day`
+    + ` (${(escapeMessages.length / days * 360).toFixed(1)}/year)`);
+  for (const message of escapeMessages) console.log(`    ${message}`);
+  console.log(`  unguarded hours per prison: ${[...perPrison.entries()].map(([id, n]) => `#${id}=${n}`).join(' ') || 'none'}`);
+  console.log(`  unguarded hours by clock hour: ${[...hours.entries()].sort((a, b) => a[0] - b[0]).map(([h, n]) => `${String(h).padStart(2, '0')}h=${n}`).join(' ') || 'none'}`);
+  console.log('  why:');
+  for (const [reason, count] of [...reasons.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${String(count).padStart(4)}  ${reason}`);
+  }
+  console.log(`  entities kept as watch prisoners: ${used.size}`);
+}
+
+const prisonArg = process.argv.find((arg) => arg.startsWith('--prison'));
+if (prisonArg) {
+  const days = Number(prisonArg.split('=')[1] ?? 30);
+  reportPrisonEscapeWatch(loaded.world, Number.isFinite(days) && days > 0 ? days : 30);
 }

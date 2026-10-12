@@ -9,6 +9,7 @@ import {
   loadShowSimTick,
   loadTutorialChoice,
   loadTutorialsEnabled,
+  loadValleyStageWarnings,
 } from '../game/preferences';
 
 // `SidebarTab` is owned by `hotkeys.ts` — this file used to declare
@@ -196,6 +197,7 @@ export function useGameShellState() {
   const [juiceEffectsEnabled, setJuiceEffectsEnabled] = useState(loadJuiceEffectsEnabled);
   const [showSimTick, setShowSimTick] = useState(loadShowSimTick);
   const [showFps, setShowFps] = useState(loadShowFps);
+  const [valleyStageWarnings, setValleyStageWarnings] = useState(loadValleyStageWarnings);
   const [showTutorial, setShowTutorial] = useState(loadShowTutorial);
   const [tutorialStep, setTutorialStep] = useState(0);
   // The cinematic is skippable in place (its own "Skip intro" button), so it needs no persisted
@@ -341,6 +343,8 @@ export function useGameShellState() {
     setShowFps,
     showSimTick,
     setShowSimTick,
+    valleyStageWarnings,
+    setValleyStageWarnings,
     juiceEffectsEnabled,
     setJuiceEffectsEnabled,
   };

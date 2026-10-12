@@ -32,6 +32,8 @@ import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
 import type { HumanActivityTarget } from './humanStatus';
 import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
+import type { SettlerWorkReason } from './workAbsence';
+import { getSettlerWorkReason } from './workAbsence';
 import { pickSocialImpulse } from './socialLife';
 import { getRouteObstruction } from './pathfinding';
 import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
@@ -73,6 +75,8 @@ export interface DashboardSettler {
   /** No residence assigned (homeless). */
   noHome: boolean;
   status: 'working' | 'idle' | 'prison' | 'leader' | 'home' | 'none';
+  /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
+  workReason: SettlerWorkReason;
 }
 
 export interface HistoryPoint {
@@ -161,8 +165,27 @@ function settlerStatus(e: Entity): DashboardSettler['status'] {
   return 'idle';
 }
 
+/**
+ * The bulk reason the settlers who hold a post are not at it, or `null` when every one of them is
+ * working. Built from the same reasons the per-settler rows carry, so the summary cannot disagree.
+ */
+function summarizePostAbsences(reasons: readonly SettlerWorkReason[]): string | null {
+  const counts = new Map<string, { label: string; count: number }>();
+  let away = 0;
+  for (const reason of reasons) {
+    if (reason.code === 'working') continue;
+    away++;
+    const row = counts.get(reason.code) ?? { label: reason.label, count: 0 };
+    row.count++;
+    counts.set(reason.code, row);
+  }
+  if (away === 0) return null;
+  const top = [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 2);
+  return `${away} more hold a post but are away — ${top.map((r) => `${r.label} (${r.count})`).join(', ')}.`;
+}
+
 /** Read-only concern derivation from authoritative state (no simulation writes). */
-function deriveConcerns(state: WorldState): VillageConcern[] {
+function deriveConcerns(state: WorldState, postAbsences: string | null = null): VillageConcern[] {
   const concerns: VillageConcern[] = [];
   const food = state.resources?.food ?? 0;
   // The settler counters come from the labour-statistics owner (`uiSimSummary.computeVillageStats`),
@@ -213,7 +236,9 @@ function deriveConcerns(state: WorldState): VillageConcern[] {
       id: 'idle',
       severity: 'info',
       title: `${idleAdults} idle adult${idleAdults === 1 ? '' : 's'}`,
-      detail: 'Not assigned to a workplace.',
+      detail: postAbsences
+        ? `Not assigned to a workplace. ${postAbsences}`
+        : 'Not assigned to a workplace.',
       hint: 'Open a building and assign workers, or enable auto-staffing.',
     });
   }
@@ -303,7 +328,7 @@ function deriveConcerns(state: WorldState): VillageConcern[] {
 }
 
 /** Read-only "daily council" summary — a compact day report for the dashboard. */
-function deriveCouncil(state: WorldState): CouncilLine[] {
+function deriveCouncil(state: WorldState, postAbsences: string | null = null): CouncilLine[] {
   const lines: CouncilLine[] = [];
 
   const humans = state.humanPopulation ?? 0;
@@ -397,7 +422,7 @@ function deriveCouncil(state: WorldState): CouncilLine[] {
     tone: counts.deaths > 0 || counts.scandals > 0 || counts.prisons > 0 ? 'warn' : 'neutral',
   });
 
-  const concerns = deriveConcerns(state);
+  const concerns = deriveConcerns(state, postAbsences);
   const critical = concerns.filter((c) => c.severity === 'critical').length;
   const warnings = concerns.filter((c) => c.severity === 'warning').length;
   lines.push({
@@ -440,12 +465,19 @@ export function collectDashboard(state: WorldState): DashboardData {
   const foodConsumedToday = foodLedger.consumedTotal;
 
   const settlers: DashboardSettler[] = [];
+  /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
+  const postedReasons: SettlerWorkReason[] = [];
   for (const e of state.entities) {
     if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
     const role =
       e.occupation && e.occupation !== 'settler'
         ? e.occupation
         : (e.job ?? 'settler');
+    const workReason = getSettlerWorkReason(state, e);
+    if (!e.isJuvenile && e.prisonBuildingId == null
+      && (hasWorkAssignment(e) || isOnConstructionCrew(state.buildings, e.id))) {
+      postedReasons.push(workReason);
+    }
     settlers.push({
       id: e.id,
       name: [e.name, e.surname].filter(Boolean).join(' '),
@@ -461,9 +493,11 @@ export function collectDashboard(state: WorldState): DashboardData {
       // residence owner's own {@link isHomelessSettler}).
       noHome: isHomelessSettler(e),
       status: settlerStatus(e),
+      workReason,
     });
   }
   settlers.sort((a, b) => Number(b.role === 'settler') - Number(a.role === 'settler'));
+  const postAbsences = summarizePostAbsences(postedReasons);
 
   const history: HistoryPoint[] = (state.populationHistory ?? []).slice(-30).map((p) => ({
     day: p.day ?? Math.floor(p.tick / TICKS_PER_DAY),
@@ -498,8 +532,8 @@ export function collectDashboard(state: WorldState): DashboardData {
       total: Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0),
       bySource: { ...sample.produced },
     })),
-    concerns: deriveConcerns(state),
-    council: deriveCouncil(state),
+    concerns: deriveConcerns(state, postAbsences),
+    council: deriveCouncil(state, postAbsences),
     settlers,
     history,
   };
@@ -588,12 +622,16 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
 
   const status = settlerStatus(settler);
   if (status === 'idle' && !settler.isJuvenile) {
+    // The absence owner's reason, so a posted worker is never told only that nobody logged work.
+    const workReason = getSettlerWorkReason(state, settler);
     lines.push({
       label: 'Why idle',
       value:
         (state.resources?.food ?? 0) <= 0
           ? 'Stores are empty — a settler will hunt in a famine.'
-          : 'Outside work hours or free time with nothing scheduled.',
+          : workReason.code === 'no-post'
+            ? 'Outside work hours or free time with nothing scheduled.'
+            : `${workReason.label} — no work logged today.`,
       tone: 'neutral',
     });
   }

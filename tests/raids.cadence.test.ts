@@ -115,7 +115,6 @@ const callbacks: RivalEventCallbacks = {
   logEvent: () => {},
   tickPendingDiplomacyEvents: () => {},
   queueDiplomacyEvent: () => {},
-  createFactionHuman: () => human(990),
   createRivalBuilding: (_state, type, x, y): Building => building(800, type, { x, y, faction: 'rival' }),
   killWildGameForPoach: () => {},
 };

@@ -1,4 +1,7 @@
-/** Owner rulings: a prison is open 24 hours, and a festival does not suspend work. */
+/**
+ * Owner rulings: a prison is open 24 hours, a festival does not suspend work, and every staffed post
+ * records attendance for its own duty window.
+ */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -283,5 +286,56 @@ describe('settlers keep working during a festival', () => {
     expect(innkeeper.scheduleLastWorkedHours, 'a festival day credited as 24 worked hours').toBe(
       getVenueScheduleHours(getVenueSchedule(state, 'tavern')),
     );
+  });
+});
+
+/**
+ * A completed Church with one priest living in a house beside it. The church names no service window
+ * of its own — only the full-moon night — so an ordinary service is the colony's day shift.
+ */
+function churchWorld(): { state: WorldState; priest: Entity } {
+  const house = building(20, BuildingType.House, 340, 300, [1]);
+  const church = building(30, BuildingType.Church, 200, 60, [1]);
+  const priest = human(1, {
+    job: JobType.Priest,
+    homeBuildingId: 30,
+    residenceBuildingId: 20,
+    x: 224,
+    y: 81,
+  });
+  return { state: worldState([priest], [house, church], null), priest };
+}
+
+describe('a priest serving at a completed church', () => {
+  it('records attendance across the colony workday, and none on a rest day', () => {
+    const weekday = churchWorld();
+    // Day 2 is a Wednesday, and 10:00 is inside the 07:00-16:00 window every day post works.
+    weekday.state.tick = 2 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1;
+    gameTick(weekday.state);
+    expect(
+      weekday.priest.scheduleWorkedTicksToday ?? 0,
+      'a priest on ordinary service recorded no attendance',
+    ).toBeGreaterThan(0);
+
+    const restDay = churchWorld();
+    // Day 5 is a Saturday: the same hour credits nothing to a day-shift post.
+    restDay.state.tick = 5 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1;
+    gameTick(restDay.state);
+    expect(
+      restDay.priest.scheduleWorkedTicksToday ?? 0,
+      'the rest day credited a service',
+    ).toBe(0);
+  });
+
+  it('still records the moon-howler night duty, which is the church’s other shift', () => {
+    const { state, priest } = churchWorld();
+    // Day 14 opens on a full moon; 21:00 is inside the rite's 20:00-06:00 night and outside the
+    // work window, so any credit here can only come from the night shift.
+    state.tick = 14 * TICKS_PER_DAY + 21 * TICKS_PER_HOUR - 1;
+    gameTick(state);
+    expect(
+      priest.scheduleWorkedTicksToday ?? 0,
+      'the moon-howler night duty stopped recording attendance',
+    ).toBeGreaterThan(0);
   });
 });

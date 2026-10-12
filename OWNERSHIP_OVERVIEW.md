@@ -18,7 +18,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
 | Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), `assignMissingResidences` (with a `sweepTick` it sweeps that pulse's bucket of the day's reassignment work; without one it converges the whole colony immediately), … |
-| Construction progress | `dailyBuildingEconomy.ts` | daily | construction progress in daily economy |
+| Construction progress | `dailyBuildingEconomy.ts` | daily | `tickBuildingProgress` (construction progress in daily economy), `logCompletedBuildings` (one completion line per label per day, counted) |
 | Economy / resources | `resourceUtils.ts` (add), `economy.ts` (caps/spoilage), `dailyBuildingEconomy.ts` (production) | daily / command | `addResource`, `updateStorageCaps`, `tickWinterHeating` |
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
@@ -29,7 +29,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
 | Frontier founding | `groupEvents.ts` | new-calendar-day | `tryFrontierSettlement`, `FIRST_RIVAL_MIN_DAY`, `FIRST_RIVAL_MIN_HUMANS`, `spawnRivalSettlement` (optional founding relationship) |
-| Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_GROWTH_MAX_SCALE`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
+| Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
 | Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers |
 | Youth love | `humanRelationships.ts` | new-calendar-day | `advanceYouthLove`, `reconcileYouthLove` |
 | Courtship / marriage | `humanRelationships.ts` | staggered-social (approach) + new-calendar-day (reconciliation) | `findCourtshipPartner`, `bindCourtship`, `reconcileCourtships`, `tryCompleteCourtshipMarriage` |
@@ -109,7 +109,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Festival keeps a tavern open all day | `venueSchedule.ts` | — (predicate read by the tavern shift and the venue editor) | `isFestivalOverrideActive` |
 | Ambient chat and dialogue sessions | `humanChat.ts` | realtime (`tickHumans`); `releaseDialogueSession` when an entity leaves that population | `tickHumanChat`, `sayHumanChatPhrase`, `isDialogueBusy`, `startDialogueTreeChat`, `releaseDialogueSession` |
 | Needs: colony meal and exhaustion | `simulation/humanNeeds.ts` | realtime (`tickHumans`, `applySettlerUpkeep`, hunting) | `tryEatColonyMeal`, `isMealCheckHour`, `humanEnergyLoss`, `killFromExhaustion` |
-| Skills and job skill effects | `skills.ts` | work (`dailyBuildingEconomy`, workforce transitions, apprenticeships, graduation) | `ensureEntitySkills`, `readSkill`, `gainSkill`, `getWorkerSkillMultiplier` |
+| Skills and job skill effects | `skills.ts` | work (`dailyBuildingEconomy`, workforce transitions, apprenticeships, graduation) | `ensureEntitySkills`, `readSkill`, `gainSkill`, `getWorkerSkillMultiplier`, `rewardProductionSkills`, `rewardBuildingWork` |
 | School attendance, credit and graduation | `education.ts` | realtime (`humanTick`) + new-calendar-day credit | `recordChildSchoolTick`, `creditChildSchoolDay`, `applyEducationGraduation`, `buildSchoolRosters` |
 | Friendship and feud webs (with their daily energy effects) | `relationships.ts` | new-calendar-day (`tickLayerDaily`) | `advanceSocialRelationships`, `startFeud`, `friendshipScore`, `feudScore` |
 | Election promises | `electionPromises.ts` | new-calendar-day (three daily call sites) | `tickElectionPromises`, `recordElectionPromises`, `getPromiseDetail`, `electionPromisesForYear` |
@@ -217,6 +217,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Decision-registry accessors | `simulation/decisionRegistry.ts` | — (static table accessors) | `getDecisionOwner`, `getDecisionsByCadence`, `isPropertyWritePermitted` |
 | Species configuration | `speciesConfig.ts` | — (data) | `getSpeciesConfig`, `getPreyEnergyGain` |
 | Ecosystem pressure and temperature projections | `ecosystemPressure.ts` + `temperature.ts` | daily + UI projection | `getGrazingPressureReport`, `computeDailyTemperatureC` |
+| Wildkin chronicle and its place descriptions | `wildkinChronicle.ts` | birth (`humanLifecycle`) + death (`simulationEntities.markWildlifeDead`) + daily sighting (`tickLayerDaily`) | `logWildkinBirth`, `logWildkinDeath`, `tickWildkinChronicle`, `describeWildkinPlace`, `biomeNameAt`, `isWildkinNearSettlement` |
 | Workshop gold projection | `workshopEconomy.ts` | UI projection | `estimateWorkshopGold` |
 | Juice particles and hunt visuals | `juiceEffects.ts` + `huntvisuals.ts` | presentation, spawned by sim events | `pushTransientParticle`, `spawnBuildCompleteParticles`, `addHuntVisual`, `pruneHuntVisuals` |
 | Entity-type cache | `entityTypeCache.ts` | per tick (`gameTick`) and per invalidation; `getCachedEntityByType` validates the cached bucket set against the caller's own entity list and drops a disagreeing entry | `getCachedEntityByType`, `invalidateCachedEntityByType`, `cacheEntityByType` |
@@ -301,7 +302,7 @@ exports it.
 | Orographic rain shadow | `terrain/rainShadow.ts` | generation (the moisture field) | `rainShadowField` |
 | Ground bake, per-pixel Whittaker | `renderer/whittakerTerrain.ts` | render, cached per viewport | `buildWhittakerFields`, `bakeWhittakerGround`, `bandDetail` |
 | Ground props (the L3 decor layer) | `renderer/decor.ts` | render, cached per rect | `bakeDecorInRect` |
-| Hunting Spot prey selection, pursuit and the kill | `huntingSpot.ts` | realtime hunter behaviour | `huntingSpotTarget`, `commitHuntingSpotTarget`, `pickHuntingSpotPrey`, `huntingKillReach`, `huntingPursuitPoint`, `isHuntingStrikeLive`, `isHuntingSpotHunter` |
+| Hunting Spot prey selection, pursuit and the kill | `huntingSpot.ts` | realtime hunter behaviour | `huntingSpotTarget`, `commitHuntingSpotTarget`, `pickHuntingSpotPrey`, `huntingKillReach`, `huntingPursuitPoint`, `isHuntingStrikeLive`, `isHuntingSpotHunter`, `huntingFightBackFate`, `huntingFightBackKillChance` |
 | The village anchor (one camp-centre rule, two readers) | `villageAnchor.ts` | command + render, read-only | `getPlayerCampCenter`, `getPlayerCampCenterFromBuildings`, `getPlayerSettlerCenter` |
 | Civil status — married **or** expecting | `civilStatus.ts` | read-only predicate | `isMarriedOrExpecting` |
 | The one window shell a subject renders into | `components/GameWindow.tsx` | UI (composition/wiring only) | `GameWindow` |
@@ -326,6 +327,7 @@ reported as stalled — never softened until it passes.
 | Spreading one day's reassignment work across the assignment pulses | `residencyReconciliation.ts` (bucket key: `residencySelection.ts`) | assignment pulse when a tick is supplied; a load, a player command or an event converges immediately and takes no tick | `RESIDENCE_SWEEP_BUCKETS` (must equal the layer's pulses per day), `assignMissingResidences` (optional `sweepTick`), `housingUnitBucket` |
 | Colony stall verdict — whether a run that broke no invariant still works (beds full with settlers outside them and nothing raised, an empty larder still eating more than it grows, a woodpile at nothing with no building raised) | `scripts/colonyHealth.ts` | read-only, per checkpoint and once at the end of a run; a stalled verdict fails the run | `assessColonyStall`, `assertColonyNotStalled`, `formatColonyStallVerdict` |
 | Sent-in save ground audit — what blocks each settler's own tile (water, a completed wall's footprint, or reserved decor) and whether anyone walks onto blocked ground over `--days=N` | `scripts/inspect-save.mts` | read-only, when a save is inspected; `--days` runs the sim forward in-process | `reportGroundAudit` |
+| Sent-in save attendance census — per trade, whether the loaded colony credited work hours in that trade's own duty window, one row per day over `--shifts` | `scripts/inspect-save.mts` | read-only, when a save is inspected; `--shifts` runs one week forward in-process | `reportShiftAttendanceCensus`, `CENSUS_TRADES` |
 
 ## Protected facades (re-export / schedule only — no new policy)
 

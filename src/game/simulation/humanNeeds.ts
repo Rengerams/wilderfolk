@@ -46,6 +46,18 @@ export function isMealCheckHour(hourOfDay: number): boolean {
 }
 
 /**
+ * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
+ * applies before it drains a unit of food.
+ */
+export function canEatColonyMeal(state: WorldState, entity: Entity, hourOfDay: number): boolean {
+  if (!entity.alive || !isPlayerHuman(entity)) return false;
+  if (!isMealCheckHour(hourOfDay)) return false;
+  if (!isStartOfClockHour(state.tick)) return false;
+  if (state.resources.food <= 0) return false;
+  return entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD;
+}
+
+/**
  * The one colony-larder meal rule, shared by every human tick path.
  *
  * Drains food and restores energy when all of these hold: the eater is an alive player
@@ -53,11 +65,7 @@ export function isMealCheckHour(hourOfDay: number): boolean {
  * and the eater is below HUNGER_MEAL_THRESHOLD of max energy.
  */
 export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: number): boolean {
-  if (!entity.alive || !isPlayerHuman(entity)) return false;
-  if (!isMealCheckHour(hourOfDay)) return false;
-  if (!isStartOfClockHour(state.tick)) return false;
-  if (state.resources.food <= 0) return false;
-  if (entity.energy >= entity.maxEnergy * HUNGER_MEAL_THRESHOLD) return false;
+  if (!canEatColonyMeal(state, entity, hourOfDay)) return false;
 
   // Consume up to 1 unit of food (accommodating fractional food stores without starving settlers)
   const foodEaten = Math.min(1, state.resources.food);

@@ -15,7 +15,6 @@ import {
   getRaidLootScale,
   getRaidGrowthScale,
   RAID_GROWTH_BASE_ADULTS,
-  RAID_GROWTH_MAX_SCALE,
   RAID_LOOT_MAX_SCALE,
   provokeRival,
   raiseRaidLootToFloor,
@@ -243,14 +242,14 @@ describe('rival camps grow from their own stores', () => {
  * Raid pressure and prize. The measured complaint: a 1 663-settler colony was raided at 54 strength,
  * a 523:1 ratio, for 43 food out of ~14 800 — nothing at stake in either direction.
  */
-describe('raid pressure scales with the colony, and stops', () => {
-  it('grows raid pressure sublinearly instead of matching colony growth exactly', () => {
+describe('raid prize scales with what is at stake', () => {
+  it('keeps the colony-side raid multiple linear, so a big village is never a walkover', () => {
     const base = RAID_GROWTH_BASE_ADULTS;
 
     expect(getRaidGrowthScale(base)).toBe(1);
-    // A colony 16× the tuning size is raided 4× harder — not 16×, so the ratio still moves.
-    expect(getRaidGrowthScale(base * 16)).toBeCloseTo(4, 5);
-    expect(getRaidGrowthScale(base * 100_000)).toBe(RAID_GROWTH_MAX_SCALE);
+    // `frontierCombat.raidGold.test.ts` pins this contract: militia grows with the same adults, so
+    // the ratio is flat by design. Escalation is the camp's own growth, not this multiplier.
+    expect(getRaidGrowthScale(base * 16)).toBe(16);
     expect(getRaidGrowthScale(Number.NaN)).toBe(1);
   });
 

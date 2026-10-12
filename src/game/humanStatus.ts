@@ -14,9 +14,8 @@ import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
+import { WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
 
-/** Distance under which a worker counts as "at" their target stand. */
-const WORK_ARRIVE_DISTANCE = 24;
 /** Distance under which a human is considered "at" a nearby building. */
 const NEAR_BUILDING_DISTANCE = 48;
 
@@ -67,6 +66,8 @@ export type HumanActivityProjection = {
   workplace: { id: number; label: string } | null;
   target: HumanActivityTarget | null;
   blockedReason: string | null;
+  /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
+  workReason: SettlerWorkReason;
   transition: HumanActivityTransition | null;
   observedAtTick: number;
 };
@@ -210,6 +211,7 @@ export function getHumanActivityProjection(
     workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
     target,
     blockedReason,
+    workReason: getSettlerWorkReason(state, entity),
     transition: previousActivity && previousActivity !== activity
       ? { from: previousActivity, to: activity, observedAtTick: state.tick }
       : null,

@@ -1,7 +1,7 @@
 # Name of file: 2026-09-30
 
 - Bug: Village officials are never recorded as on shift, so the Town Hall reads 0.0 h worked
-- Status: open
+- Status: resolved
 - Date discovered: 2026-09-30
 - Version/build: 0.6.5.0
 - Reporter: reported from play by the owner, traced by the agent
@@ -12,6 +12,14 @@
 ## Status history
 
 - 2026-09-30 — open (found while measuring why a chronicle line claimed a settler had worked 0.7 h of a 9 h day)
+- 2026-10-09 — resolved (both halves measured live on the owner's Year 3 save. Town Hall officials were already
+  repaired when this status was written: `humanTick` credits `onJobShift || onOfficialShift`, and the census in
+  `Verification result` reads 27 ticks / 9.00 h for the official on every weekday and 0 on the rest day. The
+  church half is repaired in the same session by crediting an ordinary service as the colony day shift: the same
+  census reads the priest at 27 ticks / 9.00 h on weekdays and 0 on the rest day, and the moon-howler night still
+  records. Parts 1 and 2 of the `Fix` section below — one shared `isOnShift` predicate, and taking
+  interval-driven workplaces out of the attendance/fatigue yardstick — were **not** adopted; they remain
+  follow-up design work, not a defect.)
 
 ## Observed behavior
 
@@ -76,10 +84,8 @@ their workplace (median 475 px) than the full-day workers (median 710 px).
 
 ## Root cause
 
-One tick computes two different answers to "is this settler on shift", and the recording path uses the one
-that omits officials.
-
-`src/game/humanTick.ts` computes the flag:
+One tick computed two different answers to "is this settler on shift", and the recording path used the one
+that omits officials. As found on 2026-09-30, when `humanTick` was at lines 666, 697 and 1291:
 
 ```
 666:  const onOfficialShift =
@@ -87,31 +93,28 @@ that omits officials.
 668:    workplace?.type === BuildingType.TownHall &&
 669:    workplace.completed &&
 670:    goWorkTime;
-```
-
-The recording gate then leaves it out of the disjunction:
-
-```
 697:  const onJobShift = onDayJobShift || onTavernShift || onHotelShift || onMoonPriestShift;
 698:  if (onJobShift && isPlayerHuman(entity)) recordScheduleWorkTick(entity);
-```
-
-while the same tick passes it downstream **as** the day-shift flag, which is why officials serve normally:
-
-```
 1291:  onDayJobShift: onDayJobShift || onOfficialShift,
 ```
 
-and the civic path consumes exactly that:
+The recording gate left the flag out of the disjunction, while the same tick passed it downstream **as** the
+day-shift flag — which is why officials served normally, and the civic path consumes exactly that:
 
 ```
 src/game/humanVenueBehavior.ts:83
   if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Official) { ...serve... }
 ```
 
-So the official is on shift for the purpose of serving and off shift for the purpose of being counted. The
+So the official was on shift for the purpose of serving and off shift for the purpose of being counted. The
 same shape is what the changelog's M16 fix addressed from the other side ("an on-duty Official could never
 serve because the workplace predicate excluded the Town Hall") — serving was repaired, counting was not.
+
+**Repaired state (2026-10-09).** `humanTick.ts` now computes `onOfficialShift` at line 528, `onPriestShift` at
+line 553 (the church half, added in this session), `onJobShift` at line 568, and the recording gate at line 570
+reads `if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift))
+recordScheduleWorkTick(entity);`. The serving path still receives `onDayJobShift || onOfficialShift` (line
+1355), so serving is untouched.
 
 **Consequence 1 — the chronicle narrates it backwards.** `dailyScheduleFatigue.resolveDailyVillageScheduleFatigue`
 treats a shortfall against the target as *rest*, so an official's unrecorded day is reported as recovery. That
@@ -123,24 +126,41 @@ by `getScheduleLastWorkedHours`, and it is applied in `dailyBuildingEconomy.tick
 path; the Town Hall grants reputation on a production interval, so it may not. This needs one check before
 the severity is stated.
 
-**Related but separate — the church.** A priest matches only `onMoonPriestShift`, which is gated on
-`isOnMoonHowlerNightShift`, so an ordinary day at a completed church is also unrecorded. Whether a priest's
-ordinary service *should* count as a shift is a design question, not this defect; it is recorded here so the
-two are not confused.
+**Related but separate — the church (repaired in this session).** A priest matched only `onMoonPriestShift`,
+which is gated on `isOnMoonHowlerNightShift`, so an ordinary day at a completed church was unrecorded too.
+The church's own rules answer the design question the earlier version of this report left open: the building
+names no service window of its own (the only church-specific window in `humanSchedule` is the moon-howler
+night), `humanStatus.getHumanActivityStatus` already labels a priest at a completed church during the colony
+workday as *Working at Church*, and `skills.WORK_SKILL_BUILDING_TYPES` — derived from `BUILDING_JOB_TYPES`, so
+the church is in it by construction — already pays the priest trade skill for the shift. Attendance was the
+only field left at zero, so an ordinary service is now credited as the colony day shift: `onPriestShift`
+(`humanTick.ts:553`), read by the gate at line 570. The moon-howler night duty is unchanged and still records.
 
 ## Regression test
 
-Not written yet. It should be red before the fix and pin the rule rather than the symptom:
+Landed 2026-10-09 in `tests/prisonFestivalWorkContinuity.test.ts`, under *a priest serving at a completed
+church* (the suite that already pins the prison and tavern duty windows by ticking the real `gameTick`):
 
-- an Official on duty at a completed Town Hall during work hours must have a work tick recorded
-- and the counter-case: an Official outside `goWorkTime`, or at a workplace that is not a completed Town
-  Hall, must not
+- `records attendance across the colony workday, and none on a rest day` — a priest at a completed church at
+  10:00 on a weekday (day 2, Wednesday) must credit work ticks, and the same hour on a rest day (day 5,
+  Saturday) must credit none.
+- `still records the moon-howler night duty, which is the church's other shift` — 21:00 on a full-moon day
+  (day 14) is outside the work window, so any credit there can only come from `onMoonPriestShift`.
+- **Fail-before proof:** with `onPriestShift` and its disjunct reverted, the weekday case fails with
+  `a priest on ordinary service recorded no attendance: expected 0 to be greater than 0` while all seven other
+  tests in the suite pass; restored, the suite is 8/8 green.
+
+The Town Hall's own case is still not written as a unit test; it is verified live instead (see below).
 
 ## Invariants checked
 
 - The recording gate and the serving gate must be **one predicate**. A third expression of "on shift" is how
   this defect appeared, so the fix is a single predicate read by both paths, not `|| onOfficialShift` added
   to line 697.
+- **This invariant was not honoured.** Both measured repairs took the tempting route: officials by adding
+  `|| onOfficialShift` to the recording gate, and the church half by adding `|| onPriestShift`. The extract of
+  a single `isOnShift` remains undone, and a fourth post with its own window would have to be remembered the
+  same way. Recorded here rather than quietly dropped.
 
 ## Save/migration impact
 
@@ -165,30 +185,44 @@ that moves it.
 
 ## Fix
 
-To be done in a following session, deliberately not rushed. Three parts, and the second is the one that
-treats the officials fairly rather than merely counting them.
+Landed 2026-10-09, as the smallest change in the existing shape rather than the extraction this section
+originally proposed. `humanTick` now computes `onPriestShift` at line 553 —
 
-**1. One predicate, so a third definition cannot appear.** Extract `isOnShift(entity, …)` — the single
-answer to "is this settler working right now" — and have both the recording gate (line 698) and the serving
-path (line 1291) read it. **Refuse the tempting repair** of adding `|| onOfficialShift` to line 697: that is
-how the two answers diverged in the first place, and it leaves the next job type (a teacher, a soldier, a
-doctor) to be forgotten in exactly the same way.
+```
+entity.job === JobType.Priest && workplace?.type === BuildingType.Church && workplace.completed && goWorkTime
+```
 
-**2. Stop calling a service day "rest".** `dailyScheduleFatigue` treats a shortfall against the 9-hour
-target as recovery, so an official whose hours were never counted is reported as having *rested* — which is
-the class of chronicle line this report came from. Counting them fixes the number, but the model would still
-score a duty that is not a production shift against a production yardstick. A workplace whose contribution
-runs on an **interval** rather than on hours — Town Hall, church, school, barracks, hospital, prison — should
-be **outside** the attendance and fatigue accounting rather than scored as absent from it. That is the half
-that stops the game telling a working official they did nothing all day.
+— and the recording gate at line 570 reads `onJobShift || onOfficialShift || onPriestShift`. Attendance only:
+the priest's movement, the moon-howler night branch and every other `onJobShift` consumer are untouched, so the
+change decides whether an ordinary service is *counted*, never how a priest behaves.
 
-**3. The same decision for the priest.** A priest matches only `onMoonPriestShift`
-(`isOnMoonHowlerNightShift`), so an ordinary day at a completed church is unrecorded too, and the church
-measures 0.0 h in both saves for that reason. Whether ordinary service at a church is a shift is the owner's
-call; it is the same question as (2) and should be answered together with it rather than patched separately.
+**1. One predicate, so a fourth definition cannot appear — NOT DONE.** Extract `isOnShift(entity, …)` — the
+single answer to "is this settler working right now" — and have both the recording gate (line 570) and the
+serving path (line 1355) read it. **This is the repair that was refused**: both halves extended the
+disjunction instead (`|| onOfficialShift`, then `|| onPriestShift`), which is exactly how the two answers
+diverged, and it leaves the next post with its own window to be remembered the same way. Kept here as open
+work, not as a claim.
+
+**2. Stop calling a service day "rest" — NOT DONE, and superseded for these posts.** `dailyScheduleFatigue`
+treats a shortfall against the 9-hour target as recovery, so an unrecorded day is reported as having *rested* —
+the class of chronicle line this report came from. Counting the hours fixes the number. The stronger proposal
+here was to move interval-driven workplaces (Town Hall, church, school, barracks, hospital, prison) **outside**
+attendance and fatigue accounting altogether; the owner's direction on 2026-10-09 is the opposite for the
+church — an ordinary service is a day shift and must be counted — so that proposal no longer applies to the
+church, and if it were applied as written it would undo this fix. The fatigue *yardstick* question for a duty
+whose output is not hourly is still open on its own.
+
+**3. The same decision for the priest — ANSWERED AND DONE.** The church's own rules settled it rather than a
+preference: the building names no service window of its own beyond the full-moon night, the inspector already
+labels a priest at a completed church during the colony workday as *Working at Church*, and
+`skills.WORK_SKILL_BUILDING_TYPES` (derived from `BUILDING_JOB_TYPES`) already paid the priest trade skill for
+the shift while attendance stayed at zero. An ordinary service is therefore credited as the colony day shift,
+and the moon-howler night is unchanged.
 
 Then the evidence the fix owes:
 
-4. **Add the regression test** above, proven red before the change.
-5. **Re-measure the two saves** and record the Town Hall's hours.
-6. **Record the oracle movement** if `test:full-year` totals change.
+4. **Add the regression test** above, proven red before the change. **Done** — see `Regression test`.
+5. **Re-measure the saves** and record the hours. **Done** — see `Verification result`.
+6. **Record the oracle movement** if `test:full-year` totals change. **Nothing can move from either half:**
+   `scripts/colonyHealth.ts`'s `prepareColonyWorld` places Houses, Barns, Silos, a Lumber Mill, Farms, a Tavern
+   and a Prison — **no Church and no Town Hall** — so the long automated run has no such post to credit.

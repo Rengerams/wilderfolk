@@ -22,6 +22,9 @@ export function readSkill(entity: { skills?: Partial<Record<JobType, number>> },
   return ensureEntitySkills(entity)[job] ?? 0;
 }
 
+/** Skill ceiling — a trade is scored 0..100. */
+export const MAX_SKILL = 100;
+
 /** Slow idle decay — skills fade when a job is not practiced (~0.5 pt / 30 days). */
 export const SKILL_IDLE_DECAY_PER_DAY = 0.017;
 
@@ -30,6 +33,16 @@ export const WORK_SKILL_PER_SHIFT = 0.2;
 
 /** How often the worked-shift credit is paid — the daily production cadence. */
 export const SKILL_CREDIT_INTERVAL_TICKS = TICKS_PER_DAY;
+
+/**
+ * Every profession credited for the shift it works: each staffing post the game assigns a job to.
+ *
+ * Derived from `BUILDING_JOB_TYPES`, not a hand-kept list, so a workplace added there teaches its
+ * trade without a second edit. A site with no job of its own (a construction crew) is paid separately.
+ */
+export const WORK_SKILL_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>(
+  Object.keys(BUILDING_JOB_TYPES) as BuildingType[],
+);
 
 export function gainSkill(
   state: WorldState,
@@ -41,7 +54,7 @@ export function gainSkill(
   const human = entityById?.get(humanId) ?? state.entities.find((e) => e.id === humanId);
   if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
   const skills = ensureEntitySkills(human);
-  skills[job] = Math.min(100, (skills[job] ?? 0) + amount);
+  skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
 }
 
 /** Apply a small decay to non-active job skills on calendar day rollover. */
@@ -70,9 +83,9 @@ export function rewardProductionSkills(
 /**
  * Credit a production crew for the shift it worked, on the building's production tick.
  *
- * Separate from `rewardProductionSkills` on purpose: that one is paid for *output* and so stops
- * the day stores fill, which strands every trade whose good has a full store (iron, gold, stone)
- * at its entry skill. Learning follows attendance (`presenceShare`), not the storeroom.
+ * Separate from `rewardProductionSkills` on purpose: that one is paid for *output* and so stops the
+ * day stores fill, which strands every trade whose good has a full store (iron, gold, stone) at its
+ * entry skill. This credit is paid for the shift, so a refused harvest still teaches the trade.
  */
 export function rewardBuildingWork(
   state: WorldState,

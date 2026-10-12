@@ -2,6 +2,28 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Changed: the valley's ecology ladder is live again** — Stable, Strained, Damaged and Collapse now follow the deer, the wolves, the meadows and the town's footprint, thinning hunts and farms and costing reputation, with every warning arriving before its effect.
+
+- **Fixed: the Wildlife Preserve can be built again** — it was left out of the build menu's categories, so its ecosystem bonus and the Keeper of the Wild chapter were unreachable in normal play.
+
+- **Fixed: the shortcut sheet and the Guide now name every window the way the header does** — the doors read People and More instead of Village and Menu, and both say that V and O open the same People window.
+
+- **Changed: wolf fight-backs at the Hunting Spot now bite in one hunt in ten rather than one in three** — and a hunter's own trade skill cuts the fatal band from 5% to 1% at mastery.
+
+- **Fixed: the Wildkin is now the apex creature it was meant to be** — it ate grass and its bites were billed against the pasture, so the top of the ladder read as a deer; it now eats meat, is no longer a grazer, and its birth, first sighting and death are chronicled with the place each happened.
+
+- **Fixed: every trade now advances when its workers turn up, not when the store accepts the goods** — a full store paid the crew no skill at all, so only farming produced masters while smiths, miners and teachers stayed at their entry skill; each staffed post now pays a shift of skill a day.
+
+- **Changed: election merit weighs a whole career, not one capped trade** — experience, a Town Hall seat, friendships and a title together now reach about what one maxed trade skill is worth, and a scandal costs less than it did.
+
+- **Fixed: a build spree no longer floods the chronicle** — a day that finishes several buildings of one kind now writes one line with a count ("Wall completed ×30") instead of one line each.
+
+- **Fixed: a festival name that already ended in "Festival" said it twice** — the chronicle read "Harvest Festival festival began in the village"; both festival writers now name the festival once.
+
+- **Fixed: the shift-fatigue line dropped a word** — "Short shifts spared 1 settler that output cost" now reads "spared 1 settler from that output cost".
+
+- **Fixed: the worked-hours figure in the shift-fatigue line reads as the average it is** — "each worked 22.7h on average", not a shift length.
+
 - **Fixed: childhood now ends at the adult floor** — a settler became an adult and took a job at 12, so children filled the postings while adult settlers sat idle and their children could not be apprenticed.
 
 - **Fixed: a settler widowed mid-pregnancy never married again** — conception marks both spouses as expecting and only the birth clears the father, so a wife's death stranded her husband in a status the courtship rule refuses; existing saves repair on the next tick.

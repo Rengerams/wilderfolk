@@ -104,6 +104,26 @@ export function getVenueAutoStaffingTarget(
   return Math.min(maxStaff, Math.max(1, Math.ceil(hours / STANDARD_WORK_HOURS)));
 }
 
+/**
+ * The slice of a venue's service window one crew place covers.
+ *
+ * The window is split evenly across the crew, so this is the only place that arithmetic lives:
+ * `isVenueWorkerServiceHour` reads this window and a caller that needs to name the hour a place
+ * starts reads the same numbers.
+ */
+export function getVenueWorkerServiceWindow(
+  state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  kind: VenueScheduleKind,
+  workerIndex: number,
+  workerCount: number,
+): VenueSchedule {
+  const schedule = getVenueSchedule(state, kind);
+  const count = Math.max(1, workerCount);
+  const duration = getVenueScheduleHours(schedule) / count;
+  const start = schedule.startHour + workerIndex * duration;
+  return { startHour: start, endHour: Math.min(schedule.endHour, start + duration) };
+}
+
 /** Returns whether a venue worker's assigned shift is active for the current hour. */
 export function isVenueWorkerServiceHour(
   state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
@@ -112,12 +132,8 @@ export function isVenueWorkerServiceHour(
   workerIndex: number,
   workerCount: number,
 ): boolean {
-  const schedule = getVenueSchedule(state, kind);
-  const count = Math.max(1, workerCount);
-  const duration = getVenueScheduleHours(schedule) / count;
-  const start = schedule.startHour + workerIndex * duration;
-  const end = Math.min(schedule.endHour, start + duration);
-  return hour >= start && hour < end;
+  const window = getVenueWorkerServiceWindow(state, kind, workerIndex, workerCount);
+  return hour >= window.startHour && hour < window.endHour;
 }
 
 /** The festival keeps a tavern open all day, whatever its service window says. */

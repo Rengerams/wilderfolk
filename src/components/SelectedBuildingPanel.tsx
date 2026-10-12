@@ -51,6 +51,7 @@ import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
 import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
+import { getSettlerWorkReason, getUnstaffedPostNote } from '../game/workAbsence';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
@@ -897,6 +898,7 @@ export default function SelectedBuildingPanel({
               <p key={w.id} className="text-[11px] text-emerald-200">
                 👷 {citizenFullName(w)}
                 {w.job ? ` · ${w.job}` : ''}
+                <span className="text-amber-200"> · {getSettlerWorkReason(state, w).label}</span>
                 {w.apprenticeId != null && (
                   <span className="text-cyan-300">
                     {' '}🎓 {(() => {
@@ -914,6 +916,9 @@ export default function SelectedBuildingPanel({
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
         <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
+          {getUnstaffedPostNote(building) && (
+            <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
+          )}
           {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && staffedWorkers < staffingCap && (
             <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
               <p className="text-[10px] text-stone-300">

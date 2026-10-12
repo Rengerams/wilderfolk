@@ -14,6 +14,7 @@ import { logEvent } from './eventLog';
 import { ValleyEcology } from './gameConstants';
 import { getEcosystemHealth } from './dailyEcology';
 import { addReputation } from './simHelpers';
+import { loadValleyStageWarnings } from './preferences';
 
 export type EcologyDriverId = 'grazing' | 'predators' | 'overhunt' | 'footprint';
 export type DriverBand = 'good' | 'caution' | 'bad';
@@ -354,27 +355,28 @@ function ensureStageFields(state: WorldState): void {
   if (state.valleyLastStageNotifyDay == null) state.valleyLastStageNotifyDay = -999;
 }
 
-function announceStage(
+/** Chronicle record of the step: the log line is history, not an interrupt. */
+function logValleyStageChange(
   state: WorldState,
   prev: ValleyStage,
   next: ValleyStage,
-  snap: ValleyEcologySnapshot,
-  day: number,
+  message: string,
 ): void {
-  if (prev === next) return;
-  const rising = valleyStageIndex(next) > valleyStageIndex(prev);
+  logEvent(state, 'event', `Valley ecology: ${STAGE_LABEL[prev]} → ${STAGE_LABEL[next]}. ${message}`);
+}
+
+/** Raise the notification and big news for one step. Muted by the player's valley-warnings setting. */
+function raiseStageNotice(
+  state: WorldState,
+  prev: ValleyStage,
+  next: ValleyStage,
+  message: string,
+  rising: boolean,
+): void {
   const emoji = STAGE_EMOJI[next];
   const title = rising
     ? `${emoji} Valley ${STAGE_LABEL[next].toLowerCase()}`
     : `${emoji} Valley recovering`;
-  const message = snap.playerSummary;
-
-  const cooldownOk =
-    day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
-
-  if (!cooldownOk) return;
-
-  state.valleyLastStageNotifyDay = day;
 
   if (rising) {
     if (next === 'strained') {
@@ -385,19 +387,44 @@ function announceStage(
     } else {
       addNotification(state, title, message, 'warning');
     }
-  } else {
-    // Healing / Recovery branch
-    if (prev === 'collapse' || prev === 'damaged') {
-      addBigNews(state, title, 'The valley is healing — stay careful so it does not slip again.', 'positive');
-      addNotification(state, title, message, 'success');
-    } else if (prev === 'strained' && next === 'stable') {
-      addNotification(state, `${emoji} Meadows easing`, 'Grazing pressure looks manageable again.', 'success');
-    } else {
-      addNotification(state, title, message, 'success');
-    }
+    return;
   }
 
-  logEvent(state, 'event', `Valley ecology: ${STAGE_LABEL[prev]} → ${STAGE_LABEL[next]}. ${message}`);
+  // Healing / Recovery branch
+  if (prev === 'collapse' || prev === 'damaged') {
+    addBigNews(state, title, 'The valley is healing — stay careful so it does not slip again.', 'positive');
+    addNotification(state, title, message, 'success');
+  } else if (prev === 'strained' && next === 'stable') {
+    addNotification(state, `${emoji} Meadows easing`, 'Grazing pressure looks manageable again.', 'success');
+  } else {
+    addNotification(state, title, message, 'success');
+  }
+}
+
+function announceStage(
+  state: WorldState,
+  prev: ValleyStage,
+  next: ValleyStage,
+  snap: ValleyEcologySnapshot,
+  day: number,
+): void {
+  if (prev === next) return;
+  const rising = valleyStageIndex(next) > valleyStageIndex(prev);
+  const message = snap.playerSummary;
+
+  const cooldownOk =
+    day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
+
+  // A muted step still spends the cooldown, so warnings off are not queued up for warnings on.
+  if (!cooldownOk) return;
+
+  state.valleyLastStageNotifyDay = day;
+
+  if (loadValleyStageWarnings()) {
+    raiseStageNotice(state, prev, next, message, rising);
+  }
+
+  logValleyStageChange(state, prev, next, message);
 }
 
 /**

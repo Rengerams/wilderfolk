@@ -88,10 +88,12 @@ import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import {
   gainSkill,
   getJobForBuilding,
+  readSkill,
   rewardProductionSkills,
   rewardBuildingWork,
   getWorkerSkillMultiplier,
   SKILL_CREDIT_INTERVAL_TICKS,
+  WORK_SKILL_BUILDING_TYPES,
   WORK_SKILL_PER_SHIFT,
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
@@ -200,6 +202,18 @@ const isPassiveBuild = (type: BuildingType): boolean =>
  */
 export const MILL_FOOD_PRODUCTION_MULT = 1.25;
 
+/**
+ * One chronicle line per building label finished today, counting repeats of the same label.
+ *
+ * The count is typed into the message because the worker's delta merge carries only new entry ids.
+ */
+function logCompletedBuildings(state: WorldState, completedToday: ReadonlyMap<BuildingType, number>): void {
+  for (const [type, count] of completedToday) {
+    const label = BUILDING_CONFIGS[type].label;
+    logEvent(state, 'building', `${label} completed${count > 1 ? ` ×${count}` : ''}`);
+  }
+}
+
 /** Construction / repair / winter decay — once per colony day. */
 function tickBuildingProgress(state: WorldState): void {
   const entityById = new Map<number, Entity>();
@@ -222,6 +236,8 @@ function tickBuildingProgress(state: WorldState): void {
   const globalMult = getMultiplier(state, 'global_efficiency');
   const ordinaryWorkHours = getWorkScheduleHours(getWorkSchedule(state));
   let completedAny = false;
+  // Keyed in completion order, which is also the order `logCompletedBuildings` writes the lines in.
+  const completedToday = new Map<BuildingType, number>();
 
   for (let b = 0; b < state.buildings.length; b++) {
     const building = state.buildings[b];
@@ -248,6 +264,9 @@ function tickBuildingProgress(state: WorldState): void {
           // `getWorkerSkillMultiplier`; without it `gainSkill` (skills.ts) falls back to
           // `state.entities.find(…)`, a linear scan of every living entity per occupant.
           gainSkill(state, building.occupants[o], job, 0.15, entityById);
+          // The crew also earns the standard worked shift for the trade it is raising, so a Builder
+          // on a house site learns Building; the site's own job is what the roster records.
+          gainSkill(state, building.occupants[o], job, WORK_SKILL_PER_SHIFT, entityById);
         }
       }
 
@@ -258,7 +277,7 @@ function tickBuildingProgress(state: WorldState): void {
         building.occupants = [];
         building.spriteScale = 1;
         completedAny = true;
-        logEvent(state, 'building', `${BUILDING_CONFIGS[building.type].label} completed`);
+        completedToday.set(building.type, (completedToday.get(building.type) ?? 0) + 1);
 
         if (building.faction !== 'rival') {
           state.totalBuildingsCompleted++;
@@ -317,6 +336,7 @@ function tickBuildingProgress(state: WorldState): void {
 
   // Newly finished job buildings get workers assigned the same day
   if (completedAny) {
+    logCompletedBuildings(state, completedToday);
     assignMissingWorkers(livingPlayerHumans, state.buildings, state);
   }
 }
@@ -461,16 +481,14 @@ function tickBuildingProduction(
       presenceMult;
     const staffed = !BUILDING_JOB_TYPES[building.type] || workers > 0;
 
-    // Work is what teaches: the crew is credited on the standard skill cadence whether or not
-    // storage accepted the goods, and scaled by the hours it actually put in (`presenceMult`).
+    // Work is what teaches: a completed production workplace pays its crew trade skill once per
+    // standard cadence, whatever the store accepted. `rewardBuildingWork` still reads the shift.
     if (
       building.completed &&
-      staffed &&
-      productionJob &&
-      productionJob !== JobType.Hunter &&
+      WORK_SKILL_BUILDING_TYPES.has(building.type) &&
       isProductionTick(state.tick, SKILL_CREDIT_INTERVAL_TICKS)
     ) {
-      rewardBuildingWork(state, building, presenceMult, WORK_SKILL_PER_SHIFT, entityById);
+      rewardBuildingWork(state, building, 1, WORK_SKILL_PER_SHIFT, entityById);
     }
 
     // --- Farm ---
@@ -592,12 +610,12 @@ function tickBuildingProduction(
 
         if (foughtBack) {
           /**
-           * The wolf turns on the **hunter**, not the building, and one roll decides how badly it
-           * goes: killed, mauled, or an ordinary bite. The bands are the owner's odds and live in
-           * `huntingSpot` with their reasoning. An energy-only bite cannot kill anything, which is
-           * how a long colony's chronicle fills with bites and has no deaths in it.
+           * The wolf turns on the **hunter**, not the building; one roll decides how badly it goes, and
+           * the hunter's own trade skill narrows the fatal band (`huntingSpot` owns both and why).
            */
-          const fate = huntingFightBackFate(seededRandomForRun(`${huntKey}:fate`));
+          const fate = huntingFightBackFate(seededRandomForRun(`${huntKey}:fate`), {
+            skill: readSkill(hunter, JobType.Hunter),
+          });
           if (fate === 'killed') {
             // A settler's health is its energy, but a mauling is not what kills here: the wolf does,
             // so the death goes through the one owner every other death uses, which also runs the

@@ -1,5 +1,6 @@
 import { BuildingType } from './gameTypes';
 import type { StripJunctionInfo } from './stripJunction';
+import type { PlaceBuildingFailureReason } from './buildingPlacementLabels';
 import {
   getBuildingFootprintForType,
   snapBuildingCenter,
@@ -23,6 +24,11 @@ export interface StripSegment {
   /** Resolved piece type (e.g. wall, corner, gate, road). */
   readonly placeType: BuildingType;
   readonly rotation: BuildingRotation | CornerRotation;
+  /**
+   * The owner's refusal for an invalid segment (`getPlaceBuildingFailureReason`), so a stroke that
+   * skips ground can name what it skipped. Placement-time only; the commit recomputes it.
+   */
+  readonly reason?: PlaceBuildingFailureReason;
   /** Tee, cross, or elbow topology for procedural junction rendering. */
   readonly junctionInfo?: StripJunctionInfo;
   /** Existing building to be demolished/replaced (refunded at 50%). */

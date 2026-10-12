@@ -26,6 +26,7 @@ export interface GameMenuSettingsCallbacks {
   onToggleJuiceEffects: () => void;
   onToggleShowSimTick: () => void;
   onToggleShowFps: () => void;
+  onToggleValleyStageWarnings: () => void;
   onToggleMute: () => void;
   onVolumePreset: (v: VolumePreset) => void;
   onOpenGuide: () => void;
@@ -42,6 +43,7 @@ interface Props extends GameMenuSettingsCallbacks {
   juiceEffectsEnabled: boolean;
   showSimTick: boolean;
   showFps: boolean;
+  valleyStageWarnings: boolean;
 }
 
 function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -159,6 +161,7 @@ export default function GameMenu({
   juiceEffectsEnabled,
   showSimTick,
   showFps,
+  valleyStageWarnings,
   muted,
   volumePreset,
   onSave,
@@ -170,6 +173,7 @@ export default function GameMenu({
   onToggleJuiceEffects,
   onToggleShowSimTick,
   onToggleShowFps,
+  onToggleValleyStageWarnings,
   onToggleMute,
   onVolumePreset,
   onOpenGuide,
@@ -407,6 +411,13 @@ export default function GameMenu({
                   hint="Presentation frame rate in the map corner"
                   checked={showFps}
                   onChange={onToggleShowFps}
+                />
+                <MenuToggle
+                  icon="🌿"
+                  label="Valley warnings"
+                  hint="Alerts when the valley shifts between stable, strained, damaged and collapse"
+                  checked={valleyStageWarnings}
+                  onChange={onToggleValleyStageWarnings}
                 />
               </MenuSection>
 

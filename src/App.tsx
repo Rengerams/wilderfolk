@@ -105,6 +105,7 @@ import {
   saveJuiceEffectsEnabled,
   saveShowSimTick,
   saveShowFps,
+  saveValleyStageWarnings,
   saveFirstNightWarningDismissed,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
@@ -231,6 +232,7 @@ export default function App() {
     setTutorialStep,
     setTutorialsEnabled,
     setJuiceEffectsEnabled,
+    setValleyStageWarnings,
     showFps,
     showIntro,
     showMapSetup,
@@ -241,6 +243,7 @@ export default function App() {
     tutorialChoice,
     tutorialsEnabled,
     tutorialStep,
+    valleyStageWarnings,
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -523,6 +526,12 @@ export default function App() {
     saveShowFps(next);
     setShowFps(next);
   }, [showFps, setShowFps]);
+
+  const handleToggleValleyStageWarnings = useCallback(() => {
+    const next = !valleyStageWarnings;
+    saveValleyStageWarnings(next);
+    setValleyStageWarnings(next);
+  }, [valleyStageWarnings, setValleyStageWarnings]);
 
   const finishTutorial = useCallback(() => {
     try {
@@ -1290,6 +1299,7 @@ export default function App() {
           juiceEffectsEnabled={juiceEffectsEnabled}
           showSimTick={showSimTick}
           showFps={showFps}
+          valleyStageWarnings={valleyStageWarnings}
           autoPlay={autoPlayer.enabled}
           autoPlayStatus={autoPlayer.status}
           autoPlayHistory={autoPlayer.history}
@@ -1299,6 +1309,7 @@ export default function App() {
           onToggleJuiceEffects={handleToggleJuiceEffects}
           onToggleShowSimTick={handleToggleShowSimTick}
           onToggleShowFps={handleToggleShowFps}
+          onToggleValleyStageWarnings={handleToggleValleyStageWarnings}
           onToggleMute={handleToggleMute}
           onVolumePreset={handleVolumePreset}
           onOpenGuide={handleOpenGuide}

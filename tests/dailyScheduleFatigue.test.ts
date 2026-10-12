@@ -37,13 +37,28 @@ describe('daily village schedule fatigue', () => {
 
     expect(world.eventLog).toHaveLength(1);
     expect(world.eventLog[0]?.message).toContain('reduced work output for 2 settlers');
-    expect(world.eventLog[0]?.message).toContain('avg 12.0h worked');
+    // The figure is the mean over the settlers whose fatigue rose, not a shift length; the measured
+    // export's 11.0h-24.0h range is what a "(22.7h shifts)" tail read as a shift instead.
+    expect(world.eventLog[0]?.message).toContain('each worked 12.0h on average');
+    expect(world.eventLog[0]?.message).not.toContain('h shifts');
     // Never a fatigue percentage: that scale runs the opposite way to the settler's energy out of
     // 500, so a bare percentage read as a crew near death rather than a crew working efficiently.
     expect(world.eventLog[0]?.message).not.toContain('%');
     // 12 worked hours against the 9-hour normal day: 3 excess x 10, less BASE_DAILY_RECOVERY(4) = 26.
     // The day is 9 hours (owner), so this is genuinely 3 hours of overtime rather than 4.
     expect(settlers.every((settler) => settler.scheduleFatigue === 26)).toBe(true);
+  });
+
+  it('spares a single settler from the output cost in words that name the preposition', () => {
+    const world = state();
+    // 100 of fatigue against a 6-hour shift: short enough to recover well past the 8-point threshold.
+    const settler = human(1, { scheduleFatigue: 100, scheduleWorkedTicksToday: 6 * TICKS_PER_HOUR });
+
+    resolveDailyVillageScheduleFatigue(world, [settler]);
+
+    expect(world.eventLog).toHaveLength(1);
+    expect(world.eventLog[0]?.message).toContain('Short shifts spared 1 settler from that output cost');
+    expect(world.eventLog[0]?.message).toContain('each worked 6.0h on average');
   });
 
   it('applies off-shift zero-hour recovery without adding a work-related chronicle event', () => {

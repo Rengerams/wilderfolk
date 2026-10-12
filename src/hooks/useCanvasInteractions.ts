@@ -49,18 +49,18 @@ export interface UseCanvasInteractionsOptions {
 }
 
 /**
- * The `placeStripChain` command for a drag preview whose every segment is valid, or null when the
- * drag cannot be committed.
+ * The `placeStripChain` command for a drag preview, or null when there is nothing to commit.
  *
- * The click path and the drag-release path each validated the preview and built this command
- * identically, so a change to strip placement had to be made twice in the input hot path
+ * The click path and the drag-release path each built this command identically, so a change to strip
+ * placement had to be made twice in the input hot path. Validity is deliberately **not** re-checked
+ * here: the placement owner paves the segments it accepts, reports what it refused and why, and stops
+ * when the resources run out — a stroke that crosses one bad tile is normal, not a refusal.
  */
 function stripChainCommand(
   preview: ReturnType<typeof buildStripPreview>,
   type: BuildingType,
 ): WorkerCommand | null {
   if (preview.segments.length === 0) return null;
-  if (!preview.segments.every((segment) => segment.valid)) return null;
   return {
     proto: 1,
     op: 'placeStripChain',

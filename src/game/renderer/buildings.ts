@@ -73,8 +73,12 @@ export function footprintGroundRise(
   return terrainRiseAt(map, footprint.x, getBuildingFootprintRect(footprint).bottom);
 }
 
-/** Screen anchor of a building: its footprint centre projected onto the sampled relief. */
-function getBuildingScreenRect(
+/**
+ * Screen anchor of a building: its footprint centre projected onto the sampled relief. Exported so
+ * the drag-stroke preview (`buildPreview.drawStripBuildPreview`) lands a ghost segment exactly where
+ * the placed strip will sit, instead of restating the relief offset.
+ */
+export function getBuildingScreenRect(
   b: Pick<Building, 'x' | 'y' | 'width' | 'height'>,
   state: RenderSnapshot,
   cam: Camera,

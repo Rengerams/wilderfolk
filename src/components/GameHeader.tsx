@@ -49,6 +49,8 @@ tutorialsEnabled: boolean;
   /** Show raw sim tick (and absolute day) next to the clock. */
   showSimTick: boolean;
   showFps: boolean;
+  /** Player's valley-stage warnings toggle; off silences the stage alerts. */
+  valleyStageWarnings: boolean;
   /** In-app virtual player (auto-play) toggle state. */
   autoPlay: boolean;
   /** Latest one-line auto-play reason, or `null` while auto-play is off. */
@@ -87,6 +89,7 @@ tutorialsEnabled,
   juiceEffectsEnabled,
   showSimTick,
   showFps,
+  valleyStageWarnings,
   autoPlay,
   autoPlayStatus,
   autoPlayHistory,
@@ -104,6 +107,7 @@ tutorialsEnabled,
   onToggleJuiceEffects,
   onToggleShowSimTick,
   onToggleShowFps,
+  onToggleValleyStageWarnings,
   onToggleMute,
   onVolumePreset,
   onOpenGuide,
@@ -421,6 +425,7 @@ tutorialsEnabled,
           juiceEffectsEnabled={juiceEffectsEnabled}
           showSimTick={showSimTick}
           showFps={showFps}
+          valleyStageWarnings={valleyStageWarnings}
           muted={muted}
           volumePreset={volumePreset}
           onSave={onSave}
@@ -432,6 +437,7 @@ tutorialsEnabled,
           onToggleJuiceEffects={onToggleJuiceEffects}
           onToggleShowSimTick={onToggleShowSimTick}
           onToggleShowFps={onToggleShowFps}
+          onToggleValleyStageWarnings={onToggleValleyStageWarnings}
           onToggleMute={onToggleMute}
           onVolumePreset={onVolumePreset}
           onOpenGuide={onOpenGuide}
