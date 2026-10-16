@@ -1,5 +1,5 @@
 {
-  "$schema": "https://jsr.io",
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "nodeModulesLinker": "hoisted",
   "nodeModulesDir": "manual",
   "compilerOptions": {
@@ -15,8 +15,11 @@
       }
     },
     "output": {
-      "windows": "./deno/wilderfolk"
-    }
+      "windows": "./deno/wilderfolk",
+      "macos": "./deno/Wilderfolk.app",
+      "linux": "./deno/Wilderfolk.AppImage"
+    },
+    "backend": "webview"
   },
   "exclude": [
     "dist",
