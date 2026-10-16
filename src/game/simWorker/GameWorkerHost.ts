@@ -318,7 +318,11 @@ export class GameWorkerHost {
    * posts it as soon as this returns true.
    */
   canPipelineTick(): boolean {
-    return this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
+    // Drain outstanding ticks before commands, saves or world uploads; otherwise new frames
+    // refill the pipeline forever and the queued operation can never reach idle.
+    return this.ticksInFlight < MAX_PIPELINE_DEPTH
+      && this.pendingCommand == null
+      && this.idleWaiters.length === 0;
   }
 
   hasCommandInFlight(): boolean {
@@ -724,17 +728,10 @@ export class GameWorkerHost {
   }
 }
 
-// export function isGameWorkerEnabled(): boolean {
-//  if (typeof Worker === 'undefined') return false;
-//  const v = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_USE_GAME_WORKER : undefined;
-//  if (v === false || v === 0) return false;
-//  if (typeof v === 'string') {
-//    const normalized = v.trim().toLowerCase();
-//    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') return false;
-//    return false;
-//  }
-// return true;
-
+// Explicit opt-in until worker-mode movement is verified in a real browser session.
 export function isGameWorkerEnabled(): boolean {
-  return false; // <-- FORCEER DIT TIJDELIJK OP FALSE
+  if (typeof Worker === 'undefined') return false;
+  const flag = import.meta.env?.VITE_USE_GAME_WORKER;
+  if (typeof flag !== 'string') return false;
+  return ['1', 'true', 'on', 'yes'].includes(flag.trim().toLowerCase());
 }
