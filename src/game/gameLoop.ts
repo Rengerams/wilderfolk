@@ -406,12 +406,20 @@ export class GameLoop {
       if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
         this.catalog.rebuild(this.world.entities);
+      } else {
+        // Rebase pending player actions on the *latest* worker tick, not the world
+        // from when the command was queued; otherwise people freeze until it settles.
+        this.rebuildOptimisticDisplay();
+        this.catalog.rebuild(this.world.entities);
       }
 
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
+        // The SoA reader may change while an optimistic command retains its tick.
+        // A cached snapshot with the old reader would keep drawing stale shims.
+        this.invalidateRenderSnapshot();
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
       }
 
