@@ -1,5 +1,11 @@
 # Changelog
 
+## Worker motion regression candidate — 2026-10-17
+
+- **Fix: queued commands no longer prevent simulation ticks from reaching the display** — pending optimistic commands are reapplied to the newest worker-authoritative tick instead of leaving a stale display world on screen; SoA render snapshots are invalidated when fresh render buffers arrive.
+- **Fix: drain worker ticks before dispatching a queued action or save** — while a caller waits for the worker to become idle, no further ticks are pipelined, allowing commands, exports and session uploads to make progress.
+- **Experimental opt-in: worker mode is still off by default** — set `VITE_USE_GAME_WORKER=1` for development testing; includes a regression test for advancing settlers under optimistic commands and for the drain gate. No claim of real-browser validation yet.
+
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
