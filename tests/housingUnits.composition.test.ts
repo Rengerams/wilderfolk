@@ -20,6 +20,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
+import { getChildCustodian } from '../src/game/householdComposition';
 import { buildHousingUnits } from '../src/game/residencySelection';
 
 /** A cohabiting couple: partners, each a legal custodian of their own child. */
@@ -66,6 +67,16 @@ function unitContaining(units: Entity[][], id: number): Entity[][] {
 }
 
 describe('buildHousingUnits puts every settler in exactly one unit', () => {
+  it('resolves a child custodian from the entity index when one is available', () => {
+    const mother = human(MOTHER_ID);
+    const child = human(MOTHER_CHILD_ID, { age: 4, isJuvenile: true, motherId: MOTHER_ID });
+    const humans = [mother, child];
+    const entityById = new Map(humans.map((entity) => [entity.id, entity]));
+
+    expect(getChildCustodian(child, humans)).toBe(mother);
+    expect(getChildCustodian(child, humans, entityById)).toBe(mother);
+  });
+
   it('does not claim a custodian twice when both partners have their own minor child', () => {
     const mother = human(MOTHER_ID, {
       partnerId: FATHER_ID,

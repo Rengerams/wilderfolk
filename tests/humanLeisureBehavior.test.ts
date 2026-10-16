@@ -62,6 +62,7 @@ function tickChild(state: ReturnType<typeof initGame>, child: Entity, allHumans:
     hourOfDay: 12,
     onSchedule: false,
     allHumans,
+    entityById: new Map(allHumans.map((human) => [human.id, human])),
     updatedBuildings: [],
     buildingById: new Map(),
     humanSocialGrid: undefined,

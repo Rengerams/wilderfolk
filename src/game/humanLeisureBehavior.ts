@@ -3,7 +3,7 @@ import { commuteHumanToBuilding, venueGatherPosition } from './simulation/humanM
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
-import { pickSocialImpulse } from './socialLife';
+import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 
@@ -19,6 +19,8 @@ export function tickHumanChildLeisure(args: {
   hourOfDay: number;
   onSchedule: boolean;
   allHumans: Entity[];
+  entityById?: ReadonlyMap<number, Entity>;
+  pickSocialBuilding?: SocialBuildingPicker;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
@@ -56,7 +58,7 @@ export function tickHumanChildLeisure(args: {
     childCache.set(entity, cached);
   }
   const mate = cached.mate;
-  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], []);
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
   // Kids play is decided HERE, because `pickSocialImpulse` no longer offers a `kid_play` motive —
   // its removal left this caller testing for a motive nothing produces, so **no child could ever
@@ -88,7 +90,7 @@ export function tickHumanChildLeisure(args: {
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
   const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonight(parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
-  const follow = freeParent ?? getChildCustodian(entity, allHumans);
+  const follow = freeParent ?? getChildCustodian(entity, allHumans, args.entityById);
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
     if (distance > 22) {
@@ -173,6 +175,7 @@ export function tickAdultLeisureMotive(args: {
   entity: Entity;
   speed: number;
   allHumans: Entity[];
+  pickSocialBuilding?: SocialBuildingPicker;
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
   humanSocialGrid: TickContext['humanSocialGrid'];
@@ -192,7 +195,7 @@ export function tickAdultLeisureMotive(args: {
   }
   const spouseEarly = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
   if (spouseEarly?.alive && !nearbyAdults.some((h) => h.id === spouseEarly.id)) nearbyAdults.push(spouseEarly);
-  const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, []);
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, [], args.pickSocialBuilding);
   let suppressIdle = args.suppressIdleInitial;
   if (impulse.motive !== 'none') {
     if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE) sayHumanChatPhrase(entity, impulse.bubble, 55);
