@@ -1,7 +1,4 @@
-/**
- * Election vote-support regression tests — merit stays the strongest force;
- * friendships/feuds only tip races that are close.
- */
+/** Election ballots follow merit and bonds without turning a narrow lead into a sweep. */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
@@ -37,66 +34,76 @@ const feud = (w: WorldState, voterId: number, candidateId: number, score: number
 };
 
 describe('election vote-support — merit is strongest', () => {
-  it('a big merit gap wins every ballot regardless of bonds', () => {
+  it('a large merit lead survives even when every voter favors the rival', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    addVoter(w, 3);
-    for (const v of [1, 2, 3]) friend(w, v, 20, 100);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 100 }));
+    for (let id = 1; id <= 100; id++) addVoter(w, id);
+    for (let v = 1; v <= 100; v++) friend(w, v, 20, 100);
+    const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 80 }));
     expect(result.winnerId).toBe(10);
-    expect(result.tally.get(10)).toBe(3);
+    expect(result.tally.get(10)).toBeGreaterThan(70);
+    expect(result.tally.get(20)).toBeGreaterThan(0);
   });
 
   it('bonds tip a close race (gap within the influence cap)', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    addVoter(w, 3);
-    for (const v of [1, 2, 3]) friend(w, v, 20, 100);
+    for (let id = 1; id <= 200; id++) addVoter(w, id);
+    for (let v = 1; v <= 200; v++) friend(w, v, 20, 100);
     const result = simulateElectionVotes(w, candidates({ id: 10, score: 100 }, { id: 20, score: 95 }));
     expect(result.winnerId).toBe(20);
-    expect(result.tally.get(20)).toBe(3);
+    expect(result.tally.get(20)).toBeGreaterThan(result.tally.get(10) ?? 0);
+    expect(result.tally.get(10)).toBeGreaterThan(0);
   });
 
   it('a feud cancels a vote even for a slightly stronger candidate', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    addVoter(w, 3);
-    for (const v of [1, 2, 3]) feud(w, v, 10, 100);
+    for (let id = 1; id <= 200; id++) addVoter(w, id);
+    for (let v = 1; v <= 200; v++) feud(w, v, 10, 100);
     const result = simulateElectionVotes(w, candidates({ id: 10, score: 100 }, { id: 20, score: 90 }));
     expect(result.winnerId).toBe(20);
+    expect(result.tally.get(20)).toBeGreaterThan(result.tally.get(10) ?? 0);
   });
 
-  it('a large merit gap survives a full feud (feud cannot out-vote merit)', () => {
+  it('a very large merit gap keeps a broad lead despite a full feud', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    for (const v of [1, 2]) feud(w, v, 10, 100);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 120 }));
+    for (let id = 1; id <= 100; id++) addVoter(w, id);
+    for (let v = 1; v <= 100; v++) feud(w, v, 10, 100);
+    const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 80 }));
     expect(result.winnerId).toBe(10);
+    expect(result.tally.get(10)).toBeGreaterThan(90);
+    expect(result.tally.get(20)).toBeGreaterThan(0);
   });
 
-  it('equal merit resolves deterministically to the first-listed candidate', () => {
+  it('equal merit splits ballots deterministically', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 100 }, { id: 20, score: 100 }));
-    expect(result.winnerId).toBe(10);
-    expect(result.runnerUpVotes).toBe(0);
+    for (let id = 1; id <= 100; id++) addVoter(w, id);
+    const candidatesForElection = candidates({ id: 10, score: 100 }, { id: 20, score: 100 });
+    const firstResult = simulateElectionVotes(w, candidatesForElection);
+    const secondResult = simulateElectionVotes(w, candidatesForElection);
+    expect(secondResult.tally).toEqual(firstResult.tally);
+    expect(firstResult.tally.get(10)).toBeGreaterThan(0);
+    expect(firstResult.tally.get(20)).toBeGreaterThan(0);
+    expect(firstResult.totalVotes).toBe(100);
   });
 
-  it('counts every ballot and reports runner-up', () => {
+  it('lets either candidate win a 213-to-206 race with a bounded election-wide swing', () => {
     const w = makeWorld();
-    addVoter(w, 1);
-    addVoter(w, 2);
-    addVoter(w, 3);
-    addVoter(w, 4);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 120 }, { id: 20, score: 110 }));
-    expect(result.totalVotes).toBe(4);
-    expect(result.winnerVotes).toBe(4);
-    expect(result.runnerUpVotes).toBe(0);
+    for (let id = 1; id <= 1600; id++) addVoter(w, id);
+    let meritLeaderWins = 0;
+    let challengerWins = 0;
+    const closeRace = candidates({ id: 10, score: 213 }, { id: 20, score: 206 });
+
+    for (let year = 0; year < 32; year++) {
+      w.year = year;
+      const result = simulateElectionVotes(w, closeRace);
+      const repeatedResult = simulateElectionVotes(w, closeRace);
+      expect(repeatedResult.tally).toEqual(result.tally);
+      expect(result.totalVotes).toBe(1600);
+      if (result.winnerId === 10) meritLeaderWins++;
+      if (result.winnerId === 20) challengerWins++;
+    }
+
+    expect(meritLeaderWins).toBeGreaterThanOrEqual(5);
+    expect(challengerWins).toBeGreaterThanOrEqual(5);
   });
 
   it('the influence cap bounds friendship/feud power', () => {

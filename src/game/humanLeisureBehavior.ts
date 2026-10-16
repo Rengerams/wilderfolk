@@ -1,14 +1,16 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
-import { PER_TICK_RATE_SCALE, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { pickSocialImpulse } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
 
-/** 0.72 = per-child, per-day chance that a free child heads off to play with another child. */
+/** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
+const CHILD_PLAYMATE_REFRESH_TICKS = TICKS_PER_HOUR;
+const childPlaymateByWorld = new WeakMap<WorldState, WeakMap<Entity, { tickBucket: number; mate?: Entity }>>();
 
 export function tickHumanChildLeisure(args: {
   state: WorldState;
@@ -19,13 +21,42 @@ export function tickHumanChildLeisure(args: {
   allHumans: Entity[];
   updatedBuildings: Building[];
   buildingById: Map<number, Building>;
+  humanSocialGrid: TickContext['humanSocialGrid'];
+  width: number;
+  height: number;
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
   suppressIdleInitial: boolean;
 }): boolean {
   if (args.onSchedule || !args.entity.isJuvenile || !isPlayerHuman(args.entity)) return args.suppressIdleInitial;
-  const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, livingHumanAt } = args;
-  const playmates = allHumans.filter((h) => h.alive && h.isJuvenile && h.id !== entity.id && isPlayerHuman(h));
-  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], playmates);
+  const { state, entity, speed, hourOfDay, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt } = args;
+  let childCache = childPlaymateByWorld.get(state);
+  if (!childCache) {
+    childCache = new WeakMap();
+    childPlaymateByWorld.set(state, childCache);
+  }
+  const tickBucket = Math.floor(state.tick / CHILD_PLAYMATE_REFRESH_TICKS);
+  let cached = childCache.get(entity);
+  if (!cached || cached.tickBucket !== tickBucket) {
+    const playmates: Entity[] = [];
+    forEachAdaptiveInRadius(
+      humanSocialGrid,
+      allHumans,
+      entity.x,
+      entity.y,
+      SOCIAL_FRIENDSHIP_RADIUS,
+      (human) => {
+        if (human.id !== entity.id && human.alive && human.isJuvenile && isPlayerHuman(human)) playmates.push(human);
+      },
+      socialAdaptiveOptions('social', allHumans.length, width, height),
+    );
+    const mate = playmates.length > 0 && personDayRoll(entity.id, state.tick, 718 + tickBucket) < KID_PLAY_CHANCE
+      ? playmates[(entity.id + tickBucket) % playmates.length]
+      : undefined;
+    cached = { tickBucket, mate };
+    childCache.set(entity, cached);
+  }
+  const mate = cached.mate;
+  const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], []);
 
   // Kids play is decided HERE, because `pickSocialImpulse` no longer offers a `kid_play` motive —
   // its removal left this caller testing for a motive nothing produces, so **no child could ever
@@ -38,10 +69,7 @@ export function tickHumanChildLeisure(args: {
   // Sickness, grief and harsh weather still outrank play — those are the only `stayHome` motives a
   // juvenile has any business obeying.
   if (!impulse.stayHome) {
-    const mate = playmates.length > 0 && personDayRoll(entity.id, state.tick, 718) < KID_PLAY_CHANCE
-      ? playmates[(entity.id + Math.floor(state.tick / 12)) % playmates.length]
-      : undefined;
-    if (mate?.alive) {
+    if (mate?.alive && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
       const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
       if (pdist > 16) {
         setVelocityToward(entity, mate.x, mate.y, speed, 0.7);
@@ -171,7 +199,7 @@ export function tickAdultLeisureMotive(args: {
     if (impulse.stayHome && hasResidenceAssignment(entity)) {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
-        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 2.2);
+        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 1);
         if (impulse.motive === 'sick_day') entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }

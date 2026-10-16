@@ -3,7 +3,7 @@ import { JobType } from './gameTypes';
 import { PER_TICK_RATE_SCALE } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
-import { commuteHumanToBuilding } from './simulation/humanMovement';
+import { commuteHumanToBuilding, WORK_COMMUTE_RUSH } from './simulation/humanMovement';
 import {
   isOfficialAtHall,
   officialHandlePetitioners,
@@ -49,7 +49,7 @@ export function tickTavernService({
     return false;
   }
 
-  commuteHumanToBuilding(entity, workplace, speed, false, 3.2);
+  commuteHumanToBuilding(entity, workplace, speed, false, WORK_COMMUTE_RUSH);
   onSchedule();
   onSuppressIdle();
   if (seededRandomForRun(`chat-work:${entity.id}:${tick}`) < 0.04 * PER_TICK_RATE_SCALE) {

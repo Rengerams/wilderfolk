@@ -17,16 +17,14 @@
  *    (it cannot be walked and must be detoured), exceeds the simulation's own too-far-to-walk
  *    distance, or exceeds the owner's one-hour commute allowance.
  *
- * Commute pressure is deliberately *not* rare: `humanTick` accelerates a long commute and
- * `COMMUTE_SNAP_DISTANCE` teleports the settler outright, so a colony with a one-hour allowance
- * (`WORK_COMMUTE_LEAD_HOURS`) puts most legs `over_budget`. Surfacing that is the point of the
- * overlay — the amber/red split is the finding, not a bug in the thresholds.
+ * Commute pressure is deliberately *not* rare: a long walk can exceed the one-hour allowance
+ * (`WORK_COMMUTE_LEAD_HOURS`), even with bounded urgency pacing. Surfacing that is the point of
+ * the overlay — the amber/red split is the finding, not a bug in the thresholds.
  */
 import { BuildingType, EntityType, type Building, type Entity, type WorldState } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycle';
 import { getBuildingCenter, getBuildingFootprintRect } from './placementUtils';
 import { isPlayerHuman } from './playerHuman';
-import { COMMUTE_SNAP_DISTANCE } from './simulation/humanMovement';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { isStripBuildType } from './stripBuild';
 import { isRoadStripType } from './stripTopology';
@@ -57,13 +55,9 @@ export const GOOD_ROAD_ACCESS_DISTANCE = 40;
 export const MAX_ROAD_ACCESS_DISTANCE = 120;
 
 /**
- * Home↔work distance at which the simulation already gives up on walking the leg.
- *
- * Reused from its owner (`humanMovement.COMMUTE_SNAP_DISTANCE`, the distance beyond which a
- * settler snaps to home or work) rather than restated, so the overlay can never disagree with
- * the simulation about which commutes it has abandoned.
+ * Home↔work distance the overlay classifies as extreme, in world px.
  */
-export const COMMUTE_EXTREME_DISTANCE = COMMUTE_SNAP_DISTANCE;
+export const COMMUTE_EXTREME_DISTANCE = 200;
 
 /**
  * Walk time an ordinary home↔work leg may take before it is over budget.

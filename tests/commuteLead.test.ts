@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  COMMUTE_SNAP_DISTANCE,
-  MAX_COMMUTE_LEAD_HOURS,
-  commuteLeadHoursFor,
-} from '../src/game/simulation/humanMovement';
+import { MAX_COMMUTE_LEAD_HOURS, commuteLeadHoursFor } from '../src/game/simulation/humanMovement';
 
 const WALK_SPEED = 3.0; // SPECIES_CONFIG[EntityType.Human].speed
 
@@ -34,23 +30,20 @@ describe('commute lead hours', () => {
   });
 
   it('grows with distance and caps at the ceiling', () => {
-    const near = commuteLeadHoursFor(300, WALK_SPEED);
-    const far = commuteLeadHoursFor(900, WALK_SPEED);
+    const near = commuteLeadHoursFor(30, WALK_SPEED);
+    const far = commuteLeadHoursFor(60, WALK_SPEED);
 
     expect(far).toBeGreaterThan(near);
     expect(commuteLeadHoursFor(1_000_000, WALK_SPEED)).toBe(MAX_COMMUTE_LEAD_HOURS);
   });
 
-  it('gives a leg past the snap distance more than the old fixed hour', () => {
-    // 200 units is exactly where the shift-start snap stops saving a settler. Past it the old
-    // one-hour allowance was the only thing scheduling the walk, so those are the legs that arrived
-    // late. This is the regression guard for the reported behaviour.
-    expect(commuteLeadHoursFor(COMMUTE_SNAP_DISTANCE, WALK_SPEED)).toBeGreaterThan(1);
-    expect(commuteLeadHoursFor(COMMUTE_SNAP_DISTANCE * 3, WALK_SPEED))
-      .toBeGreaterThan(commuteLeadHoursFor(COMMUTE_SNAP_DISTANCE, WALK_SPEED));
+  it('gives a long walk more lead time than a shorter one', () => {
+    expect(commuteLeadHoursFor(30, WALK_SPEED)).toBeGreaterThan(1);
+    expect(commuteLeadHoursFor(60, WALK_SPEED))
+      .toBeGreaterThan(commuteLeadHoursFor(30, WALK_SPEED));
   });
 
   it('asks for more lead from a slower walker at the same distance', () => {
-    expect(commuteLeadHoursFor(150, 1.5)).toBeGreaterThan(commuteLeadHoursFor(150, 3.0));
+    expect(commuteLeadHoursFor(20, 1.5)).toBeGreaterThan(commuteLeadHoursFor(20, 3.0));
   });
 });
