@@ -1,12 +1,12 @@
 import type { WorldState } from './gameTypes';
 import { friendshipScore, feudScore } from './relationships';
 import { isPlayerHuman } from './playerHuman';
+import { seededRandomForRun } from './simRng';
 
 /**
  * Election vote-support (Phase 7) — every adult settler casts a ballot.
- * Merit is the strongest force: a candidate ahead by more than BOND_INFLUENCE_CAP
- * points wins every ballot. Friendships and feuds only tip races that are close —
- * a friend's support is worth a little, a feud can cancel a vote entirely.
+ * A bounded election-wide swing moves expected merit support; personal bonds then
+ * weight each ballot without making every voter choose the same candidate.
  */
 
 /** A structurally-minimal candidate — villageLeadership's score breakdown fits this. */
@@ -34,6 +34,9 @@ export const BOND_INFLUENCE_CAP = 15;
 const FRIEND_WEIGHT = 0.3;
 /** How much a feud point costs (feuds hurt far more than friends help). */
 const FEUD_WEIGHT = 0.5;
+/** One shared election swing changes each candidate's expected merit by at most 20%. */
+const ELECTION_SUPPORT_SWING_CAP = 0.2;
+const VOTE_SUPPORT_TEMPERATURE = 20;
 
 export function simulateElectionVotes(
   state: WorldState,
@@ -45,13 +48,22 @@ export function simulateElectionVotes(
   const voters = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile,
   );
+  const electionCandidates = candidates.map((candidate) => {
+    const swing =
+      (seededRandomForRun(
+        `election-support-swing:${state.year}:${state.lastElectionYear ?? 'none'}:${candidate.entityId}`,
+      ) *
+        2 -
+        1) *
+      ELECTION_SUPPORT_SWING_CAP;
+    return { ...candidate, supportFactor: 1 + swing };
+  });
   let totalVotes = 0;
 
   for (const voter of voters) {
-    let bestId: number | null = null;
-    let bestSupport = -Infinity;
-    let bestMerit = -Infinity;
-    for (const c of candidates) {
+    const supports: Array<{ entityId: number; support: number }> = [];
+    let maxSupport = -Infinity;
+    for (const c of electionCandidates) {
       const bond = Math.max(
         -BOND_INFLUENCE_CAP,
         Math.min(
@@ -59,15 +71,27 @@ export function simulateElectionVotes(
           friendshipScore(voter, c.entityId) * FRIEND_WEIGHT - feudScore(voter, c.entityId) * FEUD_WEIGHT,
         ),
       );
-      const support = c.totalScore + bond;
-      if (support > bestSupport || (support === bestSupport && c.totalScore > bestMerit)) {
-        bestSupport = support;
-        bestMerit = c.totalScore;
-        bestId = c.entityId;
-      }
+      const support = c.totalScore * c.supportFactor + bond;
+      supports.push({ entityId: c.entityId, support });
+      if (support > maxSupport) maxSupport = support;
     }
-    if (bestId != null) {
-      tally.set(bestId, (tally.get(bestId) ?? 0) + 1);
+
+    if (supports.length > 0) {
+      const weights = supports.map((candidate) =>
+        Math.exp((candidate.support - maxSupport) / VOTE_SUPPORT_TEMPERATURE),
+      );
+      const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+      let roll = seededRandomForRun(`election-vote:${state.year}:${state.lastElectionYear ?? 'none'}:${voter.id}`) * totalWeight;
+      let chosenIndex = weights.length - 1;
+      for (let i = 0; i < weights.length; i++) {
+        roll -= weights[i];
+        if (roll < 0) {
+          chosenIndex = i;
+          break;
+        }
+      }
+      const chosenId = supports[chosenIndex].entityId;
+      tally.set(chosenId, (tally.get(chosenId) ?? 0) + 1);
       totalVotes++;
     }
   }
