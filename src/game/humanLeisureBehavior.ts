@@ -171,7 +171,7 @@ export function tickAdultLeisureMotive(args: {
     if (impulse.stayHome && hasResidenceAssignment(entity)) {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
-        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 2.2);
+        commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 1);
         if (impulse.motive === 'sick_day') entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }

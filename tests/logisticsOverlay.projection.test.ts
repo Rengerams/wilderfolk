@@ -24,7 +24,6 @@ import {
   computeLogisticsOverlay,
   type LogisticsBuildingFlag,
 } from '../src/game/logisticsOverlayData';
-import { COMMUTE_SNAP_DISTANCE } from '../src/game/simulation/humanMovement';
 import { WORK_COMMUTE_LEAD_HOURS } from '../src/game/workSchedule';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { createInitialView, createViewFromSave, mergeForSave } from '../src/game/viewState';
@@ -257,8 +256,6 @@ describe('F4 projection — commute pressure', () => {
   it('pins the commute boundaries and the walk-speed fallback', () => {
     // The thresholds are the owners' values, never a local restatement.
     expect(COMMUTE_WALK_BUDGET_TICKS).toBe(WORK_COMMUTE_LEAD_HOURS * TICKS_PER_HOUR);
-    expect(COMMUTE_EXTREME_DISTANCE).toBe(COMMUTE_SNAP_DISTANCE);
-
     const atBudget = COMMUTE_WALK_BUDGET_TICKS * SETTLER_WALK_SPEED; // 9 wu at the human pace
     const data = computeLogisticsOverlay(
       makeWorld(
@@ -266,7 +263,7 @@ describe('F4 projection — commute pressure', () => {
           place(40, BuildingType.House, 100, 140),
           place(41, BuildingType.Farm, 100, 140 + atBudget), // exactly at budget
           place(42, BuildingType.Farm, 100, 140 + atBudget + 0.5), // a hair over
-          place(43, BuildingType.Farm, 100 + COMMUTE_EXTREME_DISTANCE, 140), // exactly the snap distance
+          place(43, BuildingType.Farm, 100 + COMMUTE_EXTREME_DISTANCE, 140), // exactly the extreme threshold
           place(44, BuildingType.Farm, 100 + COMMUTE_EXTREME_DISTANCE + 0.5, 140), // past it
         ],
         [

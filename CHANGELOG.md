@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Changed: settlers walk commutes without teleporting or distance-based speed spikes; urgent walks use a fixed speed cap, and stuck settlers recover onto nearby walkable ground.**
+
 - **Changed: the valley's ecology ladder is live again** — Stable, Strained, Damaged and Collapse now follow the deer, the wolves, the meadows and the town's footprint, thinning hunts and farms and costing reputation, with every warning arriving before its effect.
 
 - **Fixed: the Wildlife Preserve can be built again** — it was left out of the build menu's categories, so its ecosystem bonus and the Keeper of the Wild chapter were unreachable in normal play.

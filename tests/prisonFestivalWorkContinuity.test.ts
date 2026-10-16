@@ -147,8 +147,8 @@ function worldState(
 }
 
 /**
- * A staffed Prison with one prisoner and a house far outside `COMMUTE_SNAP_DISTANCE` (200), so a
- * guard sent home has to walk back — the distance a night duty would lose.
+ * A staffed Prison with one prisoner and a distant house, so a guard sent home has to walk back —
+ * the distance a night duty would lose.
  */
 function prisonWorld(): { state: WorldState; prison: Building; nightGuard: Entity } {
   const house = building(20, BuildingType.House, 40, 40, [1, 2, 3]);

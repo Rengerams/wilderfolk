@@ -107,8 +107,8 @@ let gridCacheSeed = '';
 
 /**
  * The passability grid's cache identity. The seed alone does not identify the tiles: two maps can
- * share a seed and size while a different preset produces different terrain, and the buildings that
- * block a step or cheapen one change the grid too — so the signature carries all of them.
+ * share a seed and size while a different preset produces different terrain, and buildings that
+ * block or cheapen a step change the grid too — so the signature carries all of them.
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
@@ -118,8 +118,8 @@ function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
 }
 
 /**
- * The one place a passability grid is built. Both accessors below share it so the blocked-terrain
- * rule and the wall rule exist once (AGENTS.md §5.2) — they differ only in who owns the cache.
+ * The one place a passability grid is built. Both accessors below share the blocked-terrain
+ * and wall rules — they differ only in who owns the cache.
  */
 function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cols = map.width;
@@ -621,7 +621,15 @@ export function steerWithPath(
         Math.floor(targetX / PATH_CELL),
         Math.floor(targetY / PATH_CELL),
       );
-      const waypoints = path ? pathWaypoints(path) : null;
+      let waypoints = path ? pathWaypoints(path) : null;
+      const startTx = Math.floor(entity.x / PATH_CELL);
+      const startTy = Math.floor(entity.y / PATH_CELL);
+      const startIsBlocked = startTx >= 0 && startTy >= 0
+        && startTx < currentGrid.cols && startTy < currentGrid.rows
+        && currentGrid.blocked[startTy * currentGrid.cols + startTx] === 1;
+      if (waypoints && startIsBlocked) {
+        waypoints = [{ x: entity.x, y: entity.y }, ...waypoints];
+      }
       cached = { waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0 };
       if (pathCache.size > 200) {
         const oldestKey = pathCache.keys().next().value;
@@ -668,11 +676,7 @@ export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY
     startTx >= 0 && startTy >= 0 && startTx < grid.cols && startTy < grid.rows
       ? startTy * grid.cols + startTx
       : -1;
-  // Already on ground the grid blocks — shoved there, built on, or restored from a save made while
-  // they waded. Every direction is a way out and none of them is a way in, so the step is allowed:
-  // refusing it (or only part of it) is what leaves a settler standing in a pond for good.
-  if (startIdx >= 0 && grid.blocked[startIdx] === 1) return true;
-
+  // A blocked start may be escaped, but cells beyond it must still be walkable.
   const span = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY));
   const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
   let prevElev: number | null = null;
@@ -701,7 +705,7 @@ export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY
  * A destination has to be a cell a walker can occupy, not merely one it can reach from where it
  * already is. This is what lets a stand point (a workplace row, a home arc, a hotel doorstep) move
  * off water, a reserved decor cell or a completed wall's footprint instead of leaving a settler
- * hovering at the edge of it. Out-of-bounds reads as open, the tolerance the step rule takes.
+ * hovering at its edge. Out-of-bounds reads as open, the tolerance the step rule takes.
  */
 export function isGroundWalkableAt(x: number, y: number): boolean {
   const grid = currentGrid;

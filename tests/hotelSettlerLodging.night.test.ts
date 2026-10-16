@@ -31,8 +31,8 @@ import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 
 const TEST_SEED = 20_261_010;
-/** 23:20 — deep night, so `stayIn` is unconditional, and not a clock hour, so no home snap fires. */
-const LATE_NIGHT_OFFSET = 23 * TICKS_PER_HOUR + 1;
+/** 23:00 — deep night, so `stayIn` is unconditional and the old hourly home snap would fire. */
+const LATE_NIGHT_OFFSET = 23 * TICKS_PER_HOUR;
 /**
  * A walkable land point on this seed, with land to its west and east. The cases below used
  * `width * 0.78`, which on this map is open sea several tiles from any shore — they passed only
@@ -195,6 +195,8 @@ describe('settler lodging overnight', () => {
     setSimSeed(TEST_SEED);
     tickHumans(noInn, contextFor(noInn, [control]));
     expect(control.vx, 'without a hotel the settler still walks home').toBeLessThan(0);
+    expect(distanceTo(control, home.x + home.width / 2, home.y + home.height / 2))
+      .toBeGreaterThan(200);
   });
 
   it('goes home as before when the walk home fits in the night', () => {

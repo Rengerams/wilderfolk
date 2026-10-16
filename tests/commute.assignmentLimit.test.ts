@@ -5,8 +5,7 @@
  * sorts candidates by distance and takes the nearest, which without this rule meant a settler housed
  * across the map could be handed a job they could never reach in time.
  *
- * The hours judged are the walk the settler really makes: the lead estimate has to carry the same
- * `rush` multiplier the work commute passes, or it disagrees with the walk by exactly that factor.
+ * The hours judged use the same bounded work-commute pace as the movement loop.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
@@ -14,9 +13,9 @@ import {
   commuteLeadHoursFor,
   isWithinAssignableCommute,
   MAX_ASSIGNABLE_COMMUTE_HOURS,
-  WORK_COMMUTE_RUSH,
 } from '../src/game/simulation/humanMovement';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { BuildingType, EntityType, type Building, type Entity, type WorldState } from '../src/game/gameTypes';
 import { resetSimRng } from '../src/game/simRng';
 
@@ -67,12 +66,10 @@ function distanceWhereHoursReach(targetHours: number, speed: number): number {
 }
 
 describe('a post beyond a two-hour walk is not offered', () => {
-  it('judges the walk the settler actually makes, including the commute rush', () => {
-    // The scheduler's estimate carries the same rush the walk does: at 60% of the distance the
-    // two-hour walk reaches it fits the rule, and stripped of the rush the same walk does not.
+  it('uses the configured walking speed consistently in commute estimates', () => {
     const insideTheRule = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED) * 0.6;
     expect(commuteLeadHoursFor(insideTheRule, WALK_SPEED)).toBeLessThan(MAX_ASSIGNABLE_COMMUTE_HOURS);
-    expect(commuteLeadHoursFor(insideTheRule, WALK_SPEED / WORK_COMMUTE_RUSH)).toBeGreaterThan(
+    expect(commuteLeadHoursFor(insideTheRule, WALK_SPEED / 2)).toBeGreaterThan(
       MAX_ASSIGNABLE_COMMUTE_HOURS,
     );
   });
@@ -115,8 +112,10 @@ describe('a post beyond a two-hour walk is not offered', () => {
   it('keeps a far post reachable when a road serves the route', () => {
     const home = placed(BuildingType.House, 300, 300, 8031);
     const settler = settlerLivingIn(home, 7004);
-    // A shop past the plain-walking limit, on a line that a road runs along.
-    const beyond = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED) + 120;
+    // Pick a distance beyond plain walking but within the reach the road-speed rule grants.
+    const plainLimit = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED);
+    const roadLimit = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED * ROAD_SPEED_MULT);
+    const beyond = (plainLimit + roadLimit) / 2;
     const shop = placed(BuildingType.Store, home.x + beyond, home.y, 8032);
     const hasRoad = isWithinAssignableCommute(settler, shop, world.buildings, WALK_SPEED);
 

@@ -3,7 +3,6 @@ import { isDecorType } from '../beautyGrid';
 import { getPlaceBuildingFailureLabel } from '../buildingPlacementLabels';
 import { drawProceduralDecor } from '../decorRender';
 import { getBuildingFootprintForType, placementRotationFor } from '../buildingRotation';
-import { getBuildingFootprintRect } from '../buildingGeometry';
 import { categoryBorderDashForType } from '../buildCatalog';
 import { getSpriteFrame } from '../spriteLoader';
 import { isStripBuildType } from '../stripBuild';
@@ -68,12 +67,6 @@ export function drawStripBuildPreview(
   for (const segment of preview.segments) {
     const footprint = getBuildingFootprintForType(segment.placeType, segment.rotation);
     const sx = (segment.x - cam.x) * zoom + cw / 2;
-    const rect = getBuildingFootprintRect({
-      x: segment.x,
-      y: segment.y,
-      width: footprint.width,
-      height: footprint.height,
-    });
     const sy = (segment.y - cam.y) * zoom + ch / 2
       - footprintGroundRise(state.worldMap, {
         x: segment.x,
