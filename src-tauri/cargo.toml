@@ -16,20 +16,12 @@ tauri-build = { version = "2.7.1", features = [] }
 
 
 [dependencies]
-# Up-to-date en correct geconfigureerd voor zip/tar-archiefafhandeling
-reqwest = { version = "*", default-features = false, features = ["native-tls"] }
 serde_json = "1.0"
 serde = { version = "1.0.51", features = ["derive"] }
 log = "0.4.34"
 tauri = { version = "2.12.1", features = [] }
 tauri-plugin-log = "2.4.0"
-tauri-plugin-process = "2" # Perfect voor het herstarten/afsluiten na een update
-embedded-graphics = "0.8.2"
-defmt = "1.1.1"
 embedded-graphics-core = "0.4.1"
-embedded-graphics-web-simulator = "0.4.0"
-deno_runtime = "0.267.0"
-deno = "2.9.7"
 
 
 # Keep dev builds debuggable — no stripping, no abort.
