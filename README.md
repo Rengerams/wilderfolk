@@ -42,6 +42,28 @@ npm run deno:build:cef  # Package with bundled Chromium (CEF) for comparison
 - **Other platforms:** default Deno outputs are `deno/Wilderfolk.app` on macOS and `deno/Wilderfolk.AppImage` on Linux (using the default Deno icon until project icons are added). Build on the target platform first; cross-compilation is supported by Deno.
 - **Existing paths stay as-is:** `npm run dev` for browser development, `npm run tauri:dev` for Tauri development, and `npm run tauri:build` for the established desktop packaging workflow.
 
+### Compare Node and Deno on real simulation work
+
+Run a bounded, headless CPU benchmark with the **same seed and population targets** on both runtimes:
+
+```powershell
+npm run perf:compare-runtimes
+$env:PERF_COMPARE_RUNS = '3'; npm run perf:compare-runtimes
+```
+
+For the most relevant comparison, use a current-version save file:
+
+```powershell
+$env:PERF_SAVE = 'C:\\path\\to\\wilderfolk-save.json'
+$env:PERF_TICKS = '300'
+$env:PERF_COMPARE_RUNS = '3'
+npm run perf:compare-runtimes
+```
+
+The script calls `scripts/perf-at-pop.ts` under Node/tsx and Deno, alternates execution order across repeats, and summarizes **p95 simulation tick time**. Do not interpret these results as desktop FPS: the game still renders in a browser engine, and these runs do not include worker transport or Canvas drawing. Remove these optional environment variables after your test session if you want to restore the defaults.
+
+**Known limitation (October 2026):** The browser simulation Web Worker is intentionally disabled in `src/game/simWorker/GameWorkerHost.ts` because characters may appear frozen with it enabled. This benchmark does not turn it back on or claim to fix it. The worker/display path must be diagnosed separately before any performance gains from parallel simulation can be claimed.
+
 These commands use the *same* game code, Web Worker simulation, assets and save format. Performance gains are **not** assumed: test startup, game audio, saves, workers and frame pacing on your machine before considering Deno builds for a release. In particular, WebView requires the operating system's webview runtime.
 
 *THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. *
