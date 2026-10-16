@@ -35,8 +35,10 @@
     "audit:deps:graph": "node scripts/test.mjs cycles --json",
     "graph:calls": "node scripts/build-call-graph.mjs",
     "audit": "node scripts/test.mjs audit",
-    "deno:build": "deno desktop --exclude node_modules .",
-    "deno:test": "deno run --allow-read --allow-write --allow-env --allow-sys --allow-run scripts/test.mjs"
+    "deno:build": "npm run build && deno desktop --backend webview --exclude node_modules .",
+    "deno:test": "deno run --allow-read --allow-write --allow-env --allow-sys --allow-run scripts/test.mjs",
+    "deno:dev": "deno desktop --hmr --backend webview .",
+    "deno:build:cef": "npm run build && deno desktop --backend cef --exclude node_modules --output ./deno/wilderfolk-cef ."
   },
   "packageManager": "",
   "dependencies": {
