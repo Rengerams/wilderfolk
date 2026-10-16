@@ -25,6 +25,25 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 **Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
 
+## Desktop runtime choices (Deno preview)
+
+Wilderfolk keeps the **browser** and **Tauri** builds. [Deno Desktop](https://docs.deno.com/runtime/desktop/) is an **additional, experimental** way to package the same React/Vite game — not a new simulation engine or a replacement for Tauri. Deno 2.9+ detects the existing Vite SPA, bundles its production `dist/` output, and opens it in a desktop window.
+
+After cloning the repository, run `npm install` once. The project already includes the Deno 2.9 CLI as an npm dependency, so the commands below resolve it automatically:
+
+```sh
+npm run deno:dev        # Deno desktop window, Vite hot reload
+npm run deno:build      # Run the normal build gate, then package with OS WebView
+npm run deno:build:cef  # Package with bundled Chromium (CEF) for comparison
+```
+
+- **Default WebView:** uses the platform browser component (WebView2 on Windows). The configured Windows output is `deno/wilderfolk/`; this is a desktop application directory with a launcher, **not** the existing signed Tauri installer. The build artifacts are ignored by Git.
+- **CEF variant:** includes Chromium for more consistent Canvas, audio and browser API behavior across machines, but produces a substantially larger package; output is `deno/wilderfolk-cef/`. Compare it with WebView if a rendering feature differs.
+- **Other platforms:** default Deno outputs are `deno/Wilderfolk.app` on macOS and `deno/Wilderfolk.AppImage` on Linux (using the default Deno icon until project icons are added). Build on the target platform first; cross-compilation is supported by Deno.
+- **Existing paths stay as-is:** `npm run dev` for browser development, `npm run tauri:dev` for Tauri development, and `npm run tauri:build` for the established desktop packaging workflow.
+
+These commands use the *same* game code, Web Worker simulation, assets and save format. Performance gains are **not** assumed: test startup, game audio, saves, workers and frame pacing on your machine before considering Deno builds for a release. In particular, WebView requires the operating system's webview runtime.
+
 *THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. *
 *WE DONT KNOW WHICH ONE IT WILL BE BUT WE KEEP  YOU INFORMED IF WE HAVE MORE INFORMATION.*
 --
