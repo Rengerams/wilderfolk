@@ -1,5 +1,10 @@
 # Changelog
 
+## Desktop workflow — 2026-10-17
+
+- **Added optional Deno Desktop developer and release commands** — `npm run deno:dev` runs the existing web game with desktop HMR; `npm run deno:build` runs the existing production checks and creates a Windows WebView bundle; `npm run deno:build:cef` packages an alternative bundled-Chromium desktop build. npm, browser development, and Tauri builds remain supported, with no changes to game simulation or save format.
+- **Updated Deno Desktop configuration and README** — explicit WebView default, platform-specific output locations, a valid Deno configuration schema, packaging instructions, and a reminder that Deno playability and performance are not yet verified on the target machine.
+
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
