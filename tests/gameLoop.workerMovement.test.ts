@@ -7,6 +7,8 @@ import { GameWorkerHost, type TickResultHandler } from '../src/game/simWorker/Ga
 import { WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
 import { createRenderSoAReader } from '../src/game/simBuffers/renderSoAReader';
+import { _tickHumans, resetEntityCaches, updateCachedEntitiesFromSoA } from '../src/game/renderer/entityCache';
+import type { RenderSnapshot } from '../src/game/renderSnapshot';
 import type { SimTickDelta } from '../src/game/simBuffers/simDelta';
 
 const loops: GameLoop[] = [];
@@ -94,5 +96,39 @@ describe('worker ticks drain before queued player actions', () => {
     await idle;
     expect(host.canPipelineTick()).toBe(true);
     host.dispose();
+  });
+});
+
+describe('worker SoA rendering follows fresh buffers', () => {
+  it('rebuilds renderer shims from each buffer without a GameLoop bucket import', () => {
+    resetEntityCaches();
+    const world = initGame({ villageName: 'SoA Render', size: MapSize.Medium, seed: 21 });
+    const human = world.entities.find((entity) => entity.type === EntityType.Human);
+    if (!human) throw new Error('No settler in render fixture');
+
+    const renderAt = (x: number, tick: number): void => {
+      const live = world.entities.find((entity) => entity.id === human.id);
+      if (!live) throw new Error('Missing settler in render fixture');
+      live.x = x;
+      world.tick = tick;
+      const reader = createRenderSoAReader(packRenderSoA(world).buffer);
+      if (!reader) throw new Error('Packed render buffer was invalid');
+      const snapshot = {
+        renderSoA: reader,
+        renderMetaBySlot: null,
+        tick,
+        camera: createInitialView(world.width, world.height).camera,
+        grassGrid: null,
+        width: world.width,
+        height: world.height,
+      } as unknown as RenderSnapshot;
+      updateCachedEntitiesFromSoA(snapshot, 800, 600);
+    };
+
+    renderAt(human.x, world.tick);
+    expect(_tickHumans.find((entity) => entity.id === human.id)?.x).toBe(human.x);
+    renderAt(human.x + 40, world.tick + 1);
+    expect(_tickHumans.find((entity) => entity.id === human.id)?.x).toBe(human.x);
+    resetEntityCaches();
   });
 });
