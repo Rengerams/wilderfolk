@@ -724,14 +724,17 @@ export class GameWorkerHost {
   }
 }
 
+// export function isGameWorkerEnabled(): boolean {
+//  if (typeof Worker === 'undefined') return false;
+//  const v = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_USE_GAME_WORKER : undefined;
+//  if (v === false || v === 0) return false;
+//  if (typeof v === 'string') {
+//    const normalized = v.trim().toLowerCase();
+//    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') return false;
+//    return false;
+//  }
+// return true;
+
 export function isGameWorkerEnabled(): boolean {
-  if (typeof Worker === 'undefined') return false;
-  const v = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_USE_GAME_WORKER : undefined;
-  if (v === false || v === 0) return false;
-  if (typeof v === 'string') {
-    const normalized = v.trim().toLowerCase();
-    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') return false;
-    return true;
-  }
-  return true;
+  return false; // <-- FORCEER DIT TIJDELIJK OP FALSE
 }

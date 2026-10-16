@@ -67,14 +67,7 @@ function postError(
 /** Settled once per worker realm — see `ensureNamePoolSettled`. */
 let namePoolSettled: Promise<void> | null = null;
 
-/**
- * Settle the census name pool once, as a promise, so "the pool is loaded" is one fact rather than a
- * race (see the call site in `self.onmessage`).
- *
- * Named and exported so the contract is discoverable and testable rather than an anonymous promise at
- * the message boundary. `loadNames` is idempotent and caches its own promise, so a second caller waits
- * on the same load instead of starting another — including the one inside the `init` handler.
- */
+
 export function ensureNamePoolSettled(): Promise<void> {
   namePoolSettled ??= loadNames().catch(() => {
     // `loadNames` reports its own failure and leaves the embedded pool installed; a second caller must
@@ -170,20 +163,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     return;
   }
 
-  // The name pool must be **settled** before any handler can draw from it.
-  //
-  // `nameLoader` installs the ~60-name embedded pool synchronously at module import and swaps in the
-  // full census when its async load lands (`nameLoader.ts`), while `pickFrom` indexes whatever pool
-  // is installed *at that moment*. A birth, immigration or rival named before the swap therefore maps
-  // the same seeded draw to a different name, so one seed did not reproduce one world — and the name
-  // is saved state (`saveSchema.ts`, `entities`). The main thread already awaits the load before
-  // `initGame` (`App.tsx`); the worker did not, which made the divergence depend on chunk timing.
-  //
-  // So the worker waits, and the wait is real rather than advisory: the load crosses several
-  // macrotasks (disk read, then a dynamic import, then `fetch`), so a fire-and-forget call can settle
-  // *between* two pipelined tick messages — in the middle of the burst a birth is processed in. The
-  // wait is one message long in practice, and it cannot wedge the worker: `loadNames` resolves on
-  // every path, including the one that gives up and keeps the embedded pool.
   void (async () => {
     try {
       await ensureNamePoolSettled();
@@ -229,13 +208,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           postError('Worker not initialized', 'export');
           break;
         }
-        // The clone is a save payload, so it crosses with the runtime caches dropped — the same set
-        // `saveLoad.stripRuntimeWorldFields` removes on the way to disk, `scentGrid` included: the
-        // odour trail is transient and `loadGameFromParsed` recreates it.
-        // The *live* worker world is a different matter. `scentGrid` is simulation state (the
-        // accumulated predator odour grazers sample to flee), so invalidating it here zeroed the
-        // trail on every manual save and every ~30 s auto-save. Capture
-        // it across the rebuild — the clone is taken in between, without it.
+
         const liveSimulationState = captureSimulationState(world);
         invalidateWorldRuntimeCaches(world);
         const clonedWorld = structuredClone(world);
@@ -274,12 +247,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         let delta;
         try {
           world = applyWorkerCommand(world, msg.cmd);
-          // Delta extraction moved **out** of this try deliberately. It used to sit here, so a throw
-          // from `extractCommandDelta` reached the outer catch and was reported as `source: 'tick'`
-          // for a message that was a command — and the host answers a tick-sourced error with
-          // `fallbackFromWorker`, tearing down a worker whose world had committed the command
-          // perfectly well. The rollback below is about a failed *command*; a failed *pack* is a
-          // delta problem and `safeExtractCommandDelta` already owns that fallback.
           delta = safeExtractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);

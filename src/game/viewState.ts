@@ -15,13 +15,6 @@ export type BuildGhost =
   | { x: number; y: number; valid: true; reason: null }
   | { x: number; y: number; valid: false; reason: PlaceBuildingFailureReason };
 
-/**
- * The one constructor for a placement ghost, fed by
- * `buildingPlacementActions.getPlaceBuildingFailureReason`.
- *
- * The reason rides the ghost so the canvas can name the blocker instead of printing one fixed
- * "Blocked" (`LIVE-FINDINGS-STATUS.md` F5); wording lives in `buildingPlacementLabels`.
- */
 export function createBuildGhost(
   x: number,
   y: number,
@@ -48,13 +41,6 @@ export interface ViewState {
   showGrid: boolean;
   showPaths: boolean;
   showTechTree: boolean;
-  /**
-   * F4 logistics overlay — supply links, poorly connected buildings and commute pressure.
-   *
-   * A read-only presentation toggle: it selects whether the per-frame overlay pass draws the
-   * projection, and nothing else in the simulation reads it (see `logisticsOverlayData`). Off by
-   * default so an untouched session renders exactly as before.
-   */
   showLogistics: boolean;
   /** Camp marker highlight — `rival:<id>` or `visitor:<id>`. */
   highlightedCampKey: string | null;
