@@ -1,4 +1,4 @@
-import { COMMUTE_CONFIG } from '../commuteReach';
+import { COMMUTE_CONFIG, commuteWalkSpeed } from '../commuteReach';
 import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
@@ -6,9 +6,6 @@ import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
-
-/** Beyond this distance, settlers snap to home/work. */
-export const COMMUTE_SNAP_DISTANCE = 200;
 
 // ============ COMMUTE HELPERS ============
 
@@ -190,15 +187,6 @@ export function commuteDistanceToBuilding(
   return Math.hypot(target.x - entity.x, target.y - entity.y);
 }
 
-export function snapHumanToBuilding(entity: Entity, building: Building, arrivingHome: boolean): void {
-  const target = humanBuildingTarget(building, entity.id, arrivingHome);
-  entity.x = target.x;
-  entity.y = target.y;
-  entity.vx = 0;
-  entity.vy = 0;
-  entity.spriteAngle = Math.PI / 2; // Face forward/south toward the road
-}
-
 /**
  * Generates a stable path key per commute leg so A* is not recalculated on every tile crossed.
  */
@@ -225,13 +213,17 @@ export function commutePathCacheKey(
   return `c_${buildingId}_${arrivingHome ? 'h' : 'w'}_${startTileX}_${startTileY}_${targetTileX}_${targetTileY}`;
 }
 
+const STUCK_WALK_RECOVERY_TICKS = 12;
+const STUCK_WALK_MIN_PROGRESS_PX = 0.05;
+const stuckWalkers = new WeakMap<Entity, { x: number; y: number; ticks: number }>();
+
 /**
  * Applies one tick's walk step, refusing the tiles the path grid blocks.
  *
  * Every walk ends here, which is where "a wall is solid and water is not ground" has to hold: the
  * steerers only set a velocity, and none of them is obliged to check what it points into. A step
- * into a blocked tile becomes its axis-separated halves, so a walker pressed against a wall or a
- * bank slides along its face instead of passing through it or stopping dead in the open.
+ * into a blocked tile becomes its axis-separated halves, so a walker pressed against a wall or bank
+ * slides along its face instead of passing through it or stopping dead in the open.
  *
  * Velocity is left exactly as the steering owner set it — this only decides how far of it is walked,
  * because the blend the caller reads back (`vx`/`vy` after the tick) is that owner's contract.
@@ -239,19 +231,61 @@ export function commutePathCacheKey(
 export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
   const stepX = entity.vx * roadMult;
   const stepY = entity.vy * roadMult;
-  if (stepX === 0 && stepY === 0) return;
-
-  if (isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y + stepY)) {
-    entity.x += stepX;
-    entity.y += stepY;
+  if (stepX === 0 && stepY === 0) {
+    stuckWalkers.delete(entity);
     return;
   }
 
-  if (stepX !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y)) {
+  const startX = entity.x;
+  const startY = entity.y;
+  if (isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y + stepY)) {
     entity.x += stepX;
-  }
-  if (stepY !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x, entity.y + stepY)) {
     entity.y += stepY;
+  } else {
+    if (stepX !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x + stepX, entity.y)) {
+      entity.x += stepX;
+    }
+    if (stepY !== 0 && isWalkStepAllowed(entity.x, entity.y, entity.x, entity.y + stepY)) {
+      entity.y += stepY;
+    }
+  }
+
+  if (Math.hypot(entity.x - startX, entity.y - startY) > STUCK_WALK_MIN_PROGRESS_PX) {
+    stuckWalkers.delete(entity);
+    return;
+  }
+
+  const previous = stuckWalkers.get(entity);
+  const ticks = previous
+    && Math.hypot(previous.x - entity.x, previous.y - entity.y) <= STUCK_WALK_MIN_PROGRESS_PX
+    ? previous.ticks + 1
+    : 1;
+  stuckWalkers.set(entity, { x: entity.x, y: entity.y, ticks });
+  if (ticks < STUCK_WALK_RECOVERY_TICKS) return;
+
+  const tileX = Math.floor(entity.x / PATH_CELL);
+  const tileY = Math.floor(entity.y / PATH_CELL);
+  const directionX = Math.sign(stepX);
+  const directionY = Math.sign(stepY);
+  const recoveryOffsets: readonly (readonly [number, number])[] = [
+    [-directionX, -directionY],
+    [-directionX, 0],
+    [0, -directionY],
+    ...STAND_POINT_FALLBACK_OFFSETS,
+  ];
+  for (let ring = 1; ring <= 3; ring++) {
+    for (const [dx, dy] of recoveryOffsets) {
+      if (dx === 0 && dy === 0) continue;
+      const recoveryX = (tileX + dx * ring + 0.5) * PATH_CELL;
+      const recoveryY = (tileY + dy * ring + 0.5) * PATH_CELL;
+      if (!isGroundWalkableAt(recoveryX, recoveryY)) continue;
+      entity.x = recoveryX;
+      entity.y = recoveryY;
+      entity.vx = 0;
+      entity.vy = 0;
+      stuckWalkers.delete(entity);
+      return;
+    }
   }
 }
 
@@ -278,14 +312,12 @@ export function commuteHumanToBuilding(
     return true;
   }
 
-  // Accelerate long-range commutes so cross-map walks do not consume the entire work day
-  const distRush = Math.min(COMMUTE_CONFIG.MAX_DIST_RUSH, 1 + dist / 40);
-  const moveSpeed = speed * rush * distRush;
+  const moveSpeed = commuteWalkSpeed(speed, rush);
 
   // The path owner is asked at **every** distance. This used to run only beyond LONG_RANGE_DIST
   // (50 px), so a shorter leg — and the last 50 px of every leg — steered straight at the target,
   // straight across a river or a wall. `steerWithPath` answers 'direct' when the line is clear,
-  // which is what leaves the long-range pacing and the approach easing below unchanged.
+  // which is what leaves the direct and pathed movement on the same integration path.
   const cacheKey = commutePathCacheKey(
     building.id,
     arrivingHome,
@@ -316,11 +348,10 @@ export function commuteHumanToBuilding(
     return false;
   }
 
-  // Final approach: ease in at a distance-proportional step (never below a normal walk, never a
-  // snap) and never overshoot the doorstep.
+  // Final approach is capped by the same bounded pace and never overshoots the doorstep.
   const approachSpeed = Math.min(
     moveSpeed,
-    Math.max(speed, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
+    Math.max(speed * COMMUTE_CONFIG.APPROACH_MIN_SPEED_RATIO, dist * COMMUTE_CONFIG.APPROACH_RATE_PER_TICK),
   );
   const step = Math.min(dist, approachSpeed);
   entity.vx = (dx / dist) * step;
@@ -367,7 +398,9 @@ export function nearestActiveMoonHowler(
 export {
   MAX_ASSIGNABLE_COMMUTE_HOURS,
   MAX_COMMUTE_LEAD_HOURS,
+  MAX_COMMUTE_SPEED_MULTIPLIER,
   WORK_COMMUTE_RUSH,
+  commuteWalkSpeed,
   commuteLeadHoursFor,
   isWithinAssignableCommute,
 } from '../commuteReach';

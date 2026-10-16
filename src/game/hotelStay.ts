@@ -21,7 +21,7 @@ import {
   NIGHT_END,
   NIGHT_START,
 } from './dayCycle';
-import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
+import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { hasResidenceAssignment } from './residencyOccupancy';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -84,7 +84,7 @@ export function needsHotelBed(
   if (!entity.alive || !isPlayerHuman(entity) || !hasResidenceAssignment(entity)) return false;
   const home = buildingFrom(buildings, entity.residenceBuildingId!);
   if (!home?.completed) return false;
-  const homeHours = commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH);
+  const homeHours = commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED);
   if (homeHours < LODGING_MIN_COMMUTE_HOURS) return false;
   return hoursUntilSleep(hour) < homeHours;
 }
@@ -98,12 +98,12 @@ export function lodgingHotelsFor(
   if (!needsHotelBed(entity, buildings, hour)) return [];
   const home = buildingFrom(buildings, entity.residenceBuildingId!);
   const homeHours = home
-    ? commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH)
+    ? commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED)
     : 0;
   const hotels: Building[] = [];
   for (const b of buildings) {
     if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
-    const hours = commuteLeadHoursFor(centreDistance(entity, b), HUMAN_WALK_SPEED, WORK_COMMUTE_RUSH);
+    const hours = commuteLeadHoursFor(centreDistance(entity, b), HUMAN_WALK_SPEED);
     if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS || hours > homeHours) continue;
     hotels.push(b);
   }

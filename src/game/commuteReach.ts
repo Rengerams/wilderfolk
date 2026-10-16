@@ -8,18 +8,21 @@ import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 export const COMMUTE_CONFIG = {
   LONG_RANGE_DIST: 50,
   ARRIVAL_DIST: 8,
-  MAX_DIST_RUSH: 12,
   /** Final-approach easing: the last stretch closes at `dist * APPROACH_RATE_PER_TICK` per tick. */
-  APPROACH_RATE_PER_TICK: 0.25,
-  /** Per-tick distance on the pathed branch, as a fraction of `moveSpeed`. */
+  APPROACH_RATE_PER_TICK: 0.1,
+  APPROACH_MIN_SPEED_RATIO: 0.5,
+  /** Per-tick distance on the pathed branch, as a fraction of commute speed. */
   PATH_STEER_SPEED_RATIO: 0.88,
 } as const;
 
 /** The longest commute lead the scheduler hands out, in hours (see `commuteLeadHoursFor`). */
-export const MAX_COMMUTE_LEAD_HOURS = 6;
+export const MAX_COMMUTE_LEAD_HOURS = 24;
 
-/** The `rush` the work commute passes to the walk; the lead estimate has to include it. */
-export const WORK_COMMUTE_RUSH = 3.5;
+/** Urgent commutes may walk faster, but never exceed 3.5 times the settler's normal pace. */
+export const MAX_COMMUTE_SPEED_MULTIPLIER = 3.5;
+
+/** The multiplier used for work and overnight commutes. */
+export const WORK_COMMUTE_RUSH = MAX_COMMUTE_SPEED_MULTIPLIER;
 
 /** Roads are quicker to walk, so a settler who may use them can be housed further out. */
 const COMMUTE_ROAD_SPEED_MULT = ROAD_SPEED_MULT;
@@ -30,6 +33,15 @@ const ROAD_ROUTE_SAMPLE_PX = 24;
 /** Owner rule: a settler who cannot reach a post inside two hours is not a candidate for it. */
 export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
 
+/** Applies the bounded urgency multiplier shared by movement and commute estimates. */
+export function commuteWalkSpeed(walkSpeed: number, rush = 1): number {
+  const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;
+  const multiplier = Number.isFinite(rush) && rush > 0
+    ? Math.min(MAX_COMMUTE_SPEED_MULTIPLIER, Math.max(1, rush))
+    : 1;
+  return speed * multiplier;
+}
+
 /** Hours before a shift a settler must set off, floored at one and capped by `MAX_COMMUTE_LEAD_HOURS`. */
 export function commuteLeadHoursFor(
   distance: number,
@@ -37,9 +49,7 @@ export function commuteLeadHoursFor(
   rush: number = WORK_COMMUTE_RUSH,
 ): number {
   if (!Number.isFinite(distance) || distance <= COMMUTE_CONFIG.ARRIVAL_DIST) return 1;
-  const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;
-  const rushMult = Number.isFinite(rush) && rush > 0 ? rush : 1;
-  const perTick = speed * rushMult * Math.min(COMMUTE_CONFIG.MAX_DIST_RUSH, 1 + distance / 40)
+  const perTick = commuteWalkSpeed(walkSpeed, rush)
     * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
   if (!Number.isFinite(perTick) || perTick <= 0) return 1;
   const hours = distance / perTick / TICKS_PER_HOUR;

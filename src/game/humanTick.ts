@@ -38,7 +38,6 @@ import {
   PER_TICK_RATE_SCALE,
   TICKS_PER_HOUR,
   hasResidenceAssignment,
-  hasWorkAssignment,
   isOnWorkShift,
   isOnMoonHowlerNightShift,
   isWeekend,
@@ -112,13 +111,12 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { setCurrentPathMap } from './pathfinding';
 import {
-  COMMUTE_SNAP_DISTANCE,
   applyHumanWalkStep,
   commuteDistanceToBuilding,
   commuteHumanToBuilding,
   commuteLeadHoursFor,
   nearestActiveMoonHowler,
-  snapHumanToBuilding,
+  WORK_COMMUTE_RUSH,
 } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
@@ -167,7 +165,7 @@ import {
   trySchoolyardGossip,
 } from './simulation/humanRelationships';
 import { flushRelationshipDiagnostics } from './relationshipDiagnostics';
-import { isVenueServiceHour, isVenueScheduleStartTick, isVenueWorkerServiceHour } from './venueSchedule';
+import { isVenueServiceHour, isVenueWorkerServiceHour } from './venueSchedule';
 import { recordScheduleWorkTick } from './scheduleFatigue';
 
 import { syncEntityGrids } from './simulation/simulationEntities';
@@ -793,7 +791,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = (hdy / hdist) * config.speed * mult * dir;
         faceVelocity(entity);
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, false, 3.2);
+        commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
       }
     } else if (huntingWere) {
       const fdx = entity.x - huntingWere.x;
@@ -845,60 +843,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onSchedule = true;
     }
 
-    // Long commutes: snap at shift start
-    if (
-      !huntingWere &&
-      !inElectionCeremony &&
-      !festivalGathering &&
-      workplace &&
-      isStartOfClockHour(state.tick) &&
-      ((hourOfDay === shiftStartHour &&
-        !isInnkeeper &&
-        (hasWorkAssignment(entity) || !workplace.completed)) ||
-        (isInnkeeper && isVenueScheduleStartTick(state, 'tavern')) ||
-        (isHotelier && isVenueScheduleStartTick(state, 'hotel')))
-    ) {
-      if (commuteDistanceToBuilding(entity, workplace, false) > COMMUTE_SNAP_DISTANCE) {
-        snapHumanToBuilding(entity, workplace, false);
-      }
-    } else if (
-      !huntingWere &&
-      !inElectionCeremony &&
-      !festivalGathering &&
-      !lodgingHotel &&
-      // A settler on a shift is never sent home; the home commute below carries the same exclusion,
-      // which is what keeps a rostered night guard on his post.
-      !onJobShift &&
-      // Evening, and again through deep night. The snap used to fire at 18:00 ONLY, and only for the
-      // ~half who `stayIn` at that hour (`prefersHomeTonightFor` returns `roll(103) < 0.5` for
-      // 18:00–22:00), so a settler who decided later walked the whole way home in the dark and stayed
-      // on screen the entire time — the owner's "why are they walking at night". Re-snapping each
-      // clock hour through the small hours puts them at their residence, where `isAsleepAtHome`
-      // hides them. This composes with the corner-form convention rather than fighting it:
-      // `snapHumanToBuilding` and `isNearResidence` resolve the same point.
-      (hourOfDay === EVENING_START || hourOfDay >= 23 || hourOfDay < 5) &&
-      isStartOfClockHour(state.tick) &&
-      stayIn &&
-      hasResidenceAssignment(entity)
-    ) {
-      const eveningHome = buildingById.get(entity.residenceBuildingId!);
-      if (
-        eveningHome?.completed &&
-        commuteDistanceToBuilding(entity, eveningHome, true) > COMMUTE_SNAP_DISTANCE
-      ) {
-        snapHumanToBuilding(entity, eveningHome, true);
-      }
-    }
-
     // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
     if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
-        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, 2.5)) restAtHotel(entity);
+        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH)) restAtHotel(entity);
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
-        commuteHumanToBuilding(entity, residence, config.speed, true, 2.5);
+        commuteHumanToBuilding(entity, residence, config.speed, true, WORK_COMMUTE_RUSH);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -928,12 +881,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       } else if (workplace) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
+        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
         onSchedule = true;
         suppressIdle = true;
       }
     } else if (!huntingWere && !inElectionCeremony && !festivalGathering && onSchoolShift && !isInnkeeper && schoolTarget) {
-      commuteHumanToBuilding(entity, schoolTarget, config.speed, false, 3.2);
+      commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;
       recordChildSchoolTick(entity, schoolTarget, hourOfDay, state.tick);
@@ -1004,7 +957,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vy = 0;
       } else {
         // Nothing in sight: wait at the post like every other worker.
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
+        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
       }
       onSchedule = true;
       suppressIdle = true;
@@ -1031,7 +984,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? prisonShift != null && (onPrisonShift || needsToLeaveForWork)
         : goWorkTime || onWorkCommuteHours || needsToLeaveForWork;
       if (wantsToWork) {
-        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), 3.5);
+        commuteHumanToBuilding(entity, workplace, config.speed, workplace.completed && isResidenceBuilding(workplace), WORK_COMMUTE_RUSH);
         onSchedule = true;
         suppressIdle = true;
       }
