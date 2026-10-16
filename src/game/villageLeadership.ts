@@ -113,20 +113,20 @@ export interface IncumbentRecordAssessment {
 const RECORD_ECONOMY_GOOD = 6;
 const RECORD_ECONOMY_POOR = -6;
 const RECORD_SCANDAL_CLEAN = 3;
-const RECORD_SCANDAL_EACH = -4;
+const RECORD_SCANDAL_EACH = -2;
 const RECORD_VILLAGE_GOOD = 4;
 const RECORD_VILLAGE_POOR = -6;
 const RECORD_POSITIVE_CAP = 12;
+const RECORD_NEGATIVE_CAP = -12;
 const TITLE_MERIT_BONUS = 30;
 
 /**
- * Merit per year served past adulthood, at the top of the witnessed age range (~0.2 of a capped trade).
- *
- * The bonus terms are sized against `skillPoints`, which pays up to 200 for one capped trade: a full
- * career of experience, service, community standing and a title together reach about that same 200,
- * so a long-serving settler contends without having capped a trade (`CHANGELOG.md`, merit rebalance).
+ * Merit per year served past adulthood, at the top of the witnessed age range.
  */
 const EXPERIENCE_MERIT_PER_YEAR = 1.0;
+/** One capped trade is worth 50 merit; expertise across trades is capped at 100. */
+const SKILL_MERIT_PER_POINT = 0.5;
+const SKILL_MERIT_CAP = 100;
 /** Merit for holding a Town Hall seat — serving the village, not merely living in it. */
 const SERVICE_MERIT = 60;
 /** Merit per close friendship (`relationships.friendCount`, the ≥60 bond the owner calls a friend). */
@@ -260,7 +260,9 @@ export function getIncumbentRecordAssessment(
     scandalCount === 0 ? RECORD_SCANDAL_CLEAN : scandalCount * RECORD_SCANDAL_EACH;
 
   const rawTotal = economyPoints + scandalPoints + villageHealthPoints;
-  const totalPoints = rawTotal > 0 ? Math.min(rawTotal, RECORD_POSITIVE_CAP) : rawTotal;
+  const totalPoints = rawTotal > 0
+    ? Math.min(rawTotal, RECORD_POSITIVE_CAP)
+    : Math.max(rawTotal, RECORD_NEGATIVE_CAP);
 
   return {
     economyPoints,
@@ -302,7 +304,7 @@ export function getLeadershipScoreBreakdown(
 ): LeadershipScoreBreakdown {
   const skills = ensureEntitySkills(entity);
   const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
-  const skillPoints = Math.round(skillSum * 2);
+  const skillPoints = Math.min(SKILL_MERIT_CAP, Math.round(skillSum * SKILL_MERIT_PER_POINT));
   const ageYears = leadershipAgeYears(entity, state);
   const experiencePoints = Math.round(
     Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * EXPERIENCE_MERIT_PER_YEAR,

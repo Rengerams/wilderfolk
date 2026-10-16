@@ -407,16 +407,14 @@ describe('villageLeadership.titlePoints.test.ts', () => {
   });
 
   /**
-   * A census of the owner's Year 3 save was 9 farmers in the top ten, with `skillPoints` 94 % of the
-   * leader's 213 — a single capped trade outweighed a lifetime of service, marriage and friendship
-   * (15 for a Town Hall seat, 5 for a spouse). The bonuses now scale with the settler's own record so
-   * a veteran who never capped a trade genuinely contests one who did.
+   * A single capped trade no longer outweighs a lifetime of service, community standing and experience;
+   * broad expertise is useful but capped, and incumbent penalties stay bounded.
    */
   describe('merit weighs a career, not only a capped skill', () => {
     const closeFriends = (count: number) =>
       Object.fromEntries(Array.from({ length: count }, (_, i) => [`f_${900 + i}`, 70]));
 
-    it('a long-serving, well-liked veteran without a capped trade contests a capped farmer', () => {
+    it('a long-serving, well-liked veteran can outrank a capped farmer', () => {
       // 30 years of service, a Town Hall seat, 37 close friends and a spouse — a full career.
       const veteran = stubHuman(1, {
         age: 48,
@@ -436,7 +434,15 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(friendCount(veteran)).toBe(37);
       expect(veteranScore.communityPoints).toBeGreaterThan(0);
       expect(veteranScore.servicePoints).toBeGreaterThan(0);
-      expect(farmerScore.totalScore - veteranScore.totalScore).toBeLessThanOrEqual(20);
+      expect(veteranScore.totalScore).toBeGreaterThan(farmerScore.totalScore);
+    });
+
+    it('one capped trade is worth 50 points and broad expertise caps at 100', () => {
+      const specialist = stubHuman(1, { skills: { farmer: 100 } });
+      const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
+
+      expect(getLeadershipScoreBreakdown(stubState([specialist]), specialist).skillPoints).toBe(50);
+      expect(getLeadershipScoreBreakdown(stubState([expert]), expert).skillPoints).toBe(100);
     });
 
     it('keeps a scandal measurably expensive for the incumbent', () => {
@@ -458,6 +464,18 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(tainted.recordPoints).toBeLessThan(clean.recordPoints);
       // Softened, not free: one scandal costs its own points and the clean-term bonus.
       expect(clean.recordPoints - tainted.recordPoints).toBeGreaterThanOrEqual(4);
+    });
+
+    it('caps repeated incumbent misconduct and poor records at -12 points', () => {
+      const incumbent = stubHuman(1, { age: 40 });
+      const state = stubState([incumbent]);
+      state.villageLeaderId = 1;
+      state.leaderSinceYear = 5;
+      for (let i = 0; i < 20; i++) {
+        state.eventLog.push({ year: 5, type: 'scandal', message: 'a scandal', entityName: 'Asha' } as never);
+      }
+
+      expect(getLeadershipScoreBreakdown(state, incumbent).recordPoints).toBe(-12);
     });
 
     it('keeps the ranking contract: score desc, then age desc, then id asc', () => {

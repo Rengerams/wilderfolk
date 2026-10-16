@@ -2,6 +2,12 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
+
+- **Changed: one capped trade now adds 50 merit, total skill merit caps at 100, and incumbent record penalties are softened and bounded.**
+
+- **Changed: children decide once per in-game hour whether to play with a nearby child, then keep steering toward that playmate between checks.**
+
 - **Changed: settlers walk commutes without teleporting or distance-based speed spikes; urgent walks use a fixed speed cap, and stuck settlers recover onto nearby walkable ground.**
 
 - **Changed: the valley's ecology ladder is live again** — Stable, Strained, Damaged and Collapse now follow the deer, the wolves, the meadows and the town's footprint, thinning hunts and farms and costing reputation, with every warning arriving before its effect.
@@ -16,7 +22,7 @@
 
 - **Fixed: every trade now advances when its workers turn up, not when the store accepts the goods** — a full store paid the crew no skill at all, so only farming produced masters while smiths, miners and teachers stayed at their entry skill; each staffed post now pays a shift of skill a day.
 
-- **Changed: election merit weighs a whole career, not one capped trade** — experience, a Town Hall seat, friendships and a title together now reach about what one maxed trade skill is worth, and a scandal costs less than it did.
+- **Changed: election merit weighs a whole career, not only trade skill** — experience, Town Hall service, friendships, titles and the incumbent's record all contribute to the result.
 
 - **Fixed: a build spree no longer floods the chronicle** — a day that finishes several buildings of one kind now writes one line with a count ("Wall completed ×30") instead of one line each.
 

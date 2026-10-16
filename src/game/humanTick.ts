@@ -1350,6 +1350,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         allHumans,
         updatedBuildings,
         buildingById,
+        humanSocialGrid,
+        width,
+        height,
         livingHumanAt,
         suppressIdleInitial: suppressIdle,
       })
