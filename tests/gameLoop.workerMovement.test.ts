@@ -3,7 +3,7 @@ import { EntityType, MapSize, type WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/gameEngine';
 import { GameLoop } from '../src/game/gameLoop';
 import { createInitialView } from '../src/game/viewState';
-import { GameWorkerHost, type WorkerTickRender } from '../src/game/simWorker/GameWorkerHost';
+import { GameWorkerHost, type TickResultHandler } from '../src/game/simWorker/GameWorkerHost';
 import { WORKER_CMD_PROTO } from '../src/game/simWorker/commands';
 import { packRenderSoA } from '../src/game/simBuffers/packRenderSoA';
 import { createRenderSoAReader } from '../src/game/simBuffers/renderSoAReader';
@@ -25,15 +25,15 @@ describe('worker display keeps moving while commands are queued', () => {
     const loop = new GameLoop(world, createInitialView(world.width, world.height), () => null);
     loops.push(loop);
 
-    let onTick: ((
-      next: WorldState, delta: SimTickDelta, render: WorkerTickRender | null, changed: boolean,
-    ) => void) | undefined;
+    const callbacks: { onTick?: TickResultHandler } = {};
 
     const host = {
       isReady: () => true,
       getAuthoritativeWorld: () => authoritative,
       whenIdle: () => new Promise<void>(() => {}),
-      setTickResultHandler: (handler: typeof onTick) => { onTick = handler; },
+      setTickResultHandler: (handler: TickResultHandler | null) => {
+        callbacks.onTick = handler ?? undefined;
+      },
       setCommandResultHandler: () => {},
       setWorkerFaultHandler: () => {},
       dispose: () => {},
@@ -65,8 +65,8 @@ describe('worker display keeps moving while commands are queued', () => {
     if (!reader) throw new Error('Worker render buffer failed validation');
 
     internals.snapshotCache = { tick: world.tick, renderSoA: null };
-    if (!onTick) throw new Error('Worker tick callback was not registered');
-    onTick(authoritative, {} as SimTickDelta, { reader, metaBySlot: null, scentReader: null }, true);
+    if (!callbacks.onTick) throw new Error('Worker tick callback was not registered');
+    callbacks.onTick(authoritative, {} as SimTickDelta, { reader, scentReader: null }, true);
 
     const displayed = loop.getWorld().entities.find((entity) => entity.id === human.id);
     expect(displayed?.x).toBe(mover.x);
