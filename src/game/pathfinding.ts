@@ -200,6 +200,44 @@ export function getReadOnlyPathGrid(map: WorldMap, buildings?: Building[]): Path
   return readOnlyGridCache;
 }
 
+/**
+ * Find the closest world-space stand point for an entity restored onto blocked ground.
+ *
+ * The same grid used by movement is authoritative here: water, reserved decor and completed walls
+ * are all rejected, while a bridge or road can make its covered cells valid again.
+ */
+export function nearestWalkableWorldPoint(
+  map: WorldMap,
+  buildings: Building[] | undefined,
+  x: number,
+  y: number,
+): { x: number; y: number } | null {
+  const grid = getReadOnlyPathGrid(map, buildings);
+  const startX = Math.max(0, Math.min(grid.cols - 1, Math.floor(x / PATH_CELL)));
+  const startY = Math.max(0, Math.min(grid.rows - 1, Math.floor(y / PATH_CELL)));
+  const startIndex = startY * grid.cols + startX;
+  if (grid.blocked[startIndex] === 0) return { x, y };
+  const maxRadius = Math.max(grid.cols, grid.rows);
+  for (let radius = 1; radius <= maxRadius; radius++) {
+    let best: { x: number; y: number; distance: number } | null = null;
+    const minX = Math.max(0, startX - radius);
+    const maxX = Math.min(grid.cols - 1, startX + radius);
+    const minY = Math.max(0, startY - radius);
+    const maxY = Math.min(grid.rows - 1, startY + radius);
+    for (let ty = minY; ty <= maxY; ty++) {
+      for (let tx = minX; tx <= maxX; tx++) {
+        if (Math.max(Math.abs(tx - startX), Math.abs(ty - startY)) !== radius) continue;
+        if (grid.blocked[ty * grid.cols + tx] !== 0) continue;
+        const point = { x: tx * PATH_CELL + PATH_CELL / 2, y: ty * PATH_CELL + PATH_CELL / 2 };
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (!best || distance < best.distance) best = { ...point, distance };
+      }
+    }
+    if (best) return { x: best.x, y: best.y };
+  }
+  return null;
+}
+
 /** Test seam: drop both grid caches so a case starts from a known state. */
 export function resetPathGridCaches(): void {
   gridCache = null;

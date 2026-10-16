@@ -138,7 +138,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
   }
 
   describe('GameLoop command transport', () => {
-    it('dispatches to a permanently busy worker WITHOUT waiting for idle', async () => {
+    it('does not dispatch a command while a worker is permanently busy', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);
       await settleLoop(loop);
@@ -156,8 +156,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       loop.applyCommand(cmdObj);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-      expect(fakeHost.whenIdle).not.toHaveBeenCalled();
-      expect(fakeHost.sendCommand).toHaveBeenCalledWith(cmdObj);
+      expect(fakeHost.whenIdle).toHaveBeenCalled();
+      expect(fakeHost.sendCommand).not.toHaveBeenCalled();
     });
 
     it('applies the command OPTIMISTICALLY — instant UI feedback before any worker result', async () => {
@@ -168,6 +168,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
       (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
+      fake.host.whenIdle.mockResolvedValue(undefined);
 
       const cmdObj: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 };
       loop.applyCommand(cmdObj);
@@ -176,6 +177,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       expect(priest.homeBuildingId).toBe(4);
       expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       expect(fake.host.sendCommand).toHaveBeenCalledWith(cmdObj);
     });

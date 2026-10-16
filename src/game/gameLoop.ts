@@ -659,8 +659,16 @@ export class GameLoop {
       const cmdGen = this.sessionGen;
       this.commandChain = this.commandChain
         .then(() => {
-          if (cmdGen !== this.sessionGen || !this.running || !this.workerHost?.isReady()) return;
-          return this.workerHost.sendCommand(cmd).then(() => undefined);
+          const host = this.workerHost;
+          if (cmdGen !== this.sessionGen || !this.running || !host?.isReady()) return;
+          // Let the tick pipeline drain before sending a command. Once a command is pending,
+          // canPipelineTick() deliberately stops new ticks because the command needs its own render
+          // buffer. Sending Auto-play's command while several ticks were already in flight therefore
+          // made the clock appear frozen behind a queued build action.
+          return host.whenIdle().then(() => {
+            if (cmdGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
+            return host.sendCommand(cmd).then(() => undefined);
+          });
         })
         .catch((err) => {
           if (cmdGen !== this.sessionGen || !this.running) return;

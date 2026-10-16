@@ -53,6 +53,7 @@ import { rebuildBeautyGridFromWorld } from './beautyGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
+import { nearestWalkableWorldPoint } from './pathfinding';
 
 const SAVE_KEY = 'ecosim_save';
 
@@ -77,6 +78,23 @@ export type FileSaveReason = 'map-too-large' | 'payload-too-large';
 export type SaveRoute =
   | { target: 'slot' }
   | { target: 'file'; reason: FileSaveReason };
+
+/** Move humans restored onto water, decor or a completed wall onto the nearest valid ground cell. */
+function repairLoadedHumanGround(world: WorldState): number {
+  if (!world.worldMap) return 0;
+  let repaired = 0;
+  for (const entity of world.entities) {
+    if (!entity.alive || entity.type !== EntityType.Human) continue;
+    const point = nearestWalkableWorldPoint(world.worldMap, world.buildings, entity.x, entity.y);
+    if (!point || (point.x === entity.x && point.y === entity.y)) continue;
+    entity.x = point.x;
+    entity.y = point.y;
+    entity.vx = 0;
+    entity.vy = 0;
+    repaired++;
+  }
+  return repaired;
+}
 
 /** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
 const SAVED_VERSION_MARKER = `"_version":${JSON.stringify(GAME_VERSION)}`;
@@ -1331,7 +1349,10 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         : undefined,
       dayInYear: 0,
       year: 0,
-      paused: true,
+      // Loading is already an explicit player action; do not leave the restored colony frozen until
+      // the player discovers the separate play control. The saved pause state is presentation state,
+      // not simulation progress, and can be changed immediately after loading.
+      paused: false,
       ...transient,
       bigNews: (worldData.bigNews ?? []).map(normalizeBigNewsItem),
       screenShakeImpulse: 0,
@@ -1467,6 +1488,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
+    repairLoadedHumanGround(world);
     reconcileDanglingReferencesOnLoad(world);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });

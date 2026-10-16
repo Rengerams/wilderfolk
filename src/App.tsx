@@ -1073,8 +1073,13 @@ export default function App() {
     fixDefaultNames(loaded.world);
     synchronizeTransientFeedbackFromWorld(loaded.world);
     replaceSession(loaded.world, loaded.view);
+    // A loaded colony is already past the quick-start flow. Leaving the old tutorial state in place
+    // let the pause effect run again after the session swap, so the loaded world appeared frozen until
+    // Space was pressed.
+    setShowTutorial(false);
+    setTutorialStep(0);
     setHasSavedGame(true);
-  }, [replaceSession, synchronizeTransientFeedbackFromWorld]);
+  }, [replaceSession, synchronizeTransientFeedbackFromWorld, setShowTutorial, setTutorialStep]);
 
   /**
    * The one browser-slot load path. Both entry points — the game menu and the new-settlement screen —
@@ -2219,4 +2224,3 @@ function FavoriteFollowBanner({
     </div>
   );
 }
-

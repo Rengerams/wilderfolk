@@ -340,7 +340,7 @@ describe('worker boundary closure', () => {
     const reloaded = loaded.world;
 
     // Documented load-time normalizations, asserted rather than skipped.
-    expect(reloaded.paused).toBe(true); // a loaded colony starts paused
+    expect(reloaded.paused).toBe(false); // a loaded colony resumes immediately
     expect(reloaded.tradeRoutes.length).toBeGreaterThanOrEqual(exported.tradeRoutes.length); // ensureFullTradeRoutes merges
     // `tutorialSeen` is host-owned (see HOST_OR_CACHE_KEYS), so the worker-authored `exported`
     // world may legitimately omit it entirely — only the reloaded world is guaranteed to hold an

@@ -110,7 +110,7 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { setCurrentPathMap } from './pathfinding';
+import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import {
   COMMUTE_SNAP_DISTANCE,
   applyHumanWalkStep,
@@ -599,8 +599,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dy = prison.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
         if (dist > 14) {
-          entity.x += (dx / dist) * Math.min(dist, 1.2);
-          entity.y += (dy / dist) * Math.min(dist, 1.2);
+          entity.vx = (dx / dist) * Math.min(dist, 1.2);
+          entity.vy = (dy / dist) * Math.min(dist, 1.2);
+          applyHumanWalkStep(entity, 1);
         }
       }
       tickHumanChat(entity, resolveChatPartner);
@@ -652,8 +653,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const target = getCaravanMoveTarget(state, entity);
       if (target) {
         steerEntityToward(entity, target.x, target.y, config.speed, target.speedMult);
-        entity.x += entity.vx;
-        entity.y += entity.vy;
+        applyHumanWalkStep(entity, 1);
         tryAdvanceCaravanLeg(state, entity);
       }
       syncEntityGrids(ctx, entity);
@@ -684,13 +684,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
         if (marching) {
           steerEntityToward(entity, cx, cy, config.speed, speedMult);
-          entity.x += entity.vx;
-          entity.y += entity.vy;
+          applyHumanWalkStep(entity, 1);
         } else if (
           entity.faction === 'visitor' &&
           steerVisitorToHotel(entity, updatedBuildings, config.speed * speedMult)
         ) {
           // Lodging at hotel
+          applyHumanWalkStep(entity, 1);
         } else {
           tickFactionCampWander(state, entity, cx, cy, updatedBuildings, config.speed * speedMult);
         }
@@ -1737,6 +1737,26 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       killFromExhaustion(entity, state, updatedBuildings, entityById);
     }
     syncEntityGrids(ctx, entity);
+  }
+
+  // Ceremony/leisure/snap branches can assign a final position directly rather than going through
+  // applyHumanWalkStep. Repair those positions after the full human pass so nobody can be left in
+  // water, reserved decor, or a completed wall by a later route.
+  if (state.worldMap) {
+    const walkGrid = getReadOnlyPathGrid(state.worldMap, state.buildings);
+    for (const entity of allHumans) {
+      if (!entity.alive) continue;
+      const tx = Math.floor(entity.x / 10);
+      const ty = Math.floor(entity.y / 10);
+      if (tx < 0 || ty < 0 || tx >= walkGrid.cols || ty >= walkGrid.rows) continue;
+      if (walkGrid.blocked[ty * walkGrid.cols + tx] === 0) continue;
+      const safe = nearestWalkableWorldPoint(state.worldMap, state.buildings, entity.x, entity.y);
+      if (!safe) continue;
+      entity.x = safe.x;
+      entity.y = safe.y;
+      entity.vx = 0;
+      entity.vy = 0;
+    }
   }
 
   if (isNewCalendarDay) {

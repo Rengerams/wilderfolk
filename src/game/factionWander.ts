@@ -8,6 +8,7 @@ import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, getHourOfDay, isNightHour } from './dayCycle';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
+import { applyHumanWalkStep } from './simulation/humanMovement';
 
 type VisitPhase = 'idle_camp' | 'walk_poi' | 'loiter_poi' | 'return_camp' | 'wander_edge';
 
@@ -413,8 +414,7 @@ export function tickFactionCampWander(
         : 1;
   entity.vx = (dx / dist) * moveSpeed * rush;
   entity.vy = (dy / dist) * moveSpeed * rush;
-  entity.x += entity.vx;
-  entity.y += entity.vy;
+  applyHumanWalkStep(entity, 1);
   faceVelocity(entity);
 }
 
