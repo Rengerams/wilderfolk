@@ -92,6 +92,7 @@ import { tickFactionCampWander } from './factionWander';
 import {
   tryNeighborGreeting,
   tryWorkplaceBanter,
+  type SocialBuildingPicker,
 } from './socialLife';
 import {
   tickHumanDoctorHospitalService,
@@ -235,13 +236,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   }
 
   const workersByWorkplace = new Map<number, Entity[]>();
+  const workerIndexById = new Map<number, number>();
   for (const h of allHumans) {
     if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
     const siteId = h.homeBuildingId;
     if (siteId == null) continue;
     const bucket = workersByWorkplace.get(siteId);
-    if (bucket) bucket.push(h);
-    else workersByWorkplace.set(siteId, [h]);
+    if (bucket) {
+      workerIndexById.set(h.id, bucket.length);
+      bucket.push(h);
+    } else {
+      workersByWorkplace.set(siteId, [h]);
+      workerIndexById.set(h.id, 0);
+    }
   }
 
   const nurturingSettlerCount = allHumans.filter(
@@ -313,7 +320,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const playerResidencesFor = (): Building[] =>
     (playerResidences ??= updatedBuildings.filter(isResidenceBuilding));
   const completedPoolByKey = new Map<string, Building[]>();
-  const completedPoolOf = (types: BuildingType[]): Building[] => {
+  const completedPoolOf = (types: readonly BuildingType[]): Building[] => {
     const key = types.join(',');
     let pool = completedPoolByKey.get(key);
     if (pool === undefined) {
@@ -323,6 +330,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       completedPoolByKey.set(key, pool);
     }
     return pool;
+  };
+  const pickSocialBuilding: SocialBuildingPicker = (types, salt) => {
+    const pool = completedPoolOf(types);
+    if (pool.length === 0) return undefined;
+    const safeSalt = Number.isFinite(salt) ? Math.abs(Math.floor(salt)) : 0;
+    return pool[safeSalt % pool.length];
   };
 
   const chatHints = chatHintsFromWorld({
@@ -1295,8 +1308,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Midday coworker banter
     if (onDayJobShift && workplace && isPlayerHuman(entity) && !entity.isJuvenile && entity.job !== JobType.Innkeeper) {
-      const shiftMates = (workersByWorkplace.get(entity.homeBuildingId ?? -1) ?? []).filter((h) => h.id !== entity.id);
-      tryWorkplaceBanter(entity, shiftMates, state.tick, hourOfDay, true);
+      const workplaceWorkers = workersByWorkplace.get(entity.homeBuildingId ?? -1) ?? [];
+      tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
     }
 
     tickHumanDoctorHospitalService({
@@ -1348,6 +1361,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         hourOfDay,
         onSchedule,
         allHumans,
+        entityById,
+        pickSocialBuilding,
         updatedBuildings,
         buildingById,
         humanSocialGrid,
@@ -1401,6 +1416,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity,
         speed: config.speed,
         allHumans,
+        pickSocialBuilding,
         updatedBuildings,
         buildingById,
         humanSocialGrid,
@@ -1419,10 +1435,20 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const kids = (entity.childrenIds ?? [])
           .map((id) => livingHumanAt(id))
           .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
-        const coworkers =
+        const workplaceWorkers =
           entity.homeBuildingId != null
-            ? (workersByWorkplace.get(entity.homeBuildingId) ?? []).filter((h) => h.id !== entity.id)
+            ? workersByWorkplace.get(entity.homeBuildingId) ?? []
             : [];
+        const selfIndex = workerIndexById.get(entity.id);
+        const coworkerCount = workplaceWorkers.length - (selfIndex == null ? 0 : 1);
+        const targetPeerIndex = coworkerCount > 0
+          ? (leisureSlot + entity.id) % coworkerCount
+          : -1;
+        const coworkerIndex =
+          targetPeerIndex >= 0 && selfIndex != null && selfIndex <= targetPeerIndex
+            ? targetPeerIndex + 1
+            : targetPeerIndex;
+        const coworker = coworkerIndex >= 0 ? workplaceWorkers[coworkerIndex] : undefined;
 
         const sneaking =
           hasAffairPartner(entity, entityById) &&
@@ -1439,8 +1465,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else if (kids.length > 0 && bondRoll < 0.62) {
             company = kids[(entity.id + leisureSlot) % kids.length]!;
             companyKind = 'kid';
-          } else if (coworkers.length > 0 && bondRoll < 0.82) {
-            company = coworkers[(leisureSlot + entity.id) % coworkers.length]!;
+          } else if (coworker && bondRoll < 0.82) {
+            company = coworker;
             companyKind = 'coworker';
           }
         }
@@ -1565,8 +1591,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           }
         } else if (leisureKind === 6) {
           let friend: Entity | null = spouse?.alive ? spouse : null;
-          if (!friend && coworkers.length > 0 && personDayRoll(entity.id, tick, 530) < 0.55) {
-            friend = coworkers[(entity.id + leisureSlot) % coworkers.length]!;
+          if (!friend && coworker && personDayRoll(entity.id, tick, 530) < 0.55) {
+            friend = coworker;
           }
           if (!friend && (state.tick + entity.id) % SOCIAL_STAGGER === 0) {
             friend =

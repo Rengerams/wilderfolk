@@ -44,6 +44,11 @@ export interface SocialImpulse {
   bubble?: string;
 }
 
+export type SocialBuildingPicker = (
+  types: readonly BuildingType[],
+  salt: number,
+) => Building | undefined;
+
 const SOCIAL_IMPULSE_CONFIG = {
   EXHAUSTED_ENERGY_RATIO: 0.28,
   WEARY_ENERGY_RATIO: 0.4,
@@ -160,6 +165,7 @@ export function pickSocialImpulse(
   buildings: readonly Building[],
   nearbyAdults: readonly Entity[],
   nearbyKids: readonly Entity[],
+  pickSocialBuilding: SocialBuildingPicker = (types, salt) => pickBuilding(buildings, types, salt),
 ): SocialImpulse {
   if (!entity.alive) return { motive: 'none' };
 
@@ -184,7 +190,7 @@ export function pickSocialImpulse(
 
   // 2. Grief — Quiet days at home or prayer at church
   if (isGrieving(entity, tick)) {
-    const church = pickBuilding(buildings, [BuildingType.Church], entity.id + 3);
+    const church = pickSocialBuilding([BuildingType.Church], entity.id + 3);
     if (church && personDayRoll(entity.id, tick, 702) < 0.4 && hour >= 9 && hour < 18) {
       return {
         motive: 'grief',
@@ -235,7 +241,7 @@ export function pickSocialImpulse(
       : undefined;
 
   if (spouse?.pregnant && personDayRoll(entity.id, tick, 707) < 0.55) {
-    const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id);
+    const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id);
     if (hospital && personDayRoll(entity.id, tick, 708) < 0.35) {
       return {
         motive: 'care_pregnant',
@@ -253,7 +259,7 @@ export function pickSocialImpulse(
 
   // Pregnant self care
   if (entity.pregnant && personDayRoll(entity.id, tick, 709) < 0.45) {
-    const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id + 1);
+    const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id + 1);
     if (hospital && hour >= 10 && hour < 17) {
       return { motive: 'hospital_visit', building: hospital, bubble: 'Check-up…' };
     }
@@ -264,8 +270,7 @@ export function pickSocialImpulse(
 
   // 6. Sunday Service (Sunday = day 6)
   if (weekday === 6 && hour >= 9 && hour < 13) {
-    const church = pickBuilding(
-      buildings,
+    const church = pickSocialBuilding(
       [BuildingType.Church],
       entity.id + absDaySalt(tick),
     );
@@ -282,7 +287,7 @@ export function pickSocialImpulse(
   }
 
   // 7. Civic Petition — Visit Town Hall (including post-scandal counseling)
-  const hall = pickBuilding(buildings, [BuildingType.TownHall], entity.id + 9);
+  const hall = pickSocialBuilding([BuildingType.TownHall], entity.id + 9);
   if (
     hall &&
     hall.occupants.length > 0 &&
@@ -311,7 +316,7 @@ export function pickSocialImpulse(
   }
 
   // 8. Hospital Visit (when staffed)
-  const hospital = pickBuilding(buildings, [BuildingType.Hospital], entity.id + 11);
+  const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id + 11);
   if (
     hospital &&
     hospital.occupants.length > 0 &&
@@ -327,8 +332,7 @@ export function pickSocialImpulse(
 
   // 9. Birthday Mood
   if (isBirthdayToday(entity, state.dayInYear) && personDayRoll(entity.id, tick, 712) < 0.65) {
-    const tavern = pickBuilding(
-      buildings,
+    const tavern = pickSocialBuilding(
       [BuildingType.Tavern, BuildingType.Market],
       entity.id,
     );
@@ -341,8 +345,7 @@ export function pickSocialImpulse(
 
   // 10. Market & Well Errands (during free daytime)
   if (!onShift && hour >= 8 && hour <= 18 && personDayRoll(entity.id, tick, 713) < 0.28) {
-    const market = pickBuilding(
-      buildings,
+    const market = pickSocialBuilding(
       [BuildingType.Market, BuildingType.Store, BuildingType.Well],
       entity.id + absDaySalt(tick),
     );
@@ -390,8 +393,7 @@ export function pickSocialImpulse(
   // and storm-bound settlers never reach here, because those branches return above.
   const idle = !hasWorkAssignment(entity);
   if ((!isWorkDay(tick) || idle) && hour >= 9 && hour < EVENING_START) {
-    const haunt = pickBuilding(
-      buildings,
+    const haunt = pickSocialBuilding(
       [BuildingType.Tavern, BuildingType.Market, BuildingType.TownHall, BuildingType.Church],
       entity.id + absDaySalt(tick),
     );

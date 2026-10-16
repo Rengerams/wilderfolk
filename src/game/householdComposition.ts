@@ -50,36 +50,53 @@ export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] 
   return household;
 }
 
-function livingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
+function livingHuman(
+  humans: Entity[],
+  id: number | undefined,
+  entityById?: ReadonlyMap<number, Entity>,
+): Entity | undefined {
   if (id == null) return undefined;
+  if (entityById) {
+    const indexed = entityById.get(id);
+    return indexed?.alive ? indexed : undefined;
+  }
   return humans.find((human) => human.id === id && human.alive);
 }
 
-function humanById(humans: Entity[], id: number | undefined): Entity | undefined {
+function humanById(
+  humans: Entity[],
+  id: number | undefined,
+  entityById?: ReadonlyMap<number, Entity>,
+): Entity | undefined {
   if (id == null) return undefined;
+  if (entityById) return entityById.get(id);
   return humans.find((human) => human.id === id);
 }
 
 /** Resolve a child’s natural or adoptive custodianship without changing residence state. */
-export function getChildCustodian(child: Entity, humans: Entity[]): Entity | undefined {
-  const mother = livingHuman(humans, child.motherId);
+export function getChildCustodian(
+  child: Entity,
+  humans: Entity[],
+  entityById?: ReadonlyMap<number, Entity>,
+): Entity | undefined {
+  const mother = livingHuman(humans, child.motherId, entityById);
   if (mother) return mother;
-  const father = livingHuman(humans, child.fatherId);
+  const father = livingHuman(humans, child.fatherId, entityById);
   if (father) return father;
   if (child.isBastard) {
-    const motherRecord = humanById(humans, child.motherId);
+    const motherRecord = humanById(humans, child.motherId, entityById);
     if (motherRecord?.motherId != null) {
-      const grandmother = livingHuman(humans, motherRecord.motherId);
+      const grandmother = livingHuman(humans, motherRecord.motherId, entityById);
       if (grandmother) return grandmother;
     }
-    const fatherRecord = humanById(humans, child.fatherId);
+    const fatherRecord = humanById(humans, child.fatherId, entityById);
     if (fatherRecord?.motherId != null) {
-      const grandmother = livingHuman(humans, fatherRecord.motherId);
+      const grandmother = livingHuman(humans, fatherRecord.motherId, entityById);
       if (grandmother) return grandmother;
     }
   }
-  const adoptiveMother = livingHuman(humans, child.adoptiveMotherId);
-  return adoptiveMother ?? livingHuman(humans, child.adoptiveFatherId);
+  const adoptiveMother = livingHuman(humans, child.adoptiveMotherId, entityById);
+  return adoptiveMother ?? livingHuman(humans, child.adoptiveFatherId, entityById);
 }
 /** Collect a connected family graph for household-unit formation. */
 export function collectFamilyMembers(seed: Entity, humans: Entity[], visited: Set<number>): Entity[] {
