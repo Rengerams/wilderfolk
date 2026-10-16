@@ -462,6 +462,28 @@ The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active 
 
 Soon...
 
+## Experimental Web Worker movement fix
+
+The worker simulation is **off by default** while its reported frozen-settler behavior is investigated. This revision fixes stale optimistic display snapshots and tick-pipeline starvation, but it does **not** establish that the worker is reliable on every Windows system.
+
+To test the worker explicitly with the normal browser development build (PowerShell 7):
+
+```powershell
+$env:VITE_USE_GAME_WORKER = '1'
+npm run dev
+```
+
+Start a village, unpause and verify that both the in-game clock **and individual settlers' positions** advance. Test placing/assigning buildings while the simulation runs, speeding up to 5×/10×, pausing, and saving/reloading. Check the developer console for `[GameLoop]` or `[GameWorker]` failures. Worker failure should fall back to main-thread ticks.
+
+To restore the default:
+
+```powershell
+Remove-Item Env:\\VITE_USE_GAME_WORKER -ErrorAction SilentlyContinue
+npm run dev
+```
+
+The switch is a Vite environment variable: restarting the development server (or rebuilding a packaged app) is required after changing it. No changes are required for the existing Tauri, browser, or Deno paths when worker mode is off.
+
 ## How to install
 
 *Early alpha — you need **Node.js** for now. A normal installer or **Steam** build is planned.*
