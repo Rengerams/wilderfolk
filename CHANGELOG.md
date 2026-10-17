@@ -4,7 +4,7 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
-- **Fixed: babies born to mutually linked youth sweethearts take their mother's surname and are not labelled a bastard; teenage mothers lead their own housing unit with their baby, even before age 18.**
+- **Fixed: pregnancies conceived through youth love keep their origin through breakups, birthdays and Moon Howler transformations; babies take the mother's surname without a bastard label, and teenage mothers lead their own housing unit with their baby while remaining minors.**
 
 - **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
 
