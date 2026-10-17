@@ -221,7 +221,7 @@ describe('human lifecycle golden contracts', () => {
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
   });
 
-  it('keeps a youth sweetheart baby in the mother's line without bastard status', () => {
+  it("keeps a youth sweetheart baby in the mother’s line without bastard status", () => {
     const father = human(FATHER_ID, {
       age: 16,
       isJuvenile: true,
