@@ -1,6 +1,7 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
 import { displayYear } from './dayCycleClock';
+import { buildWeeklyGazette, gazetteWeekForTick } from './weeklyGazette';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from './eventLogFilters';
 import {
   downloadChronicleCSV,
@@ -85,11 +86,24 @@ const LogRow = memo(function LogRow({ evt }: { evt: GameEventLog }) {
 });
 
 export default function EventLogPanel({ events, meta, initialFilter = 'all', onFilterChange }: Props) {
+  const [editionView, setEditionView] = useState<'gazette' | 'chronicle'>('gazette');
+  const [chosenWeek, setChosenWeek] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | GameEventLog['type']>(initialFilter);
   const [visibleCount, setVisibleCount] = useState(IN_GAME_LOG_PAGE);
   const [copied, setCopied] = useState(false);
   const [downloadedFormat, setDownloadedFormat] = useState<'txt' | 'json' | 'csv' | null>(null);
   const [exportOnSave, setExportOnSave] = useState(loadExportChronicleOnSave);
+
+  const currentWeek = gazetteWeekForTick(meta.tick);
+  const selectedWeek = Math.min(chosenWeek ?? currentWeek, currentWeek);
+  const oldestWeek = events.length > 0
+    ? gazetteWeekForTick(events[events.length - 1].tick)
+    : currentWeek;
+  const newestEventId = events[0]?.id;
+  const issue = useMemo(
+    () => buildWeeklyGazette(events, selectedWeek),
+    [events, newestEventId, selectedWeek],
+  );
 
   // Derived each render: the chronicle array is mutated in place (unshift/pop), so a memo on it
   // would never see an entry written after the panel opened.
@@ -154,6 +168,88 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
 
   return (
     <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setEditionView('gazette')}
+          aria-pressed={editionView === 'gazette'}
+          className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${editionView === 'gazette'
+            ? 'bg-amber-700 text-amber-50' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}
+        >
+          📰 Weekly Gazette
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditionView('chronicle')}
+          aria-pressed={editionView === 'chronicle'}
+          className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${editionView === 'chronicle'
+            ? 'bg-amber-700 text-amber-50' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}
+        >
+          📜 Full Chronicle
+        </button>
+      </div>
+
+      {editionView === 'gazette' ? (
+        <section aria-label="Weekly village gazette" className="space-y-3 rounded-xl border border-amber-800/60 bg-stone-950/70 p-3 text-stone-200">
+          <header className="border-b border-amber-700/50 pb-3 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-500">The village's own newspaper</p>
+            <h2 className="font-serif text-2xl font-black tracking-wide text-amber-100">The Wilderfolk Gazette</h2>
+            <p className="text-xs text-stone-400">
+              Issue {selectedWeek + 1} · Colony days {issue.startDay}–{issue.endDay}
+            </p>
+          </header>
+          <nav aria-label="Newspaper edition" className="flex items-center justify-between gap-3 text-[13px]">
+            <button
+              type="button"
+              disabled={selectedWeek <= oldestWeek}
+              onClick={() => setChosenWeek(selectedWeek - 1)}
+              className="rounded bg-stone-800 px-2.5 py-1 text-amber-200 hover:bg-stone-700 disabled:opacity-40"
+            >← Previous week</button>
+            <span className="text-xs text-stone-400">{selectedWeek === currentWeek ? 'This week' : 'From the archives'}</span>
+            <button
+              type="button"
+              disabled={selectedWeek >= currentWeek}
+              onClick={() => setChosenWeek(selectedWeek + 1)}
+              className="rounded bg-stone-800 px-2.5 py-1 text-amber-200 hover:bg-stone-700 disabled:opacity-40"
+            >Next week →</button>
+          </nav>
+          <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+            {([
+              ['Births', issue.births],
+              ['Weddings', issue.marriages],
+              ['Deaths', issue.deaths],
+              ['Scandals', issue.scandals],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="rounded border border-stone-700 bg-stone-900/60 px-2 py-2">
+                <strong className="block text-lg text-amber-100">{value}</strong>
+                <span className="text-stone-400">{label}</span>
+              </div>
+            ))}
+          </div>
+          {issue.articles.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {issue.articles.map((article) => (
+                <article key={article.event.id} className="border-t border-stone-700 pt-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">{article.section}</p>
+                  <h3 className="font-serif text-base font-bold text-amber-50">{article.headline}</h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-stone-300">{article.event.message}</p>
+                  <p className="mt-1 text-[10px] text-stone-500">
+                    Year {displayYear(article.event.year)}, day {article.event.day}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-[13px] text-stone-400">
+              A quiet week so far. The presses will run when the Chronicle records a story.
+            </p>
+          )}
+          <p className="border-t border-stone-800 pt-2 text-[11px] text-stone-500">
+            {issue.eventCount} recorded events this week. Stories come from the Chronicle, without invented gossip.
+          </p>
+        </section>
+      ) : (
+        <>
       <div className="flex flex-wrap items-center gap-1">
         {EVENT_LOG_FILTER_OPTIONS.map((opt) => (
           <button
@@ -245,6 +341,8 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
       <p className="text-[10px] leading-relaxed text-stone-600">
         Newest first · {events.length.toLocaleString()} entries stored; the list opens with {IN_GAME_LOG_PAGE}. Download carries the full stored set.
       </p>
+        </>
+      )}
     </div>
   );
 }
