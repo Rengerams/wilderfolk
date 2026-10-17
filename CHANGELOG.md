@@ -2,7 +2,9 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
-- **Added:** the in-game CPU profiler now waits for a final worker report before allowing Copy; its control sits above the mini-map so navigation stays clickable.
+- **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
+
+- **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
