@@ -86,7 +86,7 @@ const LogRow = memo(function LogRow({ evt }: { evt: GameEventLog }) {
 });
 
 export default function EventLogPanel({ events, meta, initialFilter = 'all', onFilterChange }: Props) {
-  const [editionView, setEditionView] = useState<'gazette' | 'chronicle'>('gazette');
+  const [editionView, setEditionView] = useState<'gazette' | 'chronicle'>('chronicle');
   const [chosenWeek, setChosenWeek] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | GameEventLog['type']>(initialFilter);
   const [visibleCount, setVisibleCount] = useState(IN_GAME_LOG_PAGE);
