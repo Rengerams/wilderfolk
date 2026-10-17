@@ -31,6 +31,25 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
+## In-game CPU profiler (diagnostic tool)
+
+A small **CPU profiler** control is available in the bottom-left corner of the game map.
+It is **off by default** and does not alter the simulation or game save.
+
+1. Load a large settlement and click **CPU profiler → Start measuring**.
+2. Continue playing for several in-game days, ideally including a rainy period and
+   a daily tick boundary. Close the panel if desired; the measurement continues.
+3. Reopen the panel, click **Stop**, then **Copy**. Paste the JSON report into an issue or chat.
+
+The panel records invocation counts, total time, average duration and maximum duration
+for key worker simulation layers, individual daily systems, A* pathfinding, worker delta
+processing, rendering and weather. Worker totals and main-thread numbers are separate.
+Time is JavaScript execution time measured with `performance.now()`, **not total machine
+CPU utilization**. Parent stages contain child stages, so their time totals overlap.
+Run once with profiling off and again with profiling on to account for measurement overhead.
+
+---
+
 ## v0.6.5.0 (September 29, 2026)
 
 * `GAME_VERSION` **0.6.5.0**
