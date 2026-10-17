@@ -17,6 +17,8 @@ import { getHourOfDay, isStartOfClockHour } from './dayCycleClock';
 import { isNearBuilding } from './simulation/humanRelationships';
 import { getSimRng, randomBool, randomChoice } from './simRng';
 import {
+  PRISON_GUARDS_FOR_FULL_COVERAGE,
+  PRISON_GUARDS_MAX,
   PRISON_SHIFTS,
   prisonRoster,
   prisonShiftsAtHour,
@@ -59,7 +61,26 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
     const occupant = livingById(state, entityById, id);
     if (occupant && isPlayerHuman(occupant) && occupant.job === 'prison_guard') ids.push(id);
   }
-  return ids;
+  const prison = state.buildings.find(
+    (building) => building.type === BuildingType.Prison && occupants.some((id) => building.occupants?.includes(id)),
+  );
+  if (!prison) return ids.slice(0, PRISON_GUARDS_MAX);
+
+  // Saves from older builds can contain more guards than the current four posts allow. For an
+  // overfull legacy roster, use the three closest as the stable watch crew: adding a distant fourth
+  // guard to the weekly rest rotation would pull coverage away from the post for a whole week. A
+  // legal four-guard crew still rotates its rest week normally.
+  const postX = prison.x + prison.width / 2;
+  const postY = prison.y + prison.height / 2;
+  return ids
+    .sort((a, b) => {
+      const guardA = entityById.get(a)!;
+      const guardB = entityById.get(b)!;
+      const distanceA = Math.hypot(postX - guardA.x, postY - guardA.y);
+      const distanceB = Math.hypot(postX - guardB.x, postY - guardB.y);
+      return distanceA - distanceB || a - b;
+    })
+    .slice(0, ids.length > PRISON_GUARDS_MAX ? PRISON_GUARDS_FOR_FULL_COVERAGE : PRISON_GUARDS_MAX);
 }
 
 function describeVacancy(roster: readonly PrisonRosterEntry[]): string {

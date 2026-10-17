@@ -47,6 +47,7 @@ import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 import { tickLayerAssign, LAYER_ASSIGN_INTERVAL } from './tickLayerAssign';
 import { tickLayerDaily } from './tickLayerDaily';
+import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickWinterHeating } from './dailyBuildingEconomy';
 import {
   USE_SPATIAL_GRID,
@@ -228,6 +229,10 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     tickLayerAssign(state, ctx);
     profileEnd('sim.assign', assignStart);
   }
+
+  // Presence is an hourly snapshot. Take it after the realtime, movement, and assignment layers so
+  // a guard who reaches the post on this clock-hour tick is counted at the position the player sees.
+  tickPrisonPresence(state);
 
   const allAlive: Entity[] = [];
   for (const e of aliveEntities) {
