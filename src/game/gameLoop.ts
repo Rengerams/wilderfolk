@@ -789,6 +789,7 @@ export class GameLoop {
   }
 
   stop(): void {
+    if (this.performanceProfilingEnabled) this.setPerformanceProfiling(false);
     this.running = false;
     this.sessionGen++;
     if (this.workerRecoveryTimer) {
