@@ -64,6 +64,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Human age and fertility ladder | `dayCycle.ts` (`dayCycleConstants.ts` for the ages) | daily sync / pure helpers | `HUMAN_FERTILITY_START`, `getFemaleFertility`, `getYouthConceptionMultiplier`, `syncHumanAgeFromCalendar`, `tryGraduateHumanChild` |
 | Housing unit composition | `householdComposition.ts` (selection: `residencySelection.ts`) | assignment | `isMinorChild`, `collectOwnHousehold`, `collectMinorHousehold`, `getChildCustodian`, `buildHousingUnits` |
 | Medical care | `hospitalCare.ts` + `humanHospitalBehavior.ts` | daily care pass / realtime routing | `needsMedicalCare`, `medicalCareReason`, `treatPatientAtHospital`, `doctorTreatNearby`, `tickHospitalDailyCare`, `getHospitalRoster`, `describeHospitalRoster` |
+| Hospital doctor rota and shift windows | `hospitalShifts.ts` | pure tick/day lookup and inspector projection | `HOSPITAL_SHIFT_HOURS`, `HOSPITAL_SHIFTS_PER_DAY`, `HOSPITAL_SHIFT_WINDOWS`, `hospitalDoctorRoster`, `hospitalDoctorSlotForDay`, `doctorHospitalShift`, `isHospitalDoctorOnShift`, `isHospitalDoctorCommuteTime`, `hospitalCoverageSummary` |
 | Visitor and settler lodging | `hotelStay.ts` | daily + realtime | `tickHotelLodging`, `checkInVisitor`, `checkoutVisitor`, `steerVisitorToHotel`, `needsHotelBed`, `lodgingHotelsFor`, `countHotelSettlerLodgers`, `buildHotelSettlerLodgerCounts`, `isSettlerLodgingAtHotel`, `lodgingHotelFor`, `restAtHotel`, `getHotelRoster`, `describeHotelRoster` |
 | Autumn migration and herds | `migration.ts` | new-calendar-day (autumn window) | `tickMigration`, `migrationArrivalDay` |
 | Ecosystem health score and its explanation | `dailyEcology.ts` (score, plus the story-driver `adjustEcosystemHealth` / `adjustPollutionLevel`) + `ecoBreakdown.ts` (read-only breakdown) | daily | `tickEcosystemMetrics`, `adjustEcosystemHealth`, `adjustPollutionLevel`, `calculateBiodiversityIndex`, `getEcosystemBreakdown` |
@@ -213,6 +214,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Election vote simulation | `electionVotes.ts` | election ceremony | `simulateElectionVotes` |
 | Visitor quest | `visitorQuest.ts` | daily + player-command | `tickVisitorQuest`, `maybeStartVisitorQuest`, `deliverVisitorQuest` |
 | Prison guard duty and post presence | `prisonGuardDuty.ts` + `prisonShifts.ts` | daily (`tickDailyWorldEvents`) + hourly (`tickLayerRealtime`) | `tickPrisonGuardDuty`, `tickPrisonPresence`, `prisonGuardIds`, `prisonRoster`, `prisonShiftForGuard`, `unguardedPrisonHours` |
+| Settler work reasons and workplace duty labels | `workAbsence.ts` | read-only UI projection | `getSettlerWorkReason`, `getWorkplaceRosterReasons`, `getUnstaffedPostNote`, `workplaceDutyLabel` |
 | Simulation invariant collection and assertion | `simulationInvariants.ts` + `simInvariants.ts` | dev/daily check (`gameTick`) | `collectSimulationInvariantErrors`, `assertSimInvariants` |
 | Decision-registry accessors | `simulation/decisionRegistry.ts` | — (static table accessors) | `getDecisionOwner`, `getDecisionsByCadence`, `isPropertyWritePermitted` |
 | Species configuration | `speciesConfig.ts` | — (data) | `getSpeciesConfig`, `getPreyEnergyGain` |
@@ -267,6 +269,7 @@ sites. Two conventions worth stating once:
 | Test fixture factories | `src/test/factories.ts` | test tier only — excluded from the app build, type-checked by the vitest project | `human`, `building`, `finishedBuilding`, `stubHuman`, `byType` |
 | Moon Howler saved-form shape | `gameTypes.ts` (declared beside `Entity`, which carries it) | load, full-moon transform and revert | `MoonHowlerSavedState` |
 | Transient-feedback dismissal ledgers and their caps | `hooks/useTransientGameFeedback.ts` | UI events; the ledgers cross the worker boundary and are saved, so the caps are what keep them bounded | `MAX_DISMISSED_NOTIFICATION_IDS`, `MAX_DISMISSED_BIG_NEWS_IDS`, `MAX_DISMISSED_ACTIVE_EVENT_IDS` |
+| Transient-feedback timer expiration checks | `hooks/useTransientGameFeedback.ts` | wall-clock timer guards, before a UI mutation is dispatched | `hasExpiredBigNews`, `hasExpiredNotifications` |
 | Valley Chronicle chapter moment shown as the title card, and its dismissal | `hooks/useTransientGameFeedback.ts` + `components/MomentTitleCard.tsx` | UI, read-only; the pending chapter is derived from `world.chronicleChapters` and the dismissal is the hook's own ledger | `getPendingChapterMoment`, `dismissChapterCard`, `MomentTitleCard` |
 | Log window's sub-tab and category intent, and the handover that sets them | `hooks/useGameShellState.ts` | UI navigation; a concern or hint opens the log on the history it is about | `openLog`, `LogFilter` |
 

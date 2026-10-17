@@ -12,12 +12,14 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { hospitalDoctorRoster } from '../src/game/hospitalShifts';
 import { collectDashboard, explainSettler } from '../src/game/dashboardData';
 import { getHumanActivityProjection } from '../src/game/humanStatus';
 import {
   getSettlerWorkReason,
   getUnstaffedPostNote,
   getWorkplaceRosterReasons,
+  workplaceDutyLabel,
 } from '../src/game/workAbsence';
 
 /** Absolute calendar day 0 is a Monday, so a tick on day 0 at this hour is inside a work day. */
@@ -143,6 +145,44 @@ describe('the reason a settler is not at their post', () => {
     const state = world(23 * TICKS_PER_HOUR, { entities: [worker], buildings: [house] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'sleeping', label: 'Sleeping' });
+  });
+
+  it('reports a doctor commuting at 23:00 instead of sleeping at home', () => {
+    const hospital = building(10, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const house = building(11, BuildingType.House, { x: 320, y: 320 });
+    const nightDoctorId = hospitalDoctorRoster(hospital, 1)[0].doctorId;
+    const doctor = settler(nightDoctorId, {
+      job: JobType.Doctor,
+      homeBuildingId: hospital.id,
+      residenceBuildingId: house.id,
+      x: house.x + house.width / 2,
+      y: house.y + house.height / 2,
+    });
+    const state = world(23 * TICKS_PER_HOUR, { buildings: [hospital, house], entities: [doctor] });
+    expect(getSettlerWorkReason(state, doctor)).toEqual({
+      code: 'walking-to-work',
+      label: 'Walking to work — Hospital',
+    });
+    state.tick = TICKS_PER_DAY;
+    expect(getSettlerWorkReason(state, doctor).code).toBe('walking-to-work');
+    const post = humanBuildingTarget(hospital, doctor.id, false);
+    doctor.x = post.x;
+    doctor.y = post.y;
+    expect(getSettlerWorkReason(state, doctor).code).toBe('working');
+  });
+
+  it('still labels an off-duty doctor asleep at home during the same night', () => {
+    const hospital = building(10, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const house = building(11, BuildingType.House, { x: 320, y: 320 });
+    const doctor = settler(2, {
+      job: JobType.Doctor,
+      homeBuildingId: hospital.id,
+      residenceBuildingId: house.id,
+      x: house.x + house.width / 2,
+      y: house.y + house.height / 2,
+    });
+    const state = world(23 * TICKS_PER_HOUR, { buildings: [hospital, house], entities: [doctor] });
+    expect(getSettlerWorkReason(state, doctor).code).toBe('sleeping');
   });
 
   it('says eating on a meal-check hour a hungry settler can feed at', () => {
@@ -328,5 +368,36 @@ describe('the reason reaches every surface the player reads', () => {
     const line = explainSettler(state, offShift.id).find((candidate) => candidate.label === 'Why idle');
 
     expect(line?.value).toBe('Off shift until 07:00 — no work logged today.');
+  });
+});
+
+describe('24-hour hospital workplace reasons', () => {
+  it('calls a midnight-duty doctor on their way to work, not asleep at home', () => {
+    const hospital = building(7, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const home = building(8, BuildingType.House, { x: 400, y: 400 });
+    // On day 0 the first doctor covers 00:00–08:00.
+    const doctor = settler(1, {
+      job: JobType.Doctor,
+      homeBuildingId: hospital.id,
+      residenceBuildingId: home.id,
+      x: home.x + home.width / 2,
+      y: home.y + home.height / 2,
+    });
+    const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital, home] });
+    expect(getSettlerWorkReason(atFour, doctor).code).toBe('walking-to-work');
+    const stand = humanBuildingTarget(hospital, doctor.id, false);
+    doctor.x = stand.x;
+    doctor.y = stand.y;
+    expect(getSettlerWorkReason(atFour, doctor).code).toBe('working');
+  });
+
+  it('keeps the two other doctors off duty during the midnight shift', () => {
+    const hospital = building(7, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const doctor = settler(4, { job: JobType.Doctor, homeBuildingId: hospital.id });
+    const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital] });
+    expect(getSettlerWorkReason(atFour, doctor)).toEqual({
+      code: 'off-shift',
+      label: 'Off duty — hospital roster',
+    });
   });
 });

@@ -2,6 +2,8 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay, personDayRoll } from './dayCycle';
+import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
+import { TICKS_PER_HOUR } from './dayCycleClock';
 import { steerEntityToward } from './simulation/movementSteering';
 import {
   doctorTreatNearby,
@@ -17,7 +19,7 @@ export type HospitalRuntimeContext = {
   allHumans: Entity[];
   updatedBuildings: Building[];
   staffedHospitals: Building[];
-  onDayJobShift: boolean;
+  onHospitalShift: boolean;
   onJobShift: boolean;
   speed: number;
 };
@@ -51,16 +53,17 @@ export function tickHumanDoctorHospitalService({
   entity,
   allHumans,
   updatedBuildings,
-  onDayJobShift,
-}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onDayJobShift'>): void {
-  if (onDayJobShift && isPlayerHuman(entity) && entity.job === JobType.Doctor) {
-    const ward = isDoctorAtHospital(entity, updatedBuildings);
-    // One doctor treatment per doctor per colony day, on the same settler-staggered tick the
-    // patient path uses. Without it the doctor's day-stable roll passed all day and the whole
-    // treatment (heal + Doctor skill + medicine food) re-ran every tick.
-    if (ward && isHospitalTreatmentTick(entity.id, state.tick)) {
-      doctorTreatNearby(state, entity, ward, allHumans);
-    }
+  onHospitalShift,
+}: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onHospitalShift'>): void {
+  if (!onHospitalShift || !isPlayerHuman(entity) || entity.job !== JobType.Doctor) return;
+  const ward = isDoctorAtHospital(entity, updatedBuildings);
+  const shift = ward ? doctorHospitalShift(ward, state.tick, entity.id) : undefined;
+  if (!ward || !shift) return;
+  // Exactly one ward round in this doctor's own 8h shift, even on weekends and
+  // overnight. The old day-only stagger fell outside many rotating shifts.
+  const tickOfShift = getTickOfDay(state.tick) - shift.startHour * TICKS_PER_HOUR;
+  if (tickOfShift === entity.id % (HOSPITAL_SHIFT_HOURS * TICKS_PER_HOUR)) {
+    doctorTreatNearby(state, entity, ward, allHumans);
   }
 }
 
