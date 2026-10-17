@@ -182,7 +182,7 @@ function buildingFingerprint(building: Building): string {
 
 const CATALOG_PATCH_KEYS = [
   'name', 'surname', 'maidenSurname', 'title', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
-  'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById',
+  'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById', 'pregnancyFromYouthLove',
   'pregnancyProgress', 'pregnancyDueProgress', 'courtshipPartnerId', 'courtshipProgress',
   'courtshipCooldownDays',
   'youthLovePartnerId', 'youthLoveProgress', 'childhoodFriendsIds', 'traits', 'schoolDays',
@@ -209,6 +209,7 @@ const CATALOG_CLEARABLE_KEYS = [
   'courtshipPartnerId',
   'youthLovePartnerId',
   'pregnantById',
+  'pregnancyFromYouthLove',
   'prisonBuildingId',
   'prisonerUntilTick',
   'prisonSentenceCrime',

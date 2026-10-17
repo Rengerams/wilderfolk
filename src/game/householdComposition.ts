@@ -1,10 +1,16 @@
 import type { Entity } from './gameTypes';
 import { HUMAN_MOVE_OUT_MIN_AGE } from './residencyOccupancy';
 
-/** Married or partnered settlers are emancipated for housing. */
+/** Married or partnered settlers are emancipated for housing and adoption checks. */
 export function isMinorChild(child: Entity): boolean {
   if (child.partnerId != null) return false;
   return child.isJuvenile || child.age < HUMAN_MOVE_OUT_MIN_AGE;
+}
+
+/** Teenage mothers remain minors but lead their own housing unit with their children. */
+export function isHousingDependentChild(child: Entity): boolean {
+  return isMinorChild(child)
+    && !(child.gender === 'female' && (child.childrenIds?.length ?? 0) > 0);
 }
 
 /** One adult-led home: settler + spouse + their children, not parents or siblings. */
@@ -41,7 +47,7 @@ export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] 
   add(partner);
   const addMinorChild = (childId: number) => {
     const child = humans.find((human) => human.id === childId && human.alive);
-    if (child && isMinorChild(child)) add(child);
+    if (child && isHousingDependentChild(child)) add(child);
   };
   for (const childId of seed.childrenIds ?? []) addMinorChild(childId);
   if (partner) {

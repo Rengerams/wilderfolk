@@ -95,6 +95,7 @@ export const ENTITY_PERSISTED_FIELDS = [
   'moonHowlerSaved',
   'moonHowlerCursed',
   'pregnantById',
+  'pregnancyFromYouthLove',
   'pregnancyProgress',
   'pregnancyDueProgress',
   'tamedBy',

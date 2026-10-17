@@ -4,6 +4,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Fixed: pregnancies conceived through youth love keep their origin through breakups, birthdays and Moon Howler transformations; babies take the mother's surname without a bastard label, and teenage mothers lead their own housing unit with their baby while remaining minors.**
+
 - **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
 
 - **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.

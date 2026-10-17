@@ -245,6 +245,7 @@ export interface MoonHowlerSavedState {
   youthLoveStartedDay?: number;
   pregnant?: boolean;
   pregnantById?: number;
+  pregnancyFromYouthLove?: boolean;
   pregnancyProgress?: number;
   /** Paired with `pregnant` by `simulationInvariants`; parked and restored with it. */
   pregnancyDueProgress?: number;
@@ -313,6 +314,7 @@ export interface Entity {
   youthLoveProgress?: number;
   youthLoveStartedDay?: number;
   pregnantById?: number;
+  pregnancyFromYouthLove?: boolean;
   fatherId?: number;
   motherId?: number;
   isBastard?: boolean;
