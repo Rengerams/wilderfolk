@@ -18,6 +18,7 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { getVenueAutoStaffingTarget } from './venueSchedule';
+import { TICKS_PER_DAY } from './dayCycleClock';
 import {
   DEFAULT_WORKFORCE_POLICY,
   getWorkforcePolicy,
@@ -164,17 +165,27 @@ export function completedJobBuildings(
     });
 }
 
+/** Two 30-day in-game months. Existing saves with no timestamp stay eligible. */
+export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
+
+export function canAutoChangeWorkplace(human: Entity, currentTick?: number): boolean {
+  if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
+  return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
+}
+
 export function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   humans: Entity[],
   excludeBuildingId: number,
+  currentTick?: number,
 ): Building | undefined {
   return jobBuildings
     .filter(
       (b) =>
         b.id !== excludeBuildingId &&
         !isManualStaffingBuilding(b) &&
-        countWorkersAtBuilding(humans, b.id) >= 2,
+        countWorkersAtBuilding(humans, b.id) >= 2 &&
+        humans.some((h) => h.alive && !h.isJuvenile && h.homeBuildingId === b.id && canAutoChangeWorkplace(h, currentTick)),
     )
     .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
 }
@@ -183,6 +194,7 @@ export function pickWorkerToTransfer(
   humans: Entity[],
   fromBuilding: Building,
   toBuilding: Building,
+  currentTick?: number,
 ): Entity | undefined {
   const toJob = BUILDING_JOB_TYPES[toBuilding.type];
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
@@ -193,7 +205,8 @@ export function pickWorkerToTransfer(
       isPlayerHuman(h) &&
       h.alive &&
       !h.isJuvenile &&
-      h.homeBuildingId === fromBuilding.id,
+      h.homeBuildingId === fromBuilding.id &&
+      canAutoChangeWorkplace(h, currentTick),
   );
   if (workers.length === 0) return undefined;
 
@@ -221,7 +234,7 @@ export function pickWorkerToTransfer(
  * Named assignment transition — assign ONE living adult settler to a completed workplace.
  * Single write path for `homeBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
  */
-export function assignWorkerTransition(human: Entity, building: Building): boolean {
+export function assignWorkerTransition(human: Entity, building: Building, currentTick?: number): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
@@ -232,6 +245,7 @@ export function assignWorkerTransition(human: Entity, building: Building): boole
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   building.occupants.push(human.id);
   human.homeBuildingId = building.id;
+  if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
   human.job = job;
   ensureEntitySkills(human)[job] = readSkill(human, job);
@@ -283,6 +297,7 @@ export function transferWorkerBetweenBuildings(
   worker: Entity,
   fromBuilding: Building,
   toBuilding: Building,
+  currentTick?: number,
 ): void {
   const job = BUILDING_JOB_TYPES[toBuilding.type];
   if (!job) return;
@@ -294,6 +309,7 @@ export function transferWorkerBetweenBuildings(
 
   const keepOffice = worker.occupation === LEADER_OCCUPATION;
   worker.homeBuildingId = toBuilding.id;
+  if (currentTick != null) worker.lastAutoJobTransferTick = currentTick;
   worker.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(toBuilding.type);
   worker.job = job;
   ensureEntitySkills(worker)[job] = readSkill(worker, job);
@@ -303,6 +319,7 @@ export function rebalanceJobWorkers(
   humans: Entity[],
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  currentTick?: number,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
   let changed = true;
@@ -318,13 +335,13 @@ export function rebalanceJobWorkers(
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       if (countWorkersAtBuilding(humans, needy.id) !== 0) continue;
 
-      const donor = findOverstaffedDonorBuilding(jobBuildings, humans, needy.id);
+      const donor = findOverstaffedDonorBuilding(jobBuildings, humans, needy.id, currentTick);
       if (!donor) continue;
 
-      const worker = pickWorkerToTransfer(humans, donor, needy);
+      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);
       if (!worker) continue;
 
-      transferWorkerBetweenBuildings(worker, donor, needy);
+      transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
       changed = true;
     }
   }
@@ -377,7 +394,7 @@ export function assignWorkerInPlace(
   building: Building,
   humans: Entity[],
   buildings: Building[],
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule' | 'tick'>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
@@ -430,7 +447,7 @@ export function assignWorkerInPlace(
   const worker = candidates[0];
   if (!worker) return false;
 
-  return assignWorkerTransition(worker, building);
+  return assignWorkerTransition(worker, building, venueSchedules?.tick);
 }
 
 function clearJobAssignment(human: Entity, buildings: Building[]): void {
@@ -442,6 +459,7 @@ export function assignBuilderInPlace(
   humans: Entity[],
   allBuildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  currentTick?: number,
 ): boolean {
   if (building.completed || building.faction === 'rival') return false;
 
@@ -472,6 +490,7 @@ export function assignBuilderInPlace(
         h.alive &&
         !h.isJuvenile &&
         hasWorkAssignment(h) &&
+        canAutoChangeWorkplace(h, currentTick) &&
         !isImprisoned(h) &&
         !building.occupants.includes(h.id) &&
         !isOnConstructionCrew(allBuildings, h.id),
@@ -499,6 +518,7 @@ export function assignBuilderInPlace(
 
   if (!jobHolder) return false;
   clearJobAssignment(jobHolder, allBuildings);
+  if (currentTick != null) jobHolder.lastAutoJobTransferTick = currentTick;
   building.occupants.push(jobHolder.id);
   return true;
 }
@@ -557,6 +577,7 @@ export function staffConstructionCrews(
   alive: Entity[],
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  currentTick?: number,
 ): void {
   const incomplete = buildings
     .filter((b) => !b.completed && b.faction !== 'rival')
@@ -571,7 +592,7 @@ export function staffConstructionCrews(
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
     if (building.occupants.length === 0) {
-      assignBuilderInPlace(building, alive, buildings, policy);
+      assignBuilderInPlace(building, alive, buildings, policy, currentTick);
     }
   }
 
@@ -589,7 +610,7 @@ export function staffConstructionCrews(
   // Pass 2: fill remaining slots
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
-    while (assignBuilderInPlace(building, alive, buildings, policy)) {
+    while (assignBuilderInPlace(building, alive, buildings, policy, currentTick)) {
       // Fill crew capacity
     }
   }
@@ -599,7 +620,7 @@ export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
   includeManualStaff: boolean,
-  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
+  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule' | 'tick'>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
@@ -613,7 +634,7 @@ export function staffJobBuildings(
   }
 
   if (!includeManualStaff) {
-    rebalanceJobWorkers(alive, buildings, policy);
+    rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
   }
   syncJobBuildingOccupants(alive, buildings);
 }
@@ -627,12 +648,12 @@ export function assignMissingWorkers(
   buildings: Building[],
   worldSlices?: Pick<
     WorldState,
-    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
+    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy' | 'tick'
   >,
 ): void {
   const alive = prepareWorkforce(humans, buildings);
   const policy = getWorkforcePolicy(worldSlices ?? {});
-  staffConstructionCrews(alive, buildings, policy);
+  staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   staffJobBuildings(alive, buildings, false, worldSlices, policy);
 }
 
