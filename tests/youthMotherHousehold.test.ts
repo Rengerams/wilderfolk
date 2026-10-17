@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
-import { isMinorChild, getChildCustodian } from '../src/game/householdComposition';
+import { isMinorChild, isHousingDependentChild, getChildCustodian } from '../src/game/householdComposition';
 import { buildHousingUnits } from '../src/game/residencySelection';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 
@@ -29,8 +29,9 @@ describe('a teenage mother keeps her baby', () => {
     const { grandmother, mother, baby, father } = youngFamily();
     const humans = [grandmother, mother, baby, father];
 
-    expect(isMinorChild(mother)).toBe(false);
-    expect(isMinorChild(baby)).toBe(true);
+    expect(isMinorChild(mother)).toBe(true);
+    expect(isHousingDependentChild(mother)).toBe(false);
+    expect(isHousingDependentChild(baby)).toBe(true);
     expect(getChildCustodian(baby, humans)?.id).toBe(mother.id);
     const units = buildHousingUnits(humans);
     expect(units.find((unit) => unit.some((person) => person.id === mother.id))?.map((person) => person.id))
