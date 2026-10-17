@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Fixed: expired news and notification timers only refresh the game interface when an item actually needs removal, preventing idle UI stalls.**
+
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
 - **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
