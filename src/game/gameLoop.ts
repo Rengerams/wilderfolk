@@ -352,14 +352,18 @@ export class GameLoop {
       this.observeDailyBoundary(nextWorld.tick);
       if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
+        const rebuildStart = profileStart();
         this.catalog.rebuild(this.world.entities);
+        profileEnd('main.catalogRebuild', rebuildStart);
       }
 
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
+        const kinematicsStart = profileStart();
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+        profileEnd('main.patchRenderKinematics', kinematicsStart);
       }
 
       this.view = syncScreenShakeFromWorld(this.view, this.world);
@@ -387,7 +391,9 @@ export class GameLoop {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
+        const kinematicsStart = profileStart();
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
+        profileEnd('main.patchRenderKinematics', kinematicsStart);
       }
 
       if (hadOptimistic) {
