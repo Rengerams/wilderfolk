@@ -24,6 +24,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
+import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
@@ -189,6 +191,36 @@ describe('conception is labelled as its own event type', () => {
 
     expect(state.eventLog.filter((event) => event.type === 'conception')).toHaveLength(1);
     expect(eventTypes(state)).not.toContain('birth');
+  });
+
+  it('keeps the youth-conception origin through a save and load even after a breakup', () => {
+    const youthFather = human(FATHER_ID, {
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'single',
+      youthLovePartnerId: MOTHER_ID,
+    });
+    const youthMother = human(MOTHER_ID, {
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'single',
+      youthLovePartnerId: FATHER_ID,
+    });
+    const { state, ctx } = makeFixture([youthMother, youthFather]);
+    state.tick = ticksForDays(conceptionDay(604));
+    expect(tryDailyConception(state, ctx, youthMother)).toBe(true);
+    expect(youthMother.pregnancyFromYouthLove).toBe(true);
+
+    youthMother.youthLovePartnerId = undefined;
+    youthFather.youthLovePartnerId = undefined;
+    const saved = structuredClone(buildSaveData(state, createInitialView(state.width, state.height)));
+    const result = loadGameFromParsedOutcome(saved);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const restored = result.world.entities.find((e) => e.id === MOTHER_ID);
+    expect(restored?.pregnant).toBe(true);
+    expect(restored?.pregnantById).toBe(FATHER_ID);
+    expect(restored?.pregnancyFromYouthLove).toBe(true);
   });
 
   it('counts an expectation separately from births in the council report', () => {
