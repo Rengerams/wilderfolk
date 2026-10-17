@@ -1,9 +1,9 @@
 import type { Entity } from './gameTypes';
 import { HUMAN_MOVE_OUT_MIN_AGE } from './residencyOccupancy';
 
-/** Married or partnered settlers are emancipated for housing. */
+/** Teenage mothers lead a household with their children even before age 18. */
 export function isMinorChild(child: Entity): boolean {
-  if (child.partnerId != null) return false;
+  if (child.partnerId != null || (child.gender === 'female' && (child.childrenIds?.length ?? 0) > 0)) return false;
   return child.isJuvenile || child.age < HUMAN_MOVE_OUT_MIN_AGE;
 }
 
