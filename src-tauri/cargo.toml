@@ -21,7 +21,6 @@ serde = { version = "1.0.51", features = ["derive"] }
 log = "0.4.34"
 tauri = { version = "2.12.1", features = [] }
 tauri-plugin-log = "2.4.0"
-embedded-graphics-core = "0.4.1"
 
 
 # Keep dev builds debuggable — no stripping, no abort.

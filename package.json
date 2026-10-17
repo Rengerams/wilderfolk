@@ -50,7 +50,6 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
-    "tauri": "^0.9.1",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
@@ -75,10 +74,10 @@
     "esbuild": true,
     "skia-canvas@3.0.8": true,
     "deno@2.9.6": true,
-    "optipng-bin@7.0.1": true,
-    "pngquant-bin@6.0.1": true,
     "tauri@0.15.0": true,
-    "zopflipng-bin@6.0.1": true,
-    "sharp@0.25.4": true
+    "optipng-bin@6.0.0": true,
+    "pngquant-bin@5.0.2": true,
+    "sharp@0.23.4": true,
+    "zopflipng-bin@5.0.0": true
   }
 }
