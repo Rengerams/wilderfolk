@@ -822,10 +822,7 @@ describe('virtual player decision engine', () => {
     expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
-  it("makes the player's staffing call at a manual workplace explicit (the Church)", () => {
-    // Generic auto-staffing never fills a manual workplace — that choice is the
-    // player's. The bot *is* the player, so it makes the choice itself, with one
-    // explicit `assignWorker` for that building instead of a blanket `autoStaffWorkers`.
+  it('leaves a deliberately manual Church alone, but allows the player to staff it', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -836,15 +833,16 @@ describe('virtual player decision engine', () => {
     );
 
     const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).not.toMatchObject({ op: 'assignWorker', buildingId: 2 });
+    expect(decision?.command).not.toMatchObject({ op: 'setBuildingStaffingMode', buildingId: 2 });
+    expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
+    expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
 
-    expect(decision).not.toBeNull();
-    expect(decision!.command).toMatchObject({ op: 'assignWorker', buildingId: 2 });
-    expect(decision!.command.op).not.toBe('autoStaffWorkers');
-    expect(decision!.reason).toContain('Church');
-
-    // …and the staffing owner really accepts it: the settler takes the post.
-    const applied = applyWorkerCommand(world, decision!.command);
-    expect(applied.entities.find((entity) => entity.id === 1)?.homeBuildingId).toBe(2);
+    // The human player still has the explicit manual-assign command available.
+    expect(canAssignWorkerToBuilding(world, 2)).toBe(true);
+    const manuallyAssigned = applyWorkerCommand(world, { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 2 });
+    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.occupants.length).toBeGreaterThan(0);
+    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
   });
 
   it('proposes nothing the colony cannot afford', () => {
@@ -1049,7 +1047,7 @@ describe('virtual player decision engine', () => {
 });
 
 describe('virtual player remaining action surface', () => {
-  it('repairs the worst damage the repair owner would actually pay for', () => {
+  it('repairs multiple eligible buildings with one command and pays for each', () => {
     const world = makeWorld(
       [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
       [
@@ -1059,17 +1057,39 @@ describe('virtual player remaining action surface', () => {
     );
 
     const decision = decideVirtualPlayerAction(world)!;
-
-    expect(decision.command).toMatchObject({ op: 'repairBuilding', buildingId: 1 });
-    expect(decision.reason).toContain('70% damaged');
-    // The worst-damaged building is the only acceptable repair target either way.
+    expect(decision.command).toMatchObject({ op: 'repairBuildings', buildingIds: [1, 2] });
     expect(getRepairBuildingEligibility(world, 1).ok).toBe(true);
     expect(getRepairBuildingEligibility(world, 2).ok).toBe(true);
 
-    // …and the maintenance owner really restores it.
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.buildings.find((b) => b.id === 1)?.health).toBe(100);
-    expect(applied.resources.wood).toBe(490);
+    expect(applied.buildings.find((b) => b.id === 2)?.health).toBe(100);
+    expect(applied.resources.wood).toBe(480);
+    expect(applied.resources.stone).toBe(490);
+    expect(world.buildings.find((b) => b.id === 1)?.health).toBe(30);
+  });
+
+  it('repairs multiple road segments per hour, capped by affordable material', () => {
+    const roads = Array.from({ length: 8 }, (_, i) =>
+      building(10 + i, BuildingType.Road, { health: 30 }),
+    );
+    const world = makeWorld(
+      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(2, BuildingType.Farm, { occupants: [1] }),
+        ...roads,
+      ],
+      { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 50 } },
+    );
+
+    const decision = decideVirtualPlayerAction(world)!;
+    expect(decision.command).toMatchObject({ op: 'repairBuildings', buildingIds: [10, 11, 12] });
+    const applied = applyWorkerCommand(world, decision.command);
+    expect(applied.buildings.filter((b) => b.type === BuildingType.Road && b.health === 100)).toHaveLength(3);
+    expect(applied.resources.wood).toBe(5);
+    expect(applied.resources.stone).toBe(0);
+    expect(world.buildings.filter((b) => b.type === BuildingType.Road && b.health === 30)).toHaveLength(8);
   });
 
   it('does not spend an hour on a scratch', () => {
@@ -1319,7 +1339,7 @@ describe('virtual player remaining action surface', () => {
     expect(applied.resources.gold).toBe(475);
   });
 
-  it('takes the manual post once, then has no idle adult left to place', () => {
+  it('does not auto-assign manual vacancies across repeated virtual-player decisions', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -1329,15 +1349,14 @@ describe('virtual player remaining action surface', () => {
       [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church, { staffingMode: 'manual' })],
     );
 
-    const decision = decideVirtualPlayerAction(world)!;
-    expect(decision.command).toMatchObject({ op: 'assignWorker', buildingId: 2 });
-
-    const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.entities.find((entity) => entity.id === 1)?.homeBuildingId).toBe(2);
-    // Every settler now has a post, so the step retires instead of re-firing.
-    expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
-      op: 'assignWorker',
-    });
+    for (let hour = 0; hour < 5; hour++) {
+      world.tick = hour * TICKS_PER_HOUR;
+      const decision = decideVirtualPlayerAction(world);
+      expect(decision?.command).not.toMatchObject({ op: 'assignWorker', buildingId: 2 });
+      expect(decision?.command).not.toMatchObject({ op: 'setBuildingStaffingMode', buildingId: 2 });
+      expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
+      expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
+    }
   });
 
   it('expands a home when the homeless have nowhere left to build', () => {
@@ -1491,9 +1510,8 @@ describe('virtual player remaining action surface', () => {
       rivalId: 'rival_ravenhold',
     });
   });
-  it('releases an empty manual workplace, and leaves a staffed one alone', () => {
-    // An empty Farm still flagged manual is holding the colony back: release it.
-    const stale = makeWorld(
+  it('never resets empty or staffed manual workplaces to automatic', () => {
+    const empty = makeWorld(
       [human(1, { residenceBuildingId: 1, homeBuildingId: 3 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
@@ -1501,23 +1519,22 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Farm, { staffingMode: 'manual' }),
       ],
     );
-    const released = decideVirtualPlayerAction(stale)!;
-    expect(released.command).toMatchObject({
+    expect(decideVirtualPlayerAction(empty)?.command ?? null).not.toMatchObject({
       op: 'setBuildingStaffingMode',
       buildingId: 2,
-      mode: 'auto',
     });
+    expect(empty.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
 
-    // A staffed Farm the player chose to run manually is left exactly as it is.
-    const chosen = makeWorld(
+    const staffed = makeWorld(
       [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1], staffingMode: 'manual' }),
       ],
     );
-    expect(decideVirtualPlayerAction(chosen)?.command ?? null).not.toMatchObject({
+    expect(decideVirtualPlayerAction(staffed)?.command ?? null).not.toMatchObject({
       op: 'setBuildingStaffingMode',
+      buildingId: 2,
     });
   });
 
