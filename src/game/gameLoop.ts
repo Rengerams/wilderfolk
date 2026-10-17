@@ -432,11 +432,23 @@ export class GameLoop {
     this.scheduleWorkerRecovery();
   }
 
-  setPerformanceProfiling(enabled: boolean): void {
-    this.performanceProfilingEnabled = enabled;
-    if (enabled) this.lastWorkerPerformanceSnapshot = null;
-    setPerformanceProfilingEnabled(enabled);
-    this.workerHost?.setProfilingEnabled(enabled);
+  async setPerformanceProfiling(enabled: boolean): Promise<void> {
+    if (enabled) {
+      this.performanceProfilingEnabled = true;
+      this.lastWorkerPerformanceSnapshot = null;
+      setPerformanceProfilingEnabled(true);
+      this.workerHost?.setProfilingEnabled(true);
+      return;
+    }
+
+    const host = this.workerEnabled && this.workerHost?.isReady() ? this.workerHost : null;
+    if (host) {
+      const finalSnapshot = await host.stopProfiling();
+      if (this.workerHost !== host) throw new Error('Simulation worker changed during profiler stop');
+      this.lastWorkerPerformanceSnapshot = finalSnapshot;
+    }
+    this.performanceProfilingEnabled = false;
+    setPerformanceProfilingEnabled(false);
   }
 
   getPerformanceProfiling(): {
@@ -789,7 +801,11 @@ export class GameLoop {
   }
 
   stop(): void {
-    if (this.performanceProfilingEnabled) this.setPerformanceProfiling(false);
+    if (this.performanceProfilingEnabled) {
+      this.performanceProfilingEnabled = false;
+      setPerformanceProfilingEnabled(false);
+      this.workerHost?.setProfilingEnabled(false);
+    }
     this.running = false;
     this.sessionGen++;
     if (this.workerRecoveryTimer) {
