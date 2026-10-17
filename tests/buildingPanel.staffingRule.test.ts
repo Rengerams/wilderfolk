@@ -6,7 +6,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import SelectedBuildingPanel from '../src/components/SelectedBuildingPanel';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, JobType } from '../src/game/gameTypes';
+import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   canAssignWorkerToBuilding,
@@ -106,5 +108,37 @@ describe('the manual worker picker reports the settlers it leaves out', () => {
     expect(picker.length).toBeGreaterThan(0);
     expect(picker.length).toBeLessThan(idle.length);
     expect(renderPanel(school, state)).toContain(`+${idle.length - picker.length} more settler`);
+  });
+});
+
+describe('building worker roster shows work duty, not private activities', () => {
+  it('distinguishes working and walking to work on the same barracks roster', () => {
+    const barracks = building(20, BuildingType.Barracks, { occupants: [1, 2] });
+    const atPost = humanBuildingTarget(barracks, 1, false);
+    const present = human(1, { homeBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
+    const commuter = human(2, { homeBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
+    const state = makeWorld([present, commuter], [barracks]);
+    state.tick = 10 * TICKS_PER_HOUR;
+    const html = renderPanel(barracks, state);
+    expect(html).toContain('Working');
+    expect(html).toContain('Walking to work');
+    expect(html).not.toContain('Soldiers are manual only');
+  });
+
+  it('shows off duty even when an assigned soldier is sleeping at home', () => {
+    const barracks = building(20, BuildingType.Barracks, { occupants: [1] });
+    const house = building(21, BuildingType.House, { x: 500, y: 500 });
+    const sleeper = human(1, {
+      homeBuildingId: barracks.id,
+      residenceBuildingId: house.id,
+      job: JobType.Soldier,
+      x: house.x + house.width / 2,
+      y: house.y + house.height / 2,
+    });
+    const state = makeWorld([sleeper], [barracks, house]);
+    state.tick = 23 * TICKS_PER_HOUR;
+    const html = renderPanel(barracks, state);
+    expect(html).toContain('Off duty');
+    expect(html).not.toContain(' · Sleeping');
   });
 });
