@@ -33,13 +33,13 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ## In-game CPU profiler (diagnostic tool)
 
-A small **CPU profiler** control is available in the bottom-left corner of the game map.
+A small **CPU profiler** control sits above the mini-map, leaving map navigation unobstructed.
 It is **off by default** and does not alter the simulation or game save.
 
 1. Load a large settlement and click **CPU profiler → Start measuring**.
 2. Continue playing for several in-game days, ideally including a rainy period and
    a daily tick boundary. Close the panel if desired; the measurement continues.
-3. Reopen the panel, click **Stop**, then **Copy**. Paste the JSON report into an issue or chat.
+3. Reopen the panel, click **Stop**, wait for the final worker sample, then **Copy**. Paste the JSON report into an issue or chat.
 
 The panel records invocation counts, total time, average duration and maximum duration
 for key worker simulation layers, individual daily systems, A* pathfinding, worker delta
