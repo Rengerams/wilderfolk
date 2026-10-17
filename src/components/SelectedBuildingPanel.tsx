@@ -51,7 +51,7 @@ import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
 import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
-import { getSettlerWorkReason, getUnstaffedPostNote } from '../game/workAbsence';
+import { getSettlerWorkReason, getUnstaffedPostNote, workplaceDutyLabel } from '../game/workAbsence';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
@@ -131,7 +131,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.WoodStorehouse:
       return `Passive — +${WOOD_STOREHOUSE_STORAGE} wood storage for winter fuel, no workers needed.`;
     case BuildingType.Barracks:
-      return `Assign Soldiers — each patrols the village (+${MILITIA_BALANCE.guardBonusPerGuard} militia strength).`;
+      return `Soldiers patrol during work shifts (+${MILITIA_BALANCE.guardBonusPerGuard} militia strength each).`;
     case BuildingType.WildlifePreserve:
       return `Passive — restores ecosystem health +${PRESERVE_HEALTH_BONUS} and helps wildlife recover; no workers.`;
     default:
@@ -579,7 +579,7 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Barracks && (
-          <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength).</p>
+          <p className="text-[11px] text-violet-300">Soldiers patrol during their assigned shifts (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength each). Staff this barracks with Auto-fill or Manual below.</p>
         )}
         {!building.completed && (
           <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
@@ -894,21 +894,24 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && building.occupants.length > 0 && (
           <div className="mt-1 space-y-0.5">
-            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => (
-              <p key={w.id} className="text-[11px] text-emerald-200">
-                👷 {citizenFullName(w)}
-                {w.job ? ` · ${w.job}` : ''}
-                <span className="text-amber-200"> · {getSettlerWorkReason(state, w).label}</span>
-                {w.apprenticeId != null && (
-                  <span className="text-cyan-300">
-                    {' '}🎓 {(() => {
-                      const ap = state.entities.find((e) => e.id === w.apprenticeId);
-                      return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
-                    })()}
-                  </span>
-                )}
-              </p>
-            ))}
+            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => {
+              const duty = workplaceDutyLabel(getSettlerWorkReason(state, w));
+              return (
+                <p key={w.id} className="text-[11px] text-emerald-200">
+                  👷 {citizenFullName(w)}
+                  {w.job ? ` · ${w.job}` : ''}
+                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' ? 'text-sky-300' : 'text-stone-400'}> · {duty}</span>
+                  {w.apprenticeId != null && (
+                    <span className="text-cyan-300">
+                      {' '}🎓 {(() => {
+                        const ap = state.entities.find((e) => e.id === w.apprenticeId);
+                        return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
+                      })()}
+                    </span>
+                  )}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
