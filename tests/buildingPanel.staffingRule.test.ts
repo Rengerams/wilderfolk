@@ -95,6 +95,16 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
     );
     expect(renderPanel(prison, state)).not.toContain('No idle settlers');
   });
+  it('lists prison guards as workers without duplicating prisoners in the duty roster', () => {
+    const guard = human(1, { name: 'GuardUnique', homeBuildingId: 9, job: JobType.PrisonGuard });
+    const inmate = human(2, { name: 'InmateUnique', prisonBuildingId: 9, prisonerUntilTick: 500 });
+    const prison = building(9, BuildingType.Prison, { occupants: [1, 2] });
+    const html = renderPanel(prison, makeWorld([guard, inmate], [prison]));
+
+    expect(html).toContain('👷 GuardUnique');
+    expect(html).not.toContain('👷 InmateUnique');
+    expect(html).toContain('⛓️ InmateUnique');
+  });
 });
 
 describe('the manual worker picker reports the settlers it leaves out', () => {
@@ -123,6 +133,8 @@ describe('building worker roster shows work duty, not private activities', () =>
     expect(html).toContain('Working');
     expect(html).toContain('Walking to work');
     expect(html).not.toContain('Soldiers are manual only');
+    expect(html).toContain('even off shift');
+    expect(html).not.toContain('during work shifts');
   });
 
   it('shows off duty even when an assigned soldier is sleeping at home', () => {
