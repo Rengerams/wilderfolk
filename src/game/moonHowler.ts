@@ -278,6 +278,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     youthLoveStartedDay: human.youthLoveStartedDay,
     pregnant: human.pregnant,
     pregnantById: human.pregnantById,
+    pregnancyFromYouthLove: human.pregnancyFromYouthLove,
     pregnancyProgress: human.pregnancyProgress,
     // Declared in the saved-form key list and scaled by `saveLoad`, but never written here and never
     // restored by `revertToHumanForm` — so the field was in the contract and not in the code. It is
