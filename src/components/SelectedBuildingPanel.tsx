@@ -51,7 +51,7 @@ import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
 import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
-import { getSettlerWorkReason, getUnstaffedPostNote } from '../game/workAbsence';
+import { getSettlerWorkReason, getUnstaffedPostNote, workplaceDutyLabel } from '../game/workAbsence';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
@@ -131,7 +131,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.WoodStorehouse:
       return `Passive — +${WOOD_STOREHOUSE_STORAGE} wood storage for winter fuel, no workers needed.`;
     case BuildingType.Barracks:
-      return `Assign Soldiers — each patrols the village (+${MILITIA_BALANCE.guardBonusPerGuard} militia strength).`;
+      return `Each living, non-imprisoned soldier assigned here adds +${MILITIA_BALANCE.guardBonusPerGuard} militia strength (more with Guard Halberds), even off shift.`;
     case BuildingType.WildlifePreserve:
       return `Passive — restores ecosystem health +${PRESERVE_HEALTH_BONUS} and helps wildlife recover; no workers.`;
     default:
@@ -446,6 +446,9 @@ export default function SelectedBuildingPanel({
   const prisoners = building.type === BuildingType.Prison
     ? state.entities.filter((e) => e.alive && e.type === EntityType.Human && e.prisonBuildingId === building.id)
     : [];
+  const staffRosterIds = building.type === BuildingType.Prison
+    ? prisonGuardIds(state, building.occupants ?? [])
+    : building.occupants;
   const builders = !building.completed
     ? state.entities.filter((e) => building.occupants.includes(e.id))
     : [];
@@ -538,7 +541,7 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
-          const guardIds = prisonGuardIds(state, building.occupants ?? []);
+          const guardIds = staffRosterIds;
           const roster = prisonRoster(guardIds, state.tick);
           const resting = offDutyPrisonGuards(guardIds, state.tick);
           const vacant = vacantPrisonShifts(roster);
@@ -579,7 +582,7 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Barracks && (
-          <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength).</p>
+          <p className="text-[11px] text-violet-300">Assigned soldiers strengthen militia around the clock, including off duty. Staff this barracks with Auto-fill or Manual below.</p>
         )}
         {!building.completed && (
           <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
@@ -892,23 +895,26 @@ export default function SelectedBuildingPanel({
             })}
           </div>
         )}
-        {building.completed && BUILDING_JOB_TYPES[building.type] && building.occupants.length > 0 && (
+        {building.completed && BUILDING_JOB_TYPES[building.type] && staffRosterIds.length > 0 && (
           <div className="mt-1 space-y-0.5">
-            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => (
-              <p key={w.id} className="text-[11px] text-emerald-200">
-                👷 {citizenFullName(w)}
-                {w.job ? ` · ${w.job}` : ''}
-                <span className="text-amber-200"> · {getSettlerWorkReason(state, w).label}</span>
-                {w.apprenticeId != null && (
-                  <span className="text-cyan-300">
-                    {' '}🎓 {(() => {
-                      const ap = state.entities.find((e) => e.id === w.apprenticeId);
-                      return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
-                    })()}
-                  </span>
-                )}
-              </p>
-            ))}
+            {state.entities.filter((e) => staffRosterIds.includes(e.id)).map((w) => {
+              const duty = workplaceDutyLabel(getSettlerWorkReason(state, w));
+              return (
+                <p key={w.id} className="text-[11px] text-emerald-200">
+                  👷 {citizenFullName(w)}
+                  {w.job ? ` · ${w.job}` : ''}
+                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' ? 'text-sky-300' : 'text-stone-400'}> · {duty}</span>
+                  {w.apprenticeId != null && (
+                    <span className="text-cyan-300">
+                      {' '}🎓 {(() => {
+                        const ap = state.entities.find((e) => e.id === w.apprenticeId);
+                        return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
+                      })()}
+                    </span>
+                  )}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1013,9 +1019,7 @@ export default function SelectedBuildingPanel({
             // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
             // listing it here announced prisoners as its "Current workers" — the owner's eight-row
             // roster of seven guards and a cellmate. Only the posts are staff.
-            const staffedIds = building.type === BuildingType.Prison
-              ? prisonGuardIds(state, building.occupants ?? [])
-              : building.occupants;
+            const staffedIds = staffRosterIds;
             if (staffedIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
