@@ -6,7 +6,7 @@
  * arbitrary random changes, or every-tick world scans.
  */
 import type { Building } from './gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, getHourOfDay } from './dayCycleClock';
+import { TICKS_PER_HOUR, getAbsoluteCalendarDay, getHourOfDay } from './dayCycleClock';
 
 export const HOSPITAL_SHIFT_HOURS = 8;
 export const HOSPITAL_SHIFTS_PER_DAY = 3;
