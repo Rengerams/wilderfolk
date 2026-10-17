@@ -209,6 +209,7 @@ const CATALOG_CLEARABLE_KEYS = [
   'courtshipPartnerId',
   'youthLovePartnerId',
   'pregnantById',
+  'pregnancyFromYouthLove',
   'prisonBuildingId',
   'prisonerUntilTick',
   'prisonSentenceCrime',
