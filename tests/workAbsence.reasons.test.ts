@@ -330,3 +330,34 @@ describe('the reason reaches every surface the player reads', () => {
     expect(line?.value).toBe('Off shift until 07:00 — no work logged today.');
   });
 });
+
+describe('24-hour hospital workplace reasons', () => {
+  it('calls a midnight-duty doctor on their way to work, not asleep at home', () => {
+    const hospital = building(7, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const home = building(8, BuildingType.House, { x: 400, y: 400 });
+    // On day 0 the first doctor covers 00:00–08:00.
+    const doctor = settler(1, {
+      job: JobType.Doctor,
+      homeBuildingId: hospital.id,
+      residenceBuildingId: home.id,
+      x: home.x + home.width / 2,
+      y: home.y + home.height / 2,
+    });
+    const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital, home] });
+    expect(getSettlerWorkReason(atFour, doctor).code).toBe('walking-to-work');
+    const stand = humanBuildingTarget(hospital, doctor.id, false);
+    doctor.x = stand.x;
+    doctor.y = stand.y;
+    expect(getSettlerWorkReason(atFour, doctor).code).toBe('working');
+  });
+
+  it('keeps the two other doctors off duty during the midnight shift', () => {
+    const hospital = building(7, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
+    const doctor = settler(4, { job: JobType.Doctor, homeBuildingId: hospital.id });
+    const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital] });
+    expect(getSettlerWorkReason(atFour, doctor)).toEqual({
+      code: 'off-shift',
+      label: 'Off duty — hospital roster',
+    });
+  });
+});
