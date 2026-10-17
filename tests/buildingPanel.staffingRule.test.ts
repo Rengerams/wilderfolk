@@ -77,8 +77,8 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
     const { cap, staffed } = staffingCapFor(prison, state.entities);
     expect(cap).toBeLessThan(prison.occupants.length);
     const html = renderPanel(prison, state);
-    expect(html).toContain(`Workers: ${staffed} / ${cap}`);
-    expect(html).not.toContain(`Workers: ${prison.occupants.length} / `);
+    expect(html).toContain(`Assigned workers: ${staffed} / ${cap}`);
+    expect(html).not.toContain(`Assigned workers: ${prison.occupants.length} / `);
   });
 
   it('does not offer the empty-picker notice once every post is filled', () => {
@@ -92,6 +92,23 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
       getBuildingConfig(BuildingType.Prison).maxOccupants,
     );
     expect(renderPanel(prison, state)).not.toContain('No idle settlers');
+  });
+});
+
+describe('assigned workers vs actual presence', () => {
+  it('does not present barracks staffing as soldiers currently standing at the barracks', () => {
+    const barracks = building(10, BuildingType.Barracks, {
+      x: 400, y: 400, occupants: [1, 2],
+    });
+    const home = building(11, BuildingType.House, { x: 0, y: 0, occupants: [1, 2] });
+    const soldiers = [
+      human(1, { homeBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
+      human(2, { homeBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
+    ];
+    const html = renderPanel(barracks, makeWorld(soldiers, [home, barracks]));
+    expect(html).toContain('Assigned workers: 2 / 4');
+    expect(html).toContain('not necessarily here right now');
+    expect(html).toContain('Away from post');
   });
 });
 
