@@ -11,6 +11,7 @@ import {
   Season,
   WeatherType,
   BUILDING_CONFIGS,
+  BUILDING_JOB_TYPES,
   createInitialResearchNodes,
   MapSize,
   MAP_SIZE_DIMENSIONS,
@@ -232,6 +233,8 @@ export function createBuilding(
     height: footprint.height,
     rotation: storedRotation,
     occupants: [],
+    // Newly built workplaces are automated; only explicit player input opts out.
+    ...(BUILDING_JOB_TYPES[type] ? { staffingMode: 'auto' as const } : {}),
     level: 1,
     constructionProgress: 0,
     completed: false,
