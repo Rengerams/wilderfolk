@@ -42,7 +42,7 @@ import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
-import { hospitalDoctorRoster, hospitalCoverageSummary } from '../game/hospitalShifts';
+import { hospitalDoctorRoster, hospitalCoverageSummary, HOSPITAL_SHIFT_WINDOWS } from '../game/hospitalShifts';
 import { getAbsoluteCalendarDay } from '../game/dayCycleClock';
 import { displayedConstructionProgress } from '../game/buildingProgressDisplay';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
@@ -751,11 +751,7 @@ export default function SelectedBuildingPanel({
             <div className="mt-2 space-y-1 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Hospital shifts — 24/7</p>
               <p className="text-[11px] text-stone-300">{hospitalCoverageSummary(building)}</p>
-              {[
-                { startHour: 0, endHour: 8, label: 'Night' },
-                { startHour: 8, endHour: 16, label: 'Day' },
-                { startHour: 16, endHour: 24, label: 'Evening' },
-              ].map((shift) => {
+              {HOSPITAL_SHIFT_WINDOWS.map((shift) => {
                 const assigned = roster.find((row) => row.startHour === shift.startHour);
                 const doctor = assigned ? state.entities.find((person) => person.id === assigned.doctorId) : undefined;
                 const active = now >= shift.startHour && now < shift.endHour;
@@ -769,9 +765,9 @@ export default function SelectedBuildingPanel({
                   </p>
                 );
               })}
-              {building.occupants.length > 3 && (
+              {building.occupants.length > roster.length && (
                 <p className="text-[10px] text-stone-400">
-                  {building.occupants.length - 3} doctor(s) off duty today; assignments rotate daily.
+                  {building.occupants.length - roster.length} doctor(s) off duty today; assignments rotate daily.
                 </p>
               )}
             </div>
