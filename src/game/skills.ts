@@ -1,6 +1,6 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
-import { TICKS_PER_DAY } from './dayCycle';
+import { TICKS_PER_DAY } from './dayCycleClock';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
