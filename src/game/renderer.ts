@@ -1,4 +1,5 @@
 import type { RenderSnapshot } from './renderSnapshot';
+import { profileEnd, profileRenderedFrame, profileStart } from './performanceProfiler';
 import { resetDialogueSessions } from './humanChat';
 import { disposeEntityLayerCache } from './entityLayer';
 import { effectiveScreenShake, resetRenderClock, tickRenderClock } from './renderer/shared';
@@ -48,6 +49,7 @@ export function renderGame(
   ch: number,
   tickFraction = 1,
 ) {
+  profileRenderedFrame(state.tick, state.weather);
   tickRenderClock(performance.now());
   ctx.imageSmoothingEnabled = false;
 
@@ -75,15 +77,25 @@ export function renderGame(
     ctx.translate((getPresentationRng('rendererShake')() - 0.5) * shake * 2, (getPresentationRng('rendererShake')() - 0.5) * shake * 2);
   }
 
+  const rendergroundStart = profileStart();
   drawGround(ctx, state, cw, ch);
+  profileEnd('render.ground', rendergroundStart);
+  const renderentityLayerStart = profileStart();
   compositeCachedEntityLayer(ctx, state, cw, ch);
+  profileEnd('render.entityLayer', renderentityLayerStart);
+  const rendermovingEntitiesStart = profileStart();
   paintMovingEntities(ctx, state, cw, ch);
+  profileEnd('render.movingEntities', rendermovingEntitiesStart);
+  const renderoverlaysStart = profileStart();
   drawGameOverlay(ctx, state, cw, ch);
+  profileEnd('render.overlays', renderoverlaysStart);
 
   if (shake > 0.1) {
     ctx.restore();
   }
 
   // The mini-map paints on this frame, from the registration its panel makes on mount.
+  const renderminimapStart = profileStart();
   drawMiniMapFrame();
+  profileEnd('render.minimap', renderminimapStart);
 }

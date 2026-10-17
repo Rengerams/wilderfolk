@@ -59,6 +59,17 @@ export interface UseTransientGameFeedbackOptions {
   onFeedbackInteraction: () => void;
 }
 
+/** True only when the next Big News sweep would change the world. */
+export function hasExpiredBigNews(world: Pick<WorldState, 'bigNews' | 'tick'>): boolean {
+  const now = world.tick;
+  return (world.bigNews ?? []).some((news) => {
+    const age = now - news.createdAt;
+    return news.dismissed
+      ? age >= BIG_NEWS_REMOVE_AFTER_TICKS
+      : age > BIG_NEWS_DISMISS_AFTER_TICKS;
+  });
+}
+
 /** Removes expired big-news records using the simulation-tick retention thresholds. */
 export function expireBigNews(world: Pick<WorldState, 'bigNews' | 'tick'>): void {
   if (!world.bigNews || world.bigNews.length === 0) return;
@@ -88,6 +99,15 @@ export function getBigNewsAutoDismissIds(
   return (world.bigNews ?? [])
     .filter((news) => !news.dismissed && !hiddenBigNewsIds.has(news.id))
     .map((news) => news.id);
+}
+
+/** True only when the notification sweep would dismiss at least one toast. */
+export function hasExpiredNotifications(
+  world: Pick<WorldState, 'notifications'>,
+  now = Date.now(),
+): boolean {
+  const cutoff = now - NOTIFICATION_DISPLAY_MS;
+  return (world.notifications ?? []).some((notification) => notification.createdAt <= cutoff);
 }
 
 /**
@@ -166,7 +186,10 @@ export function useTransientGameFeedback({
   // Periodic simulation-tick cleanup for long-lived/restored news
   useEffect(() => {
     const timer = setInterval(() => {
-      loopRef.current?.mutateWorld(expireBigNews);
+      const loop = loopRef.current;
+      if (loop && hasExpiredBigNews(loop.getWorld())) {
+        loop.mutateWorld(expireBigNews);
+      }
     }, BIG_NEWS_CLEANUP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [loopRef]);
@@ -174,7 +197,11 @@ export function useTransientGameFeedback({
   // Periodic wall-clock expiration for toast notifications
   useEffect(() => {
     const timer = setInterval(() => {
-      loopRef.current?.mutateWorld((currentWorld) => expireNotifications(currentWorld));
+      const loop = loopRef.current;
+      const now = Date.now();
+      if (loop && hasExpiredNotifications(loop.getWorld(), now)) {
+        loop.mutateWorld((currentWorld) => expireNotifications(currentWorld, now));
+      }
     }, NOTIFICATION_CLEANUP_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [loopRef]);

@@ -36,6 +36,7 @@ import {
   autoStaffAllWorkers,
   removeWorkerFromBuilding,
   repairBuilding,
+  repairBuildings,
   upgradeBuilding,
   demolishBuilding,
   setWorkshopRecipe,
@@ -71,6 +72,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'autoStaffWorkers' }
   | { proto: 1; op: 'removeWorker'; buildingId: number; humanId: number }
   | { proto: 1; op: 'repairBuilding'; buildingId: number }
+  | { proto: 1; op: 'repairBuildings'; buildingIds: number[] }
   | { proto: 1; op: 'upgradeBuilding'; buildingId: number }
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
@@ -113,6 +115,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'autoStaffWorkers',
   'removeWorker',
   'repairBuilding',
+  'repairBuildings',
   'upgradeBuilding',
   'demolishBuilding',
   'setWorkshopRecipe',
@@ -231,6 +234,11 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isFiniteNumber(cmd.buildingId) && (cmd.humanId === undefined || isFiniteNumber(cmd.humanId));
     case 'removeWorker':
       return isFiniteNumber(cmd.buildingId) && isFiniteNumber(cmd.humanId);
+    case 'repairBuildings':
+      return Array.isArray(cmd.buildingIds)
+        && cmd.buildingIds.length > 0
+        && cmd.buildingIds.every((id: unknown) => Number.isSafeInteger(id) && (id as number) > 0)
+        && new Set(cmd.buildingIds).size === cmd.buildingIds.length;
     case 'repairBuilding':
     case 'upgradeBuilding':
     case 'demolishBuilding':
@@ -332,6 +340,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return removeWorkerFromBuilding(world, cmd.buildingId, cmd.humanId);
     case 'repairBuilding':
       return repairBuilding(world, cmd.buildingId);
+    case 'repairBuildings':
+      return repairBuildings(world, cmd.buildingIds);
     case 'upgradeBuilding':
       return upgradeBuilding(world, cmd.buildingId);
     case 'demolishBuilding':

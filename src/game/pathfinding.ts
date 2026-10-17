@@ -20,6 +20,7 @@ import {
   isWalkableTerrainType,
   tileAt,
 } from './terrain/terrainGrid';
+import { profileStart, profileEnd } from './performanceProfiler';
 import {
   recordFindPathCall,
   recordGridRebuild,
@@ -362,6 +363,8 @@ export function findPath(
   ty: number,
   maxNodes = 6000,
 ): { x: number; y: number }[] | null {
+  const pathProfileStart = profileStart();
+  try {
   const { cols, rows, blocked, elevation, road } = grid;
   recordFindPathCall();
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
@@ -482,6 +485,9 @@ export function findPath(
   recordPathFailed();
   if (hitNodeCap) recordPathMaxNodesExceeded();
   return null;
+  } finally {
+    profileEnd('pathfinding.findPath', pathProfileStart);
+  }
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */

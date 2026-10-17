@@ -42,6 +42,8 @@ import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
+import { hospitalDoctorRoster, hospitalCoverageSummary, HOSPITAL_SHIFT_WINDOWS } from '../game/hospitalShifts';
+import { getAbsoluteCalendarDay } from '../game/dayCycleClock';
 import { displayedConstructionProgress } from '../game/buildingProgressDisplay';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
@@ -51,7 +53,7 @@ import { formatRaidDeadline } from '../game/frontierCombat';
 import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
 import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
-import { getSettlerWorkReason, getUnstaffedPostNote } from '../game/workAbsence';
+import { getSettlerWorkReason, getUnstaffedPostNote, workplaceDutyLabel } from '../game/workAbsence';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
 import { WALL_SEGMENT_BASE_BONUS, WATCHTOWER_BASE_BONUS, MILITIA_BALANCE, getWallSegmentCap } from '../game/defenseStructures';
@@ -131,7 +133,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.WoodStorehouse:
       return `Passive — +${WOOD_STOREHOUSE_STORAGE} wood storage for winter fuel, no workers needed.`;
     case BuildingType.Barracks:
-      return `Assign Soldiers — each patrols the village (+${MILITIA_BALANCE.guardBonusPerGuard} militia strength).`;
+      return `Each living, non-imprisoned soldier assigned here adds +${MILITIA_BALANCE.guardBonusPerGuard} militia strength (more with Guard Halberds), even off shift.`;
     case BuildingType.WildlifePreserve:
       return `Passive — restores ecosystem health +${PRESERVE_HEALTH_BONUS} and helps wildlife recover; no workers.`;
     default:
@@ -446,6 +448,9 @@ export default function SelectedBuildingPanel({
   const prisoners = building.type === BuildingType.Prison
     ? state.entities.filter((e) => e.alive && e.type === EntityType.Human && e.prisonBuildingId === building.id)
     : [];
+  const staffRosterIds = building.type === BuildingType.Prison
+    ? prisonGuardIds(state, building.occupants ?? [])
+    : building.occupants;
   const builders = !building.completed
     ? state.entities.filter((e) => building.occupants.includes(e.id))
     : [];
@@ -479,7 +484,7 @@ export default function SelectedBuildingPanel({
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : (
-          <p>{!building.completed ? 'Builders' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
+          <p>{!building.completed ? 'Builders' : BUILDING_JOB_TYPES[building.type] ? 'Assigned workers' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
         )}
         {!building.completed && (
           <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
@@ -502,7 +507,11 @@ export default function SelectedBuildingPanel({
           </>
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && !isManualStaffing && (
-          <p className="text-[11px] text-sky-300">Workers are assigned here automatically ({getWorkScheduleLabel(getWorkSchedule(state))}).</p>
+          <p className="text-[11px] text-sky-300">
+            {building.type === BuildingType.Hospital
+              ? 'Workers are assigned here automatically, with day, evening and night shifts.'
+              : `Workers are assigned here automatically (${getWorkScheduleLabel(getWorkSchedule(state))}).`}
+          </p>
         )}
         {building.completed && building.type === BuildingType.Mine && (
           <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-2">
@@ -538,7 +547,7 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
-          const guardIds = prisonGuardIds(state, building.occupants ?? []);
+          const guardIds = staffRosterIds;
           const roster = prisonRoster(guardIds, state.tick);
           const resting = offDutyPrisonGuards(guardIds, state.tick);
           const vacant = vacantPrisonShifts(roster);
@@ -579,7 +588,7 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Barracks && (
-          <p className="text-[11px] text-violet-300">Soldiers are manual only — assign below; each patrols the village (+{MILITIA_BALANCE.guardBonusPerGuard} militia strength).</p>
+          <p className="text-[11px] text-violet-300">Assigned soldiers strengthen militia around the clock, including off duty. Staff this barracks with Auto-fill or Manual below.</p>
         )}
         {!building.completed && (
           <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
@@ -739,6 +748,35 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Hospital && (() => {
+          const roster = hospitalDoctorRoster(building, getAbsoluteCalendarDay(state.tick));
+          const now = getHourOfDay(state.tick);
+          return (
+            <div className="mt-2 space-y-1 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Hospital shifts — 24/7</p>
+              <p className="text-[11px] text-stone-300">{hospitalCoverageSummary(building)}</p>
+              {HOSPITAL_SHIFT_WINDOWS.map((shift) => {
+                const assigned = roster.find((row) => row.startHour === shift.startHour);
+                const doctor = assigned ? state.entities.find((person) => person.id === assigned.doctorId) : undefined;
+                const active = now >= shift.startHour && now < shift.endHour;
+                return (
+                  <p key={shift.label} className="text-[11px] text-stone-300">
+                    <span className="font-semibold text-stone-100">{shift.label}</span>
+                    {' '}{String(shift.startHour).padStart(2, '0')}:00–{String(shift.endHour % 24).padStart(2, '0')}:00 ·{' '}
+                    <span className={doctor ? active ? 'text-emerald-300' : 'text-sky-300' : 'text-amber-300'}>
+                      {doctor ? citizenFullName(doctor) : 'Unstaffed'}{doctor && active ? ' · on shift' : ''}
+                    </span>
+                  </p>
+                );
+              })}
+              {building.occupants.length > roster.length && (
+                <p className="text-[10px] text-stone-400">
+                  {building.occupants.length - roster.length} doctor(s) off duty today; assignments rotate daily.
+                </p>
+              )}
+            </div>
+          );
+        })()}
+        {building.completed && building.type === BuildingType.Hospital && (() => {
           // Care is derived too: a settler walks to the nearest staffed hospital, so the roster asks
           // the same reach the ward round treats by rather than storing an admission.
           const roster = getHospitalRoster(building, state.entities, state.tick);
@@ -892,30 +930,34 @@ export default function SelectedBuildingPanel({
             })}
           </div>
         )}
-        {building.completed && BUILDING_JOB_TYPES[building.type] && building.occupants.length > 0 && (
+        {building.completed && BUILDING_JOB_TYPES[building.type] && staffRosterIds.length > 0 && (
           <div className="mt-1 space-y-0.5">
-            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => (
-              <p key={w.id} className="text-[11px] text-emerald-200">
-                👷 {citizenFullName(w)}
-                {w.job ? ` · ${w.job}` : ''}
-                <span className="text-amber-200"> · {getSettlerWorkReason(state, w).label}</span>
-                {w.apprenticeId != null && (
-                  <span className="text-cyan-300">
-                    {' '}🎓 {(() => {
-                      const ap = state.entities.find((e) => e.id === w.apprenticeId);
-                      return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
-                    })()}
-                  </span>
-                )}
-              </p>
-            ))}
+            <p className="text-[10px] text-stone-400">Staff assigned to this building — not necessarily here right now:</p>
+            {state.entities.filter((e) => staffRosterIds.includes(e.id)).map((w) => {
+              const duty = workplaceDutyLabel(getSettlerWorkReason(state, w));
+              return (
+                <p key={w.id} className="text-[11px] text-emerald-200">
+                  👷 {citizenFullName(w)}
+                  {w.job ? ` · ${w.job}` : ''}
+                  <span className={duty === 'Working' ? 'text-emerald-300' : duty === 'Walking to work' ? 'text-sky-300' : 'text-stone-400'}> · {duty}</span>
+                  {w.apprenticeId != null && (
+                    <span className="text-cyan-300">
+                      {' '}🎓 {(() => {
+                        const ap = state.entities.find((e) => e.id === w.apprenticeId);
+                        return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
+                      })()}
+                    </span>
+                  )}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
       </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
+        <CollapsibleSection title={!building.completed ? 'Construction' : 'Staff assignments'} defaultOpen storageKey={`building-workers-${building.id}`}>
           {getUnstaffedPostNote(building) && (
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}
@@ -1013,13 +1055,11 @@ export default function SelectedBuildingPanel({
             // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
             // listing it here announced prisoners as its "Current workers" — the owner's eight-row
             // roster of seven guards and a cellmate. Only the posts are staff.
-            const staffedIds = building.type === BuildingType.Prison
-              ? prisonGuardIds(state, building.occupants ?? [])
-              : building.occupants;
+            const staffedIds = staffRosterIds;
             if (staffedIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Current workers</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
               {staffedIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (

@@ -12,7 +12,13 @@
  * out and back every ~2 s and never leaves by itself.
  */
 import { describe, expect, it } from 'vitest';
-import { expireNotifications, NOTIFICATION_DISPLAY_MS } from '../src/hooks/useTransientGameFeedback';
+import {
+  expireBigNews,
+  expireNotifications,
+  hasExpiredBigNews,
+  hasExpiredNotifications,
+  NOTIFICATION_DISPLAY_MS,
+} from '../src/hooks/useTransientGameFeedback';
 import { preserveNotificationDismissals } from '../src/game/simBuffers/simDelta';
 import type { WorldState } from '../src/game/gameTypes';
 
@@ -56,5 +62,38 @@ describe('an expired toast is dismissed for good, not just removed once', () => 
     expireNotifications(world, NOW);
     expect(world.notifications).toHaveLength(1);
     expect(world.dismissedNotificationIds).toEqual([]);
+  });
+});
+
+describe('transient timer sweeps avoid no-op world notifications', () => {
+  it('only runs notification cleanup when a toast has expired', () => {
+    const world = worldWith([toast('recent', 100)]);
+    expect(hasExpiredNotifications(world, NOW)).toBe(false);
+    expect(hasExpiredNotifications(worldWith([]), NOW)).toBe(false);
+    expect(hasExpiredNotifications(worldWith([toast('at-cutoff', NOTIFICATION_DISPLAY_MS)]), NOW)).toBe(true);
+    expireNotifications(world, NOW);
+    expect(hasExpiredNotifications(world, NOW)).toBe(false);
+  });
+
+  it('only runs Big News cleanup when dismissal or removal is due', () => {
+    const world = {
+      tick: 400,
+      bigNews: [
+        { id: 'fresh', createdAt: 40, dismissed: false },
+        { id: 'dismissed', createdAt: 0, dismissed: true },
+      ],
+    } as Pick<WorldState, 'bigNews' | 'tick'>;
+    expect(hasExpiredBigNews({ tick: 400, bigNews: [] })).toBe(false);
+    expect(hasExpiredBigNews(world)).toBe(false);
+    world.tick = 401;
+    expect(hasExpiredBigNews(world)).toBe(true);
+    expireBigNews(world);
+    expect(world.bigNews.find((news) => news.id === 'fresh')?.dismissed).toBe(true);
+    expect(hasExpiredBigNews(world)).toBe(false);
+    world.tick = 601;
+    expect(hasExpiredBigNews(world)).toBe(true);
+    expireBigNews(world);
+    expect(world.bigNews).toHaveLength(0);
+    expect(hasExpiredBigNews(world)).toBe(false);
   });
 });

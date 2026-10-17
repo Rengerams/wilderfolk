@@ -1,6 +1,12 @@
 # Changelog
 
+
+
 ## <u>[0.6.5.1]</u> — 2026-10-08
+
+- **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
+
+- **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.
 
 - **Added: a read-only weekly village newspaper in the Log window, with real stories, social news and weekly event counts from the existing Chronicle.**
 

@@ -17,7 +17,8 @@ export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 
  * still one person, so the divisor is 9, not 8).
  *
  * `getVenueAutoStaffingTarget` therefore returns `ceil(hours / 9)` bounded below by
- * one settler and above by the building's own crew cap: 1–9h → 1, 10–18h → 2, 19h+ → 3.
+ * one settler and above by the building's own crew cap. Hotels additionally reserve
+ * a one-hour shift handover: 1–9h → 1, 10–17h → 2, 18–23h → 3.
  *
  * The service window itself has **no length restriction** — the owner removed both the
  * old 18-hour cap and the 4-hour floor ("they should be no restrictrion for normal work
@@ -25,6 +26,8 @@ export const DEFAULT_HOTEL_SCHEDULE: VenueSchedule = Object.freeze({ startHour: 
  * midnight, so 23 hours (00:00–23:00) is the widest legal one and 1 hour the narrowest.
  */
 export const STANDARD_WORK_HOURS = 9;
+/** An hour of shared handover when the hotel has multiple shifts. */
+export const HOTEL_SHIFT_OVERLAP_HOURS = 1;
 
 function defaultFor(kind: VenueScheduleKind): VenueSchedule {
   return kind === 'tavern' ? DEFAULT_TAVERN_SCHEDULE : DEFAULT_HOTEL_SCHEDULE;
@@ -90,7 +93,8 @@ export function getVenueScheduleHours(schedule: VenueSchedule): number {
 /**
  * Minimum Auto staff a venue needs for its service window: one settler up to
  * `STANDARD_WORK_HOURS` (9) hours, then an extra one per further nine hours —
- * 1–9h → 1, 10–18h → 2, 19h+ → 3 — always bounded by the building's own crew cap.
+ * 1–9h → 1, 10–18h → 2, 19h+ → 3 for taverns. Hotels reserve a one-hour
+ * shift overlap, so 18–23h needs three instead of two. Always respect crew cap.
  *
  * This is the "if its goes over 8 hrs a extra person should go work at the place"
  * rule; a venue open all day is covered by more staff, never refused.
@@ -101,13 +105,19 @@ export function getVenueAutoStaffingTarget(
   maxStaff: number,
 ): number {
   const hours = getVenueScheduleHours(getVenueSchedule(state, kind));
-  return Math.min(maxStaff, Math.max(1, Math.ceil(hours / STANDARD_WORK_HOURS)));
+  // Two 9h hotel shifts cover 17h with one hour handover; 18–23h
+  // require a third hotelier for the same handover and max 9h/person.
+  const required = kind === 'hotel'
+    ? Math.ceil((hours - HOTEL_SHIFT_OVERLAP_HOURS) / (STANDARD_WORK_HOURS - HOTEL_SHIFT_OVERLAP_HOURS))
+    : Math.ceil(hours / STANDARD_WORK_HOURS);
+  return Math.min(maxStaff, Math.max(1, required));
 }
 
 /**
  * The slice of a venue's service window one crew place covers.
  *
- * The window is split evenly across the crew, so this is the only place that arithmetic lives:
+ * Taverns split coverage evenly; hotels stagger up to 9h shifts with a one-hour overlap,
+ * so this is the only place that arithmetic lives:
  * `isVenueWorkerServiceHour` reads this window and a caller that needs to name the hour a place
  * starts reads the same numbers.
  */
@@ -119,8 +129,21 @@ export function getVenueWorkerServiceWindow(
 ): VenueSchedule {
   const schedule = getVenueSchedule(state, kind);
   const count = Math.max(1, workerCount);
-  const duration = getVenueScheduleHours(schedule) / count;
-  const start = schedule.startHour + workerIndex * duration;
+  const hours = getVenueScheduleHours(schedule);
+  if (kind !== 'hotel') {
+    // Tavern shifts are unchanged.
+    const duration = hours / count;
+    const start = schedule.startHour + workerIndex * duration;
+    return { startHour: start, endHour: Math.min(schedule.endHour, start + duration) };
+  }
+  // Hotel workers never exceed 9 hours, including manual-staff buildings.
+  // Distribute available crew across the entire opening window with up to one
+  // hour of handover at each boundary when enough workers are present.
+  // Example: 06–23 with two workers => 06–15 and 14–23.
+  const desired = (hours + HOTEL_SHIFT_OVERLAP_HOURS * (count - 1)) / count;
+  const duration = Math.min(STANDARD_WORK_HOURS, desired);
+  const step = count === 1 ? 0 : (hours - duration) / (count - 1);
+  const start = schedule.startHour + workerIndex * step;
   return { startHour: start, endHour: Math.min(schedule.endHour, start + duration) };
 }
 
