@@ -75,6 +75,7 @@ import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
 import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
+import PerformanceProfilerPanel from './components/PerformanceProfilerPanel';
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
@@ -1369,6 +1370,8 @@ export default function App() {
             onMouseLeave={handleMouseLeave}
             onContextMenu={handleContextMenu}
           />
+
+          <PerformanceProfilerPanel loopRef={loopRef} />
 
           <div className="pointer-events-none absolute inset-0 z-10">
           {/* Build mode is shown by the building ghost following the cursor —
