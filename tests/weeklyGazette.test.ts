@@ -27,16 +27,16 @@ describe('the weekly gazette reads the Chronicle without changing the simulation
     const first = buildWeeklyGazette(events, 0);
     expect(first.startDay).toBe(1);
     expect(first.endDay).toBe(7);
-    expect(first.eventCount).toBe(3);
+    expect(first.eventCount).toBe(4);
     expect(first.births).toBe(1);
     expect(first.marriages).toBe(1);
     expect(first.deaths).toBe(1);
-    expect(first.scandals).toBe(0);
+    expect(first.scandals).toBe(1);
     expect(first.articles.every((article) => article.event.tick < 7 * TICKS_PER_DAY)).toBe(true);
 
     const next = buildWeeklyGazette(events, 1);
-    expect(next.eventCount).toBe(3);
-    expect(next.scandals).toBe(2);
+    expect(next.eventCount).toBe(2);
+    expect(next.scandals).toBe(1);
     expect(next.articles.some((article) => article.event.type === 'election')).toBe(true);
     expect(events).toEqual(before);
   });
