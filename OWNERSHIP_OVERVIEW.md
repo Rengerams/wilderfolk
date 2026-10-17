@@ -270,6 +270,8 @@ sites. Two conventions worth stating once:
 | Moon Howler saved-form shape | `gameTypes.ts` (declared beside `Entity`, which carries it) | load, full-moon transform and revert | `MoonHowlerSavedState` |
 | Transient-feedback dismissal ledgers and their caps | `hooks/useTransientGameFeedback.ts` | UI events; the ledgers cross the worker boundary and are saved, so the caps are what keep them bounded | `MAX_DISMISSED_NOTIFICATION_IDS`, `MAX_DISMISSED_BIG_NEWS_IDS`, `MAX_DISMISSED_ACTIVE_EVENT_IDS` |
 | Opt-in CPU section profiler across worker + renderer | `game/performanceProfiler.ts` + `components/PerformanceProfilerPanel.tsx` | instrumentation at existing simulation and drawing call sites, off by default | `profileStart`, `profileEnd`, `setPerformanceProfilingEnabled`, `getPerformanceSnapshot`, `PerformanceProfilerPanel` |
+| Player HUD pop-up preference | `game/preferences.ts` | local preference storage; display-only | `loadHudNotificationsEnabled`, `saveHudNotificationsEnabled` |
+| Read-only village newspaper | `game/weeklyGazette.ts` | Chronicle-only projection, on Log open/week change | `gazetteWeekForTick`, `buildWeeklyGazette` |
 | Valley Chronicle chapter moment shown as the title card, and its dismissal | `hooks/useTransientGameFeedback.ts` + `components/MomentTitleCard.tsx` | UI, read-only; the pending chapter is derived from `world.chronicleChapters` and the dismissal is the hook's own ledger | `getPendingChapterMoment`, `dismissChapterCard`, `MomentTitleCard` |
 | Log window's sub-tab and category intent, and the handover that sets them | `hooks/useGameShellState.ts` | UI navigation; a concern or hint opens the log on the history it is about | `openLog`, `LogFilter` |
 

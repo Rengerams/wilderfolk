@@ -108,6 +108,8 @@ import {
   saveShowFps,
   saveValleyStageWarnings,
   saveFirstNightWarningDismissed,
+  loadHudNotificationsEnabled,
+  saveHudNotificationsEnabled,
 } from './game/preferences';
 import { LabelWithResourceCost } from './components/ResourceCost';
 import CitizenOverviewScreen from './components/CitizenOverviewScreen';
@@ -248,6 +250,7 @@ export default function App() {
   } = useGameShellState();
   const [spritesLoaded, setSpritesLoaded] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [hudNotificationsEnabled, setHudNotificationsEnabled] = useState(loadHudNotificationsEnabled);
   /**
    * The citizen whose family tree is open, if any. The tree gets its own window rather than a
    * section of the inspector: laid out by generation it is legible, and inlined it was part of what
@@ -1377,12 +1380,26 @@ export default function App() {
           {/* Build mode is shown by the building ghost following the cursor —
               no banner. Esc / right-click exits placement; R rotates. */}
           
-          {/* Floating notifications — top-right, clear of build rail & banners */}
-          <div
-            className="pointer-events-auto absolute right-3 top-3 z-[40] flex max-h-[calc(100vh-7rem)] w-[min(20rem,calc(100vw-8rem))] flex-col gap-1.5 overflow-y-auto pr-0.5"
-            aria-live="polite"
-          >
-            {(world.notifications ?? []).slice(-4).map((n) => {
+          {/* Notification setting affects display only; the Chronicle remains unchanged. */}
+          <div className="pointer-events-auto absolute right-3 top-3 z-[40] w-[min(20rem,calc(100vw-8rem))]">
+            <button
+              type="button"
+              aria-pressed={!hudNotificationsEnabled}
+              title={hudNotificationsEnabled ? 'Hide ordinary pop-ups (the Chronicle stays available)' : 'Show notification pop-ups'}
+              onClick={() => {
+                const next = !hudNotificationsEnabled;
+                setHudNotificationsEnabled(next);
+                saveHudNotificationsEnabled(next);
+              }}
+              className="mb-1.5 rounded-lg border border-stone-700 bg-stone-950/85 px-2.5 py-1 text-xs text-stone-200 shadow-md hover:bg-stone-800"
+            >
+              {hudNotificationsEnabled ? '🔔 Pop-ups on' : '🔕 Pop-ups off'}
+            </button>
+            <div
+              className="flex max-h-[calc(100vh-9rem)] flex-col gap-1.5 overflow-y-auto pr-0.5"
+              aria-live="polite"
+            >
+            {hudNotificationsEnabled && (world.notifications ?? []).slice(-4).map((n) => {
               // Acting on a notification must not destroy it: the body jumps to the subject and the
               // × dismisses. One shared button for both meant the only way to act on a warning was
               // to lose the text being read.
@@ -1437,6 +1454,7 @@ export default function App() {
               </div>
               );
             })}
+            </div>
           </div>
 
           {/* Raid defense — respond before march deadline (distance-scaled) */}

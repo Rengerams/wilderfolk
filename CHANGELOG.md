@@ -8,6 +8,12 @@
 
 - **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.
 
+- **Added: a read-only weekly village newspaper in the Log window, with real stories, social news and weekly event counts from the existing Chronicle.**
+
+- **Fixed: when the Chronicle reaches its retention limit, the oldest Gazette week is marked as potentially incomplete and its counts are shown as minimums.**
+
+- **Added: a saved toggle to hide ordinary pop-up notifications without disabling the simulation, Chronicle or decision cards.**
+
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
 - **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
