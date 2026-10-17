@@ -31,6 +31,7 @@ import { applyDailyWeatherEffects } from './worldEvents';
 // Chronicles
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { tickWildkinChronicle } from './wildkinChronicle';
+import { profileStart, profileEnd } from './performanceProfiler';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -39,7 +40,9 @@ export function tickLayerDaily(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
+  const stage1 = profileStart();
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
+  profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
   // The living settler list the two social owners below both need, derived once.
   //
@@ -51,21 +54,35 @@ export function tickLayerDaily(
   const dayPeople = playerHumansFrom(allAlive);
 
   // Phase 7 social layers & chronicles — pulse daily
+  const stage2 = profileStart();
   advanceSocialRelationships(state, allAlive, dayPeople);
+  profileEnd('daily.advanceSocialRelationships', stage2);
+  const stage3 = profileStart();
   advanceYouthLove(state, ctx);
+  profileEnd('daily.advanceYouthLove', stage3);
+  const stage4 = profileStart();
   reconcileCourtships(ctx);
+  profileEnd('daily.reconcileCourtships', stage4);
+  const stage5 = profileStart();
   advanceApprenticeships(state, allAlive, dayPeople);
+  profileEnd('daily.advanceApprenticeships', stage5);
 
   // Idempotent leader-house reconciliation: marriage/divorce/reassignment may
   // have changed the leader's household this day, so move the current spouse
   // (and children) into the manor and evict former household members.
+  const stage6 = profileStart();
   syncLeaderHouseResidency(state);
+  profileEnd('daily.syncLeaderHouseResidency', stage6);
 
   // Evaluate active campaign promises when their evaluation day arrives
+  const stage7 = profileStart();
   tickElectionPromises(state);
+  profileEnd('daily.tickElectionPromises', stage7);
 
   // Valley Chronicle — milestone chapters unlock once per day boundary.
+  const chronicleStart = profileStart();
   const newlyUnlocked = advanceValleyChronicle(state);
+  profileEnd('daily.advanceValleyChronicle', chronicleStart);
   if (newlyUnlocked.length > 0) {
     for (const id of newlyUnlocked) {
       const chapter = VALLEY_CHAPTERS.find((c) => c.id === id);
@@ -76,14 +93,30 @@ export function tickLayerDaily(
   }
 
   // Daily world & economy systems
+  const stage8 = profileStart();
   applyDailyWeatherEffects(state);
+  profileEnd('daily.applyDailyWeatherEffects', stage8);
+  const stage9 = profileStart();
   tickGrassDaily(state, ctx, allAlive);
+  profileEnd('daily.tickGrassDaily', stage9);
+  const stage10 = profileStart();
   tickWildkinChronicle(state, ctx);
+  profileEnd('daily.tickWildkinChronicle', stage10);
+  const stage11 = profileStart();
   tickDailyBuildingEconomy(state, ctx, allAlive);
+  profileEnd('daily.tickDailyBuildingEconomy', stage11);
   // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
   // pre-daily snapshot no longer describes the colony by the time these three read it.
+  const countsStart = profileStart();
   const counts = countLivingPopulation(allAlive, ctx.newEntities);
+  profileEnd('daily.countLivingPopulation', countsStart);
+  const stage12 = profileStart();
   tickDailyPopulation(state, ctx, allAlive, counts);
+  profileEnd('daily.tickDailyPopulation', stage12);
+  const stage13 = profileStart();
   tickDailyWorldEvents(state, ctx, allAlive, counts);
+  profileEnd('daily.tickDailyWorldEvents', stage13);
+  const stage14 = profileStart();
   tickDailyChallenges(state, ctx, counts);
+  profileEnd('daily.tickDailyChallenges', stage14);
 }
