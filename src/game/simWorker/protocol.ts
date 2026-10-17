@@ -1,4 +1,5 @@
 import type { WorldState } from '../gameTypes';
+import type { PerformanceSnapshot } from '../performanceProfiler';
 
 /* Protocol version used to gate the worker <-> host handshake. */
 export const WORKER_PROTO = 1;
@@ -75,6 +76,7 @@ export type WorkerRequest =
   | { type: 'exportSave'; proto: typeof WORKER_PROTO }
   | { type: 'setPaused'; proto: typeof WORKER_PROTO; paused: boolean }
   | { type: 'setSpeed'; proto: typeof WORKER_PROTO; speed: number }
+  | { type: 'setProfiling'; proto: typeof WORKER_PROTO; enabled: boolean; requestId?: number }
   | {
       type: 'patchUi';
       proto: typeof WORKER_PROTO;
@@ -99,6 +101,7 @@ export type WorkerRequest =
 /*  Worker → Host responses                                                    */
 /* -------------------------------------------------------------------------- */
 export type WorkerResponse =
+  | { type: 'profilingStopped'; proto: typeof WORKER_PROTO; requestId: number; snapshot: PerformanceSnapshot }
   | {
       type: 'ready';
       proto: typeof WORKER_PROTO;
@@ -108,6 +111,7 @@ export type WorkerResponse =
   | {
       type: 'tickResult';
       proto: typeof WORKER_PROTO;
+      performanceSnapshot?: PerformanceSnapshot;
       delta: SimTickDeltaPayload;
       /** Headless simulation – no SoA render transfer. */
       headless?: boolean;

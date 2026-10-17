@@ -4,25 +4,9 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
-- **Virtual Player:** deliberately manual buildings are never auto-assigned, stripped of excess workers or switched back to Auto. New job-capable buildings begin in Auto mode and empty Auto-staff passes no longer raise a blocking notification.
-- **Virtual Player:** batches affordable damage repairs, including long road strips, into one worker command and one world clone. Repairs respect the existing material prices and health thresholds.
-- **Workforce:** automatic transfers wait roughly two in-game months (60 days) after the last automatic placement or transfer. First-time hires and explicit manual changes remain available; old saves without timestamps continue normally.
-- **Fixed:** restored the valid housing decision and corrected the Barracks research constant after a broken Virtual Player edit.
+- **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
 
-- **Added: hospitals can maintain 24-hour care with rotating eight-hour doctor shifts.** Five posted doctors cover night, day and evening with three on duty each day and two resting; the rotation includes weekends. The hospital inspector reads the shift windows and assignments from the same roster as the simulation, and doctors travelling to midnight duty now show `Walking to work` instead of `Sleeping`. Hospitals with fewer than three doctors visibly show uncovered shifts.
-- **Hospitals now 24h open** Hospitals are now 24hrs open just as prisons to give the best care to the settlers!
-
- - **Added optional Deno Desktop developer and release commands** — `npm run deno:dev` runs the existing web game with desktop HMR; `npm run deno:build` runs the existing production checks and creates a Windows WebView        bundle; `npm run deno:build:cef` packages an alternative bundled-Chromium desktop build. npm, browser development, and Tauri builds remain supported, with no changes to game simulation or save format.
-
-- **Updated Deno Desktop configuration and README** — explicit WebView default, platform-specific output locations, a valid Deno configuration schema, packaging instructions, and a reminder that Deno playability and
-    performance are not yet verified on the target machine.
-
-- **Added an opt-in Deno versus Node simulation benchmark** — `npm run perf:compare-runtimes` drives the existing fixed-population or save-based CPU tick scenario, reports p95 tick times for both runtimes, and leaves
-    thintentionally disabled browser Web Worker alone. This is not an FPS or renderer benchmark
-
-- **Changed: completed workplace rosters show Working, Walking to work or Off duty instead of personal activities; Prison staff lists exclude inmates, and Barracks descriptions reflect around-the-clock militia bonuses.**
-
-- **Fixed: expired news and notification timers only refresh the game interface when an item actually needs removal, preventing idle UI stalls.**
+- **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 

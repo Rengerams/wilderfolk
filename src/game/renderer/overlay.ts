@@ -1,4 +1,5 @@
 import { drawRenffrOmen } from '../renffrStar';
+import { profileEnd, profileStart } from '../performanceProfiler';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import {
@@ -42,7 +43,9 @@ export function drawGameOverlay(
   // Weather takes the snapshot rather than just `state.weather`: the ported Teraforge effects paint in
   // screen space against a camera-aware frame (the cloud and fog layers drift with a parallax factor),
   // and the daylight cast needs the hour.
+  const weatherStart = profileStart();
   drawWeather(ctx, state, cw, ch);
+  profileEnd('render.weather', weatherStart);
   drawWaterShimmer(ctx, state, cw, ch);
   drawSeasonParticles(ctx, state, cw, ch);
 
