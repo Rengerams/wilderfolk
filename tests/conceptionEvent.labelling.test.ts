@@ -185,6 +185,7 @@ describe('conception is labelled as its own event type', () => {
 
     expect(tryDailyConception(state, ctx, youthMother)).toBe(true);
     expect(youthMother.pregnant).toBe(true);
+    expect(youthMother.pregnancyFromYouthLove).toBe(true);
 
     expect(state.eventLog.filter((event) => event.type === 'conception')).toHaveLength(1);
     expect(eventTypes(state)).not.toContain('birth');
