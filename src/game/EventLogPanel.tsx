@@ -215,7 +215,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
           </nav>
           {issue.mayBeIncomplete && (
             <p className="text-[11px] text-amber-300" role="status">
-              This archived week may be incomplete: the Chronicle keeps only its latest events. Counts below are minimums from retained entries.
+              This edition may be incomplete: the Chronicle keeps only its latest events. Counts below are minimums from retained entries.
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
