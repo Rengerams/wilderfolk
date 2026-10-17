@@ -107,7 +107,7 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
 
   const active = report?.enabled ?? false;
   return (
-    <div className="pointer-events-auto absolute bottom-44 left-4 z-[65] text-stone-100">
+    <div className="pointer-events-auto absolute bottom-40 right-4 z-[65] flex flex-col-reverse items-end gap-2 text-stone-100">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -120,7 +120,7 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
       {open && (
         <section
           aria-label="In-game CPU profiler"
-          className="mt-2 max-h-[min(60vh,440px)] w-[min(95vw,420px)] space-y-3 overflow-y-auto rounded-xl border border-stone-600 bg-stone-950/95 p-3 shadow-2xl"
+          className="max-h-[min(60vh,440px)] w-[min(95vw,420px)] space-y-3 overflow-y-auto rounded-xl border border-stone-600 bg-stone-950/95 p-3 shadow-2xl"
         >
           <div className="flex items-center justify-between gap-2">
             <strong className="text-sm">Performance measurement</strong>
