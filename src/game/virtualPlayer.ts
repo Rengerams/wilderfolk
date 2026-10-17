@@ -19,7 +19,7 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
-import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './buildingStaffingActions';
+import { listAssignableWorkersForBuilding } from './buildingStaffingActions';
 import {
   completedJobBuildings,
   countWorkersAtBuilding,
@@ -629,6 +629,8 @@ const INDUSTRY_BUILD_ORDER: readonly {
  * Both are the owner's own doors, so a proposal here is never the no-op the staffing step warns of.
  */
 function canStaffUnmannedProducer(state: WorldState, building: Building): boolean {
+  // Manual is a deliberate player choice: never propose auto-staff for this building.
+  if (isManualStaffingBuilding(building)) return false;
   if (listAssignableWorkersForBuilding(state, building.id).length > 0) return true;
   return findOverstaffedDonorBuilding(
     completedJobBuildings(state.buildings),
@@ -657,7 +659,7 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
     );
     if (owned.length > 0) {
       const unmanned = owned.find(
-        (building) => building.completed && countWorkersAtBuilding(state.entities, building.id) === 0,
+        (building) => building.completed && !isManualStaffingBuilding(building) && countWorkersAtBuilding(state.entities, building.id) === 0,
       );
       if (unmanned && canStaffUnmannedProducer(state, unmanned)) {
         return {
@@ -928,33 +930,6 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
 }
 
 /**
- * 15 — manual staffing leftovers.
- *
- * Generic auto-staffing never fills a workplace explicitly set to manual, because
- * that is the player's choice. The bot *is* the player, so when such a workplace
- * stands with a free slot and an idle adult exists it makes the choice explicitly,
- * with one `assignWorker` for that building — never a blanket `autoStaffWorkers`.
- */
-function decideManualStaffing(state: WorldState): VirtualPlayerDecision | null {
-  if (computeVillageStats(state).idle === 0) return null;
-
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
-    if (!isManualStaffingBuilding(building)) continue;
-    // The staffing owner owns the whole test: a full workplace, a residence, or a
-    // building with no job is refused, so the first one it accepts really has a
-    // slot to fill.
-    if (!canAssignWorkerToBuilding(state, building.id)) continue;
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: building.id },
-      reason: `staff the ${BUILDING_CONFIGS[building.type].label} — the slot is the player's to fill`,
-    };
-  }
-
-  return null;
-}
-
-/**
  * What the bot would ask a refugee camp for: welcome a group the colony can feed
  * and bed, screen one it can merely afford, and never turn families away on its
  * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
@@ -973,30 +948,6 @@ function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeCho
   ) {
     return 'screen';
   }
-  return null;
-}
-
-/**
- * 16 — release an empty workplace that a stale `manual` flag is holding back.
- *
- * A workplace explicitly set to `manual` with nobody at their posts is returned to
- * `auto`, so the colony can fill it again. A manual workplace with its own crew, and
- * anything else, is left exactly as it is, so the step retires instead of fighting
- * the player.
- */
-function decideStaffingMode(state: WorldState): VirtualPlayerDecision | null {
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
-    if (!BUILDING_JOB_TYPES[building.type]) continue;
-
-    if (building.staffingMode === 'manual' && building.occupants.length === 0) {
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: 'auto' },
-        reason: `return the empty ${BUILDING_CONFIGS[building.type].label} to auto staffing`,
-      };
-    }
-  }
-
   return null;
 }
 
@@ -1776,8 +1727,6 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideBuildingTuning(state)
     ?? decideRecruitment(state)
     ?? decideVisitorRelations(state)
-    ?? decideManualStaffing(state)
-    ?? decideStaffingMode(state)
     ?? decideWorkSchedule(state)
     ?? decideVenueSchedules(state)
     ?? decideSurplusWorkers(state)
