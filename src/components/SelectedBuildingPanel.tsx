@@ -479,7 +479,7 @@ export default function SelectedBuildingPanel({
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : (
-          <p>{!building.completed ? 'Builders' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
+          <p>{!building.completed ? 'Builders' : BUILDING_JOB_TYPES[building.type] ? 'Assigned workers' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
         )}
         {!building.completed && (
           <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
@@ -894,28 +894,41 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && building.occupants.length > 0 && (
           <div className="mt-1 space-y-0.5">
-            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => (
-              <p key={w.id} className="text-[11px] text-emerald-200">
-                👷 {citizenFullName(w)}
-                {w.job ? ` · ${w.job}` : ''}
-                <span className="text-amber-200"> · {getSettlerWorkReason(state, w).label}</span>
-                {w.apprenticeId != null && (
-                  <span className="text-cyan-300">
-                    {' '}🎓 {(() => {
-                      const ap = state.entities.find((e) => e.id === w.apprenticeId);
-                      return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
-                    })()}
+            <p className="text-[10px] text-stone-400">
+              Staff assigned to this building — not necessarily here right now:
+            </p>
+            {state.entities.filter((e) => building.occupants.includes(e.id)).map((w) => {
+              const reason = getSettlerWorkReason(state, w);
+              const presence = reason.code === 'working'
+                ? 'At work'
+                : reason.code === 'walking-to-work'
+                  ? 'On shift / travelling'
+                  : 'Away from post';
+              return (
+                <p key={w.id} className="text-[11px] text-emerald-200">
+                  👷 {citizenFullName(w)}
+                  {w.job ? ` · ${w.job}` : ''}
+                  <span className={reason.code === 'working' ? 'text-emerald-300' : 'text-amber-200'}>
+                    {' '}· {presence} — {reason.label}
                   </span>
-                )}
-              </p>
-            ))}
+                  {w.apprenticeId != null && (
+                    <span className="text-cyan-300">
+                      {' '}🎓 {(() => {
+                        const ap = state.entities.find((e) => e.id === w.apprenticeId);
+                        return ap ? `teaching ${ap.name ?? 'an apprentice'}` : '';
+                      })()}
+                    </span>
+                  )}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
       </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
+        <CollapsibleSection title={!building.completed ? 'Construction' : 'Staff assignments'} defaultOpen storageKey={`building-workers-${building.id}`}>
           {getUnstaffedPostNote(building) && (
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}
@@ -1019,7 +1032,7 @@ export default function SelectedBuildingPanel({
             if (staffedIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Current workers</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
               {staffedIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (
