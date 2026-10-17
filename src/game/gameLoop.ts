@@ -1,4 +1,11 @@
 import type { WorldState } from './gameTypes';
+import {
+  getPerformanceSnapshot,
+  profileEnd,
+  profileStart,
+  setPerformanceProfilingEnabled,
+  type PerformanceSnapshot,
+} from './performanceProfiler';
 import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEngine';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
@@ -132,6 +139,8 @@ export class GameLoop {
   private getCanvas: () => HTMLCanvasElement | null;
   private workerHost: GameWorkerHost | null = null;
   private workerEnabled = false;
+  private performanceProfilingEnabled = false;
+  private lastWorkerPerformanceSnapshot: PerformanceSnapshot | null = null;
   private workerBooting = false;
   private workerTickChanged = false;
   private lastWorkerActivity = 0;
@@ -327,10 +336,13 @@ export class GameLoop {
     const host = this.workerHost;
     if (!host) return;
 
+    if (this.performanceProfilingEnabled) host.setProfilingEnabled(true);
+
     host.setTickResultHandler((nextWorld, _delta, render, changed) => {
       // Check of de host nog steeds de actieve host is (i.p.v. sessionGen blokkade)
       if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
+      this.lastWorkerPerformanceSnapshot = host.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot;
 
       if (this.lastWorkerTickRequest > 0) {
         const measured = performance.now() - this.lastWorkerTickRequest;
@@ -412,6 +424,25 @@ export class GameLoop {
     this.scentReader = null;
     this.flushDeferredWorkerCommands();
     this.scheduleWorkerRecovery();
+  }
+
+  setPerformanceProfiling(enabled: boolean): void {
+    this.performanceProfilingEnabled = enabled;
+    if (enabled) this.lastWorkerPerformanceSnapshot = null;
+    setPerformanceProfilingEnabled(enabled);
+    this.workerHost?.setProfilingEnabled(enabled);
+  }
+
+  getPerformanceProfiling(): {
+    enabled: boolean;
+    main: PerformanceSnapshot;
+    worker: PerformanceSnapshot | null;
+  } {
+    return {
+      enabled: this.performanceProfilingEnabled,
+      main: getPerformanceSnapshot(),
+      worker: this.workerHost?.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot,
+    };
   }
 
   isUsingSimWorker(): boolean {
@@ -949,7 +980,9 @@ export class GameLoop {
     }
 
     this.view = updateView(this.view, dtMs);
+    const drawStart = profileStart();
     this.draw();
+    profileEnd('main.gameLoopDraw', drawStart);
 
     if (this.world.speed > 1 && !this.world.paused) {
       this.diagTicks += ticksThisFrame;
@@ -990,7 +1023,9 @@ export class GameLoop {
     const periodicUi = now - this.lastUiUpdate >= UI_UPDATE_MS;
     if (tickChanged || periodicUi) {
       this.lastUiUpdate = now;
+      const notifyStart = profileStart();
       this.notify(tickChanged, periodicUi);
+      profileEnd('main.notifyListeners', notifyStart);
     }
   }
 
