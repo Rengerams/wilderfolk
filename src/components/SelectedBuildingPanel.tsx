@@ -42,6 +42,8 @@ import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
+import { hospitalDoctorRoster, hospitalCoverageSummary } from '../game/hospitalShifts';
+import { getAbsoluteCalendarDay } from '../game/dayCycleClock';
 import { displayedConstructionProgress } from '../game/buildingProgressDisplay';
 import { HUNTING_SPOT_PREY_OPTIONS } from '../game/gameTypes';
 import type { HuntingSpotPrey } from '../game/gameTypes';
@@ -502,7 +504,11 @@ export default function SelectedBuildingPanel({
           </>
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && !isManualStaffing && (
-          <p className="text-[11px] text-sky-300">Workers are assigned here automatically ({getWorkScheduleLabel(getWorkSchedule(state))}).</p>
+          <p className="text-[11px] text-sky-300">
+            {building.type === BuildingType.Hospital
+              ? 'Workers are assigned here automatically, with day, evening and night shifts.'
+              : `Workers are assigned here automatically (${getWorkScheduleLabel(getWorkSchedule(state))}).`}
+          </p>
         )}
         {building.completed && building.type === BuildingType.Mine && (
           <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-2">
@@ -734,6 +740,39 @@ export default function SelectedBuildingPanel({
               )}
               {summary.full && (
                 <p className="text-[11px] text-amber-400">⚠️ Every bed taken — a second hotel takes the overflow.</p>
+              )}
+            </div>
+          );
+        })()}
+        {building.completed && building.type === BuildingType.Hospital && (() => {
+          const roster = hospitalDoctorRoster(building, getAbsoluteCalendarDay(state.tick));
+          const now = getHourOfDay(state.tick);
+          return (
+            <div className="mt-2 space-y-1 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Hospital shifts — 24/7</p>
+              <p className="text-[11px] text-stone-300">{hospitalCoverageSummary(building)}</p>
+              {[
+                { startHour: 0, endHour: 8, label: 'Night' },
+                { startHour: 8, endHour: 16, label: 'Day' },
+                { startHour: 16, endHour: 24, label: 'Evening' },
+              ].map((shift) => {
+                const assigned = roster.find((row) => row.startHour === shift.startHour);
+                const doctor = assigned ? state.entities.find((person) => person.id === assigned.doctorId) : undefined;
+                const active = now >= shift.startHour && now < shift.endHour;
+                return (
+                  <p key={shift.label} className="text-[11px] text-stone-300">
+                    <span className="font-semibold text-stone-100">{shift.label}</span>
+                    {' '}{String(shift.startHour).padStart(2, '0')}:00–{String(shift.endHour % 24).padStart(2, '0')}:00 ·{' '}
+                    <span className={doctor ? active ? 'text-emerald-300' : 'text-sky-300' : 'text-amber-300'}>
+                      {doctor ? citizenFullName(doctor) : 'Unstaffed'}{doctor && active ? ' · on shift' : ''}
+                    </span>
+                  </p>
+                );
+              })}
+              {building.occupants.length > 3 && (
+                <p className="text-[10px] text-stone-400">
+                  {building.occupants.length - 3} doctor(s) off duty today; assignments rotate daily.
+                </p>
               )}
             </div>
           );
