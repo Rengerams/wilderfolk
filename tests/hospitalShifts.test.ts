@@ -31,7 +31,7 @@ describe('hospital 24-hour rota with five doctors', () => {
         expect(active).toEqual([roster[Math.floor(hour / 8)].doctorId]);
       }
     }
-    expect(hospitalCoverageSummary(ward)).toContain('24-hour care');
+    expect(hospitalCoverageSummary(ward)).toContain('24-hour coverage scheduled');
   });
 
   it('rotates work and days off fairly across five doctors', () => {
