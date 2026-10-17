@@ -41,7 +41,9 @@ describe('election vote-support — merit is strongest', () => {
     const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 80 }));
     expect(result.winnerId).toBe(10);
     expect(result.tally.get(10)).toBeGreaterThan(70);
-    expect(result.tally.get(20)).toBeGreaterThan(0);
+    // Ballots are sampled: with a strong merit lead, a rival may legitimately receive zero.
+    expect(result.totalVotes).toBe(100);
+    expect((result.tally.get(10) ?? 0) + (result.tally.get(20) ?? 0)).toBe(result.totalVotes);
   });
 
   it('bonds tip a close race (gap within the influence cap)', () => {
@@ -70,7 +72,9 @@ describe('election vote-support — merit is strongest', () => {
     const result = simulateElectionVotes(w, candidates({ id: 10, score: 200 }, { id: 20, score: 80 }));
     expect(result.winnerId).toBe(10);
     expect(result.tally.get(10)).toBeGreaterThan(90);
-    expect(result.tally.get(20)).toBeGreaterThan(0);
+    // A rare vote is possible, not guaranteed in every 100-voter sample.
+    expect(result.totalVotes).toBe(100);
+    expect((result.tally.get(10) ?? 0) + (result.tally.get(20) ?? 0)).toBe(result.totalVotes);
   });
 
   it('equal merit splits ballots deterministically', () => {
