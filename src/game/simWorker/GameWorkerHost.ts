@@ -1,5 +1,6 @@
 
 import type { WorldState } from '../gameTypes';
+import type { PerformanceSnapshot } from '../performanceProfiler';
 import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
@@ -99,6 +100,7 @@ export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
   private ticksInFlight = 0;
+  private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
   private pendingFocus: SimulationFocus | undefined;
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
@@ -439,6 +441,16 @@ export class GameWorkerHost {
     if (!this.postControl(msg)) this.lastPausedSent = null;
   }
 
+  setProfilingEnabled(enabled: boolean): void {
+    if (!this.worker || !this.ready) return;
+    if (enabled) this.latestPerformanceSnapshot = null;
+    this.postControl({ type: 'setProfiling', proto: WORKER_PROTO, enabled });
+  }
+
+  getPerformanceSnapshot(): PerformanceSnapshot | null {
+    return this.latestPerformanceSnapshot;
+  }
+
   setSpeed(speed: number): void {
     if (!this.worker || !this.ready) return;
     if (this.lastSpeedSent === speed) return;
@@ -690,6 +702,7 @@ export class GameWorkerHost {
     }
 
     if (msg.type !== 'tickResult') return;
+    if (msg.performanceSnapshot) this.latestPerformanceSnapshot = msg.performanceSnapshot;
 
     // The counter drops whether or not the delta can be applied. A tick result that arrived with no
     // world attached used to leave a tick in flight for good — the stall detector then fired on a
