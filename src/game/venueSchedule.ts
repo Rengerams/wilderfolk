@@ -105,11 +105,18 @@ export function getVenueAutoStaffingTarget(
 }
 
 /**
+ * One hotel handover overlaps by up to two hours where crew size and the nine-hour
+ * standard allow it. On a 06–22 day with two hoteliers this gives 06–15 / 13–22.
+ * For a too-long service window or too-small crew, covering every hour wins over
+ * overlap; opening and closing times never change.
+ */
+export const HOTEL_SHIFT_HANDOVER_HOURS = 2;
+
+/**
  * The slice of a venue's service window one crew place covers.
  *
- * The window is split evenly across the crew, so this is the only place that arithmetic lives:
- * `isVenueWorkerServiceHour` reads this window and a caller that needs to name the hour a place
- * starts reads the same numbers.
+ * Hotel shifts overlap where practical; taverns retain their existing even split.
+ * The same function drives actual duty, attendance and the displayed next shift.
  */
 export function getVenueWorkerServiceWindow(
   state: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'>,
@@ -119,9 +126,19 @@ export function getVenueWorkerServiceWindow(
 ): VenueSchedule {
   const schedule = getVenueSchedule(state, kind);
   const count = Math.max(1, workerCount);
-  const duration = getVenueScheduleHours(schedule) / count;
-  const start = schedule.startHour + workerIndex * duration;
-  return { startHour: start, endHour: Math.min(schedule.endHour, start + duration) };
+  const serviceHours = getVenueScheduleHours(schedule);
+  if (count === 1) return schedule;
+
+  // Keep the team's first shift at opening, last shift at closing, and avoid
+  // arbitrary rounding gaps between hourly duty checks.
+  const desiredOverlap = kind === 'hotel'
+    ? Math.min(HOTEL_SHIFT_HANDOVER_HOURS, serviceHours / (count * 2))
+    : 0;
+  const idealLength = (serviceHours + (count - 1) * desiredOverlap) / count;
+  const length = Math.max(serviceHours / count, Math.min(STANDARD_WORK_HOURS, idealLength));
+  const stride = (serviceHours - length) / (count - 1);
+  const start = schedule.startHour + workerIndex * stride;
+  return { startHour: start, endHour: Math.min(schedule.endHour, start + length) };
 }
 
 /** Returns whether a venue worker's assigned shift is active for the current hour. */
