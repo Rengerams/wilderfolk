@@ -2,7 +2,7 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
-- **Diagnostic:** opt-in in-game CPU profiler measures function counts/total/average/peak times for worker ticks, daily systems, worker deltas and weather/renderer. Start/stop and copy a JSON report with the small button at the bottom-left of the map.**
+- **Added:** the in-game CPU profiler now waits for a final worker report before allowing Copy; its control sits above the mini-map so navigation stays clickable.
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
