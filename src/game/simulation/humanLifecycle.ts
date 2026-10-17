@@ -85,6 +85,7 @@ export function tickPregnancyAndBirth(
   );
   const wildkinBirth = nearDeer && seededRandomForRun(`${birthKey}:wildkin`) < LIFECYCLE_CONFIG.WILDKIN_CHANCE;
   const biologicalFatherIdAtBirth = entity.pregnantById ?? entity.partnerId;
+  const pregnancyFromYouthLove = entity.pregnancyFromYouthLove === true;
 
   const husband = entity.partnerId != null ? livingHumanAt(entity.partnerId) : undefined;
   const biologicalFather = biologicalFatherIdAtBirth != null ? livingHumanAt(biologicalFatherIdAtBirth) : undefined;
@@ -99,6 +100,7 @@ export function tickPregnancyAndBirth(
   entity.pregnancyProgress = 0;
   entity.pregnancyDueProgress = undefined;
   entity.pregnantById = undefined;
+  entity.pregnancyFromYouthLove = undefined;
   entity.relationshipStatus = entity.partnerId != null ? 'married' : 'single';
   entity.reproductionCooldown = REPRODUCTION_COOLDOWN_TICKS;
 
@@ -140,6 +142,7 @@ export function tickPregnancyAndBirth(
     biologicalFatherIdAtBirth,
     husband,
     biologicalFather,
+    pregnancyFromYouthLove,
   );
 
   const babyGen = (entity.generation ?? 0) + 1;
