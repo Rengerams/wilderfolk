@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameEventLog } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { buildWeeklyGazette, gazetteWeekForTick } from '../src/game/weeklyGazette';
+import { EVENT_LOG_MAX_ENTRIES } from '../src/game/eventLog';
 
 function event(id: number, day: number, type: GameEventLog['type'], message: string): GameEventLog {
   return { id, tick: day * TICKS_PER_DAY, day, year: 0, type, message };
@@ -39,6 +40,20 @@ describe('the weekly gazette reads the Chronicle without changing the simulation
     expect(next.scandals).toBe(1);
     expect(next.articles.some((article) => article.event.type === 'election')).toBe(true);
     expect(events).toEqual(before);
+  });
+
+  it('flags only the potentially truncated oldest week at the Chronicle cap', () => {
+    const events = Array.from({ length: EVENT_LOG_MAX_ENTRIES }, (_, index) =>
+      event(EVENT_LOG_MAX_ENTRIES - index, index === EVENT_LOG_MAX_ENTRIES - 1 ? 1 : 8, 'birth', 'A child was born'),
+    );
+
+    const oldest = buildWeeklyGazette(events, 0);
+    const newer = buildWeeklyGazette(events, 1);
+    expect(oldest.mayBeIncomplete).toBe(true);
+    expect(oldest.eventCount).toBe(1);
+    expect(newer.mayBeIncomplete).toBe(false);
+    expect(newer.eventCount).toBe(EVENT_LOG_MAX_ENTRIES - 1);
+    expect(buildWeeklyGazette(events.slice(1), 0).mayBeIncomplete).toBe(false);
   });
 
   it('never invents a story for an empty week', () => {
