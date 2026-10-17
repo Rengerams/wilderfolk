@@ -221,6 +221,42 @@ describe('human lifecycle golden contracts', () => {
     expect(collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] })).toEqual([]);
   });
 
+  it('keeps a youth sweetheart baby in the mother's line without bastard status', () => {
+    const father = human(FATHER_ID, {
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'single',
+      youthLovePartnerId: MATERNAL_ID,
+      surname: 'Brook',
+    });
+    const mother = human(MATERNAL_ID, {
+      age: 16,
+      isJuvenile: true,
+      relationshipStatus: 'expecting',
+      youthLovePartnerId: FATHER_ID,
+      partnerId: undefined,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyProgress: 9,
+      pregnancyDueProgress: 10,
+      surname: 'Vale',
+    });
+    const { state, ctx } = makeFixture([mother, father]);
+    state.tick = liveBirthTick();
+
+    runBirth(state, ctx, mother);
+
+    const child = ctx.newEntities.find((entity) => entity.type === EntityType.Human)!;
+    expect(child.isBastard).toBe(false);
+    expect(child.surname).toBe('Vale');
+    expect(child.motherId).toBe(mother.id);
+    expect(child.fatherId).toBe(father.id);
+    expect(mother.childrenIds).toContain(child.id);
+    expect(father.childrenIds).toContain(child.id);
+    expect(state.eventLog.some((event) => event.type === 'birth' && event.message.includes('bastard'))).toBe(false);
+    expect(state.notifications.some((notice) => notice.title === 'Bastard Born')).toBe(false);
+  });
+
   it('records biological lineage and a bastard outcome when the husband is not the biological father', () => {
     const father = human(FATHER_ID, { relationshipStatus: 'single' });
     const husband = human(HUSBAND_ID, { relationshipStatus: 'expecting' });
