@@ -5,6 +5,7 @@ import {
   DEFAULT_TAVERN_SCHEDULE,
   getVenueSchedule,
   getVenueAutoStaffingTarget,
+  getVenueWorkerServiceWindow,
   isVenueWorkerServiceHour,
   isVenueServiceHour,
   isVenueScheduleStartTick,
@@ -130,11 +131,49 @@ describe('independent venue schedules', () => {
   it('splits Auto venue coverage into bounded worker shifts', () => {
     expect(isVenueWorkerServiceHour(base, 'hotel', 6, 0, 2)).toBe(true);
     expect(isVenueWorkerServiceHour(base, 'hotel', 13, 0, 2)).toBe(true);
-    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(false);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(true);
     expect(isVenueWorkerServiceHour(base, 'hotel', 14, 1, 2)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 15, 0, 2)).toBe(false);
     expect(isVenueWorkerServiceHour(base, 'hotel', 22, 1, 2)).toBe(false);
     expect(isVenueWorkerServiceHour(base, 'tavern', 17, 0, 1)).toBe(true);
     expect(isVenueWorkerServiceHour(base, 'tavern', 23, 0, 1)).toBe(false);
+  });
+
+  it('overlaps the normal two-hotelier day by two hours without gaps or excess hours', () => {
+    expect(getVenueWorkerServiceWindow(base, 'hotel', 0, 2))
+      .toEqual({ startHour: 6, endHour: 15 });
+    expect(getVenueWorkerServiceWindow(base, 'hotel', 1, 2))
+      .toEqual({ startHour: 13, endHour: 22 });
+    for (let hour = 6; hour < 22; hour++) {
+      const onDuty = [0, 1].filter((index) => isVenueWorkerServiceHour(base, 'hotel', hour, index, 2));
+      expect(onDuty.length).toBe(hour >= 13 && hour < 15 ? 2 : 1);
+    }
+  });
+
+  it('keeps up to nine hours per hotel worker and continuous duty across three shifts', () => {
+    const count = 3;
+    const windows = Array.from({ length: count }, (_, i) =>
+      getVenueWorkerServiceWindow(base, 'hotel', i, count));
+    expect(windows[0].startHour).toBe(6);
+    expect(windows[2].endHour).toBe(22);
+    for (const window of windows) expect(window.endHour - window.startHour).toBeLessThanOrEqual(9);
+    for (let i = 1; i < count; i++) {
+      expect(windows[i].startHour).toBeLessThan(windows[i - 1].endHour);
+    }
+    for (let hour = 6; hour < 22; hour++) {
+      expect(windows.some((window) => hour >= window.startHour && hour < window.endHour)).toBe(true);
+    }
+  });
+
+  it('still handles solo and short-shift hotels without extending opening hours', () => {
+    expect(getVenueWorkerServiceWindow(base, 'hotel', 0, 1))
+      .toEqual({ startHour: 6, endHour: 22 });
+    const short = { ...base, hotelSchedule: { startHour: 20, endHour: 22 } };
+    const early = getVenueWorkerServiceWindow(short, 'hotel', 0, 2);
+    const late = getVenueWorkerServiceWindow(short, 'hotel', 1, 2);
+    expect(early.startHour).toBe(20);
+    expect(late.endHour).toBe(22);
+    expect(early.endHour).toBeGreaterThan(late.startHour);
   });
 
   it('recognizes the configured start tick', () => {
