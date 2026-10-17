@@ -2,6 +2,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Diagnostic:** opt-in in-game CPU profiler measures function counts/total/average/peak times for worker ticks, daily systems, worker deltas and weather/renderer. Start/stop and copy a JSON report with the small button at the bottom-left of the map.**
+
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
 - **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
