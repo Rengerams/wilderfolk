@@ -1,9 +1,17 @@
 # Changelog
 
+## Desktop workflow — 2026-10-17
+
+- **Added optional Deno Desktop developer and release commands** — `npm run deno:dev` runs the existing web game with desktop HMR; `npm run deno:build` runs the existing production checks and creates a Windows WebView bundle; `npm run deno:build:cef` packages an alternative bundled-Chromium desktop build. npm, browser development, and Tauri builds remain supported, with no changes to game simulation or save format.
+- **Updated Deno Desktop configuration and README** — explicit WebView default, platform-specific output locations, a valid Deno configuration schema, packaging instructions, and a reminder that Deno playability and performance are not yet verified on the target machine.
+- **Added an opt-in Deno versus Node simulation benchmark** — `npm run perf:compare-runtimes` drives the existing fixed-population or save-based CPU tick scenario, reports p95 tick times for both runtimes, and leaves the intentionally disabled browser Web Worker alone. This is not an FPS or renderer benchmark.
+
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
 - **Added: hospitals can maintain 24-hour care with rotating eight-hour doctor shifts.** Five posted doctors cover night, day and evening with three on duty each day and two resting; the rotation includes weekends. The hospital inspector reads the shift windows and assignments from the same roster as the simulation, and doctors travelling to midnight duty now show `Walking to work` instead of `Sleeping`. Hospitals with fewer than three doctors visibly show uncovered shifts.
 
+- **Changed: completed workplace rosters show Working, Walking to work or Off duty instead of personal activities; Prison staff lists exclude inmates, and Barracks descriptions reflect around-the-clock militia bonuses.**
+- **Fixed: expired news and notification timers only refresh the game interface when an item actually needs removal, preventing idle UI stalls.**
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 

@@ -19,6 +19,7 @@ import {
   getSettlerWorkReason,
   getUnstaffedPostNote,
   getWorkplaceRosterReasons,
+  workplaceDutyLabel,
 } from '../src/game/workAbsence';
 
 /** Absolute calendar day 0 is a Monday, so a tick on day 0 at this hour is inside a work day. */
