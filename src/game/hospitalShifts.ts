@@ -95,6 +95,6 @@ export function isHospitalDoctorCommuteTime(
 export function hospitalCoverageSummary(hospital: Pick<Building, 'occupants'>): string {
   const staffed = Math.min(hospital.occupants.length, HOSPITAL_SHIFTS_PER_DAY);
   return staffed === 3
-    ? '24-hour care: 3 × 8-hour shifts, every day (including weekends).'
+    ? '24-hour coverage scheduled: 3 × 8-hour shifts, including weekends.'
     : `Coverage: ${staffed} of 3 daily shifts. Assign at least 3 doctors for 24-hour care.`;
 }
