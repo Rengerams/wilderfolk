@@ -2,6 +2,9 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Added: hospitals can maintain 24-hour care with rotating eight-hour doctor shifts.** Five posted doctors cover night, day and evening with three on duty each day and two resting; the rotation includes weekends. The hospital inspector reads the shift windows and assignments from the same roster as the simulation, and doctors travelling to midnight duty now show `Walking to work` instead of `Sleeping`. Hospitals with fewer than three doctors visibly show uncovered shifts.
+
+
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
 - **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
