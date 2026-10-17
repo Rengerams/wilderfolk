@@ -394,7 +394,7 @@ export function assignWorkerInPlace(
   building: Building,
   humans: Entity[],
   buildings: Building[],
-  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule' | 'tick'>,
+  venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
@@ -620,7 +620,7 @@ export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
   includeManualStaff: boolean,
-  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule' | 'tick'>,
+  worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
@@ -648,8 +648,8 @@ export function assignMissingWorkers(
   buildings: Building[],
   worldSlices?: Pick<
     WorldState,
-    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy' | 'tick'
-  >,
+    'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
+  > & Partial<Pick<WorldState, 'tick'>>,
 ): void {
   const alive = prepareWorkforce(humans, buildings);
   const policy = getWorkforcePolicy(worldSlices ?? {});
