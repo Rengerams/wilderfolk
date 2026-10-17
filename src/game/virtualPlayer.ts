@@ -19,7 +19,7 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
-import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './buildingStaffingActions';
+import { listAssignableWorkersForBuilding } from './buildingStaffingActions';
 import {
   completedJobBuildings,
   countWorkersAtBuilding,
@@ -51,7 +51,7 @@ import {
   buildingTypeHasLevelBenefit,
   getBuildingUpgradeCost,
   getBuildingUpgradeEligibility,
-  getRepairBuildingEligibility,
+  getRepairBuildingEligibilityFor,
   REPAIR_COST,
 } from './buildingMaintenanceActions';
 import { collectHousingDiagnostics } from './housingDiagnostics';
@@ -439,30 +439,18 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   const homeless = countHomelessSettlers(state);
   const openBeds = getOpenPlayerBeds(state);
 
-// 1. Als de speler niet dakloos is, sluit ze uit van de beschikbare bedden
-if (!homeless) {
-    getOpenPlayerBeds.excludes(player); 
-}
-
-// 2. Als er helemaal geen open bedden zijn, stop en geef niets terug
-if (openBeds === 0) {
-    return null;
-}
-
-// 3. Als het aantal open bedden gelijk is aan of onder de reservegrens ligt, geef niets terug
-if (openBeds <= state.spareBedReserve) {
-    return null;
-}
-
-// 4. Als de woningdruk comfortabel is volgens de diagnostieken, is er geen actie nodig
-if (state.collectHousingDiagnostics.housingPressure === "comfortable") {
-    return null;
-}
-
-// 5. Als er budget is, maar het bouwen van een nieuw huis de reserve overschrijdt, bouw dan niks
-if (state.canSpendKeepingReserve(BUILDING_CONFIGS.BuildingType.House.cost)) {
-    return null;
-}
+  if (homeless > 0) {
+    // Spare beds mean an assignment was missed, not that beds are short — but the
+    // Leader's House beds belong to the leader's household, so they are not spare
+    // housing for anyone else (`getOpenPlayerBeds` excludes them).
+    if (openBeds > 0) return null;
+  } else {
+    if (openBeds >= spareBedReserve(state)) return null;
+    if (collectHousingDiagnostics(state).housingPressure === 'comfortable') return null;
+    // Housing is survival, so the reserve applies to the *ahead-of-need* half only: a homeless
+    // village still raises a House on its last 40 wood.
+    if (!canSpendKeepingReserve(state, BUILDING_CONFIGS[BuildingType.House].cost)) return null;
+  }
 
   // One residence at a time — a new house only helps once it stands, and a
   // Mansion is a residence too (`residencyOccupancy.isResidenceBuildingType`).
@@ -485,6 +473,7 @@ if (state.canSpendKeepingReserve(BUILDING_CONFIGS.BuildingType.House.cost)) {
       : `build a House — ${openBeds} spare bed${openBeds === 1 ? '' : 's'} left for ${adultSettlerCount(state)} settlers`,
   };
 }
+
 
 
 function decideFood(state: WorldState): VirtualPlayerDecision | null {
@@ -530,7 +519,7 @@ const RESEARCH_NEED_ORDER: readonly BuildingType[] = [
   BuildingType.Hospital,
   BuildingType.Mansion,
   BuildingType.Prison,
-  BuildingType.barracks,
+  BuildingType.Barracks,
 ];
 
 function neededResearch(state: WorldState): { nodeId: string; forType: BuildingType } | null {
@@ -629,6 +618,8 @@ const INDUSTRY_BUILD_ORDER: readonly {
  * Both are the owner's own doors, so a proposal here is never the no-op the staffing step warns of.
  */
 function canStaffUnmannedProducer(state: WorldState, building: Building): boolean {
+  // Manual is a deliberate player choice: never propose auto-staff for this building.
+  if (isManualStaffingBuilding(building)) return false;
   if (listAssignableWorkersForBuilding(state, building.id).length > 0) return true;
   return findOverstaffedDonorBuilding(
     completedJobBuildings(state.buildings),
@@ -657,7 +648,7 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
     );
     if (owned.length > 0) {
       const unmanned = owned.find(
-        (building) => building.completed && countWorkersAtBuilding(state.entities, building.id) === 0,
+        (building) => building.completed && !isManualStaffingBuilding(building) && countWorkersAtBuilding(state.entities, building.id) === 0,
       );
       if (unmanned && canStaffUnmannedProducer(state, unmanned)) {
         return {
@@ -689,24 +680,43 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
 
 
 function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
-  let worst: Building | null = null;
-  let worstRatio = 1;
+  // A long road consists of individual buildings. Repairing one per in-game hour
+  // starves both the road and the rest of the bot's decision ladder. The worker
+  // accepts one batch command and clones the world only once.
+  const affordable = Math.min(
+    Math.floor(state.resources.wood / REPAIR_COST.wood),
+    Math.floor(state.resources.stone / REPAIR_COST.stone),
+  );
+  if (affordable < 1) return null;
 
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival' || building.maxHealth <= 0) continue;
-    const ratio = building.health / building.maxHealth;
-    if (ratio >= VirtualPlayer.REPAIR_HEALTH_RATIO) continue;
-    if (ratio >= worstRatio) continue;
-    if (!getRepairBuildingEligibility(state, building.id).ok) continue;
-    worst = building;
-    worstRatio = ratio;
+  const damaged = state.buildings
+    .filter((building) =>
+      building.completed
+      && building.faction !== 'rival'
+      && building.maxHealth > 0
+      && building.health / building.maxHealth < VirtualPlayer.REPAIR_HEALTH_RATIO
+      && getRepairBuildingEligibilityFor(state, building).ok,
+    )
+    .sort((a, b) =>
+      a.health / a.maxHealth - b.health / b.maxHealth || a.id - b.id,
+    );
+  if (damaged.length === 0) return null;
+
+  // Existing repair prices and available resources are the batch limit. This avoids
+  // introducing an arbitrary segment count or flooding the command queue.
+  const targets = damaged.slice(0, affordable);
+  if (targets.length === 1) {
+    const building = targets[0];
+    const damagePercent = Math.round((1 - building.health / building.maxHealth) * 100);
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'repairBuilding', buildingId: building.id },
+      reason: `repair the ${BUILDING_CONFIGS[building.type].label} — ${damagePercent}% damaged`,
+    };
   }
-
-  if (!worst) return null;
-  const damagePercent = Math.round((1 - worstRatio) * 100);
+  const roads = targets.filter((building) => building.type === BuildingType.Road).length;
   return {
-    command: { proto: WORKER_CMD_PROTO, op: 'repairBuilding', buildingId: worst.id },
-    reason: `repair the ${BUILDING_CONFIGS[worst.type].label} — ${damagePercent}% damaged`,
+    command: { proto: WORKER_CMD_PROTO, op: 'repairBuildings', buildingIds: targets.map((building) => building.id) },
+    reason: `repair ${targets.length} damaged structures${roads ? ` including ${roads} road segments` : ''}`,
   };
 }
 
@@ -928,33 +938,6 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
 }
 
 /**
- * 15 — manual staffing leftovers.
- *
- * Generic auto-staffing never fills a workplace explicitly set to manual, because
- * that is the player's choice. The bot *is* the player, so when such a workplace
- * stands with a free slot and an idle adult exists it makes the choice explicitly,
- * with one `assignWorker` for that building — never a blanket `autoStaffWorkers`.
- */
-function decideManualStaffing(state: WorldState): VirtualPlayerDecision | null {
-  if (computeVillageStats(state).idle === 0) return null;
-
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
-    if (!isManualStaffingBuilding(building)) continue;
-    // The staffing owner owns the whole test: a full workplace, a residence, or a
-    // building with no job is refused, so the first one it accepts really has a
-    // slot to fill.
-    if (!canAssignWorkerToBuilding(state, building.id)) continue;
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: building.id },
-      reason: `staff the ${BUILDING_CONFIGS[building.type].label} — the slot is the player's to fill`,
-    };
-  }
-
-  return null;
-}
-
-/**
  * What the bot would ask a refugee camp for: welcome a group the colony can feed
  * and bed, screen one it can merely afford, and never turn families away on its
  * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
@@ -973,30 +956,6 @@ function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeCho
   ) {
     return 'screen';
   }
-  return null;
-}
-
-/**
- * 16 — release an empty workplace that a stale `manual` flag is holding back.
- *
- * A workplace explicitly set to `manual` with nobody at their posts is returned to
- * `auto`, so the colony can fill it again. A manual workplace with its own crew, and
- * anything else, is left exactly as it is, so the step retires instead of fighting
- * the player.
- */
-function decideStaffingMode(state: WorldState): VirtualPlayerDecision | null {
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
-    if (!BUILDING_JOB_TYPES[building.type]) continue;
-
-    if (building.staffingMode === 'manual' && building.occupants.length === 0) {
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'setBuildingStaffingMode', buildingId: building.id, mode: 'auto' },
-        reason: `return the empty ${BUILDING_CONFIGS[building.type].label} to auto staffing`,
-      };
-    }
-  }
-
   return null;
 }
 
@@ -1083,7 +1042,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   const humans = state.entities.filter(isPlayerHuman);
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed || building.faction === 'rival' || isManualStaffingBuilding(building)) continue;
     const job = BUILDING_JOB_TYPES[building.type];
     if (!job) continue;
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
@@ -1776,8 +1735,6 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideBuildingTuning(state)
     ?? decideRecruitment(state)
     ?? decideVisitorRelations(state)
-    ?? decideManualStaffing(state)
-    ?? decideStaffingMode(state)
     ?? decideWorkSchedule(state)
     ?? decideVenueSchedules(state)
     ?? decideSurplusWorkers(state)

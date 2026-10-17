@@ -193,7 +193,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 };
 
 /** Max sleepers at one staffed hotel overnight — visitors and settlers share the same beds. */
-export const HOTEL_GUEST_CAPACITY = 12;
+export const HOTEL_GUEST_CAPACITY = 8;
 
 
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
@@ -228,6 +228,8 @@ export interface MoonHowlerSavedState {
   job?: JobType;
   occupation?: string;
   homeBuildingId?: number;
+  /** Last automated workplace transfer tick; keeps jobs stable across saves. */
+  lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
   prisonBuildingId?: number;
   prisonerUntilTick?: number;
@@ -285,6 +287,8 @@ export interface Entity {
   /** In-game days left before this settler may court again after a courtship or marriage ended. */
   courtshipCooldownDays?: number;
   homeBuildingId?: number;
+  /** Tick of the last automatic workplace assignment or transfer; optional for older saves. */
+  lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
   prisonBuildingId?: number;
   prisonerUntilTick?: number;

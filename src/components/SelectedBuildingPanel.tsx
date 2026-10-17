@@ -484,7 +484,7 @@ export default function SelectedBuildingPanel({
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : (
-          <p>{!building.completed ? 'Builders' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
+          <p>{!building.completed ? 'Builders' : BUILDING_JOB_TYPES[building.type] ? 'Assigned workers' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
         )}
         {!building.completed && (
           <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
@@ -932,6 +932,7 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && BUILDING_JOB_TYPES[building.type] && staffRosterIds.length > 0 && (
           <div className="mt-1 space-y-0.5">
+            <p className="text-[10px] text-stone-400">Staff assigned to this building — not necessarily here right now:</p>
             {state.entities.filter((e) => staffRosterIds.includes(e.id)).map((w) => {
               const duty = workplaceDutyLabel(getSettlerWorkReason(state, w));
               return (
@@ -956,7 +957,7 @@ export default function SelectedBuildingPanel({
       </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Workers'} defaultOpen storageKey={`building-workers-${building.id}`}>
+        <CollapsibleSection title={!building.completed ? 'Construction' : 'Staff assignments'} defaultOpen storageKey={`building-workers-${building.id}`}>
           {getUnstaffedPostNote(building) && (
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}
@@ -1058,7 +1059,7 @@ export default function SelectedBuildingPanel({
             if (staffedIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Current workers</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
               {staffedIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (
