@@ -3,7 +3,7 @@
  * list and the dashboard. Every rule below is another owner's predicate, composed only.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BuildingType, JobType } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
 import { getHourOfDay, isWorkDay } from './dayCycleClock';
 import {
   EVENING_START,
@@ -24,10 +24,12 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { isBarracksGuard } from './defenseStructures';
 import { isCeremonyAttendee } from './villageLeadership';
 import { medicalCareReason } from './hospitalCare';
-import { isHospitalDoctorOnShift } from './hospitalShifts';
+import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
 import { canEatColonyMeal } from './simulation/humanNeeds';
-import { humanBuildingTarget } from './simulation/humanMovement';
+import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/humanMovement';
+import { commuteLeadHoursFor } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
 import { isImprisoned, isNearResidence } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
@@ -167,12 +169,20 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
   const workplace = findHumanWorkplace(entity, buildings);
-  const doctorOnShift = entity.job === JobType.Doctor && workplace?.type === BuildingType.Hospital
-    && isHospitalDoctorOnShift(workplace, state.tick, entity.id);
+  const isHospitalDoctor = entity.job === JobType.Doctor
+    && workplace?.type === BuildingType.Hospital && workplace.completed;
+  const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
+    workplace,
+    state.tick,
+    entity.id,
+    commuteLeadHoursFor(
+      commuteDistanceToBuilding(entity, workplace, false),
+      SPECIES_CONFIG[EntityType.Human].speed,
+    ),
+  ));
   if (canEatColonyMeal(state, entity, hour)) return { code: 'eating', label: 'Eating' };
-  // A midnight-shift doctor standing at home is due to commute, not "Sleeping"
-  // throughout the 00–08 duty window.
-  if (!doctorOnShift && (isAsleepAtHome(entity, buildings, hour)
+  // The hospital roster owns commute duty, including the hour before midnight.
+  if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
       || isSettlerLodgingAtHotel(entity, buildings, hour))) {
     return { code: 'sleeping', label: 'Sleeping' };
   }
@@ -209,6 +219,9 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     return atPost
       ? { code: 'working', label: `Working at ${labelFor(workplace)}` }
       : { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
+  }
+  if (doctorCommuteDue) {
+    return { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
   }
 
   if (entity.huntTargetId != null) return { code: 'hunting', label: 'Hunting' };
