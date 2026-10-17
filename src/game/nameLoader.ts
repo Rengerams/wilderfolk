@@ -359,7 +359,7 @@ export function syncMarriageSurnames(a: Entity, b: Entity): void {
   b.surname = household;
 }
 
-/** Legitimate children inherit the father's line; others take the mother's surname. */
+/** Youth sweethearts' children take the mother's name without a scandal flag. */
 export function resolveChildSurname(
   mother: Entity,
   partnerId: number | undefined,
@@ -373,9 +373,12 @@ export function resolveChildSurname(
     && biologicalFatherId === partnerId;
 
   if (!fatherIsHusband) {
+    const mutualSweethearts = biologicalFather != null
+      && mother.youthLovePartnerId === biologicalFather.id
+      && biologicalFather.youthLovePartnerId === mother.id;
     return {
       surname: mother.surname?.trim() || getRandomSurname(),
-      isBastard: true,
+      isBastard: !mutualSweethearts,
     };
   }
 
