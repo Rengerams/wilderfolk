@@ -213,6 +213,11 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
               className="rounded bg-stone-800 px-2.5 py-1 text-amber-200 hover:bg-stone-700 disabled:opacity-40"
             >Next week →</button>
           </nav>
+          {issue.mayBeIncomplete && (
+            <p className="text-[11px] text-amber-300" role="status">
+              This archived week may be incomplete: the Chronicle keeps only its latest events. Counts below are minimums from retained entries.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
             {([
               ['Births', issue.births],
@@ -221,7 +226,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
               ['Scandals', issue.scandals],
             ] as const).map(([label, value]) => (
               <div key={label} className="rounded border border-stone-700 bg-stone-900/60 px-2 py-2">
-                <strong className="block text-lg text-amber-100">{value}</strong>
+                <strong className="block text-lg text-amber-100">{issue.mayBeIncomplete ? `≥${value}` : value}</strong>
                 <span className="text-stone-400">{label}</span>
               </div>
             ))}
@@ -245,7 +250,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
             </p>
           )}
           <p className="border-t border-stone-800 pt-2 text-[11px] text-stone-500">
-            {issue.eventCount} recorded events this week. Stories come from the Chronicle, without invented gossip.
+            {issue.mayBeIncomplete ? `At least ${issue.eventCount} retained events` : `${issue.eventCount} recorded events`} this week. Stories come from the Chronicle, without invented gossip.
           </p>
         </section>
       ) : (
