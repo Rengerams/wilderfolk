@@ -3,7 +3,7 @@
  * list and the dashboard. Every rule below is another owner's predicate, composed only.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BUILDING_CONFIGS, BuildingType, JobType } from './gameTypes';
+import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
 import { getHourOfDay, isWorkDay } from './dayCycleClock';
 import {
   EVENING_START,
@@ -24,9 +24,12 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { isBarracksGuard } from './defenseStructures';
 import { isCeremonyAttendee } from './villageLeadership';
 import { medicalCareReason } from './hospitalCare';
+import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { isSettlerLodgingAtHotel } from './hotelStay';
 import { canEatColonyMeal } from './simulation/humanNeeds';
-import { humanBuildingTarget } from './simulation/humanMovement';
+import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/humanMovement';
+import { commuteLeadHoursFor } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
 import { isImprisoned, isNearResidence } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
@@ -76,7 +79,7 @@ function labelFor(building: Building): string {
 }
 
 /** Where the settler's next shift starts, and which of the three shift owners said so. */
-type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' };
+type NextShift = { hour: number; kind: 'day' | 'venue' | 'prison' | 'hospital' };
 
 const VENUE_BY_BUILDING: Partial<Record<BuildingType, 'tavern' | 'hotel'>> = {
   [BuildingType.Tavern]: 'tavern',
@@ -124,6 +127,11 @@ function resolveShift(
 
   const isPrisonGuardAtPost =
     entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && completed;
+  if (entity.job === JobType.Doctor && workplace?.type === BuildingType.Hospital && completed) {
+    const onShift = isHospitalDoctorOnShift(workplace, state.tick, entity.id);
+    return { onShift, next: { hour: 0, kind: 'hospital' } };
+  }
+
   if (isPrisonGuardAtPost) {
     const prisonShift = prisonShiftForGuard(
       entity.id,
@@ -167,8 +175,22 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
+  const workplace = findHumanWorkplace(entity, buildings);
+  const isHospitalDoctor = entity.job === JobType.Doctor
+    && workplace?.type === BuildingType.Hospital && workplace.completed;
+  const doctorCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
+    workplace,
+    state.tick,
+    entity.id,
+    commuteLeadHoursFor(
+      commuteDistanceToBuilding(entity, workplace, false),
+      SPECIES_CONFIG[EntityType.Human].speed,
+    ),
+  ));
   if (canEatColonyMeal(state, entity, hour)) return { code: 'eating', label: 'Eating' };
-  if (isAsleepAtHome(entity, buildings, hour) || isSettlerLodgingAtHotel(entity, buildings, hour)) {
+  // The hospital roster owns commute duty, including the hour before midnight.
+  if (!doctorCommuteDue && (isAsleepAtHome(entity, buildings, hour)
+      || isSettlerLodgingAtHotel(entity, buildings, hour))) {
     return { code: 'sleeping', label: 'Sleeping' };
   }
 
@@ -177,7 +199,6 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   if (care === 'expecting') return { code: 'expecting', label: 'Expecting — resting' };
   if (care) return { code: 'ill', label: `Ill — ${care}` };
 
-  const workplace = findHumanWorkplace(entity, buildings);
   // `humanTick` holds a ceremony's attendees before its festival gatherers; keep that order.
   if (state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id)) {
     return { code: 'at-election', label: 'At the election' };
@@ -206,6 +227,9 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
       ? { code: 'working', label: `Working at ${labelFor(workplace)}` }
       : { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
   }
+  if (doctorCommuteDue) {
+    return { code: 'walking-to-work', label: `Walking to work — ${labelFor(workplace)}` };
+  }
 
   if (entity.huntTargetId != null) return { code: 'hunting', label: 'Hunting' };
 
@@ -220,6 +244,7 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
     return { code: 'off-shift', label: 'Off shift — not a work day' };
   }
   if (next.kind === 'prison') return { code: 'off-shift', label: 'Off duty today' };
+  if (next.kind === 'hospital') return { code: 'off-shift', label: 'Off duty — hospital roster' };
   return { code: 'off-shift', label: `Off shift until ${clockLabel(next.hour)}` };
 }
 

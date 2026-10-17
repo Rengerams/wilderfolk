@@ -4,6 +4,7 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Added: hospitals can maintain 24-hour care with rotating eight-hour doctor shifts.** Five posted doctors cover night, day and evening with three on duty each day and two resting; the rotation includes weekends. The hospital inspector reads the shift windows and assignments from the same roster as the simulation, and doctors travelling to midnight duty now show `Walking to work` instead of `Sleeping`. Hospitals with fewer than three doctors visibly show uncovered shifts.
 - **Hospitals now 24h open** Hospitals are now 24hrs open just as prisons to give the best care to the settlers!
 
  - **Added optional Deno Desktop developer and release commands** — `npm run deno:dev` runs the existing web game with desktop HMR; `npm run deno:build` runs the existing production checks and creates a Windows WebView        bundle; `npm run deno:build:cef` packages an alternative bundled-Chromium desktop build. npm, browser development, and Tauri builds remain supported, with no changes to game simulation or save format.
