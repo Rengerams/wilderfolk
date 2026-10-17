@@ -30,12 +30,33 @@ export function hospitalDoctorRoster(hospital: Pick<Building, 'occupants'>, day:
   return out;
 }
 
+/**
+ * Hot-path: compute the slot directly, with no roster array or shift object.
+ * Only the rendered inspector needs the full daily roster.
+ */
+function hospitalDoctorSlotForDay(
+  hospital: Pick<Building, 'occupants'>,
+  day: number,
+  doctorId: number,
+): number {
+  const posted = hospital.occupants;
+  const index = posted.indexOf(doctorId);
+  if (index < 0) return -1;
+  const slot = ((index - day * HOSPITAL_SHIFTS_PER_DAY) % posted.length + posted.length) % posted.length;
+  return slot < HOSPITAL_SHIFTS_PER_DAY ? slot : -1;
+}
+
 export function doctorHospitalShift(
   hospital: Pick<Building, 'occupants'>,
   tick: number,
   doctorId: number,
 ): HospitalDoctorShift | undefined {
-  return hospitalDoctorRoster(hospital, getAbsoluteCalendarDay(tick)).find((s) => s.doctorId === doctorId);
+  const slot = hospitalDoctorSlotForDay(hospital, getAbsoluteCalendarDay(tick), doctorId);
+  return slot < 0 ? undefined : {
+    doctorId,
+    startHour: slot * HOSPITAL_SHIFT_HOURS,
+    endHour: (slot + 1) * HOSPITAL_SHIFT_HOURS,
+  };
 }
 
 export function isHospitalDoctorOnShift(
@@ -43,10 +64,8 @@ export function isHospitalDoctorOnShift(
   tick: number,
   doctorId: number,
 ): boolean {
-  const shift = doctorHospitalShift(hospital, tick, doctorId);
-  if (!shift) return false;
-  const hour = getHourOfDay(tick);
-  return hour >= shift.startHour && hour < shift.endHour;
+  const slot = hospitalDoctorSlotForDay(hospital, getAbsoluteCalendarDay(tick), doctorId);
+  return slot >= 0 && Math.floor(getHourOfDay(tick) / HOSPITAL_SHIFT_HOURS) === slot;
 }
 
 /**
@@ -63,10 +82,10 @@ export function isHospitalDoctorCommuteTime(
   const hour = tick / TICKS_PER_HOUR;
   const day = getAbsoluteCalendarDay(tick);
   const lead = Math.max(0, commuteLeadHours);
-  for (const offset of [0, 1]) {
-    const shift = hospitalDoctorRoster(hospital, day + offset).find((s) => s.doctorId === doctorId);
-    if (!shift) continue;
-    const starts = (day + offset) * 24 + shift.startHour;
+  for (let offset = 0; offset <= 1; offset++) {
+    const slot = hospitalDoctorSlotForDay(hospital, day + offset, doctorId);
+    if (slot < 0) continue;
+    const starts = (day + offset) * 24 + slot * HOSPITAL_SHIFT_HOURS;
     const untilStart = starts - hour;
     if (untilStart > 0 && untilStart <= lead) return true;
   }
