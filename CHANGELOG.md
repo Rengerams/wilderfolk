@@ -2,6 +2,11 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Virtual Player:** deliberately manual buildings are never auto-assigned, stripped of excess workers or switched back to Auto. New job-capable buildings begin in Auto mode and empty Auto-staff passes no longer raise a blocking notification.
+- **Virtual Player:** batches affordable damage repairs, including long road strips, into one worker command and one world clone. Repairs respect the existing material prices and health thresholds.
+- **Workforce:** automatic transfers wait roughly two in-game months (60 days) after the last automatic placement or transfer. First-time hires and explicit manual changes remain available; old saves without timestamps continue normally.
+- **Fixed:** restored the valid housing decision and corrected the Barracks research constant after a broken Virtual Player edit.
+
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
 - **Changed: each election gets a seeded swing of up to ±20% in candidates' merit support, so a close race can go either way while a large lead still matters.**
