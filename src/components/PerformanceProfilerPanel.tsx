@@ -35,7 +35,13 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
             {report.sections.slice(0, 18).map((section) => (
               <tr key={section.name} className="border-t border-stone-800">
                 <td className="break-words px-1 py-1 text-stone-300" title={`Peak at tick ${section.peakTick}`}>{section.name}</td>
-                <td className="px-1 py-1 text-right">{section.calls.toLocaleString()}</td>
+                <td className="px-1 py-1 text-right">
+                  <span className="block">{section.calls.toLocaleString()}</span>
+                  <span className="block text-[9px] text-stone-500">
+                    {(section.calls / Math.max(1, name === 'Simulation worker' ? report.ticks : report.frames)).toFixed(2)}
+                    /{name === 'Simulation worker' ? 'tick' : 'frame'}
+                  </span>
+                </td>
                 <td className="px-1 py-1 text-right">{section.totalMs.toFixed(0)}ms</td>
                 <td className="px-1 py-1 text-right">{section.averageMs.toFixed(1)}</td>
                 <td className="px-1 py-1 text-right text-amber-300">{section.maxMs.toFixed(1)}</td>
