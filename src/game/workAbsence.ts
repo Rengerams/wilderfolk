@@ -59,6 +59,17 @@ export interface SettlerWorkReason {
   label: string;
 }
 
+/**
+ * Short duty status for a workplace's assigned-crew list. A staff member can
+ * be assigned to a building without being physically present. Keep the
+ * detailed activity reason for the settler inspector and dashboard.
+ */
+export function workplaceDutyLabel(reason: SettlerWorkReason): 'Working' | 'Walking to work' | 'Off duty' {
+  if (reason.code === 'working') return 'Working';
+  if (reason.code === 'walking-to-work') return 'Walking to work';
+  return 'Off duty';
+}
+
 function clockLabel(hour: number): string {
   const normalized = ((Math.round(hour) % 24) + 24) % 24;
   return `${String(normalized).padStart(2, '0')}:00`;
