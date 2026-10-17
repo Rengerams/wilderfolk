@@ -833,8 +833,8 @@ describe('virtual player decision engine', () => {
     );
 
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).not.toMatchObject({ op: 'assignWorker', buildingId: 2 });
-    expect(decision?.command).not.toMatchObject({ op: 'setBuildingStaffingMode', buildingId: 2 });
+    expect(decision?.command?.op).not.toBe('assignWorker');
+    expect(decision?.command?.op).not.toBe('setBuildingStaffingMode');
     expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
     expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
 
@@ -1352,8 +1352,8 @@ describe('virtual player remaining action surface', () => {
     for (let hour = 0; hour < 5; hour++) {
       world.tick = hour * TICKS_PER_HOUR;
       const decision = decideVirtualPlayerAction(world);
-      expect(decision?.command).not.toMatchObject({ op: 'assignWorker', buildingId: 2 });
-      expect(decision?.command).not.toMatchObject({ op: 'setBuildingStaffingMode', buildingId: 2 });
+      expect(decision?.command?.op).not.toBe('assignWorker');
+      expect(decision?.command?.op).not.toBe('setBuildingStaffingMode');
       expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
       expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
     }
@@ -1519,10 +1519,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Farm, { staffingMode: 'manual' }),
       ],
     );
-    expect(decideVirtualPlayerAction(empty)?.command ?? null).not.toMatchObject({
-      op: 'setBuildingStaffingMode',
-      buildingId: 2,
-    });
+    expect(decideVirtualPlayerAction(empty)?.command?.op).not.toBe('setBuildingStaffingMode');
     expect(empty.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
 
     const staffed = makeWorld(
@@ -1532,10 +1529,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Farm, { occupants: [1], staffingMode: 'manual' }),
       ],
     );
-    expect(decideVirtualPlayerAction(staffed)?.command ?? null).not.toMatchObject({
-      op: 'setBuildingStaffingMode',
-      buildingId: 2,
-    });
+    expect(decideVirtualPlayerAction(staffed)?.command?.op).not.toBe('setBuildingStaffingMode');
   });
 
   it('releases the least skilled hand from an over-crewed workplace', () => {
