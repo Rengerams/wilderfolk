@@ -30,7 +30,6 @@ import {
 import { isPlayerHuman } from './playerHuman';
 import { getSimRng } from './simRng';
 import { tickHotelLodging } from './hotelStay';
-import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickElectionCeremony } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
@@ -75,7 +74,6 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   // --- Pre-AI world pulses ---
   releasePrisoners(state);
   tickHotelLodging(state);
-  tickPrisonPresence(state);
 
   // Election ceremony advances every sim tick
   if (state.electionCeremony) {

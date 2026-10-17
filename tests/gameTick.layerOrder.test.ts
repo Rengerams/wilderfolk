@@ -66,6 +66,18 @@ vi.mock('../src/game/tickLayerDaily', () => ({
   tickWinterHeating: vi.fn(() => true),
 }));
 
+vi.mock('../src/game/prisonGuardDuty', async () => {
+  const actual = await vi.importActual<typeof import('../src/game/prisonGuardDuty')>(
+    '../src/game/prisonGuardDuty',
+  );
+  return {
+    ...actual,
+    tickPrisonPresence: vi.fn((state: { tick: number }) => {
+      if (state.tick % 3 === 0) callLog.calls.push(`prison-presence@${state.tick}`);
+    }),
+  };
+});
+
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { LAYER_SYSTEMS_INTERVAL } from '../src/game/tickLayerSystems';
@@ -153,8 +165,8 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
 
   it('calls the four layers in fixed order on a full-stack tick (72)', () => {
     runTicks(0, 72);
-    const tail = callLog.calls.slice(-4);
-    expect(tail).toEqual(['realtime@72', 'systems@72', 'assign@72', 'daily@72']);
+    const tail = callLog.calls.slice(-5);
+    expect(tail).toEqual(['realtime@72', 'systems@72', 'assign@72', 'prison-presence@72', 'daily@72']);
   });
 
   it('runs each layer only on its declared interval over 216 ticks (3 days)', () => {
@@ -164,6 +176,7 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(count('realtime')).toBe(216); // every tick
     expect(count('systems')).toBe(216 / 4); // LAYER_SYSTEMS_INTERVAL
     expect(count('assign')).toBe(216 / 18); // LAYER_ASSIGN_INTERVAL (4×/day)
+    expect(count('prison-presence')).toBe(216 / 3); // hourly sample after movement and assignment
     expect(count('daily')).toBe(216 / TICKS_PER_DAY); // once per colony day
   });
 

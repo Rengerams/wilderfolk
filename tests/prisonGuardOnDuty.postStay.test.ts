@@ -21,6 +21,7 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { invalidateEntityByIdMap, rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { prisonGuardIds } from '../src/game/prisonGuardDuty';
 import { resetSimRng } from '../src/game/simRng';
 
 /** The Prison sits far enough east that its row is clearly separated from the wife's position. */
@@ -148,5 +149,45 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
       wifeAfter,
       `the on-duty guard closed on his WIFE instead of his post (${wifeBefore.toFixed(2)} px -> ${wifeAfter.toFixed(2)} px)`,
     ).toBeGreaterThanOrEqual(wifeBefore);
+  });
+
+  it('starts a weekend commute before the shift, even while off-screen', () => {
+    // Saturday, 05:00: this guard's morning shift starts at 07:00. The colony workweek is over, but
+    // the prison rota is not. Keep the camera far away and choose a tick outside the throttle pulse.
+    const tick = 5 * TICKS_PER_DAY + 5 * (TICKS_PER_DAY / 24);
+    const guard = human(GUARD_ID, {
+      job: JobType.PrisonGuard,
+      homeBuildingId: PRISON_ID,
+      residenceBuildingId: 21,
+      x: 80,
+      y: PRISON_Y + 20,
+    });
+    const house = building(21, BuildingType.House, 60, PRISON_Y, []);
+    const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [GUARD_ID]);
+    const state = worldState([guard], [house, prison], tick);
+    const post = humanBuildingTarget(prison, GUARD_ID, false);
+    const before = Math.hypot(post.x - guard.x, post.y - guard.y);
+
+    gameTick(state, { minX: 5_000, maxX: 6_000, minY: 5_000, maxY: 6_000 });
+
+    const after = Math.hypot(post.x - guard.x, post.y - guard.y);
+    expect(after, 'the weekend guard should start walking before his 07:00 shift').toBeLessThan(before);
+  });
+
+});
+
+describe('legacy prison crews are reduced to the closest stable watch crew', () => {
+  it('keeps the closest three guards when a save exceeds the current four-post cap', () => {
+    const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [1, 2, 3, 4, 5]);
+    const guards = [
+      human(1, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: 800, y: 800 }),
+      human(2, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 26, y: PRISON_Y + 25 }),
+      human(3, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 36, y: PRISON_Y + 25 }),
+      human(4, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 46, y: PRISON_Y + 25 }),
+      human(5, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 56, y: PRISON_Y + 25 }),
+    ];
+    const state = worldState(guards, [prison], 0);
+
+    expect(prisonGuardIds(state, prison.occupants)).toEqual([2, 3, 4]);
   });
 });
