@@ -1,5 +1,6 @@
 import type { GameEventLog } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { EVENT_LOG_MAX_ENTRIES } from './eventLog';
 
 const DAYS_PER_ISSUE = 7;
 const TICKS_PER_ISSUE = DAYS_PER_ISSUE * TICKS_PER_DAY;
@@ -15,6 +16,7 @@ export type WeeklyGazetteIssue = {
   startDay: number;
   endDay: number;
   eventCount: number;
+  mayBeIncomplete: boolean;
   births: number;
   marriages: number;
   deaths: number;
@@ -86,6 +88,9 @@ export function buildWeeklyGazette(
     startDay: week * DAYS_PER_ISSUE + 1,
     endDay: (week + 1) * DAYS_PER_ISSUE,
     eventCount: selected.length,
+    mayBeIncomplete: events.length >= EVENT_LOG_MAX_ENTRIES
+      && events.length > 0
+      && gazetteWeekForTick(events[events.length - 1].tick) === week,
     births,
     marriages,
     deaths,
