@@ -1,8 +1,8 @@
 # Changelog
 
-- **Changed: completed workplace rosters show Working, Walking to work or Off duty instead of personal activities; Prison staff lists exclude inmates, and Barracks descriptions reflect around-the-clock militia bonuses.**
-
 ## <u>[0.6.5.1]</u> — 2026-10-08
+
+- **Changed: completed workplace rosters show Working, Walking to work or Off duty instead of personal activities; Prison staff lists exclude inmates, and Barracks descriptions reflect around-the-clock militia bonuses.**
 
 - **Changed: human updates reuse workplace groups, social venue pools and entity lookups per tick, avoiding repeated scans and temporary coworker arrays.**
 
