@@ -257,6 +257,57 @@ describe('human lifecycle golden contracts', () => {
     expect(state.notifications.some((notice) => notice.title === 'Bastard Born')).toBe(false);
   });
 
+  it('keeps a former youth-love pregnancy ordinary after both sweethearts turn 18 and separate', () => {
+    const father = human(FATHER_ID, { age: 18, youthLovePartnerId: undefined, relationshipStatus: 'single' });
+    const mother = human(MATERNAL_ID, {
+      age: 18,
+      youthLovePartnerId: undefined,
+      relationshipStatus: 'single',
+      partnerId: undefined,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyFromYouthLove: true,
+      pregnancyProgress: 9,
+      pregnancyDueProgress: 10,
+    });
+    const { state, ctx } = makeFixture([mother, father]);
+    state.tick = liveBirthTick();
+
+    runBirth(state, ctx, mother);
+
+    const child = ctx.newEntities.find((human) => human.type === EntityType.Human)!;
+    expect(child.isBastard).toBe(false);
+    expect(child.surname).toBe(mother.surname);
+    expect(child.motherId).toBe(mother.id);
+    expect(child.fatherId).toBe(father.id);
+    expect(mother.pregnancyFromYouthLove).toBeUndefined();
+    expect(state.eventLog.filter((event) => event.type === 'birth' && event.message.includes('bastard'))).toHaveLength(0);
+  });
+
+  it('preserves an adult non-marital birth as distinct from a youth-love pregnancy', () => {
+    const father = human(FATHER_ID, { relationshipStatus: 'single' });
+    const mother = human(MATERNAL_ID, {
+      age: 28,
+      partnerId: undefined,
+      youthLovePartnerId: undefined,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyFromYouthLove: undefined,
+      relationshipStatus: 'expecting',
+      pregnancyProgress: 9,
+      pregnancyDueProgress: 10,
+    });
+    const { state, ctx } = makeFixture([mother, father]);
+    state.tick = liveBirthTick();
+
+    runBirth(state, ctx, mother);
+
+    const child = ctx.newEntities.find((human) => human.type === EntityType.Human)!;
+    expect(child.isBastard).toBe(true);
+    expect(child.surname).toBe(mother.surname);
+    expect(child.motherId).toBe(mother.id);
+  });
+
   it('records biological lineage and a bastard outcome when the husband is not the biological father', () => {
     const father = human(FATHER_ID, { relationshipStatus: 'single' });
     const husband = human(HUSBAND_ID, { relationshipStatus: 'expecting' });
