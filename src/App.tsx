@@ -1382,7 +1382,7 @@ export default function App() {
             <button
               type="button"
               aria-pressed={!hudNotificationsEnabled}
-              title={hudNotificationsEnabled ? 'Hide notification pop-ups (events stay in Log)' : 'Show notification pop-ups'}
+              title={hudNotificationsEnabled ? 'Hide ordinary pop-ups (the Chronicle stays available)' : 'Show notification pop-ups'}
               onClick={() => {
                 const next = !hudNotificationsEnabled;
                 setHudNotificationsEnabled(next);
