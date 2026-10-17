@@ -1,6 +1,6 @@
 
 import type { WorldState } from '../gameTypes';
-import type { PerformanceSnapshot } from '../performanceProfiler';
+import { profileStart, profileEnd, type PerformanceSnapshot } from '../performanceProfiler';
 import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
@@ -679,9 +679,13 @@ export class GameWorkerHost {
         this.resolveIdleWaiters();
         return;
       }
+      const applyStart = profileStart();
       applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+      profileEnd('main.applyCommandDelta', applyStart);
+      const hydrateStart = profileStart();
       invalidateWorldRuntimeCaches(this.worldRef);
       hydrateWorldRuntimeCaches(this.worldRef);
+      profileEnd('main.hydrateCommand', hydrateStart);
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
@@ -713,9 +717,13 @@ export class GameWorkerHost {
       return;
     }
     const delta = msg.delta as SimTickDelta;
+    const applyStart = profileStart();
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+    profileEnd('main.applySimDelta', applyStart);
+    const hydrateStart = profileStart();
     invalidateWorldRuntimeCaches(this.worldRef);
     hydrateWorldRuntimeCaches(this.worldRef);
+    profileEnd('main.hydrateCaches', hydrateStart);
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
       this.onTickResult?.(this.worldRef, delta, null, true);
