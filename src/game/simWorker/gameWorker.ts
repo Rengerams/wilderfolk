@@ -20,7 +20,7 @@ import type { Building, Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
-import { maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled } from '../performanceProfiler';
+import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled } from '../performanceProfiler';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 
 /* Worker-side command logic */
@@ -321,6 +321,15 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'setProfiling': {
         setPerformanceProfilingEnabled(msg.enabled);
+        if (!msg.enabled && msg.requestId !== undefined) {
+          const response: WorkerResponse = {
+            type: 'profilingStopped',
+            proto: WORKER_PROTO,
+            requestId: msg.requestId,
+            snapshot: getPerformanceSnapshot(),
+          };
+          self.postMessage(response);
+        }
         break;
       }
 
