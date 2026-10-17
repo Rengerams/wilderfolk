@@ -1,8 +1,4 @@
-/**
- * Opt-in CPU-time sampling for the running Wilderfolk simulation and renderer.
- * One module instance per JS realm (worker and main thread); no world mutations,
- * no per-call allocations while disabled, bounded stat keys defined at call sites.
- */
+/** Opt-in per-realm CPU-time sampling with bounded call-site names. */
 export interface PerformanceSection {
   name: string;
   calls: number;
