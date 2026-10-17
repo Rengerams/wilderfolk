@@ -1,4 +1,5 @@
 import { formatCitizenName } from './citizenId';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import { EntityType, type Entity, type WorldState } from './gameTypes';
 import { readUtf8RelativeToModule } from './nodeRuntime';
 import { getSimRng } from './simRng';
@@ -366,6 +367,7 @@ export function resolveChildSurname(
   biologicalFatherId: number | undefined,
   husband: Entity | undefined,
   biologicalFather: Entity | undefined,
+  pregnancyFromYouthLove = false,
 ): { surname: string; isBastard: boolean } {
   const fatherIsHusband =
     biologicalFatherId != null
@@ -376,9 +378,12 @@ export function resolveChildSurname(
     const mutualSweethearts = biologicalFather != null
       && mother.youthLovePartnerId === biologicalFather.id
       && biologicalFather.youthLovePartnerId === mother.id;
+    // The conception route is authoritative even if a youth bond ends or age reaches 18.
+    const youthBirthWithoutHusband = partnerId == null
+      && (pregnancyFromYouthLove || mother.age < HUMAN_ADULT_MIN_AGE);
     return {
       surname: mother.surname?.trim() || getRandomSurname(),
-      isBastard: !mutualSweethearts,
+      isBastard: !(mutualSweethearts || youthBirthWithoutHusband),
     };
   }
 
