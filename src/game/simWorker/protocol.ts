@@ -76,7 +76,7 @@ export type WorkerRequest =
   | { type: 'exportSave'; proto: typeof WORKER_PROTO }
   | { type: 'setPaused'; proto: typeof WORKER_PROTO; paused: boolean }
   | { type: 'setSpeed'; proto: typeof WORKER_PROTO; speed: number }
-  | { type: 'setProfiling'; proto: typeof WORKER_PROTO; enabled: boolean }
+  | { type: 'setProfiling'; proto: typeof WORKER_PROTO; enabled: boolean; requestId?: number }
   | {
       type: 'patchUi';
       proto: typeof WORKER_PROTO;
@@ -101,6 +101,7 @@ export type WorkerRequest =
 /*  Worker → Host responses                                                    */
 /* -------------------------------------------------------------------------- */
 export type WorkerResponse =
+  | { type: 'profilingStopped'; proto: typeof WORKER_PROTO; requestId: number; snapshot: PerformanceSnapshot }
   | {
       type: 'ready';
       proto: typeof WORKER_PROTO;
