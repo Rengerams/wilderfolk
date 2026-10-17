@@ -54,14 +54,12 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
   );
 }
 
-/**
- * Player-accessible CPU profiler. It runs inside the live game while the drawer
- * is closed; enabling it sends one small toggle to the active simulation worker.
- */
+/** Opt-in CPU reporting continues while the game panel is closed. */
 export default function PerformanceProfilerPanel({ loopRef }: Props) {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -74,18 +72,25 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
     return () => window.clearInterval(timer);
   }, [loopRef, open]);
 
-  const toggle = () => {
+  const toggle = async () => {
     const loop = loopRef.current;
-    if (!loop) return;
+    if (!loop || stopping) return;
     const next = !loop.getPerformanceProfiling().enabled;
-    loop.setPerformanceProfiling(next);
-    setReport(loop.getPerformanceProfiling());
     setCopyStatus('');
+    if (!next) setStopping(true);
+    try {
+      await loop.setPerformanceProfiling(next);
+      setReport(loop.getPerformanceProfiling());
+    } catch {
+      setCopyStatus('Could not confirm the final worker sample. Retry Stop before copying.');
+    } finally {
+      setStopping(false);
+    }
   };
 
   const copyResults = async () => {
     const loop = loopRef.current;
-    if (!loop) return;
+    if (!loop || stopping || loop.getPerformanceProfiling().enabled) return;
     try {
       const snapshot = loop.getPerformanceProfiling();
       await navigator.clipboard.writeText(JSON.stringify({
@@ -102,7 +107,7 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
 
   const active = report?.enabled ?? false;
   return (
-    <div className="pointer-events-auto absolute bottom-3 left-3 z-[65] text-stone-100">
+    <div className="pointer-events-auto absolute bottom-44 left-4 z-[65] text-stone-100">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -121,23 +126,25 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
             <strong className="text-sm">Performance measurement</strong>
             <button
               type="button"
-              onClick={toggle}
-              className={`rounded px-3 py-1 text-xs font-semibold ${active
+              onClick={() => { void toggle(); }}
+              disabled={stopping}
+              className={`rounded px-3 py-1 text-xs font-semibold disabled:cursor-wait disabled:opacity-60 ${active
                 ? 'bg-rose-900 text-rose-100 hover:bg-rose-800'
                 : 'bg-emerald-800 text-white hover:bg-emerald-700'}`}
             >
-              {active ? 'Stop' : 'Start measuring'}
+              {stopping ? 'Stopping…' : active ? 'Stop' : 'Start measuring'}
             </button>
             <button
               type="button"
-              onClick={copyResults}
-              className="rounded bg-stone-700 px-2 py-1 text-xs hover:bg-stone-600"
+              onClick={() => { void copyResults(); }}
+              disabled={stopping || active || report == null}
+              className="rounded bg-stone-700 px-2 py-1 text-xs hover:bg-stone-600 disabled:cursor-not-allowed disabled:opacity-40"
             >Copy</button>
           </div>
           {copyStatus && <p className="text-[11px] text-emerald-300">{copyStatus}</p>}
           <p className="text-[11px] leading-relaxed text-stone-400">
-            Start, play a few game days, then copy the report. Closing this panel
-            does not stop measurement. CPU time only; nested stages overlap and
+            Start, play a few game days, then Stop and wait for the worker's final sample before Copy.
+            Closing this panel does not stop measurement. CPU time only; nested stages overlap and
             totals must not be added together. Weather cost is in the main thread.
           </p>
           <ProfileTable name="Simulation worker" report={report?.worker ?? null} />
