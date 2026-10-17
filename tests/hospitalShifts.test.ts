@@ -4,6 +4,7 @@ import { BuildingType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import {
   HOSPITAL_SHIFT_HOURS,
+  HOSPITAL_SHIFT_WINDOWS,
   hospitalDoctorRoster,
   doctorHospitalShift,
   isHospitalDoctorOnShift,
@@ -23,7 +24,9 @@ describe('hospital 24-hour rota with five doctors', () => {
       const roster = hospitalDoctorRoster(ward, day);
       expect(roster).toHaveLength(3);
       expect(new Set(roster.map((s) => s.doctorId)).size).toBe(3);
-      expect(roster.map((s) => [s.startHour, s.endHour])).toEqual([[0, 8], [8, 16], [16, 24]]);
+      expect(roster.map((s) => [s.startHour, s.endHour])).toEqual(
+        HOSPITAL_SHIFT_WINDOWS.map((s) => [s.startHour, s.endHour]),
+      );
       for (let hour = 0; hour < 24; hour++) {
         const active = ward.occupants.filter((id) =>
           isHospitalDoctorOnShift(ward, day * TICKS_PER_DAY + hour * TICKS_PER_HOUR, id),
@@ -32,6 +35,12 @@ describe('hospital 24-hour rota with five doctors', () => {
       }
     }
     expect(hospitalCoverageSummary(ward)).toContain('24-hour coverage scheduled');
+  });
+
+  it('provides complete display windows from the same shift owner', () => {
+    expect(HOSPITAL_SHIFT_WINDOWS.map((shift) => shift.label)).toEqual(['Night', 'Day', 'Evening']);
+    expect(HOSPITAL_SHIFT_WINDOWS.map((shift) => [shift.startHour, shift.endHour]))
+      .toEqual([[0, 8], [8, 16], [16, 24]]);
   });
 
   it('rotates work and days off fairly across five doctors', () => {
