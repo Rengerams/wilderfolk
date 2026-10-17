@@ -18,6 +18,7 @@ import {
   getSettlerWorkReason,
   getUnstaffedPostNote,
   getWorkplaceRosterReasons,
+  workplaceDutyLabel,
 } from '../src/game/workAbsence';
 
 /** Absolute calendar day 0 is a Monday, so a tick on day 0 at this hour is inside a work day. */
@@ -328,5 +329,28 @@ describe('the reason reaches every surface the player reads', () => {
     const line = explainSettler(state, offShift.id).find((candidate) => candidate.label === 'Why idle');
 
     expect(line?.value).toBe('Off shift until 07:00 — no work logged today.');
+  });
+});
+
+describe('short workplace-duty labels versus full personal activity', () => {
+  it('preserves walking to work instead of treating transit as time off', () => {
+    expect(workplaceDutyLabel({ code: 'walking-to-work', label: 'Walking to work — Barracks' }))
+      .toBe('Walking to work');
+    expect(workplaceDutyLabel({ code: 'working', label: 'Working at Barracks' }))
+      .toBe('Working');
+  });
+
+  it('displays off duty for any personal activity that is not working or commuting', () => {
+    const away: Array<ReturnType<typeof getSettlerWorkReason>> = [
+      { code: 'sleeping', label: 'Sleeping' },
+      { code: 'at-home', label: 'At home' },
+      { code: 'socialising', label: 'Socialising — evening outing' },
+      { code: 'off-shift', label: 'Off shift until 07:00' },
+      { code: 'expecting', label: 'Expecting — resting' },
+      { code: 'ill', label: 'Ill — exhausted' },
+    ];
+    expect(away.map(workplaceDutyLabel)).toEqual(away.map(() => 'Off duty'));
+    // This view-only mapping does not change the detailed personal statuses.
+    expect(away[0].label).toBe('Sleeping');
   });
 });
