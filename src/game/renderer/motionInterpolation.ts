@@ -40,8 +40,6 @@ export function beginMotionFrame(
   fraction: number,
   ...lists: ReadonlyArray<readonly Entity[]>
 ): void {
-  // A new tick: what the previous frame saw is where the tick before it left every mover, and the
-  // map that held it becomes the blend source while a fresh one collects the new tick.
   if (tick !== sampledTick) {
     previousByEntity = lastSeenByEntity;
     lastSeenByEntity = new Map();
@@ -66,7 +64,26 @@ export function beginMotionFrame(
 export function presentationPosition(entity: Entity): MotionPosition {
   const previous = previousByEntity.get(entity.id);
   if (!previous) return { x: entity.x, y: entity.y };
-  return interpolatePosition(previous, { x: entity.x, y: entity.y }, sampledFraction);
+
+  const current: MotionPosition = { x: entity.x, y: entity.y };
+  const dx = current.x - previous.x;
+  const dy = current.y - previous.y;
+
+  // Als de entiteit een teleporatie maakt of niet beweegt, niet interpoleren
+  const distSq = dx * dx + dy * dy;
+  if (distSq === 0 || distSq > MAX_INTERPOLATED_STEP_PX * MAX_INTERPOLATED_STEP_PX) {
+    return current;
+  }
+
+  // Voorkom dat afronding of asynchrone worker-updates de entiteit achteruit trekken.
+  // Als de fractie door timingproblemen 'terug' in de tijd dreigt te interpoleren, 
+  // vallen we veilig terug op de actuele positie.
+  const t = sampledFraction <= 0 ? 0 : sampledFraction >= 1 ? 1 : sampledFraction;
+
+  return {
+    x: previous.x + dx * t,
+    y: previous.y + dy * t,
+  };
 }
 
 /** Drop every sample — a new session, a loaded save or a world swap. */

@@ -53,8 +53,8 @@ export interface ViewState {
   favoriteEntityId: number | null;
 }
 
-export const CAMERA_ZOOM_MIN = 0.5;
-export const CAMERA_ZOOM_MAX = 8.0;
+export const CAMERA_ZOOM_MIN = 1;
+export const CAMERA_ZOOM_MAX = 6;
 export const CAMERA_ZOOM_DEFAULT = 1.45;
 export const CAMERA_ZOOM_STEP_IN = 1.1;
 export const CAMERA_ZOOM_STEP_OUT = 0.9;
@@ -159,13 +159,11 @@ function isBuildingType(value: unknown): value is BuildingType {
 export function resolveEntity(world: WorldState, id: number | null): Entity | null {
   if (id == null || !world) return null;
 
-  // 1. O(1) authoritative map lookup if available
   if (world.entityById) {
     const ent = world.entityById.get(id);
     return ent && ent.alive ? ent : null;
   }
 
-  // 2. Direct linear scan fallback
   const entities = world.entities ?? [];
   for (let i = 0; i < entities.length; i++) {
     const ent = entities[i];
@@ -285,8 +283,6 @@ export function createViewFromSave(
     selectedBuildingId: selection.selectedBuildingId,
     hoveredBuildingId: selection.hoveredBuildingId,
     buildMode: isBuildingType(data.buildMode) ? data.buildMode : null,
-    // The ghost is live cursor state — written on mousemove and never persisted by
-    // `mergeForSave` — so it starts empty and reappears as soon as the pointer moves.
     buildGhost: null,
     buildStripPreview: null,
     buildRotation: parseBuildRotation(data.buildRotation),
@@ -314,7 +310,6 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
     selectedEntityId = null;
   }
 
-  // If primary target died, promote the next surviving selection
   if (selectedEntityId == null && selectedEntityIds.length > 0) {
     selectedEntityId = selectedEntityIds[selectedEntityIds.length - 1];
   } else if (selectedEntityId != null && !selectedEntityIds.includes(selectedEntityId)) {
@@ -351,7 +346,6 @@ export function sanitizeViewSelection(world: WorldState, view: ViewState): ViewS
   };
 }
 
-/** Presentation-only fields a save carries. `notifications` is excluded: a toast's life is wall clock. */
 export function pickTransientWorldFieldsForSave(world: WorldState): Record<string, unknown> {
   return {
     deathParticles: world.deathParticles ?? [],
@@ -370,8 +364,6 @@ export function restoreTransientWorldFieldsFromSave(
     floatingTexts: Array.isArray(parsed.floatingTexts)
       ? (parsed.floatingTexts as WorldState['floatingTexts'])
       : [],
-    // Never the payload's own toasts: a saved one is already expired. Empty, not absent, because
-    // every reader (and `addNotification`) treats the field as a list.
     notifications: [],
     disasters: Array.isArray(parsed.disasters)
       ? (parsed.disasters as WorldState['disasters'])
@@ -450,6 +442,7 @@ export function updateView(view: ViewState, dtMs: number): ViewState {
     screenShake: shakeUnchanged ? view.screenShake : nextShake,
   };
 }
+
 export function zoomCameraViewAt(
   view: ViewState,
   factor: number,
@@ -467,7 +460,6 @@ export function zoomCameraViewAt(
     return view;
   }
 
-  // Anchor transformation: preserve world point under mouse cursor
   const worldX = (screenX - canvasW / 2) / oldZoom + cam.targetX;
   const worldY = (screenY - canvasH / 2) / oldZoom + cam.targetY;
 
@@ -482,35 +474,13 @@ export function zoomCameraViewAt(
 /** Keeps camera target within valid map boundaries with boundary margin. */
 export function clampCameraTarget(
   cam: Camera,
-  worldW: number,
-  worldH: number,
-  viewportW?: number,
-  viewportH?: number,
+  _worldW: number,
+  _worldH: number,
+  _viewportW?: number,
+  _viewportH?: number,
 ): Camera {
-  const effectiveZoom = clampCameraZoom(cam.targetZoom ?? cam.zoom);
-
-  // Use actual canvas/window viewport, falling back to window width if not passed
-  const vw = (viewportW && viewportW > 0) 
-    ? viewportW 
-    : (typeof window !== 'undefined' ? window.innerWidth : 1200);
-  const vh = (viewportH && viewportH > 0) 
-    ? viewportH 
-    : (typeof window !== 'undefined' ? window.innerHeight : 900);
-
-  const halfViewW = vw / 2 / effectiveZoom;
-  const halfViewH = vh / 2 / effectiveZoom;
-
-  // The center of the camera CANNOT get closer to the border than half the screen!
-  const minX = halfViewW * 2 >= worldW ? worldW / 2 : halfViewW;
-  const maxX = halfViewW * 2 >= worldW ? worldW / 2 : worldW - halfViewW;
-  const minY = halfViewH * 2 >= worldH ? worldH / 2 : halfViewH;
-  const maxY = halfViewH * 2 >= worldH ? worldH / 2 : worldH - halfViewH;
-
-  return {
-    ...cam,
-    targetX: Math.max(minX, Math.min(maxX, cam.targetX)),
-    targetY: Math.max(minY, Math.min(maxY, cam.targetY)),
-  };
+  // Volledig vrij bewegen over de kaart zonder geforceerde grenzen of terugduwen naar het midden.
+  return cam;
 }
 
 export function zoomCameraView(
@@ -549,7 +519,6 @@ export function nudgeCameraToward(
   return { ...view, camera: clampCameraTarget(cam, world.width, world.height, viewportW, viewportH) };
 }
 
-/** Smoothly centers and tracks the favorite citizen if one is set. */
 export function followFavoriteEntity(view: ViewState, world: WorldState): ViewState {
   if (view.favoriteEntityId == null) return view;
   const entity = resolveEntity(world, view.favoriteEntityId);
@@ -590,11 +559,6 @@ export function worldToScreen(
   return [worldToScreenX(x, cam, cw), worldToScreenY(y, cam, ch)];
 }
 
-/**
- * Single-axis projections of {@link worldToScreen} — the formula stays in this one owner, but a
- * caller that only needs one axis (the grid overlay strokes one line at a time) gets the value back
- * as a number instead of allocating a `[x, y]` tuple and discarding half of it every line
- */
 export function worldToScreenX(x: number, cam: Camera, cw: number): number {
   const zoom = cam.zoom > 0 ? cam.zoom : CAMERA_ZOOM_DEFAULT;
   return (x - cam.x) * zoom + cw / 2;

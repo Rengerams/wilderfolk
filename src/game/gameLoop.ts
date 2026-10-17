@@ -26,19 +26,7 @@ import {
 } from './viewState';
 
 /**
- * Real-time tick rate at 1×: **one simulation tick per real second**, so an in-game hour is 3 real
- * seconds (`TICKS_PER_HOUR = 3`) and an in-game day is **72 real seconds**
- * (`TICKS_PER_DAY = 72 = HOURS_PER_DAY (24) × TICKS_PER_HOUR (3)`; 0.5× ≈ 144 s, 2× ≈ 36 s,
- * 10× ≈ 7.2 s, and a 360-day year ≈ 7.2 h at 1×).
- *
- * Latest owner pacing decision: keep the time *grid* at 24 h × 3 ticks = 72 ticks/day and set the
- * *pace* to 72 s/day. This supersedes the earlier "slower baseline pacing" value of 1.5 (48 s/day) —
- * which a damaged revision had silently reverted to 3 (24 s/day), the regression recorded in
- * `BUG_REPORTS/2026-09-16-baseline-pacing-reverted-to-24s-day.md`.
- *
- * Exported so the pace is pinned by `tests/gameLoop.test.ts` instead of living in
- * comments: that test also fails if the harness copies of this rate (`scripts/test.ts`,
- * `scripts/perf-all.ts`, `scripts/probe-day-budget.mts`) drift from it.
+ * Real-time tick rate at 1×: one simulation tick per real second.
  */
 export const BASE_TICKS_PER_SECOND = 1;
 
@@ -47,46 +35,17 @@ const UI_UPDATE_MS = 250;
 
 const MAX_CATCHUP_STEPS = 12;
 
-/**
- * Catch-up ticks allowed **per frame** at 1× — raised by the speed multiplier.
- *
- * This is a spiral-of-death guard: a frame that arrived late runs extra ticks to catch up, that work
- * makes the frame longer, the next frame has more backlog, and without a bound the loop locks up
- * instead of degrading. The cap trades a little lost simulated time for a loop that always catches up.
- *
- * **It must scale with `speed`, and used to be a fixed 12.** The budget is per frame, so the ticks a
- * second the loop can sustain is `fps × budget`; at 60 fps a fixed 12 caps the whole simulation at
- * **720 ticks/s = 7.2×**, and at 40 fps at 4.8×. So 10× silently delivered ~7× and a frame-rate drop
- * made it worse — the owner measured 9 s and 12 s per in-game day where 10× must give **7.2 s**
- * (72 s ÷ 10). Scaling the budget by `speed` removes that ceiling for the legitimate case while
- * keeping the guard: a backgrounded tab still discards its backlog rather than trying to replay it.
- */
 function catchUpBudgetFor(speed: number): number {
   const requested = Number.isFinite(speed) && speed > 0 ? speed : 1;
-  // Enough for the requested rate at a conservative 30 fps, floored at the historical 12 so 1×
-  // behaviour is unchanged, and bounded so a pathological speed cannot lock the loop.
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
-/**
- * Whether the page is hidden or occluded. `requestAnimationFrame` stops and timers are throttled while
- * it is, so a frame loop that has stopped running is not evidence of a slow frame. Guarded because the
- * node test environment has no `document`.
- */
 function pageHidden(): boolean {
   return typeof document !== 'undefined' && document.hidden;
 }
 
-/** Worker stall watchdog (ms) — the floor, so a fast machine is never called stalled. */
 const WORKER_STALL_TIMEOUT_MS = 10000;
-/** What the save adds to the stall threshold: ordering slack, not a second opinion on speed. */
 const WORKER_EXPORT_MARGIN_MS = 5000;
-/**
- * The ceiling for declaring a stall. `workerTickLatencyMs * 4` has no bound of its own, so without this
- * a pathologically slow tick would hold a save for minutes. It caps the *threshold*, not the budget:
- * the save's budget is derived from the threshold, so capping it here bounds both — and keeps the
- * watchdog firing before the budget, which capping the budget alone would break.
- */
 const WORKER_STALL_CEILING_MS = 15000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
@@ -115,14 +74,6 @@ export interface GameLoopDiagnostics {
   lastDailyBoundaryTick: number;
 }
 
-/**
- * The player-authored slice of UI state to send to the worker.
- *
- * `bigNews`, `floatingTexts` and `activeEvent` are deliberately **not** here: the tick authors them on
- * the worker side and `applyWorkerUiPatch` never adopted them, so including them cloned the news list
- * and every live floating text into every patch for nothing, and a stale patch could have rewound
- * events the player had not seen.
- */
 function extractUiPatch(world: WorldState): WorkerUiPatch {
   return {
     autoSave: world.autoSave,
@@ -167,29 +118,12 @@ export class GameLoop {
   private rafId = 0;
   private running = false;
   private tickAccumulator = 0;
-  /**
-   * How far the accumulator sits through the current fixed step, handed to the renderer so movers
-   * blend between ticks. Paused reads `1` — the exact tick state, no drift and no smear.
-   */
   private tickFraction = 1;
   private lastFrameTime = 0;
   private lastUiUpdate = 0;
-  /**
-   * Speed diagnostic — ticks actually executed, sampled every few seconds.
-   *
-   * Added because the high speed multipliers visibly under-deliver and neither of us could settle why
-   * by reasoning: at 10× a day must take **7.2 s** (72 s ÷ 10), the owner measured 9 s and 12 s, and
-   * reported their frame rate "is different each time". Two candidate causes need different fixes —
-   * the per-frame catch-up budget (`catchUpBudgetFor`, ceiling `fps × budget`), or the raw cost of one
-   * tick (a tick must finish inside `msPerTick`, 100 ms at 10×). This counter separates them by
-   * comparing achieved ticks/second against `BASE_TICKS_PER_SECOND × speed`.
-   *
-   * Off at 1× so normal play pays nothing.
-   */
   private diagTicks = 0;
   private diagSince = 0;
   private diagFrames = 0;
-  /** Real (unclamped) frame gaps: the simulation clamps them to 100 ms, the report must not. */
   private diagFrameMs = 0;
   private diagFrameMaxMs = 0;
   private diagHiddenFrames = 0;
@@ -250,9 +184,6 @@ export class GameLoop {
               this.workerHost?.dispose();
               this.workerHost = null;
             }
-            // A session swap during boot used to abandon the worker permanently: the loop ran on
-            // the main thread for the rest of the session with no recovery attempt. Schedule the
-            // same recovery every other failure path uses.
             this.scheduleWorkerRecovery();
             return;
           }
@@ -392,9 +323,13 @@ export class GameLoop {
       });
   }
 
-  private registerWorkerHandlers(initGen: number): void {
-    this.workerHost!.setTickResultHandler((nextWorld, _delta, render, changed) => {
-      if (initGen !== this.sessionGen) return;
+  private registerWorkerHandlers(_initGen?: number): void {
+    const host = this.workerHost;
+    if (!host) return;
+
+    host.setTickResultHandler((nextWorld, _delta, render, changed) => {
+      // Check of de host nog steeds de actieve host is (i.p.v. sessionGen blokkade)
+      if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
 
       if (this.lastWorkerTickRequest > 0) {
@@ -420,13 +355,13 @@ export class GameLoop {
       this.workerTickChanged = changed;
     });
 
-    this.workerHost!.setWorkerFaultHandler((source, message) => {
-      if (initGen !== this.sessionGen) return;
+    host.setWorkerFaultHandler((source, message) => {
+      if (this.workerHost !== host) return;
       this.fallbackFromWorker(`Worker ${source} error: ${message}`);
     });
 
-    this.workerHost!.setCommandResultHandler((world, _delta, render, ok, reason) => {
-      if (initGen !== this.sessionGen) return;
+    host.setCommandResultHandler((world, _delta, render, ok, reason) => {
+      if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
 
       const hadOptimistic = this.optimisticCommands.length > 0;
@@ -517,14 +452,6 @@ export class GameLoop {
     return this.world;
   }
 
-  /**
-   * Whether the most recent {@link exportAuthoritativeWorld} fell back to the display world.
-   *
-   * That fallback is deliberate — a worker fault, a host swap or a timed-out idle wait must still
-   * produce a save — but the display world is a clone the optimistic commands were replayed onto, so
-   * a degraded export can persist a player action the worker never confirmed. The caller warns on it
-   * rather than letting a success toast stand for a save that may not match the running colony.
-   */
   lastExportWasDegraded(): boolean {
     return this.exportDegraded;
   }
@@ -584,11 +511,6 @@ export class GameLoop {
     this.commandChain = this.commandChain
       .then(async () => {
         try {
-          // Wait for the worker handshake through the host, never by polling `workerBooting`:
-          // this chain is the only code that clears that flag for a session swap, so waiting on it
-          // deadlocked the loaded village forever — no import posted, no ticks on either path and
-          // every player command deferred unboundedly
-          // (`BUG_REPORTS/2026-09-16-loading-a-save-freezes-the-sim-worker.md`).
           await host.whenReady();
           if (sessionGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
           await host.whenIdle();
@@ -604,8 +526,6 @@ export class GameLoop {
           this.flushDeferredWorkerCommands();
           afterImport?.();
         } finally {
-          // The flag always comes down for the session that raised it — including a stop mid-import,
-          // where the old code left it raised forever.
           if (sessionGen === this.sessionGen && this.workerHost === host) this.workerBooting = false;
         }
       })
@@ -661,10 +581,6 @@ export class GameLoop {
         .then(() => {
           const host = this.workerHost;
           if (cmdGen !== this.sessionGen || !this.running || !host?.isReady()) return;
-          // Let the tick pipeline drain before sending a command. Once a command is pending,
-          // canPipelineTick() deliberately stops new ticks because the command needs its own render
-          // buffer. Sending Auto-play's command while several ticks were already in flight therefore
-          // made the clock appear frozen behind a queued build action.
           return host.whenIdle().then(() => {
             if (cmdGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
             return host.sendCommand(cmd).then(() => undefined);
@@ -755,51 +671,20 @@ export class GameLoop {
         this.workerHost.patchUiState(extractUiPatch(this.world));
       }
     }
-    // Forced: `notify` dedupes on the tick, and a player-authored mutation (pause above all) does
-    // not advance it — so the unforced call was swallowed while paused and the header kept reading
-    // "Pause simulation" with no ⏸ banner, because nothing asked React to repaint (P6 browser pass
-    // finding, 2026-09-20). Elsewhere this shape is already the norm for out-of-tick state changes.
     this.notify(true, false, true);
   }
 
-  /**
-   * Read the **authoritative** world out of the worker, for a save to persist.
-   *
-   * This is a read, not a switch of authority. It deliberately does **not** assign the result to
-   * `this.world`: `workerHost.exportSave()` resolves to a fresh clone of the worker's world, and
-   * adopting that clone as the display world split the two apart for the rest of the session —
-   * `GameWorkerHost.getAuthoritativeWorld()` keeps returning its own long-lived `worldRef`, so every
-   * later tick result replaced the display from `worldRef` again regardless. In the window between,
-   * the clone carried the worker's `paused` / `speed` / dismissed-id sets while `applySimTickDelta`
-   * never writes those fields, and `mutateWorld` forwards a control to the worker only when it
-   * changes — so a player-authored control made just before a save could be reverted on screen and
-   * could not be re-sent.
-   *
-   * The returned world is hydrated so the caller can read it (and hand it to the save writer)
-   * without hitting missing runtime caches. `this.world` keeps whatever the display left it as.
-   */
   async exportAuthoritativeWorld(timeoutMs = this.workerExportBudgetMs()): Promise<WorldState> {
-    // The host is captured, never re-read off `this` after an await. `fallbackFromWorker` is reachable
-    // from the frame loop at any moment and nulls `workerHost` without bumping `sessionGen`, so the
-    // identity test below is the only one that catches a host swap mid-save.
     const host = this.workerHost;
     if (this.workerEnabled && host?.isReady()) {
-      const exportGen = this.sessionGen;      try {
-        // Deliberately **no** `syncAfterWorkerMutation()` here. It adopts the host's authoritative
-        // world into the display, which is right for the command-failure paths that call it — they
-        // have just been told the display is wrong — and wrong for a read: it advances the display to
-        // the authority (dropping any optimistic command the player is still waiting to see) as a side
-        // effect of pressing Save. The export needs no such nudge, because `whenIdle()` below already
-        // waits for every tick and command to settle, and the worker packs the clone from its own
-        // world regardless of what main thinks.
+      const exportGen = this.sessionGen;
+      try {
         await Promise.race([
           host.whenIdle(),
           new Promise<void>((_, reject) => {
             setTimeout(() => reject(new Error('Worker idle wait timed out')), timeoutMs);
           }),
         ]);
-        // A worker fault replaces the host and already synced the display world (`fallbackFromWorker`),
-        // so falling back to `this.world` is correct — and must not read the field it just nulled.
         if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
           this.exportDegraded = true;
           return this.world;
@@ -823,15 +708,10 @@ export class GameLoop {
         this.exportDegraded = true;
       }
     }
-    // No worker in play: the display world *is* the authority, so nothing was degraded.
     this.exportDegraded = false;
     return this.world;
   }
 
-  /**
-   * When the frame loop calls a worker tick stalled. One definition, because the save's budget is
-   * derived from it: the margin only orders the two, it is not a second opinion on speed.
-   */
   private workerStallThresholdMs(): number {
     return Math.min(
       WORKER_STALL_CEILING_MS,
@@ -839,11 +719,6 @@ export class GameLoop {
     );
   }
 
-  /**
-   * The save's budget for the worker: the stall threshold plus a margin, so the fallback that
-   * `dispose()` lets settle the export always beats this timer. Anything that moves the threshold —
-   * a slow tick raising `workerTickLatencyMs * 4` — moves the budget with it.
-   */
   private workerExportBudgetMs(): number {
     return this.workerStallThresholdMs() + WORKER_EXPORT_MARGIN_MS;
   }
@@ -893,10 +768,6 @@ export class GameLoop {
       this.rafId = 0;
     }
 
-    // Listeners are deliberately NOT cleared: `stop()` stops the frame loop, and a later
-    // `start()` on the same instance must still have the UI subscribed — clearing them made a
-    // stopped-then-started loop silently frozen. The set belongs to
-    // the instance, so dropping the loop drops the listeners with it.
     clearAllFactionWanderStates();
     this.workerHost?.dispose();
     this.workerHost = null;
@@ -970,8 +841,6 @@ export class GameLoop {
       v.showGrid ? 1 : 0,
       v.showPaths ? 1 : 0,
       ghost ? `${ghost.x.toFixed(0)},${ghost.y.toFixed(0)},${ghost.valid ? 1 : 0}` : '',
-      // The whole stroke, not just its length and axis: the preview is what the player is judging,
-      // and a stroke that slides one tile over keeps its count.
       strip ? `${strip.segments.length}|${strip.rotation}|${strip.segments[0].x},${strip.segments[0].y}|${strip.segments[strip.segments.length - 1].x},${strip.segments[strip.segments.length - 1].y}|${strip.segments[0].valid ? 1 : 0}` : '',
       this.renderSoA ? 'soa' : 'obj',
     ].join('|');
@@ -991,13 +860,11 @@ export class GameLoop {
     if (!this.running) return;
 
     if (!this.lastFrameTime) this.lastFrameTime = time;
-    // Clamped for the simulation, raw for the report: a frame that took 3 s must not read as 100 ms.
     const rawDtMs = time - this.lastFrameTime;
     const dtMs = Math.min(rawDtMs, 100);
     this.lastFrameTime = time;
 
     let tickChanged = false;
-    /** Ticks the simulation actually ran this frame — the only quantity that measures sim rate. */
     let ticksThisFrame = 0;
 
     if (!this.world.paused) {
@@ -1008,7 +875,6 @@ export class GameLoop {
       this.tickAccumulator += dtMs;
       const msPerTick = 1000 / (BASE_TICKS_PER_SECOND * this.world.speed);
       let steps = 0;
-      // The per-frame catch-up budget, scaled by speed (see `catchUpBudgetFor`).
       const catchUpBudget = catchUpBudgetFor(this.world.speed);
       const canvas = this.getCanvas();
       const focus: SimulationFocus | undefined = canvas
@@ -1019,8 +885,6 @@ export class GameLoop {
         // Hold accumulator until worker is authoritative
       } else if (this.workerEnabled && this.workerHost) {
         const stallMs = this.workerStallThresholdMs();
-        // Silence only counts while ticks are being asked for: a pause posts none, so the clock
-        // otherwise aged for the whole pause and the first tick back condemned a healthy worker.
         const silenceMs =
           performance.now() - Math.max(this.lastWorkerActivity, this.lastWorkerTickRequest);
         const stalled = this.workerHost.hasTickInFlight() && silenceMs > stallMs;
@@ -1055,9 +919,6 @@ export class GameLoop {
       if (!this.workerEnabled && !this.workerBooting) {
         while (this.tickAccumulator >= msPerTick && steps < catchUpBudget) {
           const advanced = this.stepFallbackTick(focus);
-          // Consume the attempted step either way. A tick that threw left the world at its
-          // pre-tick state, so keeping its time would only re-attempt the same slice — and the
-          // remaining catch-up budget with it — on the very next frame.
           this.tickAccumulator -= msPerTick;
           if (!advanced) break;
 
@@ -1077,12 +938,9 @@ export class GameLoop {
         this.renderMetaBySlot = null;
         ticksThisFrame = steps;
       }
-      // The remainder of the fixed step is the render blend. A backed-up accumulator (the catch-up
-      // budget ran out) clamps to 1 rather than overshooting the tick it is already past.
       this.tickFraction = Math.min(1, this.tickAccumulator / msPerTick);
     } else {
       this.tickAccumulator = 0;
-      // Paused: no step is in progress, so the exact tick state is what must be drawn.
       this.tickFraction = 1;
       if (this.workerHost && this.lastPausedSentToWorker !== true) {
         this.workerHost.setPaused(true);
@@ -1093,11 +951,6 @@ export class GameLoop {
     this.view = updateView(this.view, dtMs);
     this.draw();
 
-    // Speed diagnostic — see `diagTicks`. Reports achieved vs target ticks/second and frame cost, so
-    // "10x is not 10x" can be attributed to the catch-up budget or to tick cost instead of guessed at.
-    // It also reports why ticks were *not* posted: a saturated pipeline (`inv`), a command holding the
-    // gate (`cmd`), banked lag (`debt`), and worker silence (`silentMs`) — a stall with the CPU idle is
-    // a scheduling answer, not a compute one, and the previous line could not tell them apart.
     if (this.world.speed > 1 && !this.world.paused) {
       this.diagTicks += ticksThisFrame;
       this.diagFrames += 1;
@@ -1141,27 +994,12 @@ export class GameLoop {
     }
   }
 
-  /**
-   * Run one main-thread tick under the worker's rollback contract.
-   *
-   * The worker snapshots the mutable sim slices before its tick and puts them back when `gameTick`
-   * throws (`gameWorker.ts:307`, `:346-349`). The fallback had no such guard, and a throw is not
-   * harmless there: `gameTick` advances `state.tick` and runs all four layers *before* its own
-   * invariant check, so each failed frame left one more partially-applied tick in the world — and,
-   * because the throw escaped `frameBody`, it also skipped that frame's draw and UI notify, once per
-   * frame, forever. The snapshot/restore pair is the same one that path uses, so both sides
-   * now fail identically.
-   *
-   * Returns `true` when the tick was applied, `false` when it was rolled back.
-   */
   private stepFallbackTick(focus: SimulationFocus | undefined): boolean {
     const prepBackup = extractSimPrep(this.world);
     try {
       gameTick(this.world, focus);
     } catch (err) {
       applySimPrep(this.world, prepBackup);
-      // Reported once per failing run, not once per frame: the frame-level handler used to log
-      // every one of these, which is 60 identical stack traces a second.
       if (!this.fallbackTickFailureReported) {
         this.fallbackTickFailureReported = true;
         console.warn(
@@ -1175,16 +1013,6 @@ export class GameLoop {
     return true;
   }
 
-  /**
-   * Drop the cached render snapshot after a non-tick world change.
-   *
-   * `snapshotDirtyKey()` tracks `w.tick` and `w.buildings.length` for buildings, while the snapshot
-   * holds `world.buildings` **by reference** (`renderSnapshot.ts:117`). A repair, upgrade or recipe
-   * command changes neither, so while paused the cached snapshot kept pointing at the pre-command
-   * array and the damage bar did not move until something unrelated changed the key.
-   * Invalidating on every out-of-tick world change is the honest statement — "the world object
-   * changed, rebuild" — and costs nothing per frame, unlike folding a revision counter into the key.
-   */
   private invalidateRenderSnapshot(): void {
     this.snapshotCache = null;
     this.snapshotKey = '';
@@ -1213,7 +1041,6 @@ export class GameLoop {
     const ctx = this.canvasCtx;
     if (!ctx) return;
 
-    // The canvas layer owns the device-pixel ratio this context is scaled by (`F-RND-7`).
     const dpr = getRenderDpr();
     const targetW = Math.floor(layoutW * dpr);
     const targetH = Math.floor(layoutH * dpr);

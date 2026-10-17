@@ -193,29 +193,14 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 };
 
 /** Max sleepers at one staffed hotel overnight — visitors and settlers share the same beds. */
-export const HOTEL_GUEST_CAPACITY = 8;
+export const HOTEL_GUEST_CAPACITY = 12;
 
-/**
- * The building types whose `level` genuinely changes something — the exact set an upgrade may be
- * offered for.
- *
- * Derived from what actually reads the field, not from "it has a job": a level is only worth
- * resources where something consumes it. Three readers exist in the whole codebase —
- * `dailyBuildingEconomy` multiplies production by `level` (through `totalMult`), `workshopEconomy`
- * scales a workshop recipe, and `getResidenceCapacity` adds two beds per level.
- *
- * A job is not a production path, and neither is a civic function. Church, School, Tavern, Prison,
- * Barracks, Hospital and Town Hall are all staffed workplaces whose level is read by **nothing** —
- * their effects are flat (`grantHospitalIntervalReputation`, `tickTownHallCivic`) or live in a
- * separate system. The rule "has a job" put an ⬆ Upgrade button on them and made the auto-play bot
- * pay for it.
- */
+
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
   // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`), which
   // includes the Leader's House (base 12) — its level is read even though it is unique.
   BuildingType.House,
   BuildingType.Mansion,
-  BuildingType.LeaderHouse,
   // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
   BuildingType.Blacksmith,
   BuildingType.Workshop,
@@ -231,23 +216,10 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
   BuildingType.HuntingSpot,
   BuildingType.FishingSpot,
 ]);
-/**
- * Occupation string of the sitting village leader — no workplace, no auto-assign
- * (leading is the job; family members keep normal occupations). See leaderHouse.ts.
- */
+
 export const LEADER_OCCUPATION = 'leader';
 
-/**
- * The human state a Moon Howler form parks while the settler is a werewolf.
- *
- * One declaration, here, because `Entity` owns it. It used to be declared **twice** — inline on
- * `Entity.moonHowlerSaved` and again as `MoonHowlerSavedState` in `moonHowler.ts` — and the two
- * disagreed: the local copy listed `pregnancyDueProgress`, the live inline one did not, so the field
- * was in one contract and absent from the one the code actually assigned through. `saveLoad` scaled a
- * field that was therefore never present, and `revertToHumanForm` restored `pregnant` and
- * `pregnantById` without the due progress the invariant check pairs with them (2026-09-20 audit,
- * bug 38). The unused local copy is deleted rather than kept in sync.
- */
+
 export interface MoonHowlerSavedState {
   energy: number;
   maxEnergy: number;
@@ -302,13 +274,7 @@ export interface Entity {
   schoolDays?: number;
   schoolTicksToday?: number;
   scheduleWorkedTicksToday?: number;
-  /**
-   * Hours this settler was actually on shift over the last settled day, snapshotted by
-   * `resolveDailyScheduleFatigue` before it zeroes `scheduleWorkedTicksToday` (which runs before the
-   * daily economy, so that pass has no other way to see attendance). The daily production
-   * calculation pays for these hours rather than for a settler merely being assigned to a building.
-   * Derived from `scheduleWorkedTicksToday` each day, so it needs no save migration.
-   */
+ 
   scheduleLastWorkedHours?: number;
   scheduleFatigue?: number;
   educated?: boolean;
@@ -335,14 +301,7 @@ export interface Entity {
   lastAffairSiteY?: number;
   scandalCooldownUntilTick?: number;
   griefUntilTick?: number;
-  /**
-   * Former spouses, each mapped to the tick their marriage to this settler ended.
-   *
-   * `isEligibleToCourt` asks nothing about the past, so a divorced pair — who usually still share a
-   * house and therefore meet every day — could court and remarry immediately, then divorce again on
-   * the next daily amicable roll. This is the pair's own record, so the "not the same person again
-   * for a year" rule in `humanRelationships` has something to read.
-   */
+  
   pastPartnerTicks?: Record<number, number>;
   courtshipPartnerId?: number;
   courtshipProgress?: number;
@@ -499,11 +458,7 @@ export interface FloatingText {
   scale: number;
 }
 
-/**
- * Ticks before the end of a floating text's life at which its fade-out (renderer alpha) and its
- * shrink (simulation scale) both begin. One constant, because the two ramps count down the same
- * `FloatingText.life` and had drifted to 7 and 6 — a mismatch nobody could see or explain.
- */
+
 export const FLOATING_TEXT_FADE_TICKS = 6;
 
 export interface GameEvent {
@@ -759,12 +714,6 @@ export interface WorldState {
   workSchedule?: import('./workSchedule').WorkSchedule;
   tavernSchedule?: import('./venueSchedule').VenueSchedule;
   hotelSchedule?: import('./venueSchedule').VenueSchedule;
-  /**
-   * Colony-wide auto-staffing priority preset (roadmap F3). Strategic default only:
-   * a manual assignment and a building's own `staffingMode` both outrank it, and it is
-   * never a removal authority. Optional because saves written before F3 omit it — the
-   * load path applies `DEFAULT_WORKFORCE_POLICY` (`workforcePolicy.ts`).
-   */
   workforcePolicy?: import('./workforcePolicy').WorkforcePolicy;
   villageReputation: number;
   resources: Resources;
@@ -773,12 +722,6 @@ export interface WorldState {
   ecosystemHealth: number;
   biodiversityIndex: number;
   pollutionLevel: number;
-  /**
-   * Story-layer adjustments queued for the next `tickEcosystemMetrics`, which is the owner of both
-   * derived fields and the only place a delta can be applied without being overwritten in the same
-   * tick. Optional because saves written before this existed omit them (absent reads as 0), and
-   * because a day with no story beat never sets them — see `dailyEcology.adjustEcosystemHealth`.
-   */
   pendingEcosystemHealthDelta?: number;
   pendingPollutionDelta?: number;
   valleyStage?: ValleyStage;
@@ -857,18 +800,7 @@ export interface WorldState {
   adjacency?: AdjacencyIndex;
   entityById?: Map<number, Entity>;
   eventsThisYear?: string[];
-  /**
-   * Deaths accumulated during the current calendar year, reset at the year rollover.
-   * Counted by `gameTick` from the entities that were alive at the start of the tick and are
-   * not alive at the end of it, because `state.entities` only ever holds the living.
-   */
   deathsThisYear?: { humans: number; animals: number };
-  /**
-   * Positions of this realm's RNG streams, carried across a realm boundary (save file, worker
-   * hand-off, prep rollback snapshot). The live state is owned by `simRng`; this field is only a
-   * transport container, refreshed at each boundary so a resumed or retried world continues its
-   * draws instead of replaying each owner's sequence from the start.
-   */
   simRng?: SimRngSnapshot;
   appliedSaveMigrations?: string[];
 }
@@ -888,27 +820,7 @@ export interface GameEventLog {
     | 'marriage'
     | 'divorce'
     | 'scandal'
-    /**
-     * A settler jailed for a scandal (`arrestForScandal`).
-     *
-     * Its own type rather than `'scandal'` or `'event'`, which is what the owner's report needed
-     * ("i cant seee if people get in prison"): as `'event'` it landed in the generic Events bucket
-     * (1 531 of the owner's 2 000 entries) and no filter could find it, and folding it into
-     * `'scandal'` would inflate the scandal count and pull imprisonments into the rumour ledger,
-     * which reads that type. One event, one kind.
-     */
     | 'prison'
-    /**
-     * The leadership election: the ceremony beginning, a postponement, and the result.
-     *
-     * Same shape and same reason as `'prison'` above, from the owner's next report: *"an i didnt get a
-     * mesage about a election ceremony"*, then *"there is nothing in the logs about it"* and *"2000
-     * lins of logs is quite some time so a electrion should be visibel"*. The ceremony's lines were
-     * `'event'`, the bucket that holds the majority of the log, so an election could not be filtered
-     * out of it even while its lines were still inside the 2 000-entry window. It is **not** applied to
-     * `electionPromises`' own lines: `legacyGoals.findPromiseVerdict` reads the campaign-promise
-     * verdict by `type === 'event'`, so moving those would silently end that achievement.
-     */
     | 'election'
     | 'building'
     | 'disaster'
@@ -928,12 +840,6 @@ export interface DailyEconomyLedger {
   day: number;
   produced: Record<string, number>;
   consumed: Record<string, number>;
-  /**
-   * Day totals, maintained by the ledger owner as entries are recorded and recomputed by the daily
-   * economy tick, so no reader has to add the maps up. Optional because saves written before this
-   * existed carry only the maps; the daily tick fills them (`LIVE-FINDINGS-STATUS.md`, F2 —
-   * "food can't be calculated at the UX", owner: "it should be in dailytick").
-   */
   producedTotal?: number;
   consumedTotal?: number;
 }
@@ -1104,31 +1010,13 @@ export const MapSize = {
 } as const;
 export type MapSize = (typeof MapSize)[keyof typeof MapSize];
 
-/**
- * World pixels per map size — the Teraforge spec the ground renderer is measured against
- * (`renderer/whittakerTerrain`'s bake table).
- *
- * These are the spec values, not the reduced ones. The ground fill bakes each chunk at the camera's
- * own step and re-bakes a chunk in place when the zoom crosses a step boundary (`renderer/terrain`'s
- * `targetGroundStep`, at most one chunk per frame), so a 50 % overview resolves at step 2 instead of
- * sharpening eighty chunks of 1:1 ground on top of the first view — the cost that kept these sizes out
- * of the build once before. The four suites that encode a map's scale were re-pinned with this change:
- * the compact-save round trip (`saveWorldMap.compact`), the river-network rules
- * (`terragen.riverGeneration`), and two simulation behaviours (`medium-C1-economy` deer spawn,
- * `workCommute.leadHour`).
- */
+
 export const MAP_SIZE_DIMENSIONS: Record<MapSize, { width: number; height: number }> = {
   [MapSize.Medium]: { width: 2560, height: 1920 },
   [MapSize.Large]: { width: 4096, height: 3072 },
   [MapSize.Huge]: { width: 6144, height: 4608 },
 };
 
-/**
- * One L3 ground prop — Teraforge's biome-density decoration layer (trees excluded: those are entities).
- *
- * **The owner of the shape.** `terrain/terragen` generates these and `renderer/decor` draws them, and
- * both used to declare their own copy of the same six fields — two readers of one array, free to drift.
- */
 export interface TerrainDecoration {
   x: number;
   y: number;

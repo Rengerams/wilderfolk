@@ -67,12 +67,8 @@ function postError(
 /** Settled once per worker realm — see `ensureNamePoolSettled`. */
 let namePoolSettled: Promise<void> | null = null;
 
-
 export function ensureNamePoolSettled(): Promise<void> {
-  namePoolSettled ??= loadNames().catch(() => {
-    // `loadNames` reports its own failure and leaves the embedded pool installed; a second caller must
-    // not be handed a rejected promise for a load that already has a usable outcome.
-  });
+  namePoolSettled ??= loadNames().catch(() => {});
   return namePoolSettled;
 }
 
@@ -167,8 +163,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     try {
       await ensureNamePoolSettled();
     } catch (err) {
-      // Unreachable through `loadNames`, which reports its own failure and resolves. Kept so a future
-      // rejection is a worker fault the host can see, not a silently dropped message.
       postError(`Name pool load failed: ${err instanceof Error ? err.message : String(err)}`, 'general');
     }
   })();
@@ -179,9 +173,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         headlessMode = msg.headless ?? false;
         resetWorkerSession(msg.world);
         bufferPool = headlessMode ? null : new RenderBufferPool();
-
-        // The census name pool is already being settled by the gate at the top of this handler, which
-        // owns that contract in one place — this branch used to start a second, unawaited load.
 
         const ready: WorkerResponse = {
           type: 'ready',
@@ -212,7 +203,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const liveSimulationState = captureSimulationState(world);
         invalidateWorldRuntimeCaches(world);
         const clonedWorld = structuredClone(world);
-        // The clone carries the ticked realm's own positions; its hand-off stamp predates every tick.
         stampWorldSimRng(clonedWorld);
         hydrateWorldRuntimeCaches(world);
         restoreSimulationState(world, liveSimulationState);
@@ -323,8 +313,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'patchUi': {
         if (!world) break;
-        // Only the player-authored fields are adopted; `bigNews`, `floatingTexts`, `activeEvent` and
-        // `nextFloatingTextId` belong to the tick on this side.
         applyWorkerUiPatch(world, msg);
         break;
       }
@@ -374,8 +362,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
           packAndPostTickResult(aliveNow, acquired);
         } catch (err) {
-          applySimPrep(world, prepBackup);
-          postError(err instanceof Error ? err.message : String(err), 'tick');
+            applySimPrep(world, prepBackup);
+            postError(err instanceof Error ? err.message : String(err), 'tick');
         }
         break;
       }

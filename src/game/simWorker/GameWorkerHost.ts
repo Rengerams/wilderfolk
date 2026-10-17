@@ -736,5 +736,5 @@ export class GameWorkerHost {
 // return true;
 
 export function isGameWorkerEnabled(): boolean {
-  return false; // <-- FORCEER DIT TIJDELIJK OP FALSE
+  return true; // <-- FORCEER DIT TIJDELIJK OP FALSE
 }

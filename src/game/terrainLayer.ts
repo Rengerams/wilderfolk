@@ -98,12 +98,6 @@ function drawTerrainFill(
   const prev = ctx.globalAlpha;
   try {
     ctx.globalAlpha = prev * alpha;
-    // ONE stamp. A second "seam wrap" used to draw the *remainder* of the texture
-    // (`sx, sy → iw, ih`) stretched over the whole tile at 35 % alpha to vary the repeat.
-    // That is not a wrap: when `sx`/`sy` were small the crop was nearly the whole texture,
-    // so the tile received the texture twice at two different scales — a double-exposed
-    // ghost (audit `visuals-looks.md` D9). Repeat variety comes from `tile.variation`
-    // tinting in the bake and from the neighbour blends.
     ctx.drawImage(img as CanvasImageSource, 0, 0, iw, ih, x0, y0, fillW, fillH);
     ctx.globalAlpha = prev;
     return true;
@@ -253,17 +247,6 @@ export interface TerrainLayerCache {
   materialAtlasRevision: number;
 }
 
-/**
- * Monotonic counter for post-worldgen `WorldMap.tiles` mutation.
- *
- * Every terrain cache key is derived from the map's immutable-looking fields (seed, preset,
- * size, season, LOD), so a tile whose `type` changed after worldgen kept its old texture for
- * as long as its cache entry lived — clearing forest under a new footprint left the forest
- * fill and its canopy overlay on the cleared tiles (audit `visuals-looks.md` D4). The
- * mutation owner bumps this instead of the caches guessing.
- *
- * Presentation-only: never saved, never read by the simulation, process-local by design.
- */
 let terrainRevision = 0;
 
 export function bumpTerrainRevision(): void {

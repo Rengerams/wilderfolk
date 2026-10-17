@@ -75,11 +75,7 @@ function getRandomInt(min: number, max: number): number {
 
 const UNPASSABLE_WILDLIFE_TERRAIN = new Set<TerrainType>([
   TerrainType.DeepWater,
-  TerrainType.ShallowWater,
   TerrainType.River,
-  TerrainType.RiverBank,
-  TerrainType.Mountains,
-  TerrainType.Snow,
 ]);
 
 function getTileAtWorld(state: WorldState, x: number, y: number) {
@@ -247,12 +243,6 @@ export function createBuilding(
   };
 }
 
-/**
- * Scatter `count` grass entities around `(cx, cy)`, mirroring `registerSpawnedWildlife`: every
- * entity is pushed to `state.entities`, indexed, and then offered to `opts.onSpawn`. The daily
- * layer passes the canonical `pushNewEntity` routing there, because the array it pushes into is
- * replaced by `gameTick` at the end of the tick.
- */
 export function spawnGrassPatch(
   state: WorldState,
   cx: number,
@@ -356,13 +346,13 @@ export function replenishDepletedWildlife(
   const MIN_GRASS = 65;
   const MIN_PREY_GRASS = MIN_GRASS - 20;
   const MIN_RABBITS = 35;
-  const TARGET_RABBITS = 55;
+  const TARGET_RABBITS = 150;
   const MIN_DEER = 12;
-  const TARGET_DEER = 20;
+  const TARGET_DEER = 45;
   const MIN_FOXES = 8;
-  const TARGET_FOXES = 14;
+  const TARGET_FOXES = 20;
   const MIN_WOLVES = 5;
-  const TARGET_WOLVES = 6;
+  const TARGET_WOLVES = 10;
 
   const cx = state.width / 2;
   const cy = state.height / 2;
@@ -378,22 +368,18 @@ export function replenishDepletedWildlife(
     grassReplenished = true;
   }
 
-  // The patches land in `state.entities` (the list `gameTick` replaces at the end of the tick) *and*,
-  // through `onSpawn` → `pushNewEntity`, in `ctx.newEntities`, which `gameTick` drains back into the
-  // authoritative entity list. So every patch counted here is a patch that really lands — the prey
-  // gate below no longer credits pasture that was thrown away (S-2).
   const grassAfterReplenish = needsGrass
     ? computeWildlifeCounts(state.entities).grass
     : grassCount;
   const sufficientGrass = grassAfterReplenish >= MIN_PREY_GRASS;
 
-  const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrass) || rabbits < 4;
-  const needsDeer = (deer < MIN_DEER && sufficientGrass) || deer < 2;
+  const needsRabbits = (rabbits < MIN_RABBITS && sufficientGrass) || rabbits < 20;
+  const needsDeer = (deer < MIN_DEER && sufficientGrass) || deer < 10;
   const sufficientPreyForFoxes = rabbits >= 20;
-  const needsFoxes = (foxes < MIN_FOXES && sufficientPreyForFoxes) || foxes < 2;
+  const needsFoxes = (foxes < MIN_FOXES && sufficientPreyForFoxes) || foxes < 10;
   const totalWolfPrey = deer + foxes + rabbits;
   const sufficientPreyForWolves = totalWolfPrey >= 30;
-  const needsWolves = (wolves < MIN_WOLVES && sufficientPreyForWolves) || wolves < 2;
+  const needsWolves = (wolves < MIN_WOLVES && sufficientPreyForWolves) || wolves < 5;
 
   const needsWildlife = needsRabbits || needsDeer || needsFoxes || needsWolves;
   if (!needsWildlife && !grassReplenished) return false;
@@ -464,8 +450,6 @@ export function createImmigrantSettler(
   ensureNamesLoaded();
   const colonyDay = getColonyDay(state);
 
-  // 1. A young settler arriving alone (10%): a youth — old enough to work, court and be
-  //    educated further, too young to marry. Never a child: a child only comes with its parents.
   if (randomBool(rng, Immigration.LONE_YOUTH_CHANCE)) {
     const isFemale = randomBool(rng, 0.5);
     const gender: 'male' | 'female' = isFemale ? 'female' : 'male';
@@ -504,8 +488,6 @@ export function createImmigrantSettler(
       name: wifeName,
       surname: familySurname,
       maidenSurname: wifeMaidenSurname,
-      // Both partners arrive already married, so both must be at the marriage floor
-      // (`HUMAN_MOVE_OUT_MIN_AGE` = 18) rather than the adult-work floor of 16.
       ageYears: Math.max(Immigration.ADULT_AGE_MIN, age - 2),
       colonyDay,
       pregnant: isPregnant,
@@ -579,7 +561,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   ensureNamesLoaded();
 
   const {
-    size = MapSize.Medium,
+    size = MapSize.Huge,
     preset,
     villageName,
     seed,
@@ -590,21 +572,10 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   setSimSeed(mapSeed);
   enableSeededGlobalRandom();
 
-  const dims = MAP_SIZE_DIMENSIONS[size] ?? MAP_SIZE_DIMENSIONS[MapSize.Medium];
+  const dims = MAP_SIZE_DIMENSIONS[size] ?? MAP_SIZE_DIMENSIONS[MapSize.Huge];
   const width = options.width ?? dims.width;
   const height = options.height ?? dims.height;
 
-  // The caps a fresh colony starts with come from the *owner* (`economy.computeStorageMax`), the same
-  // rule `updateStorageCaps` applies every day. This used to be a second literal
-  // (`1000 / 500 / 1000 / 2000 / 500`) that disagreed with the rule's `800 / 300 / 800 / 20000 / 300`,
-  // and since the daily layer does not run until tick 72, that literal was the ceiling the player
-  // actually played the first days against — gold 10× too low, materials 25–67 % too high
-  //
-  // The empty list is literal rather than a placeholder: `initGame` builds `buildings: []` below and
-  // generation never adds one — nothing in this module pushes to `state.buildings` (the only writers
-  // are `buildingPlacementActions`, `groupEvents` and `rivalEvents`, all post-init) — so a fresh
-  // colony's real building set *is* the empty set. `updateStorageCaps` derives the same numbers on
-  // its first pass. Guarded by `tests/storageCap.test.ts`.
   const storageMax = computeStorageMax([]);
 
   const state: WorldState = {

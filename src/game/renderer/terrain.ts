@@ -72,57 +72,17 @@ const TERRAIN_CHUNK_SIZE = 1024; // world px per chunk
 const TERRAIN_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
 const terrainChunkCache = new Map<string, TerrainLayerCache>();
 let terrainChunkCacheKey = '';
-// Per-pixel Whittaker ground (Teraforge). Baked **per viewport chunk**, not for the whole map:
-// every colour term is a function of the world coordinate, so a chunk bake is pixel-identical to
-// the matching crop of a whole-map bake, while the cost of a frame is bounded by what the camera
-// can see instead of by map area. The whole-map version measured 5.4 s at 6144×4608, which is what
-// blocked the Teraforge spec map sizes.
-//
-// **256 world px, not 1024.** The chunk span is the size of the hitch you feel when the camera reveals
-// one and of the *waste*: the grid is aligned to it and kept one chunk of margin around the viewport,
-// so a large chunk bakes many times the visible area. The canvas is this span divided by the chunk's
-// own bake step (`targetGroundStep`); the **world span never changes with zoom**, which is what keeps
-// the chunk keys stable — a zoom re-bakes chunks in place instead of re-keying the cache.
 const WHITTAKER_CHUNK_SIZE = 256; // world px per chunk; the canvas is this / the chunk's bake step
 const WHITTAKER_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
-/**
- * World px of overhang a chunk's decor canvas carries on every side.
- *
- * A prop's art reaches ~24 world px from its origin (a flower is 18 px tall, a big rock ~13 px across at
- * its largest scale), so a decor canvas that stopped at the chunk edge would slice every prop standing
- * near that edge along a visible grid line. The margin costs ~40 % more decor pixels per chunk and
- * removes the seam entirely: neighbouring canvases overlap, the ground/props in the overlap are the same
- * pixels, and each prop is painted by exactly one chunk (the one holding its origin).
- */
 const DECOR_CHUNK_MARGIN = 32;
 /**
  * Decor canvases one frame may bake — each is (256 + 2×32)² ≈ 102 kpx, twelve times the ground budget.
  */
 const DECOR_BAKE_CHUNKS_PER_FRAME = 1;
-/**
- * Pixels of new ground one frame may bake.
- *
- * The per-pixel shader measures **1.5–4.6 µs per pixel** on the development machine (a 0.07 Mpx chunk
- * in 100–300 ms), so a frame that bakes a whole 256² chunk (65,536 px) blocks for a tenth to a third of
- * a second, and a fresh view of 20–24 chunks blocked for **3.9–6.0 s** — the stall reported from play
- * as *"the game stalls at 0 fps"*. The budget bounds what one frame spends and the ground fills in over
- * the following frames. An 8,192 px slice is ≈ 12–38 ms, which leaves the rest of the frame its time;
- * a 1.3 Mpx view therefore fills in over ~160 frames instead of freezing for seconds.
- */
+
 const GROUND_BAKE_PIXEL_BUDGET_PER_FRAME = 8192;
 export { GROUND_BAKE_PIXEL_BUDGET_PER_FRAME as GROUND_BAKE_PIXEL_BUDGET };
-/**
- * How much coarser the stand-in first pass is than the chunk's target step.
- *
- * The budget above spreads the crisp bake over ~160 frames, which is the right shape for the frame but
- * the wrong shape for the eye: without this the player would watch the void for the first seconds of a
- * session or a zoom change. A chunk is therefore covered **first** by one coarse bake at `step × 4`
- * (a 64² canvas instead of 256² for a 256 px chunk — 1/16 the pixels, ~6–19 ms) and that stand-in is
- * drawn at the chunk's own world rect until the crisp rows are all in. The whole view is covered in
- * ~10–12 frames of the budget, then sharpens chunk by chunk from the view centre outward.
- */
 const GROUND_PREVIEW_STEP_FACTOR = 4;
-/** Ground chunks one frame may re-bake at a new step — one canvas allocation plus its first band. */
 const GROUND_REBAKE_CHUNKS_PER_FRAME = 1;
 /** World px per canvas px to bake the ground at for a camera zoom: nearest power of two to `1 / zoom`, clamped to 1–4. */
 export function targetGroundStep(zoom: number): number {
@@ -137,14 +97,6 @@ interface GroundChunk {
   previewStep: number;
   /** False until the stand-in has been baked once — it is not re-baked while the crisp pass runs. */
   previewReady: boolean;
-  /**
-   * This chunk's river courses and L3 props, baked one chunk per frame by `DECOR_BAKE_CHUNKS_PER_FRAME`.
-   *
-   * It is a canvas of its own, not part of `canvas`, because the props need an **overhang margin** — the
-   * art of a prop reaches ~24 world px either side of its origin, so a canvas that stopped at the chunk
-   * edge would slice the props standing near it along a visible grid. `worldX/worldY` of the blit is
-   * therefore offset by the same margin (see `DECOR_CHUNK_MARGIN`).
-   */
   decor: CanvasSurface | null;
   worldX: number;
   worldY: number;
@@ -169,15 +121,7 @@ function disposeGroundChunk(chunk: GroundChunk): void {
   if (chunk.decor) disposeCanvasSurface(chunk.decor);
 }
 
-/**
- * Chunk origins to bake for a viewport, **nearest the view centre first**.
- *
- * The order is what makes a budgeted bake feel right: the ground the player is looking at is baked
- * before the one-chunk margin around it, and the centre of the screen before its edges, so a fill in
- * progress reads as the ground arriving rather than as a ring closing in. The window itself is
- * unchanged from the unbudgeted version it replaces — chunk-aligned, one chunk of margin — so a
- * completed fill is pixel-identical to what this function's predecessor baked in one go.
- */
+
 /** Memo for {@link planGroundChunks} — the last viewport's plan, reused while its arguments hold. */
 let plannedChunksKey = '';
 let plannedChunks: { x: number; y: number }[] = [];
@@ -272,28 +216,9 @@ function getTerrainColor(type: TerrainType, variation: number, preset?: MapPrese
 function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   if (!state.worldMap) return;
   const map = state.worldMap;
-
-  // Per-pixel Whittaker path (Teraforge) — bake only the chunks the camera can see.
-  // `terrainGrid.hasContinuousFields` is the owner of "this map carries the L2 fields"; this used to
-  // be a second, hand-written copy of the same seven-field test.
   if (hasContinuousFields(map)) {
-    // The key carries what the bake **reads**: the map (seed, preset, world dims). It deliberately
-    // does **not** carry `getTerrainRevision()`. That counter is bumped by
-    // `buildingPlacementActions` when a footprint is cleared, but a cleared camp or a chopped forest
-    // writes the sparse `overrides` layer and never touches `elevation` / `moisture` / `temperature` /
-    // `riverDist` — so the re-bake produced a byte-identical image while freezing every visible chunk on
-    // a routine build. `tests/groundLook.bands.test.ts` pins the invariant: an override must not move a
-    // single pixel. It also no longer carries the **season**: the ground is not seasonal any more (see
-    // `whittakerTerrain`'s header), so a season rollover invalidates nothing and re-bakes nothing.
-    // The world dims are in the key because the same seed + preset at a different map size is a
-    // different map; if a future edit ever mutates the generated fields, it must add a term here.
-    // The step follows the camera (`targetGroundStep`); the **cache key does not**, because a
-    // resolution term re-keyed every chunk on a zoom threshold. Each chunk carries its own `bakedStep`.
     const targetStep = targetGroundStep(state.camera.zoom);
-    // The chunk grid is the same at every zoom, so a zoom move re-bakes the chunks already on screen.
     const chunkWorld = WHITTAKER_CHUNK_SIZE;
-    // The two map-wide fields (cast shadow, water proximity) are cell-resolution and depend on neither
-    // the viewport nor the bake resolution, so they are keyed on the map alone and shared by every chunk.
     const mapKey = `${map.seed}|${map.preset}|${state.width}x${state.height}`;
     const key = mapKey;
     if (whittakerCacheKey !== key) {
@@ -394,12 +319,6 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       decorBaked++;
     }
 
-    // Pass 1 — cover. Every planned chunk gets its coarse stand-in before any of them is sharpened, so
-    // the map is whole early instead of arriving one chunk at a time; the stand-in is 1/16 of the crisp
-    // bake, so the whole view costs about one crisp chunk. **The first stand-in of a frame is baked even
-    // if it alone exceeds the budget** — covering the view is what keeps the void off the screen, and a
-    // starved cover pass is exactly what turned a zoom into a black background. A later one waits for a
-    // frame that can afford it, and a chunk that cannot be afforded is not allocated either.
     let covered = 0;
     for (const origin of plan) {
       const existing = whittakerChunks.get(`${origin.x},${origin.y}`);
@@ -426,8 +345,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       covered++;
     }
 
-    // Pass 1.5 — re-step. A chunk off the camera's target step re-bakes in place: its canvas becomes
-    // the stand-in, so the swap shows no gap, and the sharpen pass refills the new canvas under budget.
+
     let rebaked = 0;
     for (const origin of plan) {
       if (rebaked >= GROUND_REBAKE_CHUNKS_PER_FRAME) break;
@@ -450,9 +368,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       rebaked++;
     }
 
-    // Pass 2 — sharpen. Chunks are finished in plan order (view centre outward), each in horizontal
-    // bands, so a frame never spends more than its budget on ground. At least one row is always baked
-    // when the budget allows any: a budget smaller than a row must still move the fill forward.
+ 
     sharpen: for (const origin of plan) {
       if (budget <= 0) break;
       const chunk = ensureChunk(origin);
@@ -473,10 +389,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
           whittakerFields ?? undefined,
           chunkStep,
         );
-        // The bake is a pure function of the world coordinate, so a band written at its own row offset is
-        // pixel-identical to the whole-chunk bake this replaces — pinned by
-        // `tests/groundChunk.bands.test.ts`. A null here means no continuous fields, which the guard
-        // above already excluded: stop rather than spin on it every frame.
+
         if (!baked) break sharpen;
         getCanvasContext(chunk.canvas).drawImage(baked, 0, chunk.rowsBaked);
         chunk.rowsBaked += baked.height;
