@@ -66,6 +66,7 @@ import {
 } from './spatialQueryMetrics';
 import { assertSimInvariants } from './simulation/simInvariants';
 import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
+import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused) return state;
@@ -78,6 +79,8 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
 
   // --- Calendar ---
   state.tick++;
+  profileSimulationTick(state.tick, state.humanPopulation, state.weather);
+  const tickProfileStart = profileStart();
   state.dayInYear = getCalendarDay(state.tick);
   const prevCalendarDay = state.tick <= 1 ? 0 : getCalendarDay(state.tick - 1);
   const yearRollover = state.dayInYear === 0 && prevCalendarDay > 0;
@@ -210,14 +213,20 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // realtime every tick → systems every LAYER_SYSTEMS_INTERVAL → assign every
   // LAYER_ASSIGN_INTERVAL → daily once per TICKS_PER_DAY. Do not add a new
   // tick layer here; new layers require an authority-document update (§4).
+  const realtimeStart = profileStart();
   tickLayerRealtime(state, ctx);
+  profileEnd('sim.realtime', realtimeStart);
 
   if (state.tick % LAYER_SYSTEMS_INTERVAL === 0) {
+    const systemsStart = profileStart();
     tickLayerSystems(state, ctx);
+    profileEnd('sim.systems', systemsStart);
   }
 
   if (state.tick % LAYER_ASSIGN_INTERVAL === 0) {
+    const assignStart = profileStart();
     tickLayerAssign(state, ctx);
+    profileEnd('sim.assign', assignStart);
   }
 
   const allAlive: Entity[] = [];
@@ -235,7 +244,9 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.humanPopulation = counts.humans;
 
   if (state.tick % TICKS_PER_DAY === 0) {
+    const dailyStart = profileStart();
     tickLayerDaily(state, ctx, allAlive);
+    profileEnd('sim.daily', dailyStart);
   }
 
   // Daily systems may append authoritative entities through ctx.newEntities
@@ -331,7 +342,9 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // callee discards again and produced identical buckets. Measured at 1.79 % of tick time
  // for a
   // ~1 800-element copy per tick.
+  const residencesStart = profileStart();
   syncResidenceOccupants(allAlive, updatedBuildings);
+  profileEnd('sim.residences', residencesStart);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
 
   // Dev-only invariant pulse once per colony day — never repairs state.
@@ -350,5 +363,6 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
   }
 
+  profileEnd('sim.totalTick', tickProfileStart);
   return state;
 }
