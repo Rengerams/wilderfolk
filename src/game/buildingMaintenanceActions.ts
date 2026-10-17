@@ -53,7 +53,14 @@ export function getRepairBuildingEligibility(
   state: WorldState,
   buildingId: number,
 ): { ok: boolean; blockReason?: string } {
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
+  return getRepairBuildingEligibilityFor(state, state.buildings.find((candidate) => candidate.id === buildingId));
+}
+
+/** Same repair rule without an O(buildings) ID lookup inside a batch sweep. */
+export function getRepairBuildingEligibilityFor(
+  state: Pick<WorldState, 'resources'>,
+  building: Building | undefined,
+): { ok: boolean; blockReason?: string } {
   if (!building) return { ok: false, blockReason: 'No such building' };
   if (!building.completed) return { ok: false, blockReason: 'Still under construction' };
   if (building.health >= building.maxHealth) return { ok: false, blockReason: 'Already at full health' };
@@ -97,6 +104,35 @@ export function repairBuilding(originalState: WorldState, buildingId: number): W
   building.health = building.maxHealth;
   createDeathParticles(state, building.x + building.width / 2, building.y, '#22c55e', 10, 'sparkle');
   addFloatingText(state, building.x, building.y - 10, 'Repaired!', '#22c55e');
+  return state;
+}
+
+/**
+ * Repair several damaged structures in one authoritative action. Selection stays with
+ * the Virtual Player; the repair owner checks each target and the *remaining* budget.
+ * A single world clone and no per-segment particles keep long roads cheap to restore.
+ */
+export function repairBuildings(originalState: WorldState, buildingIds: readonly number[]): WorldState {
+  if (buildingIds.length === 0) return originalState;
+  const state = structuredClone(originalState);
+  const requested = new Set(buildingIds);
+  let repaired = 0;
+  let first: Building | undefined;
+
+  for (const building of state.buildings) {
+    if (!requested.has(building.id)) continue;
+    if (!getRepairBuildingEligibilityFor(state, building).ok) continue;
+    state.resources.wood -= REPAIR_COST.wood;
+    state.resources.stone -= REPAIR_COST.stone;
+    building.health = building.maxHealth;
+    repaired++;
+    first ??= building;
+  }
+
+  if (first && repaired > 0) {
+    // One brief effect per batch, not hundreds of notifications or particles.
+    addFloatingText(state, first.x, first.y - 10, `Repaired ${repaired} structures`, '#22c55e');
+  }
   return state;
 }
 
