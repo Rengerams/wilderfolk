@@ -9,7 +9,6 @@ import {
   completedJobBuildings,
   findOverstaffedDonorBuilding,
   isOnConstructionCrew,
-  isManualStaffingBuilding,
   pickWorkerToTransfer,
   removeWorkerTransition,
   staffingCapFor,
