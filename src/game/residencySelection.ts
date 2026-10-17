@@ -8,6 +8,7 @@ import {
   getChildCustodian,
   isAdultChildAtHome,
   isMinorChild,
+  isHousingDependentChild,
 } from './householdComposition';
 import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import {
@@ -301,7 +302,7 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
   const childrenByCustodian = new Map<number, Entity[]>();
 
   for (const child of alive) {
-    if (!isMinorChild(child)) continue;
+    if (!isHousingDependentChild(child)) continue;
     const custodian = getChildCustodian(child, humans);
     if (!custodian) continue;
     const bucket = childrenByCustodian.get(custodian.id) ?? [];
