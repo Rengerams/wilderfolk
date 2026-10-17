@@ -287,6 +287,8 @@ export interface Entity {
   /** In-game days left before this settler may court again after a courtship or marriage ended. */
   courtshipCooldownDays?: number;
   homeBuildingId?: number;
+  /** Tick of the last automatic workplace assignment or transfer; optional for older saves. */
+  lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
   prisonBuildingId?: number;
   prisonerUntilTick?: number;
