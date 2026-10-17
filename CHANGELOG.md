@@ -4,6 +4,8 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
+- **Fixed: skill decay now imports the day length from its authoritative clock module to break a runtime import cycle; removed an unused Virtual Player constant that blocked lint and production builds.**
+
 - **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
 
 - **Fixed:** Stop now waits for the worker's final CPU sample before Copy, and the profiler control no longer covers the mini-map.
