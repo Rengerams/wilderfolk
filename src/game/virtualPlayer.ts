@@ -51,7 +51,7 @@ import {
   buildingTypeHasLevelBenefit,
   getBuildingUpgradeCost,
   getBuildingUpgradeEligibility,
-  getRepairBuildingEligibility,
+  getRepairBuildingEligibilityFor,
   REPAIR_COST,
 } from './buildingMaintenanceActions';
 import { collectHousingDiagnostics } from './housingDiagnostics';
@@ -691,24 +691,43 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
 
 
 function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
-  let worst: Building | null = null;
-  let worstRatio = 1;
+  // A long road consists of individual buildings. Repairing one per in-game hour
+  // starves both the road and the rest of the bot's decision ladder. The worker
+  // accepts one batch command and clones the world only once.
+  const affordable = Math.min(
+    Math.floor(state.resources.wood / REPAIR_COST.wood),
+    Math.floor(state.resources.stone / REPAIR_COST.stone),
+  );
+  if (affordable < 1) return null;
 
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival' || building.maxHealth <= 0) continue;
-    const ratio = building.health / building.maxHealth;
-    if (ratio >= VirtualPlayer.REPAIR_HEALTH_RATIO) continue;
-    if (ratio >= worstRatio) continue;
-    if (!getRepairBuildingEligibility(state, building.id).ok) continue;
-    worst = building;
-    worstRatio = ratio;
+  const damaged = state.buildings
+    .filter((building) =>
+      building.completed
+      && building.faction !== 'rival'
+      && building.maxHealth > 0
+      && building.health / building.maxHealth < VirtualPlayer.REPAIR_HEALTH_RATIO
+      && getRepairBuildingEligibilityFor(state, building).ok,
+    )
+    .sort((a, b) =>
+      a.health / a.maxHealth - b.health / b.maxHealth || a.id - b.id,
+    );
+  if (damaged.length === 0) return null;
+
+  // Existing repair prices and available resources are the batch limit. This avoids
+  // introducing an arbitrary segment count or flooding the command queue.
+  const targets = damaged.slice(0, affordable);
+  if (targets.length === 1) {
+    const building = targets[0];
+    const damagePercent = Math.round((1 - building.health / building.maxHealth) * 100);
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'repairBuilding', buildingId: building.id },
+      reason: `repair the ${BUILDING_CONFIGS[building.type].label} — ${damagePercent}% damaged`,
+    };
   }
-
-  if (!worst) return null;
-  const damagePercent = Math.round((1 - worstRatio) * 100);
+  const roads = targets.filter((building) => building.type === BuildingType.Road).length;
   return {
-    command: { proto: WORKER_CMD_PROTO, op: 'repairBuilding', buildingId: worst.id },
-    reason: `repair the ${BUILDING_CONFIGS[worst.type].label} — ${damagePercent}% damaged`,
+    command: { proto: WORKER_CMD_PROTO, op: 'repairBuildings', buildingIds: targets.map((building) => building.id) },
+    reason: `repair ${targets.length} damaged structures${roads ? ` including ${roads} road segments` : ''}`,
   };
 }
 
