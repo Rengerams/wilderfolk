@@ -57,6 +57,7 @@ export {
   demolishBuilding,
   getBuildingUpgradeCost,
   repairBuilding,
+  repairBuildings,
   upgradeBuilding,
 } from './buildingMaintenanceActions';
 

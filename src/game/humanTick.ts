@@ -167,6 +167,7 @@ import {
 } from './simulation/humanRelationships';
 import { flushRelationshipDiagnostics } from './relationshipDiagnostics';
 import { isVenueServiceHour, isVenueWorkerServiceHour } from './venueSchedule';
+import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { recordScheduleWorkTick } from './scheduleFatigue';
 
 import { syncEntityGrids } from './simulation/simulationEntities';
@@ -527,7 +528,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       workplace != null &&
       workplace.type !== BuildingType.Church &&
       workplace.type !== BuildingType.TownHall &&
-      workplace.type !== BuildingType.Prison;
+      workplace.type !== BuildingType.Prison &&
+      workplace.type !== BuildingType.Hospital;
+    const isHospitalDoctor = entity.job === JobType.Doctor
+      && workplace?.type === BuildingType.Hospital && workplace.completed;
+    const onHospitalShift = !!(isHospitalDoctor && isHospitalDoctorOnShift(workplace, state.tick, entity.id));
+    const hospitalCommuteDue = !!(isHospitalDoctor && isHospitalDoctorCommuteTime(
+      workplace,
+      state.tick,
+      entity.id,
+      commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed),
+    ));
     const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
     const onDayJobShift =
       (goWorkTime &&
@@ -577,12 +588,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.
     const onJobShift =
-      onDayJobShift || onTavernShift || onMoonPriestShift || onPrisonShift;
+      onDayJobShift || onTavernShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
     // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
-      onJobShift || onOfficialShift,
+      onJobShift || onOfficialShift || hospitalCommuteDue,
       isInnkeeper,
     );
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
@@ -591,6 +602,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const active =
       !isPrisoner &&
       (inFocus ||
+        hospitalCommuteDue ||
         entity.pregnant ||
         hasAffairPartner(entity, entityById) ||
         (entity.affairProgress ?? 0) >= 20 ||
@@ -757,13 +769,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !onMoonPriestShift &&
       prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay);
 
-    const allowFreeRoam = festivalGathering || (!onJobShift && !stayIn);
+    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !stayIn);
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
-      (allowFreeRoam && isPlayerHuman(entity));
+      !hospitalCommuteDue && (
+        (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
+        (allowFreeRoam && isPlayerHuman(entity))
+      );
 
     const huntingWere = anyActiveHowler
       ? findClosestEntityInRadius(
@@ -857,7 +871,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
-    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && stayIn && hasResidenceAssignment(entity)) {
+    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
         if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH)) restAtHotel(entity);
@@ -868,6 +882,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       }
+    } else if (
+      hospitalCommuteDue && workplace &&
+      !huntingWere && !inElectionCeremony && !festivalGathering
+    ) {
+      // Doctors travel for their own 00–08 / 08–16 / 16–24 shift,
+      // including the evening before a midnight duty. Never pull
+      // off-duty doctors to hospital merely because the village works.
+      commuteHumanToBuilding(entity, workplace, config.speed, false, WORK_COMMUTE_RUSH);
+      onSchedule = true;
+      suppressIdle = true;
     } else if (
       !huntingWere &&
       !inElectionCeremony &&
@@ -981,6 +1005,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !offDutyPrisonGuard &&
       (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
       !isInnkeeper &&
+      !isHospitalDoctor &&
       workplace
     ) {
       // Leave early enough to be *at* work when the shift starts. The lead is the same for every job
@@ -1317,7 +1342,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity,
       allHumans,
       updatedBuildings,
-      onDayJobShift,
+      onHospitalShift,
     });
     tickHumanCivicVenueService({
       state,

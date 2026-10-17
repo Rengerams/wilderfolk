@@ -1,5 +1,7 @@
 # Changelog
 
+
+
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
 - **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
