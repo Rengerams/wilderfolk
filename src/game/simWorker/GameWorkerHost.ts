@@ -89,6 +89,9 @@ type PendingExport = {
 /** How long an export may wait for its reply before the host stops counting it. */
 const EXPORT_REPLY_DEADLINE_MS = 30000;
 
+/** Maximum wait for the worker to return the final unthrottled CPU sample. */
+const PROFILING_STOP_REPLY_DEADLINE_MS = 30000;
+
 /**
  * How long a command may wait for its reply. This is the freeze guard: `canPipelineTick()` refuses
  * every tick while a command is pending, and the stall watchdog needs a tick in flight to fire — so a
@@ -101,6 +104,13 @@ export class GameWorkerHost {
   private ready = false;
   private ticksInFlight = 0;
   private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
+  private nextProfilingRequestId = 0;
+  private pendingProfilingStop: {
+    requestId: number;
+    resolve: (snapshot: PerformanceSnapshot) => void;
+    reject: (error: Error) => void;
+    deadline: ReturnType<typeof setTimeout>;
+  } | null = null;
   private pendingFocus: SimulationFocus | undefined;
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
@@ -276,6 +286,7 @@ export class GameWorkerHost {
     this.lastSpeedSent = null;
     this.settleCommand((pending) => pending.reject(new Error('Worker disposed')));
     this.settleExport((pending) => pending.reject(new Error('Worker disposed')));
+    this.settleProfilingStop((pending) => pending.reject(new Error('Worker disposed')));
     this.commandChain = Promise.resolve();
     const waiters = this.idleWaiters;
     this.idleWaiters = [];
@@ -447,6 +458,27 @@ export class GameWorkerHost {
     this.postControl({ type: 'setProfiling', proto: WORKER_PROTO, enabled });
   }
 
+  stopProfiling(): Promise<PerformanceSnapshot> {
+    if (!this.worker || !this.ready) return Promise.reject(new Error('Worker not ready'));
+    if (this.pendingProfilingStop) return Promise.reject(new Error('Profiler stop already pending'));
+    return new Promise((resolve, reject) => {
+      const requestId = ++this.nextProfilingRequestId;
+      const pending = {
+        requestId,
+        resolve,
+        reject,
+        deadline: setTimeout(() => {
+          if (this.pendingProfilingStop !== pending) return;
+          this.settleProfilingStop((entry) => entry.reject(new Error('Worker profiler stop timed out')));
+        }, PROFILING_STOP_REPLY_DEADLINE_MS),
+      };
+      this.pendingProfilingStop = pending;
+      if (!this.postControl({ type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId })) {
+        this.settleProfilingStop((entry) => entry.reject(new Error('Unable to stop worker profiler')));
+      }
+    });
+  }
+
   getPerformanceSnapshot(): PerformanceSnapshot | null {
     return this.latestPerformanceSnapshot;
   }
@@ -531,6 +563,17 @@ export class GameWorkerHost {
     if (!pending) return;
     clearTimeout(pending.deadline);
     this.pendingCommand = null;
+    settle(pending);
+  }
+
+  /** Clear the profiling-stop deadline on response, fault or disposal. */
+  private settleProfilingStop(
+    settle: (pending: NonNullable<GameWorkerHost['pendingProfilingStop']>) => void,
+  ): void {
+    const pending = this.pendingProfilingStop;
+    if (!pending) return;
+    clearTimeout(pending.deadline);
+    this.pendingProfilingStop = null;
     settle(pending);
   }
 
@@ -632,6 +675,7 @@ export class GameWorkerHost {
     }
     this.settleCommand((pending) => pending.reject(err));
     this.settleExport((pending) => pending.reject(err));
+    this.settleProfilingStop((pending) => pending.reject(err));
     this.resolveIdleWaiters();
   }
 
@@ -652,8 +696,16 @@ export class GameWorkerHost {
       }
       this.settleCommand((pending) => pending.reject(new Error(msg.message)));
       this.settleExport((pending) => pending.reject(new Error(msg.message)));
+      this.settleProfilingStop((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
       this.onWorkerFault?.(msg.source ?? 'general', msg.message);
+      return;
+    }
+
+    if (msg.type === 'profilingStopped') {
+      if (this.pendingProfilingStop?.requestId !== msg.requestId) return;
+      this.latestPerformanceSnapshot = msg.snapshot;
+      this.settleProfilingStop((pending) => pending.resolve(msg.snapshot));
       return;
     }
 
