@@ -1,7 +1,7 @@
 /**
  * Regression: the Auto-staff button worked silently — it assigned workers but
- * gave no confirmation, so it looked broken. Now it must (a) staff idle job
- * buildings and (b) push a notification the player can see.
+ * gave no confirmation, so it looked broken. It confirms real assignments,
+ * but no-op passes should not nag about deliberately manual workplaces.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -42,7 +42,7 @@ describe('autoStaffAllWorkers feedback', () => {
     expect(staffNote).toBeDefined();
   });
 
-  it('confirms even when nothing needs staffing (no dead button feel)', () => {
+  it('stays quiet if a pass finds nothing to assign', () => {
     let world = initGame();
     for (let i = 0; i < TICKS_PER_DAY * 5; i++) world = gameTick(world);
     const humans = playerHumans(world);
@@ -52,6 +52,6 @@ describe('autoStaffAllWorkers feedback', () => {
     const staffed = autoStaffAllWorkers(world); // no job buildings built
     const newNotifs = staffed.notifications.slice(beforeNotifs);
     const note = newNotifs.find((n) => n.title.includes('Auto-staff'));
-    expect(note).toBeDefined();
+    expect(note).toBeUndefined();
   });
 });
