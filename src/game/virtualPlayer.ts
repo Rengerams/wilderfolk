@@ -1053,7 +1053,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   const humans = state.entities.filter(isPlayerHuman);
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
+    if (!building.completed || building.faction === 'rival' || isManualStaffingBuilding(building)) continue;
     const job = BUILDING_JOB_TYPES[building.type];
     if (!job) continue;
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
