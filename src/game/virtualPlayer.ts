@@ -439,30 +439,18 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   const homeless = countHomelessSettlers(state);
   const openBeds = getOpenPlayerBeds(state);
 
-// 1. Als de speler niet dakloos is, sluit ze uit van de beschikbare bedden
-if (!homeless) {
-    getOpenPlayerBeds.excludes(player); 
-}
-
-// 2. Als er helemaal geen open bedden zijn, stop en geef niets terug
-if (openBeds === 0) {
-    return null;
-}
-
-// 3. Als het aantal open bedden gelijk is aan of onder de reservegrens ligt, geef niets terug
-if (openBeds <= state.spareBedReserve) {
-    return null;
-}
-
-// 4. Als de woningdruk comfortabel is volgens de diagnostieken, is er geen actie nodig
-if (state.collectHousingDiagnostics.housingPressure === "comfortable") {
-    return null;
-}
-
-// 5. Als er budget is, maar het bouwen van een nieuw huis de reserve overschrijdt, bouw dan niks
-if (state.canSpendKeepingReserve(BUILDING_CONFIGS.BuildingType.House.cost)) {
-    return null;
-}
+  if (homeless > 0) {
+    // Spare beds mean an assignment was missed, not that beds are short — but the
+    // Leader's House beds belong to the leader's household, so they are not spare
+    // housing for anyone else (`getOpenPlayerBeds` excludes them).
+    if (openBeds > 0) return null;
+  } else {
+    if (openBeds >= spareBedReserve(state)) return null;
+    if (collectHousingDiagnostics(state).housingPressure === 'comfortable') return null;
+    // Housing is survival, so the reserve applies to the *ahead-of-need* half only: a homeless
+    // village still raises a House on its last 40 wood.
+    if (!canSpendKeepingReserve(state, BUILDING_CONFIGS[BuildingType.House].cost)) return null;
+  }
 
   // One residence at a time — a new house only helps once it stands, and a
   // Mansion is a residence too (`residencyOccupancy.isResidenceBuildingType`).
@@ -485,6 +473,7 @@ if (state.canSpendKeepingReserve(BUILDING_CONFIGS.BuildingType.House.cost)) {
       : `build a House — ${openBeds} spare bed${openBeds === 1 ? '' : 's'} left for ${adultSettlerCount(state)} settlers`,
   };
 }
+
 
 
 function decideFood(state: WorldState): VirtualPlayerDecision | null {
@@ -530,7 +519,7 @@ const RESEARCH_NEED_ORDER: readonly BuildingType[] = [
   BuildingType.Hospital,
   BuildingType.Mansion,
   BuildingType.Prison,
-  BuildingType.barracks,
+  BuildingType.Barracks,
 ];
 
 function neededResearch(state: WorldState): { nodeId: string; forType: BuildingType } | null {
