@@ -180,6 +180,7 @@ export const SIMULATION_DECISIONS = {
     writes: [
       'human.pregnant',
       'human.pregnantById',
+      'human.pregnancyFromYouthLove (conception route)',
       'human.pregnancyProgress',
       'human.pregnancyDueProgress',
       'human.relationshipStatus (expecting)',
@@ -192,7 +193,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'pregnancy-progress',
     writes: [
       'human.pregnancyProgress',
-      'human.pregnant/pregnantById/pregnancyDueProgress (cleared at birth)',
+      'human.pregnant/pregnantById/pregnancyDueProgress/pregnancyFromYouthLove (cleared at birth)',
       'human.childrenIds',
       'new child entity',
       'eventLog/bigNews/floatingTexts',
