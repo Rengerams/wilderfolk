@@ -2153,8 +2153,6 @@ export default function App() {
           }
         />
       )}
-        </GameOverlays>
-      )}
       {battleReport && (
         <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 p-4 text-stone-100">
           <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
@@ -2194,6 +2192,8 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+        </GameOverlays>
       )}
     />
   );
