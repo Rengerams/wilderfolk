@@ -861,8 +861,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (festivalGathering) {
       const performers = state.visitorGroups.find((group) => group.kind === 'performers' && group.daysLeft > 0);
       const hall = staffedTownHalls.length > 0 ? staffedTownHalls[entity.id % staffedTownHalls.length] : undefined;
-      const targetX = performers?.campX ?? (hall ? hall.x : width * 0.5);
-      const targetY = performers?.campY ?? (hall ? hall.y : height * 0.5);
+      const square = state.buildings.find((building) =>
+        building.type === BuildingType.Square && building.completed && building.faction !== 'rival'
+      );
+      const targetX = square ? square.x + square.width / 2 : (performers?.campX ?? (hall ? hall.x : width * 0.5));
+      const targetY = square ? square.y + square.height / 2 : (performers?.campY ?? (hall ? hall.y : height * 0.5));
       // A real place per festival-goer: the old 35-slot lattice (`id % 7` × `floor(id / 7) % 5`) stacked a
       // whole village tens deep on those few points — the owner's *"they again in a circle"*.
       const stand = crowdGatherPosition(targetX, targetY, entity.id);
