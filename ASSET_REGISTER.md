@@ -9,9 +9,7 @@ Licensing of third-party assets lives in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_
 The table is one row per file on disk; the register is reconciled against the tree — files with no
 row and rows with no file both fail — by `tests/renderer.overheadBadgeAndAssets.test.ts`.
 
-Measured 217 files / 27.43 MiB (30.43 MiB before the
-resolution/compression pass), of which **123 files
-(11.15 MiB plus graveyard art) are requested by no code path**. "No code path" means the file's full
+The inventory includes the newly added `graveyard.png`; historical byte-size and unused-asset totals need remeasurement after additions. "No code path" means the file's full
 URL appears in no `src/`, `scripts/` or `tests/` file; it is not a claim that the art is worthless —
 several entries are rollback copies or regeneration sources the project keeps on purpose, and each
 one says so. Nothing here has been deleted: removing art needs the owner's decision.
