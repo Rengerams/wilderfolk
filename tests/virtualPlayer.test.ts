@@ -1080,7 +1080,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Farm, { occupants: [1] }),
         ...roads,
       ],
-      { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 50 } },
+      { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 150 } },
     );
 
     const decision = decideVirtualPlayerAction(world)!;
@@ -1111,7 +1111,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 50 },
+        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: {} },
       },
@@ -1137,7 +1137,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 50 },
+        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: { iron_spears: true } },
       },
@@ -1157,7 +1157,7 @@ describe('virtual player remaining action surface', () => {
         building(2, BuildingType.Blacksmith),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 50 },
+        resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
         unlockedTechs: ['defense_4'],
         villageForge: { activeOrder: null, progress: 0, completed: {} },
       },
@@ -1170,7 +1170,7 @@ describe('virtual player remaining action surface', () => {
   it('works the gold seam when the treasury is low', () => {
     // Iron is deliberately not short here: this test is about the *treasury* rule.
     const world = tunableVillage({
-      resources: { wood: 500, stone: 500, food: 500, gold: 40, iron: 50 },
+      resources: { wood: 500, stone: 500, food: 500, gold: 40, iron: 150 },
     });
 
     const decision = decideVirtualPlayerAction(world)!;
@@ -1316,7 +1316,7 @@ describe('virtual player remaining action surface', () => {
         building(3, BuildingType.Farm, { completed: false, constructionProgress: 10 }),
       ],
       {
-        resources: { wood: 500, stone: 500, food: 5, gold: 500, iron: 30 },
+        resources: { wood: 500, stone: 500, food: 5, gold: 500, iron: 150 },
         visitorGroups: [visitorGroup({ leaderTalked: true })],
         // Neutral standing: reputation ≥ 31 keeps trade at the listed price, so the
         // bought food costs exactly the 25 gold the caravan asks.
@@ -1487,7 +1487,7 @@ describe('virtual player remaining action surface', () => {
         building(3, BuildingType.Farm),
       ],
       {
-        resources: { wood: 500, stone: 500, food, gold: 500, iron: 30 },
+        resources: { wood: 500, stone: 500, food, gold: 500, iron: 150 },
         unlockedTechs: ['defense_2'],
         rivalSettlements: [rival()],
       },
@@ -1722,7 +1722,7 @@ describe('virtual player remaining action surface', () => {
       ],
       {
         // 10 food cannot cover the 25-food gift, but the spears and settlers can.
-        resources: { wood: 500, stone: 500, food: 10, gold: 500, iron: 30 },
+        resources: { wood: 500, stone: 500, food: 10, gold: 500, iron: 150 },
         unlockedTechs: ['defense_2'],
         rivalSettlements: [rival()],
       },
@@ -1744,7 +1744,7 @@ describe('virtual player remaining action surface', () => {
   it('signs a trade pact with a rival when a treaty is out of reach', () => {
     const world = settledVillage(2, {
       // Too little food for the 20-food treaty, but 500 gold covers the 40-gold pact.
-      resources: { wood: 500, stone: 500, food: 5, gold: 500, iron: 30 },
+      resources: { wood: 500, stone: 500, food: 5, gold: 500, iron: 150 },
       rivalSettlements: [rival({ relationship: 'competitive' })],
     });
     // A Farm on the way keeps the food step from proposing instead.
@@ -1795,7 +1795,7 @@ describe('virtual player remaining action surface', () => {
 
     // 20 food is past the welcome reserve but short of it: screen instead.
     const shallow = settledVillage(2, {
-      resources: { wood: 500, stone: 500, food: 20, gold: 500, iron: 30 },
+      resources: { wood: 500, stone: 500, food: 20, gold: 500, iron: 150 },
       visitorGroups: [refugeeGroup({ id: 'visitors_refugees_2' })],
     });
     shallow.entities.push({ ...refugeeCamp, groupId: 'visitors_refugees_2' } as Entity);
