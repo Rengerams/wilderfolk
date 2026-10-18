@@ -1293,6 +1293,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
       formatDeathLog(victim, `fell defending ${rival.name} against our war-band`),
       formatCitizenName(victim),
       { x: victim.x, y: victim.y },
+      'enemy',
     );
   }
   rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
