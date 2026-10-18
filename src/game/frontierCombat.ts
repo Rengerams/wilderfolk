@@ -1331,7 +1331,15 @@ function resolveOutgoingRaidCombat(
       'resolved',
     );
     addReputation(state, -5);
+    const defendersBefore = rival.population;
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
+    const enemyDeaths = defendersBefore - rival.population;
+    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    const destroyed = !state.rivalSettlements.some((camp) => camp.id === rival.id);
+    const victoryTitle = destroyed ? '🏆 Rival settlement defeated' : '🏆 War-band returns victorious';
+    const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${destroyed ? 'The rival settlement was wiped out.' : `${rival.population} rival inhabitants remain.`} ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
+    addBigNews(state, victoryTitle, victoryMessage, 'positive');
+    logEvent(state, 'combat', `Village victory celebrations — ${victoryMessage}`, rival.name, 'outgoing_raid', 'resolved');
   } else if (outcome === 'meager') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager', lootScale));
     rival.relationship = 'tense';
@@ -1348,6 +1356,8 @@ function resolveOutgoingRaidCombat(
       'resolved',
     );
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
+    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    logEvent(state, 'combat', `The war-band returned from ${rival.name} with limited success: ${playerDeaths} of our people died. No victory celebration was held.`, rival.name, 'outgoing_raid', 'resolved');
   } else {
     spendFood(state, 'raid', 15);
     addReputation(state, -8);
@@ -1355,6 +1365,9 @@ function resolveOutgoingRaidCombat(
     applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
     addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
+    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    addBigNews(state, '⚔️ War-band defeated', `${verb} on ${rival.name} failed; ${playerDeaths} of our people were killed. The village mourns its losses.`, 'negative');
+    logEvent(state, 'combat', `Village mourns after failed ${verb.toLowerCase()} on ${rival.name}: ${playerDeaths} dead.`, rival.name, 'outgoing_raid', 'resolved');
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
   }
