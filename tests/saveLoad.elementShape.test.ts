@@ -16,6 +16,7 @@ import { gameTick } from '../src/game/gameEngine';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
+import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
 import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
 
 /** A real, loadable payload with a couple of settlers and a building to corrupt. */
@@ -43,6 +44,12 @@ function realPayload(): Record<string, unknown> {
     spriteScale: 1,
     buildAnimTimer: 0,
   } as WorldState['buildings'][number]);
+  // A worldgen animal converted into a settler may stand on impassable ground; loading correctly
+  // relocates it and clears its velocity. Use a walkable position to test payload precedence.
+  if (world.worldMap) {
+    const stand = nearestWalkableWorldPoint(world.worldMap, world.buildings, human.x, human.y);
+    if (stand) { human.x = stand.x; human.y = stand.y; }
+  }
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
 
