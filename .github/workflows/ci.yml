@@ -23,7 +23,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # Oplossing: Maak de npm cachemap aan zodat setup-node deze kan vinden op Windows
       - name: Pre-create npm cache directory
         run: mkdir -Force C:\npm\cache
 
@@ -38,13 +37,13 @@ jobs:
         run: npm ci
 
       - name: Source, docs, and comment checks
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ always() && !cancelled() && steps.install.outcome == 'success' }}
         run: npm run check:source
         
       - name: Typecheck tests
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ always() && !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:standard
 
+      # De build wil je waarschijnlijk wél overslaan als de code-checks of tests falen
       - name: Build production bundle
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build
