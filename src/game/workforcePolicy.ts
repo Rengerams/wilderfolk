@@ -102,6 +102,7 @@ const JOB_BUILDING_IDS: Readonly<Record<BuildingType, string>> = {
   well: 'well',
   road: 'road',
   mansion: 'mansion',
+  villa: 'villa',
   tamingPost: 'tamingPost',
   wall: 'wall',
   wallGate: 'wallGate',

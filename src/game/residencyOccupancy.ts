@@ -10,7 +10,7 @@ export function isResidenceBuilding(b: Building): boolean {
 }
 
 export function isResidenceBuildingType(type: BuildingType): boolean {
-  return type === BuildingType.House || type === BuildingType.Mansion || type === BuildingType.LeaderHouse;
+  return type === BuildingType.House || type === BuildingType.Mansion || type === BuildingType.Villa || type === BuildingType.LeaderHouse;
 }
 
 export function isLeaderHouseResidence(b: Building): boolean {
