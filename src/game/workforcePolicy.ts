@@ -96,6 +96,7 @@ const JOB_BUILDING_IDS: Readonly<Record<BuildingType, string>> = {
   townHall: 'townHall',
   leaderHouse: 'leaderHouse',
   church: 'church',
+  graveyard: 'graveyard',
   prison: 'prison',
   well: 'well',
   road: 'road',
