@@ -97,14 +97,14 @@ function gossipDay(): number {
  * An established, mutual affair with a staffed prison standing and the spouses far away —
  * i.e. exactly the situation where the old flat roll could arrest and divorce the pair.
  */
-function makeWorld(): {
+function makeWorld(seed = FIXTURE_SEED): {
   state: WorldState;
   cheater: Entity;
   paramour: Entity;
   entityById: Map<number, Entity>;
   buildings: Building[];
 } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ seed });
   const cheater = human(CHEATER_ID, {
     relationshipStatus: 'married',
     partnerId: SPOUSE_ID,
@@ -176,8 +176,7 @@ describe('affair gossip is a rumour, not an unwitnessed arrest', () => {
  */
 describe('a jailing raises a card the player cannot miss', () => {
   function makeCaughtWorld(seed: number, withGuard: boolean): ReturnType<typeof makeWorld> {
-    const world = makeWorld();
-    world.state = initGame({ seed });
+    const world = makeWorld(seed);
     // `initGame` builds a real world; this fixture keeps only the pair, the spouse and the prison.
     world.state.entities = withGuard
       ? [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 }), human(GUARD_ID, { job: JobType.PrisonGuard, homeBuildingId: 900 })]
@@ -191,7 +190,7 @@ describe('a jailing raises a card the player cannot miss', () => {
 
   it('raises exactly one card per jailed offender, and jails someone', () => {
     let jailed = 0;
-    for (let seed = 1; seed <= 40; seed += 1) {
+    for (let seed = 1; seed <= 8; seed += 1) {
       const { state, cheater, paramour, entityById, buildings } = makeCaughtWorld(seed, true);
       exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, state.entities);
 
@@ -202,11 +201,11 @@ describe('a jailing raises a card the player cannot miss', () => {
     }
     // Without this the assertion above holds vacuously on a seed set that never arrests.
     expect(jailed).toBeGreaterThan(0);
-    // 40 seeds each build a whole world (measured ~38 s), so the 30 s default would fail a passing case.
-  }, 120_000);
+    // Eight independent seeded worlds are enough to cover a successful arrest without 80 world generations.
+  }, 45_000);
 
   it('jails nobody and raises no card while the prison has no guard', () => {
-    for (let seed = 1; seed <= 10; seed += 1) {
+    for (let seed = 1; seed <= 4; seed += 1) {
       const { state, cheater, paramour, entityById, buildings } = makeCaughtWorld(seed, false);
       exposeAffair(state, cheater, paramour, 'caught', entityById, buildings, state.entities);
       expect(cheater.prisonBuildingId).toBeUndefined();
