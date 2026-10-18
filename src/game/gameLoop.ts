@@ -1,11 +1,4 @@
 import type { WorldState } from './gameTypes';
-import {
-  getPerformanceSnapshot,
-  profileEnd,
-  profileStart,
-  setPerformanceProfilingEnabled,
-  type PerformanceSnapshot,
-} from './performanceProfiler';
 import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEngine';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
@@ -139,8 +132,6 @@ export class GameLoop {
   private getCanvas: () => HTMLCanvasElement | null;
   private workerHost: GameWorkerHost | null = null;
   private workerEnabled = false;
-  private performanceProfilingEnabled = false;
-  private lastWorkerPerformanceSnapshot: PerformanceSnapshot | null = null;
   private workerBooting = false;
   private workerTickChanged = false;
   private lastWorkerActivity = 0;
@@ -336,13 +327,10 @@ export class GameLoop {
     const host = this.workerHost;
     if (!host) return;
 
-    if (this.performanceProfilingEnabled) host.setProfilingEnabled(true);
-
     host.setTickResultHandler((nextWorld, _delta, render, changed) => {
       // Check of de host nog steeds de actieve host is (i.p.v. sessionGen blokkade)
       if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
-      this.lastWorkerPerformanceSnapshot = host.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot;
 
       if (this.lastWorkerTickRequest > 0) {
         const measured = performance.now() - this.lastWorkerTickRequest;
@@ -352,18 +340,14 @@ export class GameLoop {
       this.observeDailyBoundary(nextWorld.tick);
       if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
-        const rebuildStart = profileStart();
         this.catalog.rebuild(this.world.entities);
-        profileEnd('main.catalogRebuild', rebuildStart);
       }
 
       if (render) {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
-        const kinematicsStart = profileStart();
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
-        profileEnd('main.patchRenderKinematics', kinematicsStart);
       }
 
       this.view = syncScreenShakeFromWorld(this.view, this.world);
@@ -391,9 +375,7 @@ export class GameLoop {
         this.renderSoA = render.reader;
         this.renderMetaBySlot = render.metaBySlot ?? null;
         this.scentReader = render.scentReader;
-        const kinematicsStart = profileStart();
         patchCatalogKinematicsFromRenderSoA(this.catalog, render.reader, render.metaBySlot);
-        profileEnd('main.patchRenderKinematics', kinematicsStart);
       }
 
       if (hadOptimistic) {
@@ -430,37 +412,6 @@ export class GameLoop {
     this.scentReader = null;
     this.flushDeferredWorkerCommands();
     this.scheduleWorkerRecovery();
-  }
-
-  async setPerformanceProfiling(enabled: boolean): Promise<void> {
-    if (enabled) {
-      this.performanceProfilingEnabled = true;
-      this.lastWorkerPerformanceSnapshot = null;
-      setPerformanceProfilingEnabled(true);
-      this.workerHost?.setProfilingEnabled(true);
-      return;
-    }
-
-    const host = this.workerEnabled && this.workerHost?.isReady() ? this.workerHost : null;
-    if (host) {
-      const finalSnapshot = await host.stopProfiling();
-      if (this.workerHost !== host) throw new Error('Simulation worker changed during profiler stop');
-      this.lastWorkerPerformanceSnapshot = finalSnapshot;
-    }
-    this.performanceProfilingEnabled = false;
-    setPerformanceProfilingEnabled(false);
-  }
-
-  getPerformanceProfiling(): {
-    enabled: boolean;
-    main: PerformanceSnapshot;
-    worker: PerformanceSnapshot | null;
-  } {
-    return {
-      enabled: this.performanceProfilingEnabled,
-      main: getPerformanceSnapshot(),
-      worker: this.workerHost?.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot,
-    };
   }
 
   isUsingSimWorker(): boolean {
@@ -801,11 +752,6 @@ export class GameLoop {
   }
 
   stop(): void {
-    if (this.performanceProfilingEnabled) {
-      this.performanceProfilingEnabled = false;
-      setPerformanceProfilingEnabled(false);
-      this.workerHost?.setProfilingEnabled(false);
-    }
     this.running = false;
     this.sessionGen++;
     if (this.workerRecoveryTimer) {
@@ -1003,9 +949,7 @@ export class GameLoop {
     }
 
     this.view = updateView(this.view, dtMs);
-    const drawStart = profileStart();
     this.draw();
-    profileEnd('main.gameLoopDraw', drawStart);
 
     if (this.world.speed > 1 && !this.world.paused) {
       this.diagTicks += ticksThisFrame;
@@ -1046,9 +990,7 @@ export class GameLoop {
     const periodicUi = now - this.lastUiUpdate >= UI_UPDATE_MS;
     if (tickChanged || periodicUi) {
       this.lastUiUpdate = now;
-      const notifyStart = profileStart();
       this.notify(tickChanged, periodicUi);
-      profileEnd('main.notifyListeners', notifyStart);
     }
   }
 
