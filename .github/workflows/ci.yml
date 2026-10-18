@@ -23,14 +23,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Pre-create npm cache directory
-        run: mkdir -Force C:\npm\cache
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '26.12.0'
-          cache: 'npm'
+          # We zetten de automatische setup-node cache uit om de Windows/Node 26 bug te omzeilen
+          cache: '' 
+
+      # We gebruiken de stabiele actions/cache om de npm-cache map handmatig vast te leggen
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: C:\npm\cache
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install locked dependencies
         id: install
@@ -43,7 +50,6 @@ jobs:
       - name: Typecheck tests
         if: ${{ always() && !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:standard
-
-      # De build wil je waarschijnlijk wél overslaan als de code-checks of tests falen
+      
       - name: Build production bundle
         run: npm run build
