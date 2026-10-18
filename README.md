@@ -25,76 +25,237 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 **Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
 
-## Desktop runtime choices (Deno preview)
+## Wilderfolk
 
-Wilderfolk keeps the **browser** and **Tauri** builds. [Deno Desktop](https://docs.deno.com/runtime/desktop/) is an **additional, experimental** way to package the same React/Vite game — not a new simulation engine or a replacement for Tauri. Deno 2.9+ detects the existing Vite SPA, bundles its production `dist/` output, and opens it in a desktop window.
+<p align="center">
+  <img src="public/logo.png" alt="Wilderfolk" width="120" />
+</p>
 
-After cloning the repository, run `npm install` once. The project already includes the Deno 2.9 CLI as an npm dependency, so the commands below resolve it automatically:
+<p align="center">
+  <strong>Where Beasts and Kin Unite</strong><br>
+  <em>Don't kill all the wolves.</em><br>
+  <em>A cozy frontier settlement sim — built inside the food chain, not on top of it.</em>
+</p>
 
-```sh
-npm run deno:dev        # Deno desktop window, Vite hot reload
-npm run deno:build      # Run the normal build gate, then package with OS WebView
-npm run deno:build:cef  # Package with bundled Chromium (CEF) for comparison
+## What is Wilderfolk?
+
+Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
+
+You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
+
+```
+**🌿 → 🐰 > 🦌 → 🐺 > 🦊 → 🏹 → 🏘️**
 ```
 
-- **Default WebView:** uses the platform browser component (WebView2 on Windows). The configured Windows output is `deno/wilderfolk/`; this is a desktop application directory with a launcher, **not** the existing signed Tauri installer. The build artifacts are ignored by Git.
-- **CEF variant:** includes Chromium for more consistent Canvas, audio and browser API behavior across machines, but produces a substantially larger package; output is `deno/wilderfolk-cef/`. Compare it with WebView if a rendering feature differs.
-- **Other platforms:** default Deno outputs are `deno/Wilderfolk.app` on macOS and `deno/Wilderfolk.AppImage` on Linux (using the default Deno icon until project icons are added). Build on the target platform first; cross-compilation is supported by Deno.
-- **Existing paths stay as-is:** `npm run dev` for browser development, `npm run tauri:dev` for Tauri development, and `npm run tauri:build` for the established desktop packaging workflow.
-
-### Compare Node and Deno on real simulation work
-
-Run a bounded, headless CPU benchmark with the **same seed and population targets** on both runtimes:
-
-```powershell
-npm run perf:compare-runtimes
-$env:PERF_COMPARE_RUNS = '3'; npm run perf:compare-runtimes
-```
-
-For the most relevant comparison, use a current-version save file:
-
-```powershell
-$env:PERF_SAVE = 'C:\\path\\to\\wilderfolk-save.json'
-$env:PERF_TICKS = '300'
-$env:PERF_COMPARE_RUNS = '3'
-npm run perf:compare-runtimes
-```
-
-The script calls `scripts/perf-at-pop.ts` under Node/tsx and Deno, alternates execution order across repeats, and summarizes **p95 simulation tick time**. Do not interpret these results as desktop FPS: the game still renders in a browser engine, and these runs do not include worker transport or Canvas drawing. Remove these optional environment variables after your test session if you want to restore the defaults.
-
-**Known limitation (October 2026):** The browser simulation Web Worker is intentionally disabled in `src/game/simWorker/GameWorkerHost.ts` because characters may appear frozen with it enabled. This benchmark does not turn it back on or claim to fix it. The worker/display path must be diagnosed separately before any performance gains from parallel simulation can be claimed.
-
-These commands use the *same* game code, Web Worker simulation, assets and save format. Performance gains are **not** assumed: test startup, game audio, saves, workers and frame pacing on your machine before considering Deno builds for a release. In particular, WebView requires the operating system's webview runtime.
-
-*THIS WILL BE LAST UPDATE FOR THE NEXT PERIOD, BECAUSE OF THE SCALE OF THE PROJECT WE GONNA PORT THE GAME TO A REAL GAME ENGINE. *
-*WE DONT KNOW WHICH ONE IT WILL BE BUT WE KEEP  YOU INFORMED IF WE HAVE MORE INFORMATION.*
---
+**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
 
 ---
 
-## In-game CPU profiler (diagnostic tool)
+## v0.6.5.1 (October 19, 2026)
 
-A small **CPU profiler** control sits above the mini-map, leaving map navigation unobstructed.
-It is **off by default** and does not alter the simulation or game save.
+* `GAME_VERSION` **0.6.5.1**
 
-1. Load a large settlement and click **CPU profiler → Start measuring**.
-2. Continue playing for several in-game days, ideally including a rainy period and
-   a daily tick boundary. Close the panel if desired; the measurement continues.
-3. Reopen the panel, click **Stop**, wait for the final worker sample, then **Copy**. Paste the JSON report into an issue or chat.
+# 🏘️ A Village Worth Fighting For
 
-The panel records invocation counts, total time, average duration and maximum duration
-for key worker simulation layers, individual daily systems, A* pathfinding, worker delta
-processing, rendering and weather. Worker totals and main-thread numbers are separate.
-Time is JavaScript execution time measured with `performance.now()`, **not total machine
-CPU utilization**. Parent stages contain child stages, so their time totals overlap.
-Run once with profiling off and again with profiling on to account for measurement overhead.
+**New homes. Stronger communities. Meaningful battles. Stories that live on.**
+
+The wilderness is alive, but so is your village.
+
+This update brings more life to the people who call your settlement home. Build larger residences, gather villagers for elections and celebrations, honor those who have passed away, and experience battles that leave a lasting mark on the valley.
+
+**Every villager has a story, and every decision has consequences.**
 
 ---
+
+## 🏡 Villa — Room for a Growing Village
+
+Growing families need somewhere to call home.
+
+The new **Villa** offers spacious accommodation for larger households, providing significantly more housing capacity than an ordinary home.
+
+* **14 residents** at level 1.
+* **16 residents** at level 2.
+* **18 residents** at level 3.
+* Unlock Villa construction by researching **Better Housing** in the Architecture research tree.
+* Upgrade Villas through the existing building upgrade system.
+* Dedicated building artwork brings the new residence to life.
+
+More homes mean more opportunities for families to grow and new settlers to join your village.
+
+---
+
+## 🏛️ Village Square — The Heart of the Community
+
+Every village needs somewhere to come together.
+
+Introducing the **Village Square**, a new public building that becomes the heart of village celebrations and political life.
+
+* Construct **one Village Square per village**.
+* Villagers gather at the Square for festivals and election ceremonies.
+* The three leading election candidates stand together in the center.
+* Attending villagers gather around the candidates.
+* Until a Square has been constructed, existing gathering locations remain available.
+
+Watch your village come together for the moments that shape its future.
+
+---
+
+## 🗳️ Elections — Leadership Is an Event
+
+Choosing a village leader should be something you can actually witness.
+
+Election ceremonies have been extended, giving villagers more time to arrive, discuss the candidates, and await the outcome.
+
+| Election Phase | Previous | New |
+|---|---:|---:|
+| Gathering | 12 hours | 24 hours |
+| Discussions | 10 hours | 20 hours |
+| Final decision | 1 hour | 8 hours |
+| **Total** | **23 hours** | **52 hours** |
+
+The three leading candidates now take their places at the center of the gathering while the villagers assemble around them.
+
+The **Chronicle** records each major phase, from the opening gathering and discussions to the final announcement.
+
+Once the result is revealed, the village can celebrate its newly elected leadership.
+
+**Elections are no longer just another number in the simulation. They're part of village life.**
+
+---
+
+## 🪦 Graveyard — Every Life Leaves a Story
+
+Life on the frontier isn't always kind.
+
+Villagers grow older, families lose loved ones, and battles sometimes leave empty places around the dinner table.
+
+The new **Graveyard** gives your community somewhere to remember those who came before.
+
+* Each Graveyard accommodates up to **50 memorial records**.
+* Assign **one Gravekeeper** to look after the grounds.
+* Record named casualties from your village and rival settlements.
+* Village names appear in green, while enemy names appear in red.
+* Family members can occasionally visit the graves of deceased relatives.
+* Visits take place **outside working hours**, allowing villagers to remember loved ones without abandoning their duties.
+
+Your settlement's history is written not only by those who survive, but also by those who helped build it.
+
+**The valley remembers its fallen.**
+
+---
+
+## ⚔️ Raids — Victory Comes at a Price
+
+A battle should have consequences.
+
+Frontier warfare now brings more detailed outcomes, permanent rival losses, and a narrative that makes the confrontation easier to follow.
+
+### Battles That Leave Their Mark
+
+* Successful raids can permanently reduce rival populations.
+* Overwhelming victories can eliminate rival settlements.
+* Destroyed camps lose their structures and associated events.
+* Named casualties are recorded when identifiable characters are killed.
+* Battle outcomes include losses, spoils, victories, and defeats.
+* Victory celebrations and moments of mourning appear in the Chronicle.
+
+### Full-Screen Battle Narration
+
+Outgoing battles can now unfold through a paced, full-screen text narrative.
+
+Rather than immediately presenting the final result, the game takes you through successive stages of the confrontation, revealing what happened and who survived.
+
+A successful raid may bring valuable spoils, but every victory can come at a human cost.
+
+**Winning matters. Losing people matters too.**
+
+---
+
+## 🌦️ Weather Visuals — Your Valley, Your View
+
+Wilderfolk's changing weather gives the valley its atmosphere, but sometimes you just want a clearer view of your settlement.
+
+A new **Weather visuals** option has been added to:
+
+**Game Menu → Graphics → Weather visuals**
+
+One switch controls all visual weather effects, including:
+
+* Rain and storms.
+* Falling snow.
+* Fog and drifting clouds.
+* Lightning and atmospheric overlays.
+* Weather lighting and tints.
+* Seasonal falling particles.
+
+Turn the effects off for a calmer view or enable them to experience the full atmosphere of the valley.
+
+**Weather continues to affect gameplay even when its visual effects are disabled.**
+
+Your preference is automatically saved.
+
+---
+
+## 📜 The Chronicle — A Village That Remembers
+
+Every settlement has a history.
+
+A new leader takes office. A family loses someone they love. A neighboring settlement falls in battle. A celebration brings the community together.
+
+These moments deserve to be remembered.
+
+This update expands the Chronicle with more detailed reporting of:
+
+* Election ceremonies and their individual phases.
+* Battle outcomes and named casualties.
+* Victories, defeats, and lost rival settlements.
+* Celebrations and moments of mourning.
+* Other important developments affecting village life.
+
+The Chronicle continues to evolve from a simple event list into a living history of your settlement.
+
+**Your village isn't just growing. It's creating a legacy.**
+
+---
+
+## 🛠️ Improvements & Fixes
+
+Beyond the new buildings and gameplay additions, this update includes improvements across the simulation and interface.
+
+### Buildings & Population
+
+* Added Villa housing with three upgrade levels.
+* Added Better Housing research.
+* Integrated Villas into residential capacity and population calculations.
+* Added the Village Square and Graveyard to the building catalog.
+* Added Gravekeeper workforce support.
+* Corrected Village Square artwork loading and updated the asset register.
+
+### Gameplay & Simulation
+
+* Expanded raid outcomes and casualty reporting.
+* Improved election ceremony pacing and gathering positions.
+* Added detailed election phase logging.
+* Added family grave visits outside working hours.
+* Improved prison guard assignment stability.
+* Corrected Leader's House upgrade behavior.
+* Improved valley ecology Chronicle reporting.
+
+### Interface & Performance
+
+* Added the persistent Weather visuals toggle.
+* Added paced full-screen battle narration.
+* Improved CPU profiler integration and positioning.
+* Improved simulation worker fallback behavior.
+* Expanded regression test coverage for Villa housing.
+* Optimized affair-related regression tests.
+
+---
+
 
 ## v0.6.5.0 (September 29, 2026)
 
 * `GAME_VERSION` **0.6.5.0**
-* ⚠️ **Beta Save Policy:** This build loads only **0.6.5.0** saves.
 
 **A more rugged, atmospheric, and ever-changing landscape.**
 
