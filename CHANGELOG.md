@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+- **Fixed:** the simulation worker is only enabled in supported runtimes, so main-thread fallback and diagnostics work without a browser Worker.
+
+- **Fixed:** prison guard patrols retain the assigned crew and do not leave their posts for social walks while commuting to a shift.
+
+- **Fixed:** the Leader's House can be upgraded, with each level increasing the number of available beds.
+
+- **Fixed:** valley ecology transitions continue to enter the Chronicle when warnings are muted, without bypassing the cooldown for visible alerts.
+
+- **Changed:** continuous integration now typechecks and runs the full unit test suite, in addition to source checks and the production build.
+
 - **Fixed:** raid chronicles distinguish threats, marches, combat outcomes, casualties and cancellations; raid totals and village traits no longer count the same raid multiple times.
 
 - **Changed:** combat CSV exports include raid stage and kind, and the combat panel labels each stage.
