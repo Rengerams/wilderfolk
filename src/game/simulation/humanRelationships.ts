@@ -751,6 +751,7 @@ function rollPregnancyDueProgress(entity: Entity, tick: number): number {
 function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
   entity.pregnant = true;
   entity.pregnantById = undefined;
+  entity.pregnancyFromYouthLove = undefined;
   entity.pregnancyProgress = 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.relationshipStatus = 'expecting';
@@ -771,6 +772,7 @@ function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entit
 function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
   entity.pregnant = true;
   entity.pregnantById = partner.id;
+  entity.pregnancyFromYouthLove = true;
   entity.pregnancyProgress = 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.flash = 12;
@@ -787,6 +789,7 @@ function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity)
 function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity): void {
   entity.pregnant = true;
   entity.pregnantById = lover.id;
+  entity.pregnancyFromYouthLove = undefined;
   entity.pregnancyProgress = 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
   entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';

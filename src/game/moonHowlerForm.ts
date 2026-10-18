@@ -82,6 +82,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.youthLoveStartedDay = saved?.youthLoveStartedDay;
   were.pregnant = saved?.pregnant;
   were.pregnantById = saved?.pregnantById;
+  were.pregnancyFromYouthLove = saved?.pregnancyFromYouthLove;
   were.pregnancyProgress = saved?.pregnancyProgress;
   // Restored with the other two pregnancy fields: `pregnancyDueProgress` is the field the invariant
   // check pairs with `pregnant`, and it was declared in the saved form without ever being restored

@@ -33,6 +33,10 @@ jobs:
         id: install
         run: npm ci
 
+      - name: Source, docs, and comment checks
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run check:source
+
 
 
       - name: Build production bundle

@@ -9,7 +9,7 @@
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
 
-- **Fixed: skill decay now imports the day length from its authoritative clock module to break a runtime import cycle; removed an unused Virtual Player constant that blocked lint and production builds.**
+- **Fixed: pregnancies conceived through youth love keep their origin through breakups, birthdays and Moon Howler transformations; babies take the mother's surname without a bastard label. Existing custody and housing rules remain unchanged.**
 
 - **Added:** an opt-in in-game CPU profiler records call counts and CPU timing for simulation and rendering; export its report as JSON.
 

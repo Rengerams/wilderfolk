@@ -144,6 +144,7 @@ describe('a 12 or 13 year old can conceive only through a mutual youth-love pair
       expect(tryDailyConception(state, ctx, mother)).toBe(true);
       expect(mother.pregnant).toBe(true);
       expect(mother.pregnantById).toBe(FATHER_ID);
+      expect(mother.pregnancyFromYouthLove).toBe(true);
       expect(state.eventLog.filter((event) => event.type === 'conception')).toHaveLength(1);
     }
   });
