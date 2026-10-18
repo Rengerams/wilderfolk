@@ -181,6 +181,15 @@ export default function App() {
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     return s;
   });
+  // A text battle unfolds at a readable pace; the outcome remains owned by the simulation.
+  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; phase: number } | null>(null);
+  useEffect(() => {
+    if (!battleReport || battleReport.phase >= 7) return;
+    const timeout = window.setTimeout(() => {
+      setBattleReport((current) => current ? { ...current, phase: Math.min(7, current.phase + 1) } : null);
+    }, 2800);
+    return () => window.clearTimeout(timeout);
+  }, [battleReport]);
   const [view, setView] = useState<ViewState>(() => createInitialView(world.width, world.height));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
@@ -1483,6 +1492,13 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               playClickSound();
+                              if (choice.id === 'fight' || choice.id === 'decline_payoff') {
+                                setBattleReport({
+                                  rivalName: evt.rivalName,
+                                  baselineId: world.eventLog[0]?.id ?? 0,
+                                  phase: 0,
+                                });
+                              }
                               applyGameAction({
                                 proto: 1,
                                 op: 'respondToOutgoingRaidEvent',
@@ -2138,6 +2154,46 @@ export default function App() {
         />
       )}
         </GameOverlays>
+      )}
+      {battleReport && (
+        <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 p-4 text-stone-100">
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Live battle chronicle</p>
+            <h2 className="mt-2 text-2xl font-bold text-amber-100">Battle for {battleReport.rivalName}</h2>
+            <p className="mt-2 text-sm text-stone-400">A new battle phase unfolds every 2.8 seconds. The casualty and result reports below come from the game event log.</p>
+            <div className="mt-5 min-h-64 flex-1 space-y-3 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
+              {[
+                `Your war-band marches toward ${battleReport.rivalName}.`,
+                'Scouts report movement near the enemy defenses.',
+                'The defenders form ranks and prepare to resist.',
+                'The front lines collide. Both sides fight for control.',
+                'The fighting intensifies. The outcome is still unfolding...',
+                'The surviving combatants regroup as the dust settles.',
+                'The battle report reaches the village.',
+              ].slice(0, battleReport.phase + 1).map((line, index) => (
+                <p key={index} className="border-l-2 border-amber-800 pl-3 text-stone-200">
+                  <span className="mr-3 text-amber-500">{String(index + 1).padStart(2, '0')}</span>{line}
+                </p>
+              ))}
+              {battleReport.phase >= 6 && world.eventLog
+                .filter((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && (event.type === 'combat' || event.type === 'death'))
+                .slice().reverse().map((event) => (
+                  <p key={event.id} className="border-l-2 border-rose-600 pl-3 text-rose-200">{event.message}</p>
+                ))}
+              {battleReport.phase >= 6 && !world.eventLog.some((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && event.type === 'combat') && (
+                <p className="text-amber-300">Awaiting the simulation's battle report...</p>
+              )}
+            </div>
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <span className="text-xs text-stone-400">Phase {Math.min(battleReport.phase + 1, 7)} / 7</span>
+              {battleReport.phase >= 7 ? (
+                <button type="button" onClick={() => setBattleReport(null)} className="rounded-lg bg-amber-600 px-5 py-2 font-bold text-stone-950 hover:bg-amber-500">Return to village</button>
+              ) : (
+                <span className="text-sm text-amber-300">Battle unfolding…</span>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     />
   );
