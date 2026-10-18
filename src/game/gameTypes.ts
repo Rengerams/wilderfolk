@@ -121,6 +121,7 @@ export const JobType = {
   Doctor: 'doctor',
   Official: 'official',
   Priest: 'priest',
+  Gravekeeper: 'gravekeeper',
   Hunter: 'hunter',
   Builder: 'builder',
   /** @deprecated Legacy saves only; new assignments use Soldier or PrisonGuard. */
@@ -160,6 +161,7 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Doctor]: 'Doctor',
   [JobType.Official]: 'Official',
   [JobType.Priest]: 'Priest',
+  [JobType.Gravekeeper]: 'Gravekeeper',
   [JobType.Hunter]: 'Hunter',
   [JobType.Builder]: 'Builder',
   /** @deprecated Displayed only for unmigrated legacy assignments. */
@@ -184,6 +186,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Hospital]: JobType.Doctor,
   [BuildingType.TownHall]: JobType.Official,
   [BuildingType.Church]: JobType.Priest,
+  [BuildingType.Graveyard]: JobType.Gravekeeper,
   [BuildingType.Prison]: JobType.PrisonGuard,
   [BuildingType.Barracks]: JobType.Soldier,
   [BuildingType.HuntingSpot]: JobType.Hunter,
