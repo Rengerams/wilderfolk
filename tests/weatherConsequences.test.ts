@@ -15,7 +15,7 @@ import {
   applyStormDamageToBuildings,
   HOSTILE_WEATHER_ENABLED,
 } from '../src/game/worldEvents';
-import { BuildingType, WeatherType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, WeatherType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import {
   daylightTint,
@@ -173,14 +173,18 @@ describe('farm yield responds to weather (integration)', () => {
 
   function farmsProducedByDay(world: WorldState, days: number): number {
     let w = world;
-    // Pin a pioneer to the farm just before the first day boundary so the
-    // farm is staffed when production fires (homeBuildingId = workplace).
-    const farmId = w.buildings[w.buildings.length - 1].id;
-    for (let t = 1; t <= TICKS_PER_DAY - 1; t++) w = gameTick(w);
-    const human = w.entities.find((e) => e.alive && !e.faction);
-    if (human) human.homeBuildingId = farmId;
-    for (let t = TICKS_PER_DAY; t <= TICKS_PER_DAY * days; t++) w = gameTick(w);
-    return w.economyLedger?.produced?.farms ?? 0;
+    const farm = w.buildings[w.buildings.length - 1];
+    const human = w.entities.find((e) => e.alive && e.type === EntityType.Human && !e.faction);
+    if (!human) throw new Error('farm production fixture needs a living player settler');
+    // Assign a real farmer before the shift begins, with a workplace they can reach.
+    human.homeBuildingId = farm.id;
+    human.job = JobType.Farmer;
+    human.x = farm.x + farm.width / 2;
+    human.y = farm.y + farm.height / 2;
+    farm.occupants = [human.id];
+    for (let t = 1; t <= TICKS_PER_DAY * days; t++) w = gameTick(w);
+    const archived = (w.foodHistory ?? []).reduce((sum, day) => sum + (day.produced.farms ?? 0), 0);
+    return archived + (w.economyLedger?.produced?.farms ?? 0);
   }
 
   it('drought yields less than clear weather over the same days', () => {
