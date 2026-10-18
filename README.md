@@ -16,33 +16,6 @@ Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **mov
 
 You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
 
-
-```
-**🌿 → 🐰 > 🦌 →  🐺 > 🦊  →  🏹  →  🏘️**
-```
-
-
-**Build homes. Assign workers. Watch families grow.** Every settler carries three personality traits from a pool of fourteen — 💪 Hardy, 🛡️ Brave, 🗣️ Gregarious, 🐇 Timid, 🌿 Greenthumb, 🍀 Lucky, 💗 Nurturing, 🔮 Insightful, 🦁 Chivalrous, 🔨 Resourceful, 🏔️ Stoic, ✨ Graceful, 🦉 Intuitive, 🔥 Fierce — inherited from their parents, DNA-style, so the brave father's daughter carries his fire. Meet neighbor tribes on the map, queue iron at the Blacksmith, survive Moon Howlers, and shape your own legacy. The valley feels alive because the sim treats predators, prey, and people as one system.
-
-
-## Wilderfolk
-
-<p align="center">
-  <img src="public/logo.png" alt="Wilderfolk" width="120" />
-</p>
-
-<p align="center">
-  <strong>Where Beasts and Kin Unite</strong><br>
-  <em>Don't kill all the wolves.</em><br>
-  <em>A cozy frontier settlement sim — built inside the food chain, not on top of it.</em>
-</p>
-
-## What is Wilderfolk?
-
-Most settlement games ask you to **tame** the wild. Wilderfolk asks you to **move into it** — and not wreck the neighborhood on your way in.
-
-You are not conquering a blank map. You are sharing a valley with grass, rabbits, deer, wolves, rival camps, caravans, winter, and the occasional curse under a full moon. Every choice ripples through the chain: wipe out the wolves and your hunters go hungry two seasons later. Pave too fast and the ecosystem buckles. Arm your militia, sign a peace treaty, or pay tribute — but **raids test preparation**, not a fancy battle screen.
-
 ```
 **🌿 → 🐰 > 🦌 → 🐺 > 🦊 → 🏹 → 🏘️**
 ```
