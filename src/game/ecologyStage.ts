@@ -415,13 +415,13 @@ function announceStage(
   const cooldownOk =
     day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
 
-  logValleyStageChange(state, prev, next, message);
   const warningsEnabled = loadValleyStageWarnings();
+  // With warnings muted the chronicle still records each transition; otherwise respect cooldown.
   if (!cooldownOk && warningsEnabled) return;
 
-  // Muted transitions advance the ledger without displaying or postponing notices.
   state.valleyLastStageNotifyDay = day;
   if (warningsEnabled) raiseStageNotice(state, prev, next, message, rising);
+  logValleyStageChange(state, prev, next, message);
 }
 
 /**
