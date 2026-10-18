@@ -491,11 +491,11 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 14,
     emoji: '🏡',
     label: 'Villa',
-    description: 'Spacious residence providing shelter for 14 villagers.',
+    description: 'Spacious residence providing shelter for 14 villagers. Requires Better Housing research.',
     sprite: '/sprites/villa.png',
     backgroundColor: '#a16207',
     padShape: 'round',
-    unlockRequirement: 'architecture_1',
+    unlockRequirement: 'architecture_3',
   },
   [BuildingType.Mansion]: {
     width: 59,
