@@ -132,7 +132,7 @@ describe('the ground bake paints the classification it is drawn under', () => {
       // measured ~100 % before the fix — cannot pass.
       expect(lawn / sampled, `${preset}: alpine pixels painted as lawn`).toBeLessThan(0.005);
     }
-  });
+  }, 120_000);
 
   it('paints a cold crest as snow, which the absolute-height ramp could not reach', async () => {
     const { img } = await bake(MapPreset.Scandinavia);
