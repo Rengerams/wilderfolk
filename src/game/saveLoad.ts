@@ -1,5 +1,5 @@
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
-import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL } from './gameTypes';
+import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
 import { INITIAL_CHALLENGES } from './challenges';
 import { normalizeLifetimeStats } from './stats';
@@ -1518,7 +1518,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }
     }
 
-    mergeCombatResearchNodes(world.researchNodes);
+    world.researchNodes = mergeCombatResearchNodes(world.researchNodes);
+    // New technology must also appear in saves written before the Villa existed.
+    if (!world.researchNodes.some((node) => node.id === 'architecture_3')) {
+      const betterHousing = createInitialResearchNodes().find((node) => node.id === 'architecture_3');
+      if (betterHousing) world.researchNodes.push(betterHousing);
+    }
     syncResearchUnlocks(world);
     world.tradeRoutes = ensureFullTradeRoutes(world.tradeRoutes ?? []);
     for (let i = 0; i < world.tradeRoutes.length; i++) {
