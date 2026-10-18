@@ -700,6 +700,10 @@ export interface GraveRecord {
   name: string;
   faction: 'player' | 'enemy';
   tick: number;
+  /** The graveyard containing this burial; older saves may not have one. */
+  graveyardId?: number;
+  /** Links mourners to deceased relatives where the character existed in-world. */
+  deceasedId?: number;
 }
 
 export interface WorldState {
