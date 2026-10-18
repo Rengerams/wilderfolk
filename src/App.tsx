@@ -2174,7 +2174,7 @@ export default function App() {
                 </p>
               ))}
               {battleReport.phase >= 6 && world.eventLog
-                .filter((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && (event.type === 'combat' || event.type === 'death'))
+                .filter((event) => event.id > battleReport.baselineId && (event.entityName === battleReport.rivalName && event.type === 'combat' || event.type === 'death' && event.message.includes(battleReport.rivalName)))
                 .slice().reverse().map((event) => (
                   <p key={event.id} className="border-l-2 border-rose-600 pl-3 text-rose-200">{event.message}</p>
                 ))}
