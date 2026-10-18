@@ -692,7 +692,16 @@ export interface HuntVisual {
   foughtBack: boolean;
 }
 
+/** Graveyard record; linked to a real death, never a fabricated casualty. */
+export interface GraveRecord {
+  name: string;
+  faction: 'player' | 'enemy';
+  tick: number;
+}
+
 export interface WorldState {
+  /** Up to fifty memorial records per completed player graveyard. */
+  graveRecords?: GraveRecord[];
   entities: Entity[];
   buildings: Building[];
   deathParticles: DeathParticle[];
