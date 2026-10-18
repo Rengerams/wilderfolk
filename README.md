@@ -67,6 +67,12 @@ This update brings more life to the people who call your settlement home. Build 
 
 ---
 
+## Playtested up to 1800 settlers
+
+Succesfull live playtested with a city up to 1800 settlers in one city, this is excluded the animals, and other entities.
+
+---
+
 ## 🏡 Villa — Room for a Growing Village
 
 Growing families need somewhere to call home.
