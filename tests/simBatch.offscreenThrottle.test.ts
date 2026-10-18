@@ -13,6 +13,7 @@ import { tickHumans } from '../src/game/humanTick';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { initGame } from '../src/game/worldGen';
+import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
 
 const TEST_SEED = 20_261_006;
 /** 23:00 on day 1: `prefersHomeTonightFor` is unconditional, so the settler walks home when active. */
@@ -22,7 +23,7 @@ const THROTTLE_ID = 3;
 const HOME_ID = 900;
 
 const OFF_SCREEN: SimulationFocus = { minX: -2000, maxX: -1000, minY: -2000, maxY: -1000 };
-const ON_SCREEN: SimulationFocus = { minX: 0, maxX: 300, minY: 0, maxY: 300 };
+const ON_SCREEN: SimulationFocus = { minX: 0, maxX: 1500, minY: 0, maxY: 1500 };
 
 let settlerPrototype: Entity | undefined;
 
@@ -81,8 +82,12 @@ function house(): Building {
 /** A night world whose only settler starts far from their house. */
 function nightWorld(id: number): WorldState {
   const state = initGame({ seed: TEST_SEED });
-  state.entities = [settler(id, { x: 100, y: 100 })];
   state.buildings = [house()];
+  const position = state.worldMap
+    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, 100, 100)
+    : null;
+  if (!position) throw new Error('fixture must provide walkable ground');
+  state.entities = [settler(id, position)];
   state.visitorGroups = [];
   state.pendingRaidEvents = [];
   state.pendingOutgoingRaidEvents = [];
