@@ -446,7 +446,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     height: 48,
     cost: { wood: 15, stone: 35, gold: 5 },
     buildTime: 3,
-    maxOccupants: 0,
+    maxOccupants: 1,
     emoji: '🪦',
     label: 'Graveyard',
     description: 'Memorial for up to 50 dead villagers and enemies. Families may visit to mourn.',
