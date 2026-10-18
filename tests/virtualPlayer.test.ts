@@ -215,9 +215,9 @@ function makeWorld(
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
     // A supplied colony: step 9 answers any resource above its own shortage line,
-    // so the default world holds enough iron (the Mine's line is 20) and the tests
+    // so the default world holds enough iron (the Mine's current line is 120) and tests
     // that care about a shortage set their own stores.
-    resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 30 },
+    resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
     storageMax: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 300 },
     season: Season.Spring,
     weather: WeatherType.Clear,
