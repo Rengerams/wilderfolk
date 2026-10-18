@@ -456,6 +456,10 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
 }
 
 export function getElectionGatherSite(state: WorldState): { x: number; y: number } {
+  const square = state.buildings.find((building) =>
+    building.type === 'square' && building.completed && building.faction !== 'rival'
+  );
+  if (square) return { x: square.x + square.width / 2, y: square.y + square.height / 2 };
   const hall = findPlayerTownHall(state.buildings);
   if (hall) {
     return { x: hall.x + hall.width / 2, y: hall.y + hall.height / 2 };
