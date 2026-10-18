@@ -671,6 +671,8 @@ export interface OutgoingRaidEvent {
 }
 
 export interface ElectionCeremonyState {
+  /** Leading three candidates stand on the central platform; optional for old saves. */
+  finalistIds?: number[];
   phase: ElectionCeremonyPhase;
   phaseTicksLeft: number;
   gatherX: number;
