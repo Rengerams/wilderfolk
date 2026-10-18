@@ -1280,12 +1280,31 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   const lossFraction = strengthRatio >= 4 ? 1 : strengthRatio >= 2 ? 0.6 : 0.25;
   const losses = Math.min(rival.population, Math.max(1, Math.ceil(rival.population * lossFraction)));
   rival.population -= losses;
-  const casualties = new Set(rival.entityIds.slice(0, losses));
-  for (const entity of state.entities) {
-    if (casualties.has(entity.id)) entity.alive = false;
+  // Rivals can have a larger simulated population than their visible character roster.
+  // Kill only living members, record named deaths when available, and count any
+  // remaining losses as off-map casualties instead of inventing character names.
+  const livingRivals = state.entities.filter((entity) => entity.alive && rival.entityIds.includes(entity.id));
+  const victims = livingRivals.slice(0, losses);
+  const casualties = new Set(victims.map((entity) => entity.id));
+  for (const victim of victims) {
+    victim.alive = false;
+    logDeath(
+      state,
+      formatDeathLog(victim, `fell defending ${rival.name} against our war-band`),
+      formatCitizenName(victim),
+      { x: victim.x, y: victim.y },
+    );
   }
   rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
-  logEvent(state, 'combat', `${rival.name} lost ${losses} inhabitants defending their settlement`, rival.name, 'outgoing_raid', 'resolved');
+  const offMapDeaths = losses - victims.length;
+  logEvent(
+    state,
+    'combat',
+    `${rival.name} lost ${losses} inhabitants defending their settlement (${victims.length} named casualties${offMapDeaths > 0 ? `, ${offMapDeaths} off-map` : ''}); ${rival.population} survive`,
+    rival.name,
+    'outgoing_raid',
+    'casualties',
+  );
   if (rival.population > 0) return;
 
   const structures = new Set(rival.buildingIds);
