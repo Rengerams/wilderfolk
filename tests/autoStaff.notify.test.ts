@@ -31,7 +31,7 @@ describe('autoStaffAllWorkers feedback', () => {
     farm.completed = true;
     farm.constructionProgress = 100;
     farm.occupants = [];
-    const worker = humans.find((entity) => !entity.isJuvenile);
+    const worker = playerHumans(world).find((entity) => !entity.isJuvenile);
     if (!worker) throw new Error('fixture needs an adult who can staff the farm');
     // Use an eligible local settler rather than depending on the generated colony's commute.
     worker.homeBuildingId = undefined;
