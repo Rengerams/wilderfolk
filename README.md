@@ -28,8 +28,6 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 * `GAME_VERSION` **0.6.5.1**
 
-# 🏘️ A Village Worth Fighting For
-
 **New homes. Stronger communities. Meaningful battles. Stories that live on.**
 
 The wilderness is alive, but so is your village.
