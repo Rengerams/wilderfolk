@@ -22,6 +22,7 @@ export const BuildingType = {
   /** Official residence of the elected village leader — unique, free, reserved housing. */
   LeaderHouse: 'leaderHouse',
   Church: 'church',
+  Graveyard: 'graveyard',
   Prison: 'prison',
   Well: 'well',
   Road: 'road',
@@ -439,6 +440,19 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     backgroundColor: '#4f46e5',
     padShape: 'round',
     unique: true,
+  },
+  [BuildingType.Graveyard]: {
+    width: 56,
+    height: 48,
+    cost: { wood: 15, stone: 35, gold: 5 },
+    buildTime: 3,
+    maxOccupants: 0,
+    emoji: '🪦',
+    label: 'Graveyard',
+    description: 'Memorial for up to 50 dead villagers and enemies. Families may visit to mourn.',
+    sprite: '/sprites/graveyard.png',
+    backgroundColor: '#64748b',
+    padShape: 'rect',
   },
   [BuildingType.Well]: {
     width: 30,
