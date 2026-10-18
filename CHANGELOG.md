@@ -8,7 +8,7 @@
 
 - **Fixed:** the CPU profiler docks above the map's lower-right controls instead of covering the build menu; expanding its report no longer moves the toggle.
 
-- **Fixed:** prison watch assignments now stay with the same crew for a week; legacy overstaffed saves use the guards nearest the post. Guards commute on weekends and off-screen, with travel time accounting for the movement layer's four-tick cadence. Hourly post checks run after movement, so arrivals are counted.
+- **Fixed:** prison watch assignments keep the same weekly crew, including guards from overstaffed saves. Guards commute on weekends and off-screen; hourly post checks run after movement so arrivals count.
 
 
 ## <u>[0.6.5.1]</u> — 2026-10-08
