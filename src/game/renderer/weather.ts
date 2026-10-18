@@ -533,10 +533,9 @@ function applyTint(ctx: CanvasRenderingContext2D, tint: WeatherTint, cw: number,
  * water shimmer — the effect is created when the state changes and kept until it changes again.
  */
 export function drawWeather(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
+  // One switch hides all weather particles, cloud/fog layers, lighting and tints.
+  if (!weatherVisualEnabled()) return;
   const frame = weatherFrame(state, cw, ch);
-  // Hide the presentation only; rain, storms and snowfall still affect the simulation.
-  if (((state.weather === WeatherType.Rain || state.weather === WeatherType.Storm) && !weatherVisualEnabled('rain'))
-    || (state.weather === WeatherType.Snow && !weatherVisualEnabled('snow'))) return;
   const effect = effectFor(state.weather);
   const tint = effect.tint?.(frame) ?? null;
   if (tint) applyTint(ctx, tint, cw, ch);
@@ -629,6 +628,7 @@ function newSeasonParticle(cw: number, ch: number, season: Season): SeasonPartic
 
 /** Fall leaves + winter ambient snow-dust — season juice, independent of weather. */
 export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
+  if (!weatherVisualEnabled()) return;
   const active = state.season === Season.Fall
     || (state.season === Season.Winter && state.weather === WeatherType.Clear);
   if (!active) {
@@ -643,7 +643,6 @@ export function drawSeasonParticles(ctx: CanvasRenderingContext2D, state: Render
     seasonPartsSeason = state.season;
   }
   if (!state.juiceEffectsEnabled) return;
-  if (state.season === Season.Winter && !weatherVisualEnabled('snow')) return;
   const fall = state.season === Season.Fall;
   // Advanced by the frame delta the clock publishes, so the fall rate does not follow the frame rate.
   const step = renderDelta * SEASON_PARTICLE_PX_PER_SECOND;
