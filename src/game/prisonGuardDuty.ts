@@ -64,7 +64,7 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
   const prison = state.buildings.find(
     (building) => building.type === BuildingType.Prison && occupants.some((id) => building.occupants?.includes(id)),
   );
-  if (!prison) return ids.slice(0, PRISON_GUARDS_MAX);
+  if (!prison || ids.length <= PRISON_GUARDS_MAX) return ids.slice(0, PRISON_GUARDS_MAX);
 
   // Saves from older builds can contain more guards than the current four posts allow. For an
   // overfull legacy roster, use the three closest as the stable watch crew: adding a distant fourth
