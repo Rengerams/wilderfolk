@@ -1,6 +1,6 @@
 [package]
 name = "wilderfolk"
-version = "0.6.5-0"
+version = "0.6.5-1"
 authors = ["Renffr"]
 license = "MIT"
 # repository = ""  # omit until you have one
