@@ -60,9 +60,9 @@ const MONTHS_PER_YEAR = 12;
  * assembly is the ceremony the owner asked for, and the ring maths (`getElectionGatherTarget`) is
  * untouched.
  */
-const CEREMONY_GATHERING_HOURS = 12;
-const CEREMONY_GOSSIP_HOURS = 10;
-const CEREMONY_TENSION_HOURS = 1;
+const CEREMONY_GATHERING_HOURS = 24;
+const CEREMONY_GOSSIP_HOURS = 20;
+const CEREMONY_TENSION_HOURS = 8;
 
 function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
   switch (phase) {
@@ -511,6 +511,7 @@ export const CEREMONY_ATTENDEE_LIMIT = GATHER_SLOTS_PER_RING * 2;
  */
 export function isCeremonyAttendee(state: WorldState, entityId: number): boolean {
   if (!state.electionCeremony) return false;
+  if (state.electionCeremony.finalistIds?.includes(entityId)) return true;
   let slot = 0;
   for (let i = 0; i < state.entities.length; i++) {
     const entity = state.entities[i];
@@ -527,6 +528,11 @@ const MAX_GATHER_RADIUS_PX = 22 + MAX_GATHER_RING * 14;
 export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
   const c = state.electionCeremony;
   if (!c) return getElectionGatherSite(state);
+  const finalistPosition = c.finalistIds?.indexOf(entityId) ?? -1;
+  if (finalistPosition >= 0) {
+    // Finalists stand in a line at the square's centre, not in the audience rings.
+    return { x: c.gatherX + (finalistPosition - 1) * 15, y: c.gatherY - 10 };
+  }
 
   // This runs once per settler while a ceremony is active, and it used to rebuild and sort the whole
   // attendee list every time. That list cannot be hoisted for the tick: it is the *live* set, and
@@ -558,6 +564,7 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
     };
   }
 
+  // Keep the audience out of the finalists' central platform.
   const ring = Math.floor(slot / GATHER_SLOTS_PER_RING);
   if (ring > MAX_GATHER_RING) {
     // Overflow shares the outermost ring, each on its own stable angle so nobody stacks on a neighbour
@@ -785,9 +792,11 @@ export function startElectionCeremony(
     pendingLeaderId: winner.entityId,
     pendingLeaderName: winner.name,
     pendingChanged: state.villageLeaderId !== winner.entityId,
+    finalistIds: ranked.slice(0, 3).map((candidate) => candidate.entityId),
   };
 
-  const place = findPlayerTownHall(state.buildings) ? 'the Town Hall' : 'the village center';
+  const place = state.buildings.some((building) => building.type === 'square' && building.completed && building.faction !== 'rival')
+    ? 'the Village Square' : findPlayerTownHall(state.buildings) ? 'the Town Hall' : 'the village center';
 
   logEvent(
     state,
@@ -808,7 +817,7 @@ export function startElectionCeremony(
   addNotification(
     state,
     '🗳️ Election ceremony begins',
-    `The village gathers at ${place} to choose its head — one day of assembly (Year ${displayYear(year)}).`,
+    `The village gathers at ${place} to choose its head — a two-day ceremony (Year ${displayYear(year)}).`,
     'event',
     { x: site.x, y: site.y },
   );
@@ -847,12 +856,15 @@ function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCerem
 
 function advanceCeremonyPhase(state: WorldState, ceremony: ElectionCeremonyState): void {
   if (ceremony.phase === 'gathering') {
+    logEvent(state, 'election', 'Election gathering complete — candidates address the crowd and villagers begin discussing the vote.');
     ceremony.phase = 'gossip';
     ceremony.phaseTicksLeft = getPhaseTicks('gossip');
   } else if (ceremony.phase === 'gossip') {
+    logEvent(state, 'election', 'Election discussions conclude — the village awaits the final decision.');
     ceremony.phase = 'tension';
     ceremony.phaseTicksLeft = getPhaseTicks('tension');
   } else if (ceremony.phase === 'tension') {
+    logEvent(state, 'election', 'Election ceremony reaches the result announcement.');
     ceremony.phase = 'reveal';
     ceremony.phaseTicksLeft = 1;
   }
