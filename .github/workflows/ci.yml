@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '26.12.0'
-          cache: C:\Users\Admin\AppData\Local\Author Software\nvm\installs\v26.12.0\node_modules\npm
+          cache: npm --cache
 
       - name: Install locked dependencies
         id: install
