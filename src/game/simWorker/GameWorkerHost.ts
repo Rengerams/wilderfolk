@@ -1,5 +1,6 @@
 
 import type { WorldState } from '../gameTypes';
+import { profileStart, profileEnd, type PerformanceSnapshot } from '../performanceProfiler';
 import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
@@ -88,6 +89,9 @@ type PendingExport = {
 /** How long an export may wait for its reply before the host stops counting it. */
 const EXPORT_REPLY_DEADLINE_MS = 30000;
 
+/** Maximum wait for the worker to return the final unthrottled CPU sample. */
+const PROFILING_STOP_REPLY_DEADLINE_MS = 30000;
+
 /**
  * How long a command may wait for its reply. This is the freeze guard: `canPipelineTick()` refuses
  * every tick while a command is pending, and the stall watchdog needs a tick in flight to fire — so a
@@ -99,6 +103,14 @@ export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
   private ticksInFlight = 0;
+  private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
+  private nextProfilingRequestId = 0;
+  private pendingProfilingStop: {
+    requestId: number;
+    resolve: (snapshot: PerformanceSnapshot) => void;
+    reject: (error: Error) => void;
+    deadline: ReturnType<typeof setTimeout>;
+  } | null = null;
   private pendingFocus: SimulationFocus | undefined;
   private onTickResult: TickResultHandler | null = null;
   private onCommandResult: CommandResultHandler | null = null;
@@ -274,6 +286,7 @@ export class GameWorkerHost {
     this.lastSpeedSent = null;
     this.settleCommand((pending) => pending.reject(new Error('Worker disposed')));
     this.settleExport((pending) => pending.reject(new Error('Worker disposed')));
+    this.settleProfilingStop((pending) => pending.reject(new Error('Worker disposed')));
     this.commandChain = Promise.resolve();
     const waiters = this.idleWaiters;
     this.idleWaiters = [];
@@ -439,6 +452,37 @@ export class GameWorkerHost {
     if (!this.postControl(msg)) this.lastPausedSent = null;
   }
 
+  setProfilingEnabled(enabled: boolean): void {
+    if (!this.worker || !this.ready) return;
+    if (enabled) this.latestPerformanceSnapshot = null;
+    this.postControl({ type: 'setProfiling', proto: WORKER_PROTO, enabled });
+  }
+
+  stopProfiling(): Promise<PerformanceSnapshot> {
+    if (!this.worker || !this.ready) return Promise.reject(new Error('Worker not ready'));
+    if (this.pendingProfilingStop) return Promise.reject(new Error('Profiler stop already pending'));
+    return new Promise((resolve, reject) => {
+      const requestId = ++this.nextProfilingRequestId;
+      const pending = {
+        requestId,
+        resolve,
+        reject,
+        deadline: setTimeout(() => {
+          if (this.pendingProfilingStop !== pending) return;
+          this.settleProfilingStop((entry) => entry.reject(new Error('Worker profiler stop timed out')));
+        }, PROFILING_STOP_REPLY_DEADLINE_MS),
+      };
+      this.pendingProfilingStop = pending;
+      if (!this.postControl({ type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId })) {
+        this.settleProfilingStop((entry) => entry.reject(new Error('Unable to stop worker profiler')));
+      }
+    });
+  }
+
+  getPerformanceSnapshot(): PerformanceSnapshot | null {
+    return this.latestPerformanceSnapshot;
+  }
+
   setSpeed(speed: number): void {
     if (!this.worker || !this.ready) return;
     if (this.lastSpeedSent === speed) return;
@@ -519,6 +563,17 @@ export class GameWorkerHost {
     if (!pending) return;
     clearTimeout(pending.deadline);
     this.pendingCommand = null;
+    settle(pending);
+  }
+
+  /** Clear the profiling-stop deadline on response, fault or disposal. */
+  private settleProfilingStop(
+    settle: (pending: NonNullable<GameWorkerHost['pendingProfilingStop']>) => void,
+  ): void {
+    const pending = this.pendingProfilingStop;
+    if (!pending) return;
+    clearTimeout(pending.deadline);
+    this.pendingProfilingStop = null;
     settle(pending);
   }
 
@@ -620,6 +675,7 @@ export class GameWorkerHost {
     }
     this.settleCommand((pending) => pending.reject(err));
     this.settleExport((pending) => pending.reject(err));
+    this.settleProfilingStop((pending) => pending.reject(err));
     this.resolveIdleWaiters();
   }
 
@@ -640,8 +696,16 @@ export class GameWorkerHost {
       }
       this.settleCommand((pending) => pending.reject(new Error(msg.message)));
       this.settleExport((pending) => pending.reject(new Error(msg.message)));
+      this.settleProfilingStop((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
       this.onWorkerFault?.(msg.source ?? 'general', msg.message);
+      return;
+    }
+
+    if (msg.type === 'profilingStopped') {
+      if (this.pendingProfilingStop?.requestId !== msg.requestId) return;
+      this.latestPerformanceSnapshot = msg.snapshot;
+      this.settleProfilingStop((pending) => pending.resolve(msg.snapshot));
       return;
     }
 
@@ -667,9 +731,13 @@ export class GameWorkerHost {
         this.resolveIdleWaiters();
         return;
       }
+      const applyStart = profileStart();
       applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+      profileEnd('main.applyCommandDelta', applyStart);
+      const hydrateStart = profileStart();
       invalidateWorldRuntimeCaches(this.worldRef);
       hydrateWorldRuntimeCaches(this.worldRef);
+      profileEnd('main.hydrateCommand', hydrateStart);
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
@@ -690,6 +758,7 @@ export class GameWorkerHost {
     }
 
     if (msg.type !== 'tickResult') return;
+    if (msg.performanceSnapshot) this.latestPerformanceSnapshot = msg.performanceSnapshot;
 
     // The counter drops whether or not the delta can be applied. A tick result that arrived with no
     // world attached used to leave a tick in flight for good — the stall detector then fired on a
@@ -700,9 +769,13 @@ export class GameWorkerHost {
       return;
     }
     const delta = msg.delta as SimTickDelta;
+    const applyStart = profileStart();
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+    profileEnd('main.applySimDelta', applyStart);
+    const hydrateStart = profileStart();
     invalidateWorldRuntimeCaches(this.worldRef);
     hydrateWorldRuntimeCaches(this.worldRef);
+    profileEnd('main.hydrateCaches', hydrateStart);
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
       this.onTickResult?.(this.worldRef, delta, null, true);

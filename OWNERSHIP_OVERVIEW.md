@@ -358,3 +358,11 @@ If two modules export the same function name with the same responsibility:
 
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
 `dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
+
+## CPU profiler integration lifecycle
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `GameLoop.setPerformanceProfiling`, `GameLoop.getPerformanceProfiling`, `GameLoop.registerWorkerHandlers`, `GameLoop.stop`, `GameLoop.frameBody` | `game/gameLoop.ts` | Control profiling, retain worker samples and measure main-thread work. |
+| `GameWorkerHost.setProfilingEnabled`, `GameWorkerHost.stopProfiling`, `GameWorkerHost.getPerformanceSnapshot`, `GameWorkerHost.settleProfilingStop`, `GameWorkerHost.dispose`, `GameWorkerHost.rejectInFlight`, `GameWorkerHost.handleMessage` | `game/simWorker/GameWorkerHost.ts` | Transport samples and settle final-sample requests on response, failure or disposal. |
+| `packAndPostTickResult`, `self.onmessage` | `game/simWorker/gameWorker.ts` | Publish tick samples and acknowledge Stop with the final unthrottled sample. |
