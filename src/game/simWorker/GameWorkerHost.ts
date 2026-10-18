@@ -797,17 +797,13 @@ export class GameWorkerHost {
   }
 }
 
-// export function isGameWorkerEnabled(): boolean {
-//  if (typeof Worker === 'undefined') return false;
-//  const v = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_USE_GAME_WORKER : undefined;
-//  if (v === false || v === 0) return false;
-//  if (typeof v === 'string') {
-//    const normalized = v.trim().toLowerCase();
-//    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') return false;
-//    return false;
-//  }
-// return true;
-
+/** Enable the simulation worker only when the runtime supports it and settings permit it. */
 export function isGameWorkerEnabled(): boolean {
-  return true; // <-- FORCEER DIT TIJDELIJK OP FALSE
+  if (typeof Worker === 'undefined') return false;
+  const setting = import.meta.env?.VITE_USE_GAME_WORKER;
+  if (setting === false || setting === 0) return false;
+  if (typeof setting === 'string' && ['0', 'false', 'off', 'no'].includes(setting.trim().toLowerCase())) {
+    return false;
+  }
+  return true;
 }

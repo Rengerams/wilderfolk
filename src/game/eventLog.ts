@@ -1,4 +1,4 @@
-import type { CombatLogKind, GameEventLog, WorldState } from './gameTypes';
+import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
 
 let nextEventLogId = 1;
@@ -33,6 +33,7 @@ export function logEvent(
   message: string,
   entityName?: string,
   combatKind?: CombatLogKind,
+  combatStage?: CombatLogStage,
 ): void {
   // Ids must be monotonic *per log*, not per realm. `nextEventLogId` is module state, and a
   // realm that receives a world (the simulation worker, or the optimistic display copy the
@@ -53,6 +54,7 @@ export function logEvent(
     message,
     entityName,
     combatKind,
+    combatStage,
   });
   if (state.eventLog.length > EVENT_LOG_MAX_ENTRIES) state.eventLog.pop();
 }
@@ -90,6 +92,22 @@ export function resolveCombatLogKind(evt: GameEventLog): CombatLogKind | null {
   return null;
 }
 
+/** Classify saved pre-stage combat records without treating every entry as a new raid. */
+export function resolveCombatLogStage(evt: GameEventLog): CombatLogStage | null {
+  if (evt.type !== 'combat') return null;
+  if (evt.combatStage) return evt.combatStage;
+  const message = evt.message.toLowerCase();
+  if (message.startsWith('declared hostility')) return 'challenge';
+  if (message.includes('launched a raid on the village') || message.includes('dispatched toward')) {
+    return 'dispatched';
+  }
+  if (message.includes('fell defending against') || message.includes('fell on the raid against')) {
+    return 'casualties';
+  }
+  if (message.includes('broke off') || message.includes('fizzled')) return 'cancelled';
+  return 'resolved';
+}
+
 export function summarizeCombatEvents(events: GameEventLog[]): {
   raids: number;
   defended: number;
@@ -101,9 +119,10 @@ export function summarizeCombatEvents(events: GameEventLog[]): {
   let repelled = 0;
   for (const evt of events) {
     const kind = resolveCombatLogKind(evt);
-    if (kind === 'incoming_raid' || kind === 'outgoing_raid') raids += 1;
-    if (kind === 'defense') defended += 1;
-    if (kind === 'repelled') repelled += 1;
+    const stage = resolveCombatLogStage(evt);
+    if (stage === 'dispatched' && (kind === 'incoming_raid' || kind === 'outgoing_raid')) raids++;
+    if (stage === 'resolved' && (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid')) defended++;
+    if (stage === 'resolved' && kind === 'repelled') repelled++;
   }
   return { raids, defended, repelled, total: events.length };
 }

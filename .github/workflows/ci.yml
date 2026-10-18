@@ -39,6 +39,14 @@ jobs:
 
 
 
+      - name: Typecheck tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:types
+
+      - name: Run unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test -- unit
+
       - name: Build production bundle
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build

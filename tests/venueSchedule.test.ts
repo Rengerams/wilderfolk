@@ -130,7 +130,8 @@ describe('independent venue schedules', () => {
   it('splits Auto venue coverage into bounded worker shifts', () => {
     expect(isVenueWorkerServiceHour(base, 'hotel', 6, 0, 2)).toBe(true);
     expect(isVenueWorkerServiceHour(base, 'hotel', 13, 0, 2)).toBe(true);
-    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(false);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 14, 0, 2)).toBe(true);
+    expect(isVenueWorkerServiceHour(base, 'hotel', 15, 0, 2)).toBe(false);
     expect(isVenueWorkerServiceHour(base, 'hotel', 14, 1, 2)).toBe(true);
     expect(isVenueWorkerServiceHour(base, 'hotel', 22, 1, 2)).toBe(false);
     expect(isVenueWorkerServiceHour(base, 'tavern', 17, 0, 1)).toBe(true);

@@ -84,10 +84,10 @@ function escapeCsvField(value: string): string {
 }
 
 export function formatChronicleCSV(events: GameEventLog[]): string {
-  const header = 'id,tick,year,day,type,message,entityName';
+  const header = 'id,tick,year,day,type,message,entityName,combatKind,combatStage';
   const rows = events.map(
     (evt) =>
-      `${evt.id},${evt.tick},${evt.year},${evt.day},${evt.type},${escapeCsvField(evt.message || '')},${escapeCsvField(evt.entityName || '')}`,
+      `${evt.id},${evt.tick},${evt.year},${evt.day},${evt.type},${escapeCsvField(evt.message || '')},${escapeCsvField(evt.entityName || '')},${escapeCsvField(evt.combatKind || '')},${escapeCsvField(evt.combatStage || '')}`,
   );
   return [header, ...rows].join('\n');
 }
