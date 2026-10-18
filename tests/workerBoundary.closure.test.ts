@@ -301,10 +301,9 @@ describe('worker boundary closure', () => {
     const entitiesBefore = entitiesWithoutBirthDates(world);
 
     const prep = extractSimPrep(world);
-    world = applyWorkerCommand(world, { proto: 1, op: 'autoStaffWorkers' });
-    // The command must have changed the world, or the rollback assertion below is vacuous.
-    // `autoStaffAllWorkers` always posts a notification, so this is a change a real command makes.
-    expect(world.notifications.length).toBeGreaterThan(before.notifications.length);
+    world = applyWorkerCommand(world, { proto: 1, op: 'setWorkSchedule', startHour: 8, endHour: 17 });
+    // The real schedule command must have changed the world before rollback.
+    expect(world.workSchedule).toEqual({ startHour: 8, endHour: 17 });
     applySimPrep(world, prep);
 
     const keys = comparableKeys(world, before);
