@@ -200,7 +200,7 @@ function placeStorage(world: WorldState, anchor: { x: number; y: number }, scena
  * The order is part of the seeded scenario, not cosmetics: `prepareColonyWorld` staffs the first
  * producer with the settlement's second adult (the first one becomes the Prison Guard), and which
  * workplace that settler walks to changes the world's own RNG stream from tick 1. The Lumber Mill is
- * first so the Farm slots are left to the auto-assign layer as the colony grows — the shape the
+ * first, followed by Farms, so founders cover food production from day one — the shape the
  * 100-day run was calibrated on and the one whose reported lifecycle numbers (conceptions, births,
  * pregnancies, deaths) are non-zero.
  */
@@ -221,7 +221,7 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
 
 /**
  * Build one seeded colony and provision it exactly as the named scenario says. The settlement
- * skeleton (housing, tavern, prison, a staffed Prison Guard) is identical in both scenarios; only
+ * skeleton (housing, tavern, prison, an initially unstaffed Prison) is identical in both scenarios; only
  * the producers, the storage mix and the initial larder differ.
  */
 export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenario {
@@ -253,15 +253,12 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
 
   assignMissingResidences(founders, world.buildings, world.entities);
 
-  const prisonGuard = founders.find((founder) => founder.age >= 18);
-  assert(prisonGuard != null, 'starter settlement requires an adult founder to staff the prison');
-  assert(assignWorkerTransition(prisonGuard, prison), 'could not assign the starter Prison Guard');
-
-  // Producers are staffed from day 1 by the founders the game actually provides, so production does
-  // not wait for the auto-assign layer to see a free settler.
+  // No prisoners exist in the starter settlement, so a prison guard would consume a scarce
+  // founder without providing a benefit. Staff production first; prison staffing may follow
+  // later when the settlement can spare workers.
   let staffedProducers = 0;
   if (plan.producers) {
-    const spareAdults = founders.filter((founder) => !founder.isJuvenile && founder.id !== prisonGuard.id);
+    const spareAdults = founders.filter((founder) => !founder.isJuvenile);
     for (let index = 0; index < producers.length && index < spareAdults.length; index += 1) {
       if (assignWorkerTransition(spareAdults[index], producers[index])) staffedProducers += 1;
     }
@@ -287,7 +284,7 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
       staffedProducers,
       tavern: true,
       prison: prison.completed,
-      prisonGuardAssigned: prisonGuard.homeBuildingId === prison.id,
+      prisonGuardAssigned: false,
       founders: founders.length,
       housedFounders,
       initialFood: Math.round(world.resources.food),
