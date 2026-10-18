@@ -600,7 +600,6 @@ function decideCivic(state: WorldState): VirtualPlayerDecision | null {
 const LOW_WOOD_STOCK = 120;
 const LOW_IRON_STOCK = 120;
 const LOW_STONE_STOCK = 100;
-const LOW_GOLD_STOCK = 100;
 const INDUSTRY_BUILD_ORDER: readonly {
   type: BuildingType;
   stock: keyof WorldState['resources'];

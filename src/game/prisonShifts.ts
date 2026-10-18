@@ -33,7 +33,7 @@ export const PRISON_GUARDS_FOR_FULL_COVERAGE = PRISON_SHIFTS.length;
 
 /**
  * Guard posts a Prison offers (owner's limit). One more than a full watch, so the crew can take days
- * off in turn: three of the four hold the shifts each day.
+ * off in turn: three of the four hold the shifts each week.
  */
 export const PRISON_GUARDS_MAX = 4;
 
@@ -97,21 +97,22 @@ export function shiftForCrewIndex(crewIndex: number, weekIndex: number): PrisonS
 }
 
 /**
- * The guards on duty today, in crew order.
+ * The guards on duty this week, in crew order.
  *
- * A crew larger than the three shifts takes days off in turn: the on-duty window walks one crew place
- * per calendar day, so a crew of five works three days in five and no guard keeps the nights. A crew
- * the size of the watch itself — the minimum for full coverage — is on duty every day, which is why
- * the three-shift arithmetic is unchanged by the rotation.
+ * A crew larger than the three shifts takes turns resting by week. Keeping the same crew on duty for
+ * a full week keeps each guard on one shift long enough to complete a long commute; changing the crew
+ * every day repeatedly sent guards toward a new post just as their previous assignment changed.
  */
 export function prisonOnDutyGuards(guardIds: readonly number[], tick: number): number[] {
-  const crew = [...guardIds].sort((a, b) => a - b);
+  // `prisonGuardIds` orders a legacy overstaffed crew by proximity to its post. Preserve that order:
+  // sorting by id could put a guard across the map on a shift while a guard beside the prison rested.
+  const crew = [...guardIds];
   const onDuty = Math.min(crew.length, PRISON_SHIFTS.length);
   if (onDuty === 0) return [];
   if (crew.length <= onDuty) return crew;
 
-  const day = getAbsoluteCalendarDay(tick);
-  const start = ((day % crew.length) + crew.length) % crew.length;
+  const week = prisonWeekIndex(tick);
+  const start = ((week % crew.length) + crew.length) % crew.length;
   const out: number[] = [];
   for (let i = 0; i < onDuty; i++) out.push(crew[(start + i) % crew.length]);
   return out;

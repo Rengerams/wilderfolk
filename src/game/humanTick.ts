@@ -171,6 +171,7 @@ import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospital
 import { recordScheduleWorkTick } from './scheduleFatigue';
 
 import { syncEntityGrids } from './simulation/simulationEntities';
+import { LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
@@ -584,6 +585,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       ? prisonShiftForGuard(entity.id, prisonGuardIds(state, workplace.occupants ?? []), state.tick)
       : null;
     const onPrisonShift = prisonShift != null && shiftCoversHour(prisonShift, hourOfDay);
+    const prisonShiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
+    const prisonCommuteLeadHours = isPrisonGuardAtPost && prisonShift != null && workplace
+      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed)
+        * LAYER_SYSTEMS_INTERVAL
+      : 0;
+    // Prison watches run every day, including weekends. Start walking before the shift even when the
+    // ordinary evening routine would otherwise keep a guard at home.
+    const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
+      onPrisonShift || hourOfDay >= prisonShiftStartHour - prisonCommuteLeadHours
+    );
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.
@@ -593,7 +604,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
-      onJobShift || onOfficialShift || hospitalCommuteDue,
+      onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue,
       isInnkeeper,
     );
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
@@ -603,6 +614,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isPrisoner &&
       (inFocus ||
         hospitalCommuteDue ||
+        prisonCommuteDue ||
         entity.pregnant ||
         hasAffairPartner(entity, entityById) ||
         (entity.affairProgress ?? 0) >= 20 ||
@@ -761,7 +773,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
     // off-duty guard stood on a post he was not rostered for and had no day off at all.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
-    const shiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
+    const shiftStartHour = prisonShiftStartHour;
 
     const stayIn =
       !festivalGathering &&
@@ -774,7 +786,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      !hospitalCommuteDue && (
+      !hospitalCommuteDue && !prisonCommuteDue && (
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
@@ -871,7 +883,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
-    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && stayIn && hasResidenceAssignment(entity)) {
+    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
         if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH)) restAtHotel(entity);
@@ -1015,7 +1027,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         commuteDistanceToBuilding(entity, workplace, false),
         config.speed,
       );
-      const needsToLeaveForWork = isWorkDay(state.tick) && hourOfDay >= shiftStartHour - commuteLeadHours;
+      const needsToLeaveForWork = isPrisonGuardAtPost
+        ? prisonCommuteDue
+        : isWorkDay(state.tick) && hourOfDay >= shiftStartHour - commuteLeadHours;
       // A prison guard works his roster shift and nothing else: the colony window is not his day, so
       // `goWorkTime` must not put a resting guard back on the post he is taking the day off from.
       const wantsToWork = isPrisonGuardAtPost

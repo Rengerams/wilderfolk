@@ -56,11 +56,11 @@ describe('the roster covers the day', () => {
     expect(prisonRoster(crew, 21 * TICKS_PER_DAY).map((e) => e.guardId)).toEqual([11, 22, 33]);
   });
 
-  it('rests one of the four posts in turn and still covers every shift', () => {
+  it('rests one of the four posts by week and still covers every shift', () => {
     // Four posts for three shifts: the extra guard buys rest days, not a shorter watch.
     const four = [11, 22, 33, 44];
     const restDays = new Map<number, number>();
-    for (let day = 0; day < 40; day++) {
+    for (let day = 0; day < 28; day++) {
       const tick = day * TICKS_PER_DAY;
       const roster = prisonRoster(four, tick);
       expect(vacantPrisonShifts(roster)).toEqual([]);
@@ -68,8 +68,8 @@ describe('the roster covers the day', () => {
       for (const id of offDutyPrisonGuards(four, tick)) restDays.set(id, (restDays.get(id) ?? 0) + 1);
     }
 
-    // Ten rest days each in forty, and nobody is left off the rotation.
-    for (const id of four) expect(restDays.get(id)).toBe(10);
+    // One full rest week each in four, and nobody is left off the rotation.
+    for (const id of four) expect(restDays.get(id)).toBe(7);
   });
 
   it('leaves open the vacant shift\u2019s hours, minus what its neighbours\u2019 handovers cover', () => {
@@ -115,7 +115,21 @@ describe('a crew larger than the watch takes days off in turn', () => {
     }
   });
 
-  it('rests two of the five each day and works every guard three days in five', () => {
+  it('keeps the same three guards on duty all week so their commutes can finish', () => {
+    for (let week = 0; week < 5; week++) {
+      const roster = prisonRoster(five, week * 7 * TICKS_PER_DAY);
+      const expected = roster.map((entry) => entry.guardId).filter((id): id is number => id != null).sort();
+      for (let day = 1; day < 7; day++) {
+        const current = prisonRoster(five, (week * 7 + day) * TICKS_PER_DAY)
+          .map((entry) => entry.guardId)
+          .filter((id): id is number => id != null)
+          .sort();
+        expect(current).toEqual(expected);
+      }
+    }
+  });
+
+  it('rests two of the five each week and works every guard three weeks in five', () => {
     const worked = new Map<number, number>();
     for (let day = 0; day < 35; day++) {
       const onDuty = prisonOnDutyGuards(five, day * TICKS_PER_DAY);
@@ -123,7 +137,7 @@ describe('a crew larger than the watch takes days off in turn', () => {
       expect(offDutyPrisonGuards(five, day * TICKS_PER_DAY)).toHaveLength(five.length - PRISON_SHIFTS.length);
       for (const id of onDuty) worked.set(id, (worked.get(id) ?? 0) + 1);
     }
-    // 35 days x 3 posts = 105 guard-days over a crew of five: 21 days each, and the share is exact.
+    // 5 weeks x 3 posts = 15 guard-weeks over five guards: 3 weeks each, and the share is exact.
     for (const id of five) expect(worked.get(id)).toBe(21);
   });
 
