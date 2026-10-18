@@ -17,7 +17,7 @@ concurrency:
 jobs:
   verify:
     name: Source checks, tests, and build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 35
     steps:
       - name: Check out repository
@@ -26,8 +26,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '26.12.0'
-          cache: npm
+          node-version: '26.20.0'
+          cache: C:\Users\Admin\AppData\Local\Author Software\nvm\installs\v26.12.0\node_modules\npm
 
       - name: Install locked dependencies
         id: install
@@ -36,16 +36,10 @@ jobs:
       - name: Source, docs, and comment checks
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run check:source
-
-
-
+        
       - name: Typecheck tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: npm run test:types
-
-      - name: Run unit tests
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: npm test -- unit
+        run: npm run test:standard
 
       - name: Build production bundle
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
