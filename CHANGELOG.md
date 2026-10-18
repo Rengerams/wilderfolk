@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+- **Added:** Villa residence using `/sprites/villa.png` with shelter for 14 villagers; listed under Housing and included in residential occupancy and population housing capacity.
+- **Added:** a unique Village Square using `/sprites/square.png`, serving as the gathering place for festivals and elections, with the previous gathering locations retained when no completed square exists.
+- **Changed:** the three leading election candidates stand at the center of the ceremony, election phases last longer (24 hours gathering, 20 hours discussion, 8 hours final tension), and each phase is recorded in the Chronicle.
+- **Added:** buildable Graveyard using `/sprites/graveyard.png`, one Gravekeeper job per graveyard, and up to 50 memorial records per graveyard; names of villagers appear in green and enemy casualties in red. Adult relatives can occasionally visit recorded family graves outside working hours.
+- **Added:** a single persistent **Weather visuals** switch under Graphics, controlling all weather overlays, particles, fog, clouds, storms and seasonal particles without changing simulated weather.
+- **Added:** a paced full-screen text chronicle for outgoing raid battles, presenting successive phases and recorded battle outcomes and named casualties.
+- **Changed:** victorious outgoing raids cause permanent rival population losses, with overwhelmingly successful attacks able to eliminate rival settlements and clear associated events and structures. Rival deaths are recorded individually where characters exist, alongside counts for off-map casualties.
+- **Changed:** raid outcomes report spoils, own and enemy casualties, village victory announcements or mourning, and leadership rewards in the game Chronicle.
+
 - **Fixed:** the simulation worker is only enabled in supported runtimes, so main-thread fallback and diagnostics work without a browser Worker.
 
 - **Fixed:** prison guard patrols retain the assigned crew and do not leave their posts for social walks while commuting to a shift.
