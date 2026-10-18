@@ -36,7 +36,6 @@ This update brings more life to the people who call your settlement home. Build 
 
 **Every villager has a story, and every decision has consequences.**
 
----
 
 ## Playtested up to 1800 settlers
 
