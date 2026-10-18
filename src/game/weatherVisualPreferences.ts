@@ -1,21 +1,23 @@
-/** Client-only preferences: weather remains active in the simulation. */
-export type WeatherVisual = 'rain' | 'snow';
+/** Client-side global switch for visual weather only; simulation weather is unaffected. */
 const KEY = 'wilderfolk-weather-visuals';
-type Prefs = Record<WeatherVisual, boolean>;
-const defaults: Prefs = { rain: true, snow: true };
-function load(): Prefs {
+function load(): boolean {
   try {
-    if (typeof localStorage === 'undefined') return { ...defaults };
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return {
-      rain: saved?.rain !== false,
-      snow: saved?.snow !== false,
-    };
-  } catch { return { ...defaults }; }
+    if (typeof localStorage === 'undefined') return true;
+    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? 'true');
+    if (typeof saved === 'boolean') return saved;
+    // Migrate the older per-weather settings to one global setting.
+    if (saved && typeof saved === 'object') {
+      const legacy = saved as { rain?: boolean; snow?: boolean };
+      return legacy.rain !== false && legacy.snow !== false;
+    }
+  } catch { /* Missing or inaccessible browser storage. */ }
+  return true;
 }
-let prefs = load();
-export function weatherVisualEnabled(kind: WeatherVisual): boolean { return prefs[kind]; }
-export function setWeatherVisualEnabled(kind: WeatherVisual, enabled: boolean): void {
-  prefs = { ...prefs, [kind]: enabled };
-  try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ }
+let enabled = load();
+export function weatherVisualEnabled(): boolean { return enabled; }
+export function setWeatherVisualEnabled(value: boolean): void {
+  enabled = value;
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(enabled));
+  } catch { /* Browser storage is optional. */ }
 }
