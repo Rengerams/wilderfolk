@@ -135,6 +135,8 @@ function newWorld(): WorldState {
   state.resources.gold = 100;
   state.weather = WeatherType.Clear;
   state.tick = TICKS_PER_DAY + LATE_NIGHT_OFFSET;
+  // Test the lodging destination without unrelated terrain/path recovery changing its velocity.
+  state.worldMap = null;
   return state;
 }
 
