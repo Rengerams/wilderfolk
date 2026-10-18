@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- **Fixed:** raid chronicles distinguish threats, marches, combat outcomes, casualties and cancellations; raid totals and village traits no longer count the same raid multiple times.
+
+- **Changed:** combat CSV exports include raid stage and kind, and the combat panel labels each stage.
+
 - **Fixed:** removed the Gazette hook dependency warning while keeping live Chronicle updates visible; newspaper summaries are only calculated when the Gazette is open.
 
 - **Fixed:** restored the CPU profiler integration removed by a later update, repairing the build and restoring start, stop, live samples and the final worker report.
