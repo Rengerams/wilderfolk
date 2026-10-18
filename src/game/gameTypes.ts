@@ -204,6 +204,7 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
   // includes the Leader's House (base 12) — its level is read even though it is unique.
   BuildingType.House,
   BuildingType.Mansion,
+  BuildingType.Villa,
   BuildingType.LeaderHouse,
   // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
   BuildingType.Blacksmith,
