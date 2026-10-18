@@ -275,11 +275,12 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
   function affairScene(tick: number, startHour: number, endHour: number): Entity {
     const state = newWorld();
     state.tick = tick;
+    state.worldMap = null;
     state.workSchedule = { startHour, endHour };
-    const farm = building(1, BuildingType.Farm, { x: -220, y: 0 });
+    const farm = building(1, BuildingType.Farm, { x: 180, y: 400 });
     const farmHand = settler(1, {
-      x: 0,
-      y: 0,
+      x: 400,
+      y: 400,
       gender: 'male',
       relationshipStatus: 'married',
       partnerId: 999, // absent spouse: the gate only depends on the schedule
@@ -289,8 +290,8 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
     });
     farm.occupants = [farmHand.id];
     const lover = settler(2, {
-      x: 200,
-      y: 0,
+      x: 600,
+      y: 400,
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 998,
@@ -345,15 +346,16 @@ describe('L42 — company-following leisure blends velocity once', () => {
   function runCompanyFollow(tick: number, previousVx: number): number {
     const state = newWorld();
     state.tick = tick;
+    state.worldMap = null;
     const speaker = settler(1, {
-      x: 0,
-      y: 0,
+      x: 400,
+      y: 400,
       vx: previousVx,
       gender: 'male',
       relationshipStatus: 'married',
       partnerId: 2,
     });
-    const spouse = settler(2, { x: 200, y: 0, gender: 'female', relationshipStatus: 'married', partnerId: 1 });
+    const spouse = settler(2, { x: 600, y: 400, gender: 'female', relationshipStatus: 'married', partnerId: 1 });
     state.entities = [speaker, spouse];
     setSimSeed(TEST_SEED);
     tickHumans(state, contextFor(state, [speaker, spouse]));

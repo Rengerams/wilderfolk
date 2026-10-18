@@ -20,6 +20,7 @@ import type { Building, Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
+import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled } from '../performanceProfiler';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 
 /* Worker-side command logic */
@@ -91,14 +92,20 @@ function packAndPostTickResult(
     return;
   }
   try {
+    const packStart = profileStart();
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
+    profileEnd('worker.packRenderSoA', packStart);
+    const deltaStart = profileStart();
     const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
       focus: lastFocus,
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
     });
+    profileEnd('worker.extractDelta', deltaStart);
+    const buildingsStart = profileStart();
     prevBuildingsSnapshot = new Map((world.buildings ?? []).map((b) => [b.id, structuredClone(b)]));
+    profileEnd('worker.cloneBuildings', buildingsStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
     const transferables: ArrayBuffer[] = [pack.buffer];
@@ -112,6 +119,7 @@ function packAndPostTickResult(
     const response: WorkerResponse = {
       type: 'tickResult',
       proto: WORKER_PROTO,
+      performanceSnapshot: maybeWorkerPerformanceSnapshot(),
       renderBuffer: pack.buffer,
       bufferIndex: acquired.index,
       schemaVersion: pack.schemaVersion,
@@ -311,6 +319,20 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
+      case 'setProfiling': {
+        setPerformanceProfilingEnabled(msg.enabled);
+        if (!msg.enabled && msg.requestId !== undefined) {
+          const response: WorkerResponse = {
+            type: 'profilingStopped',
+            proto: WORKER_PROTO,
+            requestId: msg.requestId,
+            snapshot: getPerformanceSnapshot(),
+          };
+          self.postMessage(response);
+        }
+        break;
+      }
+
       case 'patchUi': {
         if (!world) break;
         applyWorkerUiPatch(world, msg);
@@ -339,6 +361,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
               type: 'tickResult',
               proto: WORKER_PROTO,
               delta,
+              performanceSnapshot: maybeWorkerPerformanceSnapshot(),
               headless: true,
             };
             self.postMessage(response);

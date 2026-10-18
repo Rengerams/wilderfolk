@@ -201,6 +201,7 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
   // includes the Leader's House (base 12) — its level is read even though it is unique.
   BuildingType.House,
   BuildingType.Mansion,
+  BuildingType.LeaderHouse,
   // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
   BuildingType.Blacksmith,
   BuildingType.Workshop,
@@ -813,6 +814,7 @@ export interface WorldState {
 
 export type GameState = WorldState;
 export type CombatLogKind = 'incoming_raid' | 'outgoing_raid' | 'defense' | 'repelled';
+export type CombatLogStage = 'challenge' | 'dispatched' | 'resolved' | 'casualties' | 'cancelled';
 
 export interface GameEventLog {
   id: number;
@@ -840,6 +842,7 @@ export interface GameEventLog {
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;
+  combatStage?: CombatLogStage;
 }
 
 export interface DailyEconomyLedger {

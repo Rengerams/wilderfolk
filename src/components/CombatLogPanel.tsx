@@ -1,6 +1,6 @@
 import type { GameEventLog } from '../game/gameTypes';
 import { displayYear } from '../game/dayCycleClock';
-import { summarizeCombatEvents } from '../game/eventLog';
+import { resolveCombatLogStage, summarizeCombatEvents } from '../game/eventLog';
 import {
   downloadChronicleCSV,
   downloadChronicleJSON,
@@ -50,11 +50,11 @@ export default function CombatLogPanel({ events, meta }: Props) {
           <p className="text-sm font-bold text-rose-300">{stats.total}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] uppercase tracking-wider text-stone-300">Raid-related</p>
+          <p className="text-[10px] uppercase tracking-wider text-stone-300">Raids launched</p>
           <p className="text-sm font-bold text-amber-300">{stats.raids}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] uppercase tracking-wider text-stone-300">Defenses</p>
+          <p className="text-[10px] uppercase tracking-wider text-stone-300">Defenses resolved</p>
           <p className="text-sm font-bold text-emerald-300">{stats.defended}</p>
         </div>
       </div>
@@ -86,6 +86,7 @@ export default function CombatLogPanel({ events, meta }: Props) {
       <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-stone-700 bg-stone-900/60 p-2">
         {shown.map((evt) => (
           <p key={evt.id} className="text-[13px] leading-relaxed text-rose-200/90">
+            <span className="mr-1 font-semibold uppercase text-amber-300/90">[{resolveCombatLogStage(evt) ?? 'combat'}]</span>
             {formatLine(evt)}
           </p>
         ))}

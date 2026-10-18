@@ -3,7 +3,7 @@ import { EntityType } from './gameTypes';
 import { displayYear } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { isRivalAtPeace } from './rivalPeace';
-import { resolveCombatLogKind } from './eventLog';
+import { resolveCombatLogKind, resolveCombatLogStage } from './eventLog';
 import { getEcosystemHealth } from './dailyEcology';
 
 export type PortraitTraitId = 'war' | 'nature' | 'trade' | 'build' | 'diplomacy';
@@ -85,10 +85,10 @@ export function computeVillagePortrait(state: WorldState): VillagePortrait {
   const eventLog = state.eventLog ?? [];
   for (let i = 0; i < eventLog.length; i++) {
     const kind = resolveCombatLogKind(eventLog[i]);
-    if (!kind) continue;
-    if (kind === 'outgoing_raid') {
+    const stage = resolveCombatLogStage(eventLog[i]);
+    if (stage === 'dispatched' && kind === 'outgoing_raid') {
       outgoingRaids++;
-    } else if (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid') {
+    } else if (stage === 'resolved' && (kind === 'defense' || kind === 'repelled' || kind === 'incoming_raid')) {
       defenses++;
     }
   }

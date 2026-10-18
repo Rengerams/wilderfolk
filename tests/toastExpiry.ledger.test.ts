@@ -90,7 +90,7 @@ describe('transient timer sweeps avoid no-op world notifications', () => {
     expireBigNews(world);
     expect(world.bigNews.find((news) => news.id === 'fresh')?.dismissed).toBe(true);
     expect(hasExpiredBigNews(world)).toBe(false);
-    world.tick = 601;
+    world.tick = 641;
     expect(hasExpiredBigNews(world)).toBe(true);
     expireBigNews(world);
     expect(world.bigNews).toHaveLength(0);

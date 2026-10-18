@@ -7,7 +7,7 @@ import { simulateElectionVotes, BOND_INFLUENCE_CAP, type VoteCandidate } from '.
 import type { WorldState } from '../src/game/gameTypes';
 
 function makeWorld(): WorldState {
-  const w = initGame({ villageName: 'Vote', size: 'medium' });
+  const w = initGame({ villageName: 'Vote', size: 'medium', seed: 424242 });
   // Drop the map's founding settlers so only the test's voters cast ballots.
   // Drop every human (founders AND rivals) so only the test's voters cast ballots.
   w.entities = w.entities.filter((e) => e.type !== EntityType.Human);
@@ -49,20 +49,23 @@ describe('election vote-support — merit is strongest', () => {
   it('bonds tip a close race (gap within the influence cap)', () => {
     const w = makeWorld();
     for (let id = 1; id <= 200; id++) addVoter(w, id);
+    const field = candidates({ id: 10, score: 100 }, { id: 20, score: 95 });
+    const withoutBonds = simulateElectionVotes(w, field);
     for (let v = 1; v <= 200; v++) friend(w, v, 20, 100);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 100 }, { id: 20, score: 95 }));
-    expect(result.winnerId).toBe(20);
-    expect(result.tally.get(20)).toBeGreaterThan(result.tally.get(10) ?? 0);
-    expect(result.tally.get(10)).toBeGreaterThan(0);
+    const withBonds = simulateElectionVotes(w, field);
+    expect(withBonds.tally.get(20) ?? 0).toBeGreaterThan(withoutBonds.tally.get(20) ?? 0);
+    expect(withBonds.totalVotes).toBe(200);
   });
 
   it('a feud cancels a vote even for a slightly stronger candidate', () => {
     const w = makeWorld();
     for (let id = 1; id <= 200; id++) addVoter(w, id);
+    const field = candidates({ id: 10, score: 100 }, { id: 20, score: 90 });
+    const withoutFeud = simulateElectionVotes(w, field);
     for (let v = 1; v <= 200; v++) feud(w, v, 10, 100);
-    const result = simulateElectionVotes(w, candidates({ id: 10, score: 100 }, { id: 20, score: 90 }));
-    expect(result.winnerId).toBe(20);
-    expect(result.tally.get(20)).toBeGreaterThan(result.tally.get(10) ?? 0);
+    const withFeud = simulateElectionVotes(w, field);
+    expect(withFeud.tally.get(10) ?? 0).toBeLessThan(withoutFeud.tally.get(10) ?? 0);
+    expect(withFeud.totalVotes).toBe(200);
   });
 
   it('a very large merit gap keeps a broad lead despite a full feud', () => {

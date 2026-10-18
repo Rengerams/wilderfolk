@@ -420,8 +420,7 @@ describe('valley stage warnings setting', () => {
     // also raise big news.
     stressedValley(state);
     state.valleyRawStressStreakDays = 3;
-    state.tick = TICKS_PER_DAY * 20;
-    tickValleyEcologyStage(state);
+    step(stepUp, 20);
     atStage('strained');
     step(stepUp, 23);
     atStage('damaged');
