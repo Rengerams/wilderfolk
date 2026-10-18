@@ -1078,6 +1078,7 @@ describe('virtual player remaining action surface', () => {
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1] }),
+        building(3, BuildingType.LumberMill),
         ...roads,
       ],
       { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 150 } },
