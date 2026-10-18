@@ -813,6 +813,7 @@ export interface WorldState {
 
 export type GameState = WorldState;
 export type CombatLogKind = 'incoming_raid' | 'outgoing_raid' | 'defense' | 'repelled';
+export type CombatLogStage = 'challenge' | 'dispatched' | 'resolved' | 'casualties' | 'cancelled';
 
 export interface GameEventLog {
   id: number;
@@ -840,6 +841,7 @@ export interface GameEventLog {
   message: string;
   entityName?: string;
   combatKind?: CombatLogKind;
+  combatStage?: CombatLogStage;
 }
 
 export interface DailyEconomyLedger {
