@@ -1271,6 +1271,35 @@ export function respondToRaidEvent(
   return state;
 }
 
+/**
+ * An assault can permanently reduce a rival's manpower. An overwhelmingly superior
+ * force may destroy the settlement outright; remove its physical presence and
+ * queued events as well, otherwise it could keep raiding after being destroyed.
+ */
+function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number): void {
+  const lossFraction = strengthRatio >= 4 ? 1 : strengthRatio >= 2 ? 0.6 : 0.25;
+  const losses = Math.min(rival.population, Math.max(1, Math.ceil(rival.population * lossFraction)));
+  rival.population -= losses;
+  const casualties = new Set(rival.entityIds.slice(0, losses));
+  for (const entity of state.entities) {
+    if (casualties.has(entity.id)) entity.alive = false;
+  }
+  rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
+  logEvent(state, 'combat', `${rival.name} lost ${losses} inhabitants defending their settlement`, rival.name, 'outgoing_raid', 'resolved');
+  if (rival.population > 0) return;
+
+  const structures = new Set(rival.buildingIds);
+  state.buildings = state.buildings.filter((building) => !structures.has(building.id));
+  for (const entity of state.entities) {
+    if (rival.entityIds.includes(entity.id)) entity.alive = false;
+  }
+  state.pendingRaidEvents = (state.pendingRaidEvents ?? []).filter((event) => event.rivalId !== rival.id);
+  state.pendingOutgoingRaidEvents = (state.pendingOutgoingRaidEvents ?? []).filter((event) => event.rivalId !== rival.id);
+  state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((event) => event.rivalId !== rival.id);
+  state.rivalSettlements = state.rivalSettlements.filter((settlement) => settlement.id !== rival.id);
+  logEvent(state, 'combat', `${rival.name} was wiped out — its settlement no longer exists`, rival.name, 'outgoing_raid', 'resolved');
+}
+
 function resolveOutgoingRaidCombat(
   state: WorldState,
   rival: RivalSettlement,
@@ -1302,6 +1331,7 @@ function resolveOutgoingRaidCombat(
       'resolved',
     );
     addReputation(state, -5);
+    applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
   } else if (outcome === 'meager') {
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'meager', lootScale));
     rival.relationship = 'tense';
