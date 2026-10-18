@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- **Added:** Villa residence using `/sprites/villa.png` with shelter for 14 villagers; listed under Housing and included in residential occupancy and population housing capacity. Building a Villa requires the new **Better Housing** research in the Architecture tree (after Fine Construction), including on older saves.
+- **Added:** Villa residence using `/sprites/villa.png` with shelter for 14 villagers; listed under Housing and included in residential occupancy and population housing capacity. Building a Villa requires the new **Better Housing** research in the Architecture tree (after Fine Construction), including on older saves. Villa upgrades follow the standard housing rules: level 1 shelters 14 people, level 2 shelters 16 and level 3 shelters 18.
 - **Added:** a unique Village Square using `/sprites/square.png`, serving as the gathering place for festivals and elections, with the previous gathering locations retained when no completed square exists.
 - **Changed:** the three leading election candidates stand at the center of the ceremony, election phases last longer (24 hours gathering, 20 hours discussion, 8 hours final tension), and each phase is recorded in the Chronicle.
 - **Added:** buildable Graveyard using `/sprites/graveyard.png`, one Gravekeeper job per graveyard, and up to 50 memorial records per graveyard; names of villagers appear in green and enemy casualties in red. Adult relatives can occasionally visit recorded family graves outside working hours.
