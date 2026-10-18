@@ -3,6 +3,8 @@ import { commuteHumanToBuilding, venueGatherPosition } from './simulation/humanM
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
+import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
+import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { sayHumanChatPhrase } from './humanChat';
@@ -187,6 +189,29 @@ export function tickAdultLeisureMotive(args: {
   suppressIdleInitial: boolean;
 }): { suppressIdle: boolean; spouseEarly?: Entity } {
   const { state, entity, speed, allHumans, updatedBuildings, buildingById, humanSocialGrid, width, height, livingHumanAt, settlerChat, settlerPairChat } = args;
+  // Mourning is leisure, never a reason to leave a paid shift.
+  // Deterministically offer rare visits to a grave of a parent, spouse or child.
+  if (!isOnWorkScheduleShift(state, getHourOfDay(state.tick)) && state.graveRecords?.length) {
+    const day = getAbsoluteCalendarDay(state.tick);
+    if (day % 17 === entity.id % 17 && personDayRoll(entity.id, state.tick, 1621) < 0.22) {
+      const relative = state.graveRecords.find((grave) =>
+        grave.faction === 'player' && grave.deceasedId != null &&
+        (grave.deceasedId === entity.motherId || grave.deceasedId === entity.fatherId ||
+         grave.deceasedId === entity.partnerId || (entity.childrenIds ?? []).includes(grave.deceasedId))
+      );
+      const yard = relative ? buildingById.get(relative.graveyardId ?? -1) : undefined;
+      if (yard?.completed && yard.type === BuildingType.Graveyard) {
+        const spot = venueGatherPosition(yard, entity.id);
+        if (Math.hypot(entity.x - spot.x, entity.y - spot.y) > 18) {
+          steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
+        } else {
+          entity.vx *= 0.2;
+          entity.vy *= 0.2;
+        }
+        return { suppressIdle: true };
+      }
+    }
+  }
   const nearbyAdults: Entity[] = [];
   if ((state.tick + entity.id) % SOCIAL_STAGGER === 0) {
     forEachAdaptiveInRadius(humanSocialGrid, allHumans, entity.x, entity.y, SOCIAL_FRIENDSHIP_RADIUS, (h) => {
