@@ -46,7 +46,7 @@ function settlerLivingIn(home: Building, id: number): Entity {
   const entity = world.entities.find((candidate) => candidate.alive)!;
   entity.type = EntityType.Human;
   entity.id = id;
-  entity.homeBuildingId = home.id;
+  entity.residenceBuildingId = home.id;
   entity.x = home.x;
   entity.y = home.y;
   entity.isJuvenile = false;

@@ -415,15 +415,12 @@ function announceStage(
   const cooldownOk =
     day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
 
-  // A muted step still spends the cooldown, so warnings off are not queued up for warnings on.
-  if (!cooldownOk) return;
+  const warningsEnabled = loadValleyStageWarnings();
+  // With warnings muted the chronicle still records each transition; otherwise respect cooldown.
+  if (!cooldownOk && warningsEnabled) return;
 
   state.valleyLastStageNotifyDay = day;
-
-  if (loadValleyStageWarnings()) {
-    raiseStageNotice(state, prev, next, message, rising);
-  }
-
+  if (warningsEnabled) raiseStageNotice(state, prev, next, message, rising);
   logValleyStageChange(state, prev, next, message);
 }
 

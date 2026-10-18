@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import type { GameEventLog } from './gameTypes';
 import { displayYear } from './dayCycleClock';
 import { buildWeeklyGazette, gazetteWeekForTick } from './weeklyGazette';
@@ -99,11 +99,8 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
   const oldestWeek = events.length > 0
     ? gazetteWeekForTick(events[events.length - 1].tick)
     : currentWeek;
-  const newestEventId = events[0]?.id;
-  const issue = useMemo(
-    () => buildWeeklyGazette(events, selectedWeek),
-    [events, newestEventId, selectedWeek],
-  );
+  // The Chronicle mutates in place; derive the visible issue from its current contents.
+  const issue = editionView === 'gazette' ? buildWeeklyGazette(events, selectedWeek) : null;
 
   // Derived each render: the chronicle array is mutated in place (unshift/pop), so a memo on it
   // would never see an entry written after the panel opened.
@@ -189,7 +186,7 @@ export default function EventLogPanel({ events, meta, initialFilter = 'all', onF
         </button>
       </div>
 
-      {editionView === 'gazette' ? (
+      {issue ? (
         <section aria-label="Weekly village gazette" className="space-y-3 rounded-xl border border-amber-800/60 bg-stone-950/70 p-3 text-stone-200">
           <header className="border-b border-amber-700/50 pb-3 text-center">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-500">The village's own newspaper</p>

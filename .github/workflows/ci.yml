@@ -50,4 +50,5 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
-  
+      - name: Run standard unit gate
+        run: npm test -- unit

@@ -82,6 +82,8 @@ function worldState(entities: Entity[], buildings: Building[], tick: number): Wo
   state.buildings = buildings;
   state.tick = tick;
   state.paused = false;
+  // This test isolates the guard's competing velocity writers, not terrain relocation.
+  state.worldMap = null;
   // `initGame` indexed its own settlers; replacing `entities` outright leaves that map stale, and a
   // stale map reads as "no living guard" to `prisonGuardIds` (the roster then comes back empty and
   // there is no shift to defend). `rebuildEntityByIdMap` is the documented test hook for this.

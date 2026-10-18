@@ -165,7 +165,7 @@ describe('the auto-staff card reports the pass that ran', () => {
     expect(state.notifications.length).toBe(before);
   });
 
-  it('names the manual workplace instead of claiming every building is staffed', () => {
+  it('does not announce or change a manual workplace when auto-staff has no work', () => {
     const state = initGame();
     const church = createBuilding(BuildingType.Church, 400, 400, 700);
     church.completed = true;
@@ -178,9 +178,9 @@ describe('the auto-staff card reports the pass that ran', () => {
     const staffed = autoStaffAllWorkers(state);
     const cards = staffed.notifications.slice(before).filter((note) => note.title.includes('Auto-staff'));
 
-    expect(cards).toHaveLength(1);
-    expect(cards[0]!.message).toMatch(/manual workplace/);
-    expect(cards[0]!.message).not.toMatch(/already staffed/);
+    expect(cards).toHaveLength(0);
+    expect(staffed.buildings.find((building) => building.id === 700)?.staffingMode).toBe('manual');
+    expect(staffed.buildings.find((building) => building.id === 700)?.occupants).toEqual([]);
   });
 });
 

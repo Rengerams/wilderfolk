@@ -120,6 +120,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
         whenIdle: vi.fn(() => new Promise<void>(() => {})),
         sendCommand: vi.fn(() => Promise.resolve({ tick: 1 } as unknown as SimTickDelta)),
         getAuthoritativeWorld: () => authoritative,
+        getPerformanceSnapshot: () => null,
+        dispose: vi.fn(),
         setTickResultHandler: (h: unknown) => {
           tickHandler = h as typeof tickHandler;
         },
@@ -471,6 +473,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
       whenIdle: () => Promise.resolve(),
       exportSave: vi.fn(() => Promise.resolve(exported)),
       getAuthoritativeWorld: () => exported,
+      getPerformanceSnapshot: () => null,
+      dispose: vi.fn(),
       setTickResultHandler: () => {},
       setCommandResultHandler: () => {},
       setWorkerFaultHandler: () => {},

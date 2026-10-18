@@ -169,6 +169,13 @@ function ownerColony(
     crew.forEach((id) => homeOf.set(id, post.id));
   }
 
+  for (const extra of extraBuildings) {
+    if (!extra.completed || extra.faction === 'rival') continue;
+    for (const id of extra.occupants) {
+      if (!homeOf.has(id)) homeOf.set(id, extra.id);
+    }
+  }
+
   const entities = ids.map((id) => human(id, {
     residenceBuildingId: houseIds[Math.floor((id - 1) / 6)],
     ...(homeOf.has(id) ? { homeBuildingId: homeOf.get(id) } : {}),
@@ -274,7 +281,7 @@ describe('the health verdict at the owner numbers', () => {
 
   it('still reports healthy for a colony that really has everything', () => {
     const stocked = ownerColony(9, {
-      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
     }, {
       extraBuildings: [
         building(12, BuildingType.Quarry, { x: 700, y: 380, occupants: [7] }),
@@ -395,7 +402,7 @@ describe('the storage buildings the owner reported missing', () => {
     // The storage owner's own table (`computeStorageMax`): a Silo adds 600 food and cuts spoilage,
     // and holds no gold at all, so the old `storageNearlyFull('gold')` gate made it unbuildable.
     const world = ownerColony(12, {
-      resources: { food: 560, wood: 300, stone: 200, gold: 100, iron: 30 },
+      resources: { food: 560, wood: 300, stone: 200, gold: 100, iron: 150 },
       storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
     }, {
       mills: 4, farms: 2,
@@ -416,7 +423,7 @@ describe('the storage buildings the owner reported missing', () => {
     // 12 settlers eat 36 a day, so 100 food is under the strict community reserve but over the
     // general food buffer the storage entries wait on.
     const world = ownerColony(12, {
-      resources: { food: 100, wood: 700, stone: 200, gold: 100, iron: 30 },
+      resources: { food: 100, wood: 700, stone: 200, gold: 100, iron: 150 },
       storageMax: { wood: 900, stone: 300, food: 800, gold: 20000, iron: 300 },
     }, {
       mills: 4, farms: 2,

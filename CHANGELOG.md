@@ -2,9 +2,27 @@
 
 ## [Unreleased]
 
+- **Fixed:** the simulation worker is only enabled in supported runtimes, so main-thread fallback and diagnostics work without a browser Worker.
+
+- **Fixed:** prison guard patrols retain the assigned crew and do not leave their posts for social walks while commuting to a shift.
+
+- **Fixed:** the Leader's House can be upgraded, with each level increasing the number of available beds.
+
+- **Fixed:** valley ecology transitions continue to enter the Chronicle when warnings are muted, without bypassing the cooldown for visible alerts.
+
+- **Changed:** continuous integration now typechecks and runs the full unit test suite, in addition to source checks and the production build.
+
+- **Fixed:** raid chronicles distinguish threats, marches, combat outcomes, casualties and cancellations; raid totals and village traits no longer count the same raid multiple times.
+
+- **Changed:** combat CSV exports include raid stage and kind, and the combat panel labels each stage.
+
+- **Fixed:** removed the Gazette hook dependency warning while keeping live Chronicle updates visible; newspaper summaries are only calculated when the Gazette is open.
+
+- **Fixed:** restored the CPU profiler integration removed by a later update, repairing the build and restoring start, stop, live samples and the final worker report.
+
 - **Fixed:** the CPU profiler docks above the map's lower-right controls instead of covering the build menu; expanding its report no longer moves the toggle.
 
-- **Fixed:** prison watch assignments now stay with the same crew for a week; legacy overstaffed saves use the guards nearest the post. Guards commute on weekends and off-screen, with travel time accounting for the movement layer's four-tick cadence. Hourly post checks run after movement, so arrivals are counted.
+- **Fixed:** prison watch assignments keep the same weekly crew, including guards from overstaffed saves. Guards commute on weekends and off-screen; hourly post checks run after movement so arrivals count.
 
 
 ## <u>[0.6.5.1]</u> — 2026-10-08

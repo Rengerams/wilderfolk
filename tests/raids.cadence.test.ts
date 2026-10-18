@@ -137,6 +137,7 @@ describe('incoming raid cadence', () => {
     expect(state.rivalSettlements[0].daysUntilAction).toBeGreaterThan(0);
     expect(state.pendingRaidEvents).toHaveLength(1);
     expect(state.pendingRaidEvents[0].rivalId).toBe('rival-stonefall');
+    expect(state.eventLog.filter((e) => e.combatStage === 'dispatched')).toHaveLength(1);
     expect(state.rivalSettlements[0].raidCooldownDays).toBe(21);
   });
 });

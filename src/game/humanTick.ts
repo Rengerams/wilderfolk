@@ -781,7 +781,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !onMoonPriestShift &&
       prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay);
 
-    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !stayIn);
+    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !stayIn);
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;

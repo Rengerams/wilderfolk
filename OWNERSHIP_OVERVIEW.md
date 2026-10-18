@@ -54,7 +54,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 |---|---|---|---|
 | Combat tiers, counter-attack / block rolls | `combat.ts` (research data in `gameTypes.ts`; raid outcomes in `frontierCombat.ts`) | combat resolution | `getArmamentSteps`, `getCounterAttackChance`, `getPredatorBlockChance`, `rollCounterAttack`, `rollPredatorBlock` |
 | Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`, `recordResourcesGathered`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
-| Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind` |
+| Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind`, `resolveCombatLogStage`, `summarizeCombatEvents` |
 | Big news, notifications, floating text | `simEffects.ts` | event-driven | `addBigNews`, `syncBigNewsIdFromState`, `addNotification`, `addFloatingText` |
 | Save / load and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `clearAutoFilledChurches` |
 | Worker transport (prep + tick delta) | `simWorker/simPrep.ts` + `simBuffers/simDelta.ts` | per-tick / per-command | `extractSimPrep`, `applySimPrep`, `extractSimTickDelta`, `applySimTickDelta` |
@@ -358,3 +358,11 @@ If two modules export the same function name with the same responsibility:
 
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
 `dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
+
+## CPU profiler integration lifecycle
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `GameLoop.setPerformanceProfiling`, `GameLoop.getPerformanceProfiling`, `GameLoop.registerWorkerHandlers`, `GameLoop.stop`, `GameLoop.frameBody` | `game/gameLoop.ts` | Control profiling, retain worker samples and measure main-thread work. |
+| `GameWorkerHost.setProfilingEnabled`, `GameWorkerHost.stopProfiling`, `GameWorkerHost.getPerformanceSnapshot`, `GameWorkerHost.settleProfilingStop`, `GameWorkerHost.dispose`, `GameWorkerHost.rejectInFlight`, `GameWorkerHost.handleMessage` | `game/simWorker/GameWorkerHost.ts` | Transport samples and settle final-sample requests on response, failure or disposal. |
+| `packAndPostTickResult`, `self.onmessage` | `game/simWorker/gameWorker.ts` | Publish tick samples and acknowledge Stop with the final unthrottled sample. |

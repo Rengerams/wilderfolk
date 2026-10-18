@@ -360,6 +360,7 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
     `Declared hostility toward ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
     rival.name,
     'outgoing_raid',
+    'challenge',
   );
   return state;
 }
@@ -688,6 +689,7 @@ function applyRaidCasualties(
     summary,
     rivalName,
     mode === 'raiding' ? 'outgoing_raid' : 'defense',
+    'casualties',
   );
   return victims.length;
 }
@@ -997,7 +999,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   state.pendingRaidEvents.push(event);
   rival.raidCooldownDays = 21;
   addBigNews(state, '⚔️ Raid incoming!', `${rival.name} war-bands approach your border. Respond in the banner or rival inspector.`, 'negative');
-  logEvent(state, 'combat', `${rival.name} launched a raid on the village`, rival.name, 'incoming_raid');
+  logEvent(state, 'combat', `${rival.name} launched a raid on the village`, rival.name, 'incoming_raid', 'dispatched');
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, 5);
 }
 
@@ -1036,6 +1038,7 @@ export function tickPendingRaidEvents(
       `Raid from ${evt.rivalName} succeeded${defendedNote}${lootNote ? ` (lost ${lootNote})` : ''}`,
       evt.rivalName,
       'incoming_raid',
+      'resolved',
     );
     applyRaidCasualties(
       state,
@@ -1102,6 +1105,7 @@ export function respondToRaidEvent(
         `Your war-band broke off the march on ${event.rivalName} — home front resolved`,
         event.rivalName,
         'outgoing_raid',
+        'cancelled',
       );
     }
   };
@@ -1118,7 +1122,7 @@ export function respondToRaidEvent(
       rival.raidCooldownDays = 14;
     }
     addFloatingText(state, camp.x, camp.y - 20, 'Paid off', '#eab308');
-    logEvent(state, 'combat', `Paid ${event.lootFood} food to end ${event.rivalName}'s raid`, event.rivalName, 'defense');
+    logEvent(state, 'combat', `Paid ${event.lootFood} food to end ${event.rivalName}'s raid`, event.rivalName, 'defense', 'resolved');
     remove();
     return state;
   }
@@ -1153,6 +1157,7 @@ export function respondToRaidEvent(
         `Barricade held poorly against ${event.rivalName}${lootNote ? ` — lost ${lootNote}` : ''}`,
         event.rivalName,
         'defense',
+        'resolved',
       );
       addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided', '#f87171');
       applyRaidCasualties(
@@ -1165,7 +1170,7 @@ export function respondToRaidEvent(
       addReputation(state, 2);
       if (rival) rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       addFloatingText(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
-      logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled');
+      logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled', 'resolved');
       applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
     }
     flashMilitia(allAlive, 14);
@@ -1201,7 +1206,7 @@ export function respondToRaidEvent(
           rival.raidCooldownDays = 28;
         }
         addFloatingText(state, camp.x, camp.y - 20, 'Victory!', '#22c55e');
-        logEvent(state, 'combat', `Militia routed ${event.rivalName}'s war-band`, event.rivalName, 'repelled');
+        logEvent(state, 'combat', `Militia routed ${event.rivalName}'s war-band`, event.rivalName, 'repelled', 'resolved');
         applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
         break;
       case 'narrow': {
@@ -1217,6 +1222,7 @@ export function respondToRaidEvent(
           `Militia drove back ${event.rivalName}${lootNote ? ` — lost ${lootNote}` : ' with minor damage'}`,
           event.rivalName,
           'defense',
+          'resolved',
         );
         applyRaidCasualties(state, allAlive, 'costly', event.rivalName);
         break;
@@ -1234,6 +1240,7 @@ export function respondToRaidEvent(
           `Stalemate with ${event.rivalName}${lootNote ? ` — lost ${lootNote}` : ' — village looted'}`,
           event.rivalName,
           'defense',
+          'resolved',
         );
         addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Looted', '#f87171');
         break;
@@ -1252,6 +1259,7 @@ export function respondToRaidEvent(
           `${event.rivalName} overran the militia${lootNote ? ` — lost ${lootNote}` : ''}`,
           event.rivalName,
           'incoming_raid',
+          'resolved',
         );
         break;
       }
@@ -1291,6 +1299,7 @@ function resolveOutgoingRaidCombat(
       `${verb} on ${rival.name} succeeded${lootNote ? ` — seized ${lootNote}` : ' — seized supplies'}`,
       rival.name,
       'outgoing_raid',
+      'resolved',
     );
     addReputation(state, -5);
   } else if (outcome === 'meager') {
@@ -1306,6 +1315,7 @@ function resolveOutgoingRaidCombat(
       `${verb} on ${rival.name} — meager spoils${lootNote ? ` (${lootNote})` : ''}, high tension`,
       rival.name,
       'outgoing_raid',
+      'resolved',
     );
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
   } else {
@@ -1314,7 +1324,7 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
     addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
-    logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid');
+    logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 7);
   }
@@ -1343,6 +1353,7 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       `${verb} on ${evt.rivalName} fizzled — war-band returned without fighting`,
       evt.rivalName,
       'outgoing_raid',
+      'cancelled',
     );
     if (rival) {
       rival.daysUntilAction = 24;
@@ -1377,6 +1388,7 @@ export function respondToOutgoingRaidEvent(
         `${event.rivalName}'s war-band broke off — your campaign resolved the front`,
         event.rivalName,
         'incoming_raid',
+        'cancelled',
       );
     }
   };
@@ -1402,6 +1414,7 @@ export function respondToOutgoingRaidEvent(
       `${verb} on ${rival.name} — accepted tribute${lootNote ? ` (${lootNote})` : ''}, no bloodshed`,
       rival.name,
       'outgoing_raid',
+      'resolved',
     );
     remove();
     return state;
@@ -1444,6 +1457,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
         `${rival.name}'s war-band broke off — you marched out to meet them`,
         rival.name,
         'incoming_raid',
+        'cancelled',
       );
     }
   }
@@ -1497,6 +1511,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     `${verb} dispatched toward ${rival.name} (${distanceLabel})`,
     rival.name,
     'outgoing_raid',
+    'dispatched',
   );
   rival.daysUntilAction = 30;
   return state;

@@ -13,7 +13,6 @@ import {
   loadGameFromFileTextOutcome,
   loadGameFromParsedOutcome,
   parseSaveJson,
-  saveGame,
 } from '../src/game/saveLoad';
 import { loadAutoSavePreference, saveAutoSavePreference } from '../src/game/preferences';
 import { resetSimRng } from '../src/game/simRng';
@@ -186,7 +185,7 @@ describe('the save-presence probe answers without parsing the payload', () => {
   it('reads the version marker instead of JSON-parsing the whole save', () => {
     resetSimRng();
     const world = initGame({ seed: 4242 });
-    saveGame(world, createInitialView(world.width, world.height));
+    stubSlot(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
     const parse = vi.spyOn(JSON, 'parse');
 
     expect(hasSave()).toBe(true);
