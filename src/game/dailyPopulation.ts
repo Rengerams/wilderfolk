@@ -39,7 +39,7 @@ function tickImmigration(
     if (
       b.completed &&
       b.faction !== 'rival' &&
-      (b.type === BuildingType.House || b.type === BuildingType.Mansion)
+      (b.type === BuildingType.House || b.type === BuildingType.Mansion || b.type === BuildingType.Villa)
     ) {
       housingCap += getResidenceCapacity(b);
       homes.push(b);
