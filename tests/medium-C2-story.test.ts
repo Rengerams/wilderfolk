@@ -175,15 +175,15 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
     const spot = findBuildableStripSpot(state);
     const wall = building(1, BuildingType.Wall, spot.x, spot.y);
     state.buildings = [wall];
+    state.resources.wood = 200;
+    state.resources.stone = 200;
+    state.resources.gold = 200;
 
     const preview = buildStripPreview(state, BuildingType.WallGate, spot.x, spot.y, spot.x, spot.y, 0);
     expect(preview.segments).toHaveLength(1);
     expect(preview.segments[0].replacesBuildingId).toBe(wall.id);
     expect(preview.segments[0].valid).toBe(true);
 
-    state.resources.wood = 200;
-    state.resources.stone = 200;
-    state.resources.gold = 200;
     const next = placeStripChain(state, BuildingType.WallGate, preview.segments, 0);
 
     expect(next.buildings.some((b) => b.id === wall.id)).toBe(false);
