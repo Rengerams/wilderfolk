@@ -1,3 +1,5 @@
+import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { weatherVisualEnabled, setWeatherVisualEnabled } from '../game/weatherVisualPreferences';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -192,6 +194,8 @@ export default function GameMenu({
   const [view, setView] = useState<MenuView>('main');
   const [anchor, setAnchor] = useState({ top: 0, right: 0 });
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
+  const showDesktopExit = isTauri() && navigator.userAgent.includes('Windows');
+  const exitGame = () => { void getCurrentWindow().close().catch((error: unknown) => console.error('Could not exit game:', error)); };
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -355,6 +359,15 @@ export default function GameMenu({
                     reader.readAsText(file);
                   }}
                 />
+                {showDesktopExit && (
+                  <MenuAction
+                    icon="🚪"
+                    label="Exit Game"
+                    hint="Close the Windows application"
+                    variant="danger"
+                    onClick={exitGame}
+                  />
+                )}
               </MenuSection>
 
               <div className="mx-3 h-px bg-stone-700" />
