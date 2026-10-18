@@ -1,4 +1,4 @@
-import { weatherVisualEnabled, setWeatherVisualEnabled, type WeatherVisual } from '../game/weatherVisualPreferences';
+import { weatherVisualEnabled, setWeatherVisualEnabled } from '../game/weatherVisualPreferences';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
@@ -180,14 +180,14 @@ export default function GameMenu({
   onOpenGuide,
   onStartNewGame,
 }: Props) {
-  const [weatherVisuals, setWeatherVisuals] = useState(() => ({
-    rain: weatherVisualEnabled('rain'),
-    snow: weatherVisualEnabled('snow'),
-  }));
-  const toggleWeatherVisual = (kind: WeatherVisual) => {
-    const enabled = !weatherVisuals[kind];
-    setWeatherVisualEnabled(kind, enabled);
-    setWeatherVisuals((current) => ({ ...current, [kind]: enabled }));
+  const [weatherVisualsEnabled, setWeatherVisualsEnabled] = useState(
+    () => weatherVisualEnabled('rain') && weatherVisualEnabled('snow'),
+  );
+  const toggleWeatherVisuals = () => {
+    const next = !weatherVisualsEnabled;
+    setWeatherVisualEnabled('rain', next);
+    setWeatherVisualEnabled('snow', next);
+    setWeatherVisualsEnabled(next);
   };
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<MenuView>('main');
@@ -477,8 +477,13 @@ export default function GameMenu({
                 />
               </MenuSection>
               <MenuSection title="Weather visuals">
-                <MenuToggle icon="🌧️" label="Rain & storms" hint="Show falling rain, ripples and storm flashes" checked={weatherVisuals.rain} onChange={() => toggleWeatherVisual('rain')} />
-                <MenuToggle icon="❄️" label="Snow" hint="Show snowfall and winter snow particles" checked={weatherVisuals.snow} onChange={() => toggleWeatherVisual('snow')} />
+                <MenuToggle
+                  icon="🌦️"
+                  label="Weather visuals"
+                  hint="Show rain, storms and snow effects"
+                  checked={weatherVisualsEnabled}
+                  onChange={toggleWeatherVisuals}
+                />
               </MenuSection>
               <p className="px-3 py-2 text-xs leading-relaxed text-stone-300">
                 Turn off screen effects if the map feels too busy or you prefer a calmer view.
