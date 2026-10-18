@@ -1,3 +1,4 @@
+import { BuildingType } from './buildings';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
 
@@ -65,9 +66,21 @@ export function logDeath(
   message: string,
   entityName?: string,
   focus?: { x: number; y: number },
+  faction: 'player' | 'enemy' = 'player',
 ): void {
   logEvent(state, 'death', message, entityName);
   addNotification(state, 'Death', message, 'warning', focus);
+
+  // Grave capacity is physical: each completed, player-owned graveyard holds 50 names.
+  // Never discard existing memorials if the last graveyard is demolished.
+  if (!entityName) return;
+  const capacity = state.buildings.filter((building) =>
+    building.completed && building.type === BuildingType.Graveyard && building.faction !== 'rival'
+  ).length * 50;
+  if (capacity <= 0) return;
+  const graves = state.graveRecords ?? (state.graveRecords = []);
+  if (graves.length >= capacity) return;
+  graves.push({ name: entityName, faction, tick: state.tick });
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */
