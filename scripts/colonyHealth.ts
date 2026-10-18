@@ -195,25 +195,21 @@ function placeStorage(world: WorldState, anchor: { x: number; y: number }, scena
 }
 
 /**
- * Producers in staffing order: the Lumber Mill first, then the Farms.
- *
- * The order is part of the seeded scenario, not cosmetics: `prepareColonyWorld` staffs the first
- * producer with the settlement's second adult (the first one becomes the Prison Guard), and which
- * workplace that settler walks to changes the world's own RNG stream from tick 1. The Lumber Mill is
- * first, followed by Farms, so founders cover food production from day one — the shape the
- * 100-day run was calibrated on and the one whose reported lifecycle numbers (conceptions, births,
- * pregnancies, deaths) are non-zero.
+ * Place food producers ahead of the Lumber Mill in the scenario's initial staffing order.
+ * With only a few adult founders, assigning the first worker to wood production
+ * leaves the farm output behind growing food consumption. The buildings themselves
+ * stay identical; only their initial worker priority changes.
  */
 function placeProducers(world: WorldState, anchor: { x: number; y: number }): Building[] {
   const producers: Building[] = [];
-  for (let index = 0; index < PRODUCERS_LUMBER_MILL_COUNT; index += 1) {
-    producers.push(
-      createCompletedBuilding(world, BuildingType.LumberMill, Math.max(0, anchor.x + 240), Math.max(0, anchor.y + 240)),
-    );
-  }
   for (let index = 0; index < PRODUCERS_FARM_COUNT; index += 1) {
     producers.push(
       createCompletedBuilding(world, BuildingType.Farm, Math.max(0, anchor.x - 40 + index * 90), Math.max(0, anchor.y + 240)),
+    );
+  }
+  for (let index = 0; index < PRODUCERS_LUMBER_MILL_COUNT; index += 1) {
+    producers.push(
+      createCompletedBuilding(world, BuildingType.LumberMill, Math.max(0, anchor.x + 240), Math.max(0, anchor.y + 240)),
     );
   }
   return producers;
