@@ -157,11 +157,12 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
   function findBuildableStripSpot(state: WorldState): { x: number; y: number } {
     for (let y = 60; y < state.height - 60; y += 20) {
       for (let x = 60; x < state.width - 60; x += 20) {
+        const snapped = snapBuildingCenter(BuildingType.Wall, x, y, 0);
         if (
-          canPlaceBuilding(state, BuildingType.Wall, x, y, 0)
-          && canPlaceBuilding(state, BuildingType.WallGate, x, y, 0)
+          canPlaceBuilding(state, BuildingType.Wall, snapped.x, snapped.y, 0)
+          && canPlaceBuilding(state, BuildingType.WallGate, snapped.x, snapped.y, 0)
         ) {
-          return snapBuildingCenter(BuildingType.Wall, x, y, 0);
+          return snapped;
         }
       }
     }
