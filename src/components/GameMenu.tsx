@@ -181,12 +181,11 @@ export default function GameMenu({
   onStartNewGame,
 }: Props) {
   const [weatherVisualsEnabled, setWeatherVisualsEnabled] = useState(
-    () => weatherVisualEnabled('rain') && weatherVisualEnabled('snow'),
+    () => weatherVisualEnabled(),
   );
   const toggleWeatherVisuals = () => {
     const next = !weatherVisualsEnabled;
-    setWeatherVisualEnabled('rain', next);
-    setWeatherVisualEnabled('snow', next);
+    setWeatherVisualEnabled(next);
     setWeatherVisualsEnabled(next);
   };
   const [open, setOpen] = useState(false);
