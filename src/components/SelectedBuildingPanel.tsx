@@ -466,6 +466,20 @@ export default function SelectedBuildingPanel({
   const totalEff = Math.round(terrainMult * adjacencyMult * 100);
   return (
     <div className="rounded-xl border border-amber-600/30 bg-amber-900/20 p-3">
+      {building.type === BuildingType.Graveyard && (
+        <section className="mb-3 rounded-lg border border-stone-600 bg-stone-900/70 p-3">
+          <h3 className="text-sm font-bold text-stone-100">Graveyard memorial</h3>
+          <p className="mt-1 text-xs text-stone-400">Graves: {Math.min(state.graveRecords?.length ?? 0, 50)} / 50 · One gravekeeper per graveyard</p>
+          <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+            {(state.graveRecords ?? []).slice(0, 50).map((grave, index) => (
+              <p key={index} className={`text-xs ${grave.faction === 'enemy' ? 'text-red-400' : 'text-green-400'}`}>
+                {grave.faction === 'enemy' ? 'Enemy' : 'Village'} — {grave.name}
+              </p>
+            ))}
+            {!state.graveRecords?.length && <p className="text-xs text-stone-500">No burials recorded.</p>}
+          </div>
+        </section>
+      )}
       <div className="mb-2 flex items-center gap-2">
         {config.sprite ? (
           <img src={config.sprite} alt={config.label} className="h-8 w-8 object-contain" />
