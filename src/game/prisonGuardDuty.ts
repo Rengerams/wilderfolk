@@ -74,8 +74,8 @@ export function prisonGuardIds(state: WorldState, occupants: number[]): number[]
   const postY = prison.y + prison.height / 2;
   return ids
     .sort((a, b) => {
-      const guardA = entityById.get(a)!;
-      const guardB = entityById.get(b)!;
+      const guardA = livingById(state, entityById, a)!;
+      const guardB = livingById(state, entityById, b)!;
       const distanceA = Math.hypot(postX - guardA.x, postY - guardA.y);
       const distanceB = Math.hypot(postX - guardB.x, postY - guardB.y);
       return distanceA - distanceB || a - b;
