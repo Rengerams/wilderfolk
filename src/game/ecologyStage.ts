@@ -415,16 +415,13 @@ function announceStage(
   const cooldownOk =
     day - (state.valleyLastStageNotifyDay ?? -999) >= NOTIFY_COOLDOWN_DAYS || rising;
 
-  // A muted step still spends the cooldown, so warnings off are not queued up for warnings on.
-  if (!cooldownOk) return;
-
-  state.valleyLastStageNotifyDay = day;
-
-  if (loadValleyStageWarnings()) {
-    raiseStageNotice(state, prev, next, message, rising);
-  }
-
   logValleyStageChange(state, prev, next, message);
+  const warningsEnabled = loadValleyStageWarnings();
+  if (!cooldownOk && warningsEnabled) return;
+
+  // Muted transitions advance the ledger without displaying or postponing notices.
+  state.valleyLastStageNotifyDay = day;
+  if (warningsEnabled) raiseStageNotice(state, prev, next, message, rising);
 }
 
 /**
