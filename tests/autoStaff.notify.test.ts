@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { autoStaffAllWorkers, startBuilding } from '../src/game/buildingActions';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 function playerHumans(state: ReturnType<typeof initGame>) {
@@ -30,6 +30,16 @@ describe('autoStaffAllWorkers feedback', () => {
     if (!farm) return;
     farm.completed = true;
     farm.constructionProgress = 100;
+    farm.occupants = [];
+    const worker = humans.find((entity) => !entity.isJuvenile);
+    if (!worker) throw new Error('fixture needs an adult who can staff the farm');
+    // Use an eligible local settler rather than depending on the generated colony's commute.
+    worker.homeBuildingId = undefined;
+    worker.residenceBuildingId = undefined;
+    worker.lastAutoJobTransferTick = undefined;
+    worker.job = JobType.Settler;
+    worker.x = farm.x + farm.width / 2;
+    worker.y = farm.y + farm.height / 2;
 
     const beforeNotifs = world.notifications.length;
     const staffed = autoStaffAllWorkers(world);
