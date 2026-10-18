@@ -23,10 +23,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # Oplossing: Maak de npm cachemap aan zodat setup-node deze kan vinden op Windows
+      - name: Pre-create npm cache directory
+        run: mkdir -Force C:\npm\cache
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '26.12.0' # Pas dit aan naar jouw gewenste LTS-versie (bijv. 20 of 22)
+          node-version: '26.12.0'
           cache: 'npm'
 
       - name: Install locked dependencies
