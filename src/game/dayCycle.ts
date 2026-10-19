@@ -273,6 +273,13 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     if (entity.type !== EntityType.Human) continue;
     if (entity.age >= HUMAN_CHILDHOOD_YEARS) continue;
     entity.isJuvenile = true;
+    // Older saves may hold apprenticeships assigned to children. Preserve school
+    // progress and learned skills while clearing the invalid master relationship.
+    if (entity.apprenticeOfId != null) {
+      const master = world.entities.find((candidate) => candidate.id === entity.apprenticeOfId);
+      if (master?.apprenticeId === entity.id) master.apprenticeId = undefined;
+      entity.apprenticeOfId = undefined;
+    }
     // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
     if (entity.id === world.villageLeaderId) continue;
     if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
