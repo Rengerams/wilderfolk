@@ -24,7 +24,6 @@ import {
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
@@ -101,7 +100,7 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
  * (`docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M1).
  */
 export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && entity.age >= HUMAN_ADULT_MIN_AGE && !entity.isJuvenile && !isImprisoned(entity);
+  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity);
 }
 
 function countMusterableAdults(entities: Entity[]): number {
