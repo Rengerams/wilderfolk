@@ -209,3 +209,52 @@ Implement inside the existing game owners where possible; avoid parallel raid or
 v0.6.6.0 is ready to announce these mechanics only when **the game logic, user choice, visual feedback, recovery/game-over flow, reputation consequences, leadership scoring, persistence, automated tests and actual gameplay checks** all agree.
 
 **No gameplay changes are made by this roadmap document.**
+
+## 11. DNA traits — strengths, weaknesses and whole-game influence
+
+**Status: proposed for v0.6.6.0; not implemented by this document.**
+
+Every inherited DNA/personality trait must have meaningful **positive (+)** and **negative (−)** influences. Traits should affect the entire simulation wherever relevant, rather than being cosmetic labels or bonuses limited to one profession. A strong settler may excel at physically demanding mining while an insightful/intuitive settler may do better at teaching or research, but each advantage comes with a plausible trade-off.
+
+### 11.1 Core gameplay rules
+
+- Keep the existing **three inherited traits from the pool of fourteen** as the character's identity. Build the new modifiers around the current DNA/trait ownership, not a second unrelated stat generator.
+- Give **each of the fourteen traits at least one benefit and at least one drawback**, documented in one authoritative, typed modifier table. Do not assume a trait name is the same as an existing numeric attribute; review existing behavior before choosing modifiers.
+- Apply trait modifiers to **all relevant systems**: resource production, mining, lumber, farming, fishing, hunting, crafting, construction, teaching, learning, research, healthcare, leadership, diplomacy, trading, combat, defense, movement, fatigue, social bonds, parenting and other activities where a meaningful connection exists.
+- Effects must reflect **what the character is actually doing**. A mining bonus applies while mining, not to every job; teaching aptitude should help education, not magically increase unrelated production.
+- Distinguish **efficiency, output quality, accuracy, experience gain, energy/fatigue, risk and social effects**. Not every bonus should be a flat production multiplier.
+- Make bonuses and penalties **transparent in the character inspector and workplace details**, including the source trait and expected effect. Do not rely on color alone to distinguish + from −.
+- Preserve meaningful personality diversity: there should be **no universally best DNA combination**, and a character with an apparent occupational disadvantage can still learn and succeed.
+- Inheritance remains stable; do not reroll existing settlers' DNA when old saves are loaded. Modifiers are derived from the traits already stored in the save.
+
+### 11.2 Examples to balance (not final stats)
+
+| Trait / aptitude example | Positive influence | Negative influence / trade-off |
+|---|---|---|
+| Hardy / physically strong | More effective mining, quarrying and heavy construction; resists physical fatigue | Less suited to delicate precision tasks or slower to recover from overexertion, depending on balance |
+| Insightful / naturally analytical | Better teaching, research and learning | Can be less productive at repetitive manual work or tire more quickly in physically demanding work |
+| Brave | More effective defense and dangerous expeditions | Higher risk-taking can increase injury or reckless decisions |
+| Timid | More cautious in risky situations; can avoid harm | Lower willingness or effectiveness in battle and dangerous jobs |
+| Greenthumb | Better farming and ecosystem stewardship | Less effective outside nature-related work |
+| Gregarious | Stronger social ties, negotiation and trade | May be distracted in solitary, precision-focused tasks |
+
+The table illustrates the intended *design pattern*, **not the final canonical mapping**. The final implementation must explicitly cover **all fourteen existing traits** (Hardy, Brave, Gregarious, Timid, Greenthumb, Lucky, Nurturing, Insightful, Chivalrous, Resourceful, Stoic, Graceful, Intuitive and Fierce) with distinct benefits and drawbacks. Avoid simplistic or implausible disadvantages added solely to force symmetry; use context-dependent opportunity costs when appropriate.
+
+### 11.3 Stacking, skill and balance
+
+- Combine three traits through a **bounded, deterministic formula**; prevent extreme stacking from breaking production, combat or education. Consider diminishing returns for related effects.
+- Traits represent **aptitude**; job skill, training, tools, buildings, conditions and available resources still matter. A high-skill miner without Hardy DNA should remain viable, and a strong novice should not outperform a trained expert automatically.
+- Positive and negative effects apply symmetrically to player settlers and comparable simulated characters where that mechanic exists.
+- Derive effective values on demand or via owned caches; avoid recomputing every modifier in hot loops or persisting redundant derived numbers in large save files.
+- Expose traits in hiring/worker assignment decisions as **recommendations, not compulsory job restrictions**. Players retain control over where settlers work.
+- Log only noteworthy trait-driven events, not constant per-tick noise.
+
+### 11.4 Compatibility, rollout and tests
+
+- **Existing saves remain compatible:** retain DNA, skills, relationships, residences and careers. Loading an old save simply activates the new derived trait modifiers; no retroactive reroll or skill reset.
+- Centralize the effects in a typed trait-modifier owner and integrate with existing skill, staffing, output, movement, relationship, education, combat and diplomacy rules instead of copying calculations into interfaces.
+- Audit all fourteen traits and each gameplay system for coverage, with a documented no-effect rationale where a trait logically does not apply.
+- Add unit tests for each trait's +/− modifiers, combinations, effect caps, apprentice/education interactions, and modifiers on actual simulated actions; run long-population performance and save/load regression tests.
+- Check outcomes across differently skilled settlers and multiple generations to ensure inheritance matters without creating an unbeatable lineage.
+
+**Definition of done:** players can inspect a settler and understand *why* their DNA makes them better at certain activities and worse at others, and these strengths and weaknesses are measurably present throughout relevant game systems.
