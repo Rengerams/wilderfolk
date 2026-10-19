@@ -98,6 +98,8 @@ Election ceremonies have been extended, giving villagers more time to arrive, di
 | Final decision | 1 hour | 8 hours |
 | **Total** | **23 hours** | **52 hours** |
 
+At normal **1× speed**, a full 52-hour election takes only **2 minutes 36 seconds in real time**: one in-game day is 72 ticks, each tick is one second, so 52 × (72 ÷ 24) = **156 seconds**. Pausing or changing simulation speed changes the real-time duration.
+
 The three leading candidates now take their places at the center of the gathering while the villagers assemble around them.
 
 The **Chronicle** records each major phase, from the opening gathering and discussions to the final announcement.
