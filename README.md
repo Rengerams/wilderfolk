@@ -116,7 +116,6 @@ The new **Graveyard** gives your community somewhere to remember those who came 
 * Each Graveyard accommodates up to **50 memorial records**.
 * Assign **one Gravekeeper** to look after the grounds.
 * Preserve memorials for **your own deceased villagers only** — enemy fighters are not buried in your Graveyard.
-* Names of fallen fighters from both sides belong in the raid overview, not the cemetery.
 * Family members can occasionally visit the graves of deceased relatives.
 * Visits take place **outside working hours**, allowing villagers to remember loved ones without abandoning their duties.
 
@@ -135,11 +134,18 @@ Frontier warfare now brings more detailed outcomes, permanent rival losses, and 
 ### Battles That Leave Their Mark
 
 * Successful raids can permanently reduce rival populations.
-* Overwhelming victories can eliminate rival settlements; **stronger enemy forces should likewise be able to wipe out your village**. *(Gameplay parity still to be implemented.)*
+* Overwhelming victories can eliminate rival settlements.
 * Destroyed camps lose their structures and associated events.
-* The **live raid overview** should identify fallen villagers **in green** and enemy casualties **in red**, as the fight progresses.
 * Battle outcomes include losses, spoils, victories, and defeats.
 * Victory celebrations and moments of mourning appear in the Chronicle.
+
+### Planned for v0.6.5.1 — Two-Sided Raid Consequences
+
+* During an active attack, the **raid overview** will display named casualties from both sides: **green for your villagers** and **red for enemies**.
+* An enemy force that overwhelmingly defeats your defenses will also be able to **wipe out your city**, not merely steal resources or damage a building. Destruction must work in both directions.
+* Enemy casualties remain part of the combat record; **only your own fallen villagers** may be buried in your Graveyard.
+
+*These two raid gameplay changes are planned and not yet implemented; they should not be presented as shipped until verified.*
 
 ### Full-Screen Battle Narration
 
