@@ -453,3 +453,115 @@ The player should be able to build an attractive, connected settlement where roa
 - Run save → load → simulate → save → reload regression checks using existing settlements, including large cities.
 
 **Definition of done:** roads are easy to draw, visibly join correctly and make travel/logistics better; walls, gates and towers are pleasant to construct and materially influence raids; existing villages still load and play correctly.
+
+
+## 14. Village logistics — supply routes, warehouses and bottlenecks
+
+**Proposal; not implemented.** Make transport and storage a real, readable part of managing a growing settlement.
+
+- Introduce **delivery priorities** for food, fuel, building materials and medical supplies. Essential consumption should not be blocked by a nonessential workshop requesting the same goods.
+- Give warehouses and markets meaningful **service areas** and transfer routes, integrated with the improved road network in Section 13. Avoid magically moving stock between distant buildings when the existing logistics model can represent transport.
+- Provide a **Supply Routes overlay**: shortage locations, overstocked stores, disconnected producers, average delivery distance and traffic choke points.
+- Allow sensible stock targets per warehouse or district, with an uncomplicated default mode for casual players.
+- Villagers should notice chronic shortages and adapt their daily routines; shortages can affect morale, work and health without arbitrary sudden deaths.
+- Optimize repeated producer/consumer matching with spatial indices and event-driven invalidation instead of rescanning every building for each villager.
+
+**Acceptance:** A farm connected to a nearby market can supply it more reliably than a disconnected distant farm, and the player can see *why* a shortage occurs. Existing saves retain all stock.
+
+## 15. Districts and neighbourhood identity
+
+**Proposal; not implemented.** Give large settlements a sense of place without requiring micromanagement.
+
+- Let players designate **districts** (e.g. Residential, Industrial, Farming, Civic or Defensive) with editable names and optional priorities. Districts are planning tools, not hard restrictions.
+- Show each district's population, workplaces, food access, school coverage, safety, beauty, traffic and happiness.
+- Add **neighbourhood identity**: residents form friendships through repeated local encounters, value well-maintained public spaces and remember major local events.
+- Support district-focused policies only when they can be integrated into existing workforce and resource owners; avoid contradictory global/local overrides.
+- Add a clear overlay and compact inspector, with no per-tick scanning of entire districts when nothing changed.
+- Preserve all buildings and residences when upgrading an older save: unassigned buildings simply belong to the default district.
+
+**Acceptance:** Players can understand *which part* of the city has a problem and respond locally.
+
+## 16. Seasons, resilience and village emergencies
+
+**Proposal; not implemented.** Make weather and seasonal preparation more meaningful, with counterplay.
+
+- Build a clear **Seasonal Preparedness** panel showing expected food and fuel demand, shelter, healing capacity and critical supply buffers.
+- Add rare, telegraphed **local emergencies** appropriate to the simulation: warehouse fires, blocked roads, storm damage or illness pressure. No unavoidable random village wipeouts.
+- Builders, guards and available workers can be assigned **emergency priorities** such as repairing a bridge, containing fire or delivering food.
+- Villagers react to dangerous conditions based on their traits, family bonds and practical ability; children should not automatically be assigned dangerous work.
+- Chronicle reports noteworthy emergencies, successful rescues and recovery, without flooding the log with small events.
+- Tie emergency routing to real roads, gates, walls and reachable destinations.
+
+**Acceptance:** A prepared player has understandable ways to prevent or mitigate harm, and recovery remains possible.
+
+## 17. More meaningful professions, education and career paths
+
+**Proposal; not implemented.** Build on age-18 adulthood and the selective apprenticeship rules.
+
+- School remains available from **ages 6–17**; formal graduation and adult employment begin at **18**.
+- Let adult settlers develop a **work history**: experience in trades, notable successes and training milestones. Skills and DNA aptitude both matter, but neither permanently locks a person into a profession.
+- Offer **optional apprenticeships** to qualified young adults when a suitable master, capacity and opportunity exist. Ordinary employment remains a valid and common path.
+- Add sensible **career progression** for experienced teachers, medics, craftspeople, builders and defenders, using existing job skill and leadership systems.
+- Show the player a short **Why this worker?** explanation when matching vacancies: skills, distance, availability, interests and relevant DNA benefits/penalties.
+- Avoid automatically moving every highly skilled settler to a different job or sending every graduate into an apprenticeship.
+- Add tests for progression, transfers, unemployment, reaching age 18 and reloads of old colonies.
+
+**Acceptance:** Two settlers can pursue different, credible life paths even when they are the same age and went to the same school.
+
+## 18. Simulation performance and large-colony scalability
+
+**High-priority engineering proposal; not implemented.** Preserve responsiveness as population and roads grow.
+
+### 18.1 Measure before optimizing
+
+- Create repeatable benchmarks for **250, 750, 1,800 and 3,000 settlers** on equivalent hardware and seeds, with browser and Windows desktop profiles.
+- Report **simulation tick duration (p50/p95/p99), dropped/over-budget ticks, UI frame time, render time, memory use and save/load duration** separately.
+- Use the existing performance profiler as the source of measurement; track before/after results for every major change.
+- Define a performance budget around the game's **one-second tick at 1×**, while ensuring UI animation stays responsive independently.
+
+### 18.2 Targeted improvements
+
+- **Incremental spatial indexing:** use cached neighbourhood queries for social encounters, schooling, workplace selection, prisons, combat and services. Invalidate only affected regions.
+- **Event-driven building caches:** update housing, road connectivity, staffing availability and service coverage when relevant structures or assignments change.
+- **Pathfinding jobs:** prioritize nearby/visible or time-sensitive routes, cache shared routes, coalesce repeated requests and set bounds for unreachable destinations.
+- **Rendering:** cull off-screen terrain and decorations; batch identical assets where the renderer permits; prevent unnecessary React inspector rerenders and costly object allocation during drawing.
+- **Tick workloads:** spread nonurgent scans over several ticks while retaining predictable daily effects and correct game outcomes.
+- **Worker transfers:** reduce redundant serialization and large state copies between simulation and UI; use deltas carefully and test worker fallback equivalence.
+- **Memory and garbage collection:** reuse transient buffers, bound event histories and caches, and clean up entity links after deaths or building removal.
+- **Saves:** profile serialization size and time, retain a versioned migration path, and perform safe atomic/validated writes where the platform allows.
+
+### 18.3 Do not trade correctness for speed
+
+- Maintain deterministic gameplay for a given seed and action sequence where the engine currently guarantees it.
+- Avoid a simulation that behaves differently simply because the camera is elsewhere or the game is minimized.
+- No optimization may skip a school day, duplicate production, lose a family relation or silently skip an incoming raid.
+- Add long-run soak tests, headless simulation invariants, profiler regression thresholds and **load → simulate → save → reload** checks using real large-colony saves (with appropriate fixture size controls in CI).
+- Document actual benchmark improvements instead of claiming speed gains without measurements.
+
+**Acceptance:** Large colonies have fewer long-frame stalls and stable memory use, while simulation outcomes remain correct and reproducible.
+
+## 19. Player tools: explainability, alerts and safe automation
+
+**Proposal; not implemented.** Improve usability without making the game play itself.
+
+- Add a **Why is this happening?** detail for production, housing, school seats, inactivity, unemployment, road access and defensive strength; ground explanations in live simulation data.
+- Let players configure meaningful **alerts**: food reserves below target, a school without a teacher, houses without road access, unguarded prisons, approaching enemies and damaged fortifications.
+- Support an optional **Repair Priority queue** for roads, bridges, gates, towers and essential buildings, with clear resource requirements and manual overrides.
+- Provide a **Before / After** preview for policy or construction changes when reliable estimates can be computed; mark uncertain predictions as estimates.
+- Add fast filters and bulk-selection controls that remain responsive with thousands of residents and hundreds of buildings.
+- Keep notifications concise, accessible and rate-limited; do not fill the Chronicle with repetitive alerts.
+
+**Acceptance:** The game tells the player both *what* is wrong and *what they can do about it*, without confusing predictions with certainties.
+
+## 20. Release gates and development order
+
+Suggested implementation sequence to reduce integration risk:
+
+1. **Foundation:** benchmarks, event IDs, stable save migrations and shared typed APIs for traits, pathfinding and outcomes.
+2. **Simulation reliability:** incremental caches, performance profiling and save/load regression coverage.
+3. **Infrastructure:** road construction, connections, gates, walls and tower interactions.
+4. **Village life:** districts, logistics, careers and personality-driven priorities.
+5. **Warfare:** raid states, prisoner decisions, diplomacy, leadership merit and consequences.
+6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
+
+These proposals should be split into independently testable milestones rather than shipped as one giant change. **Do not mark any of Sections 14–19 as shipped until code, tests, save compatibility and playtesting confirm it.**
