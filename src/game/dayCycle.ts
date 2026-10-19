@@ -273,6 +273,13 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     if (entity.type !== EntityType.Human) continue;
     if (entity.age >= HUMAN_CHILDHOOD_YEARS) continue;
     entity.isJuvenile = true;
+    // Premature graduations from older builds are invalid: schooling lasts until 18.
+    // Reset only prematurely graduated pupils; ordinary school attendance remains.
+    if (entity.educated) {
+      entity.educated = false;
+      entity.schoolDays = 0;
+      entity.schoolTicksToday = 0;
+    }
     // Older saves may hold apprenticeships assigned to children. Preserve school
     // progress and learned skills while clearing the invalid master relationship.
     if (entity.apprenticeOfId != null) {
