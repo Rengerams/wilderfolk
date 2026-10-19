@@ -30,7 +30,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 **A standalone Windows desktop package is available.**
 
-- **Recommended Windows installer:** [Download `Wilderfolk_V0.6.5-1_x64-setup.exe`]
+- **Recommended Windows installer:** [Download](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5-1/Wilderfolk_0.6.5-1_x64-setup.exe)
 - **MSI package:** [Download `Wilderfolk_V0.6.6-1_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5.1/Wilderfolk_0.6.5-1_x64_en-US.msi)
 - **Release notes:** [View GitHub Release v0.6.5-1](https://github.com/Rengerams/wilderfolk/releases/tag/V.0.6.5.1)
 
