@@ -593,7 +593,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Prison watches run every day, including weekends. Start walking before the shift even when the
     // ordinary evening routine would otherwise keep a guard at home.
     const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
-      onPrisonShift || hourOfDay >= prisonShiftStartHour - prisonCommuteLeadHours
+      onPrisonShift || ((prisonShiftStartHour - hourOfDay + 24) % 24) <= prisonCommuteLeadHours
     );
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
@@ -623,7 +623,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
-      state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
+      !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
 
     if (isPrisoner) {
       entity.vx = 0;
