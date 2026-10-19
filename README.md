@@ -27,11 +27,8 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 ## v0.6.5.1 (October 19, 2026)
 
 * `GAME_VERSION` **0.6.5.1**
-* `COMPATIBILITY` **Supported for older save games**
-
----
-
-**`IMPORTANT`**
+* `compatibility` **Supported for older save games**
+**IMPORTANT**
 
 In the previous update we stated they wouldnt be a update for this version, after a long night of sleep we changed our view and fixed the issues that where in our way.
 This release is then our hard work to make the game better without using an new engine, we keep investiging ofcourse if a overhauwl would be usefull but for now we will keep
@@ -64,7 +61,7 @@ Succesfull live playtested with a city up to 1800 settlers in one city, this is 
 
 Growing families need somewhere to call home.
 
-The new **Villa** offers spacious accommodation for larger households, providing significantly more housing capacity than an ordinary home.
+The new **Country house* offers spacious accommodation for larger households, providing significantly more housing capacity than an ordinary home.
 
 * **14 residents** at level 1.
 * **16 residents** at level 2.
