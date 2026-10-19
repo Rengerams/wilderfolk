@@ -308,3 +308,72 @@ All fourteen traits need thoughtful coverage. **Avoid a direct “Fierce = cheat
 - [ ] Large colonies retain acceptable performance through per-event decisions, cached context and bounded social updates.
 
 **Design principle:** DNA influences *who a settler tends to become*, but lived experience and relationships decide *what they actually do*.
+
+
+## 12. Raid prisoners — captivity, mercy, execution and recruitment
+
+**Status: proposed for v0.6.6.0; not implemented.**
+
+After a raid, the victor may capture surviving enemy combatants instead of automatically killing or releasing them. This is **separate from the choice to spare, demand terms from, or raze the rival settlement**. Prisoners are living characters with identities, affiliations and relationships where the simulation represents them individually. Abstract off-map troop losses must not be converted into invented prisoners.
+
+### 12.1 Taking captives
+
+- Prisoners can be taken after a successful raid or a surrendered/repelled attack when survivors are available; winning does not guarantee a captive.
+- Make capture depend on the outcome, survival, surrender, the forces available to escort captives, and available **Prison** capacity. Do not silently exceed cell capacity or teleport arbitrary civilians into cells.
+- Record identity, faction of origin, captor, raid ID and custody state. Prisoners appear in the existing prison roster, with distinct labels for captured raiders versus residents jailed for village offences.
+- Captives remain alive, require food and guards, and can escape under the existing prison-watch mechanics. A missing guard is meaningful.
+- Capture decisions and prisoner fate must survive save/load, and cannot be awarded twice when a raid event or interface is replayed.
+
+### 12.2 What to do with prisoners
+
+At the end of a raid, present a **Prisoners of War** decision showing how many identifiable captives were taken, their condition, available prison space and the diplomatic consequences of each action. Allow an action for each individual or a confirmed group action when appropriate.
+
+| Choice | Gameplay outcome | Likely valley reaction |
+|---|---|---|
+| **Keep imprisoned** | Captives remain in secure cells, consuming food and guard capacity; possible escape, bargaining or future release | Hostile camps may see it as a threat; long or cruel detention damages trust |
+| **Release / Show mercy** | Let captives return to their settlement, or depart as free people if their camp no longer exists | Increases mercy and trust, may improve relations, but former enemies could return later |
+| **Offer to join the village** | Try to persuade an individual captive to settle voluntarily; joining is **not guaranteed** | Can improve standing when genuinely voluntary, but rivals may distrust recruitment of their people |
+| **Execute** | Permanently kill selected captives after explicit confirmation and record the deaths in the battle/Chronicle | Major negative effect on trust and mercy, increases fear, may trigger resentment, retaliation or diplomatic isolation |
+
+**Recruitment must be a choice made by the captive**, not an automatic conversion of enemy units into player settlers. Consider existing loyalty to home, bonds, conditions in custody, demonstrated mercy, personality, village attractiveness, and the history of the conflict. A refusal leaves the captive eligible for release or continued detention; repeated attempts must have cooldowns and diminishing chances. Never present execution as the most efficient universal choice.
+
+### 12.3 Individual and community consequences
+
+- Friends and relatives may care about a captured or executed character; releasing a known captive can change diplomatic relations and future encounters.
+- The player's villagers should react to cruelty or generosity, influenced by their DNA traits, personal priorities and existing social bonds. Not everyone agrees with the leader's decision.
+- **Executing a prisoner is different from killing an armed opponent during combat** and should carry a distinctly greater reputation penalty.
+- Taking civilians or children prisoner is **out of scope** for this feature; restrict capture to eligible surviving enemy combatants and guard against age-inappropriate actions.
+- Captured enemies and executed prisoners **are not buried in the player's Graveyard**. Their names remain in the raid overview and Chronicle, with enemy labels distinct from villagers.
+- Prisoners may have an opportunity to join the player's settlement only as **adult, willing recruits**; on joining, carefully migrate faction, occupancy, employer eligibility, relationship links, and village citizenship without cloning the entity.
+
+### 12.4 Valley-wide reputation and political consequences
+
+The valley remembers **how a victory was handled**, not just who won:
+
+- **Capture rather than kill in battle:** a modest mercy signal when real surrender was accepted.
+- **Humane custody / later release:** improved trust and potential diplomatic openings.
+- **Voluntary integration:** potential goodwill among some settlements and resentment among others, based on prior relationships and whether the recruit chose freely.
+- **Execution after surrender:** strong fear and severe negative trust, with possible revenge or coalition behavior by other camps.
+- **Repeated prisoner abuse:** escalating, cumulative consequences; prevent reputation laundering through trivial releases after repeated executions.
+- Reactions should be mediated by witnesses, reputation propagation and each rival's relationship with the player, rather than changing every faction uniformly or instantly.
+- Leadership merit and election support must reflect villagers' reactions, not simply award positive points for capturing or killing opponents.
+
+### 12.5 Prisoner interaction design
+
+- Include a **post-raid outcome panel** with casualty lists (player names green, enemy names red) and a separate **Captured** section for survivors; never render a captured or released character as dead.
+- Provide **Keep**, **Release**, **Offer to Join** and **Execute** actions with clear availability rules and visible consequences.
+- Require a **second irreversible-action confirmation for execution**, including the character's name and likely reputation impact.
+- Show why a recruit refuses, why no prison place exists, or why an option is unavailable.
+- Do not force players to resolve every captive immediately if the game can persist a pending choice; however, ensure a sensible, safe custody default.
+- Avoid breaking the game when a captured character's home settlement is destroyed in the same raid; release, recruitment and imprisonment must still remain logically consistent.
+
+### 12.6 Implementation and regression criteria
+
+- Reuse existing **Prison** capacity, guard shifts, escape rules, citizenship/faction owners, relationship rules, Chronicle and diplomacy systems; do not create a disconnected prison simulation.
+- Model captured, imprisoned, released, recruited, escaped and executed as explicit, validated transitions, with one durable event ID per decision.
+- Prevent duplicate captures, invisible prisoners, prisoner-as-guard staffing, repeated execution, repeated recruitment rewards, capacity overflow and save/load rerolls.
+- Test incoming and outgoing raids, prisons full/empty, surrender, no available survivors, leader changes, camp destruction, prisoner escapes, release, refusal to join and successful voluntary integration.
+- Verify diplomacy and leadership merit respond to each distinct choice exactly once, and persist correctly after reload.
+- Test large raids and large settlements without per-render full-population scans.
+
+**Definition of done:** the player can take legitimate combatant prisoners, choose their fate, see individual and valley-wide consequences, and potentially gain willing new villagers—while every decision respects existing prison capacity, living characters, social systems and save compatibility.
