@@ -28,6 +28,14 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 * `GAME_VERSION` **0.6.5.1**
 
+**IMPORTANT**
+
+In the previous update we stated they wouldnt be a update for this version, after a long night of sleep we changed our view and fixed the issues that where in our way.
+This release is then our hard work to make the game better without using an new engine, we keep investiging ofcourse if a overhauwl would be usefull but for now we will keep
+working on this project
+
+---
+
 **A standalone Windows desktop package is available.**
 
 - **Recommended Windows installer:** [Download](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5-1/Wilderfolk_0.6.5-1_x64-setup.exe)
