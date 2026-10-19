@@ -3,19 +3,24 @@ import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import { repairJuvenileAssignmentsOnLoad } from '../src/game/dayCycle';
 import { applyEducationGraduation } from '../src/game/education';
-import type { Entity } from '../src/game/gameTypes';
+import { createEntity } from '../src/game/entityFactory';
+
+function human(id: number, age: number, name = 'Settler') {
+  const entity = createEntity(EntityType.Human, 100, 100, id, 100, age < 18, { name, ageYears: age });
+  entity.age = age;
+  return entity;
+}
 
 describe('older saves: schooling and adulthood begin/end at the correct ages', () => {
   it('repairs Demetrius-like early graduation without touching family or skills', () => {
     const state = initGame({ seed: 4242 });
-    const child = {
-      id: 90001, type: EntityType.Human, age: 12, alive: true,
-      name: 'Demetrius', surname: 'Wilke',
-      isJuvenile: false, schoolDays: 24, educated: true,
+    const child = human(90001, 12, 'Demetrius');
+    Object.assign(child, {
+      surname: 'Wilke', isJuvenile: false, schoolDays: 24, educated: true,
       schoolTicksToday: 12, skills: { [JobType.Farmer]: 9 },
       motherId: 80, fatherId: 81, friendships: { friend_50: 9 },
       job: JobType.Settler,
-    } as Entity;
+    });
     state.entities.push(child);
     repairJuvenileAssignmentsOnLoad(state);
     expect(child.isJuvenile).toBe(true);
@@ -32,11 +37,8 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
 
   it('preserves normal school attendance for a child who has not prematurely graduated', () => {
     const state = initGame({ seed: 4242 });
-    const child = {
-      id: 90002, type: EntityType.Human, age: 10, alive: true,
-      isJuvenile: true, schoolDays: 12, educated: false,
-      job: JobType.Settler,
-    } as Entity;
+    const child = human(90002, 10);
+    Object.assign(child, { isJuvenile: true, schoolDays: 12, educated: false, job: JobType.Settler });
     state.entities.push(child);
     repairJuvenileAssignmentsOnLoad(state);
     expect(child.schoolDays).toBe(12);
@@ -45,11 +47,10 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
 
   it('clears an underage apprenticeship at load without erasing learned skills', () => {
     const state = initGame({ seed: 4242 });
-    const master = { id: 90003, type: EntityType.Human, age: 40, alive: true,
-      isJuvenile: false, apprenticeId: 90004, job: JobType.Farmer } as Entity;
-    const child = { id: 90004, type: EntityType.Human, age: 10, alive: true,
-      isJuvenile: true, apprenticeOfId: 90003,
-      job: JobType.Settler, skills: { [JobType.Farmer]: 16 } } as Entity;
+    const master = human(90003, 40);
+    Object.assign(master, { apprenticeId: 90004, job: JobType.Farmer });
+    const child = human(90004, 10);
+    Object.assign(child, { apprenticeOfId: 90003, job: JobType.Settler, skills: { [JobType.Farmer]: 16 } });
     state.entities.push(master, child);
     repairJuvenileAssignmentsOnLoad(state);
     expect(child.apprenticeOfId).toBeUndefined();
@@ -59,9 +60,8 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
 
   it('cannot graduate at 17 even with enough days, but can at 18', () => {
     const state = initGame({ seed: 4242 });
-    const pupil = { id: 90005, type: EntityType.Human, age: 17, alive: true,
-      isJuvenile: true, schoolDays: 45, skills: {},
-      maxEnergy: 100, energy: 100, name: 'Pupil', surname: 'Test' } as Entity;
+    const pupil = human(90005, 17, 'Pupil');
+    Object.assign(pupil, { schoolDays: 45, skills: {}, maxEnergy: 100, energy: 100, surname: 'Test' });
     state.entities.push(pupil);
     applyEducationGraduation(state, pupil);
     expect(pupil.educated).not.toBe(true);
