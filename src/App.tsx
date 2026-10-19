@@ -166,7 +166,7 @@ function SaveToastBanner({
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const debugMode = typeof window !== 'undefined'
+  const debugMode = import.meta.env.DEV && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('debug') === '1';
   // Roadmap U5 — "normal play stays quiet". Diagnostics *collection* is always on (the drawer and
   // the cumulative history need it), but the once-per-colony-day console snapshot is a debug tool.
