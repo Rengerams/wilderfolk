@@ -1,10 +1,7 @@
 # Wilderfolk v0.6.6.0 — Warfare, Survival & Reputation Roadmap
 
-**Status:** Design proposal — NOT IMPLEMENTED  
 **Target version:** 0.6.6.0  
 **Scope:** Raid gameplay, settlement destruction and recovery, player choices, valley diplomacy, named battle casualties, and leadership merit.
-
-> This is a roadmap for a future release. None of the features described here should be advertised as shipped in v0.6.5.1 until implemented, tested and verified.
 
 ## 1. Design goals
 
@@ -212,8 +209,6 @@ v0.6.6.0 is ready to announce these mechanics only when **the game logic, user c
 
 ## 11. DNA traits — strengths, weaknesses and whole-game influence
 
-**Status: proposed for v0.6.6.0; not implemented by this document.**
-
 Every inherited DNA/personality trait must have meaningful **positive (+)** and **negative (−)** influences. Traits should affect the entire simulation wherever relevant, rather than being cosmetic labels or bonuses limited to one profession. A strong settler may excel at physically demanding mining while an insightful/intuitive settler may do better at teaching or research, but each advantage comes with a plausible trade-off.
 
 ### 11.1 Core gameplay rules
@@ -312,8 +307,6 @@ All fourteen traits need thoughtful coverage. **Avoid a direct “Fierce = cheat
 
 ## 12. Raid prisoners — captivity, mercy, execution and recruitment
 
-**Status: proposed for v0.6.6.0; not implemented.**
-
 After a raid, the victor may capture surviving enemy combatants instead of automatically killing or releasing them. This is **separate from the choice to spare, demand terms from, or raze the rival settlement**. Prisoners are living characters with identities, affiliations and relationships where the simulation represents them individually. Abstract off-map troop losses must not be converted into invented prisoners.
 
 ### 12.1 Taking captives
@@ -380,8 +373,6 @@ The valley remembers **how a victory was handled**, not just who won:
 
 
 ## 13. Roads, walls and towers — construction, visuals and real gameplay use
-
-**Status: proposed for v0.6.6.0; not implemented by this roadmap.**
 
 The player should be able to build an attractive, connected settlement where roads genuinely guide travel and walls and towers genuinely defend it. Construction must feel precise and rewarding: visually connected pieces, useful previews, understandable costs, and predictable behavior after placement.
 
@@ -457,7 +448,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 14. Village logistics — supply routes, warehouses and bottlenecks
 
-**Proposal; not implemented.** Make transport and storage a real, readable part of managing a growing settlement.
+Make transport and storage a real, readable part of managing a growing settlement.
 
 - Introduce **delivery priorities** for food, fuel, building materials and medical supplies. Essential consumption should not be blocked by a nonessential workshop requesting the same goods.
 - Give warehouses and markets meaningful **service areas** and transfer routes, integrated with the improved road network in Section 13. Avoid magically moving stock between distant buildings when the existing logistics model can represent transport.
@@ -470,7 +461,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 15. Districts and neighbourhood identity
 
-**Proposal; not implemented.** Give large settlements a sense of place without requiring micromanagement.
+Give large settlements a sense of place without requiring micromanagement.
 
 - Let players designate **districts** (e.g. Residential, Industrial, Farming, Civic or Defensive) with editable names and optional priorities. Districts are planning tools, not hard restrictions.
 - Show each district's population, workplaces, food access, school coverage, safety, beauty, traffic and happiness.
@@ -483,7 +474,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 16. Seasons, resilience and village emergencies
 
-**Proposal; not implemented.** Make weather and seasonal preparation more meaningful, with counterplay.
+Make weather and seasonal preparation more meaningful, with counterplay.
 
 - Build a clear **Seasonal Preparedness** panel showing expected food and fuel demand, shelter, healing capacity and critical supply buffers.
 - Add rare, telegraphed **local emergencies** appropriate to the simulation: warehouse fires, blocked roads, storm damage or illness pressure. No unavoidable random village wipeouts.
@@ -496,7 +487,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 17. More meaningful professions, education and career paths
 
-**Proposal; not implemented.** Build on age-18 adulthood and the selective apprenticeship rules.
+Build on age-18 adulthood and the selective apprenticeship rules.
 
 - School remains available from **ages 6–17**; formal graduation and adult employment begin at **18**.
 - Let adult settlers develop a **work history**: experience in trades, notable successes and training milestones. Skills and DNA aptitude both matter, but neither permanently locks a person into a profession.
@@ -510,7 +501,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 18. Simulation performance and large-colony scalability
 
-**High-priority engineering proposal; not implemented.** Preserve responsiveness as population and roads grow.
+Preserve responsiveness as population and roads grow.
 
 ### 18.1 Measure before optimizing
 
@@ -542,7 +533,7 @@ The player should be able to build an attractive, connected settlement where roa
 
 ## 19. Player tools: explainability, alerts and safe automation
 
-**Proposal; not implemented.** Improve usability without making the game play itself.
+Improve usability without making the game play itself.
 
 - Add a **Why is this happening?** detail for production, housing, school seats, inactivity, unemployment, road access and defensive strength; ground explanations in live simulation data.
 - Let players configure meaningful **alerts**: food reserves below target, a school without a teacher, houses without road access, unguarded prisons, approaching enemies and damaged fortifications.
@@ -564,12 +555,12 @@ Suggested implementation sequence to reduce integration risk:
 5. **Warfare:** raid states, prisoner decisions, diplomacy, leadership merit and consequences.
 6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
 
-These proposals should be split into independently testable milestones rather than shipped as one giant change. **Do not mark any of Sections 14–19 as shipped until code, tests, save compatibility and playtesting confirm it.**
+Split these milestones into independently testable changes with regression coverage and save compatibility checks.
 
 
 ## 21. Code-audited performance targets and developer-only diagnostics
 
-**Audit basis:** inspected `src/game/pathfinding.ts`, `src/game/spatialGrid.ts`, `src/game/gameLoop.ts`, `src/game/performanceProfiler.ts`, `src/components/SimulationDiagnosticsPanel.tsx`, `src/components/PerformanceProfilerPanel.tsx` and `src/App.tsx` on 19 October 2026. These are **optimization hypotheses from actual code**, not measured bottlenecks or completed optimizations.
+**Audit basis:** inspected `src/game/pathfinding.ts`, `src/game/spatialGrid.ts`, `src/game/gameLoop.ts`, `src/game/performanceProfiler.ts`, `src/components/SimulationDiagnosticsPanel.tsx`, `src/components/PerformanceProfilerPanel.tsx` and `src/App.tsx` on 19 October 2026. These are **optimization hypotheses from actual code**, not measured bottlenecks.
 
 ### 21.1 Pathfinding allocations and invalidation — high priority
 
@@ -611,6 +602,6 @@ These proposals should be split into independently testable milestones rather th
 - Add release smoke tests that query `?debug=1` in production and assert the profiler/diagnostic controls remain absent, while the same tools remain usable in dev.
 - README/release notes should not advertise a developer CPU analyzer as a feature available to ordinary players.
 
-**Current code adjustment (19 October 2026):** `src/App.tsx` now requires `import.meta.env.DEV` for `debugMode`; `PerformanceProfilerPanel.tsx` also returns `null` in non-development builds. Treat complete dev-only bundling and production smoke tests as still pending.
+**Existing implementation (19 October 2026):** `src/App.tsx` now requires `import.meta.env.DEV` for `debugMode`; `PerformanceProfilerPanel.tsx` also returns `null` in non-development builds. Treat complete dev-only bundling and production smoke tests as still pending.
 
 **Definition of done:** measured performance improvements with zero simulation correctness regressions and no player access to developer performance tooling in release builds.
