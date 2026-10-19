@@ -377,3 +377,79 @@ The valley remembers **how a victory was handled**, not just who won:
 - Test large raids and large settlements without per-render full-population scans.
 
 **Definition of done:** the player can take legitimate combatant prisoners, choose their fate, see individual and valley-wide consequences, and potentially gain willing new villagers—while every decision respects existing prison capacity, living characters, social systems and save compatibility.
+
+
+## 13. Roads, walls and towers — construction, visuals and real gameplay use
+
+**Status: proposed for v0.6.6.0; not implemented by this roadmap.**
+
+The player should be able to build an attractive, connected settlement where roads genuinely guide travel and walls and towers genuinely defend it. Construction must feel precise and rewarding: visually connected pieces, useful previews, understandable costs, and predictable behavior after placement.
+
+### 13.1 Road building and editing
+
+- Support intuitive **click-and-drag road painting** with straight runs, corners and optional route preview; avoid having to place every individual tile.
+- Allow road placement to snap cleanly to the terrain grid and connect to existing roads, junctions, bridges, gates and building entrances.
+- Show before confirmation the proposed path, tile count, resource cost, blocked segments, slopes, bridge requirements and whether the connection actually reaches a destination.
+- Provide easy removal, replacement, upgrades and repairing without accidentally demolishing unrelated structures.
+- Distinguish planned, under-construction, completed, damaged and blocked roads; builders must complete segments in an understandable order.
+- Let players choose sensible road widths/types when supported by gameplay; avoid offering cosmetic variants that break route connectivity.
+- Construction tools must handle long roads without huge material costs being charged repeatedly on pointer movement or after cancelling a preview.
+
+### 13.2 Roads must actually affect settlement life
+
+- Settlers and carts should **prefer usable roads** when they provide a faster or safer route, but may walk off-road when appropriate; do not force ridiculous detours to stay on paths.
+- Road surface quality, width, condition, congestion, weather and terrain may influence travel speed and reliability within bounded, explainable limits.
+- Transporting goods from resource sites to workshops, stores, markets and residences should benefit from connected roads, where the existing logistics simulation supports that.
+- Roads should improve access to workplaces and services (schools, hospitals, wells, emergency response), not merely increase a vague settlement-wide score.
+- Bridges and gates must be genuine traversable connectors. A visually continuous road is **not** necessarily a reachable one if a gate is locked or the bridge is damaged.
+- Provide an **accessibility / route-debug overlay** showing disconnected buildings, bottlenecks, unreachable segments and frequently travelled routes.
+- Keep pathfinding performant in villages with 1,800+ settlers: graph updates on construction changes, bounded searches, caching/invalidation and no whole-map recalculation every tick.
+
+### 13.3 Better road graphics
+
+- Use visually seamless **auto-tiling** for straight sections, bends, T-junctions, crossroads, dead ends, bridge joins and connections to building doors.
+- Make road edges fit the terrain with believable dirt, cobblestone, paving, mud, wear, wheel ruts and subtle vegetation transitions as appropriate to the selected type.
+- Align bridges, slopes, shadows, lighting and isometric perspective with the current world art style.
+- Show subtle signs of use and weathering without making busy towns visually noisy or obscuring characters.
+- Keep the collision/navigation footprint aligned with the graphic: no road that looks walkable but is blocked, and no hidden gaps at corners.
+- Rendering and auto-tiling must update when neighboring tiles are placed, upgraded, damaged or removed.
+
+### 13.4 Buildable walls, gates and defensive towers
+
+- Improve **wall drawing** with drag placement, automatic connected sections, corners, end caps and clear snapping to gates, towers and existing fortifications.
+- Preview resource costs, construction time, collision and whether a proposed wall actually seals an approach; warn clearly about unconnected gaps.
+- Offer functional **gates** through walls so villagers, merchants and militia can enter or leave; gate state must affect routes and attack behavior consistently.
+- Provide intuitive tower placement and upgrading, with clear coverage/range previews, line-of-sight limits and staffing requirements where the combat model calls for guards.
+- Allow repair and rebuilding after raids; damage should visibly affect wall and tower condition.
+- Keep construction rules coherent at waterways, cliffs, bridges and steep terrain so fortifications cannot exploit invalid or inaccessible placements.
+
+### 13.5 Fortifications in raids
+
+- Walls should slow, redirect or block attackers until breached; towers should contribute defense according to real range, line of sight, garrison, equipment and condition.
+- Raiders must be able to target **gates, weak sections and breach points**, rather than treating a fully enclosed city as magically invulnerable.
+- Defenders need reachable positions and routes. A wall without a workable gate should not trap the entire village or create free defense points.
+- The raid overview should explain which tower provided support, where a breach occurred, and how fortifications affected the result.
+- Fortifications should contribute to the **v0.6.6.0 devastation model**: well-defended towns are harder to wipe out, but sufficiently strong enemies can still destroy walls and towers.
+- Do not duplicate the existing aggregate militia/defense score with an unbounded second bonus. Balance physical defense effects against current combat resolution.
+
+### 13.6 Building UX and visual polish
+
+- One coherent construction tool family for roads, walls, gates and towers, with predictable rotate / drag / confirm / cancel / demolish behavior.
+- Clearly show the footprint, entrances, range, terrain obstructions, required materials and connectivity **before** committing construction.
+- Draw clear construction and upgrade stages, material changes, scaffolding/damage and completion transitions.
+- Display concise explanations such as *Disconnected road*, *Gate blocks route*, *Tower has no guard*, *Outside tower range*, *No resources*, or *Blocked terrain*.
+- Maintain legible outlines, shadows, sorting and selection hitboxes at varying zoom levels and when structures overlap vegetation.
+- Make any optional decoration or visual quality controls independent of the underlying pathfinding/combat simulation.
+
+### 13.7 Save compatibility, implementation and acceptance tests
+
+- Keep old saves compatible: existing roads, walls, bridges, gates and towers must retain their identity, location, health, upgrades and assigned workers.
+- Derive any new adjacency/autotile/route caches on load; do **not** replace placed infrastructure or change valid paths without an explicit migration.
+- Integrate with existing placement, terrain, building state, pathfinding, rendering, workforce, defense and frontier combat owners instead of creating parallel simulations.
+- Test road dragging across valid/invalid tiles, costs/refunds, crossings, bridges, junctions, undo/cancel, demolition, map borders and terrain changes.
+- Test pathfinding before and after construction, a destroyed bridge, an open/closed gate, traffic congestion and a disconnected school/workplace.
+- Test wall corners and gaps, tower range and staffing, raider gate attack, breach, rebuilding and a fully enclosed village.
+- Confirm visuals match pathfinding and collision, plus large-map performance at various zoom levels.
+- Run save → load → simulate → save → reload regression checks using existing settlements, including large cities.
+
+**Definition of done:** roads are easy to draw, visibly join correctly and make travel/logistics better; walls, gates and towers are pleasant to construct and materially influence raids; existing villages still load and play correctly.
