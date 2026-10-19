@@ -212,6 +212,8 @@ The village now has a **weekly newspaper** in the Log window, drawing stories, s
 
 ## 🌳 Family Trees, Friendships & Village Life
 
+**Adulthood begins at 18 throughout Wilderfolk.** Settlers aged 0–17 remain juveniles: school starts at 6, youths can form age-appropriate first-love relationships from 12, and adult-only systems such as employment, marriage, leadership, militia service and apprenticeships become available no earlier than 18. Completing school may make an adult eligible for an apprenticeship, but never guarantees one. Existing saves are repaired where older versions incorrectly flagged minors as adults or apprentices.
+
 The people of Wilderfolk have richer stories outside their jobs.
 
 * **Visual family trees** connect parents, children, spouses and generations; family relationships follow actual parentage rather than matching surnames.
