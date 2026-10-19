@@ -565,3 +565,52 @@ Suggested implementation sequence to reduce integration risk:
 6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
 
 These proposals should be split into independently testable milestones rather than shipped as one giant change. **Do not mark any of Sections 14–19 as shipped until code, tests, save compatibility and playtesting confirm it.**
+
+
+## 21. Code-audited performance targets and developer-only diagnostics
+
+**Audit basis:** inspected `src/game/pathfinding.ts`, `src/game/spatialGrid.ts`, `src/game/gameLoop.ts`, `src/game/performanceProfiler.ts`, `src/components/SimulationDiagnosticsPanel.tsx`, `src/components/PerformanceProfilerPanel.tsx` and `src/App.tsx` on 19 October 2026. These are **optimization hypotheses from actual code**, not measured bottlenecks or completed optimizations.
+
+### 21.1 Pathfinding allocations and invalidation — high priority
+
+- `pathfinding.ts` currently creates new `Map<number, number>` instances for A* `gScore` and `came` during searches. Benchmark allocation/GC churn under many simultaneous commuters and consider reusable generation-stamped typed arrays for dense grid indices.
+- The module already has a `pathCache`; inspect its key cardinality, hit rates, invalidation on road/bridge/gate construction, and memory bounds. Avoid implementing a second cache without evidence.
+- Path graph construction loops across tiles and buildings. Cache stable terrain and static obstacle layers, and incrementally patch only affected regions after placement, demolition or damage.
+- Measure route-replanning frequency by settler and failure reason. Coalesce identical requests and avoid repeated searches for unreachable goals until the relevant navigation topology changes.
+
+### 21.2 Spatial-grid update costs — high priority
+
+- `spatialGrid.ts` keeps per-entity cell mappings and provides spatial lookups already; do not replace it with another spatial index. Profile its **full synchronization/rebuild** versus incremental position updates and stale-entity sweeps.
+- Reuse scratch storage when safe; benchmark `Map`/`Set` churn against simpler indexed arrays or typed buffers.
+- Group repeated neighborhood lookups within one simulation stage and reuse immutable snapshots of nearby candidates; retain correctness when entities move or die mid-tick.
+- Measure with wildlife and vegetation included, not just human population, because grid density and moving populations vary dramatically by map.
+
+### 21.3 Rendering and state-transfer bottlenecks — high priority
+
+- `gameLoop.ts` drives a `requestAnimationFrame` render loop and exchanges simulation state with a worker. Profile worker message frequency, payload byte size, cloning cost and dropped frames.
+- The repository already has `renderSnapshot.ts` and `simBuffers/renderSoAEntities.ts`/`renderBufferPool.ts`. Compare delta/SoA reuse against full snapshots before proposing a new transport.
+- Profile viewport culling, per-entity sprite work, building sorting and compositing separately. Keep the existing rendering caches; optimize invalidation or hot loops that measurements identify.
+- Avoid rerendering expensive inspector UI from unrelated tick changes; use stable selectors and update rates where doing so preserves timely game feedback.
+
+### 21.4 Better performance measurement
+
+- The existing profiler collects section totals, calls, average and max duration. Extend benchmark reporting with **p50/p95/p99** stage timings and simulation tick budgets, while keeping bounded memory.
+- Compare cold startup, 5-minute warm run, accelerated simulation, active raids, large school populations, bad pathfinding situations, and save/reload.
+- Run representative 250/750/1,800/3,000-settler datasets and report **actual** time saved plus correctness outcomes. Never claim a percentage improvement based solely on a code reading.
+- Introduce performance regression gates with stable environment controls; avoid flaky timing assertions on shared CI runners.
+
+### 21.5 Developer-only performance analyzer (release requirement)
+
+**Player-facing production builds must not show a CPU profiler, diagnostics panel, or `?debug=1` backdoor.**
+
+- Developer builds (`import.meta.env.DEV`) may display diagnostic controls and run opt-in detailed profiling.
+- Production Windows installers and production web builds must hide the CPU profiler and diagnostic UI **regardless of query parameters or saved panel preferences**.
+- The gameplay simulation and lightweight safety checks must continue to work in production; only developer inspection/control access is restricted.
+- Ensure profiling is disabled by default, even in development, and causes no sampling overhead unless enabled.
+- Follow up by **tree-shaking or conditional imports** of developer-only profiler UI/code when practical, and verify production bundle contents.
+- Add release smoke tests that query `?debug=1` in production and assert the profiler/diagnostic controls remain absent, while the same tools remain usable in dev.
+- README/release notes should not advertise a developer CPU analyzer as a feature available to ordinary players.
+
+**Current code adjustment (19 October 2026):** `src/App.tsx` now requires `import.meta.env.DEV` for `debugMode`; `PerformanceProfilerPanel.tsx` also returns `null` in non-development builds. Treat complete dev-only bundling and production smoke tests as still pending.
+
+**Definition of done:** measured performance improvements with zero simulation correctness regressions and no player access to developer performance tooling in release builds.
