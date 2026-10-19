@@ -427,14 +427,17 @@ export function assignWorkerInPlace(
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
       !isOnConstructionCrew(buildings, h.id) &&
-      // Owner, 2026-10-06: a post more than two hours from home is not offered to that settler.
-      isWithinAssignableCommute(h, building, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
 
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
 
   candidates.sort((a, b) => {
+    // Prefer workers who can commute reliably, without blocking staffing when
+    // no nearby candidate exists. Manual choices remain unrestricted.
+    const aNear = isWithinAssignableCommute(a, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
+    const bNear = isWithinAssignableCommute(b, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
+    if (aNear !== bNear) return aNear ? -1 : 1;
     const dxa = a.x - buildingX;
     const dya = a.y - buildingY;
     const dxb = b.x - buildingX;
