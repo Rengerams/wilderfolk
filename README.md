@@ -28,7 +28,9 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 * `GAME_VERSION` **0.6.5.1**
 * `compatibility` **Supported for older save games**
-**IMPORTANT**
+--
+
+**`IMPORTANT`**
 
 In the previous update we stated they wouldnt be a update for this version, after a long night of sleep we changed our view and fixed the issues that where in our way.
 This release is then our hard work to make the game better without using an new engine, we keep investiging ofcourse if a overhauwl would be usefull but for now we will keep
