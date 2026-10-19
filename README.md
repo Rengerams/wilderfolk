@@ -255,7 +255,7 @@ The broader personality-driven DNA system is a **future v0.6.6.0 proposal**, not
 * Less redundant work during housing assignment, pathfinding and daily simulation processing.
 * Save/load repairs for terrain changes, identifiers, family links and simulation state, with clearer errors for invalid files.
 * Smaller saves through removal of unnecessary fields from vegetation and other entities.
-* An optional **CPU profiler** with live timing and report export for diagnosing slowdowns.
+* **Developer builds only:** optional CPU profiling and diagnostics for investigating slowdowns; these tools are hidden in production releases.
 * Expanded regression coverage, typechecking and build checks.
 
 **Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.6.0 roadmap](roadmap_V.0.6.6.0.md)**. They are not shipped v0.6.5.1 features.
@@ -289,7 +289,7 @@ Beyond the new buildings and gameplay additions, this update includes improvemen
 
 * Added the persistent Weather visuals toggle.
 * Added paced full-screen battle narration.
-* Improved CPU profiler integration and positioning.
+* Improved developer-only CPU profiler integration and positioning.
 * Improved simulation worker fallback behavior.
 * Expanded regression test coverage for Villa housing.
 * Optimized affair-related regression tests.
