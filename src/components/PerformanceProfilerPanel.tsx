@@ -55,7 +55,7 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
 }
 
 /** Opt-in CPU reporting continues while the game panel is closed. */
-export default function PerformanceProfilerPanel({ loopRef }: Props) {
+function DevPerformanceProfilerPanel({ loopRef }: Props) {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
@@ -153,4 +153,10 @@ export default function PerformanceProfilerPanel({ loopRef }: Props) {
       )}
     </div>
   );
+}
+
+/** Development-only: never expose the profiler in a packaged or production build. */
+export default function PerformanceProfilerPanel(props: Props) {
+  if (!import.meta.env.DEV) return null;
+  return <DevPerformanceProfilerPanel {...props} />;
 }
