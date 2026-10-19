@@ -37,7 +37,9 @@ describe('a leadership vacancy resolves to a successor', () => {
     expect(tryStartVacancyElectionCeremony(state, state.year, state.dayInYear)).toBe(true);
 
     // The realtime layer advances the ceremony through reveal, where the successor is elected.
-    for (let i = 0; i < 100 && state.electionCeremony; i++) {
+    // Use the actual remaining phase ticks, so longer ceremonies still complete.
+    const ceremonyTickBudget = 500;
+    for (let i = 0; i < ceremonyTickBudget && state.electionCeremony; i++) {
       tickElectionCeremony(state, state.year);
     }
 
