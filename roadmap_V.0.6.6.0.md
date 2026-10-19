@@ -258,3 +258,53 @@ The table illustrates the intended *design pattern*, **not the final canonical m
 - Check outcomes across differently skilled settlers and multiple generations to ensure inheritance matters without creating an unbeatable lineage.
 
 **Definition of done:** players can inspect a settler and understand *why* their DNA makes them better at certain activities and worse at others, and these strengths and weaknesses are measurably present throughout relevant game systems.
+
+
+### 11.5 Personality shapes an entire life — not just a job
+
+DNA affects **what a settler cares about, who they connect with and which choices they tend to make**. It must integrate with the existing friendship, feud, courtship, marriage, affair, parenting, leisure and life-event owners rather than adding a disconnected random-behavior system.
+
+- **Personal priorities:** traits influence how a settler balances family, romance, friendship, ambition, work, safety, status, community, faith or solitude when competing opportunities arise. These are tendencies, not an identical schedule for every character with the same trait.
+- **Friendship:** compatibility, shared values, time together and past experiences affect how quickly friendships start, deepen or fade; trait clashes may create believable tension without predetermining feuds.
+- **Romance and fidelity:** traits influence attraction, attachment, loyalty, impulsiveness, temptation and responses to relationship dissatisfaction. **No trait guarantees cheating or guarantees faithfulness.** Existing partner bonds, personal history, opportunities and choices remain central.
+- **Affairs and consequences:** distinguish temptation, choosing to begin an affair, secrecy, rumours, exposure, remorse, forgiveness, separation and reconciliation. Both participants have agency; effects ripple into spouses, children, friends, rivals and community standing.
+- **Family and parenting:** settlers vary in affection, caregiving, protectiveness, time spent with children and willingness to prioritize family over professional ambition. Preserve existing child safety, age rules and school progression.
+- **Social life and solitude:** some settlers seek taverns, festivals, friendships and community work; others prefer home, nature, quiet places or a small trusted circle. The town should not become one uniform crowd.
+- **Reactions to events:** betrayal, death, victory, election losses, hunger, danger and acts of mercy should be interpreted through traits, relationships and personal history, changing future decisions.
+- **Change over time:** experiences can shape preferences, trust and relationships even while inherited DNA stays fixed. Allow nuanced individual variation across generations.
+
+#### Character examples (illustrative, not hard-coded outcomes)
+
+| Example trait | Likely tendency (+) | Possible tension (−) |
+|---|---|---|
+| Gregarious | Seeks company, forms bonds more readily | Feels isolation more strongly; may overcommit socially |
+| Nurturing | Invests in family, care and support | May neglect personal ambitions or tire from over-caring |
+| Brave | Stands up for friends and partners under pressure | Can choose confrontations over compromise |
+| Fierce | Strong passion, loyalty to chosen allies | More intense jealousy or impulsive conflict under stress |
+| Timid | Values security and trusted, stable relationships | Hesitates to pursue romance or resolve conflict directly |
+| Insightful | Notices subtle changes in others' moods | Can overthink uncertainty or become more sensitive to betrayal |
+| Stoic | Remains composed in crises | May struggle to communicate feelings, even when caring deeply |
+
+All fourteen traits need thoughtful coverage. **Avoid a direct “Fierce = cheats” or “Nurturing = never cheats” rule.** A person's actions should emerge from multiple influences, not one stereotype.
+
+#### Decision model and feedback
+
+1. Derive **bounded preferences and sensitivities** from the settler's three inherited traits; combine these with current mood, relationships, memories, obligations, age and available opportunities.
+2. Use these values only when evaluating a **real relevant situation** (meeting a friend, deciding whether to flirt, responding to betrayal, visiting family, choosing free time). Do not randomly reroll character personalities each tick.
+3. Preserve meaningful randomness through the seeded simulation RNG, with understandable probabilities and cooldowns; don't let a trait force or prohibit an outcome.
+4. Maintain **reciprocity and causality**: friendships, romances and conflicts must update both sides consistently, and behaviour should not contradict existing relationships or age restrictions.
+5. Expose meaningful tendencies and recent reasons in the settler inspector, without revealing every hidden probability or overwhelming the Chronicle with trivial activity.
+6. Reuse existing social relationship state and history; keep saved personalities, friendships, marriages, children, affair progress and memories intact when loading older saves.
+
+#### Acceptance criteria
+
+- [ ] Two settlers with different DNA but similar circumstances display measurably different patterns of leisure, friendships, family priorities and romance over long simulations.
+- [ ] Cheating is possible but not predetermined by any single trait; faithful relationships remain common and credible.
+- [ ] Traits influence affair-related temptation and reactions, **without bypassing adulthood or existing consent/relationship guards**.
+- [ ] Friendship formation, decay, feuds, reconciliation and family care remain consistent and non-duplicated.
+- [ ] Important events create persistent, understandable consequences instead of one-off random text.
+- [ ] Players can see why settlers value different things, without micromanaging every personal decision.
+- [ ] Loading v0.6.5.1 saves retains existing relationship histories and activates new derived tendencies without rerolling DNA.
+- [ ] Large colonies retain acceptable performance through per-event decisions, cached context and bounded social updates.
+
+**Design principle:** DNA influences *who a settler tends to become*, but lived experience and relationships decide *what they actually do*.
