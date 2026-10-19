@@ -200,6 +200,102 @@ The Chronicle continues to evolve from a simple event list into a living history
 
 ---
 
+## 📰 The Village Gazette — News from Your Neighbours
+
+The Chronicle now has a companion: a **weekly village newspaper** in the Log window.
+
+* Catch up on the week's important events without reading every Chronicle entry.
+* Follow community stories and social news alongside major developments.
+* See weekly event counts drawn from the same history as the Chronicle.
+* If older entries have rolled out of the Chronicle, the Gazette marks the affected week as potentially incomplete rather than presenting missing stories as a complete record.
+
+It's a new way to discover what your villagers have been doing while you were busy building.
+
+---
+
+## 🌳 Families, Friendships & Feuds — The People Behind the Village
+
+Villagers don't just fill jobs. They belong to families, form relationships and carry the consequences of their choices.
+
+* **Visual family trees** connect parents, children, grandparents, spouses and descendants. Open a tree from a settler's information and explore their relatives.
+* **Family lineage** follows parent-child relationships instead of assuming everyone with the same surname belongs to one family.
+* **Friendships and feuds** can grow out of daily life, shared workplaces, close quarters, clashing personalities and personal disputes.
+* **Affairs and scandals** distinguish gossip from being caught in the act; a rumour alone no longer means an automatic arrest or divorce.
+* **Pregnancy and marriage fixes** preserve family relationships through bereavement, remarriage and unusual events such as a Moon Howler transformation.
+* **Children and schooling** respect the age of adulthood, so children no longer occupy adult jobs prematurely.
+
+The result is a settlement with more individual histories — and more reasons to care about the people in it.
+
+---
+
+## 👣 Daily Life — Work, Rest & Places to Go
+
+Your settlers have lives outside their workplaces, and their days now follow clearer rules.
+
+* **Smarter commutes:** settlers follow routes, use roads and bridges, and avoid blocked ground rather than walking through obstacles.
+* **Work that counts:** attendance is credited independently of where the camera is looking, and workplace output follows real staffing and shift rules.
+* **More reliable staffing:** automatic assignments respect the available workers and explain why a post cannot be filled.
+* **Leisure with destinations:** off-duty settlers can spend time at home, visit community venues or wander toward attractive areas instead of crowding the map's center.
+* **Better gatherings:** festival crowds spread across individual positions rather than stacking many villagers on the same few spots.
+* **Overnight lodging:** settlers who cannot reasonably reach home before bedtime can use available hotel accommodation.
+
+Your settlement should feel busy for a reason, whether you're watching a workday, a festival or an ordinary evening.
+
+---
+
+## 🛡️ Prisons, Hunting & the Living Valley
+
+Life on the frontier comes with risks that don't end when the walls go up.
+
+### Guards, Sentences & Escapes
+
+* Prison guards work rotating shifts, with staffing and on-duty coverage shown in the prison inspector.
+* Escapes depend on whether a guard is actually covering the post, not merely listed on the roster.
+* Arrests, releases and escapes are easier to follow through notifications and the Chronicle.
+* A prison without an available guard explains why a scandal went unpunished.
+
+### Hunters & Wildlife
+
+* Hunters at a Hunting Spot pursue prey rather than relying on distant, stationary attacks.
+* Hunting uses close contact instead of implausibly long-range hits.
+* Wild animals can fight back, and encounters may injure or kill a hunter.
+* Wolves, prey, vegetation and settlement expansion remain connected through the valley's ecology.
+
+These systems make preparation, sensible staffing and respect for the food chain matter.
+
+---
+
+## 🪟 A Clearer Village — Windows, Alerts & Information
+
+As villages grow, finding the right information becomes as important as collecting resources.
+
+* **Focused information windows:** citizen details, relationships, traits and family trees are easier to inspect without filling one enormous sidebar.
+* **Better building inspectors:** view useful resident, workplace, hospital, hotel and prison information where it belongs.
+* **Improved Chronicle navigation:** filter important events, reach relevant logs from alerts and load older history when needed.
+* **Persistent important news:** significant events can remain visible as cards rather than disappearing with ordinary toasts.
+* **Configurable notifications:** hide routine pop-ups without losing the underlying Chronicle, decisions or critical events.
+* **Clearer controls:** more consistent menu names, shortcut guidance, keyboard navigation and explanations for unavailable actions.
+* **Windows desktop menu:** the packaged Windows version includes an **Exit Game** option.
+
+Less hunting through menus; more time watching your settlement come alive.
+
+---
+
+## ⚙️ Smoother Simulation, Better Saves & Developer Tools
+
+Large colonies put pressure on every part of the game. This release also includes extensive behind-the-scenes work to keep things moving.
+
+* **Smoother movement and rendering:** characters and wildlife interpolate between simulation ticks, while map highlights, terrain details and effects update more consistently.
+* **Less repeated work:** housing assignment, pathfinding, daily entity processing and render caches avoid many unnecessary recalculations.
+* **More reliable saves:** improved restoration of terrain changes, relationships, identifiers, random simulation state and other persistent information.
+* **Clearer save errors:** malformed or incompatible data is rejected with more specific explanations instead of breaking the running colony.
+* **In-game CPU profiler:** optional timing and call-count measurements help diagnose simulation and rendering slowdowns.
+* **Expanded automated checks:** additional regression tests and broader type, source and unit-test coverage help protect future updates.
+
+These improvements aim to make both small villages and sprawling settlements more consistent and easier to manage.
+
+---
+
 ## 🛠️ Improvements & Fixes
 
 Beyond the new buildings and gameplay additions, this update includes improvements across the simulation and interface.
