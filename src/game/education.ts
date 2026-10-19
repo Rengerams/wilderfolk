@@ -132,6 +132,7 @@ export function buildSchoolRosters(
       !child.alive
       || child.type !== EntityType.Human
       || !child.isJuvenile
+      || child.age < SCHOOL_MIN_AGE
       || !isPlayerHuman(child)
     ) {
       continue;
