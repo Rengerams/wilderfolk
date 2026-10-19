@@ -287,6 +287,12 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
       if (master?.apprenticeId === entity.id) master.apprenticeId = undefined;
       entity.apprenticeOfId = undefined;
     }
+    // Some legacy minors were incorrectly allowed to act as apprenticeship masters.
+    if (entity.apprenticeId != null) {
+      const apprentice = world.entities.find((candidate) => candidate.id === entity.apprenticeId);
+      if (apprentice?.apprenticeOfId === entity.id) apprentice.apprenticeOfId = undefined;
+      entity.apprenticeId = undefined;
+    }
     // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
     if (entity.id === world.villageLeaderId) continue;
     if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
