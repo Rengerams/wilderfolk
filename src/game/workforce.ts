@@ -426,7 +426,7 @@ export function assignWorkerInPlace(
       !h.isJuvenile &&
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
-      !isOnConstructionCrew(buildings, h.id) &&
+      !isOnConstructionCrew(buildings, h.id),
   );
 
   const buildingX = building.x + building.width / 2;
