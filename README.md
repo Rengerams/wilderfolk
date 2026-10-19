@@ -24,16 +24,16 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 
 ---
 
-# v0.6.5.1 (October 19, 2026)
+## v0.6.5.1 (October 19, 2026)
 
 * `GAME_VERSION` **0.6.5.1**
-* `COMPTABILITY` **Supports older save games.**
+* **Save compatibility:** Includes migration and repair logic for supported older saves. Back up important colonies before updating.
 ---
 
-# Windows desktop package
+### Windows desktop package
 
 - **Recommended Windows installer:** [Download](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5-1/Wilderfolk_0.6.5-1_x64-setup.exe)
-- **MSI package:** [Download `Wilderfolk_V0.6.6-1_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5.1/Wilderfolk_0.6.5-1_x64_en-US.msi)
+- **MSI package:** [Download `Wilderfolk_0.6.5-1_x64_en-US.msi`](https://github.com/Rengerams/wilderfolk/releases/download/V.0.6.5.1/Wilderfolk_0.6.5-1_x64_en-US.msi)
 - **Release notes:** [View GitHub Release v0.6.5-1](https://github.com/Rengerams/wilderfolk/releases/tag/V.0.6.5.1)
 
 **New homes. Stronger communities. Meaningful battles. Stories that live on.**
@@ -46,17 +46,17 @@ This update brings more life to the people who call your settlement home. Build 
 
 ---
 
-# Playtested up to 1800 settlers
+### Playtested up to 1,800 settlers
 
-Succesfull live playtested with a city up to 1800 settlers in one city, this is excluded the animals, and other entities.
+Live playtesting has reached a city of up to **1,800 settlers**, excluding animals and other entities.
 
 ---
 
-## 🏡 Country house — Room for a Growing Village
+## 🏡 Villa — Room for a Growing Village
 
 Growing families need somewhere to call home.
 
-The new **Country house** offers spacious accommodation for larger households, providing significantly more housing capacity than an ordinary home.
+The new **Villa** offers spacious accommodation for larger households, providing significantly more housing capacity than an ordinary home.
 
 * **14 residents** at level 1.
 * **16 residents** at level 2.
@@ -118,8 +118,7 @@ The new **Graveyard** gives your community somewhere to remember those who came 
 
 * Each Graveyard accommodates up to **50 memorial records**.
 * Assign **one Gravekeeper** to look after the grounds.
-* Record named casualties from your village and rival settlements.
-* Village names appear in green, while enemy names appear in red.
+* Memorialize **your own fallen villagers only**. Enemy casualties belong in combat records, not your Graveyard.
 * Family members can occasionally visit the graves of deceased relatives.
 * Visits take place **outside working hours**, allowing villagers to remember loved ones without abandoning their duties.
 
@@ -138,7 +137,7 @@ Frontier warfare now brings more detailed outcomes, permanent rival losses, and 
 ### Battles That Leave Their Mark
 
 * Successful raids can permanently reduce rival populations.
-* Overwhelming victories can eliminate rival settlements.
+* Overwhelming victories can eliminate rival settlements under the current combat rules; the player-choice and two-sided destruction redesign is planned for v0.6.6.0.
 * Destroyed camps lose their structures and associated events.
 * Named casualties are recorded when identifiable characters are killed.
 * Battle outcomes include losses, spoils, victories, and defeats.
@@ -200,6 +199,62 @@ This update expands the Chronicle with more detailed reporting of:
 The Chronicle continues to evolve from a simple event list into a living history of your settlement.
 
 **Your village isn't just growing. It's creating a legacy.**
+
+---
+
+## 📰 The Weekly Gazette — News Beyond the Chronicle
+
+The village now has a **weekly newspaper** in the Log window, drawing stories, social news and event counts from the Chronicle. Weeks whose oldest records have expired are clearly marked as potentially incomplete, rather than pretending the surviving entries tell the whole story.
+
+---
+
+## 🌳 Family Trees, Friendships & Village Life
+
+The people of Wilderfolk have richer stories outside their jobs.
+
+* **Visual family trees** connect parents, children, spouses and generations; family relationships follow actual parentage rather than matching surnames.
+* **Friendships and feuds** develop through everyday encounters, disagreements and shared experiences.
+* **Relationships and family fixes** improve courtship, marriage, pregnancy, bereavement and continuity through unusual events.
+* **Age and school rules** better distinguish children from adult workers. Apprenticeships now require adulthood and completed basic schooling, and placements are selective rather than automatic.
+* **More varied leisure:** villagers spend free time at home, at community venues or in attractive places instead of crowding the center of the map.
+* **Better gatherings:** festivals and ceremonies spread attendees more naturally across the available area.
+
+The broader personality-driven DNA system is a **future v0.6.6.0 proposal**, not part of this release.
+
+---
+
+## 🚶 Work, Movement & Everyday Infrastructure
+
+* Settlers use **roads and bridges** in their routes, avoid blocked terrain, and no longer repeatedly replan the same journey.
+* More consistent workplace attendance and production, even when the camera is looking elsewhere.
+* Improvements to staffing, work shifts and clearer explanations when a building cannot recruit available workers.
+* Hotels offer overnight accommodation when the journey home would take too long.
+* Updated prison shift coverage and roster reporting, with escapes linked to whether guards are actually present.
+* Hunting and animal encounters have received movement and risk improvements; wild animals can fight back.
+
+---
+
+## 🪟 Clearer Information & Better Controls
+
+* More focused settler and building inspectors, including improved family and relationship views.
+* Better school, hospital, hotel and prison information, with useful occupants and staffing details.
+* Easier Chronicle navigation and filtering, with access to older recorded history.
+* Improved notifications, important-event cards and a saved option to hide routine pop-ups.
+* More consistent window names, keyboard shortcuts, guide text and unavailable-action explanations.
+* The **Windows desktop build** includes an **Exit Game** option in the Game menu.
+
+---
+
+## ⚙️ Performance, Saves & Diagnostics
+
+* Smoother movement between simulation ticks, more responsive building highlights and more efficient terrain rendering.
+* Less redundant work during housing assignment, pathfinding and daily simulation processing.
+* Save/load repairs for terrain changes, identifiers, family links and simulation state, with clearer errors for invalid files.
+* Smaller saves through removal of unnecessary fields from vegetation and other entities.
+* An optional **CPU profiler** with live timing and report export for diagnosing slowdowns.
+* Expanded regression coverage, typechecking and build checks.
+
+**Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.6.0 roadmap](roadmap_V.0.6.6.0.md)**. They are not shipped v0.6.5.1 features.
 
 ---
 
