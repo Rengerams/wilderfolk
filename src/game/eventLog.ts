@@ -74,7 +74,7 @@ export function logDeath(
 
   // Grave capacity is physical: each completed, player-owned graveyard holds 50 names.
   // Never discard existing memorials if the last graveyard is demolished.
-  if (!entityName) return;
+  if (!entityName || faction === 'enemy') return;
   const graves = state.graveRecords ?? (state.graveRecords = []);
   const yard = state.buildings.find((building) =>
     building.completed && building.type === BuildingType.Graveyard
@@ -86,9 +86,9 @@ export function logDeath(
   // Keep the actual entity identity, so only real relatives mourn that grave.
   const deceased = state.entities.find((entity) =>
     !entity.alive && formatCitizenName(entity) === entityName
-    && (faction === 'enemy' ? entity.faction === 'rival' : !entity.faction)
+    && !entity.faction
   );
-  graves.push({ name: entityName, faction, tick: state.tick, graveyardId: yard.id, deceasedId: deceased?.id });
+  graves.push({ name: entityName, faction: 'player', tick: state.tick, graveyardId: yard.id, deceasedId: deceased?.id });
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */
