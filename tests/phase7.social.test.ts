@@ -91,11 +91,13 @@ describe('relationship webs — feuds', () => {
 });
 
 describe('apprenticeships', () => {
-  it('a master with a nearby juvenile takes an apprentice who learns', () => {
+  it('a master may train a qualified adult after school', () => {
     const w = makeWorld();
     const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 60 };
-    const kid = addHuman(w, { id: 2, x: 310, y: 310, isJuvenile: true });
+    const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
+    kid.age = 18;
+    kid.schoolDays = 24;
     w.buildings.push({
       id: 1,
       type: BuildingType.Farm,
@@ -128,7 +130,9 @@ describe('apprenticeships', () => {
     const w = makeWorld();
     const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 100 };
-    const kid = addHuman(w, { id: 2, x: 310, y: 310, isJuvenile: true });
+    const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
+    kid.age = 18;
+    kid.schoolDays = 24;
     kid.skills = { [JobType.Farmer]: 49.6 }; // one strong lesson → ≥ 50
     w.buildings.push({
       id: 1,
