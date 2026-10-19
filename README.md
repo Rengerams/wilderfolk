@@ -27,7 +27,7 @@ You are not conquering a blank map. You are sharing a valley with grass, rabbits
 ## v0.6.5.1 (October 19, 2026)
 
 * `GAME_VERSION` **0.6.5.1**
-* `  **COMPTABILITY*` **Supports older save games.
+* `COMPTABILITY` **Supports older save games.
 ---
 
 **A standalone Windows desktop package is available.**
