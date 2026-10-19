@@ -115,8 +115,8 @@ The new **Graveyard** gives your community somewhere to remember those who came 
 
 * Each Graveyard accommodates up to **50 memorial records**.
 * Assign **one Gravekeeper** to look after the grounds.
-* Record named casualties from your village and rival settlements.
-* Village names appear in green, while enemy names appear in red.
+* Preserve memorials for **your own deceased villagers only** — enemy fighters are not buried in your Graveyard.
+* Names of fallen fighters from both sides belong in the raid overview, not the cemetery.
 * Family members can occasionally visit the graves of deceased relatives.
 * Visits take place **outside working hours**, allowing villagers to remember loved ones without abandoning their duties.
 
@@ -135,9 +135,9 @@ Frontier warfare now brings more detailed outcomes, permanent rival losses, and 
 ### Battles That Leave Their Mark
 
 * Successful raids can permanently reduce rival populations.
-* Overwhelming victories can eliminate rival settlements.
+* Overwhelming victories can eliminate rival settlements; **stronger enemy forces should likewise be able to wipe out your village**. *(Gameplay parity still to be implemented.)*
 * Destroyed camps lose their structures and associated events.
-* Named casualties are recorded when identifiable characters are killed.
+* The **live raid overview** should identify fallen villagers **in green** and enemy casualties **in red**, as the fight progresses.
 * Battle outcomes include losses, spoils, victories, and defeats.
 * Victory celebrations and moments of mourning appear in the Chronicle.
 
