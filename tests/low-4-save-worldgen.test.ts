@@ -1,3 +1,4 @@
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
  * Low-tier regression batch 4 — save/load cross-cutting items (X1/X5) plus the
  * worldGen / daily lows from the 2026-09-13 simulation-logic audit:
@@ -184,14 +185,14 @@ describe('daily lows', () => {
     const world = initGame({ seed: 4242, size: MapSize.Medium });
     // Day 5 of Spring (the seasonal window starts at day 3) with a random festival still
     // running: the seasonal festival must defer, not be lost.
-    world.tick = 5 * TICKS_PER_DAY - 1;
+    world.tick = tickAtDailyPhase(5, 'worldEvents') - 1;
     world.festival = { active: true, name: 'Harvest Festival', daysLeft: 30 };
     const blocked = gameTick(world);
     expect(blocked.festival?.name).toBe('Harvest Festival');
 
     // The random festival ends; the seasonal festival still starts later in the season.
     blocked.festival = null;
-    blocked.tick = 6 * TICKS_PER_DAY - 1;
+    blocked.tick = tickAtDailyPhase(6, 'worldEvents') - 1;
     const later = gameTick(blocked);
     expect(later.festival?.name).toBe('Spring Revel');
   });
