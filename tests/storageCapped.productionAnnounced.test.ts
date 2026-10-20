@@ -21,7 +21,7 @@ import { gameTick } from '../src/game/gameTick';
 import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { PRODUCTION_INTERVAL, isProductionTick } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 
@@ -65,7 +65,7 @@ function millWorld(wood: number): WorldState {
   // Simulate a completed real shift, not merely an assigned worker.
   worker!.scheduleLastWorkedHours = 9;
   state.resources.wood = wood;
-  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
   expect(isProductionTick(TICKS_PER_DAY, PRODUCTION_INTERVAL.lumber)).toBe(true);
   return state;
 }
