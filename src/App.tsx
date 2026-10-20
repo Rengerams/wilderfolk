@@ -1497,7 +1497,7 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               playClickSound();
-                              if (choice.id === 'fight' || choice.id === 'decline_payoff') {
+                              if (choice.id === 'fight' || choice.id === 'decline_payoff' || choice.id === 'accept_payoff') {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
                                   baselineId: world.eventLog[0]?.id ?? 0,
@@ -2173,10 +2173,24 @@ export default function App() {
         <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
           <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Live battle chronicle</p>
-            <h2 className="mt-2 text-2xl font-bold text-amber-100">{battleReport.incoming ? `Defense against ${battleReport.rivalName}` : `Battle for ${battleReport.rivalName}`}</h2>
+            <h2 className="mt-2 text-2xl font-bold text-amber-100">{battleReport.incoming ? `Defense against ${battleReport.rivalName}` : world.eventLog.some((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && event.type === 'combat' && event.message.includes('accepted tribute') && event.message.includes('no bloodshed')) ? `Tribute from ${battleReport.rivalName}` : `Battle for ${battleReport.rivalName}`}</h2>
             <p className="mt-2 text-sm text-stone-400">A new battle phase unfolds every 2.8 seconds. The casualty and result reports below come from the game event log.</p>
             <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
-              {(battleReport.incoming ? [
+              {(world.eventLog.some((event) =>
+                event.id > battleReport.baselineId
+                && event.entityName === battleReport.rivalName
+                && event.type === 'combat'
+                && event.message.includes('accepted tribute')
+                && event.message.includes('no bloodshed')
+              ) ? [
+                `Your war-band approaches ${battleReport.rivalName}.`,
+                'Scouts make contact with the rival settlement.',
+                'The rival leaders agree to negotiate rather than fight.',
+                'Both sides discuss the terms of a peaceful settlement.',
+                'The defenders agree to deliver tribute.',
+                'Your war-band collects the tribute without casualties.',
+                'The expedition returns to the village without bloodshed.',
+              ] : battleReport.incoming ? [
                 `Scouts warn that ${battleReport.rivalName} is approaching the village.`,
                 'The villagers take shelter as the defenders assemble.',
                 'Barricades and defensive positions are prepared.',
