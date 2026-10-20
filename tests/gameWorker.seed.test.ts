@@ -37,7 +37,8 @@ async function workerWithSelfShim(): Promise<{ shim: SelfShim; posted: unknown[]
   (globalThis as { self?: unknown }).self = shim;
   // Imported once: the module registers its handler on the shim above, and a second import
   // would return the cached module without touching a new shim.
-  await import('../src/game/simWorker/gameWorker');
+  const { installWorkerMessageHandlers } = await import('../src/game/simWorker/gameWorker');
+  installWorkerMessageHandlers();
   if (!shim.onmessage) throw new Error('gameWorker did not register an onmessage handler');
   loaded = { shim, posted };
   return loaded;
