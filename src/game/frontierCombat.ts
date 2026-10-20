@@ -1528,7 +1528,9 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   spendFood(state, 'raid', raidFoodCost);
   const attackerStrength = getMilitiaStrength(state, state.entities);
   const rivalDefense = getRivalDefenseStrength(rival);
-  const rivalResponse = rollRivalOutgoingRaidResponse(attackerStrength, rivalDefense, rival);
+  // A player-initiated raid is an assault, not a request for tribute.
+  // Keep the response field for compatibility with pending raids in older saves.
+  const rivalResponse: OutgoingRaidRivalResponse = 'fight';
   const payoffLoot = rollRivalPayoffOffer(rival, attackerStrength, rivalDefense);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
   const marchDistanceTiles = getCampDistanceTiles(marchDistancePx);
