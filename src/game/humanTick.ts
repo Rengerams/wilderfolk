@@ -105,7 +105,6 @@ import {
 import {
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
-  restAtHotel,
   steerVisitorToHotel,
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
@@ -764,7 +763,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     });
     if (isWinter && !canHeat && isTick8) entity.flash = 5;
 
-    entity.energy -= energyLoss;
+    // Seven full hours of actual sleep restore one entire energy bar.
+    // Sleeping fewer hours restores proportionally less; an awake settler
+    // (including someone who sneaks out) earns no sleep recovery that tick.
+    const onDuty = onJobShift || onOfficialShift || onPriestShift;
+    const sleepingHere = !onDuty && (
+      isAsleepAtHome(entity, buildingById, hourOfDay)
+      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+    );
+    if (sleepingHere && isPlayerHuman(entity)) {
+      entity.energy = Math.min(entity.maxEnergy, entity.energy + entity.maxEnergy / (7 * TICKS_PER_HOUR));
+    } else {
+      entity.energy -= energyLoss;
+    }
 
     const ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
 
@@ -899,7 +910,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
-        if (commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH)) restAtHotel(entity);
+        commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH);
         onSchedule = true;
         suppressIdle = true;
       } else if (residence?.completed) {
