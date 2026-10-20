@@ -320,8 +320,11 @@ export function assignMissingResidences(
     const sweepUnits = housingUnitsBase.filter(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
     );
-    const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
-    for (const unit of orderedUnits) {
+    // Recompute priority as placements change, but only for this pulse's bucket.
+    // A fixed priority derived before the first move can leave couples sharing
+    // with strangers even after that move frees a separate house.
+    let pending = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
+    for (const unit of pending) {
       if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
 
       for (const member of unit) {
