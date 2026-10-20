@@ -314,8 +314,14 @@ export function assignMissingResidences(
     const bucket = activeSweepBucket(sweepTick);
     const occupancy = buildResidenceOccupancy(alive);
     const traits = buildResidenceTraits(alive);
-    for (const unit of housingUnitsBase) {
-      if (housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) !== bucket) continue;
+    // Prioritize families that need seating within this pulse. Moving settled
+    // households first consumes empty houses that unsettled couples need.
+    // Keep the sweep bounded to this bucket rather than running a full pass.
+    const sweepUnits = housingUnitsBase.filter(
+      (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
+    );
+    const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
+    for (const unit of orderedUnits) {
       if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
 
       for (const member of unit) {
