@@ -7,6 +7,7 @@ import { estimateWorkshopGold } from '../src/game/workshopEconomy';
 import { gameTick } from '../src/game/gameTick';
 import { DEFAULT_WORKSHOP_RECIPE_ID, getWorkshopRecipe } from '../src/game/workshops';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 
 /** `furniture` (baseGold 10) rather than the default `wooden_goods` (4), so the floors are not blunt. */
 const RECIPE = 'furniture';
@@ -125,13 +126,13 @@ function workshopWorld(gold: number): WorldState {
   state.resources.wood = 500;
   state.resources.stone = 200;
   // The workshop's interval is two days; land on the tick before a production boundary.
-  state.tick = 2 * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+  state.tick = tickAtDailyPhase(2, 'production') - 1;
   return state;
 }
 
 function tickOnce(state: WorldState): void {
   gameTick(state);
-  expect(state.tick, 'fixture premise: the noon economy layer ran').toBe(2 * TICKS_PER_DAY + TICKS_PER_DAY / 2);
+  expect(state.tick, 'fixture premise: the noon economy layer ran').toBe(tickAtDailyPhase(2, 'production'));
 }
 
 /**
