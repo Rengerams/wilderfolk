@@ -1,3 +1,4 @@
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
  * D-1 — a story-layer ecology adjustment must survive the daily recompute.
  *
@@ -163,7 +164,7 @@ describe('story ecology adjustments survive the daily recompute (D-1)', () => {
     // +6 now" promised and never delivered.
     const build = (seed: number) => {
       const world = settledWorld(seed).world;
-      world.tick = 2 * TICKS_PER_DAY - 1;
+      world.tick = tickAtDailyPhase(1, 'worldEvents') - 1;
       return world;
     };
 
