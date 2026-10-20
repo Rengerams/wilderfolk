@@ -112,7 +112,7 @@ function runCureNight(roll: number): WorldState {
     world.entities,
     world.buildings,
     0, // full-moon colony day
-    22, // NIGHT_START
+    23, // NIGHT_START (full-moon transformation starts at 23:00)
     new Map(world.entities.map((e) => [e.id, e])),
     undefined,
     () => roll,
