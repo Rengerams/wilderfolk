@@ -165,7 +165,7 @@ describe('the auto-staff card reports the pass that ran', () => {
     expect(state.notifications.length).toBe(before);
   });
 
-  it('does not announce or change a manual workplace when auto-staff has no work', () => {
+  it('explicit Auto-staff all enables auto-fill even on an empty manual workplace', () => {
     const state = initGame();
     const church = createBuilding(BuildingType.Church, 400, 400, 700);
     church.completed = true;
@@ -178,8 +178,11 @@ describe('the auto-staff card reports the pass that ran', () => {
     const staffed = autoStaffAllWorkers(state);
     const cards = staffed.notifications.slice(before).filter((note) => note.title.includes('Auto-staff'));
 
-    expect(cards).toHaveLength(0);
-    expect(staffed.buildings.find((building) => building.id === 700)?.staffingMode).toBe('manual');
+    // The explicit global command switches all job buildings into Auto-fill;
+    // the normal background staffing pulse must still respect manual mode.
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.title).toContain('Auto-staff enabled');
+    expect(staffed.buildings.find((building) => building.id === 700)?.staffingMode).toBe('auto');
     expect(staffed.buildings.find((building) => building.id === 700)?.occupants).toEqual([]);
   });
 });
