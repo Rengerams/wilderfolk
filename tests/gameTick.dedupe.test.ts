@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
 
 /** Seed whose day-boundary tick admits a family into a high-reputation village. */
 const FIXTURE_SEED = 3;
@@ -26,7 +26,7 @@ describe('gameTick retains each new entity once at the day boundary', () => {
     // High reputation keeps the daily immigration roll near certainty so the boundary spawns.
     state.villageReputation = 100;
     // Land exactly on a colony-day boundary: `gameTick` increments onto it.
-    state.tick = TICKS_PER_DAY + 3 * TICKS_PER_DAY / 4 - 1;
+    state.tick = tickAtDailyPhase(1, 'worldEvents') - 1;
     const before = new Set(state.entities);
 
     gameTick(state);
