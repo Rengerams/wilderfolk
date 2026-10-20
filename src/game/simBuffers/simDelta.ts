@@ -3,6 +3,7 @@ import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
+import { EntityType } from '../gameTypes';
 import type { SimulationFocus } from '../simFocus';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
@@ -142,6 +143,7 @@ export interface SimTickDelta {
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
   renderMetaBySlot?: EntityRenderMeta[];
+  catalogEntities?: Entity[];
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
@@ -407,6 +409,7 @@ export function extractSimTickDelta(
 
   if (!headless && renderPacked) {
     delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
+    delta.catalogEntities = deltaClone(aliveNow.filter((e) => e.type === EntityType.Human), cloneMode);
   }
 
   return delta;
