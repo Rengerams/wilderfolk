@@ -224,7 +224,9 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     profileEnd('sim.systems', systemsStart);
   }
 
-  if (state.tick % LAYER_ASSIGN_INTERVAL === 0) {
+  // Spread four daily assignment sweeps away from the midnight daily workload.
+  // 3h, 9h, 15h and 21h instead of 0h, 6h, 12h and 18h.
+  if (state.tick % LAYER_ASSIGN_INTERVAL === 3 * (TICKS_PER_DAY / 24)) {
     const assignStart = profileStart();
     tickLayerAssign(state, ctx);
     profileEnd('sim.assign', assignStart);
