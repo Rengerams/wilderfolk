@@ -33,7 +33,7 @@ import { applyDailyWeatherEffects } from './worldEvents';
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { tickWildkinChronicle } from './wildkinChronicle';
 import { profileStart, profileEnd } from './performanceProfiler';
-import { getHourOfDay } from './dayCycleClock';
+import { DAILY_PHASE_HOURS, getHourOfDay } from './dayCycleClock';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -43,13 +43,13 @@ export function tickLayerDaily(
   allAlive: Entity[],
 ): void {
   const hour = getHourOfDay(state.tick);
-  if (hour === 0) {
+  if (hour === DAILY_PHASE_HOURS.fatigue) {
   const stage1 = profileStart();
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
   profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
   }
-  if (hour === 6) {
+  if (hour === DAILY_PHASE_HOURS.relationships) {
   // The living settler list the two social owners below both need, derived once.
   //
   // Deliberately NOT `ctx.playerHumans`: that list is built at tick start (`gameTick`) and refreshed
@@ -81,7 +81,7 @@ export function tickLayerDaily(
   profileEnd('daily.syncLeaderHouseResidency', stage6);
 
   }
-  if (hour === 18) {
+  if (hour === DAILY_PHASE_HOURS.worldEvents) {
   // Evaluate active campaign promises when their evaluation day arrives
   const stage7 = profileStart();
   tickElectionPromises(state);
@@ -101,7 +101,7 @@ export function tickLayerDaily(
   }
 
   }
-  if (hour === 0) {
+  if (hour === DAILY_PHASE_HOURS.fatigue) {
   // Daily world & economy systems
   const stage8 = profileStart();
   applyDailyWeatherEffects(state);
@@ -110,7 +110,7 @@ export function tickLayerDaily(
   tickGrassDaily(state, ctx, allAlive);
   profileEnd('daily.tickGrassDaily', stage9);
   }
-  if (hour === 12) {
+  if (hour === DAILY_PHASE_HOURS.production) {
   const stage10 = profileStart();
   tickWildkinChronicle(state, ctx);
   profileEnd('daily.tickWildkinChronicle', stage10);
@@ -118,7 +118,7 @@ export function tickLayerDaily(
   tickDailyBuildingEconomy(state, ctx, allAlive);
   profileEnd('daily.tickDailyBuildingEconomy', stage11);
   }
-  if (hour === 18) {
+  if (hour === DAILY_PHASE_HOURS.worldEvents) {
   // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
   // pre-daily snapshot no longer describes the colony by the time these three read it.
   const countsStart = profileStart();
