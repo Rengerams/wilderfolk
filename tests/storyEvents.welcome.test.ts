@@ -25,6 +25,7 @@ import type { WorldState } from '../src/game/gameTypes';
 const FIXTURE_SEED = 20_260_917;
 /** `worldGen.initGame` starts the colony at 08:00 — mid-day, so the first daily tick is tick 72. */
 const START_TICK = 24;
+const FIRST_WORLD_EVENT_TICK = TICKS_PER_DAY + 18 * (TICKS_PER_DAY / 24);
 
 function freshWorld(): WorldState {
   return initGame({ villageName: 'Welcome', size: 'medium', seed: FIXTURE_SEED });
@@ -42,25 +43,25 @@ describe('the year-0 welcome beat', () => {
     const state = freshWorld();
     expect([state.tick, state.year, state.dayInYear]).toEqual([START_TICK, 0, 0]);
 
-    tickTo(state, TICKS_PER_DAY);
+    tickTo(state, FIRST_WORLD_EVENT_TICK);
 
     // The world is still in year 0 — this is a day boundary, not a year rollover — so the caller's
     // `year === 0` gate is satisfied and only the beat's own day test stood in the way.
-    expect([state.tick, state.year, state.dayInYear]).toEqual([TICKS_PER_DAY, 0, 1]);
-    expect(state.storyFlags?.welcome).toBe(TICKS_PER_DAY);
+    expect([state.tick, state.year, state.dayInYear]).toEqual([FIRST_WORLD_EVENT_TICK, 0, 1]);
+    expect(state.storyFlags?.welcome).toBe(FIRST_WORLD_EVENT_TICK);
     expect(welcomeEvents(state)).toHaveLength(1);
     expect(welcomeEvents(state)[0].title).toBe('The valley wakes');
   });
 
   it('is offered once, not once a day', () => {
     const state = freshWorld();
-    tickTo(state, TICKS_PER_DAY);
-    expect(state.storyFlags?.welcome).toBe(TICKS_PER_DAY);
+    tickTo(state, FIRST_WORLD_EVENT_TICK);
+    expect(state.storyFlags?.welcome).toBe(FIRST_WORLD_EVENT_TICK);
 
     tickTo(state, TICKS_PER_DAY * 2);
 
     // A second offer would overwrite the flag with the later tick and queue a second card id.
-    expect(state.storyFlags?.welcome).toBe(TICKS_PER_DAY);
-    expect(state.pendingStoryEvents?.some((e) => e.id === `welcome_${TICKS_PER_DAY * 2}`)).toBe(false);
+    expect(state.storyFlags?.welcome).toBe(FIRST_WORLD_EVENT_TICK);
+    expect(state.pendingStoryEvents?.some((e) => e.id === `welcome_${TICKS_PER_DAY * 2 + 18 * (TICKS_PER_DAY / 24)}`)).toBe(false);
   });
 });
