@@ -14,7 +14,7 @@ export const HUMAN_CHILDHOOD_YEARS = HUMAN_ADULT_MIN_AGE;
 export const HUMAN_VENERABLE_AGE = 60;
 
 
-export const NIGHT_START = 20;
+export const NIGHT_START = 23;
 export const NIGHT_END = 6;
 
 export function isNightHour(hour: number): boolean {
@@ -26,7 +26,7 @@ export function isFullMoonDay(colonyDay: number): boolean {
   return colonyDay % DAYS_PER_MOON_CYCLE === 0;
 }
 
-/** Full-moon night spans 8pm on a full-moon day through 6am the next morning. */
+/** Full-moon night spans 11pm on a full-moon day through 6am the next morning. */
 export function isFullMoonNight(colonyDay: number, hourOfDay: number): boolean {
   if (!isNightHour(hourOfDay)) return false;
   if (isFullMoonDay(colonyDay)) return true;
