@@ -370,7 +370,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     }
     const ownership = collectSimulationInvariantErrors(state);
     if (ownership.length > 0) {
-      console.warn('[simulationInvariants]', ownership.slice(0, 8));
+      console.warn('[simulationInvariants]', ownership.slice(0, 8).map((error) => typeof error === 'string' ? error : JSON.stringify(error)).join('\n'));
     }
   }
 
