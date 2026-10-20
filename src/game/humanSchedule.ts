@@ -168,7 +168,10 @@ export function prefersHomeTonightFor(
   // Anyone who is legitimately out after dark is excluded by JOB, not by this roll — the home
   // commute at `humanTick` requires `!onJobShift`, so tavern keepers, hotel staff and the
   // moon-howler priest still work through the night.
-  if (hour >= 23 || hour < 5) return true;
+  // Most settlers sleep through deep night. A small deterministic minority
+  // may stay out or sneak away, sacrificing that night's energy recovery.
+  // Work schedules are handled separately by the simulation's duty checks.
+  if (hour >= 23 || hour < 5) return roll(101) >= 0.05;
   if (hour >= 5 && hour < s.startHour) return roll(102) > 0.12;
   if (hour >= s.endHour && hour < 22) return roll(103) < 0.5;
   if (hour >= 22 && hour < 23) return roll(104) > 0.2;
