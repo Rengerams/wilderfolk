@@ -101,12 +101,14 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const entitledIds = new Set(household.map((m) => m.id));
   let evicted = false;
   let movedIn = false;
+  const displaced: Entity[] = [];
 
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
     if (!e.alive || e.faction) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
       e.residenceBuildingId = undefined;
+      displaced.push(e);
       evicted = true;
     }
   }
@@ -124,20 +126,13 @@ export function syncLeaderHouseResidency(state: WorldState): void {
 
   if (!evicted && !movedIn) return;
 
-  const villagers = state.entities.filter(
-    (e) => e.alive && isPlayerHuman(e),
-  );
-
-  //Re-home evicted settlers into general village housing
-  // Only displaced/non-entitled villagers may be re-housed here. Including the
-  // sitting leader's household lets the generic family-unit allocator undo the
-  // manor assignment we just made (notably for complex or large families).
-  // Its complete genealogy pool remains available for family relationships.
-  assignMissingResidences(
-    villagers.filter((villager) => !entitledIds.has(villager.id)),
-    state.buildings,
-    state.entities,
-  );
+  // Only the people actually evicted from the manor need emergency housing.
+  // Running a whole-village convergence here used to trigger up to 24 passes
+  // over thousands of settlers whenever the leader household changed.
+  // The periodic assignment layer remains responsible for all other housing.
+  if (displaced.length > 0) {
+    assignMissingResidences(displaced, state.buildings, state.entities, state.tick);
+  }
 
   //Chronicle events
   if (evicted) {
