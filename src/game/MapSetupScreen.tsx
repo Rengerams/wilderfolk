@@ -131,6 +131,7 @@ interface MapSetupScreenProps {
   onPresetChange: (preset: MapPreset) => void;
   onStart: (villageName: string) => void;
   onLoad?: () => void;
+  onLoadFromFile?: (jsonText: string) => void;
   onBack?: () => void;
   backLabel?: string;
   hasSave?: boolean;
@@ -148,6 +149,7 @@ export default function MapSetupScreen({
   onPresetChange,
   onStart,
   onLoad,
+  onLoadFromFile,
   onBack,
   backLabel = '← Back to intro',
   hasSave,
@@ -157,6 +159,7 @@ export default function MapSetupScreen({
   onTutorialChoiceChange,
 }: MapSetupScreenProps) {
   const [villageName, setVillageName] = useState('New Frontier');
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const ensureIntroMusic = useCallback(() => {
     void ensureIntroAudio();
@@ -407,6 +410,32 @@ export default function MapSetupScreen({
             <span className="hidden sm:block" />
           )}
           <div className="order-1 flex flex-col gap-2 sm:order-2 sm:flex-row">
+            {onLoadFromFile && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => importFileRef.current?.click()}
+                  className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-5 py-2.5 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/20"
+                >
+                  Load game from JSON
+                </button>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  aria-label="Choose exported Wilderfolk JSON save"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = '';
+                    if (!file) return;
+                    void file.text().then(onLoadFromFile).catch((error: unknown) => {
+                      console.error('[MapSetupScreen] Failed to read saved JSON', error);
+                    });
+                  }}
+                />
+              </>
+            )}
             {hasSave && onLoad && (
               <button
                 type="button"
