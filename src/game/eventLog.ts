@@ -73,23 +73,52 @@ export function logDeath(
   logEvent(state, 'death', message, entityName);
   addNotification(state, 'Death', message, 'warning', focus);
 
-  // Grave capacity is physical: each completed, player-owned graveyard holds 50 names.
-  // Never discard existing memorials if the last graveyard is demolished.
   if (!entityName || faction === 'enemy') return;
   const graves = state.graveRecords ?? (state.graveRecords = []);
-  const yard = state.buildings.find((building) =>
-    building.completed && building.type === BuildingType.Graveyard
-    && building.faction !== 'rival'
-    && graves.filter((grave) => grave.graveyardId === building.id).length < 50
-  );
-  if (!yard) return;
-  // The death owner has already marked the person dead when recording a casualty.
-  // Keep the actual entity identity, so only real relatives mourn that grave.
   const deceased = state.entities.find((entity) =>
-    !entity.alive && formatCitizenName(entity) === entityName
-    && isPlayerHuman(entity)
+    !entity.alive && formatCitizenName(entity) === entityName && isPlayerHuman(entity)
   );
-  graves.push({ name: entityName, faction: 'player', tick: state.tick, graveyardId: yard.id, deceasedId: deceased?.id });
+  // Death may be reported by more than one system. Each villager gets one grave,
+  // even if no completed graveyard exists yet.
+  if (deceased && graves.some((grave) => grave.deceasedId === deceased.id)) return;
+  graves.push({
+    name: entityName,
+    faction: 'player',
+    tick: state.tick,
+    deceasedId: deceased?.id,
+  });
+  assignPendingGraves(state);
+}
+
+/**
+ * Assign awaiting burial records to available completed graveyards.
+ * Keeping unassigned records means building a graveyard later does not erase
+ * ordinary deaths that occurred before one existed.
+ */
+export function assignPendingGraves(state: WorldState): void {
+  const graves = state.graveRecords;
+  if (!graves?.some((grave) => grave.faction === 'player' && grave.graveyardId == null)) return;
+  const capacity = new Map<number, number>();
+  for (const building of state.buildings) {
+    if (building.completed && building.type === BuildingType.Graveyard && building.faction !== 'rival') {
+      capacity.set(building.id, 50);
+    }
+  }
+  if (capacity.size === 0) return;
+  for (const grave of graves) {
+    if (grave.graveyardId != null && capacity.has(grave.graveyardId)) {
+      capacity.set(grave.graveyardId, Math.max(0, capacity.get(grave.graveyardId)! - 1));
+    }
+  }
+  for (const grave of graves) {
+    if (grave.faction !== 'player' || grave.graveyardId != null) continue;
+    for (const [id, spaces] of capacity) {
+      if (spaces <= 0) continue;
+      grave.graveyardId = id;
+      capacity.set(id, spaces - 1);
+      break;
+    }
+  }
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */
