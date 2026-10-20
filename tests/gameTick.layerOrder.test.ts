@@ -177,11 +177,11 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(count('systems')).toBe(216 / 4); // LAYER_SYSTEMS_INTERVAL
     expect(count('assign')).toBe(216 / 18); // LAYER_ASSIGN_INTERVAL (4×/day)
     expect(count('prison-presence')).toBe(216 / 3); // hourly sample after movement and assignment
-    expect(count('daily')).toBe(216 / TICKS_PER_DAY); // once per colony day
+    expect(count('daily')).toBe(216 / (TICKS_PER_DAY / 4)); // four daily phases
   });
 
   it('fires no daily tick before the first day boundary', () => {
-    runTicks(0, TICKS_PER_DAY - 1);
+    runTicks(0, TICKS_PER_DAY / 4 - 1);
     expect(callLog.calls.some((c) => c.startsWith('daily@'))).toBe(false);
   });
 
@@ -194,7 +194,7 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
   it('daily runs exactly once per colony day at the day boundary', () => {
     runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
-    expect(dailies).toEqual(['daily@72', 'daily@144', 'daily@216']);
+    expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * 18}`));
   });
 
   it('produces an identical trace on repeated runs (deterministic schedule)', () => {
