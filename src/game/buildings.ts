@@ -452,7 +452,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🏛️',
     label: 'Village Square',
     description: 'The village gathering place for festivals and election ceremonies. Only one per village.',
-    sprite: '/sprites/square.jpg',
+    sprite: '/sprites/square.png',
     backgroundColor: '#b8a48b',
     padShape: 'rect',
     unique: true,
