@@ -1290,6 +1290,7 @@ export default function App() {
     <GamePlayLayout
       header={(
         <GameHeader
+          profilerLoopRef={loopRef}
           world={world}
           population={villageStats.total}
           gameTitle={GAME_TITLE}
