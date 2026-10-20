@@ -5,7 +5,7 @@ import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_Y
 import { displayYear } from './dayCycleClock';
 
 import { addBigNews, addNotification } from './simEffects';
-import { logEvent } from './eventLog';
+import { assignPendingGraves, logEvent } from './eventLog';
 import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
@@ -127,6 +127,8 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
 
 
 export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAlive: Entity[], counts: PopulationCounts): void {
+  // Catch burials delayed by missing or full graveyards; constant-time when none await.
+  assignPendingGraves(state);
   // Frontier systems
   tickVisitorGroups(state, allAlive);
   tickVillageRequests(state);
