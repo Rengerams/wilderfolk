@@ -1,3 +1,4 @@
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 /**
  * Low-severity simulation/data audit fixes (2026-09-13).
  *
@@ -244,7 +245,7 @@ describe('Town Hall daily pulse tax base (L9/L10)', () => {
     const dead = human(3, { alive: false, x: 100, y: 140 });
     const state = baseState();
     // gameTick increments first: 215 -> 216 is day 3, the every-3-days Town Hall pulse.
-    state.tick = 3 * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+    state.tick = tickAtDailyPhase(3, 'production') - 1;
     state.entities = includeDeadSettler ? [official, neighbour, dead] : [official, neighbour];
     state.buildings = [building(10, BuildingType.TownHall, { occupants: [official.id] })];
     return state;
@@ -270,7 +271,7 @@ describe('Hunting Spot research multiplier (L29)', () => {
     const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100 });
     const prey = deer(2);
     const state = baseState();
-    state.tick = day * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+    state.tick = tickAtDailyPhase(day, 'production') - 1;
     state.entities = [hunter, prey];
     state.buildings = [
       building(10, BuildingType.HuntingSpot, { occupants: [hunter.id], huntingSpotPrey: 'deer' }),
