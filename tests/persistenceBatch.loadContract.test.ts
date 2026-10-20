@@ -181,15 +181,16 @@ describe('the entity index exists before every load-time pass that resolves an e
   });
 });
 
-describe('the save-presence probe answers without parsing the payload', () => {
-  it('reads the version marker instead of JSON-parsing the whole save', () => {
+describe('the save-loadability probe validates the saved payload', () => {
+  it('parses and validates the saved payload before reporting loadability', () => {
     resetSimRng();
     const world = initGame({ seed: 4242 });
     stubSlot(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
     const parse = vi.spyOn(JSON, 'parse');
 
     expect(hasSave()).toBe(true);
-    expect(parse).not.toHaveBeenCalled();
+    expect(parse).toHaveBeenCalled();
+    parse.mockRestore();
   });
 
   it('is false for an empty slot, false for another build, and true for this one', () => {
