@@ -76,6 +76,10 @@ function makeState(festivalActive: boolean): { state: WorldState; worker: Entity
   const idler = human(3);
   const farm = building(10, BuildingType.Farm, 30, 40, [worker.id]);
   const hall = building(20, BuildingType.TownHall, 320, 190, [official.id]);
+  // Keep the festival participant deliberately unassigned during the 15:00 auto-fill pulse.
+  // Automatic staffing is tested separately; this test isolates festival behavior.
+  farm.staffingMode = 'manual';
+  hall.staffingMode = 'manual';
   const state: WorldState = {
     entities: [worker, official, idler],
     buildings: [farm, hall],
