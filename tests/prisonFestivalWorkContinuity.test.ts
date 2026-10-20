@@ -8,6 +8,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { getHourOfDay } from '../src/game/dayCycleClock';
+import { NIGHT_START } from '../src/game/dayCycleConstants';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
 
@@ -336,9 +337,8 @@ describe('a priest serving at a completed church', () => {
 
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
     const { state, priest } = churchWorld();
-    // Day 14 opens on a full moon; 21:00 is inside the rite's 20:00-06:00 night and outside the
-    // work window, so any credit here can only come from the night shift.
-    state.tick = 14 * TICKS_PER_DAY + 21 * TICKS_PER_HOUR - 1;
+    // The night duty begins at NIGHT_START on a full-moon day.
+    state.tick = 14 * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR - 1;
     gameTick(state);
     expect(
       priest.scheduleWorkedTicksToday ?? 0,
