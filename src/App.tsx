@@ -2155,12 +2155,12 @@ export default function App() {
         />
       )}
       {battleReport && (
-        <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 p-4 text-stone-100">
-          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
+        <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
+          <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Live battle chronicle</p>
             <h2 className="mt-2 text-2xl font-bold text-amber-100">Battle for {battleReport.rivalName}</h2>
             <p className="mt-2 text-sm text-stone-400">A new battle phase unfolds every 2.8 seconds. The casualty and result reports below come from the game event log.</p>
-            <div className="mt-5 min-h-64 flex-1 space-y-3 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
+            <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
               {[
                 `Your war-band marches toward ${battleReport.rivalName}.`,
                 'Scouts report movement near the enemy defenses.',
