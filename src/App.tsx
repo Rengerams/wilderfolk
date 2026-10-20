@@ -2168,6 +2168,20 @@ export default function App() {
           }
         />
       )}
+      {(world.pendingRaidVictories ?? []).length > 0 && !battleReport && (
+        <div className="pointer-events-auto fixed bottom-24 right-4 z-[1000] flex flex-col gap-2">
+          {(world.pendingRaidVictories ?? []).map((pending) => (
+            <button
+              key={pending.raidId}
+              type="button"
+              className="rounded-lg border border-amber-400 bg-stone-950 px-4 py-3 text-left font-bold text-amber-200 shadow-xl"
+              onClick={() => setBattleReport({ rivalName: pending.rivalName, baselineId: 0 })}
+            >
+              ⚖️ Decide fate of {pending.rivalName}
+            </button>
+          ))}
+        </div>
+      )}
       {battleReport && (() => {
         const events = world.eventLog.filter((event) =>
           event.id > battleReport.baselineId &&
