@@ -1,3 +1,6 @@
+import type { RefObject } from 'react';
+import type { GameLoop } from '../game/gameLoop';
+import PerformanceProfilerPanel from './PerformanceProfilerPanel';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { weatherVisualEnabled, setWeatherVisualEnabled } from '../game/weatherVisualPreferences';
@@ -9,7 +12,7 @@ import { getFocusableElements } from '../hooks/useModalFocus';
 import { TICKS_PER_DAY } from '../game/dayCycle';
 
 export type VolumePreset = 'soft' | 'normal' | 'loud';
-type MenuView = 'main' | 'settings' | 'graphics' | 'about';
+type MenuView = 'main' | 'settings' | 'graphics' | 'about' | 'profiler';
 
 /**
  * The save/settings callback tail the menu and the header both accept — one owner, so the pass-through
@@ -37,6 +40,7 @@ export interface GameMenuSettingsCallbacks {
 }
 
 interface Props extends GameMenuSettingsCallbacks {
+  profilerLoopRef: RefObject<GameLoop | null>;
   gameTitle: string;
   gameVersion: string;
   gamePhase: string;
@@ -151,9 +155,11 @@ const VIEW_TITLES: Record<MenuView, string> = {
   settings: 'Settings',
   graphics: 'Graphics',
   about: 'About',
+  profiler: 'CPU profiler',
 };
 
 export default function GameMenu({
+  profilerLoopRef,
   gameTitle,
   gameVersion,
   gamePhase,
@@ -268,7 +274,7 @@ export default function GameMenu({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
-  const panelWidth = view === 'main' ? 'w-64' : 'w-72';
+  const panelWidth = view === 'profiler' ? 'w-[min(96vw,480px)]' : view === 'main' ? 'w-64' : 'w-72';
 
   const menuPanel = open ? (
     <>
@@ -372,6 +378,17 @@ export default function GameMenu({
 
               <div className="mx-3 h-px bg-stone-700" />
 
+              {import.meta.env.DEV && (
+                <MenuSection title="Diagnostics">
+                  <MenuAction
+                    icon="📊"
+                    label="CPU profiler"
+                    hint="Measure performance while playing"
+                    trailing="›"
+                    onClick={() => setView('profiler')}
+                  />
+                </MenuSection>
+              )}
               <MenuSection title="Options">
                 <MenuAction
                   icon="⚙️"
@@ -401,6 +418,10 @@ export default function GameMenu({
                 />
               </MenuSection>
             </>
+          )}
+
+          {view === 'profiler' && import.meta.env.DEV && (
+            <PerformanceProfilerPanel loopRef={profilerLoopRef} />
           )}
 
           {view === 'settings' && (
