@@ -13,6 +13,7 @@ import {
 import { USE_SCENT_GRID, ensureScentGrid, tickScentGrid } from './scentGrid';
 import { computePopulationCounts } from './entityCounts';
 import { tickHumans } from './humanTick';
+import { profileStart, profileEnd } from './performanceProfiler';
 import type { TickContext } from './simulation/simulationTypes';
 import { releasePrisoners } from './workforce';
 import { maybeTriggerRenffrOmen, tickRenffrOmen } from './renffrStar';
@@ -169,7 +170,9 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   ctx.scentGrid = scentGrid;
 
   // Human AI
+  const humansStart = profileStart();
   tickHumans(state, ctx);
+  profileEnd('realtime.tickHumans', humansStart);
 
   // Stats sampling (every 10 ticks)
   if (state.tick % STATS_SAMPLE_INTERVAL_TICKS === 0) {
