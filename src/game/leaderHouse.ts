@@ -88,6 +88,12 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const house = findLeaderHouse(state.buildings);
   if (!house) return;
 
+  // Keep the late leader's surviving family in the manor throughout the vacancy.
+  // The succession election owns the handover: until a living successor is elected,
+  // do not replace the residents with an empty entitlement set.
+  const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
+  if (!incumbent?.alive) return;
+
   const household = collectLeaderHousehold(state);
   // A household reads empty while the office is still held (Moon Howler form, prison sentence), so
   // only a vacant office may evict.
