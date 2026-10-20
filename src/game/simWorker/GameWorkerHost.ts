@@ -347,7 +347,9 @@ export class GameWorkerHost {
    * posts it as soon as this returns true.
    */
   canPipelineTick(): boolean {
-    return !this.uploadBarrier && this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
+    // Keep a single authoritative tick outstanding. A multi-tick backlog delays player
+    // commands and increases the stale-state window during worker recovery.
+    return !this.uploadBarrier && this.ticksInFlight < Math.min(1, MAX_PIPELINE_DEPTH) && this.pendingCommand == null;
   }
 
   hasCommandInFlight(): boolean {
