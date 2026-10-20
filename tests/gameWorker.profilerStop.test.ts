@@ -30,7 +30,8 @@ describe('worker profiling stop handshake', () => {
       postMessage: (message) => { posted.push(message); },
     };
     (globalThis as { self?: unknown }).self = shim;
-    await import('../src/game/simWorker/gameWorker');
+    const { installWorkerMessageHandlers } = await import('../src/game/simWorker/gameWorker');
+  installWorkerMessageHandlers();
     if (!shim.onmessage) throw new Error('Simulation worker did not attach its message handler');
 
     shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: true } });
