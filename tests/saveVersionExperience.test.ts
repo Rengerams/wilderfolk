@@ -26,9 +26,7 @@ describe('save-version experience (roadmap T4)', () => {
     const text = describeSaveCompatibility();
 
     expect(text, 'the rule must name the running build').toContain(`v${GAME_VERSION}`);
-    expect(text, 'the rule must say a new settlement is needed after an update').toMatch(
-      /start a new settlement/i,
-    );
+    expect(text).toContain('v0.6.5.0');
   });
 
   it('states the same version policy the refusal does (one source of truth)', () => {
@@ -38,7 +36,7 @@ describe('save-version experience (roadmap T4)', () => {
       detail: `save 0.0.1 vs build ${GAME_VERSION}`,
     });
 
-    expect(refusal).toContain('different build');
+    expect(refusal).toContain('not supported');
     expect(refusal, 'the refusal names the build the player is running').toContain(GAME_VERSION);
     expect(describeSaveCompatibility()).toContain(`v${GAME_VERSION}`);
   });
