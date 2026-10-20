@@ -817,7 +817,7 @@ export function startElectionCeremony(
   addNotification(
     state,
     '🗳️ Election ceremony begins',
-    `The village gathers at ${place} to choose its head — a two-day ceremony (Year ${displayYear(year)}).`,
+    `The village gathers at ${place} to choose its head — a ceremony with gathering, gossip and a vote reveal (Year ${displayYear(year)}).`,
     'event',
     { x: site.x, y: site.y },
   );
@@ -1115,33 +1115,24 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   const leader = state.entities.find((e) => e.id === leaderId);
   if (leader && isActingVillageHead(leader, state)) return null;
 
-  if (!state.entities.some((entity) => isEligibleForLeadership(entity, state))) {
-    // Nobody can stand yet, but the office must not be left with no successor
-    // election scheduled: the vacancy notice and the race itself resume as soon
-    // as a settler comes of age or is released.
-    state.villageLeaderId = null;
-    state.pendingElectionYear =
-      state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
-    return null;
-  }
-
+  // A death and a non-fatal deposition use the same succession schedule.
+  // Announce it even if no candidate is currently eligible; a candidate can emerge
+  // during the two-month vacancy.
   const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
   const electionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
   state.pendingElectionYear = electionYear;
   state.villageLeaderId = null;
 
   const name = leader ? formatSettlerName(leader) : 'The village head';
-  logEvent(
-    state,
-    'election',
-    `${name} can no longer lead — merit election scheduled for Year ${displayYear(Math.floor(electionYear))}`,
-    name,
-  );
-
+  const died = leader != null && !leader.alive;
   const delayText = formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS);
+  const message = died
+    ? `Village leader ${name} has died. A succession election will take place in ${delayText}. The family may remain in the Leader's House until a successor is elected.`
+    : `${name} can no longer lead. A succession election will take place in ${delayText}.`;
+  logEvent(state, 'election', message, name);
   return {
-    title: '👑 Leadership vacancy',
-    message: `${name} can no longer lead. A merit election will be held in ${delayText} (Year ${displayYear(Math.floor(electionYear))}).`,
+    title: died ? '👑 Village leader has died' : '👑 Leadership vacancy',
+    message,
   };
 }
 
