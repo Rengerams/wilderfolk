@@ -1279,7 +1279,7 @@ export function respondToRaidEvent(
 function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number): void {
   // Combat can rout a settlement, but only a later explicit player decision can raze it.
   const lossFraction = strengthRatio >= 4 ? 0.85 : strengthRatio >= 2 ? 0.6 : 0.25;
-  const losses = Math.min(rival.population, Math.max(1, Math.ceil(rival.population * lossFraction)));
+  const losses = Math.min(Math.max(0, rival.population - 1), Math.max(1, Math.ceil(rival.population * lossFraction)));
   rival.population -= losses;
   // Rivals can have a larger simulated population than their visible character roster.
   // Kill only living members, record named deaths when available, and count any
@@ -1309,7 +1309,6 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   );
   // The defeated camp survives with its structures and remaining people. Destruction is
   // handled only by a confirmed post-victory decision, never by a strength ratio.
-  rival.population = Math.max(1, rival.population);
 }
 
 function resolveOutgoingRaidCombat(
