@@ -772,7 +772,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // (including someone who sneaks out) earns no sleep recovery that tick.
     const onDuty = onJobShift || onOfficialShift || onPriestShift;
     const sleepingHere = !onDuty && (
-      isAsleepAtHome(entity, buildingById, hourOfDay)
+      isAsleepAtHome(entity, buildingById, hourOfDay, onDuty)
       || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
     );
     if (sleepingHere && isPlayerHuman(entity)) {
