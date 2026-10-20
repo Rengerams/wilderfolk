@@ -63,7 +63,7 @@ function millWorld(wood: number): WorldState {
   worker!.homeBuildingId = MILL_ID;
   worker!.faction = undefined;
   state.resources.wood = wood;
-  state.tick = TICKS_PER_DAY - 1;
+  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
   expect(isProductionTick(TICKS_PER_DAY, PRODUCTION_INTERVAL.lumber)).toBe(true);
   return state;
 }
