@@ -103,6 +103,9 @@ export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
   private ticksInFlight = 0;
+  private tickRequestTimes: number[] = [];
+  private lastCompletedTickLatencyMs: number | null = null;
+  getLastCompletedTickLatencyMs(): number | null { return this.lastCompletedTickLatencyMs; }
   private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
   private nextProfilingRequestId = 0;
   private pendingProfilingStop: {
@@ -281,6 +284,8 @@ export class GameWorkerHost {
     }
     this.ready = false;
     this.ticksInFlight = 0;
+    this.tickRequestTimes = [];
+    this.lastCompletedTickLatencyMs = null;
     this.pendingFocus = undefined;
     this.uploadBarrier = false;
     this.queuedUploads = 0;
@@ -667,6 +672,7 @@ export class GameWorkerHost {
       return false;
     }
     this.ticksInFlight++;
+    this.tickRequestTimes.push(performance.now());
     this.pendingFocus = focus;
     return true;
   }
@@ -706,8 +712,10 @@ export class GameWorkerHost {
   private rejectInFlight(err: Error, opts?: { decrementTicks?: boolean; resetAllTicks?: boolean }): void {
     if (opts?.resetAllTicks) {
       this.ticksInFlight = 0;
+      this.tickRequestTimes = [];
     } else if (opts?.decrementTicks) {
       this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+      this.tickRequestTimes.shift();
     }
     this.settleCommand((pending) => pending.reject(err));
     this.settleExport((pending) => pending.reject(err));
@@ -737,8 +745,10 @@ export class GameWorkerHost {
       console.error('[GameWorker]', msg.message);
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+        this.tickRequestTimes.shift();
       } else {
         this.ticksInFlight = 0;
+        this.tickRequestTimes = [];
       }
       this.settleCommand((pending) => pending.reject(new Error(msg.message)));
       this.settleExport((pending) => pending.reject(new Error(msg.message)));
@@ -810,6 +820,8 @@ export class GameWorkerHost {
     // world attached used to leave a tick in flight for good — the stall detector then fired on a
     // worker that was answering, and fell the whole game back to the main thread.
     this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
+    const requestedAt = this.tickRequestTimes.shift();
+    this.lastCompletedTickLatencyMs = requestedAt === undefined ? null : Math.max(0, performance.now() - requestedAt);
     if (!this.worldRef) {
       this.resolveIdleWaiters();
       return;
