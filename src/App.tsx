@@ -182,7 +182,7 @@ export default function App() {
     return s;
   });
   // A text battle unfolds at a readable pace; the outcome remains owned by the simulation.
-  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; phase: number } | null>(null);
+  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; phase: number; incoming?: boolean } | null>(null);
   useEffect(() => {
     if (!battleReport || battleReport.phase >= 7) return;
     const timeout = window.setTimeout(() => {
@@ -1587,6 +1587,16 @@ export default function App() {
                             onClick={() => {
                               if (blocked) return;
                               playClickSound();
+                              // Defending an incoming raid also gets the battle narrative.
+                              // Do not show it for tribute/payment choices.
+                              if (choice.id === 'defend' || choice.id === 'barricade') {
+                                setBattleReport({
+                                  rivalName: evt.rivalName,
+                                  baselineId: world.eventLog[0]?.id ?? 0,
+                                  phase: 0,
+                                  incoming: true,
+                                });
+                              }
                               applyGameAction({ proto: 1, op: 'respondToRaidEvent', eventId: evt.id, choiceId: choice.id });
                             }}
                             className="rounded-lg bg-stone-900/80 px-2 py-1.5 text-left text-xs font-semibold text-stone-100 hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
@@ -2162,10 +2172,18 @@ export default function App() {
         <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
           <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Live battle chronicle</p>
-            <h2 className="mt-2 text-2xl font-bold text-amber-100">Battle for {battleReport.rivalName}</h2>
+            <h2 className="mt-2 text-2xl font-bold text-amber-100">{battleReport.incoming ? `Defense against ${battleReport.rivalName}` : `Battle for ${battleReport.rivalName}`}</h2>
             <p className="mt-2 text-sm text-stone-400">A new battle phase unfolds every 2.8 seconds. The casualty and result reports below come from the game event log.</p>
             <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
-              {[
+              {(battleReport.incoming ? [
+                `Scouts warn that ${battleReport.rivalName} is approaching the village.`,
+                'The villagers take shelter as the defenders assemble.',
+                'Barricades and defensive positions are prepared.',
+                'The attackers reach the village perimeter.',
+                'The defenders fight to protect the settlement.',
+                'The surviving villagers regroup.',
+                'Reports from the defense reach the village.',
+              ] : [
                 `Your war-band marches toward ${battleReport.rivalName}.`,
                 'Scouts report movement near the enemy defenses.',
                 'The defenders form ranks and prepare to resist.',
@@ -2173,7 +2191,7 @@ export default function App() {
                 'The fighting intensifies. The outcome is still unfolding...',
                 'The surviving combatants regroup as the dust settles.',
                 'The battle report reaches the village.',
-              ].slice(0, battleReport.phase + 1).map((line, index) => (
+              ]).slice(0, battleReport.phase + 1).map((line, index) => (
                 <p key={index} className="border-l-2 border-amber-800 pl-3 text-stone-200">
                   <span className="mr-3 text-amber-500">{String(index + 1).padStart(2, '0')}</span>{line}
                 </p>
