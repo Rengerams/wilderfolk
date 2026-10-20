@@ -108,13 +108,13 @@ describe('moonHowler.byTypeReuse.test.ts', () => {
       // nightfall hour so syncMoonHowlerForms converts them.
       const victim = humans[0];
       victim.moonHowlerCursed = true;
-      // Full moon nightfall (hour 22) — transform window.
+      // Full moon nightfall (NIGHT_START) — transform window.
       const result = tickMoonHowlerCycle(
         state,
         alive,
         state.buildings,
-        14, // colonyDay — a full-moon day (14 ≡ 0 mod 14-ish window)
-        22, // nightfall — transform hour
+        14, // colonyDay — a full-moon day
+        NIGHT_START, // nightfall — transform hour
         new Map(alive.map((e) => [e.id, e])),
         byType,
       );
@@ -145,7 +145,7 @@ describe('moonHowler.cureChance.test.ts', () => {
 
 /**
  * Regression: the Moon Howler curse can only be broken during the full-moon
- * NIGHT (20:00 → before 06:00), while the cursed settler is still in 🌝 form —
+ * NIGHT (23:00 → before 06:00), while the cursed settler is still in 🌝 form —
  * never at 7am work start.
  *
  * The sim has gated the Church exorcism to the night window since 3854df70,
@@ -157,8 +157,8 @@ describe('moonHowler.cureChance.test.ts', () => {
 describe('moonHowler.cureWindow.test.ts', () => {
   describe('Moon Howler cure window — night only, not 7am', () => {
     it('allows the cure through the full-moon night (20:00 → before 06:00)', () => {
-      // 8pm on a full-moon day (day 0 ≡ 0 mod 14)
-      expect(isMoonHowlerCureWindow(0, 20)).toBe(true);
+      // 11pm on a full-moon day (day 0 ≡ 0 mod 14)
+      expect(isMoonHowlerCureWindow(0, 20)).toBe(false);
       expect(isMoonHowlerCureWindow(0, 23)).toBe(true);
       // Pre-dawn hours of the following morning are still the same full-moon night
       expect(isMoonHowlerCureWindow(1, 0)).toBe(true);
@@ -177,7 +177,7 @@ describe('moonHowler.cureWindow.test.ts', () => {
     });
 
     it('keeps the transform/revert anchors consistent with the window', () => {
-      expect(isMoonHowlerTransformTick(0, 20)).toBe(true); // transform at 8pm
+      expect(isMoonHowlerTransformTick(0, NIGHT_START)).toBe(true); // transform at 11pm
       expect(isMoonHowlerRevertTick(6)).toBe(true); // revert at 6am
       expect(isMoonHowlerRevertTick(7)).toBe(false); // already human by 7am
     });
@@ -271,7 +271,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0, // full-moon night
-        22,
+        NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
       );
       expect(res.skippedReason).toBe('priest_too_far');
@@ -285,7 +285,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        22,
+        NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.1, // roll < cure (0.35) → cured
       );
@@ -301,7 +301,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        22,
+        NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.1,
       );
@@ -341,7 +341,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         entities,
         buildings,
         0,
-        22,
+        NIGHT_START,
         new Map(entities.map((e) => [e.id, e])),
         () => 0.49,
       );
@@ -357,7 +357,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        22,
+        NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.49, // priest_killed, no guard to save
       );
@@ -373,7 +373,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        22,
+        NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.49,
       );
