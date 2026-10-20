@@ -992,7 +992,12 @@ export class GameLoop {
         this.renderMetaBySlot = null;
         ticksThisFrame = steps;
       }
-      this.tickFraction = Math.min(1, this.tickAccumulator / msPerTick);
+      // Worker requests consume the accumulator before their results arrive. Its remainder
+      // measures requests, not the age of the latest authoritative position snapshot.
+      // Interpolating with that remainder replays stale positions and causes visible
+      // one-tick rubber-banding. Draw confirmed worker positions until a worker-ack
+      // based presentation clock is implemented; local ticks retain interpolation.
+      this.tickFraction = this.workerEnabled ? 1 : Math.min(1, this.tickAccumulator / msPerTick);
     } else {
       this.tickAccumulator = 0;
       this.tickFraction = 1;
