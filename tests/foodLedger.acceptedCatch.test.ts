@@ -126,7 +126,7 @@ function shotLands(tick: number): boolean {
 
 function assertPartialCatch(type: SpotKind): void {
   const tick = DAY * TICKS_PER_DAY + TICKS_PER_DAY / 2;
-  expect(isProductionTick(tick, INTERVAL[type]), 'fixture day is not a production tick').toBe(true);
+  expect(isProductionTick(tick - tick % TICKS_PER_DAY, INTERVAL[type]), 'fixture day is not a production tick').toBe(true);
   if (type === BuildingType.HuntingSpot) {
     expect(shotLands(tick), 'fixture day is one where the shot misses').toBe(true);
   }
