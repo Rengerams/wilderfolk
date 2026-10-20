@@ -121,13 +121,13 @@ function workshopWorld(gold: number): WorldState {
   state.resources.wood = 500;
   state.resources.stone = 200;
   // The workshop's interval is two days; land on the tick before a production boundary.
-  state.tick = 2 * TICKS_PER_DAY - 1;
+  state.tick = 2 * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
   return state;
 }
 
 function tickOnce(state: WorldState): void {
   gameTick(state);
-  expect(state.tick, 'fixture premise: the daily layer ran').toBe(2 * TICKS_PER_DAY);
+  expect(state.tick, 'fixture premise: the noon economy layer ran').toBe(2 * TICKS_PER_DAY + TICKS_PER_DAY / 2);
 }
 
 /**
