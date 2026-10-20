@@ -20,6 +20,7 @@ import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { BUILDING_JOB_TYPES, BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { readSkill, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
@@ -70,7 +71,7 @@ function staffedWorld(
   if (options.wood != null) state.resources.wood = options.wood;
   // `gameTick` advances the clock first, so the day boundary (and its daily layer) lands on
   // `TICKS_PER_DAY` from here.
-  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
   return { state, worker: worker! };
 }
 
