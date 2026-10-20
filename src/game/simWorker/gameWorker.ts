@@ -9,7 +9,7 @@ import {
   restoreSimulationState,
 } from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
-import { loadNames } from '../nameLoader';
+import { areNamesLoaded, loadNames } from '../nameLoader';
 
 installDialogueBankPayload(canonicalDialogueBank);
 
@@ -69,7 +69,9 @@ function postError(
 let namePoolSettled: Promise<void> | null = null;
 
 export function ensureNamePoolSettled(): Promise<void> {
-  namePoolSettled ??= loadNames().catch(() => {});
+  // A completed promise can outlive a reset name pool in isolated test realms.
+  // Never mistake that stale gate for a settled census.
+  if (!namePoolSettled || !areNamesLoaded()) namePoolSettled = loadNames();
   return namePoolSettled;
 }
 
