@@ -263,11 +263,13 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // and refresh denormalized counts before the invariant boundary.
   // Built once and kept in step with every push, so membership matches the
   // per-entity scan while the tick's daily deltas are already in `allAlive`.
-  const retained = new Set(allAlive);
-  for (const entity of newEntities) {
-    if (entity.alive && !retained.has(entity)) {
-      retained.add(entity);
-      allAlive.push(entity);
+  if (newEntities.length > 0) {
+    const retained = new Set(allAlive);
+    for (const entity of newEntities) {
+      if (entity.alive && !retained.has(entity)) {
+        retained.add(entity);
+        allAlive.push(entity);
+      }
     }
   }
   const finalCounts = computePopulationCounts(allAlive);
