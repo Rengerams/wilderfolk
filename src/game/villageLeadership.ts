@@ -227,7 +227,7 @@ function countLeaderScandalsDuringTerm(state: WorldState, leader: Entity): numbe
   return state.eventLog.filter((e) => {
     if (e.year < sinceYear) return false;
     if (e.type === 'scandal') return scandalEventTargetsLeader(e, leader);
-    if (e.type === 'event' && e.message.includes('imprisoned for scandal')) {
+    if (e.type === 'event' && e.message?.includes('imprisoned for scandal')) {
       return scandalEventTargetsLeader(e, leader);
     }
     return false;
@@ -548,7 +548,7 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
     const entity = state.entities[i];
     if (!isEligibleForLeadership(entity, state)) continue;
     attendeeCount++;
-    if (entity.id === entityId) isAttendee = true;
+    if (entity.id === entityId) isAttendee = slot < CEREMONY_ATTENDEE_LIMIT;
     else if (entity.id < entityId) slot++;
   }
 
@@ -1102,7 +1102,15 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   if (state.pendingElectionYear != null) return null;
 
   const leaderId = state.villageLeaderId;
-  if (leaderId == null) return null;
+  if (leaderId == null) {
+    // A death handler or old save may already have cleared the office holder.
+    // Do not schedule over an active ceremony; its winner will fill this vacancy.
+    if (!state.electionCeremony) {
+      state.pendingElectionYear =
+        state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
+    }
+    return null;
+  }
 
   const leader = state.entities.find((e) => e.id === leaderId);
   if (leader && isActingVillageHead(leader, state)) return null;
