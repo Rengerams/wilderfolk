@@ -165,7 +165,7 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
 
   it('calls the four layers in fixed order on a full-stack tick (72)', () => {
     runTicks(0, 72);
-    const tail = callLog.calls.slice(-5);
+    const tail = callLog.calls.slice(-4);
     expect(tail).toEqual(['realtime@72', 'systems@72', 'prison-presence@72', 'daily@72']);
   });
 
