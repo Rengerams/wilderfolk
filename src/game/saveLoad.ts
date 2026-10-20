@@ -97,7 +97,8 @@ function repairLoadedHumanGround(world: WorldState): number {
 }
 
 /** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
-const SAVED_VERSION_MARKER = `"_version":${JSON.stringify(GAME_VERSION)}`;
+/** Last release with a save layout supported by the current load migrations. */
+const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
@@ -194,7 +195,7 @@ export function parseSaveJson(raw: string | null | undefined): SaveReadResult {
     const detail = version === undefined ? 'no _version field' : `_version is ${describeJsonShape(version)}`;
     return { valid: false, reason: 'not-a-save', detail };
   }
-  if (version !== GAME_VERSION) {
+  if (typeof version !== 'string' || !COMPATIBLE_SAVE_VERSIONS.has(version)) {
     return {
       valid: false,
       reason: 'version-mismatch',
@@ -218,7 +219,7 @@ export function describeSaveReadFailure(
     case 'not-a-save':
       return `That is not a Wilderfolk save${failure.detail ? ` (${failure.detail})` : ''} — load a save this build exported.`;
     case 'version-mismatch':
-      return `Save is from a different build${failure.detail ? ` (${failure.detail})` : ''} — Beta keeps only current-build saves. Start a new settlement.`;
+      return `This save version is not supported${failure.detail ? ` (${failure.detail})` : ''}. Saves from v0.6.5.0 and v${GAME_VERSION} can be loaded; keep the original save file.`;
   }
 }
 
@@ -245,7 +246,7 @@ export function describeSaveLoadOutcome(failure: SaveLoadFailure): string {
  * message a refused load shows.
  */
 export function describeSaveCompatibility(): string {
-  return `This build is v${GAME_VERSION}, and it loads only saves written by v${GAME_VERSION}. A save from another build is refused with its reason instead of half-loading — after an update, start a new settlement.`;
+  return `This build is v${GAME_VERSION}. Saves from v0.6.5.0 and v${GAME_VERSION} are supported. Keep backups of original save files when upgrading.`;
 }
 
 export function readSavePayload(): SaveReadResult {
@@ -1639,12 +1640,12 @@ export function loadGameFromFileText(raw: string): { world: WorldState; view: Vi
   return outcome.ok ? { world: outcome.world, view: outcome.view } : null;
 }
 
-/** A save the version gate accepts, read from the `_version` marker rather than by parsing it. */
+/** A save the compatibility gate accepts, verified by parsing its version. */
 export function hasSave(): boolean {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
-    return raw.includes(SAVED_VERSION_MARKER);
+    return parseSaveJson(raw).valid;
   } catch (e) {
     console.error('Save slot probe failed:', e);
     return false;
