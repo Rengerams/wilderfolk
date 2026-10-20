@@ -60,8 +60,8 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
     }
     return [...found.values()];
   };
-  const spouse = add(byId.get(leader.partnerId ?? -1));
   add(leader);
+  const spouse = add(byId.get(leader.partnerId ?? -1));
   const firstGeneration = new Map<number, Entity>();
   for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
     for (const child of childrenOf(root)) {
