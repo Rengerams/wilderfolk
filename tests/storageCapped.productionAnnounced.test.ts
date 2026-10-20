@@ -62,6 +62,8 @@ function millWorld(wood: number): WorldState {
   // Staffing is counted from the workplace assignment and only for settlers with no faction.
   worker!.homeBuildingId = MILL_ID;
   worker!.faction = undefined;
+  // Simulate a completed real shift, not merely an assigned worker.
+  worker!.scheduleLastWorkedHours = 9;
   state.resources.wood = wood;
   state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
   expect(isProductionTick(TICKS_PER_DAY, PRODUCTION_INTERVAL.lumber)).toBe(true);
