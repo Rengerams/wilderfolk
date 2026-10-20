@@ -70,7 +70,7 @@ function staffedWorld(
   if (options.wood != null) state.resources.wood = options.wood;
   // `gameTick` advances the clock first, so the day boundary (and its daily layer) lands on
   // `TICKS_PER_DAY` from here.
-  state.tick = TICKS_PER_DAY - 1;
+  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
   return { state, worker: worker! };
 }
 
