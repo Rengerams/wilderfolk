@@ -45,20 +45,38 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
     }
   }
 
+  const leader = import.meta.env?.DEV && world.villageLeaderId != null
+    ? allHumans.find((entity) => entity.id === world.villageLeaderId)
+    : undefined;
+  let leaderResidence = leader?.residenceBuildingId;
+  const checkLeader = (stage: string): void => {
+    if (!leader) return;
+    const next = leader.residenceBuildingId;
+    if (leaderResidence === next) return;
+    console.warn(
+      `[leaderResidence] tick=${world.tick} leader=${leader.id} operation=${stage} residence ${String(leaderResidence)} -> ${String(next)}`,
+    );
+    leaderResidence = next;
+  };
+
   const startedsyncResidenceOccupants = profileStart();
   syncResidenceOccupants(allHumans, updatedBuildings);
   profileEnd('assign.syncResidenceOccupants', startedsyncResidenceOccupants);
+  checkLeader('syncResidenceOccupants');
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
   const startedassignMissingResidences = profileStart();
   assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick);
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
+  checkLeader('assignMissingResidences');
   // Housing sweeps run four times per day, after the daily leader-house repair.
   // Restore the leader's protected residence after each sweep, not a day later.
   const startedsyncLeaderHouseResidency = profileStart();
   syncLeaderHouseResidency(world);
   profileEnd('assign.syncLeaderHouseResidency', startedsyncLeaderHouseResidency);
+  checkLeader('syncLeaderHouseResidency');
   const startedassignMissingWorkers = profileStart();
   assignMissingWorkers(playerHumans, updatedBuildings, world);
   profileEnd('assign.assignMissingWorkers', startedassignMissingWorkers);
+  checkLeader('assignMissingWorkers');
 }
