@@ -4,6 +4,19 @@ import { Time } from './gameConstants';
 export const TICKS_PER_HOUR = Time.TICKS_PER_HOUR;
 export const TICKS_PER_DAY = Time.HOURS_PER_DAY * TICKS_PER_HOUR;
 export const LEGACY_TICKS_PER_DAY = 24;
+/** Authoritative clock hours for the four daily simulation phases. */
+export const DAILY_PHASE_HOURS = {
+  fatigue: 0,
+  relationships: 6,
+  production: 12,
+  worldEvents: 18,
+} as const;
+
+/** Tick at which a named daily phase begins on absolute colony day `day`. */
+export function tickAtDailyPhase(day: number, phase: keyof typeof DAILY_PHASE_HOURS): number {
+  return day * TICKS_PER_DAY + DAILY_PHASE_HOURS[phase] * TICKS_PER_HOUR;
+}
+
 export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
 export const PER_TICK_RATE_SCALE = 1 / TICKS_PER_HOUR;
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
