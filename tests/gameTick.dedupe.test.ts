@@ -26,7 +26,7 @@ describe('gameTick retains each new entity once at the day boundary', () => {
     // High reputation keeps the daily immigration roll near certainty so the boundary spawns.
     state.villageReputation = 100;
     // Land exactly on a colony-day boundary: `gameTick` increments onto it.
-    state.tick = TICKS_PER_DAY - 1;
+    state.tick = TICKS_PER_DAY + 3 * TICKS_PER_DAY / 4 - 1;
     const before = new Set(state.entities);
 
     gameTick(state);
