@@ -8,6 +8,7 @@ import {
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
 import { syncLeaderHouseResidency } from './leaderHouse';
+import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
  * Assignment layer pulse interval (ticks).
@@ -44,12 +45,20 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
     }
   }
 
+  const startedsyncResidenceOccupants = profileStart();
   syncResidenceOccupants(allHumans, updatedBuildings);
+  profileEnd('assign.syncResidenceOccupants', startedsyncResidenceOccupants);
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
+  const startedassignMissingResidences = profileStart();
   assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick);
+  profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   // Housing sweeps run four times per day, after the daily leader-house repair.
   // Restore the leader's protected residence after each sweep, not a day later.
+  const startedsyncLeaderHouseResidency = profileStart();
   syncLeaderHouseResidency(world);
+  profileEnd('assign.syncLeaderHouseResidency', startedsyncLeaderHouseResidency);
+  const startedassignMissingWorkers = profileStart();
   assignMissingWorkers(playerHumans, updatedBuildings, world);
+  profileEnd('assign.assignMissingWorkers', startedassignMissingWorkers);
 }
