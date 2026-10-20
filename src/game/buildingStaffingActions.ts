@@ -289,6 +289,10 @@ export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
   const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.homeBuildingId != null).length;
   const before = countAssigned();
+  const workplaces = state.buildings.filter((building) =>
+    building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
+  );
+  for (const building of workplaces) building.staffingMode = 'auto';
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   const after = countAssigned();
   const assigned = after - before;
@@ -301,8 +305,14 @@ export function autoStaffAllWorkers(originalState: WorldState): WorldState {
       'success',
     );
   }
-  // No toast for a no-op: manually controlled workplaces are intentionally excluded,
-  // and an idle or completed automatic pass should not interrupt auto-play.
+  if (assigned === 0 && workplaces.length > 0) {
+    addNotification(
+      state,
+      '⚒️ Auto-staff enabled',
+      'All workplaces are set to Auto-fill. No additional idle adults were assigned; existing workers may be redistributed.',
+      'info',
+    );
+  }
   return state;
 }
 

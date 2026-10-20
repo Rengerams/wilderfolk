@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** the colony-wide Auto-fill command switches every player workplace from Manual to Auto-fill before staffing, remains available from Manual workplaces, and reports when no additional idle adults were assigned.
+
 - **Fixed:** generic family convergence leaves manor residents to the leader-house owner; leader move-ins immediately clear old residence occupant lists, preventing duplicate households after reload.
 
 - **Fixed:** a leader household already living in the manor is protected before ordinary family-capacity checks, preventing repeated moves into normal housing and back, including a manor with identifier zero.

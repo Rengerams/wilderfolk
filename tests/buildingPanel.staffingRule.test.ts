@@ -57,6 +57,7 @@ describe('the inspector claims automatic staffing only where the workforce owner
   it('drops the claim for a completed School', () => {
     const school = building(5, BuildingType.School, { staffingMode: 'manual' });
     expect(isManualStaffingBuilding(school)).toBe(true);
+    expect(renderPanel(school, makeWorld([], [school]))).toContain('Enable Auto-fill for all workplaces');
     expect(renderPanel(school, makeWorld([], [school]))).not.toContain(AUTO_STAFFING_CLAIM);
   });
 
