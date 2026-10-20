@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { tickElectionGossip } from '../src/game/villageLeadership';
 
 vi.mock('../src/game/villageLeadership', async (importOriginal) => {
@@ -41,7 +42,7 @@ function ceremonyWorld() {
  * is computed relative to the start tick instead of assuming tick 0.
  */
 function runToDayBoundary(world: ReturnType<typeof initGame>) {
-  const boundary = Math.ceil((world.tick - (3 * TICKS_PER_DAY / 4)) / TICKS_PER_DAY) * TICKS_PER_DAY + (3 * TICKS_PER_DAY / 4);
+  const boundary = tickAtDailyPhase(Math.max(0, Math.ceil((world.tick - tickAtDailyPhase(0, 'worldEvents')) / TICKS_PER_DAY)), 'worldEvents');
   const ticksToRun = boundary - world.tick - 1;
   for (let t = 0; t < ticksToRun; t++) world = gameTick(world);
   vi.mocked(tickElectionGossip).mockClear();
