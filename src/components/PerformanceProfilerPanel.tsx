@@ -59,6 +59,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
   const [report, setReport] = useState<Report | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
   const [stopping, setStopping] = useState(false);
+  const [stoppedDiagnostics, setStoppedDiagnostics] = useState<ReturnType<GameLoop['getDiagnostics']> | null>(null);
 
   useEffect(() => {
     const refresh = () => {
@@ -75,9 +76,11 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
     if (!loop || stopping) return;
     const next = !loop.getPerformanceProfiling().enabled;
     setCopyStatus('');
+    if (next) setStoppedDiagnostics(null);
     if (!next) setStopping(true);
     try {
       await loop.setPerformanceProfiling(next);
+      if (!next) setStoppedDiagnostics(loop.getDiagnostics());
       setReport(loop.getPerformanceProfiling());
     } catch {
       setCopyStatus('Could not confirm the final worker sample. Retry Stop before copying.');
@@ -94,7 +97,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
       await navigator.clipboard.writeText(JSON.stringify({
         game: 'Wilderfolk',
         sampledAt: new Date().toISOString(),
-        diagnostics: loop.getDiagnostics(),
+        diagnostics: stoppedDiagnostics ?? loop.getDiagnostics(),
         ...snapshot,
       }, null, 2));
       setCopyStatus('Copied!');
