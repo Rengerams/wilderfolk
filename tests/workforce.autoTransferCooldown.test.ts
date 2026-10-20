@@ -37,6 +37,39 @@ describe('two-month automatic job stability', () => {
     expect(pickWorkerToTransfer(workers, quarry, farm, eligibleTick + 1)).toBeUndefined();
   });
 
+  it('chooses the smallest eligible donor, preserving source order for ties', () => {
+    const jobs = [
+      building(10, BuildingType.Farm, { occupants: [1, 2, 3] }),
+      building(11, BuildingType.Quarry, { occupants: [4, 5] }),
+      building(12, BuildingType.Mine, { occupants: [6, 7] }),
+      building(13, BuildingType.Hotel, { staffingMode: 'manual', occupants: [8, 9] }),
+    ];
+    const workers = [
+      ...[1, 2, 3].map((id) => human(id, { homeBuildingId: 10 })),
+      ...[4, 5].map((id) => human(id, { homeBuildingId: 11 })),
+      ...[6, 7].map((id) => human(id, { homeBuildingId: 12 })),
+      ...[8, 9].map((id) => human(id, { homeBuildingId: 13 })),
+    ];
+    expect(findOverstaffedDonorBuilding(jobs, workers, 99)?.id).toBe(11);
+    expect(findOverstaffedDonorBuilding(jobs, workers, 11)?.id).toBe(12);
+    expect(findOverstaffedDonorBuilding(jobs, workers, 12)?.id).toBe(11);
+    // An eligible worker at a donor is necessary, not merely two assigned employees.
+    workers[3].lastAutoJobTransferTick = 99;
+    workers[4].lastAutoJobTransferTick = 99;
+    expect(findOverstaffedDonorBuilding(jobs, workers, 99, 100)?.id).toBe(12);
+  });
+
+  it('handles thousands of settlers without one population scan per donor building', () => {
+    const jobs = Array.from({ length: 200 }, (_, i) =>
+      building(1000 + i, BuildingType.Farm),
+    );
+    const workers = Array.from({ length: 8000 }, (_, i) =>
+      human(10000 + i, { homeBuildingId: 1000 + Math.floor(i / 40) }),
+    );
+    expect(findOverstaffedDonorBuilding(jobs, workers, -1)?.id).toBe(1000);
+    expect(findOverstaffedDonorBuilding(jobs, workers, 1000)?.id).toBe(1001);
+  });
+
   it('allows older saves without timestamps and never blocks a first job', () => {
     const fresh = human(4);
     expect(canAutoChangeWorkplace(fresh, 2000)).toBe(true);
