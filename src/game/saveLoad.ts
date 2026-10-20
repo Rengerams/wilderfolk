@@ -1519,7 +1519,11 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }
     }
 
-    world.researchNodes = mergeCombatResearchNodes(world.researchNodes);
+    // Older or partial saves may not contain research nodes. Restore the
+    // canonical starting tree before applying combat-research migrations.
+    world.researchNodes = mergeCombatResearchNodes(
+      Array.isArray(world.researchNodes) ? world.researchNodes : createInitialResearchNodes(),
+    );
     // New technology must also appear in saves written before the Villa existed.
     if (!world.researchNodes.some((node) => node.id === 'architecture_3')) {
       const betterHousing = createInitialResearchNodes().find((node) => node.id === 'architecture_3');
