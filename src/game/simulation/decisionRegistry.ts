@@ -272,20 +272,25 @@ export function getDecisionsByCadence(cadence: DecisionCadence): DecisionKey[] {
   return DECISION_KEYS.filter((key) => SIMULATION_DECISIONS[key].cadence === cadence);
 }
 
-/** Checks whether a specific property write is declared by a given subsystem. */
+/** Checks whether a specific property write is declared by a given subsystem.
+ * Only exact field names match. A shorthand `job` may match `human.job`,
+ * but `id` must never match `residenceBuildingId` or `villageLeaderId`.
+ */
 export function isPropertyWritePermitted(key: DecisionKey, fieldName: string): boolean {
   const decision = SIMULATION_DECISIONS[key];
   if (!decision) return false;
 
-  // Normalize away common scoping prefixes like "entity.", "human.", "building."
-  const cleanField = fieldName.replace(/^(entity|human|building|residence)\./i, '').toLowerCase().trim();
+  const field = fieldName.trim().toLowerCase();
+  if (!field) return false;
+  const normalize = (value: string): string =>
+    value.trim().toLowerCase().replace(/^(entity|human|building|residence)\./, '');
+  const cleanField = normalize(field);
 
   return decision.writes.some((permitted) => {
-    const cleanPermitted = permitted.replace(/^(entity|human|building|residence)\./i, '').toLowerCase().trim();
-    return (
-      cleanPermitted.includes(cleanField) ||
-      cleanField.includes(cleanPermitted) ||
-      permitted.toLowerCase().includes(cleanField)
-    );
+    // Registry write entries may contain scope and a prose explanation in parentheses.
+    // Strip the annotation, not parts of the actual property name.
+    const token = permitted.split(/[\s(]/, 1)[0];
+    const normalizedToken = normalize(token);
+    return normalizedToken === cleanField;
   });
 }
