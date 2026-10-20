@@ -2032,9 +2032,10 @@ export default function App() {
         <ActiveEventBanner event={activeEventForBanner} onDismiss={dismissActiveEvent} />
       )}
 
-      {activeBigNews.length > 0 && !showActiveEventBanner && !showVillageRequest && (
+      {activeBigNews.length > 0 && (
         <BigNewsBanner
           news={activeBigNews}
+          displaced={showActiveEventBanner || showVillageRequest}
           onDismiss={dismissBigNewsItem}
         />
       )}
