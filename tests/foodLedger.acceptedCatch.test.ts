@@ -30,7 +30,7 @@ import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 
 const FIXTURE_SEED = 20_260_917;
 const SPOT_ID = 10;
-const PREY_ID = 2;
+const PREY_ID = 20;
 /** 8 workers, so the nominal catch dwarfs the headroom spoilage can open on a full store. */
 const CREW = 8;
 /** A workday with no weekend/festival edge cases. */
