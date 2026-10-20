@@ -13,7 +13,8 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { formatRaidDeadline, getRaidExpiresAtTick } from '../src/game/frontierCombat';
+import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory } from '../src/game/frontierCombat';
+import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import type { RaidEvent } from '../src/game/gameTypes';
 
@@ -52,5 +53,59 @@ describe('A16 — one raid-deadline renderer for both cards', () => {
       existsSync(resolve(process.cwd(), 'src/game/raidUtils.ts')),
       'the raidUtils wrapper module still exists',
     ).toBe(false);
+  });
+});
+
+describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
+  function victoriousWorld() {
+    const world = initGame({ seed: 4242 });
+    world.rivalSettlements = [{
+      id: 'test-rival',
+      name: 'Testford',
+      campX: 100,
+      campY: 100,
+      population: 7,
+      entityIds: [],
+      buildingIds: [],
+      relationship: 'tense',
+      foundedYear: 1,
+      daysUntilAction: 0,
+      raidCooldownDays: 0,
+      peaceTreatyDays: 0,
+    }];
+    world.pendingRaidVictories = [{
+      raidId: 'unique-raid',
+      rivalId: 'test-rival',
+      rivalName: 'Testford',
+      playerDead: 1,
+      enemyDead: 4,
+      enemySurvivors: 7,
+      playerCasualties: ['A Villager'],
+      enemyCasualties: [],
+    }];
+    return world;
+  }
+
+  it('does not raze the rival until explicit confirmation', () => {
+    const world = victoriousWorld();
+    expect(world.rivalSettlements).toHaveLength(1);
+    expect(world.pendingRaidVictories).toHaveLength(1);
+    const spared = resolveRaidVictory(world, 'unique-raid', 'mercy');
+    expect(spared.rivalSettlements).toHaveLength(1);
+    expect(spared.rivalSettlements[0].population).toBe(7);
+    expect(spared.pendingRaidVictories).toEqual([]);
+    expect(spared.rivalSettlements[0].peaceTreatyDays).toBeGreaterThan(0);
+    expect(world.pendingRaidVictories).toHaveLength(1);
+  });
+
+  it('only confirmed razing destroys a camp and does not reapply a result', () => {
+    const world = victoriousWorld();
+    const pending = resolveRaidVictory(world, 'unique-raid', 'not-confirmed');
+    expect(pending).toBe(world);
+    expect(world.rivalSettlements).toHaveLength(1);
+    const razed = resolveRaidVictory(world, 'unique-raid', 'raze');
+    expect(razed.rivalSettlements).toHaveLength(0);
+    expect(razed.pendingRaidVictories).toEqual([]);
+    expect(resolveRaidVictory(razed, 'unique-raid', 'raze')).toBe(razed);
   });
 });
