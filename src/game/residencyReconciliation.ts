@@ -309,28 +309,28 @@ export function assignMissingResidences(
       if (reassigned === 0 && !evicted) break;
     }
   } else {
-    // One pulse, one bucket. `housingUnitsBase` order is the sweep order: it is deterministic and
-    // independent of which pulse is running, so a unit's repair does not depend on the tick.
+    // A pulse visits only its own quarter of the housing units. Several units
+    // can depend on the same available house, so re-evaluate this bucket after
+    // the first round rather than postponing a newly feasible move for a day.
     const bucket = activeSweepBucket(sweepTick);
-    const occupancy = buildResidenceOccupancy(alive);
-    const traits = buildResidenceTraits(alive);
-    // Prioritize families that need seating within this pulse. Moving settled
-    // households first consumes empty houses that unsettled couples need.
-    // Keep the sweep bounded to this bucket rather than running a full pass.
     const sweepUnits = housingUnitsBase.filter(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
     );
-    // Recompute priority as placements change, but only for this pulse's bucket.
-    // A fixed priority derived before the first move can leave couples sharing
-    // with strangers even after that move frees a separate house.
-    let pending = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
-    for (const unit of pending) {
-      if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+    for (let pass = 0; pass < 3; pass++) {
+      const occupancy = buildResidenceOccupancy(alive);
+      const traits = buildResidenceTraits(alive);
+      const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
+      let moved = false;
+      for (const unit of orderedUnits) {
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
 
-      for (const member of unit) {
-        moveResident(occupancy, traits, member, undefined);
+        for (const member of unit) {
+          moveResident(occupancy, traits, member, undefined);
+        }
+        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+        moved = true;
       }
-      assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+      if (!moved) break;
     }
     if (rebalanceOvercrowdedResidences(alive, residences)) {
       const afterEvict = buildResidenceOccupancy(alive);
