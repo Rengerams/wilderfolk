@@ -61,6 +61,7 @@ const WORKER_EXPORT_MARGIN_MS = 5000;
 const WORKER_STALL_CEILING_MS = 15000;
 const WORKER_RECOVERY_INITIAL_DELAY_MS = 2000;
 const WORKER_RECOVERY_MAX_DELAY_MS = 30000;
+const WORKER_RECOVERY_MAX_FAILURES = 3;
 
 export type { WorkerCommand } from './simWorker/commands';
 
@@ -156,6 +157,8 @@ export class GameLoop {
   private workerRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
+  private workerRecoveryFailures = 0;
+  private workerRecoveryDisabled = false;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
@@ -257,6 +260,7 @@ export class GameLoop {
     if (
       !this.running ||
       !isGameWorkerEnabled() ||
+      this.workerRecoveryDisabled ||
       this.workerRecoveryTimer ||
       this.workerRecoveryInFlight
     ) {
@@ -272,6 +276,7 @@ export class GameLoop {
     if (
       !this.running ||
       !isGameWorkerEnabled() ||
+      this.workerRecoveryDisabled ||
       this.workerHost ||
       this.workerBooting ||
       this.workerRecoveryInFlight
@@ -309,6 +314,7 @@ export class GameLoop {
         this.workerBooting = false;
         this.workerRecoveryInFlight = false;
         this.workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
+        this.workerRecoveryFailures = 0;
         this.lastWorkerActivity = performance.now();
         this.lastWorkerTickRequest = 0;
         this.workerTickLatencyMs = 0;
@@ -332,8 +338,15 @@ export class GameLoop {
             this.workerRecoveryDelayMs * 2,
             WORKER_RECOVERY_MAX_DELAY_MS,
           );
-          console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
-          this.scheduleWorkerRecovery();
+          this.workerRecoveryFailures++;
+          if (this.workerRecoveryFailures >= WORKER_RECOVERY_MAX_FAILURES) {
+            this.workerRecoveryDisabled = true;
+            console.error('[GameLoop] Worker recovery failed repeatedly; continuing with bounded main-thread simulation', err);
+            this.flushDeferredWorkerCommands();
+          } else {
+            console.warn('[GameLoop] Automatic worker recovery failed; retrying', err);
+            this.scheduleWorkerRecovery();
+          }
         }
       });
   }
@@ -573,7 +586,6 @@ export class GameLoop {
     const sessionGen = this.sessionGen;
     this.commandChain = this.commandChain
       .then(async () => {
-        try {
           await host.whenReady();
           if (sessionGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
           await host.whenIdle();
@@ -588,10 +600,6 @@ export class GameLoop {
           this.workerBooting = false;
           this.flushDeferredWorkerCommands();
           afterImport?.();
-        } finally {
-          // Do not resume ticks against a worker whose import may have failed.
-          // The success branch above releases workerBooting; failure goes via fallback.
-        }
       })
       .catch((err) => {
         if (sessionGen !== this.sessionGen || this.workerHost !== host) return;
