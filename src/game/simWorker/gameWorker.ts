@@ -67,11 +67,17 @@ function postError(
 
 /** Settled once per worker realm — see `ensureNamePoolSettled`. */
 let namePoolSettled: Promise<void> | null = null;
+let namePoolGateResolved = false;
 
 export function ensureNamePoolSettled(): Promise<void> {
-  // A completed promise can outlive a reset name pool in isolated test realms.
-  // Never mistake that stale gate for a settled census.
-  if (!namePoolSettled || !areNamesLoaded()) namePoolSettled = loadNames();
+  // Share the in-flight load with all incoming messages. A completed gate may
+  // be stale after a test realm resets the name pool; only then reload.
+  if (!namePoolSettled || (namePoolGateResolved && !areNamesLoaded())) {
+    namePoolGateResolved = false;
+    namePoolSettled = loadNames().then(() => {
+      namePoolGateResolved = true;
+    });
+  }
   return namePoolSettled;
 }
 
