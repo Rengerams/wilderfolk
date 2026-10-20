@@ -100,7 +100,6 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const entitledIds = new Set(household.map((m) => m.id));
   let evicted = false;
   let movedIn = false;
-  let formerLeadershipHouseholdMoved = false;
   const displaced: Entity[] = [];
 
   //Evict settlers who are no longer part of the official leader's household
@@ -110,8 +109,6 @@ export function syncLeaderHouseResidency(state: WorldState): void {
       e.residenceBuildingId = undefined;
       displaced.push(e);
       evicted = true;
-      // Ordinary visitors and grown children are not a former leader's household.
-      if (e.occupation === LEADER_OCCUPATION) formerLeadershipHouseholdMoved = true;
     }
   }
 
@@ -143,8 +140,8 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   }
 
   //Chronicle events
-  if (formerLeadershipHouseholdMoved) {
-    logEvent(state, 'event', "The former leader's household moved out of the Leader's House");
+  if (evicted) {
+    logEvent(state, 'event', `${displaced.length} resident${displaced.length === 1 ? '' : 's'} relocated from the Leader's House`);
   }
 
   if (movedIn) {
