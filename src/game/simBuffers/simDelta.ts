@@ -143,7 +143,6 @@ export interface SimTickDelta {
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
   renderMetaBySlot?: EntityRenderMeta[];
-  catalogEntities?: Entity[];
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
@@ -409,10 +408,6 @@ export function extractSimTickDelta(
 
   if (!headless && renderPacked) {
     delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
-    delta.catalogEntities = deltaClone(
-      aliveNow.filter((e) => e.type === EntityType.Human),
-      cloneMode,
-    );
   }
 
   return delta;
