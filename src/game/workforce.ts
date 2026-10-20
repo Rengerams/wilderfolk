@@ -587,6 +587,15 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
   }
 
   syncJobBuildingOccupants(alive, buildings);
+  // Repair old saves affected by zero-capacity construction crew transfers.
+  // Only completed, non-residential buildings with no job may be cleared;
+  // residence and prison occupants have separate owners.
+  for (const building of buildings) {
+    if (building.completed && !BUILDING_JOB_TYPES[building.type]
+      && !isResidenceBuildingType(building.type) && building.occupants.length > 0) {
+      building.occupants = [];
+    }
+  }
   return alive;
 }
 
@@ -597,7 +606,10 @@ export function staffConstructionCrews(
   currentTick?: number,
 ): void {
   const incomplete = buildings
-    .filter((b) => !b.completed && b.faction !== 'rival')
+    // Passive zero-capacity sites (Wildlife Preserve, roads, decor) cannot hold
+    // builders. In particular, the donor rebalance below bypasses the normal
+    // assignBuilderInPlace capacity check and used to put a worker here anyway.
+    .filter((b) => !b.completed && b.faction !== 'rival' && BUILDING_CONFIGS[b.type].maxOccupants > 0)
     .sort((a, b) => {
       const aHouse = isResidenceBuildingType(a.type) ? 0 : 1;
       const bHouse = isResidenceBuildingType(b.type) ? 0 : 1;
