@@ -334,7 +334,7 @@ export function extractSimTickDelta(
     rivalSettlements: deltaClone(world.rivalSettlements, cloneMode),
     pendingRaidEvents: deltaClone(world.pendingRaidEvents ?? [], cloneMode),
     pendingOutgoingRaidEvents: deltaClone(world.pendingOutgoingRaidEvents ?? [], cloneMode),
-    pendingRaidVictories: deltaClone(world.pendingRaidVictories ?? [], cloneMode),
+    pendingRaidVictories: world.pendingRaidVictories === undefined ? undefined : deltaClone(world.pendingRaidVictories, cloneMode),
     pendingDiplomacyEvents: deltaClone(world.pendingDiplomacyEvents ?? [], cloneMode),
     villageLeaderId: world.villageLeaderId,
     leaderSinceYear: world.leaderSinceYear,
@@ -496,7 +496,8 @@ export function applySimTickDelta(
   world.rivalSettlements = deltaClone(delta.rivalSettlements, cloneMode);
   world.pendingRaidEvents = deltaClone(delta.pendingRaidEvents, cloneMode);
   world.pendingOutgoingRaidEvents = deltaClone(delta.pendingOutgoingRaidEvents, cloneMode);
-  world.pendingRaidVictories = deltaClone(delta.pendingRaidVictories ?? [], cloneMode);
+  if (delta.pendingRaidVictories === undefined) delete world.pendingRaidVictories;
+  else world.pendingRaidVictories = deltaClone(delta.pendingRaidVictories, cloneMode);
   world.pendingDiplomacyEvents = deltaClone(delta.pendingDiplomacyEvents, cloneMode);
   world.villageLeaderId = delta.villageLeaderId;
   world.leaderSinceYear = delta.leaderSinceYear;
