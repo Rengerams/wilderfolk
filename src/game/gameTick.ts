@@ -214,14 +214,34 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // realtime every tick → systems every LAYER_SYSTEMS_INTERVAL → assign every
   // LAYER_ASSIGN_INTERVAL → daily once per TICKS_PER_DAY. Do not add a new
   // tick layer here; new layers require an authority-document update (§4).
+  // DEV diagnostic: identify the exact layer that changes the elected leader's home.
+  // No repairs or extra work in production builds.
+  const traceLeader = import.meta.env?.DEV === true && state.villageLeaderId != null;
+  const leaderIdForTrace = state.villageLeaderId;
+  const leaderForTrace = traceLeader
+    ? state.entities.find((entity) => entity.id === leaderIdForTrace)
+    : undefined;
+  let lastLeaderResidence = leaderForTrace?.residenceBuildingId;
+  const traceLeaderResidence = (stage: string): void => {
+    if (!traceLeader || !leaderForTrace) return;
+    const currentResidence = leaderForTrace.residenceBuildingId;
+    if (currentResidence === lastLeaderResidence) return;
+    console.warn(
+      `[leaderResidence] tick=${state.tick} leader=${leaderIdForTrace} stage=${stage} residence ${String(lastLeaderResidence)} -> ${String(currentResidence)}`,
+    );
+    lastLeaderResidence = currentResidence;
+  };
+
   const realtimeStart = profileStart();
   tickLayerRealtime(state, ctx);
   profileEnd('sim.realtime', realtimeStart);
+  traceLeaderResidence('realtime');
 
   if (state.tick % LAYER_SYSTEMS_INTERVAL === 0) {
     const systemsStart = profileStart();
     tickLayerSystems(state, ctx);
     profileEnd('sim.systems', systemsStart);
+    traceLeaderResidence('systems');
   }
 
   // Spread four daily assignment sweeps away from the midnight daily workload.
@@ -230,6 +250,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     const assignStart = profileStart();
     tickLayerAssign(state, ctx);
     profileEnd('sim.assign', assignStart);
+    traceLeaderResidence('assign');
   }
 
   // Presence is an hourly snapshot. Take it after the realtime, movement, and assignment layers so
@@ -256,6 +277,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     const dailyStart = profileStart();
     tickLayerDaily(state, ctx, allAlive);
     profileEnd('sim.daily', dailyStart);
+    traceLeaderResidence('daily');
   }
 
   // Daily systems may append authoritative entities through ctx.newEntities
@@ -294,6 +316,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     tally.animals += deadAnimals;
   }
 
+  traceLeaderResidence('post-layers');
   // --- Post ---
   state.buildings = updatedBuildings;
   state.entities = allAlive;
