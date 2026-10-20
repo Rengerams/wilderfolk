@@ -30,7 +30,7 @@ describe('a vacancy election campaign starts on its due day', () => {
     state.pendingElectionYear = DUE_YEAR + 30 / DAYS_PER_YEAR;
     state.year = DUE_YEAR;
     state.dayInYear = DUE_DAY;
-    state.tick = DUE_DAY * TICKS_PER_DAY - 1; // gameTick advances onto a colony-day boundary
+    state.tick = DUE_DAY * TICKS_PER_DAY + 18 * (TICKS_PER_DAY / 24) - 1; // world-event phase at 18:00
     state.lastElectionYear = -1;
 
     gameTick(state);
@@ -47,7 +47,7 @@ describe('a vacancy election campaign starts on its due day', () => {
     state.pendingElectionYear = DUE_YEAR + 0.75;
     state.year = DUE_YEAR;
     state.dayInYear = 10;
-    state.tick = 10 * TICKS_PER_DAY - 1;
+    state.tick = 10 * TICKS_PER_DAY + 18 * (TICKS_PER_DAY / 24) - 1;
     state.lastElectionYear = -1;
 
     gameTick(state);
