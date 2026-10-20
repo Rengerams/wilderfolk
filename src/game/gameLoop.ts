@@ -589,12 +589,14 @@ export class GameLoop {
           this.flushDeferredWorkerCommands();
           afterImport?.();
         } finally {
-          if (sessionGen === this.sessionGen && this.workerHost === host) this.workerBooting = false;
+          // Do not resume ticks against a worker whose import may have failed.
+          // The success branch above releases workerBooting; failure goes via fallback.
         }
       })
       .catch((err) => {
-        if (sessionGen !== this.sessionGen) return;
+        if (sessionGen !== this.sessionGen || this.workerHost !== host) return;
         console.warn('[GameLoop] Worker importSave failed', err);
+        this.fallbackFromWorker('Worker importSave failed');
       });
   }
 
@@ -756,7 +758,7 @@ export class GameLoop {
         }
 
         const exported = await Promise.race([
-          host.exportSave(),
+          host.exportSave(timeoutMs),
           new Promise<WorldState>((_, reject) => {
             setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
           }),
