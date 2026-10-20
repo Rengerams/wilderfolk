@@ -32,6 +32,7 @@ import { applyDailyWeatherEffects } from './worldEvents';
 import { advanceValleyChronicle, VALLEY_CHAPTERS } from './valleyChronicle';
 import { tickWildkinChronicle } from './wildkinChronicle';
 import { profileStart, profileEnd } from './performanceProfiler';
+import { getHourOfDay } from './dayCycleClock';
 
 // ==================== DAILY LAYER ENTRYPOINT ====================
 
@@ -40,10 +41,14 @@ export function tickLayerDaily(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
+  const hour = getHourOfDay(state.tick);
+  if (hour === 0) {
   const stage1 = profileStart();
   resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
   profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
+  }
+  if (hour === 6) {
   // The living settler list the two social owners below both need, derived once.
   //
   // Deliberately NOT `ctx.playerHumans`: that list is built at tick start (`gameTick`) and refreshed
@@ -74,6 +79,8 @@ export function tickLayerDaily(
   syncLeaderHouseResidency(state);
   profileEnd('daily.syncLeaderHouseResidency', stage6);
 
+  }
+  if (hour === 18) {
   // Evaluate active campaign promises when their evaluation day arrives
   const stage7 = profileStart();
   tickElectionPromises(state);
@@ -92,6 +99,8 @@ export function tickLayerDaily(
     }
   }
 
+  }
+  if (hour === 0) {
   // Daily world & economy systems
   const stage8 = profileStart();
   applyDailyWeatherEffects(state);
@@ -99,12 +108,16 @@ export function tickLayerDaily(
   const stage9 = profileStart();
   tickGrassDaily(state, ctx, allAlive);
   profileEnd('daily.tickGrassDaily', stage9);
+  }
+  if (hour === 12) {
   const stage10 = profileStart();
   tickWildkinChronicle(state, ctx);
   profileEnd('daily.tickWildkinChronicle', stage10);
   const stage11 = profileStart();
   tickDailyBuildingEconomy(state, ctx, allAlive);
   profileEnd('daily.tickDailyBuildingEconomy', stage11);
+  }
+  if (hour === 18) {
   // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
   // pre-daily snapshot no longer describes the colony by the time these three read it.
   const countsStart = profileStart();
@@ -119,4 +132,5 @@ export function tickLayerDaily(
   const stage14 = profileStart();
   tickDailyChallenges(state, ctx, counts);
   profileEnd('daily.tickDailyChallenges', stage14);
+  }
 }
