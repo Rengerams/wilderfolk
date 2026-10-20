@@ -7,7 +7,7 @@
  *
  *   1. tickLayerRealtime — every tick (movement, animation, realtime spatial behavior)
  *   2. tickLayerSystems  — every LAYER_SYSTEMS_INTERVAL (4) ticks
- *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (18) ticks
+ *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (18) ticks, offset 9 ticks (03:00)
  *   4. tickLayerDaily    — every TICKS_PER_DAY (72) ticks, once per colony day
  *
  * No tickLayerSocial.ts / tickLayerPregnancy.ts / tickLayerMoonHowler.ts /
@@ -166,7 +166,7 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
   it('calls the four layers in fixed order on a full-stack tick (72)', () => {
     runTicks(0, 72);
     const tail = callLog.calls.slice(-5);
-    expect(tail).toEqual(['realtime@72', 'systems@72', 'assign@72', 'prison-presence@72', 'daily@72']);
+    expect(tail).toEqual(['realtime@72', 'systems@72', 'prison-presence@72', 'daily@72']);
   });
 
   it('runs each layer only on its declared interval over 216 ticks (3 days)', () => {
@@ -185,9 +185,10 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(callLog.calls.some((c) => c.startsWith('daily@'))).toBe(false);
   });
 
-  it('fires no assign pulse before its first interval tick', () => {
-    runTicks(0, 17);
-    expect(callLog.calls.some((c) => c.startsWith('assign@'))).toBe(false);
+  it('runs assignment at 03:00, 09:00, 15:00 and 21:00, never midnight', () => {
+    runTicks(0, 72);
+    const assignments = callLog.calls.filter((c) => c.startsWith('assign@'));
+    expect(assignments).toEqual(['assign@9', 'assign@27', 'assign@45', 'assign@63']);
   });
 
   it('daily runs exactly once per colony day at the day boundary', () => {
