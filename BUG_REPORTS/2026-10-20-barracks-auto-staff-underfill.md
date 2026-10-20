@@ -1,0 +1,15 @@
+# 2026-10-20 — Barracks auto staffing below capacity despite idle settlers
+
+## Player report
+The underfilled Auto-staffing issue also affects **Barracks**, not only Taverns or Hotels. In the UI, Barracks show open staff positions while the settlement has idle settlers.
+
+## Source inspection
+`workforce.assignWorkerInPlace` uses the full configured `staffingCapFor` for Barracks and filters to living, player-controlled adults with no current job, no prison assignment and no unfinished-building crew. It prioritizes nearby candidates but does **not** reject a worker solely for distant commutes. `assignMissingWorkers` runs construction staffing first and then fills completed Auto workplaces in policy order. The regular assignment layer runs at 6-hour intervals.
+
+Consequently, the confirmed venue-specific minimum-shift cap bug **cannot alone explain Barracks**. Idle-count display and assignment eligibility can diverge transiently; competition for workers between sites, an in-progress construction crew, pending tick, or a broken assignment transition remain hypotheses, not confirmed causes.
+
+## Test added
+`tests/workforce.barracksAutoFill.test.ts` verifies a completed Auto Barracks fills every slot when surplus eligible adult settlers exist.
+
+## Status
+**Open / awaiting reproduction with affected save.** Do not declare this solved by the earlier Tavern/Hotel patch. Capture building id, configured capacity, occupants, `staffingMode`, human job assignments, construction crews and latest assignment tick to identify the blocker. Preserve existing save history.
