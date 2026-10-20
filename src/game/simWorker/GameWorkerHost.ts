@@ -132,6 +132,7 @@ export class GameWorkerHost {
   private heldRenderBuffer: { index: number; buffer: ArrayBuffer } | null = null;
   private commandChain: Promise<void> = Promise.resolve();
   private uploadBarrier = false;
+  private queuedUploads = 0;
   private nextUploadId = 0;
   private pendingUpload: { id: number; resolve: () => void; reject: (error: Error) => void; deadline: ReturnType<typeof setTimeout> } | null = null;
 
@@ -282,6 +283,7 @@ export class GameWorkerHost {
     this.ticksInFlight = 0;
     this.pendingFocus = undefined;
     this.uploadBarrier = false;
+    this.queuedUploads = 0;
     if (this.pendingUpload) {
       clearTimeout(this.pendingUpload.deadline);
       this.pendingUpload.reject(new Error('Worker disposed during world upload'));
@@ -417,6 +419,7 @@ export class GameWorkerHost {
     if (!this.worker || !this.ready) return Promise.resolve();
     const uploadGen = this.generation;
     this.uploadBarrier = true;
+    this.queuedUploads++;
     const upload = this.commandChain
       .then(async () => {
         if (uploadGen !== this.generation || !this.isReady()) return;
@@ -464,7 +467,10 @@ export class GameWorkerHost {
     this.commandChain = upload.catch((err: unknown) => {
       if (uploadGen === this.generation) console.warn(`[GameWorker] ${kind} upload failed`, err);
     }).finally(() => {
-      if (uploadGen === this.generation) this.uploadBarrier = false;
+      if (uploadGen === this.generation) {
+        this.queuedUploads = Math.max(0, this.queuedUploads - 1);
+        this.uploadBarrier = this.queuedUploads > 0;
+      }
     });
     return upload;
   }
