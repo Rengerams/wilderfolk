@@ -63,6 +63,7 @@ function human(id: number): Entity {
     flash: 0, animFrame: 0, spriteAngle: 0, childrenIds: [], generation: 0, isJuvenile: false,
     maxAge: 90, reproductionCooldown: 0,
     homeBuildingId: SPOT_ID,
+    scheduleLastWorkedHours: 8,
   };
 }
 
