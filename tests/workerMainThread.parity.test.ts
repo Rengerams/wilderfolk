@@ -111,6 +111,11 @@ describe('seeded worker versus main-thread parity', () => {
     ) as Record<string, unknown>;
     delete mainThreadPayload._savedAt;
     delete workerPayload._savedAt;
-    expect(workerPayload).toEqual(mainThreadPayload);
+    // Saves cross a JSON boundary in production. Compare their actual persisted
+    // representation rather than in-memory object identity/undefined properties.
+    // This still catches every difference a loaded save can observe.
+    expect(JSON.parse(JSON.stringify(workerPayload))).toEqual(
+      JSON.parse(JSON.stringify(mainThreadPayload)),
+    );
   });
 });
