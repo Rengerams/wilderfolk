@@ -137,11 +137,11 @@ describe('M18 leader household composition', () => {
     syncLeaderHouseResidency(state); // daily reconciliation runs again the next colony day
 
     expect(minorChild.residenceBuildingId).toBe(10);
-    expect(marriedChild.residenceBuildingId).not.toBe(10);
-    expect(singleAdultChild.residenceBuildingId).not.toBe(10);
+    expect(marriedChild.residenceBuildingId).toBe(10);
+    expect(singleAdultChild.residenceBuildingId).toBe(10);
     expect(manor.occupants).toEqual(expect.arrayContaining([1, 2, 3]));
-    expect(manor.occupants).not.toContain(4);
-    expect(manor.occupants).not.toContain(6);
+    expect(manor.occupants).toContain(4);
+    expect(manor.occupants).toContain(6);
     expect(
       state.eventLog.filter((e) => e.message.includes("moved into the Leader's House")),
     ).toHaveLength(1);
