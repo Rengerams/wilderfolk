@@ -389,6 +389,9 @@ function tickBuildingProduction(
   allAlive: Entity[],
 ): void {
   const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
+  // Production runs at noon, but isProductionTick is anchored to midnight.
+  // Align to the same calendar day's start to preserve weekdays and interval cadence.
+  const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
   const hasMill = updatedBuildings.some((b) => b.type === BuildingType.Mill && b.completed);
   const millBonus = hasMill ? MILL_FOOD_PRODUCTION_MULT : 1.0;
@@ -486,7 +489,7 @@ function tickBuildingProduction(
     if (
       building.completed &&
       WORK_SKILL_BUILDING_TYPES.has(building.type) &&
-      isProductionTick(state.tick, SKILL_CREDIT_INTERVAL_TICKS)
+      isProductionTick(productionDayTick, SKILL_CREDIT_INTERVAL_TICKS)
     ) {
       rewardBuildingWork(state, building, 1, WORK_SKILL_PER_SHIFT, entityById);
     }
@@ -496,7 +499,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Farm &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.farm)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.farm)
     ) {
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
@@ -530,7 +533,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.HuntingSpot &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.huntingSpot)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.huntingSpot)
     ) {
       /**
        * **The hunter hunts, not the building** — owner (2026-09-30): *"the hunung spot cannot hunt its
@@ -731,7 +734,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.FishingSpot &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.fishingSpot)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.fishingSpot)
     ) {
       const seasonFish =
         state.season === Season.Winter
@@ -775,7 +778,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Store &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.store)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.store)
     ) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor(5 * totalMult * goldMult * globalEff);
@@ -789,7 +792,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.LumberMill &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.lumber)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.lumber)
     ) {
       const lumberMult = getMultiplier(state, 'lumber_yield');
       const amount = Math.floor(
@@ -818,7 +821,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Quarry &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.quarry)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.quarry)
     ) {
       const stoneMult = getMultiplier(state, 'quarry_yield') * getForgeQuarryMultiplier(state);
       const amount = Math.floor((8 + workers * 3) * totalMult * smithBonus * stoneMult * globalEff);
@@ -843,7 +846,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Mine &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.mine)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.mine)
     ) {
       const stoneMult = getMultiplier(state, 'stone_production');
       const amount = Math.floor((12 + workers * 4) * totalMult * smithBonus * stoneMult * globalEff);
@@ -869,7 +872,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Greenhouse &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.greenhouse)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.greenhouse)
     ) {
       const harvestBonus = state.bountifulHarvest ? 2 : 1;
       const farmMult = getMultiplier(state, 'farm_yield');
@@ -913,7 +916,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Market &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.market)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.market)
     ) {
       const goldMult = getMultiplier(state, 'gold_production');
       const amount = Math.floor((8 + workers * 3) * totalMult * goldMult * globalEff);
@@ -937,7 +940,7 @@ function tickBuildingProduction(
     if (
       building.completed &&
       building.type === BuildingType.Workshop &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.workshop)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.workshop)
     ) {
       if (workers === 0) {
         addFloatingText(
@@ -1016,7 +1019,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Hospital &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.hospital)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.hospital)
     ) {
       // The whole grant — the flat staffed amount and the ward round's own — is owned by
       // `hospitalCare` (`LIVE-FINDINGS-STATUS.md`, A15); this layer only decides when it fires.
@@ -1028,7 +1031,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.TownHall &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.townHall)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.townHall)
     ) {
       // See `livingPlayerWorkers` above: the alive re-check the daily social pass requires is done
       // once per pass, not once per Town Hall.
@@ -1042,7 +1045,7 @@ function tickBuildingProduction(
       building.completed &&
       staffed &&
       building.type === BuildingType.Silo &&
-      isProductionTick(state.tick, PRODUCTION_INTERVAL.silo)
+      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.silo)
     ) {
       const amount = Math.floor(8 * totalMult * millBonus * globalEff);
       recordFoodProduced(state, 'silos', addProductionOutput(state, building, 'food', amount));
@@ -1053,7 +1056,7 @@ function tickBuildingProduction(
 
   // Urban Planning: completed roads passively generate reputation (road_bonus research)
   const roadRepMult = getMultiplier(state, 'road_bonus');
-  if (roadRepMult > 1 && isProductionTick(state.tick, PRODUCTION_INTERVAL.townHall)) {
+  if (roadRepMult > 1 && isProductionTick(productionDayTick, PRODUCTION_INTERVAL.townHall)) {
     const roadCount = roadBuildings.length;
     if (roadCount > 0) {
       const rep = Math.min(5, Math.max(1, Math.floor(roadCount * (roadRepMult - 1) + 1)));
