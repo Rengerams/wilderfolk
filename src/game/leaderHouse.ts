@@ -7,7 +7,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderExtendedHousehold } from './householdComposition';
+import { collectLeaderClan } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
@@ -29,7 +29,7 @@ function leaderDisplayName(leader: Entity): string {
 }
 
 /**
- * Leader, spouse, children of any age, children's spouses, and grandchildren.
+ * Leader and spouse's dynastic clan: descendants, ancestors and collateral relatives.
  * Entitlement is independent of adulthood or marriage; empty while office is vacant.
  */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
@@ -42,7 +42,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e),
   );
-  return collectLeaderExtendedHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
+  return collectLeaderClan(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {
