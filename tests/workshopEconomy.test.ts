@@ -27,6 +27,8 @@ function world(): { state: WorldState; shop: Building; worker: Entity } {
   worker.age = 30;
   // Assigned to the shop the way production counts it — occupation and occupancy both follow from this.
   worker.homeBuildingId = SHOP_ID;
+  // A worker completed the actual scheduled shift; assignment alone earns no output.
+  worker.scheduleLastWorkedHours = 9;
   const shop: Building = {
     id: SHOP_ID, type: BuildingType.Workshop, x: 80, y: 80, width: 40, height: 40,
     occupants: [WORKER_ID], level: 1, constructionProgress: 100, completed: true, health: 100,
@@ -98,6 +100,8 @@ function workshopWorld(gold: number): WorldState {
   worker.age = 30;
   // Assigned to the shop the way production counts workers (`homeBuildingId`).
   worker.homeBuildingId = SHOP_ID;
+  // A worker completed the actual scheduled shift; assignment alone earns no output.
+  worker.scheduleLastWorkedHours = 9;
   const shop: Building = {
     id: SHOP_ID,
     type: BuildingType.Workshop,
