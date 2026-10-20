@@ -590,7 +590,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.job === JobType.Priest &&
       workplace?.type === BuildingType.Church &&
       workplace.completed &&
-      goWorkTime;
+      (goWorkTime || onMoonPriestShift);
 
     const isPrisonGuardAtPost =
       entity.job === JobType.PrisonGuard && workplace?.type === BuildingType.Prison && workplace.completed;
