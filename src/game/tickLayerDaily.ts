@@ -1,6 +1,7 @@
 
 /**
- * Daily layer — once per colony day (`tick % TICKS_PER_DAY === 0`).
+ * Daily layer — invoked four times per colony day at 00:00, 06:00, 12:00 and 18:00.
+ * `gameTick.ts` gates invocation with `tick % (TICKS_PER_DAY / 4) === 0`.
  *
  * Grass ecology (growth/spread), static bookkeeping, building production,
  * frontier systems, and daily-gated world events. Trees have no sim tick.
