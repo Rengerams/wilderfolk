@@ -1528,9 +1528,8 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   spendFood(state, 'raid', raidFoodCost);
   const attackerStrength = getMilitiaStrength(state, state.entities);
   const rivalDefense = getRivalDefenseStrength(rival);
-  // A player-initiated raid is an assault, not a request for tribute.
-  // Keep the response field for compatibility with pending raids in older saves.
-  const rivalResponse: OutgoingRaidRivalResponse = 'fight';
+  // The rival may offer tribute, but the player always gets to reject it and attack.
+  const rivalResponse = rollRivalOutgoingRaidResponse(attackerStrength, rivalDefense, rival);
   const payoffLoot = rollRivalPayoffOffer(rival, attackerStrength, rivalDefense);
   const marchDistancePx = getCampDistancePixels(state, state.buildings, rival);
   const marchDistanceTiles = getCampDistanceTiles(marchDistancePx);
@@ -1542,8 +1541,12 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     rivalId: rival.id,
     rivalName: rival.name,
     emoji: '🏹',
-    title: `${rival.name} rallies their war-band`,
-    description: `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} prepares to fight.`,
+    title: rivalResponse === 'payoff_offer'
+      ? `${rival.name} offers tribute`
+      : `${rival.name} rallies their war-band`,
+    description: rivalResponse === 'payoff_offer'
+      ? `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} offers tribute to avoid the attack. Accept or attack anyway.`
+      : `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} refuses to negotiate and prepares to fight.`,
     choices: outgoingRaidChoices(rivalResponse, payoffLoot, rival.name, verb),
     createdAtTick: state.tick,
     expiresAtTick: state.tick + responseDays * TICKS_PER_DAY,
