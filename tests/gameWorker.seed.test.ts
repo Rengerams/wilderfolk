@@ -67,7 +67,7 @@ describe('sim worker realm adopts the world seed', () => {
   });
 
   it('re-seeds on importSave, so a swapped world cannot keep the old streams', async () => {
-    const { shim } = await workerWithSelfShim();
+    const { shim, posted } = await workerWithSelfShim();
 
     const first = initGame({ size: MapSize.Medium, seed: 111 });
     shim.onmessage!({
@@ -78,9 +78,10 @@ describe('sim worker realm adopts the world seed', () => {
 
     const second = initGame({ size: MapSize.Medium, seed: 222 });
     shim.onmessage!({
-      data: { type: 'importSave', proto: WORKER_PROTO, world: second },
+      data: { type: 'importSave', proto: WORKER_PROTO, world: second, uploadId: 42 },
     });
 
+    expect(posted.at(-1)).toMatchObject({ type: 'worldUploaded', proto: WORKER_PROTO, uploadId: 42 });
     expect(getSimSeed()).toBe(222);
     expect(getSimRng('entityFactory')()).toBe(createSeededRng(222, 'entityFactory')());
   });
