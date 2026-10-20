@@ -1,4 +1,5 @@
 import { formatCitizenName } from './citizenId';
+import { isPlayerHuman } from './playerHuman';
 import { BuildingType } from './buildings';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
@@ -86,7 +87,7 @@ export function logDeath(
   // Keep the actual entity identity, so only real relatives mourn that grave.
   const deceased = state.entities.find((entity) =>
     !entity.alive && formatCitizenName(entity) === entityName
-    && !entity.faction
+    && isPlayerHuman(entity)
   );
   graves.push({ name: entityName, faction: 'player', tick: state.tick, graveyardId: yard.id, deceasedId: deceased?.id });
 }
