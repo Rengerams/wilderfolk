@@ -1315,7 +1315,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
 function resolveOutgoingRaidCombat(
   state: WorldState,
   rival: RivalSettlement,
-  event: Pick<OutgoingRaidEvent, 'isCounterRaid' | 'attackerStrength' | 'defenderStrength' | 'rivalId'>,
+  event: Pick<OutgoingRaidEvent, 'id' | 'isCounterRaid' | 'attackerStrength' | 'defenderStrength' | 'rivalId'>,
 ): void {
   const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
@@ -1344,9 +1344,25 @@ function resolveOutgoingRaidCombat(
     );
     addReputation(state, -5);
     const defendersBefore = rival.population;
+    const livingEnemyBefore = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
     const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    // Record a distinct, persistent post-victory decision. Battle deaths are already
+    // applied exactly once; reopening the dialog must never run combat again.
+    if (!(state.pendingRaidVictories ?? []).some((pending) => pending.raidId === event.id)) {
+      state.pendingRaidVictories = [...(state.pendingRaidVictories ?? []), {
+        raidId: event.id,
+        rivalId: rival.id,
+        rivalName: rival.name,
+        playerDead: playerDeaths,
+        enemyDead: enemyDeaths,
+        enemySurvivors: rival.population,
+        playerCasualties: warBand.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
+        enemyCasualties: livingEnemyBefore.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
+      }];
+    }
+    addBigNews(state, '⚖️ Rival settlement surrendered', `Decide whether to spare, demand terms from, or raze ${rival.name}. ${rival.population} people remain.`, 'positive');
     const victoryTitle = '🏆 War-band returns victorious';
     const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${rival.population} rival inhabitants remain. ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
     addBigNews(state, victoryTitle, victoryMessage, 'positive');
@@ -1569,5 +1585,45 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     'dispatched',
   );
   rival.daysUntilAction = 30;
+  return state;
+}
+
+/** Apply the settlement fate once; war casualties and initial loot are never replayed. */
+export function resolveRaidVictory(originalState: WorldState, raidId: string, choice: string): WorldState {
+  if (!['mercy', 'tribute', 'raze'].includes(choice)) return originalState;
+  const pending = originalState.pendingRaidVictories?.find((entry) => entry.raidId === raidId);
+  if (!pending) return originalState;
+  const state = structuredClone(originalState);
+  const rival = state.rivalSettlements.find((entry) => entry.id === pending.rivalId);
+  state.pendingRaidVictories = (state.pendingRaidVictories ?? []).filter((entry) => entry.raidId !== raidId);
+  if (!rival) return state;
+  if (choice === 'mercy') {
+    rival.relationship = 'neutral';
+    rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 30);
+    rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 30);
+    addReputation(state, 12);
+    logEvent(state, 'combat', `Spared ${rival.name} after victory — ${rival.population} survivors, 30-day truce, +12 reputation`, rival.name, 'outgoing_raid', 'resolved');
+  } else if (choice === 'tribute') {
+    // A one-off settlement of terms, not an invented recurring tribute agreement.
+    const offer = rollRivalPayoffOffer(rival, Math.max(1, pending.enemyDead + pending.enemySurvivors), Math.max(1, pending.enemySurvivors));
+    const gained = grantRaidSpoils(state, offer);
+    rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
+    rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 21);
+    addReputation(state, -3);
+    logEvent(state, 'combat', `Terms imposed on ${rival.name} — one-time tribute ${formatLootParts(gained)}; 21-day truce`, rival.name, 'outgoing_raid', 'resolved');
+  } else {
+    const structureIds = new Set(rival.buildingIds);
+    const personIds = new Set(rival.entityIds);
+    for (const person of state.entities) {
+      if (personIds.has(person.id)) person.alive = false;
+    }
+    state.buildings = state.buildings.filter((building) => !structureIds.has(building.id));
+    state.pendingRaidEvents = (state.pendingRaidEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
+    state.pendingOutgoingRaidEvents = (state.pendingOutgoingRaidEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
+    state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
+    state.rivalSettlements = state.rivalSettlements.filter((entry) => entry.id !== rival.id);
+    addReputation(state, -30);
+    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants lost their settlement; -30 reputation`, rival.name, 'outgoing_raid', 'resolved');
+  }
   return state;
 }
