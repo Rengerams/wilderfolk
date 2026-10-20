@@ -268,7 +268,7 @@ describe('Town Hall daily pulse tax base (L9/L10)', () => {
 
 describe('Hunting Spot research multiplier (L29)', () => {
   function huntWorld(day: number, withStoneSpears: boolean): WorldState {
-    const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100 });
+    const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8 });
     const prey = deer(2);
     const state = baseState();
     state.tick = tickAtDailyPhase(day, 'production') - 1;
