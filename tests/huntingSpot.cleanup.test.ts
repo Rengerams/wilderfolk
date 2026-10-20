@@ -70,6 +70,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     generation: 0,
     isJuvenile: false,
     job: JobType.Hunter,
+    scheduleLastWorkedHours: 8,
     ...overrides,
   } as Entity;
 }
@@ -134,7 +135,7 @@ function makeState(): WorldState {
   const prey = deer(2);
   return {
     // gameTick increments first: 71 -> 72 is the shared systems/assign/daily boundary.
-    tick: 71,
+    tick: 107,
     paused: false,
     speed: 1,
     width: 400,
@@ -215,7 +216,7 @@ describe('Hunting Spot wildlife cleanup', () => {
         expect.anything(),
         expect.objectContaining({ id: 2, type: EntityType.Deer }),
         undefined,
-        TICKS_PER_DAY,
+        TICKS_PER_DAY + TICKS_PER_DAY / 2,
         // The world, so a Wildkin's death can be chronicled from the one transition every wildlife
         // death passes through (wildkinChronicle.logWildkinDeath).
         state,
