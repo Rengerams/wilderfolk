@@ -23,6 +23,36 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   return household;
 }
 
+/** The leader's household through grandchildren, including their spouses.
+ * This is a two-generation descendant entitlement, not an unbounded genealogy search.
+ */
+export function collectLeaderExtendedHousehold(leader: Entity, humans: Entity[]): Entity[] {
+  const byId = new Map(humans.map((human) => [human.id, human]));
+  const family: Entity[] = [];
+  const included = new Set<number>();
+  const add = (id: number | undefined): Entity | undefined => {
+    const human = id == null ? undefined : byId.get(id);
+    if (!human?.alive) return undefined;
+    if (!included.has(human.id)) {
+      included.add(human.id);
+      family.push(human);
+    }
+    return human;
+  };
+
+  const spouse = add(leader.partnerId);
+  add(leader.id);
+  const children = new Set([...(leader.childrenIds ?? []), ...(spouse?.childrenIds ?? [])]);
+  for (const childId of children) {
+    const child = add(childId);
+    if (!child) continue;
+    const childSpouse = add(child.partnerId);
+    const grandchildren = new Set([...(child.childrenIds ?? []), ...(childSpouse?.childrenIds ?? [])]);
+    for (const grandchildId of grandchildren) add(grandchildId);
+  }
+  return family;
+}
+
 /**
  * One adult-led home with only its *dependent* children.
  *
