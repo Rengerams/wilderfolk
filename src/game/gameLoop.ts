@@ -344,9 +344,9 @@ export class GameLoop {
       this.lastWorkerActivity = performance.now();
       this.lastWorkerPerformanceSnapshot = host.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot;
 
-      if (this.lastWorkerTickRequest > 0) {
-        const measured = performance.now() - this.lastWorkerTickRequest;
-        this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + measured * 0.3;
+      const completedTickLatency = host.getLastCompletedTickLatencyMs();
+      if (completedTickLatency != null) {
+        this.workerTickLatencyMs = this.workerTickLatencyMs * 0.7 + completedTickLatency * 0.3;
       }
 
       this.observeDailyBoundary(nextWorld.tick);
