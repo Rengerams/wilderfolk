@@ -51,7 +51,6 @@ import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEnti
 import * as residencySelection from '../src/game/residencySelection';
 import { auditHousingSharingIssues } from '../src/game/residencySelection';
 import { classifyJunction, connectionsAt } from '../src/game/stripJunction';
-import { tickLayerRealtime } from '../src/game/tickLayerRealtime';
 import { buildEntityByType } from '../src/game/simFocus';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { initGame } from '../src/game/gameEngine';
