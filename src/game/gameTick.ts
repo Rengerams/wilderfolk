@@ -286,12 +286,25 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // Built once and kept in step with every push, so membership matches the
   // per-entity scan while the tick's daily deltas are already in `allAlive`.
   if (newEntities.length > 0) {
-    const retained = new Set(allAlive);
+    const retained = new Set(allAlive.map((entity) => entity.id));
     for (const entity of newEntities) {
-      if (entity.alive && !retained.has(entity)) {
-        retained.add(entity);
+      if (entity.alive && !retained.has(entity.id)) {
+        retained.add(entity.id);
         allAlive.push(entity);
       }
+    }
+  }
+  // The daily layer may kill wildlife or settlers after the pre-daily snapshot.
+  // Remove them before publishing the authoritative collection or counting
+  // population; an alive-only snapshot made earlier in the tick is insufficient.
+  // Also prevent any duplicate entity ids from a daily spawn from surviving.
+  const seenFinalIds = new Set<number>();
+  for (let i = allAlive.length - 1; i >= 0; i--) {
+    const entity = allAlive[i];
+    if (!entity.alive || seenFinalIds.has(entity.id)) {
+      allAlive.splice(i, 1);
+    } else {
+      seenFinalIds.add(entity.id);
     }
   }
   const finalCounts = computePopulationCounts(allAlive);
