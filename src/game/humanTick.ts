@@ -659,8 +659,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Asleep at home or in a hotel bed: keep the mouth shut, so no speech bubble sits over somebody
     // in bed. A scripted dialogue session is left alone — the dialogue tree owns it.
     const asleepAtHome =
-      isAsleepAtHome(entity, buildingById, hourOfDay)
-      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay);
+      isAsleepAtHome(entity, buildingById, hourOfDay, onJobShift || onOfficialShift || onPriestShift)
+      || (!onJobShift && !onOfficialShift && !onPriestShift && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay));
     tickHumanChat(entity, resolveChatPartner);
     if (asleepAtHome) endAmbientHumanChat(entity);
 
