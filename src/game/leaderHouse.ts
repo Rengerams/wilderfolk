@@ -8,7 +8,7 @@ import {
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { collectMinorHousehold } from './householdComposition';
-import { assignMissingResidences } from './dayCycle';
+import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
 
@@ -132,6 +132,8 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   // The periodic assignment layer remains responsible for all other housing.
   if (displaced.length > 0) {
     assignMissingResidences(displaced, state.buildings, state.entities, state.tick);
+  } else {
+    syncResidenceOccupants(state.entities, state.buildings);
   }
 
   //Chronicle events

@@ -1032,15 +1032,13 @@ export default function SelectedBuildingPanel({
                 ))}
               </div>
             </div>
-            {!isManualStaffing && (
             <button
               type="button"
               onClick={onAutoStaffAll}
               className="col-span-2 rounded border border-sky-600/50 bg-sky-900/40 px-2 py-1 text-[11px] font-semibold text-sky-200 hover:bg-sky-800/50"
             >
-              Auto-staff all job buildings
+              Enable Auto-fill for all workplaces
             </button>
-            )}
             </>
           )}
           {!canAssignWorker && staffedWorkers < staffingCap && (

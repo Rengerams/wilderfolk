@@ -1,3 +1,4 @@
+import { building, human } from '../src/test/factories';
 /**
  * Regression: the Auto-staff button worked silently — it assigned workers but
  * gave no confirmation, so it looked broken. It confirms real assignments,
@@ -63,5 +64,31 @@ describe('autoStaffAllWorkers feedback', () => {
     const newNotifs = staffed.notifications.slice(beforeNotifs);
     const note = newNotifs.find((n) => n.title.includes('Auto-staff'));
     expect(note).toBeUndefined();
+  });
+});
+
+describe('colony-wide Auto-fill override', () => {
+  it('enables manual workplaces and assigns idle adults without changing the input or rivals', () => {
+    const world = initGame();
+    world.entities = [human(1)];
+    world.buildings = [
+      building(2, BuildingType.Farm, { staffingMode: 'manual' }),
+      building(3, BuildingType.School, { staffingMode: 'manual' }),
+      building(4, BuildingType.Farm, { staffingMode: 'manual', faction: 'rival' }),
+    ];
+    const next = autoStaffAllWorkers(world);
+    expect(next.buildings.map((site) => site.staffingMode)).toEqual(['auto', 'auto', 'manual']);
+    expect(next.entities[0].homeBuildingId).toBeDefined();
+    expect(world.buildings[0].staffingMode).toBe('manual');
+    expect(world.entities[0].homeBuildingId).toBeUndefined();
+  });
+
+  it('confirms Auto-fill is enabled even when there are no idle adults', () => {
+    const world = initGame();
+    world.entities = [];
+    world.buildings = [building(2, BuildingType.School, { staffingMode: 'manual' })];
+    const next = autoStaffAllWorkers(world);
+    expect(next.buildings[0].staffingMode).toBe('auto');
+    expect(next.notifications.at(-1)?.message).toContain('No additional idle adults');
   });
 });

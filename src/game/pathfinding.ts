@@ -245,6 +245,34 @@ export function resetPathGridCaches(): void {
   gridCacheSeed = '';
   readOnlyGridCache = null;
   readOnlyGridCacheSeed = '';
+  searchWorkspace = undefined;
+}
+
+interface PathSearchWorkspace {
+  scores: Float64Array;
+  parents: Int32Array;
+  stamps: Uint32Array;
+  generation: number;
+}
+
+let searchWorkspace: PathSearchWorkspace | undefined;
+
+/** Searches are synchronous; one bounded workspace serves the active grid in each realm. */
+function beginPathSearch(cellCount: number): PathSearchWorkspace {
+  if (!searchWorkspace || searchWorkspace.scores.length !== cellCount) {
+    searchWorkspace = {
+      scores: new Float64Array(cellCount),
+      parents: new Int32Array(cellCount),
+      stamps: new Uint32Array(cellCount),
+      generation: 0,
+    };
+  }
+  searchWorkspace.generation = (searchWorkspace.generation + 1) >>> 0;
+  if (searchWorkspace.generation === 0) {
+    searchWorkspace.stamps.fill(0);
+    searchWorkspace.generation = 1;
+  }
+  return searchWorkspace;
 }
 
 const DIRS = [
@@ -397,8 +425,7 @@ export function findPath(
   const start = actualSy * cols + actualSx;
   const goal = actualTy * cols + actualTx;
 
-  const gScore = new Map<number, number>();
-  const came = new Map<number, number>();
+  const { scores, parents, stamps, generation } = beginPathSearch(cols * rows);
 
   // Octile distance heuristic for 8-direction grids
   const h = (x: number, y: number) => {
@@ -408,7 +435,8 @@ export function findPath(
   };
 
   const open = new OpenSetMinHeap();
-  gScore.set(start, 0);
+  scores[start] = 0;
+  stamps[start] = generation;
   open.push({ node: start, g: 0, priority: h(actualSx, actualSy) });
   let nodes = 0;
   let hitNodeCap = false;
@@ -417,7 +445,7 @@ export function findPath(
     const entry = open.pop();
     if (!entry) break;
     const cur = entry.node;
-    if (entry.g !== (gScore.get(cur) ?? Infinity)) continue;
+    if (entry.g !== scores[cur]) continue;
     if (nodes++ >= maxNodes) {
       hitNodeCap = true;
       break;
@@ -428,7 +456,7 @@ export function findPath(
       let c = cur;
       while (c !== start && c >= 0) {
         path.push({ x: c % cols, y: (c / cols) | 0 });
-        c = came.get(c) ?? -1;
+        c = parents[c];
       }
       path.push({ x: actualSx, y: actualSy });
       path.reverse();
@@ -472,10 +500,11 @@ export function findPath(
         step += delta > 0 ? delta * SLOPE_UP_COST : -delta * SLOPE_DOWN_COST;
       }
 
-      const ng = (gScore.get(cur) ?? Infinity) + step;
-      if (ng < (gScore.get(nIdx) ?? Infinity)) {
-        gScore.set(nIdx, ng);
-        came.set(nIdx, cur);
+      const ng = scores[cur] + step;
+      if (ng < (stamps[nIdx] === generation ? scores[nIdx] : Infinity)) {
+        scores[nIdx] = ng;
+        parents[nIdx] = cur;
+        stamps[nIdx] = generation;
         open.push({ node: nIdx, g: ng, priority: ng + h(nx, ny) });
       }
     }
@@ -554,7 +583,13 @@ function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: n
   return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
 }
 
+const PATH_CACHE_LIMIT = 4096;
+
 interface CachedPath {
+  targetX: number;
+  targetY: number;
+  startTileX: number;
+  startTileY: number;
   waypoints: { x: number; y: number }[] | null;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
@@ -638,6 +673,11 @@ export function steerWithPath(
 
   if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
     let cached = pathCache.get(cacheKey);
+    if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
+      || (cached.waypoints === null && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
+        || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
+      cached = undefined;
+    }
     // Reuse the route while the settler is still walking it; advance past reached waypoints and
     // recompute only when the settler has left the current segment (interrupted elsewhere).
     if (cached !== undefined && cached.waypoints !== null && cached.waypoints.length > 1) {
@@ -674,13 +714,19 @@ export function steerWithPath(
       if (waypoints && startIsBlocked) {
         waypoints = [{ x: entity.x, y: entity.y }, ...waypoints];
       }
-      cached = { waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0 };
-      if (pathCache.size > 200) {
+      cached = {
+        waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
+        targetX, targetY, startTileX: startTx, startTileY: startTy,
+      };
+      pathCache.delete(cacheKey);
+      if (pathCache.size >= PATH_CACHE_LIMIT) {
         const oldestKey = pathCache.keys().next().value;
         if (oldestKey !== undefined) pathCache.delete(oldestKey);
       }
       pathCache.set(cacheKey, cached);
     } else {
+      pathCache.delete(cacheKey);
+      pathCache.set(cacheKey, cached);
       recordPathCacheHit();
     }
 

@@ -47,6 +47,11 @@ function catchUpBudgetFor(speed: number): number {
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
+/** Only bounded edits may replay on the UI thread while the worker is authoritative. */
+function canPreviewWorkerCommand(cmd: WorkerCommand): boolean {
+  return cmd.op === 'setVenueSchedule' || (cmd.op === 'assignWorker' && cmd.humanId != null);
+}
+
 function pageHidden(): boolean {
   return typeof document !== 'undefined' && document.hidden;
 }
@@ -158,6 +163,7 @@ export class GameLoop {
   private notifyDepth = 0;
   private lastPausedSentToWorker: boolean | null = null;
   private commandChain: Promise<void> = Promise.resolve();
+  private workerCommandEpoch = 0;
   private optimisticCommands: WorkerCommand[] = [];
   private deferredWorkerCommands: Array<{ cmd: WorkerCommand; sessionGen: number }> = [];
   private canvasCtx: CanvasRenderingContext2D | null = null;
@@ -217,8 +223,8 @@ export class GameLoop {
           this.renderSoA = null;
           this.renderMetaBySlot = null;
           this.scentReader = null;
-          this.flushDeferredWorkerCommands();
           this.scheduleWorkerRecovery();
+          this.flushDeferredWorkerCommands();
         });
     }
   }
@@ -413,9 +419,13 @@ export class GameLoop {
 
   private fallbackFromWorker(reason: string): void {
     if (!this.workerEnabled && !this.workerBooting) return;
-    console.warn(`[GameLoop] ${reason} — falling back to main-thread ticks`);
+    console.warn(`[GameLoop] ${reason} — ${isGameWorkerEnabled() ? 'recovering simulation worker' : 'falling back to main-thread ticks'}`);
 
+    const retryCommands = isGameWorkerEnabled() ? this.optimisticCommands : [];
+    this.workerCommandEpoch++;
+    this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
+    this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
     this.pruneStaleSelection();
@@ -428,8 +438,8 @@ export class GameLoop {
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
-    this.flushDeferredWorkerCommands();
     this.scheduleWorkerRecovery();
+    this.flushDeferredWorkerCommands();
   }
 
   async setPerformanceProfiling(enabled: boolean): Promise<void> {
@@ -601,12 +611,13 @@ export class GameLoop {
     const authoritative = this.workerHost?.getAuthoritativeWorld();
     if (!authoritative) return;
 
-    let display = createOptimisticDisplayWorld(authoritative);
+    const previews = this.optimisticCommands.filter(canPreviewWorkerCommand);
+    let display = previews.length > 0 ? createOptimisticDisplayWorld(authoritative) : authoritative;
     carryPresentationControls(display, this.world);
 
-    for (let i = 0; i < this.optimisticCommands.length; i++) {
+    for (const command of previews) {
       try {
-        display = applyWorkerCommand(display, this.optimisticCommands[i]);
+        display = applyWorkerCommand(display, command);
       } catch (err) {
         console.warn('[GameLoop] Optimistic command display failed; awaiting worker result', err);
         break;
@@ -617,7 +628,7 @@ export class GameLoop {
   }
 
   applyCommand(cmd: WorkerCommand): void {
-    if (this.workerBooting && this.workerHost) {
+    if ((this.workerBooting && this.workerHost) || this.workerRecoveryTimer !== null || this.workerRecoveryInFlight) {
       this.deferredWorkerCommands.push({ cmd, sessionGen: this.sessionGen });
       return;
     }
@@ -630,17 +641,18 @@ export class GameLoop {
       this.notify(true, false, true);
 
       const cmdGen = this.sessionGen;
+      const commandEpoch = this.workerCommandEpoch;
       this.commandChain = this.commandChain
         .then(() => {
           const host = this.workerHost;
-          if (cmdGen !== this.sessionGen || !this.running || !host?.isReady()) return;
+          if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || !host?.isReady()) return;
           return host.whenIdle().then(() => {
-            if (cmdGen !== this.sessionGen || !this.running || this.workerHost !== host || !host.isReady()) return;
+            if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running || this.workerHost !== host || !host.isReady()) return;
             return host.sendCommand(cmd).then(() => undefined);
           });
         })
         .catch((err) => {
-          if (cmdGen !== this.sessionGen || !this.running) return;
+          if (cmdGen !== this.sessionGen || commandEpoch !== this.workerCommandEpoch || !this.running) return;
           const index = this.optimisticCommands.indexOf(cmd);
           if (index >= 0) {
             this.optimisticCommands.splice(index, 1);
@@ -961,6 +973,7 @@ export class GameLoop {
           while (
             this.tickAccumulator >= msPerTick &&
             steps < catchUpBudget
+            && this.optimisticCommands.length === 0
             && this.workerHost.canPipelineTick()
           ) {
             if (this.workerHost.requestTick(focus)) {
@@ -979,9 +992,8 @@ export class GameLoop {
         }
       }
 
-      if (!this.workerEnabled && !this.workerBooting) {
-        // Main-thread simulation is an emergency fallback; never execute a burst
-        // of expensive ticks inside a single animation frame.
+      if (!this.workerEnabled && !this.workerBooting && this.workerRecoveryTimer === null && !this.workerRecoveryInFlight) {
+        // Worker recovery holds the simulation; unsupported runtimes retain bounded local ticks.
         while (this.tickAccumulator >= msPerTick && steps < 1) {
           const advanced = this.stepFallbackTick(focus);
           this.tickAccumulator -= msPerTick;

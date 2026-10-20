@@ -173,41 +173,52 @@ export function canAutoChangeWorkplace(human: Entity, currentTick?: number): boo
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
 }
 
-export function findOverstaffedDonorBuilding(
-  jobBuildings: Building[],
-  humans: Entity[],
-  excludeBuildingId: number,
-  currentTick?: number,
-): Building | undefined {
-  // UI previews call this while paused and can evaluate many buildings in one
-  // React render. Count all active assignments and eligible transfer candidates
-  // in one settler pass instead of scanning the entire population per building.
+interface WorkforceAssignmentIndex {
+  counts: Map<number, number>;
+  movable: Map<number, number>;
+}
+
+function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): WorkforceAssignmentIndex {
   const counts = new Map<number, number>();
-  const movable = new Set<number>();
+  const movable = new Map<number, number>();
   for (const human of humans) {
     if (!human.alive || !isPlayerHuman(human)) continue;
     const id = human.homeBuildingId;
     if (id == null) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
     if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick)) {
-      movable.add(id);
+      movable.set(id, (movable.get(id) ?? 0) + 1);
     }
   }
+  return { counts, movable };
+}
 
-  // Keep the previous behaviour: least-staffed eligible donor wins, and
-  // equal counts preserve the original building order (stable sort).
+function pickOverstaffedDonor(
+  jobBuildings: Building[],
+  index: WorkforceAssignmentIndex,
+  excludeBuildingId: number,
+): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
     if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
-    const count = counts.get(building.id) ?? 0;
-    if (count < 2 || !movable.has(building.id)) continue;
+    const count = index.counts.get(building.id) ?? 0;
+    if (count < 2 || (index.movable.get(building.id) ?? 0) === 0) continue;
     if (count < smallestCount) {
       best = building;
       smallestCount = count;
     }
   }
   return best;
+}
+
+export function findOverstaffedDonorBuilding(
+  jobBuildings: Building[],
+  humans: Entity[],
+  excludeBuildingId: number,
+  currentTick?: number,
+): Building | undefined {
+  return pickOverstaffedDonor(jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick), excludeBuildingId);
 }
 
 export function pickWorkerToTransfer(
@@ -342,6 +353,7 @@ export function rebalanceJobWorkers(
   currentTick?: number,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
+  const index = buildWorkforceAssignmentIndex(humans, currentTick);
   let changed = true;
   let passes = 0;
   const maxPasses = jobBuildings.length * 2;
@@ -353,7 +365,7 @@ export function rebalanceJobWorkers(
       const needy = jobBuildings[i];
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
-      const staffed = countWorkersAtBuilding(humans, needy.id);
+      const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans).cap;
       if (staffed >= capacity) continue;
       // The normal auto pass has already consumed all eligible idle settlers.
@@ -363,13 +375,19 @@ export function rebalanceJobWorkers(
       const defenseVacancy = needy.type === BuildingType.Barracks || needy.type === BuildingType.Prison;
       if (staffed > 0 && !defenseVacancy) continue;
 
-      const donor = findOverstaffedDonorBuilding(jobBuildings, humans, needy.id, currentTick);
+      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id);
       if (!donor) continue;
 
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);
       if (!worker) continue;
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
+      index.counts.set(donor.id, (index.counts.get(donor.id) ?? 0) - 1);
+      index.counts.set(needy.id, staffed + 1);
+      index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
+      if (canAutoChangeWorkplace(worker, currentTick)) {
+        index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
+      }
       changed = true;
     }
   }

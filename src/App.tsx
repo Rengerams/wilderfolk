@@ -74,7 +74,9 @@ import VisitorCampPanel from './components/VisitorCampPanel';
 import SelectedEntityPanel from './components/SelectedEntityPanel';
 import FamilyTreeWindow from './components/FamilyTreeWindow';
 import WorkHoursWindow from './components/WorkHoursWindow';
-import SimulationDiagnosticsPanel from './components/SimulationDiagnosticsPanel';
+const SimulationDiagnosticsPanel = import.meta.env.DEV
+  ? lazy(() => import('./components/SimulationDiagnosticsPanel'))
+  : null;
 import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relationshipDiagnostics';
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
@@ -1865,7 +1867,11 @@ export default function App() {
           selectedLabel={selectedVisitorCamp?.name ?? selectedBuilding?.type ?? selectedEntity?.name ?? 'Selected'}
           onClear={clearSelection}
           onToggleCollapsed={() => setInspectorCollapsed((v) => !v)}
-          diagnostics={debugMode ? <SimulationDiagnosticsPanel loopRef={loopRef} debugMode={debugMode} /> : undefined}
+          diagnostics={debugMode && SimulationDiagnosticsPanel ? (
+            <Suspense fallback={null}>
+              <SimulationDiagnosticsPanel loopRef={loopRef} debugMode={debugMode} />
+            </Suspense>
+          ) : undefined}
         >
 
             {selectedVisitorCamp ? (

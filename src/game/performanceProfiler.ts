@@ -6,6 +6,10 @@ export interface PerformanceSection {
   averageMs: number;
   maxMs: number;
   peakTick: number;
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+  overBudgetCalls: number;
 }
 
 export interface PerformanceSnapshot {
@@ -19,11 +23,17 @@ export interface PerformanceSnapshot {
   sections: PerformanceSection[];
 }
 
+export const PERFORMANCE_SAMPLE_LIMIT = 512;
+export const SIMULATION_TICK_BUDGET_MS = 1000;
+
 interface MutableSection {
   calls: number;
   totalMs: number;
   maxMs: number;
   peakTick: number;
+  samples: Float64Array;
+  sampleCount: number;
+  overBudgetCalls: number;
 }
 
 let enabled = false;
@@ -60,13 +70,19 @@ export function profileStart(): number {
 
 /** The label is a static call-site name; stages can contain other stages. */
 export function profileEnd(name: string, start: number): void {
-  if (start < 0) return;
+  if (!enabled || start < 0) return;
   const elapsed = Math.max(0, performance.now() - start);
   let row = sections.get(name);
   if (!row) {
-    row = { calls: 0, totalMs: 0, maxMs: 0, peakTick: 0 };
+    row = {
+      calls: 0, totalMs: 0, maxMs: 0, peakTick: 0,
+      samples: new Float64Array(PERFORMANCE_SAMPLE_LIMIT), sampleCount: 0, overBudgetCalls: 0,
+    };
     sections.set(name, row);
   }
+  row.samples[row.calls % PERFORMANCE_SAMPLE_LIMIT] = elapsed;
+  row.sampleCount = Math.min(PERFORMANCE_SAMPLE_LIMIT, row.sampleCount + 1);
+  if (elapsed > SIMULATION_TICK_BUDGET_MS) row.overBudgetCalls++;
   row.calls++;
   row.totalMs += elapsed;
   if (elapsed > row.maxMs) {
@@ -100,14 +116,22 @@ export function getPerformanceSnapshot(): PerformanceSnapshot {
     lastTick,
     population,
     weather,
-    sections: [...sections].map(([name, s]) => ({
-      name,
-      calls: s.calls,
-      totalMs: s.totalMs,
-      averageMs: s.totalMs / s.calls,
-      maxMs: s.maxMs,
-      peakTick: s.peakTick,
-    })).sort((a, b) => b.totalMs - a.totalMs),
+    sections: [...sections].map(([name, s]) => {
+      const sorted = s.samples.slice(0, s.sampleCount).sort();
+      const percentile = (fraction: number): number => sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+      return {
+        name,
+        calls: s.calls,
+        totalMs: s.totalMs,
+        averageMs: s.totalMs / s.calls,
+        maxMs: s.maxMs,
+        peakTick: s.peakTick,
+        p50Ms: percentile(0.5),
+        p95Ms: percentile(0.95),
+        p99Ms: percentile(0.99),
+        overBudgetCalls: s.overBudgetCalls,
+      };
+    }).sort((a, b) => b.totalMs - a.totalMs),
   };
 }
 

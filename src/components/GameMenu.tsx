@@ -1,6 +1,10 @@
 import type { RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
-import PerformanceProfilerPanel from './PerformanceProfilerPanel';
+import { lazy, Suspense } from 'react';
+
+const PerformanceProfilerPanel = import.meta.env.DEV
+  ? lazy(() => import('./PerformanceProfilerPanel'))
+  : null;
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { weatherVisualEnabled, setWeatherVisualEnabled } from '../game/weatherVisualPreferences';
@@ -420,8 +424,10 @@ export default function GameMenu({
             </>
           )}
 
-          {view === 'profiler' && import.meta.env.DEV && (
-            <PerformanceProfilerPanel loopRef={profilerLoopRef} />
+          {view === 'profiler' && PerformanceProfilerPanel && (
+            <Suspense fallback={null}>
+              <PerformanceProfilerPanel loopRef={profilerLoopRef} />
+            </Suspense>
           )}
 
           {view === 'settings' && (

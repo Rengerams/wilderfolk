@@ -33,23 +33,22 @@ describe('workplace staffing choice', () => {
     expect(createBuilding(BuildingType.House, 20, 20, 2).staffingMode).toBeUndefined();
   });
 
-  it('respects manual vacancies and produces no repetitive auto-staff warning', () => {
+  it('explicit colony-wide auto-staff enables manual workplaces and assigns workers', () => {
     const world = makeWorld();
     const next = autoStaffAllWorkers(world);
-    expect(next.buildings[0].occupants).toEqual([]);
-    expect(next.buildings[0].staffingMode).toBe('manual');
-    expect(next.entities[0].homeBuildingId).toBeUndefined();
-    expect(next.notifications).toEqual([]);
+    expect(next.buildings[0].occupants).toEqual([1]);
+    expect(next.buildings[0].staffingMode).toBe('auto');
+    expect(next.entities[0].homeBuildingId).toBe(7);
+    expect(next.notifications.at(-1)?.title).toContain('Auto-staff');
     expect(world.buildings[0].staffingMode).toBe('manual');
   });
 
-  it('leaves manual opt-out until the player explicitly returns to auto', () => {
+  it('allows individual manual opt-out after enabling colony-wide auto', () => {
     const world = makeWorld();
-    const stillManual = autoStaffAllWorkers(world);
-    expect(stillManual.buildings[0].staffingMode).toBe('manual');
-    const switched = setBuildingStaffingMode(stillManual, 7, 'auto');
-    expect(switched.buildings[0].staffingMode).toBe('auto');
-    expect(isManualStaffingBuilding(switched.buildings[0])).toBe(false);
+    const automatic = autoStaffAllWorkers(world);
+    const switched = setBuildingStaffingMode(automatic, 7, 'manual');
+    expect(switched.buildings[0].staffingMode).toBe('manual');
+    expect(isManualStaffingBuilding(switched.buildings[0])).toBe(true);
   });
 });
 

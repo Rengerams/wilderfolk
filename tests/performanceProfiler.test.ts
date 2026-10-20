@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  PERFORMANCE_SAMPLE_LIMIT,
   getPerformanceSnapshot,
   isPerformanceProfilingEnabled,
   profileEnd,
@@ -10,8 +11,39 @@ import {
 } from '../src/game/performanceProfiler';
 
 describe('opt-in performance profiler', () => {
-  beforeEach(() => setPerformanceProfilingEnabled(false));
-  afterEach(() => setPerformanceProfilingEnabled(false));
+  it('reports bounded rolling percentiles and lifetime budget overruns', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(5000);
+    setPerformanceProfilingEnabled(true);
+    for (let i = 0; i < PERFORMANCE_SAMPLE_LIMIT + 1; i++) {
+      profileEnd('sim.totalTick', performance.now() - (i === 0 ? 2000 : 10));
+    }
+    const section = getPerformanceSnapshot().sections[0];
+    expect(section.calls).toBe(PERFORMANCE_SAMPLE_LIMIT + 1);
+    expect(section.overBudgetCalls).toBe(1);
+    expect(section.p50Ms).toBeGreaterThanOrEqual(10);
+    expect(section.p99Ms).toBeLessThan(1000);
+    expect(section.p50Ms).toBeLessThanOrEqual(section.p95Ms);
+    expect(section.p95Ms).toBeLessThanOrEqual(section.p99Ms);
+    expect(section.maxMs).toBeGreaterThanOrEqual(2000);
+  });
+
+  it('ignores a section completed after profiling was stopped', () => {
+    setPerformanceProfilingEnabled(true);
+    const start = profileStart();
+    setPerformanceProfilingEnabled(false);
+    profileEnd('sim.totalTick', start);
+    expect(getPerformanceSnapshot().sections).toEqual([]);
+  });
+
+  beforeEach(() => {
+    setPerformanceProfilingEnabled(false);
+    setPerformanceProfilingEnabled(true);
+    setPerformanceProfilingEnabled(false);
+  });
+  afterEach(() => {
+    setPerformanceProfilingEnabled(false);
+    vi.restoreAllMocks();
+  });
 
   it('adds no section records when disabled', () => {
     const start = profileStart();

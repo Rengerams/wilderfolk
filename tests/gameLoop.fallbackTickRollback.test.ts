@@ -85,6 +85,32 @@ afterEach(() => {
 });
 
 describe('main-thread fallback tick rollback (P-3)', () => {
+  it('holds simulation off the UI thread while worker recovery is scheduled', () => {
+    const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);
+    const internals = loop as unknown as {
+      running: boolean; tickAccumulator: number; workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
+      frameBody: (time: number) => void;
+    };
+    internals.running = true;
+    internals.tickAccumulator = 1000;
+    const timer = setTimeout(() => {}, 60_000);
+    internals.workerRecoveryTimer = timer;
+    vi.mocked(gameTick).mockClear();
+    vi.mocked(gameTick).mockImplementation((world) => { world.tick++; return world; });
+    try {
+      internals.frameBody(1000);
+      expect(vi.mocked(gameTick)).not.toHaveBeenCalled();
+      expect(loop.getWorld().tick).toBe(0);
+      clearTimeout(timer);
+      internals.workerRecoveryTimer = null;
+      internals.frameBody(2000);
+      expect(loop.getWorld().tick).toBe(1);
+    } finally {
+      clearTimeout(timer);
+      internals.workerRecoveryTimer = null;
+    }
+  });
+
   it('restores the pre-tick world and stops retrying when a fallback tick throws', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);

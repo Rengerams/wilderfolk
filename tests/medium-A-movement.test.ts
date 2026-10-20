@@ -186,6 +186,48 @@ describe('M13 hospital treatment cadence', () => {
 });
 
 describe('M22 path cache origin', () => {
+  it('retains routes for hundreds of simultaneous commuters and invalidates topology changes', () => {
+    const map = makeMap(40, 40, 934, (x, y) => y === 20 && x !== 35);
+    setCurrentPathMap(map, []);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const walkers = Array.from({ length: 300 }, (_, id) => human(id, pixel(5, 0), pixel(35, 0)));
+      for (const walker of walkers) {
+        expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, `load_${walker.id}`)).toBe('path');
+      }
+      const searches = getCurrentPathfinderTickCounters().findPathCalls;
+      for (const walker of walkers) {
+        expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, `load_${walker.id}`)).toBe('path');
+      }
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
+      setCurrentPathMap(makeMap(40, 40, 935, (x, y) => y === 20), []);
+      expect(steerWithPath(walkers[0], pixel(20, 0), pixel(10, 0), 5, 'load_0')).toBe('direct');
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches + 1);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('retries a failed route when the same key moves to another origin or destination', () => {
+    setCurrentPathMap(makeMap(40, 40, 936, (x, y) => y === 20), []);
+    const walker = human(1, pixel(5, 0), pixel(35, 0));
+    expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry')).toBe('direct');
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      walker.x += PATH_CELL;
+      steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry');
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(1);
+      steerWithPath(walker, pixel(22, 0), pixel(10, 0), 5, 'retry');
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(2);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+
   it('recomputes a cached path started from a different origin', () => {
     // Horizontal river at tile row 20 with a single gap at column 35.
     setCurrentPathMap(makeMap(40, 40, 922, (x, y) => y === 20 && x !== 35), []);

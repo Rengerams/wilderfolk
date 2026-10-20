@@ -553,12 +553,12 @@ export function housingUnitNeedsReassignment(
   occupancy?: ResidenceOccupancy,
   traits?: ResidenceTraitsById,
 ): boolean {
-  if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
   const homeId = unitResidenceId(unit);
   if (homeId == null) return true;
 
   const home = residences.find((r) => r.id === homeId);
-  if (home && isLeaderHouseResidence(home)) return false;
+  if (home && isLeaderHouseResidence(home) && unit.every((member) => member.residenceBuildingId === homeId)) return false;
+  if (!isFamilyHousingValid(unit, residences, alive, occupancy)) return true;
 
   if (isLoneSettler(unit, alive)) {
     if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;

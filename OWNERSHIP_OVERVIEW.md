@@ -13,7 +13,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
 | Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `applyHumanWalkStep` (the one integration of a walk step) |
-| Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment and the panel) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_SPEED_MULTIPLIER`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
+| Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment and the panel) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_SPEED_MULTIPLIER`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
 | Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS` |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
@@ -74,10 +74,10 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Authored one-time stories (flags, cards, cooldown) | `storyHelpers.ts` (shared contract) + each story owner (`travelingTheatre.ts`, `inventionFair.ts`, `famineDesperation.ts`) | daily / story-card answer | `storyFlag`, `setStoryFlags`, `pushStoryCard`; `maybeOfferTravelingTheatre`, `resolveTravelingTheatre`, `tickTravelingTheatre` |
 | Leadership elections, candidacy merit and incumbent record | `villageLeadership.ts` | daily due-date check, year rollover, ceremony ticks | `tryStartVacancyElectionCeremony`, `tryStartTermElectionCeremony`, `tickElectionCeremony`, `tickLeaderVacancy`, `getLeadershipScoreBreakdown`, `getIncumbentRecordAssessment` |
 | Tutorial / guided campaign | `guidedCampaign.ts` + `tutorialCampaign.ts` | daily | `tickGuidedCampaign`, `recordGuidedCampaignChoice`, `currentCampaignStep` |
-| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment`, `isWalkStepAllowed` (the grid's verdict on one walk step) |
+| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `beginPathSearch`, `resetPathGridCaches`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment`, `isWalkStepAllowed` (the grid's verdict on one walk step) |
 | Sprite preload and lookup (presentation) | `spriteLoader.ts` | boot / render | `preloadAllSprites`, `loadSprite`, `getSprite`, `isSpriteLoaded` |
 | Terrain decor stamps (presentation) | `terrainLayer.ts` | render / bake | `stampPropSprite`, `stampMountainPeaks`, `mountainSpritesReady` |
-| Staffing eligibility and assignment | `buildingStaffingActions.ts` (eligibility rules in `residencyOccupancy.ts`) | player-command + assignment | `canAssignWorkerToBuilding`, `assignStaffWorkerToBuilding`, `removeStaffWorkerFromBuilding`, `hasWorkAssignment`, `isImprisoned` |
+| Staffing eligibility and assignment | `buildingStaffingActions.ts` (eligibility rules in `residencyOccupancy.ts`) | player-command + assignment | `autoStaffAllWorkers` (enable Auto-fill colony-wide and staff), `canAssignWorkerToBuilding`, `assignStaffWorkerToBuilding`, `removeStaffWorkerFromBuilding`, `hasWorkAssignment`, `isImprisoned` |
 | Storage caps and food spoilage | `economy.ts` (one derivation: `computeStorageMax`, over the `BASE_*_STORAGE` / `WAREHOUSE_IRON_STORAGE` constants), wired daily by `dailyBuildingEconomy.ts`; world gen and the save-load fallback call the same function | daily (first step of `tickStaticDaily`) | `computeStorageMax`, `updateStorageCaps`, `applyFoodSpoilage`, `addResource` |
 | Economy ledger history and its day rollover | `economyLedger.ts` | daily | `rollEconomyLedgerForDay`, `getEconomyLedger`, `recordFoodProduced`, `ECONOMY_SOURCE_LABELS` |
 | Off-screen wildlife throttle | `simFocus.ts` | wildlife-layer pulse | `isOffscreenWildlifeActive` |
@@ -366,3 +366,14 @@ If two modules export the same function name with the same responsibility:
 | `GameLoop.setPerformanceProfiling`, `GameLoop.getPerformanceProfiling`, `GameLoop.registerWorkerHandlers`, `GameLoop.stop`, `GameLoop.frameBody` | `game/gameLoop.ts` | Control profiling, retain worker samples and measure main-thread work. |
 | `GameWorkerHost.setProfilingEnabled`, `GameWorkerHost.stopProfiling`, `GameWorkerHost.getPerformanceSnapshot`, `GameWorkerHost.settleProfilingStop`, `GameWorkerHost.dispose`, `GameWorkerHost.rejectInFlight`, `GameWorkerHost.handleMessage` | `game/simWorker/GameWorkerHost.ts` | Transport samples and settle final-sample requests on response, failure or disposal. |
 | `packAndPostTickResult`, `self.onmessage` | `game/simWorker/gameWorker.ts` | Publish tick samples and acknowledge Stop with the final unthrottled sample. |
+
+## Roadmap performance pass (20 October 2026)
+
+| Function | Owner | Responsibility |
+|---|---|---|
+| `ProfileTable`, `DevPerformanceProfilerPanel` | `components/PerformanceProfilerPanel.tsx` | Display opt-in timing percentiles and control profiling. |
+| `tickLayerRealtime` | `game/tickLayerRealtime.ts` | Synchronize entity grids before realtime AI, using the human bucket for social indexing. |
+| `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
+| `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
+| `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
+| `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible. |
