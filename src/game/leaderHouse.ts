@@ -129,7 +129,15 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   );
 
   //Re-home evicted settlers into general village housing
-  assignMissingResidences(villagers, state.buildings, state.entities);
+  // Only displaced/non-entitled villagers may be re-housed here. Including the
+  // sitting leader's household lets the generic family-unit allocator undo the
+  // manor assignment we just made (notably for complex or large families).
+  // Its complete genealogy pool remains available for family relationships.
+  assignMissingResidences(
+    villagers.filter((villager) => !entitledIds.has(villager.id)),
+    state.buildings,
+    state.entities,
+  );
 
   //Chronicle events
   if (evicted) {

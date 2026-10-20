@@ -1,5 +1,5 @@
 import { BuildingType, BUILDING_CONFIGS, type WorldState } from './gameTypes';
-import { countResidentsInBuilding, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
+import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 
 export interface PopulationSnapshot {
@@ -223,12 +223,15 @@ export function isOvercrowded(state: WorldState): boolean {
 export function getOpenPlayerBeds(state: WorldState): number {
   const entities = state.entities ?? [];
   const buildings = state.buildings ?? [];
+  // Count occupied beds once. Calling countResidentsInBuilding separately for
+  // every home scans the entire population B times (and blocks paused UI).
+  const occupancy = buildResidenceOccupancy(entities);
   let open = 0;
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
     if (!isResidenceBuilding(building) || isLeaderHouseResidence(building)) continue;
-    open += Math.max(0, getResidenceCapacity(building) - countResidentsInBuilding(entities, building.id));
+    open += Math.max(0, getResidenceCapacity(building) - (occupancy.get(building.id) ?? 0));
   }
 
   return open;
