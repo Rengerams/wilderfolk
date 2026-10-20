@@ -459,7 +459,11 @@ export class GameLoop {
     return {
       enabled: this.performanceProfilingEnabled,
       main: getPerformanceSnapshot(),
-      worker: this.workerHost?.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot,
+      // After Stop, preserve the final acknowledged sample instead of reading
+      // newer live host snapshots (which may be replaced during worker recovery).
+      worker: this.performanceProfilingEnabled
+        ? (this.workerHost?.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot)
+        : (this.lastWorkerPerformanceSnapshot ?? this.workerHost?.getPerformanceSnapshot() ?? null),
     };
   }
 
