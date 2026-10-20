@@ -625,8 +625,8 @@ export class GameWorkerHost {
     settle(pending);
   }
 
-  exportSave(): Promise<WorldState> {
-    if (this.uploadBarrier) return this.commandChain.then(() => this.exportSave());
+  exportSave(timeoutMs = EXPORT_REPLY_DEADLINE_MS): Promise<WorldState> {
+    if (this.uploadBarrier) return this.commandChain.then(() => this.exportSave(timeoutMs));
     if (!this.worker || !this.ready) {
       return Promise.reject(new Error('Worker not ready'));
     }
@@ -644,7 +644,7 @@ export class GameWorkerHost {
           this.settleExport((pending) => pending.reject(new Error('Worker export timed out')));
           this.resolveIdleWaiters();
           this.onWorkerFault?.('export', 'Worker export timed out');
-        }, EXPORT_REPLY_DEADLINE_MS),
+        }, timeoutMs),
       };
       this.pendingExport = entry;
       const msg: WorkerRequest = { type: 'exportSave', proto: WORKER_PROTO };
