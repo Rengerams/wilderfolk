@@ -7,7 +7,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectMinorHousehold } from './householdComposition';
+import { collectOwnHousehold } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
@@ -29,11 +29,9 @@ function leaderDisplayName(leader: Entity): string {
 }
 
 /**
- * Leader + spouse + dependent children — empty while the office is vacant.
- *
- * Grown children are emancipated for housing (`isMinorChild`), the same rule the
- * couple path in residencyReconciliation uses: including them would drag a married
- * child into the manor every colony day and evict the residents living there.
+ * Leader, spouse and their children of any age — empty while the office is vacant.
+ * Adult children remain eligible for the leader's household, including after marriage.
+ * This intentionally does not include children's spouses or grandchildren.
  */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
   if (state.villageLeaderId == null) return [];
@@ -45,7 +43,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e),
   );
-  return collectMinorHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
+  return collectOwnHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {
@@ -102,6 +100,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const entitledIds = new Set(household.map((m) => m.id));
   let evicted = false;
   let movedIn = false;
+  let formerLeadershipHouseholdMoved = false;
   const displaced: Entity[] = [];
 
   //Evict settlers who are no longer part of the official leader's household
@@ -111,6 +110,8 @@ export function syncLeaderHouseResidency(state: WorldState): void {
       e.residenceBuildingId = undefined;
       displaced.push(e);
       evicted = true;
+      // Ordinary visitors and grown children are not a former leader's household.
+      if (e.occupation === LEADER_OCCUPATION) formerLeadershipHouseholdMoved = true;
     }
   }
 
@@ -142,7 +143,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   }
 
   //Chronicle events
-  if (evicted) {
+  if (formerLeadershipHouseholdMoved) {
     logEvent(state, 'event', "The former leader's household moved out of the Leader's House");
   }
 
