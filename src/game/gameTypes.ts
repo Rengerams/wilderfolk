@@ -786,6 +786,9 @@ export interface WorldState {
   pendingStoryEvents?: StoryEvent[];
   storyFlags?: Record<string, number>;
   pendingOutgoingRaidEvents: OutgoingRaidEvent[];
+  /** Resolved outgoing victories awaiting an explicit settlement-fate choice. */
+  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[] }>;
+
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;
   ecoHealthYearsAbove80: number;
