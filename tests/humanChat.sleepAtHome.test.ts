@@ -4,7 +4,7 @@
  * Reported from play: settlers kept talking, with a speech bubble over them, while they
  * were sleeping at home. There is no `sleeping` flag in the simulation — "asleep" is
  * *at home during the night*, composed from the two rules that already own it:
- * `isNightHour` (the schedule owner's night window, 20:00–06:00) and `isNearResidence`
+ * `isNightHour` (the schedule owner's night window, 23:00–06:00) and `isNearResidence`
  * (the residency owner's 55 px proximity rule). The night routine is what puts them
  * there: `socialLife` sets `stayHome` for rest motives and `humanLeisureBehavior`
  * commutes them to their house.
@@ -140,7 +140,7 @@ function nightAmbientTick(id: number): number {
       const tick = day * TICKS_PER_DAY + slot;
       if ((tick + id) % SOCIAL_STAGGER !== 0) continue;
       const hour = getHourOfDay(tick);
-      if (!(hour >= 20 || hour < 6)) continue;
+      if (!(hour >= 23 || hour < 6)) continue;
       if (seededRandomForRun(`chat-ambient:${id}:${tick}`) > AMBIENT_CHANCE) continue;
       return tick;
     }
@@ -157,20 +157,22 @@ describe('isAsleepAtHome', () => {
   const atHome = settler(1, { x: home.x + home.width / 2, y: home.y + home.height / 2, residenceBuildingId: home.id });
 
   it('is true only for a resident who is near their house during the night', () => {
-    expect(isAsleepAtHome(atHome, [home], 22)).toBe(true);
-    expect(isAsleepAtHome(atHome, [home], 20)).toBe(true); // NIGHT_START
+    expect(isAsleepAtHome(atHome, [home], 22)).toBe(false);
+    expect(isAsleepAtHome(atHome, [home], 20)).toBe(false);
+    expect(isAsleepAtHome(atHome, [home], 23)).toBe(true); // NIGHT_START
+    expect(isAsleepAtHome(atHome, [home], 23, true)).toBe(false); // on duty
     expect(isAsleepAtHome(atHome, [home], 5)).toBe(true);
     expect(isAsleepAtHome(atHome, [home], 6)).toBe(false); // NIGHT_END
     expect(isAsleepAtHome(atHome, [home], 12)).toBe(false); // daytime at home is not sleep
   });
 
   it('is false away from home, without a residence, or in an unusable house', () => {
-    expect(isAsleepAtHome(settler(2, { x: 900, y: 700, residenceBuildingId: home.id }), [home], 22)).toBe(false);
-    expect(isAsleepAtHome(settler(3, { ...atHome, residenceBuildingId: undefined }), [home], 22)).toBe(false);
+    expect(isAsleepAtHome(settler(2, { x: 900, y: 700, residenceBuildingId: home.id }), [home], 23)).toBe(false);
+    expect(isAsleepAtHome(settler(3, { ...atHome, residenceBuildingId: undefined }), [home], 23)).toBe(false);
     // Night-shift worker / visitor: no residence at all, so they stay awake and visible.
-    expect(isAsleepAtHome(settler(4, { x: home.x, y: home.y }), [home], 22)).toBe(false);
+    expect(isAsleepAtHome(settler(4, { x: home.x, y: home.y }), [home], 23)).toBe(false);
     const unfinished = house(9, { completed: false });
-    expect(isAsleepAtHome(settler(5, { x: 120, y: 120, residenceBuildingId: unfinished.id }), [unfinished], 22)).toBe(false);
+    expect(isAsleepAtHome(settler(5, { x: 120, y: 120, residenceBuildingId: unfinished.id }), [unfinished], 23)).toBe(false);
   });
 });
 
