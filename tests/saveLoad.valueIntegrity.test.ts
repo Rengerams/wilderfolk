@@ -38,15 +38,13 @@ afterEach(() => {
 });
 
 describe('a refused load leaves the running session exactly as it was', () => {
-  it('puts the RNG seed and streams back, instead of keeping the refused save', () => {
+  it('restores the live RNG when an invalid save is refused', () => {
     const payload = realPayload();
-    // The live session's own seed, set *after* the fixture was built — the fixture resets the RNG,
-    // so a snapshot taken before it would measure the fixture rather than the session.
     setSimSeed(777);
     const before = getSimSeed();
-    // `researchNodes` is read lower down the restore, after the seed adopt and the RNG restore, so
-    // this refuses at the point where the globals have already been replaced.
-    delete payload.researchNodes;
+    // Missing resources is a genuine invalid save. Missing researchNodes is now
+    // an intentionally supported legacy-save case and must not be used to force refusal.
+    delete payload.resources;
 
     const outcome = loadGameFromParsedOutcome(payload);
 
