@@ -156,6 +156,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
 /* -------------------------------------------------------------------------- */
 /*  Worker message handlers                                                  */
 /* -------------------------------------------------------------------------- */
+export function installWorkerMessageHandlers(): void {
 self.onunhandledrejection = (event: PromiseRejectionEvent) => {
   postError(`Unhandled rejection: ${(event.reason as Error)?.message ?? String(event.reason)}`, 'general');
 };
@@ -414,3 +415,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     postError(err instanceof Error ? err.message : String(err), source);
   }
 };
+}
+
+// Production worker bootstrap. Tests may reattach the cached module to a new
+// isolated self shim without importing a second runtime realm.
+installWorkerMessageHandlers();
