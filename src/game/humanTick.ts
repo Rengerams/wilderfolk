@@ -388,7 +388,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     return buildingCampAnchor ?? getPlayerSettlerCenter(state);
   };
 
-  const applySettlerUpkeep = (entity: Entity): void => {
+  const applySettlerUpkeep = (entity: Entity, sleeping = false): void => {
+    if (sleeping && isPlayerHuman(entity)) {
+      entity.energy = Math.min(entity.maxEnergy, entity.energy + entity.maxEnergy / (7 * TICKS_PER_HOUR));
+    } else {
     entity.energy -= humanEnergyLoss(entity, config, {
       hasWell,
       isWinter,
@@ -398,6 +401,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       hourOfDay,
       buildingById,
     });
+    }
     tryEatColonyMeal(entity, state, hourOfDay);
     if (isPlayerHuman(entity) && entity.energy <= 0) {
       killFromExhaustion(entity, state, updatedBuildings, entityById);
@@ -687,7 +691,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     if (!active) {
-      applySettlerUpkeep(entity);
+      applySettlerUpkeep(entity, asleepAtHome);
       syncEntityGrids(ctx, entity);
       continue;
     }
