@@ -104,7 +104,7 @@ function tickWithYearlyWorldEvent(seed: number): { world: WorldState; before: Se
   setSimSeed(seed);
   // `gameTick` derives `dayInYear` from the tick and only advances `year` on a day-0 rollover, so
   // both are set directly: day 500 of year 2 is a plain daily tick that still owes its yearly event.
-  world.tick = 500 * TICKS_PER_DAY - 1;
+  world.tick = 500 * TICKS_PER_DAY + 3 * TICKS_PER_DAY / 4 - 1;
   world.year = 2;
   world.dayInYear = DAYS_PER_YEAR / 2 - 40;
   world.lastEventYear = 0;
