@@ -757,7 +757,9 @@ export class GameLoop {
         this.exportDegraded = true;
       }
     }
-    this.exportDegraded = false;
+    // A failed active-worker export returns only the display shadow. Do not
+    // overwrite the degraded flag set above: callers must know its provenance.
+    if (!(this.workerEnabled && host?.isReady())) this.exportDegraded = false;
     return this.world;
   }
 
