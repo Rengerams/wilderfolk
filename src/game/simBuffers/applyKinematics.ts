@@ -2,7 +2,6 @@
 import type { EntityCatalog } from '../entityCatalog';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import type { RenderSoAReaderV1 } from './renderSoAReader';
-import { RESIDENCE_BUILDING_NONE } from './schema';
 
 /**
  * Syncs catalog animation frames, sprite attitude and speech bubbles from the render SoA buffer.
@@ -46,8 +45,5 @@ export function patchCatalogKinematicsFromRenderSoA(
     const huntTargetId = reader.huntTargetId(slot);
     entity.huntTargetId = huntTargetId ?? undefined;
 
-    const residenceId = reader.residenceBuildingId(slot);
-    entity.residenceBuildingId =
-      residenceId !== RESIDENCE_BUILDING_NONE ? residenceId : undefined;
   });
 }
