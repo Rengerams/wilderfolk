@@ -1,3 +1,4 @@
+import { NIGHT_START } from '../src/game/dayCycleConstants';
 /**
  * F5 — Settlement Memory and Legacy Goals (`Roadmap_V0_6.4.1.MD`).
  *
@@ -107,6 +108,8 @@ function exorcismWorld(): { state: WorldState; entities: Entity[]; buildings: Bu
 /** The production path for a cure: a full-moon night through `tickMoonHowlerCycle`. */
 function runCureNight(roll: number): WorldState {
   const world = exorcismWorld();
+  // Keep the simulated clock consistent with the explicit full-moon night hour.
+  world.state.tick = NIGHT_START * (TICKS_PER_DAY / 24);
   tickMoonHowlerCycle(
     world.state,
     world.entities,
