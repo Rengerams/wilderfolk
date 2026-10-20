@@ -92,6 +92,7 @@ function world(startTick: number): WorldState {
     entities: [],
     buildings: [],
     deathParticles: [],
+    floatingTexts: [],
     researchNodes: [],
     resources: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
     weather: WeatherType.Clear,
