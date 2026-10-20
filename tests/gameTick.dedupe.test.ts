@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 
 /** Seed whose day-boundary tick admits a family into a high-reputation village. */
 const FIXTURE_SEED = 3;
