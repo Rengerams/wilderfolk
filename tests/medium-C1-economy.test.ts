@@ -54,6 +54,9 @@ function loneProducerVillage(
   worker.homeBuildingId = building.id;
   worker.job = JobType.Farmer;
   worker.occupation = 'farmer';
+  // Production now depends on actual attendance from the previous settled shift.
+  // The isolated fixture bypasses the realtime work ticks, so supply their earned hours.
+  worker.scheduleLastWorkedHours = 8;
   building.occupants = [worker.id];
 
   state.resources.food = 0;
