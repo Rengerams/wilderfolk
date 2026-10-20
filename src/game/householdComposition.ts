@@ -54,6 +54,91 @@ export function collectLeaderExtendedHousehold(leader: Entity, humans: Entity[])
 }
 
 /**
+ * The leader's and their spouse's dynastic clan (two descendant generations,
+ * two ancestor generations, siblings/nieces/nephews and aunts/uncles/cousins).
+ * Blood and adoptive links are included, as are spouses of descendants and
+ * collateral relatives. This is deliberately bounded: it cannot spread
+ * indefinitely through every in-law's wider family.
+ */
+export function collectLeaderClan(leader: Entity, humans: Entity[]): Entity[] {
+  const byId = new Map(humans.map((human) => [human.id, human]));
+  const childrenByParent = new Map<number, Entity[]>();
+  for (const human of humans) {
+    for (const parentId of new Set([
+      human.motherId, human.fatherId, human.adoptiveMotherId, human.adoptiveFatherId,
+    ])) {
+      if (parentId == null) continue;
+      const children = childrenByParent.get(parentId);
+      if (children) children.push(human);
+      else childrenByParent.set(parentId, [human]);
+    }
+  }
+  const clan: Entity[] = [];
+  const included = new Set<number>();
+  const get = (id: number | undefined): Entity | undefined => id == null ? undefined : byId.get(id);
+  const add = (member: Entity | undefined): Entity | undefined => {
+    if (!member?.alive || member.faction) return undefined;
+    if (!included.has(member.id)) {
+      included.add(member.id);
+      clan.push(member);
+    }
+    return member;
+  };
+  const partner = (member: Entity | undefined): Entity | undefined => add(get(member?.partnerId));
+  const parents = (member: Entity): Entity[] =>
+    [...new Set([
+      member.motherId, member.fatherId, member.adoptiveMotherId, member.adoptiveFatherId,
+    ])].map(get).filter((parent): parent is Entity => !!parent);
+  const children = (member: Entity): Entity[] => {
+    const found = new Map<number, Entity>();
+    for (const childId of member.childrenIds ?? []) {
+      const child = get(childId);
+      if (child) found.set(child.id, child);
+    }
+    for (const child of childrenByParent.get(member.id) ?? []) found.set(child.id, child);
+    return [...found.values()];
+  };
+  const roots = [add(leader), partner(leader)].filter((root): root is Entity => !!root);
+  for (const root of roots) {
+    // Descendants and their spouses, with no adult-child exclusion.
+    for (const child of children(root)) {
+      const addedChild = add(child);
+      if (!addedChild) continue;
+      partner(addedChild);
+      for (const grandchild of children(addedChild)) {
+        const addedGrandchild = add(grandchild);
+        if (addedGrandchild) partner(addedGrandchild);
+      }
+    }
+
+    for (const parent of parents(root)) {
+      add(parent);
+      partner(parent);
+      for (const grandparent of parents(parent)) add(grandparent);
+      // Brothers and sisters of the leader/spouse, and nieces and nephews.
+      for (const sibling of children(parent)) {
+        if (sibling.id === root.id) continue;
+        const addedSibling = add(sibling);
+        if (!addedSibling) continue;
+        partner(addedSibling);
+        for (const nieceOrNephew of children(addedSibling)) add(nieceOrNephew);
+      }
+      // Grandparents' other children are aunts and uncles; their children are cousins.
+      for (const grandparent of parents(parent)) {
+        for (const auntOrUncle of children(grandparent)) {
+          if (auntOrUncle.id === parent.id) continue;
+          const addedRelative = add(auntOrUncle);
+          if (!addedRelative) continue;
+          partner(addedRelative);
+          for (const cousin of children(addedRelative)) add(cousin);
+        }
+      }
+    }
+  }
+  return clan;
+}
+
+/**
  * One adult-led home with only its *dependent* children.
  *
  * Adult children are emancipated for housing (`isMinorChild`), so a parent whose children
