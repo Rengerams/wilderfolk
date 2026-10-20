@@ -69,8 +69,8 @@ export type WorkerRequest =
       features: WorkerFeature[];
       headless?: boolean;
     }
-  | { type: 'importSave'; proto: typeof WORKER_PROTO; world: WorldState }
-  | { type: 'syncWorld'; proto: typeof WORKER_PROTO; world: WorldState }
+  | { type: 'importSave'; proto: typeof WORKER_PROTO; world: WorldState; uploadId: number }
+  | { type: 'syncWorld'; proto: typeof WORKER_PROTO; world: WorldState; uploadId: number }
   | { type: 'tick'; proto: typeof WORKER_PROTO; focus?: SimulationFocus }
   | { type: 'command'; proto: typeof WORKER_PROTO; cmd: WorkerCommandEnvelope }
   | { type: 'exportSave'; proto: typeof WORKER_PROTO }
@@ -101,6 +101,7 @@ export type WorkerRequest =
 /*  Worker → Host responses                                                    */
 /* -------------------------------------------------------------------------- */
 export type WorkerResponse =
+  | { type: 'worldUploaded'; proto: typeof WORKER_PROTO; uploadId: number }
   | { type: 'profilingStopped'; proto: typeof WORKER_PROTO; requestId: number; snapshot: PerformanceSnapshot }
   | {
       type: 'ready';
