@@ -52,7 +52,7 @@ import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
 import { addBigNews, addFloatingText } from '../simEffects';
 import { deliverVisitorQuest } from '../visitorQuest';
-import { respondToOutgoingRaidEvent, respondToRaidEvent, launchRaidOnRival, provokeRival } from '../frontierCombat';
+import { respondToOutgoingRaidEvent, resolveRaidVictory, respondToRaidEvent, launchRaidOnRival, provokeRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
 import { startGuidedCampaign } from '../guidedCampaign';
 import { hostTownFestival } from '../townHall';
@@ -85,6 +85,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'notifyBuildingLocked'; type: BuildingType }
   | { proto: 1; op: 'respondToRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToOutgoingRaidEvent'; eventId: string; choiceId: string }
+  | { proto: 1; op: 'resolveRaidVictory'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToDiplomacyEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToStoryEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'startGuidedCampaign' }
@@ -276,6 +277,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isBuildingType(cmd.type);
     case 'respondToRaidEvent':
     case 'respondToOutgoingRaidEvent':
+    case 'resolveRaidVictory':
     case 'respondToDiplomacyEvent':
     case 'respondToStoryEvent':
       return isNonEmptyString(cmd.eventId) && isNonEmptyString(cmd.choiceId);
@@ -366,6 +368,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return respondToRaidEvent(world, cmd.eventId, cmd.choiceId);
     case 'respondToOutgoingRaidEvent':
       return respondToOutgoingRaidEvent(world, cmd.eventId, cmd.choiceId);
+    case 'resolveRaidVictory':
+      return resolveRaidVictory(world, cmd.eventId, cmd.choiceId);
     case 'respondToStoryEvent':
       return respondToStoryEvent(world, cmd.eventId, cmd.choiceId);
     case 'startGuidedCampaign':
