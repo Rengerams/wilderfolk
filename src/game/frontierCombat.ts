@@ -300,6 +300,9 @@ export function canLaunchRaidOnRival(
   rival: RivalSettlement,
 ): { ok: boolean; foodCost: number; blockReason?: string } {
   const foodCost = getOutgoingRaidFoodCostForRival(state, rival);
+  if ((state.pendingRaidVictories ?? []).some((pending) => pending.rivalId === rival.id)) {
+    return { ok: false, foodCost, blockReason: 'Decide this settlement’s fate after the previous victory' };
+  }
   if (isRivalAtPeace(rival)) return { ok: false, foodCost, blockReason: 'At peace' };
   if (rival.relationship === 'friendly') return { ok: false, foodCost, blockReason: 'Friendly relations' };
   if (!hasMilitiaWeapons(state)) {
