@@ -32,6 +32,7 @@ import {
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
 import { assignMissingWorkers } from './workforce';
+import { collectLeaderHousehold } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
 import { getSimRng } from './simRng';
@@ -703,7 +704,15 @@ export function tickMoonHowlerCycle(
     );
     if (moonSync.reverted.length > 0) {
       const villagers = aliveEntities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
-      assignMissingResidences(villagers, buildings, aliveEntities);
+      // Moon Howler reversion must not send the elected leader's protected
+      // household through generic village housing convergence.
+      const protectedIds = new Set(collectLeaderHousehold(state).map((person) => person.id));
+      assignMissingResidences(
+        villagers.filter((person) => !protectedIds.has(person.id)),
+        buildings,
+        aliveEntities,
+        state.tick,
+      );
       // `state`, not just `buildings`: `worldSlices` is what supplies the player's workforce preset and
       // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
       // ('survival') and sized venues from the default window, so a reverted settler could be pushed
@@ -786,7 +795,13 @@ export function tickMoonHowlerCycle(
     const humansAfterCure = aliveEntities.filter((e) => e.alive && e.type === EntityType.Human);
     syncResidenceOccupants(humansAfterCure, buildings);
     const villagers = humansAfterCure.filter((e) => isPlayerHuman(e));
-    assignMissingResidences(villagers, buildings, aliveEntities);
+    const protectedIds = new Set(collectLeaderHousehold(state).map((person) => person.id));
+    assignMissingResidences(
+      villagers.filter((person) => !protectedIds.has(person.id)),
+      buildings,
+      aliveEntities,
+      state.tick,
+    );
     // See the sibling call above: the world slices carry the player's preset and venue window.
     assignMissingWorkers(villagers, buildings, state);
     changed = true;
