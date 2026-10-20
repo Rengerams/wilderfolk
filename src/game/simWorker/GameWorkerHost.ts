@@ -447,7 +447,7 @@ export class GameWorkerHost {
           : { type: 'syncWorld', proto: WORKER_PROTO, world, uploadId };
         try {
           await new Promise<void>((resolve, reject) => {
-            const entry = {
+            const entry: NonNullable<GameWorkerHost['pendingUpload']> = {
               id: uploadId, resolve, reject,
               deadline: setTimeout(() => {
                 if (this.pendingUpload !== entry) return;
