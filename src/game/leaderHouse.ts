@@ -7,7 +7,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderClan } from './householdComposition';
+import { collectLeaderDescendants } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
@@ -29,8 +29,8 @@ function leaderDisplayName(leader: Entity): string {
 }
 
 /**
- * Leader and spouse's dynastic clan: descendants, ancestors and collateral relatives.
- * Entitlement is independent of adulthood or marriage; empty while office is vacant.
+ * Leader and spouse, their children and grandchildren of any age.
+ * Extended relatives remain in their own homes; empty while office is vacant.
  */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
   if (state.villageLeaderId == null) return [];
