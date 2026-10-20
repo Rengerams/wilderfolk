@@ -49,7 +49,7 @@ describe('save refusal reasons', () => {
     expect(mismatch.reason).toBe('version-mismatch');
     expect(mismatch.detail).toContain('0.5.0');
     expect(mismatch.detail).toContain(GAME_VERSION);
-    expect(describeSaveReadFailure(mismatch)).toContain('different build');
+    expect(describeSaveReadFailure(mismatch)).toContain('not supported');
 
     // A `_version` that is not a version at all is not a save of another build either.
     const odd = refusal(parseSaveJson(JSON.stringify({ _version: { build: 3 } })));
@@ -58,7 +58,8 @@ describe('save refusal reasons', () => {
     expect(describeSaveReadFailure(odd)).not.toContain('[object Object]');
   });
 
-  it('still accepts a payload written by this build', () => {
+  it('accepts saves from v0.6.5.0 and the current build', () => {
+    expect(parseSaveJson(JSON.stringify({ _version: '0.6.5.0', entities: [], tick: 5 })).valid).toBe(true);
     const accepted = parseSaveJson(JSON.stringify({ _version: GAME_VERSION, entities: [], tick: 5 }));
     expect(accepted.valid).toBe(true);
     if (accepted.valid) expect(accepted.parsed.tick).toBe(5);
