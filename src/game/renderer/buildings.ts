@@ -1,4 +1,4 @@
-import { BuildingType, BUILDING_CONFIGS } from '../gameTypes';
+import { BuildingType, BUILDING_CONFIGS, BUILDING_JOB_TYPES } from '../gameTypes';
 import type { Building, Camera } from '../gameTypes';
 import { isDecorType } from '../beautyGrid';
 import { categoryBorderDashForType } from '../buildCatalog';
@@ -318,11 +318,13 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       ctx.fillRect(sx - bw / 2, by, bw * (b.health / b.maxHealth), bh);
     }
 
-    if (b.occupants.length > 0 && cam.zoom > 0.8) {
+    // Show empty staffed workplaces as 0 instead of hiding their staffing badge.
+    // Non-workplaces keep their previous behavior; construction crews remain visible.
+    if (cam.zoom > 0.8 && (b.occupants.length > 0 || (b.completed && !!BUILDING_JOB_TYPES[b.type] && b.faction !== 'rival'))) {
       const bs = Math.max(10, 12 * cam.zoom);
       const bx = sx + w / 2 - bs / 2;
       const by = sy + h / 2 - bs / 2;
-      ctx.fillStyle = '#2563eb';
+      ctx.fillStyle = b.occupants.length > 0 ? '#2563eb' : '#475569';
       ctx.beginPath();
       ctx.arc(bx, by, bs / 2, 0, Math.PI * 2);
       ctx.fill();
