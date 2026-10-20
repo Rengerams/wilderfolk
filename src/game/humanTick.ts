@@ -519,7 +519,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     if (schoolTarget) {
       schoolReserved.set(schoolTarget.id, (schoolReserved.get(schoolTarget.id) ?? 0) + 1);
-      if (isNewCalendarDay) {
+      // Schoolyard rumours and new bonds require an awake child at school hours.
+      // Run once per day at noon, not at midnight while the children sleep.
+      if (
+        hourOfDay === 12 &&
+        isStartOfClockHour(state.tick) &&
+        !isAsleepAtHome(entity, buildingById, hourOfDay)
+      ) {
         trySchoolyardGossip(state, entity, entityById, updatedBuildings, playerHumans);
         tryFormSchoolyardBond(state, entity);
       }
