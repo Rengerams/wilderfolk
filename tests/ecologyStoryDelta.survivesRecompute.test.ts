@@ -163,7 +163,7 @@ describe('story ecology adjustments survive the daily recompute (D-1)', () => {
     // +6 now" promised and never delivered.
     const build = (seed: number) => {
       const world = settledWorld(seed).world;
-      world.tick = TICKS_PER_DAY - 1;
+      world.tick = TICKS_PER_DAY + (18 * TICKS_PER_DAY / 24) - 1;
       return world;
     };
 
