@@ -199,6 +199,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'importSave':
       case 'syncWorld': {
         resetWorkerSession(msg.world);
+        self.postMessage({ type: 'worldUploaded', proto: WORKER_PROTO, uploadId: msg.uploadId } satisfies WorkerResponse);
         break;
       }
 
