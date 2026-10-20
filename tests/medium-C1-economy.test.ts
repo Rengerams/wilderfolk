@@ -59,7 +59,7 @@ function loneProducerVillage(
   state.resources.food = 0;
   // gameTick advances the clock first, so this lands on tick 72: day 1
   // (a workday) at the start of day — the calendar-aligned production tick.
-  state.tick = TICKS_PER_DAY - 1;
+  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
   return { state, building };
 }
 
