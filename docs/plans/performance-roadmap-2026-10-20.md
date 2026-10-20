@@ -59,3 +59,5 @@ A split-family regression also reproduced generic convergence moving manor resid
 Final follow-up validation: 21 leadership/residency regressions pass. The supplied day-267 save was loaded, advanced 24 ticks (12 warmup plus 12 measured), saved and reloaded: player population is preserved and both simulation and roundtrip invariant lists are empty. The earlier 16 duplicate-residence errors are absent after the owner-reconciliation fix. Typecheck, lint, production build and source guards pass after this follow-up.
 
 An additional housing regression run passed 24 of 25 cases; the day-boundary fixed-point case fails unchanged on the base (5 of 6 pass there). It remains recorded rather than weakened. The earlier 126 performance/command regressions and 21 targeted leader/residency regressions pass.
+
+The final branch integrates main commit `25d619a`, which changed raid-choice behavior during the work. That upstream behavior is preserved unchanged; the initial unreachable-branch build fix is superseded by main and is not a performance change. Benchmark baselines remain explicitly anchored to `46b4890`.

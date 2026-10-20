@@ -373,7 +373,6 @@ If two modules export the same function name with the same responsibility:
 |---|---|---|
 | `ProfileTable`, `DevPerformanceProfilerPanel` | `components/PerformanceProfilerPanel.tsx` | Display opt-in timing percentiles and control profiling. |
 | `tickLayerRealtime` | `game/tickLayerRealtime.ts` | Synchronize entity grids before realtime AI, using the human bucket for social indexing. |
-| `launchRaidOnRival` | `game/frontierCombat.ts` | Launch an assault with the fight response and matching player-facing text. |
 | `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |

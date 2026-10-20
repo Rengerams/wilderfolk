@@ -16,7 +16,6 @@
 - **Changed:** automatic staffing reuses assignment and transfer-eligibility counts; commute eligibility skips road scans when walking-distance bounds already decide the result.
 - **Added:** opt-in CPU stage reports include rolling p50, p95 and p99 timings and lifetime counts above the one-second tick budget; population benchmarks support repeatable seeds and save and reload checks.
 - **Changed:** developer profiler and simulation diagnostics panels load conditionally in development and are excluded from production bundles.
-- **Fixed:** outgoing assault descriptions use the fight response directly, removing an unreachable tribute comparison that prevented the build.
 
 
 ## 0.6.5.1[19 october 2026]
