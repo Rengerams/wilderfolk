@@ -250,7 +250,9 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   state.wildlifeCounts = wildlifeCountsFromPopulation(counts);
   state.humanPopulation = counts.humans;
 
-  if (state.tick % TICKS_PER_DAY === 0) {
+  // Daily subsystems execute at 00:00, 06:00, 12:00, and 18:00.
+  // Each system remains once per day; no longer concentrate all work at midnight.
+  if (state.tick % (TICKS_PER_DAY / 4) === 0) {
     const dailyStart = profileStart();
     tickLayerDaily(state, ctx, allAlive);
     profileEnd('sim.daily', dailyStart);
@@ -309,7 +311,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // composition actually changed; otherwise reuse this tick's buckets so the
   // object identity stays stable (lets the render catalog skip its rebuild).
   const deathsThisTick = aliveEntities.length - (allAlive.length - newEntities.length);
-  const dailyLayerRan = state.tick % TICKS_PER_DAY === 0;
+  const dailyLayerRan = state.tick % (TICKS_PER_DAY / 4) === 0;
   // BUG-1/BUG-6: untracked spawns (immigration, world events) grow allAlive without
   // touching newEntities — deathsThisTick goes negative; rebuild instead of caching
   // a byType that omits the newcomers.
