@@ -1589,7 +1589,6 @@ export default function App() {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
                                   baselineId: world.eventLog[0]?.id ?? 0,
-                                  phase: 0,
                                   incoming: true,
                                 });
                               }
