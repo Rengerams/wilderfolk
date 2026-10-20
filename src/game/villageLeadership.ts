@@ -33,8 +33,8 @@ import { getEcosystemHealth } from './dailyEcology';
  * a campaign contains several.
  */
 export const ELECTION_INTERVAL_YEARS = 2;
-/** 1/3 year = the 4-month campaign a vacancy allows before the successor election. */
-export const VACANCY_ELECTION_DELAY_YEARS = 1 / 3;
+/** 1/6 year = two in-game months between a vacancy and the succession election. */
+export const VACANCY_ELECTION_DELAY_YEARS = 1 / 6;
 export const ELECTION_PARTY_DAYS: number = 1;
 export const ELECTION_PARTY_NAME = 'Election Revelry';
 
@@ -1271,7 +1271,7 @@ export function validateVillageLeaderOnLoad(state: WorldState): void {
 
   // A negative year means no election has ever decided the office, so the founding appointment is
   // restored. Year 0 is a real stamp — the founding decision, or a by-election held that year — and
-  // a death after either takes the four-month by-election below.
+  // a death after either takes the two-month by-election below.
   if (state.lastElectionYear < 0) {
     const founder = findFoundingColonyLeader(state);
     if (founder) appointFoundingLeader(state, founder);
