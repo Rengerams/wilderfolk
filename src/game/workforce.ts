@@ -17,7 +17,6 @@ import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './resi
 import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
-import { getVenueAutoStaffingTarget } from './venueSchedule';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import {
   DEFAULT_WORKFORCE_POLICY,
@@ -399,23 +398,10 @@ export function assignWorkerInPlace(
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
 
-  const configuredCap = staffingCapFor(building, humans).cap;
-  const isAutoBuilding = !isManualStaffingBuilding(building);
-  const venueKind =
-    building.type === BuildingType.Tavern
-      ? 'tavern'
-      : building.type === BuildingType.Hotel
-        ? 'hotel'
-        : undefined;
-
-  const cap =
-    venueKind && isAutoBuilding
-      ? getVenueAutoStaffingTarget(
-          venueSchedules ?? { tavernSchedule: undefined, hotelSchedule: undefined },
-          venueKind,
-          configuredCap,
-        )
-      : configuredCap;
+  // Auto means fill all available staff positions, including Taverns and Hotels.
+  // Opening-hour-based minimum shift coverage is not a staffing limit: leaving
+  // vacancies while eligible settlers are idle contradicts the Auto setting.
+  const cap = staffingCapFor(building, humans).cap;
 
   if (countWorkersAtBuilding(humans, building.id) >= cap) return false;
 
