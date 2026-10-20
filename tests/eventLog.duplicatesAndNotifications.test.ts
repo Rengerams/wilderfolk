@@ -181,9 +181,9 @@ describe('the auto-staff card reports the pass that ran', () => {
     // The explicit global command switches all job buildings into Auto-fill;
     // the normal background staffing pulse must still respect manual mode.
     expect(cards).toHaveLength(1);
-    expect(cards[0]?.title).toContain('Auto-staff enabled');
+    expect(cards[0]?.title).toContain('Auto-staff complete');
     expect(staffed.buildings.find((building) => building.id === 700)?.staffingMode).toBe('auto');
-    expect(staffed.buildings.find((building) => building.id === 700)?.occupants).toEqual([]);
+    expect(staffed.buildings.find((building) => building.id === 700)?.occupants).toContain(1);
   });
 });
 
