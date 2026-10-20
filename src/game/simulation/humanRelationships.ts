@@ -33,6 +33,7 @@ import {
   hasResidenceAssignment,
   hasWorkAssignment,
   getAbsoluteCalendarDay,
+  isWeekend,
   isNearResidence,
   isResidenceBuilding,
   pickResidenceForHuman,
@@ -1585,6 +1586,9 @@ export function canPursueSecretAffair(
 ): boolean {
   if (onScandalCooldown(entity, tick)) return false;
   if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
+  // Off-duty evenings are prime social time, including the hours after the
+  // generic night flag starts; actual sleep is checked by the caller.
+  if (hourOfDay >= 18 && hourOfDay < 23 && !isWorkScheduleHour(workSchedule, hourOfDay)) return true;
   if (allowSocialLife(hourOfDay, workplace != null)) return true;
   if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
 
@@ -1617,12 +1621,15 @@ export function canPursueSecretAffair(
  * conditions are sampled at changes. `decisionRegistry` already declares this cadence as
  * "staggered/daily"; the implementation was the part that was not staggered.
  */
-const AFFAIR_ENCOUNTER_FIRST_HOUR = NIGHT_END; // 06:00 — the waking boundary the code already owns
-const AFFAIR_ENCOUNTER_LAST_HOUR = NIGHT_START - 1; // 19:00 — last hour before `isNightHour` begins
-const AFFAIR_ENCOUNTER_HOUR_COUNT = AFFAIR_ENCOUNTER_LAST_HOUR - AFFAIR_ENCOUNTER_FIRST_HOUR + 1;
+// Deterministic once-daily encounter scheduling, weighted toward free time.
+// Weekends include more daytime opportunities; workdays strongly favor evenings.
+const WEEKDAY_AFFAIR_HOURS = [8, 12, 16, 17, 18, 18, 19, 19, 20, 20, 21, 22] as const;
+const WEEKEND_AFFAIR_HOURS = [9, 10, 11, 12, 14, 16, 17, 18, 18, 19, 20, 21, 22] as const;
 
-export function affairEncounterHourOfDay(entityId: number): number {
-  return AFFAIR_ENCOUNTER_FIRST_HOUR + (Math.abs(entityId) % AFFAIR_ENCOUNTER_HOUR_COUNT);
+export function affairEncounterHourOfDay(entityId: number, tick = 0): number {
+  const hours = isWeekend(tick) ? WEEKEND_AFFAIR_HOURS : WEEKDAY_AFFAIR_HOURS;
+  const day = getAbsoluteCalendarDay(tick);
+  return hours[Math.abs((entityId * 31 + day * 17) % hours.length)];
 }
 
 /** Once-per-day affair drift and establishment — owned by humanRelationships. */
