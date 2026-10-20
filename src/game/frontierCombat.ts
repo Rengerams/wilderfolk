@@ -1542,12 +1542,8 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     rivalId: rival.id,
     rivalName: rival.name,
     emoji: '🏹',
-    title: rivalResponse === 'payoff_offer'
-      ? `${rival.name} offers tribute`
-      : `${rival.name} rallies their war-band`,
-    description: rivalResponse === 'payoff_offer'
-      ? `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} begs you to accept tribute and withdraw.`
-      : `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} refuses to pay — they mean to fight.`,
+    title: `${rival.name} rallies their war-band`,
+    description: `Your ${verb.toLowerCase()} reached ${distanceLabel} away. ${rival.name} prepares to fight.`,
     choices: outgoingRaidChoices(rivalResponse, payoffLoot, rival.name, verb),
     createdAtTick: state.tick,
     expiresAtTick: state.tick + responseDays * TICKS_PER_DAY,
