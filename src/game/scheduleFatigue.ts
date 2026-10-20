@@ -98,10 +98,8 @@ export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWor
  * window alone used to give; a crew that does half scores 0.5; a crew with nobody present scores 0,
  * which is the owner's "the person who is working there should be measured".
  *
- * `hasAttendance` is `false` only while no settled day has been recorded yet — a fresh world or one
- * that has just loaded. It reports 1 rather than 0 there, because "not yet measured" must not read
- * as "nobody ever works": before the first day boundary every workplace would otherwise produce
- * nothing, and an inspector preview would show a standing workshop as idle.
+ * No attendance credit means no production, including the first day of a new
+ * village. A workplace must earn production from the worker's actual shifts.
  */
 export function getWorkplacePresenceShare(
   workedHours: number,
@@ -109,8 +107,10 @@ export function getWorkplacePresenceShare(
   scheduleHours: number,
   hasAttendance: boolean,
 ): number {
-  if (assigned <= 0 || scheduleHours <= 0) return 1;
-  if (!hasAttendance) return 1;
+  if (assigned <= 0 || scheduleHours <= 0) return 0;
+  // No recorded attendance means no production. Assignment alone never
+  // proves that the worker physically attended a shift.
+  if (!hasAttendance) return 0;
   const share = workedHours / scheduleHours;
   if (!Number.isFinite(share) || share <= 0) return 0;
   return Math.min(1, share);
