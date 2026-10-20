@@ -476,7 +476,7 @@ export default function SelectedBuildingPanel({
                 {grave.faction === 'enemy' ? 'Enemy' : 'Village'} — {grave.name}
               </p>
             ))}
-            {!state.graveRecords?.length && <p className="text-xs text-stone-500">No burials recorded.</p>}
+            {!(state.graveRecords ?? []).some((grave) => grave.graveyardId === building.id) && <p className="text-xs text-stone-500">No burials recorded in this graveyard.</p>}
           </div>
         </section>
       )}
