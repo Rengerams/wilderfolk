@@ -13,3 +13,6 @@ Consequently, the confirmed venue-specific minimum-shift cap bug **cannot alone 
 
 ## Status
 **Open / awaiting reproduction with affected save.** Do not declare this solved by the earlier Tavern/Hotel patch. Capture building id, configured capacity, occupants, `staffingMode`, human job assignments, construction crews and latest assignment tick to identify the blocker. Preserve existing save history.
+
+## Player clarification
+The global **Auto-staff All** action also fails to fill the Barracks; assigning soldiers **manually** succeeds. Thus this is not just periodic scheduling. The manual command includes a donor-worker transfer fallback; automatic job balancing transfers workers only to **completely empty** buildings, not partially staffed ones. This is an identified behavioral difference, but availability of eligible truly idle adults at the moment of the action still needs confirmation. Investigate this split before changing priorities or worker reassignment policies.
