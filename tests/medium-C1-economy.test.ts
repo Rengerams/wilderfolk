@@ -51,6 +51,10 @@ function loneProducerVillage(
   rebuildEntityByIdMap(state);
   invalidateCachedEntityByType(state);
 
+  // This isolated producer represents a settler who actually attended their
+  // completed workplace during the preceding shift.
+  worker.x = building.x + building.width / 2;
+  worker.y = building.y + building.height / 2;
   worker.homeBuildingId = building.id;
   worker.job = JobType.Farmer;
   worker.occupation = 'farmer';
