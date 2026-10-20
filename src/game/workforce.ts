@@ -770,7 +770,7 @@ export function buildConstructionCrewIndex(buildings: readonly Building[]): Map<
 }
 
 export function releasePrisoners(state: WorldState): void {
-  let released = false;
+  const releasedSettlers: Entity[] = [];
 
   for (let i = 0; i < state.entities.length; i++) {
     const entity = state.entities[i];
@@ -797,14 +797,15 @@ export function releasePrisoners(state: WorldState): void {
     logEvent(state, 'prison', `${name} was released from prison`, name);
     addNotification(state, 'Released', `${name} served their sentence and is free again`, 'success');
     addFloatingText(state, entity.x, entity.y - 18, 'Released', '#22c55e');
-    released = true;
+    if (isPlayerHuman(entity)) releasedSettlers.push(entity);
   }
 
-  if (released) {
-    const villagers = state.entities.filter(
-      (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e),
-    );
-    assignMissingResidences(villagers, state.buildings, state.entities);
-    assignMissingWorkers(villagers, state.buildings, state);
+  if (releasedSettlers.length > 0) {
+    // A prisoner release must not run the 24-pass whole-village housing
+    // convergence. In particular that pass could move the elected leader out
+    // of the protected manor, and it caused multi-second real-time spikes.
+    // Rehouse only released people, with all entities available for genealogy.
+    assignMissingResidences(releasedSettlers, state.buildings, state.entities, state.tick);
+    // Normal workforce pulses will fill newly available staff slots.
   }
 }
