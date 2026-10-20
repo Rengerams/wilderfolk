@@ -41,7 +41,7 @@ function ceremonyWorld() {
  * is computed relative to the start tick instead of assuming tick 0.
  */
 function runToDayBoundary(world: ReturnType<typeof initGame>) {
-  const boundary = Math.ceil((world.tick - TICKS_PER_DAY / 2) / TICKS_PER_DAY) * TICKS_PER_DAY + TICKS_PER_DAY / 2;
+  const boundary = Math.ceil((world.tick - (3 * TICKS_PER_DAY / 4)) / TICKS_PER_DAY) * TICKS_PER_DAY + (3 * TICKS_PER_DAY / 4);
   const ticksToRun = boundary - world.tick - 1;
   for (let t = 0; t < ticksToRun; t++) world = gameTick(world);
   vi.mocked(tickElectionGossip).mockClear();
@@ -55,13 +55,13 @@ describe('election gossip cadence', () => {
 
   it('daily layer skips gossip while a ceremony is running (ceremony gates cover it)', () => {
     const world = runToDayBoundary(ceremonyWorld());
-    gameTick(world); // noon economy pulse, ceremony in gossip phase
+    gameTick(world); // 18:00 world-events pulse, ceremony in gossip phase
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(0);
   });
 
   it('daily layer still rolls gossip on day boundaries with no ceremony', () => {
     const world = runToDayBoundary(initGame({ villageName: 'W', size: 'medium' }));
-    gameTick(world); // noon economy pulse, no ceremony
+    gameTick(world); // 18:00 world-events pulse, no ceremony
     expect(vi.mocked(tickElectionGossip)).toHaveBeenCalledTimes(1);
   });
 });
