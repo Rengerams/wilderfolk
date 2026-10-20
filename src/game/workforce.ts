@@ -433,35 +433,36 @@ export function assignWorkerInPlace(
 
   if (countWorkersAtBuilding(humans, building.id) >= cap) return false;
 
-  const candidates = humans.filter(
-    (h) =>
-      isPlayerHuman(h) &&
-      h.alive &&
-      !h.isJuvenile &&
-      !hasWorkAssignment(h) &&
-      !isImprisoned(h) &&
-      !isOnConstructionCrew(buildings, h.id),
-  );
-
+  // Select the best candidate in one pass. Sorting every idle settler for every
+  // vacant slot repeated expensive commute checks O(N log N) times.
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
-
-  candidates.sort((a, b) => {
-    // Prefer workers who can commute reliably, without blocking staffing when
-    // no nearby candidate exists. Manual choices remain unrestricted.
-    const aNear = isWithinAssignableCommute(a, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
-    const bNear = isWithinAssignableCommute(b, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
-    if (aNear !== bNear) return aNear ? -1 : 1;
-    const dxa = a.x - buildingX;
-    const dya = a.y - buildingY;
-    const dxb = b.x - buildingX;
-    const dyb = b.y - buildingY;
-    const distDiff = dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb);
-    if (distDiff !== 0) return distDiff;
-    return readSkill(b, job) - readSkill(a, job);
-  });
-
-  const worker = candidates[0];
+  let worker: Entity | undefined;
+  let bestNear = false;
+  let bestDistance = Infinity;
+  let bestSkill = -Infinity;
+  const constructionWorkerIds = new Set<number>();
+  for (const site of buildings) {
+    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  }
+  for (const candidate of humans) {
+    if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
+      || hasWorkAssignment(candidate) || isImprisoned(candidate)
+      || constructionWorkerIds.has(candidate.id)) continue;
+    const near = isWithinAssignableCommute(candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
+    const dx = candidate.x - buildingX;
+    const dy = candidate.y - buildingY;
+    const distance = dx * dx + dy * dy;
+    const skill = readSkill(candidate, job);
+    if (worker && (
+      (bestNear && !near)
+      || (bestNear === near && (distance > bestDistance || (distance === bestDistance && skill <= bestSkill)))
+    )) continue;
+    worker = candidate;
+    bestNear = near;
+    bestDistance = distance;
+    bestSkill = skill;
+  }
   if (!worker) return false;
 
   return assignWorkerTransition(worker, building, venueSchedules?.tick);
