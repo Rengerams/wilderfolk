@@ -1210,6 +1210,10 @@ export default function App() {
           primeAudioUnlock();
           handleLoadFromSetup();
         }}
+        onLoadFromFile={(jsonText) => {
+          primeAudioUnlock();
+          handleLoadFromFile(jsonText);
+        }}
         hasSave={canLoadSavedGame}
         tutorialsEnabled={tutorialsEnabled}
         onTutorialsChange={(enabled) => {
