@@ -2,7 +2,6 @@ import type { WorldState, Entity, Building } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
-import { EntityType } from '../gameTypes';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import type { SimulationFocus } from '../simFocus';
 import type { EntityRenderMeta } from './entityRenderMeta';
