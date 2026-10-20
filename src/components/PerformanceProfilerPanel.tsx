@@ -56,13 +56,11 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
 
 /** Opt-in CPU reporting continues while the game panel is closed. */
 function DevPerformanceProfilerPanel({ loopRef }: Props) {
-  const [open, setOpen] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
   const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     const refresh = () => {
       const loop = loopRef.current;
       if (loop) setReport(loop.getPerformanceProfiling());
@@ -70,7 +68,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
     refresh();
     const timer = window.setInterval(refresh, 1000);
     return () => window.clearInterval(timer);
-  }, [loopRef, open]);
+  }, [loopRef]);
 
   const toggle = async () => {
     const loop = loopRef.current;
@@ -107,20 +105,11 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
 
   const active = report?.enabled ?? false;
   return (
-    <div className="pointer-events-auto absolute bottom-40 right-4 z-[65] flex flex-col-reverse items-end gap-2 text-stone-100">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        aria-label="Open CPU profiler"
-        className="rounded-lg border border-stone-600 bg-stone-950/90 px-3 py-1.5 text-xs font-bold shadow-lg hover:bg-stone-800"
-      >
-        {active ? '● CPU profiler' : 'CPU profiler'} {open ? '▾' : '▴'}
-      </button>
-      {open && (
+    <div className="text-stone-100">
+      {
         <section
           aria-label="In-game CPU profiler"
-          className="max-h-[min(60vh,440px)] w-[min(95vw,420px)] space-y-3 overflow-y-auto rounded-xl border border-stone-600 bg-stone-950/95 p-3 shadow-2xl"
+          className="space-y-3 p-2"
         >
           <div className="flex items-center justify-between gap-2">
             <strong className="text-sm">Performance measurement</strong>
@@ -150,7 +139,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
           <ProfileTable name="Simulation worker" report={report?.worker ?? null} />
           <ProfileTable name="Main thread / rendering" report={report?.main ?? null} />
         </section>
-      )}
+      }
     </div>
   );
 }
