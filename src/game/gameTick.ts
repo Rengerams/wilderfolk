@@ -299,14 +299,14 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // population; an alive-only snapshot made earlier in the tick is insufficient.
   // Also prevent any duplicate entity ids from a daily spawn from surviving.
   const seenFinalIds = new Set<number>();
-  for (let i = allAlive.length - 1; i >= 0; i--) {
+  let writeIndex = 0;
+  for (let i = 0; i < allAlive.length; i++) {
     const entity = allAlive[i];
-    if (!entity.alive || seenFinalIds.has(entity.id)) {
-      allAlive.splice(i, 1);
-    } else {
-      seenFinalIds.add(entity.id);
-    }
+    if (!entity.alive || seenFinalIds.has(entity.id)) continue;
+    seenFinalIds.add(entity.id);
+    allAlive[writeIndex++] = entity;
   }
+  allAlive.length = writeIndex;
   const finalCounts = computePopulationCounts(allAlive);
 
   // --- Deaths (exact: alive at the start of the tick, not alive now) ---
