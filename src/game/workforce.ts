@@ -18,6 +18,7 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { profileStart, profileEnd } from './performanceProfiler';
 import {
   DEFAULT_WORKFORCE_POLICY,
   getWorkforcePolicy,
@@ -681,10 +682,16 @@ export function assignMissingWorkers(
     'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
   > & Partial<Pick<WorldState, 'tick'>>,
 ): void {
+  const prepStart = profileStart();
   const alive = prepareWorkforce(humans, buildings);
+  profileEnd('workforce.prepare', prepStart);
   const policy = getWorkforcePolicy(worldSlices ?? {});
+  const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
+  profileEnd('workforce.construction', constructionStart);
+  const jobsStart = profileStart();
   staffJobBuildings(alive, buildings, false, worldSlices, policy);
+  profileEnd('workforce.jobs', jobsStart);
 }
 
 export function countWorkingAndIdleSettlers(
