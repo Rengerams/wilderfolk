@@ -7,7 +7,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectOwnHousehold } from './householdComposition';
+import { collectLeaderExtendedHousehold } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
@@ -29,9 +29,8 @@ function leaderDisplayName(leader: Entity): string {
 }
 
 /**
- * Leader, spouse and their children of any age — empty while the office is vacant.
- * Adult children remain eligible for the leader's household, including after marriage.
- * This intentionally does not include children's spouses or grandchildren.
+ * Leader, spouse, children of any age, children's spouses, and grandchildren.
+ * Entitlement is independent of adulthood or marriage; empty while office is vacant.
  */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
   if (state.villageLeaderId == null) return [];
@@ -43,7 +42,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e),
   );
-  return collectOwnHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
+  return collectLeaderExtendedHousehold(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {
