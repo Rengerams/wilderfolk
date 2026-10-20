@@ -131,6 +131,9 @@ export class GameWorkerHost {
   /** Latest render buffer kept on main for drawing — returned when superseded. */
   private heldRenderBuffer: { index: number; buffer: ArrayBuffer } | null = null;
   private commandChain: Promise<void> = Promise.resolve();
+  private uploadBarrier = false;
+  private nextUploadId = 0;
+  private pendingUpload: { id: number; resolve: () => void; reject: (error: Error) => void; deadline: ReturnType<typeof setTimeout> } | null = null;
 
   getGeneration(): number {
     return this.generation;
@@ -278,6 +281,12 @@ export class GameWorkerHost {
     this.ready = false;
     this.ticksInFlight = 0;
     this.pendingFocus = undefined;
+    this.uploadBarrier = false;
+    if (this.pendingUpload) {
+      clearTimeout(this.pendingUpload.deadline);
+      this.pendingUpload.reject(new Error('Worker disposed during world upload'));
+      this.pendingUpload = null;
+    }
     this.onTickResult = null;
     this.onCommandResult = null;
     this.onWorkerFault = null;
@@ -331,7 +340,7 @@ export class GameWorkerHost {
    * posts it as soon as this returns true.
    */
   canPipelineTick(): boolean {
-    return this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
+    return !this.uploadBarrier && this.ticksInFlight < MAX_PIPELINE_DEPTH && this.pendingCommand == null;
   }
 
   hasCommandInFlight(): boolean {
@@ -411,6 +420,7 @@ export class GameWorkerHost {
   private queueFullWorldUpload(world: WorldState, kind: 'importSave' | 'syncWorld'): Promise<void> {
     if (!this.worker || !this.ready) return Promise.resolve();
     const uploadGen = this.generation;
+    this.uploadBarrier = true;
     const upload = this.commandChain
       .then(async () => {
         if (uploadGen !== this.generation || !this.isReady()) return;
@@ -422,22 +432,38 @@ export class GameWorkerHost {
 
         invalidateWorldRuntimeCaches(world);
         world.simRng = snapshotSimRng();
+        const uploadId = ++this.nextUploadId;
         const msg: WorkerRequest = kind === 'importSave'
-          ? { type: 'importSave', proto: WORKER_PROTO, world }
-          : { type: 'syncWorld', proto: WORKER_PROTO, world };
+          ? { type: 'importSave', proto: WORKER_PROTO, world, uploadId }
+          : { type: 'syncWorld', proto: WORKER_PROTO, world, uploadId };
         try {
-          worker.postMessage(msg);
+          await new Promise<void>((resolve, reject) => {
+            const entry = {
+              id: uploadId, resolve, reject,
+              deadline: setTimeout(() => {
+                if (this.pendingUpload !== entry) return;
+                this.pendingUpload = null;
+                reject(new Error('World upload acknowledgement timed out'));
+                this.onWorkerFault?.('general', 'World upload acknowledgement timed out');
+              }, 30000),
+            };
+            this.pendingUpload = entry;
+            try { worker.postMessage(msg); }
+            catch (error) {
+              clearTimeout(entry.deadline);
+              this.pendingUpload = null;
+              reject(error);
+            }
+          });
         } finally {
-          if (this.worldRef) {
-            hydrateWorldRuntimeCaches(this.worldRef);
-          }
+          if (this.worldRef) hydrateWorldRuntimeCaches(this.worldRef);
         }
       });
 
     this.commandChain = upload.catch((err: unknown) => {
-      if (uploadGen === this.generation) {
-        console.warn(`[GameWorker] ${kind} upload failed`, err);
-      }
+      if (uploadGen === this.generation) console.warn(`[GameWorker] ${kind} upload failed`, err);
+    }).finally(() => {
+      if (uploadGen === this.generation) this.uploadBarrier = false;
     });
     return upload;
   }
@@ -680,6 +706,16 @@ export class GameWorkerHost {
   }
 
   private handleMessage(msg: WorkerResponse): void {
+    if (msg.type === 'worldUploaded') {
+      if (!isWorkerProto(msg.proto)) return;
+      const pending = this.pendingUpload;
+      if (pending?.id === msg.uploadId) {
+        clearTimeout(pending.deadline);
+        this.pendingUpload = null;
+        pending.resolve();
+      }
+      return;
+    }
     if (!isWorkerProto(msg.proto)) {
       const err = new Error(workerProtoMismatch(msg.proto));
       console.error('[GameWorker]', err.message, msg.type);
