@@ -23,6 +23,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { gameTick } from '../src/game/gameTick';
 import { initGame } from '../src/game/worldGen';
 import { seededRandomForRun } from '../src/game/simRng';
@@ -126,7 +127,7 @@ function shotLands(tick: number): boolean {
 }
 
 function assertPartialCatch(type: SpotKind): void {
-  const tick = DAY * TICKS_PER_DAY + TICKS_PER_DAY / 2;
+  const tick = tickAtDailyPhase(DAY, 'production');
   expect(isProductionTick(tick - tick % TICKS_PER_DAY, INTERVAL[type]), 'fixture day is not a production tick').toBe(true);
   if (type === BuildingType.HuntingSpot) {
     expect(shotLands(tick), 'fixture day is one where the shot misses').toBe(true);
