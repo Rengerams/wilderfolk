@@ -80,7 +80,7 @@ describe('a load adopts the saved auto-save setting without writing the browser 
     saveAutoSavePreference(false);
     const payload = realPayload();
     payload.autoSave = true;
-    delete payload.researchNodes;
+    delete payload.resources; // genuinely invalid: missing research nodes now migrate safely
 
     const outcome = loadGameFromParsedOutcome(payload);
 
