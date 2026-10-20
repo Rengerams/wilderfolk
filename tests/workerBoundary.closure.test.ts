@@ -126,6 +126,7 @@ function effective(world: WorldState, key: string): unknown {
     case 'pendingStoryEvents':
     case 'bigNews':
     case 'notifications':
+    case 'graveRecords':
       return raw ?? [];
     case 'storyFlags':
       return raw ?? {};
