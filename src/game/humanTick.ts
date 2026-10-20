@@ -392,15 +392,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (sleeping && isPlayerHuman(entity)) {
       entity.energy = Math.min(entity.maxEnergy, entity.energy + entity.maxEnergy / (7 * TICKS_PER_HOUR));
     } else {
-    entity.energy -= humanEnergyLoss(entity, config, {
-      hasWell,
-      isWinter,
-      canHeat,
-      hasHospital,
-      tick: state.tick,
-      hourOfDay,
-      buildingById,
-    });
+      entity.energy -= humanEnergyLoss(entity, config, {
+        hasWell,
+        isWinter,
+        canHeat,
+        hasHospital,
+        tick: state.tick,
+        hourOfDay,
+        buildingById,
+      });
     }
     tryEatColonyMeal(entity, state, hourOfDay);
     if (isPlayerHuman(entity) && entity.energy <= 0) {
