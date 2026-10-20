@@ -298,7 +298,11 @@ describe('tickLayerRealtime Moon Howler work', () => {
     } as unknown as TickContext;
   }
 
-  it('forwards the owner rng and only rewrites occupants for a howler holding a residence', () => {
+  it('forwards the owner rng and only rewrites occupants for a howler holding a residence', async () => {
+    // Other tests reset the module cache while this suite is running. Importing
+    // the realtime owner after the reset keeps its Moon Howler mock in the same realm.
+    vi.resetModules();
+    const { tickLayerRealtime: realtimeTick } = await import('../src/game/tickLayerRealtime');
     const state = initGame({ villageName: 'RealtimeGate', size: MapSize.Medium, seed: 3 });
     state.tick = 1; // realtime-only cadence; also skips the population-history sample
     const house = building(900, BuildingType.House, { occupants: [1] });
@@ -307,7 +311,7 @@ describe('tickLayerRealtime Moon Howler work', () => {
 
     moonHowlerCalls.length = 0;
     const occupantsBefore = house.occupants;
-    tickLayerRealtime(state, realtimeContext(state, werewolf));
+    realtimeTick(state, realtimeContext(state, werewolf));
 
     expect(moonHowlerCalls).toHaveLength(1);
     // The default Math.random would arrive as `undefined` here.
@@ -317,7 +321,7 @@ describe('tickLayerRealtime Moon Howler work', () => {
 
     // A legacy save can leave a cursed werewolf holding a residence id — the repair still runs.
     werewolf.residenceBuildingId = 900;
-    tickLayerRealtime(state, realtimeContext(state, werewolf));
+    realtimeTick(state, realtimeContext(state, werewolf));
     expect(house.occupants).toEqual([werewolf.id]);
   });
 });
