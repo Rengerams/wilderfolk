@@ -461,15 +461,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     let conceivedToday = false;
     if (isNewCalendarDay && !isPrisoner && isPlayerHuman(entity)) {
       conceivedToday = tryDailyConception(state, ctx, entity);
-      tryDailyAffairGossip(
-        state,
-        entity,
-        entityById,
-        updatedBuildings,
-        buildingById,
-        churchStrength,
-        playerHumans,
-      );
       tryDailyAmicableDivorce(state, entity, entityById, updatedBuildings, playerHumans);
     }
 
@@ -485,8 +476,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       // `getTickOfDay` returns a tick-of-day (0–71), so the old test could only ever match clock
       // hours 02:00–06:20 — asleep at home, where the encounter's own gates refuse it. Most married
       // settlers therefore never reached the establishment owner at all.
-      hourOfDay === affairEncounterHourOfDay(entity.id)
+      hourOfDay === affairEncounterHourOfDay(entity.id) &&
+      isStartOfClockHour(state.tick) &&
+      !isAsleepAtHome(entity, buildingById, hourOfDay) &&
+      !isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
     ) {
+      // Gossip is a daytime interaction, not an automatic midnight rumour.
+      tryDailyAffairGossip(
+        state,
+        entity,
+        entityById,
+        updatedBuildings,
+        buildingById,
+        churchStrength,
+        playerHumans,
+      );
       tryDailyAffairEncounter(
         state,
         entity,
