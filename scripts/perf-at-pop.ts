@@ -19,8 +19,9 @@
  *   PERF_SAVE=<path>      bench this save instead of the tiers
  *   SIM_FULL_SIM=1        disable the viewport focus throttle (the game's worker ticks *with* it)
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { getHourOfDay, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import { getSimFocus } from './simFocus';
@@ -43,7 +44,29 @@ const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 /** Print every measured tick, with its position in the in-game day — a spike is either a daily layer
  *  (`tick % TICKS_PER_DAY === 0`) or something that happens at any tick. */
 const TRACE = process.env.PERF_TRACE === '1';
-const TICKS_PER_DAY_TRACE = 72;
+const TICKS_PER_DAY_TRACE = TICKS_PER_DAY;
+const REPORT = process.env.PERF_REPORT;
+const BASELINE = process.env.PERF_BASELINE;
+
+type HourRow = { hour: number; ticks: number; avgMs: number; maxMs: number; p95Ms: number };
+type BenchmarkReport = { label: string; ticks: number; warmup: number; population: number; alive: number; averageMs: number; p50Ms: number; p95Ms: number; maxMs: number; ticksPerSecond: number; byHour: HourRow[] };
+const benchmarkReports: BenchmarkReport[] = [];
+
+function percentile(values: readonly number[], fraction: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] ?? 0;
+}
+
+function showComparison(report: BenchmarkReport, baseline: BenchmarkReport): void {
+  const change = (before: number, after: number): string => before <= 0 ? 'n/a' : `${((after / before - 1) * 100).toFixed(1)}%`;
+  console.log(`  vs baseline: average ${change(baseline.averageMs, report.averageMs)}, p95 ${change(baseline.p95Ms, report.p95Ms)}, max ${change(baseline.maxMs, report.maxMs)} (negative = faster)`);
+  for (const row of report.byHour) {
+    const old = baseline.byHour.find((h) => h.hour === row.hour);
+    if (old && old.ticks > 0) console.log(`    ${String(row.hour).padStart(2, '0')}:00  ${old.avgMs.toFixed(1)} -> ${row.avgMs.toFixed(1)}ms (${change(old.avgMs, row.avgMs)})`);
+  }
+}
+
 const TIERS = (process.env.PERF_POPS ?? '300,600,976,1200')
   .split(',')
   .map((value) => Number(value.trim()))
@@ -66,6 +89,7 @@ function bench(
 ) {
   const ms: number[] = [];
   const cpuMs: number[] = [];
+  const hourMs: number[][] = Array.from({ length: 24 }, () => []);
   for (let t = 1; t <= WARMUP + TICKS; t++) {
     // A saved colony is measured as it stands: the fixture maintainer would top its population,
     // buildings and larder back up to the benchmark targets and change what is being measured.
@@ -83,6 +107,7 @@ function bench(
     if (t > WARMUP) {
       ms.push(dt);
       cpuMs.push(cpuForTick);
+      hourMs[getHourOfDay(state.tick)]?.push(dt);
       if (TRACE) {
         const dayTick = state.tick % TICKS_PER_DAY_TRACE === 0;
         console.log(
@@ -101,6 +126,20 @@ function bench(
   console.log(
     `${label}: humans=${countPlayerHumans(state)} alive=${countAlive(state)} | avg=${avg.toFixed(2)}ms p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms max=${max.toFixed(2)}ms | cpu avg=${avgCpu.toFixed(2)}ms max=${maxCpu.toFixed(2)}ms`,
   );
+  const report: BenchmarkReport = {
+    label, ticks: ms.length, warmup: WARMUP, population: countPlayerHumans(state), alive: countAlive(state),
+    averageMs: avg, p50, p95Ms: p95, maxMs: max, ticksPerSecond: ms.length / (ms.reduce((a, b) => a + b, 0) / 1000),
+    byHour: hourMs.map((values, hour) => ({ hour, ticks: values.length, avgMs: values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0, maxMs: values.length ? Math.max(...values) : 0, p95Ms: percentile(values, 0.95) })).filter((row) => row.ticks > 0),
+  };
+  benchmarkReports.push(report);
+  console.log(`  throughput=${report.ticksPerSecond.toFixed(2)} ticks/s`);
+  console.log('  slowest clock hours: ' + [...report.byHour].sort((a,b) => b.avgMs-a.avgMs).slice(0, 5).map((h) => `${String(h.hour).padStart(2,'0')}:00 ${h.avgMs.toFixed(1)}ms (max ${h.maxMs.toFixed(1)}ms)`).join(' | '));
+  if (BASELINE) {
+    const data = JSON.parse(readFileSync(BASELINE, 'utf8')) as { reports?: BenchmarkReport[] };
+    const old = data.reports?.find((item) => item.label === report.label);
+    if (old) showComparison(report, old);
+    else console.log(`  No matching baseline label for ${report.label}`);
+  }
   return { avg, p95 };
 }
 
@@ -140,6 +179,7 @@ async function main() {
       { ...DEFAULT_CITY_TARGETS, playerHumans: countPlayerHumans(state) },
       false,
     );
+    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 1, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
     return;
   }
 
@@ -156,6 +196,7 @@ async function main() {
     seedCityScaleProfile(state, targets);
     bench(state, `City ${pop} player humans`, fullSim ? undefined : focus, targets, true);
   }
+  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 1, createdAt: new Date().toISOString(), reports: benchmarkReports }, null, 2) + '\n');
 }
 
 main().catch((e) => {
