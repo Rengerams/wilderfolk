@@ -178,15 +178,35 @@ export function findOverstaffedDonorBuilding(
   excludeBuildingId: number,
   currentTick?: number,
 ): Building | undefined {
-  return jobBuildings
-    .filter(
-      (b) =>
-        b.id !== excludeBuildingId &&
-        !isManualStaffingBuilding(b) &&
-        countWorkersAtBuilding(humans, b.id) >= 2 &&
-        humans.some((h) => h.alive && !h.isJuvenile && h.homeBuildingId === b.id && canAutoChangeWorkplace(h, currentTick)),
-    )
-    .sort((a, b) => countWorkersAtBuilding(humans, a.id) - countWorkersAtBuilding(humans, b.id))[0];
+  // UI previews call this while paused and can evaluate many buildings in one
+  // React render. Count all active assignments and eligible transfer candidates
+  // in one settler pass instead of scanning the entire population per building.
+  const counts = new Map<number, number>();
+  const movable = new Set<number>();
+  for (const human of humans) {
+    if (!human.alive || !isPlayerHuman(human)) continue;
+    const id = human.homeBuildingId;
+    if (id == null) continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick)) {
+      movable.add(id);
+    }
+  }
+
+  // Keep the previous behaviour: least-staffed eligible donor wins, and
+  // equal counts preserve the original building order (stable sort).
+  let best: Building | undefined;
+  let smallestCount = Infinity;
+  for (const building of jobBuildings) {
+    if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
+    const count = counts.get(building.id) ?? 0;
+    if (count < 2 || !movable.has(building.id)) continue;
+    if (count < smallestCount) {
+      best = building;
+      smallestCount = count;
+    }
+  }
+  return best;
 }
 
 export function pickWorkerToTransfer(
