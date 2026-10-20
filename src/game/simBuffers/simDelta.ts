@@ -93,6 +93,7 @@ export interface SimTickDelta {
   removedBuildingIds?: number[];
   aliveEntities: Entity[];
   eventLogTail: WorldState['eventLog'];
+  graveRecords: WorldState['graveRecords'];
   bigNews: WorldState['bigNews'];
   notifications: WorldState['notifications'];
   festival: WorldState['festival'];
@@ -320,6 +321,7 @@ export function extractSimTickDelta(
     huntVisuals: deltaClone(world.huntVisuals ?? [], cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
     eventLogTail: deltaClone(eventLogTail, cloneMode),
+    graveRecords: deltaClone(world.graveRecords ?? [], cloneMode),
     bigNews: deltaClone(world.bigNews, cloneMode),
     notifications: deltaClone(world.notifications, cloneMode),
     festival: deltaCloneOptional(world.festival, cloneMode),
@@ -461,6 +463,7 @@ export function applySimTickDelta(
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
   world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
+  world.graveRecords = deltaClone(delta.graveRecords ?? [], cloneMode);
 
   if (delta.changedBuildings) {
     const removed = new Set(delta.removedBuildingIds ?? []);
