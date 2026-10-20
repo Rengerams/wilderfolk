@@ -21,14 +21,17 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
         Tick {report.lastTick} · {report.population || '—'} settlers · {report.weather || '—'}
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed text-[10px] tabular-nums">
+        <table className="w-full min-w-[620px] table-fixed text-[10px] tabular-nums">
           <thead className="text-left text-stone-500">
             <tr>
-              <th className="w-[40%] px-1 py-1">Function / stage</th>
-              <th className="w-[14%] px-1 py-1 text-right">Calls</th>
-              <th className="w-[16%] px-1 py-1 text-right">Total</th>
-              <th className="w-[15%] px-1 py-1 text-right">Avg</th>
-              <th className="w-[15%] px-1 py-1 text-right">Peak</th>
+              <th className="w-[30%] px-1 py-1">Function / stage</th>
+              <th className="w-[10%] px-1 py-1 text-right">Calls</th>
+              <th className="w-[10%] px-1 py-1 text-right">Total</th>
+              <th className="w-[10%] px-1 py-1 text-right">Avg</th>
+              <th className="w-[10%] px-1 py-1 text-right">p50</th>
+              <th className="w-[10%] px-1 py-1 text-right">p95</th>
+              <th className="w-[10%] px-1 py-1 text-right">p99</th>
+              <th className="w-[10%] px-1 py-1 text-right">Peak</th>
             </tr>
           </thead>
           <tbody>
@@ -44,6 +47,9 @@ function ProfileTable({ name, report }: { name: string; report: PerformanceSnaps
                 </td>
                 <td className="px-1 py-1 text-right">{section.totalMs.toFixed(0)}ms</td>
                 <td className="px-1 py-1 text-right">{section.averageMs.toFixed(1)}</td>
+                <td className="px-1 py-1 text-right">{section.p50Ms.toFixed(1)}</td>
+                <td className="px-1 py-1 text-right">{section.p95Ms.toFixed(1)}</td>
+                <td className="px-1 py-1 text-right">{section.p99Ms.toFixed(1)}</td>
                 <td className="px-1 py-1 text-right text-amber-300">{section.maxMs.toFixed(1)}</td>
               </tr>
             ))}
@@ -137,7 +143,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
           <p className="text-[11px] leading-relaxed text-stone-400">
             Start, play a few game days, then Stop and wait for the worker's final sample before Copy.
             Closing this panel does not stop measurement. CPU time only; nested stages overlap and
-            totals must not be added together. Weather cost is in the main thread.
+            totals must not be added together. Percentiles cover the last 512 calls per stage; times are in milliseconds. Weather cost is in the main thread.
           </p>
           <ProfileTable name="Simulation worker" report={report?.worker ?? null} />
           <ProfileTable name="Main thread / rendering" report={report?.main ?? null} />

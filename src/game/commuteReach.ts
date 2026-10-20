@@ -67,13 +67,13 @@ function routePassesRoad(
 ): boolean {
   const distance = Math.hypot(toX - fromX, toY - fromY);
   const samples = Math.max(1, Math.min(24, Math.ceil(distance / ROAD_ROUTE_SAMPLE_PX)));
-  for (let i = 1; i < samples; i++) {
-    const t = i / samples;
-    const x = fromX + (toX - fromX) * t;
-    const y = fromY + (toY - fromY) * t;
-    for (const building of buildings) {
-      if (building.type !== BuildingType.Road && building.type !== BuildingType.Bridge) continue;
-      if (!building.completed) continue;
+  for (const building of buildings) {
+    if (building.type !== BuildingType.Road && building.type !== BuildingType.Bridge) continue;
+    if (!building.completed) continue;
+    for (let i = 1; i < samples; i++) {
+      const t = i / samples;
+      const x = fromX + (toX - fromX) * t;
+      const y = fromY + (toY - fromY) * t;
       if (isEntityOnBuilding(x, y, building, ROAD_ROUTE_SAMPLE_PX)) return true;
     }
   }
@@ -99,7 +99,7 @@ export function isWithinAssignableCommute(
   const toX = building.x + building.width / 2;
   const toY = building.y + building.height / 2;
   const distance = Math.hypot(toX - from.x, toY - from.y);
-  const usesRoad = routePassesRoad(from.x, from.y, toX, toY, buildings);
-  const speed = usesRoad ? walkSpeed * COMMUTE_ROAD_SPEED_MULT : walkSpeed;
-  return commuteLeadHoursFor(distance, speed) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+  if (commuteLeadHoursFor(distance, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS) return true;
+  if (commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT) > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
+  return routePassesRoad(from.x, from.y, toX, toY, buildings);
 }

@@ -2,6 +2,22 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** generic family convergence leaves manor residents to the leader-house owner; leader move-ins immediately clear old residence occupant lists, preventing duplicate households after reload.
+
+- **Fixed:** a leader household already living in the manor is protected before ordinary family-capacity checks, preventing repeated moves into normal housing and back, including a manor with identifier zero.
+
+- **Fixed:** unconfirmed commands survive simulation-worker restart and replay against the last confirmed state; obsolete command chains cannot submit duplicate actions after recovery.
+
+- **Fixed:** queued commands stop new tick submissions so the worker queue can drain; worker recovery holds simulation ticks and defers commands instead of running expensive recovery work on the UI thread.
+
+- **Fixed:** colony-wide staffing, demolition, construction and other expensive commands wait for the worker result instead of replaying the same simulation on the UI thread; bounded single-worker and venue-hour previews remain immediate.
+
+- **Changed:** A* searches reuse generation-stamped buffers; a bounded LRU retains routes for large commuter populations and retries failed routes after an origin or destination change.
+- **Changed:** automatic staffing reuses assignment and transfer-eligibility counts; commute eligibility skips road scans when walking-distance bounds already decide the result.
+- **Added:** opt-in CPU stage reports include rolling p50, p95 and p99 timings and lifetime counts above the one-second tick budget; population benchmarks support repeatable seeds and save and reload checks.
+- **Changed:** developer profiler and simulation diagnostics panels load conditionally in development and are excluded from production bundles.
+- **Fixed:** outgoing assault descriptions use the fight response directly, removing an unreachable tribute comparison that prevented the build.
+
 
 ## 0.6.5.1[19 october 2026]
 

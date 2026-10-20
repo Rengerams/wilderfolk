@@ -271,7 +271,10 @@ export function assignMissingResidences(
 
   // Family structure is static while we converge on residence slots — build the
   // housing units ONCE instead of every pass (was 24× full rebuilds per call).
-  const housingUnitsBase = buildHousingUnits(alive);
+  const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((residence) => residence.id));
+  const housingUnitsBase = buildHousingUnits(alive).filter((unit) => !unit.some((member) =>
+    member.residenceBuildingId != null && leaderHouseIds.has(member.residenceBuildingId),
+  ));
 
   if (sweepTick === undefined) {
     for (let pass = 0; pass < 24; pass++) {

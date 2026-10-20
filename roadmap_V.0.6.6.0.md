@@ -605,3 +605,16 @@ Split these milestones into independently testable changes with regression cover
 **Existing implementation (19 October 2026):** `src/App.tsx` now requires `import.meta.env.DEV` for `debugMode`; `PerformanceProfilerPanel.tsx` also returns `null` in non-development builds. Treat complete dev-only bundling and production smoke tests as still pending.
 
 **Definition of done:** measured performance improvements with zero simulation correctness regressions and no player access to developer performance tooling in release builds.
+
+
+### Performance implementation checkpoint — 20 October 2026
+
+- [x] **21.1:** reuse generation-stamped A* score/parent storage; retain up to 4,096 routes in the existing cache with LRU eviction, target/origin validation and existing topology invalidation.
+- [x] **18.2:** reuse staffing donor counts throughout rebalancing, updating eligibility after each transfer; avoid commute road scans when plain/road-speed bounds already decide eligibility.
+- [x] **21.2 (partial):** synchronize the human social grid from the existing human bucket instead of scanning wildlife and vegetation too. Full spatial reconciliation remains unchanged.
+- [x] **21.4 (partial):** report bounded per-stage p50/p95/p99 and one-second overruns; extend the existing population harness with fixed seeds, 250/750/1,800/3,000 tiers and optional save/reload checks.
+- [x] **21.3 (command responsiveness):** expensive gameplay commands execute on the worker; bounded edits retain previews. Queued commands drain tick requests, and recovery holds simulation work off the UI thread.
+- [x] **21.5 (bundling):** conditionally import developer panels only in development. Verify production output contains neither panel's unique UI strings.
+- [ ] Remaining: browser/Windows timing profiles, production `?debug=1` live smoke test, long-run raid/school benchmarks, incremental terrain topology updates, worker transfer profiling, and remaining staffing/housing spikes. These are not marked complete by this checkpoint.
+
+Measurements and limitations: `docs/plans/performance-roadmap-2026-10-20.md`.

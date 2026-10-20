@@ -44,6 +44,19 @@ afterEach(() => {
 });
 
 describe('pathfinding metrics', () => {
+  it('isolates repeated, capped and failed searches across grid changes', () => {
+    const grid = makeGrid(12, 12, (x, y) => x === 6 && y < 10);
+    const expected = findPath(grid, 1, 2, 10, 2);
+    expect(expected).not.toBeNull();
+    expect(findPath(grid, 1, 2, 10, 2, 1)).toBeNull();
+    expect(findPath(grid, 1, 2, 10, 2)).toEqual(expected);
+    const blocked = makeGrid(12, 12, (x) => x === 6);
+    expect(findPath(blocked, 1, 2, 10, 2)).toBeNull();
+    expect(findPath(makeGrid(5, 5), 0, 0, 4, 4)).not.toBeNull();
+    expect(findPath(grid, 1, 2, 10, 2)).toEqual(expected);
+    expect(findPath(grid, 10, 2, 1, 2)?.at(-1)).toEqual({ x: 1, y: 2 });
+  });
+
   it('counts nothing at all while disabled', () => {
     setPathfindingMetricsEnabled(false);
     const grid = makeGrid(10, 10);

@@ -93,6 +93,11 @@ Big worlds, thousands of settlers, no stutter — the valley is built to hold a 
 largest maps** without a hiccup, and it already does. Next: make the biggest maps feel effortless, and
 keep the valley's memory small however long you play.
 
+- **Large-colony route reuse:** bounded LRU commute caching and reusable A* search storage reduce repeated searches and allocation pressure.
+- **Cheaper staffing passes:** shared assignment counts and distance bounds avoid repeated population and road scans while retaining worker priorities and cooldowns.
+- **Repeatable measurements:** seeded population tiers, real-save benchmarks, rolling stage percentiles and save/reload checks track the remaining stalls.
+
+
 **The valley stays cozy.** Wilderfolk is a settlement sim with teeth, not a survival trial: crisis and
 disaster systems are not planned, and the weather stays scenery and challenge rather than punishment.
 That's a standing call, not an oversight.

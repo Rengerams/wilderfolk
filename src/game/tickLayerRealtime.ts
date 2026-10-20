@@ -148,7 +148,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
   ctx.mobileGrid = mobileGrid;
 
   const humanSocialGrid = USE_SPATIAL_GRID
-    ? syncHumanSocialGrid(state.humanSocialGrid, width, height, aliveEntities)
+    ? syncHumanSocialGrid(state.humanSocialGrid, width, height, ctx.byType[EntityType.Human] ?? [])
     : undefined;
   state.humanSocialGrid = humanSocialGrid;
   ctx.humanSocialGrid = humanSocialGrid;

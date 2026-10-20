@@ -8,10 +8,25 @@ import {
   pickWorkerToTransfer,
   transferWorkerBetweenBuildings,
   assignMissingWorkers,
+  rebalanceJobWorkers,
 } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 describe('two-month automatic job stability', () => {
+  it('updates donor counts and cooldown eligibility after every transfer in one pass', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3, 4] });
+    const barracks = building(11, BuildingType.Barracks, { occupants: [] });
+    const workers = [1, 2, 3, 4].map((id) => human(id, { homeBuildingId: 10 }));
+    rebalanceJobWorkers(workers, [farm, barracks], undefined, 100);
+    expect(farm.occupants).toHaveLength(1);
+    expect(barracks.occupants).toHaveLength(3);
+    expect(workers.filter((worker) => worker.homeBuildingId === 11)).toHaveLength(3);
+    expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(3);
+    const assignments = workers.map((worker) => worker.homeBuildingId);
+    rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
+    expect(workers.map((worker) => worker.homeBuildingId)).toEqual(assignments);
+  });
+
   it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });

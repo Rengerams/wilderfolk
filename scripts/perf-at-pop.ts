@@ -15,11 +15,17 @@
  *
  * Env:
  *   PERF_TICKS=300        post-warmup ticks per tier
- *   PERF_POPS=300,600,976,1200   tiers to measure
+ *   PERF_POPS=250,750,1800,3000   tiers to measure
+ *   PERF_PROFILE=1      include bounded stage timing summaries
+ *   PERF_ROUNDTRIP=1    measure save/reload and verify population retention
+ *   PERF_SEED=12345     reproducible generated colony seed
  *   PERF_SAVE=<path>      bench this save instead of the tiers
  *   SIM_FULL_SIM=1        disable the viewport focus throttle (the game's worker ticks *with* it)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import { getPerformanceSnapshot, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../src/game/performanceProfiler';
+import { enableSeededGlobalRandom } from '../src/game/simRng';
+import { sampleDelta, collectInvariantErrors, summarizeLivingPopulation, countRelationships } from './colonyHealth';
 import { basename } from 'node:path';
 import { getHourOfDay, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { gameTick, initGame } from '../src/game/gameEngine';
@@ -28,7 +34,8 @@ import { getSimFocus } from './simFocus';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { loadNames } from '../src/game/nameLoader';
-import { loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
+import { loadGameFromParsed, parseSaveJson, buildSaveData } from '../src/game/saveLoad';
 import {
   countAlive,
   expectedCityAlive,
@@ -39,6 +46,9 @@ import {
   type CityProfileTargets,
 } from './simCityProfile';
 
+const ROUNDTRIP = process.env.PERF_ROUNDTRIP === '1';
+const PROFILE = process.env.PERF_PROFILE === '1';
+const SEED = Number(process.env.PERF_SEED ?? 12345);
 const TICKS = Number(process.env.PERF_TICKS ?? 300);
 const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 /** Print every measured tick, with its position in the in-game day — a spike is either a daily layer
@@ -49,7 +59,7 @@ const REPORT = process.env.PERF_REPORT;
 const BASELINE = process.env.PERF_BASELINE;
 
 type HourRow = { hour: number; ticks: number; avgMs: number; maxMs: number; p95Ms: number };
-type BenchmarkReport = { label: string; ticks: number; warmup: number; population: number; alive: number; averageMs: number; p50Ms: number; p95Ms: number; maxMs: number; ticksPerSecond: number; byHour: HourRow[] };
+type BenchmarkReport = { label: string; ticks: number; warmup: number; population: number; alive: number; averageMs: number; averageCpuMs: number; p50Ms: number; p95Ms: number; p99Ms: number; overBudgetTicks: number; deltaHash: string; populationSummary: ReturnType<typeof summarizeLivingPopulation>; relationships: ReturnType<typeof countRelationships>; roundtrip: { saveMs: number; loadMs: number; bytes: number; population: number; invariantErrors: string[] } | null; invariantErrors: string[]; profile: PerformanceSnapshot | null; maxMs: number; ticksPerSecond: number; byHour: HourRow[] };
 const benchmarkReports: BenchmarkReport[] = [];
 
 function percentile(values: readonly number[], fraction: number): number {
@@ -67,7 +77,7 @@ function showComparison(report: BenchmarkReport, baseline: BenchmarkReport): voi
   }
 }
 
-const TIERS = (process.env.PERF_POPS ?? '300,600,976,1200')
+const TIERS = (process.env.PERF_POPS ?? '250,750,1800,3000')
   .split(',')
   .map((value) => Number(value.trim()))
   .filter((value) => Number.isFinite(value) && value > 0);
@@ -87,6 +97,7 @@ function bench(
   targets: CityProfileTargets,
   maintain: boolean,
 ) {
+  setPerformanceProfilingEnabled(false);
   const ms: number[] = [];
   const cpuMs: number[] = [];
   const hourMs: number[][] = Array.from({ length: 24 }, () => []);
@@ -97,6 +108,7 @@ function bench(
       maintainCityBenchmarkState(state, expectedCityAlive(targets), targets);
       refreshCityBenchmarkResources(state, t);
     }
+    if (PROFILE && t === WARMUP + 1) setPerformanceProfilingEnabled(true);
     const cpu0 = process.cpuUsage();
     const t0 = performance.now();
     state = gameTick(state, focus);
@@ -126,11 +138,34 @@ function bench(
   console.log(
     `${label}: humans=${countPlayerHumans(state)} alive=${countAlive(state)} | avg=${avg.toFixed(2)}ms p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms max=${max.toFixed(2)}ms | cpu avg=${avgCpu.toFixed(2)}ms max=${maxCpu.toFixed(2)}ms`,
   );
+  const profile = PROFILE ? getPerformanceSnapshot() : null;
+  setPerformanceProfilingEnabled(false);
+  const populationSummary = summarizeLivingPopulation(state);
+  const relationships = countRelationships(state);
+  let roundtrip: BenchmarkReport['roundtrip'] = null;
+  if (ROUNDTRIP) {
+    const saveStart = performance.now();
+    const json = JSON.stringify(buildSaveData(state, createInitialView(state.width, state.height)));
+    const saveMs = performance.now() - saveStart;
+    const loadStart = performance.now();
+    const parsed = parseSaveJson(json);
+    if (!parsed.valid) throw new Error('roundtrip save was refused');
+    const restored = loadGameFromParsed(parsed.parsed);
+    if (!restored) throw new Error('roundtrip restore failed');
+    const loadMs = performance.now() - loadStart;
+    const restoredPopulation = countPlayerHumans(restored.world);
+    if (restoredPopulation !== countPlayerHumans(state)) throw new Error('roundtrip changed the player population');
+    roundtrip = { saveMs, loadMs, bytes: Buffer.byteLength(json), population: restoredPopulation, invariantErrors: collectInvariantErrors(restored.world) };
+  }
   const report: BenchmarkReport = {
     label, ticks: ms.length, warmup: WARMUP, population: countPlayerHumans(state), alive: countAlive(state),
-    averageMs: avg, p50, p95Ms: p95, maxMs: max, ticksPerSecond: ms.length / (ms.reduce((a, b) => a + b, 0) / 1000),
+    averageMs: avg, averageCpuMs: avgCpu, p50Ms: p50, p95Ms: p95, p99Ms: percentile(ms, 0.99),
+    overBudgetTicks: ms.filter((value) => value > 1000).length,
+    deltaHash: sampleDelta(state).jsonHash, populationSummary, relationships, roundtrip, invariantErrors: collectInvariantErrors(state),
+    profile, maxMs: max, ticksPerSecond: ms.length / (ms.reduce((a, b) => a + b, 0) / 1000),
     byHour: hourMs.map((values, hour) => ({ hour, ticks: values.length, avgMs: values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0, maxMs: values.length ? Math.max(...values) : 0, p95Ms: percentile(values, 0.95) })).filter((row) => row.ticks > 0),
   };
+  setPerformanceProfilingEnabled(false);
   benchmarkReports.push(report);
   console.log(`  throughput=${report.ticksPerSecond.toFixed(2)} ticks/s`);
   console.log('  slowest clock hours: ' + [...report.byHour].sort((a,b) => b.avgMs-a.avgMs).slice(0, 5).map((h) => `${String(h.hour).padStart(2,'0')}:00 ${h.avgMs.toFixed(1)}ms (max ${h.maxMs.toFixed(1)}ms)`).join(' | '));
@@ -155,6 +190,7 @@ function loadSave(path: string): ReturnType<typeof initGame> {
 }
 
 async function main() {
+  enableSeededGlobalRandom();
   await preloadDialogueBank();
   // The game loads the census name pool at boot. A bench that skips it pays for it inside the first
   // tick that needs a name — which is a day boundary — and reports that wait as tick cost.
@@ -179,11 +215,11 @@ async function main() {
       { ...DEFAULT_CITY_TARGETS, playerHumans: countPlayerHumans(state) },
       false,
     );
-    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 1, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
+    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
     return;
   }
 
-  const focus = getSimFocus(initGame({ size: MapSize.Large }));
+  const focus = getSimFocus(initGame({ size: MapSize.Large, seed: SEED }));
   console.log(
     `Ticks=${TICKS} warmup=${WARMUP} | focus=${fullSim ? 'OFF (full sim)' : 'ON (viewport throttle)'} | tiers=${TIERS.join(', ')}`,
   );
@@ -191,12 +227,12 @@ async function main() {
 
   for (const pop of TIERS) {
     const targets: CityProfileTargets = { ...DEFAULT_CITY_TARGETS, playerHumans: pop };
-    const state = initGame({ villageName: 'Bench', size: MapSize.Large });
+    const state = initGame({ villageName: 'Bench', size: MapSize.Large, seed: SEED });
     state.resources.food = 8000;
     seedCityScaleProfile(state, targets);
     bench(state, `City ${pop} player humans`, fullSim ? undefined : focus, targets, true);
   }
-  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 1, createdAt: new Date().toISOString(), reports: benchmarkReports }, null, 2) + '\n');
+  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), reports: benchmarkReports }, null, 2) + '\n');
 }
 
 main().catch((e) => {
