@@ -18,6 +18,7 @@ import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { getWeatherFarmMultiplier } from '../src/game/grassEcology';
 import { getMultiplier } from '../src/game/simHelpers';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { HERD_BASE_SIZE, migrationArrivalDay, tickMigration } from '../src/game/migration';
 import { BuildingType, EntityType, JobType, MapPreset, WeatherType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
@@ -66,7 +67,7 @@ function loneProducerVillage(
   state.resources.food = 0;
   // gameTick advances the clock first, so this lands on tick 72: day 1
   // (a workday) at the start of day — the calendar-aligned production tick.
-  state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
   return { state, building };
 }
 
