@@ -19,4 +19,25 @@ describe('automatic Barracks staffing', () => {
     expect(countWorkersAtBuilding(settlers, barracks.id)).toBe(capacity);
     expect(barracks.occupants).toHaveLength(capacity);
   });
+
+  it('fills a partially staffed Barracks from a surplus automatic donor when no settler is idle', () => {
+    const barracks = createBuilding(BuildingType.Barracks, 100, 100, 7);
+    barracks.completed = true;
+    barracks.staffingMode = 'auto';
+    const donor = createBuilding(BuildingType.Farm, 140, 100, 8);
+    donor.completed = true;
+    donor.staffingMode = 'auto';
+    const needed = BUILDING_CONFIGS[BuildingType.Barracks].maxOccupants;
+    const settlers = Array.from({ length: needed + 2 }, (_, i) => createEntity(
+      EntityType.Human, 100 + i, 100, 1000 + i, 400, false,
+      { gender: 'male', name: `Soldier${i}`, surname: 'Test', ageYears: 30, colonyDay: 0 },
+    ));
+    settlers[0].homeBuildingId = barracks.id;
+    for (const worker of settlers.slice(1)) worker.homeBuildingId = donor.id;
+    // A guard transfer must not drain the last worker from the source.
+    assignMissingWorkers(settlers, [donor, barracks], { tick: 100 });
+    expect(countWorkersAtBuilding(settlers, barracks.id)).toBeGreaterThan(1);
+    expect(countWorkersAtBuilding(settlers, donor.id)).toBeGreaterThanOrEqual(1);
+    expect(settlers.filter((h) => h.homeBuildingId === barracks.id && h.lastAutoJobTransferTick === 100).length).toBeGreaterThan(0);
+  });
 });
