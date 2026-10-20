@@ -1,3 +1,5 @@
+import type { RefObject } from 'react';
+import type { GameLoop } from '../game/gameLoop';
 import Emoji from './Emoji';
 import GameMenu, { type GameMenuSettingsCallbacks } from './GameMenu';
 import ResourceBadge from './ResourceBadge';
@@ -34,6 +36,7 @@ function formatHour(hour: number) {
 }
 
 interface Props extends GameMenuSettingsCallbacks {
+  profilerLoopRef: RefObject<GameLoop | null>;
   world: WorldState;
   population: number;
   gameTitle: string;
@@ -75,6 +78,7 @@ tutorialsEnabled: boolean;
 }
 
 export default function GameHeader({
+  profilerLoopRef,
   world,
   population,
   gameTitle,
@@ -415,6 +419,7 @@ tutorialsEnabled,
         </div>
 
 <GameMenu
+          profilerLoopRef={profilerLoopRef}
           gameTitle={gameTitle}
           gameVersion={gameVersion}
           gamePhase={gamePhase}
