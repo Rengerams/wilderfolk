@@ -2208,7 +2208,7 @@ export default function App() {
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm">
                 {events.length === 0 && <p className="text-amber-300">No battle events received yet.</p>}
                 {events.map((event) => (
-                  <p key={event.id} className={`border-l-2 pl-3 ${event.combatStage === 'casualties' ? 'border-rose-600 text-rose-200' : 'border-amber-800 text-stone-200'}`}>{event.message}</p>
+                  <p key={event.id} className={`border-l-2 pl-3 ${event.message.startsWith('Village fighter killed:') ? 'border-emerald-600 text-emerald-300' : event.message.startsWith('Enemy killed:') ? 'border-rose-600 text-rose-300' : event.combatStage === 'casualties' ? 'border-stone-600 text-stone-200' : 'border-amber-800 text-stone-200'}`}>{event.message}</p>
                 ))}
                 {casualties.length === 0 && resolved && !pending && <p className="text-stone-400">No casualty event was recorded for this encounter.</p>}
               </div>
