@@ -159,7 +159,8 @@ export class GameWorkerHost {
     if (this.worker != null || this.ready) {
       throw new Error('GameWorkerHost.init() called on a host that is already initialized');
     }
-    this.dispose();
+    // Fresh hosts have no prior worker to dispose; waking ready waiters here would
+    // make concurrent whenReady() calls resolve before the handshake.
     const initGen = this.generation;
     this.worldRef = hydrateWorldRuntimeCaches(world);
     this.worker = new Worker(new URL('./gameWorker.ts', import.meta.url), { type: 'module' });
@@ -289,11 +290,7 @@ export class GameWorkerHost {
     this.pendingFocus = undefined;
     this.uploadBarrier = false;
     this.queuedUploads = 0;
-    if (this.pendingUpload) {
-      clearTimeout(this.pendingUpload.deadline);
-      this.pendingUpload.reject(new Error('Worker disposed during world upload'));
-      this.pendingUpload = null;
-    }
+    this.settleUpload((pending) => pending.reject(new Error('Worker disposed during world upload')));
     this.onTickResult = null;
     this.onCommandResult = null;
     this.onWorkerFault = null;
@@ -711,6 +708,14 @@ export class GameWorkerHost {
     };
   }
 
+  private settleUpload(settle: (pending: NonNullable<GameWorkerHost['pendingUpload']>) => void): void {
+    const pending = this.pendingUpload;
+    if (!pending) return;
+    clearTimeout(pending.deadline);
+    this.pendingUpload = null;
+    settle(pending);
+  }
+
   private rejectInFlight(err: Error, opts?: { decrementTicks?: boolean; resetAllTicks?: boolean }): void {
     if (opts?.resetAllTicks) {
       this.ticksInFlight = 0;
@@ -722,12 +727,16 @@ export class GameWorkerHost {
     this.settleCommand((pending) => pending.reject(err));
     this.settleExport((pending) => pending.reject(err));
     this.settleProfilingStop((pending) => pending.reject(err));
+    this.settleUpload((pending) => pending.reject(err));
     this.resolveIdleWaiters();
   }
 
   private handleMessage(msg: WorkerResponse): void {
     if (msg.type === 'worldUploaded') {
-      if (!isWorkerProto(msg.proto)) return;
+      if (!isWorkerProto(msg.proto)) {
+        this.rejectInFlight(new Error(workerProtoMismatch(msg.proto)), { resetAllTicks: true });
+        return;
+      }
       const pending = this.pendingUpload;
       if (pending?.id === msg.uploadId) {
         clearTimeout(pending.deadline);
@@ -755,6 +764,7 @@ export class GameWorkerHost {
       this.settleCommand((pending) => pending.reject(new Error(msg.message)));
       this.settleExport((pending) => pending.reject(new Error(msg.message)));
       this.settleProfilingStop((pending) => pending.reject(new Error(msg.message)));
+      this.settleUpload((pending) => pending.reject(new Error(msg.message)));
       this.resolveIdleWaiters();
       this.onWorkerFault?.(msg.source ?? 'general', msg.message);
       return;
@@ -781,9 +791,11 @@ export class GameWorkerHost {
       }
       const delta = msg.delta as SimTickDelta;
       if (msg.ok === false) {
-        applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
-        invalidateWorldRuntimeCaches(this.worldRef);
-        hydrateWorldRuntimeCaches(this.worldRef);
+        if (delta) {
+          applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+          invalidateWorldRuntimeCaches(this.worldRef);
+          hydrateWorldRuntimeCaches(this.worldRef);
+        }
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
         pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
         this.resolveIdleWaiters();
