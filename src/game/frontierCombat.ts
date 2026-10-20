@@ -677,6 +677,7 @@ function applyRaidCasualties(
       formatCitizenName(victim),
       { x: victim.x, y: victim.y },
     );
+    logEvent(state, 'combat', `Village fighter killed: ${formatCitizenName(victim)} — ${deathReason}`, rivalName, mode === 'raiding' ? 'outgoing_raid' : 'defense', 'casualties');
   }
   const names = victims.map((v) => formatCitizenName(v)).join(', ');
   const summary =
@@ -1296,6 +1297,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
       { x: victim.x, y: victim.y },
       'enemy',
     );
+    logEvent(state, 'combat', `Enemy killed: ${formatCitizenName(victim)} — defending ${rival.name}`, rival.name, 'outgoing_raid', 'casualties');
   }
   rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
   const offMapDeaths = losses - victims.length;
