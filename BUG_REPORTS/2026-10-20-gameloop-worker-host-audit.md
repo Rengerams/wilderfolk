@@ -24,3 +24,11 @@ Static review of `src/game/gameLoop.ts`, `src/game/simWorker/gameWorker.ts`, `sr
 
 ## Status
 Findings logged; follow commit history for individual fixes. Any unimplemented item is **open**, not fixed. Static audit alone is not a passing test.
+
+## Implementation progress (2026-10-20)
+
+- **Fixed in code:** degraded authoritative-save export status is preserved when active worker export fails (`6bb311a`).
+- **Fixed in code, requires runtime tests:** full-world uploads carry a monotonically increasing upload id, acknowledge application from the worker, prevent new ticks while uploading, wait for outstanding old-world ticks before swapping `worldRef`, and serialize commands/exports after queued uploads (`f4a1dc9`, `a6e969f`, `4fac7f3`, `223e1ae`, `aca2625`, `3146e92`).
+- **Fixed in code:** worker tick duration measurement uses an ordered FIFO of matched request timestamps instead of timestamp of latest request (`ae2f26b`, `23fdb9a`).
+- **Previously mitigated:** worker render fraction fixed to 1 pending acknowledgement-based interpolation (`de0c2d5`).
+- **Still open, NOT claimed fixed:** stronger checkpoint/fallback recovery and command durability, robust invalid-render-buffer escalation, snapshot-cache invalidation audit, complete interpolation redesign, performance profiling, automated worker concurrency and save round-trip regression tests. No CI or local build executed with this connector workflow; independently run TypeScript build and tests before release.
