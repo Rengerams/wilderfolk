@@ -332,7 +332,15 @@ export function rebalanceJobWorkers(
       const needy = jobBuildings[i];
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
-      if (countWorkersAtBuilding(humans, needy.id) !== 0) continue;
+      const staffed = countWorkersAtBuilding(humans, needy.id);
+      const capacity = staffingCapFor(needy, humans).cap;
+      if (staffed >= capacity) continue;
+      // The normal auto pass has already consumed all eligible idle settlers.
+      // A partially staffed Barracks (or Prison) still needs the same donor
+      // fallback as manual assignment. Never strip a donor's last worker and
+      // respect the existing transfer cooldown to avoid workforce ping-pong.
+      const defenseVacancy = needy.type === BuildingType.Barracks || needy.type === BuildingType.Prison;
+      if (staffed > 0 && !defenseVacancy) continue;
 
       const donor = findOverstaffedDonorBuilding(jobBuildings, humans, needy.id, currentTick);
       if (!donor) continue;
