@@ -70,6 +70,13 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
           <span>{healthy ? '✓ Residence references healthy' : '⚠ Residence references need review'}</span>
           <span>{housing.overCapacityResidences + housing.orphanedResidenceReferences + housing.occupantListMismatches}</span>
         </div>
+        {!healthy && (
+          <div className="space-y-1 rounded bg-stone-900/50 px-2 py-1 text-stone-300">
+            <div className="flex justify-between"><span>Over capacity</span><span>{housing.overCapacityResidences}</span></div>
+            <div className="flex justify-between"><span>Invalid residence IDs</span><span>{housing.orphanedResidenceReferences}</span></div>
+            <div className="flex justify-between"><span>Stale occupant entries</span><span>{housing.occupantListMismatches}</span></div>
+          </div>
+        )}
       </div>
     </CollapsibleSection>
   );
