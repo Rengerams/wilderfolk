@@ -56,7 +56,7 @@ describe('a load attempt always says why it failed', () => {
     expect(wrongBuild.ok).toBe(false);
     if (wrongBuild.ok) return;
     expect(wrongBuild.reason).toBe('version-mismatch');
-    expect(describeSaveLoadOutcome(wrongBuild)).toContain('different build');
+    expect(describeSaveLoadOutcome(wrongBuild)).toContain('not supported');
   });
 
   it('has a message for a payload that parses but will not restore', () => {
