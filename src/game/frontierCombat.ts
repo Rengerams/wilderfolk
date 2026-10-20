@@ -1277,7 +1277,8 @@ export function respondToRaidEvent(
  * queued events as well, otherwise it could keep raiding after being destroyed.
  */
 function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number): void {
-  const lossFraction = strengthRatio >= 4 ? 1 : strengthRatio >= 2 ? 0.6 : 0.25;
+  // Combat can rout a settlement, but only a later explicit player decision can raze it.
+  const lossFraction = strengthRatio >= 4 ? 0.85 : strengthRatio >= 2 ? 0.6 : 0.25;
   const losses = Math.min(rival.population, Math.max(1, Math.ceil(rival.population * lossFraction)));
   rival.population -= losses;
   // Rivals can have a larger simulated population than their visible character roster.
@@ -1306,18 +1307,9 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
     'outgoing_raid',
     'casualties',
   );
-  if (rival.population > 0) return;
-
-  const structures = new Set(rival.buildingIds);
-  state.buildings = state.buildings.filter((building) => !structures.has(building.id));
-  for (const entity of state.entities) {
-    if (rival.entityIds.includes(entity.id)) entity.alive = false;
-  }
-  state.pendingRaidEvents = (state.pendingRaidEvents ?? []).filter((event) => event.rivalId !== rival.id);
-  state.pendingOutgoingRaidEvents = (state.pendingOutgoingRaidEvents ?? []).filter((event) => event.rivalId !== rival.id);
-  state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((event) => event.rivalId !== rival.id);
-  state.rivalSettlements = state.rivalSettlements.filter((settlement) => settlement.id !== rival.id);
-  logEvent(state, 'combat', `${rival.name} was wiped out — its settlement no longer exists`, rival.name, 'outgoing_raid', 'resolved');
+  // The defeated camp survives with its structures and remaining people. Destruction is
+  // handled only by a confirmed post-victory decision, never by a strength ratio.
+  rival.population = Math.max(1, rival.population);
 }
 
 function resolveOutgoingRaidCombat(
@@ -1355,9 +1347,8 @@ function resolveOutgoingRaidCombat(
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
     const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
-    const destroyed = !state.rivalSettlements.some((camp) => camp.id === rival.id);
-    const victoryTitle = destroyed ? '🏆 Rival settlement defeated' : '🏆 War-band returns victorious';
-    const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${destroyed ? 'The rival settlement was wiped out.' : `${rival.population} rival inhabitants remain.`} ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
+    const victoryTitle = '🏆 War-band returns victorious';
+    const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${rival.population} rival inhabitants remain. ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
     addBigNews(state, victoryTitle, victoryMessage, 'positive');
     logEvent(state, 'combat', `Village victory celebrations — ${victoryMessage}`, rival.name, 'outgoing_raid', 'resolved');
   } else if (outcome === 'meager') {
