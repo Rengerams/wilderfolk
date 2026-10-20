@@ -406,15 +406,11 @@ export class GameWorkerHost {
   }
 
   syncWorld(world: WorldState): Promise<void> {
-    this.worldRef = hydrateWorldRuntimeCaches(world);
-    return this.queueFullWorldUpload(this.worldRef, 'syncWorld');
+    return this.queueFullWorldUpload(world, 'syncWorld');
   }
 
   importSave(world: WorldState): Promise<void> {
-    this.worldRef = hydrateWorldRuntimeCaches(world);
-    this.lastPausedSent = world.paused;
-    this.lastSpeedSent = world.speed;
-    return this.queueFullWorldUpload(this.worldRef, 'importSave');
+    return this.queueFullWorldUpload(world, 'importSave');
   }
 
   private queueFullWorldUpload(world: WorldState, kind: 'importSave' | 'syncWorld'): Promise<void> {
@@ -429,6 +425,11 @@ export class GameWorkerHost {
         this.releaseHeldRenderBuffer();
         const worker = this.worker;
         if (!worker) return;
+        // Old tick results have now drained. Only now adopt the imported world,
+        // so no old-world delta can be applied to the new settlement.
+        this.worldRef = hydrateWorldRuntimeCaches(world);
+        this.lastPausedSent = world.paused;
+        this.lastSpeedSent = world.speed;
 
         invalidateWorldRuntimeCaches(world);
         world.simRng = snapshotSimRng();
@@ -551,6 +552,8 @@ export class GameWorkerHost {
   }
 
   sendCommand(cmd: WorkerCommand): Promise<SimTickDelta> {
+    // Commands must not overtake a full-world import even if the tick queue is empty.
+    if (this.uploadBarrier) return this.commandChain.then(() => this.sendCommand(cmd));
     if (!this.worker || !this.ready) {
       return Promise.reject(new Error('Worker not ready'));
     }
@@ -613,6 +616,7 @@ export class GameWorkerHost {
   }
 
   exportSave(): Promise<WorldState> {
+    if (this.uploadBarrier) return this.commandChain.then(() => this.exportSave());
     if (!this.worker || !this.ready) {
       return Promise.reject(new Error('Worker not ready'));
     }
