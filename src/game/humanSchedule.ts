@@ -115,10 +115,10 @@ export function shouldBeAtHome(hour: number): boolean {
 }
 
 /**
- * A settler who is at home during the night is asleep.
+ * An off-duty settler near their residence during sleep hours is asleep.
  *
  * Composes the two owners that already describe this: the night window
- * (`isNightHour`, 20:00–06:00) and the residency proximity rule (`isNearResidence`,
+ * (`isNightHour`, 23:00–06:00) and the residency proximity rule (`isNearResidence`,
  * 55 px of the assigned house). Anyone out at night — a tavern keeper, a night-shift
  * worker, a visitor, a settler still walking home — is away from their residence and
  * therefore unaffected.
@@ -131,8 +131,9 @@ export function isAsleepAtHome(
   human: Entity,
   buildings: Building[] | ReadonlyMap<number, Building>,
   hour: number,
+  onDuty = false,
 ): boolean {
-  return isNightHour(hour) && isNearResidence(human, buildings);
+  return !onDuty && isNightHour(hour) && isNearResidence(human, buildings);
 }
 
 /** Stable 0..1 roll for one person on one colony day. */
