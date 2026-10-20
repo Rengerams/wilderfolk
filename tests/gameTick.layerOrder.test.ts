@@ -91,6 +91,7 @@ function world(startTick: number): WorldState {
     height: 600,
     entities: [],
     buildings: [],
+    researchNodes: [],
     resources: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
     weather: WeatherType.Clear,
     season: Season.Spring,
