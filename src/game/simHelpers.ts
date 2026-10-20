@@ -94,7 +94,8 @@ export function resolveResearchEffect(
   let add = 0;
   let found = false;
 
-  const nodes = state.researchNodes;
+  // Focused or legacy worlds may have no research tree; this means no bonuses.
+  const nodes = state.researchNodes ?? [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (!node.researched || !node.effects) continue;
