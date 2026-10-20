@@ -23,44 +23,12 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   return household;
 }
 
-/** The leader's household through grandchildren, including their spouses.
- * This is a two-generation descendant entitlement, not an unbounded genealogy search.
- */
-export function collectLeaderExtendedHousehold(leader: Entity, humans: Entity[]): Entity[] {
-  const byId = new Map(humans.map((human) => [human.id, human]));
-  const family: Entity[] = [];
-  const included = new Set<number>();
-  const add = (id: number | undefined): Entity | undefined => {
-    const human = id == null ? undefined : byId.get(id);
-    if (!human?.alive) return undefined;
-    if (!included.has(human.id)) {
-      included.add(human.id);
-      family.push(human);
-    }
-    return human;
-  };
-
-  const spouse = add(leader.partnerId);
-  add(leader.id);
-  const children = new Set([...(leader.childrenIds ?? []), ...(spouse?.childrenIds ?? [])]);
-  for (const childId of children) {
-    const child = add(childId);
-    if (!child) continue;
-    const childSpouse = add(child.partnerId);
-    const grandchildren = new Set([...(child.childrenIds ?? []), ...(childSpouse?.childrenIds ?? [])]);
-    for (const grandchildId of grandchildren) add(grandchildId);
-  }
-  return family;
-}
-
 /**
- * The leader's and their spouse's dynastic clan (two descendant generations,
- * two ancestor generations, siblings/nieces/nephews and aunts/uncles/cousins).
- * Blood and adoptive links are included, as are spouses of descendants and
- * collateral relatives. This is deliberately bounded: it cannot spread
- * indefinitely through every in-law's wider family.
+ * Leader, their spouse and their children/grandchildren of any age.
+ * Excludes collateral relatives and descendants' partners, so a large village's
+ * connected family tree cannot fill the manor indiscriminately.
  */
-export function collectLeaderClan(leader: Entity, humans: Entity[]): Entity[] {
+export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Entity[] {
   const byId = new Map(humans.map((human) => [human.id, human]));
   const childrenByParent = new Map<number, Entity[]>();
   for (const human of humans) {
@@ -73,69 +41,38 @@ export function collectLeaderClan(leader: Entity, humans: Entity[]): Entity[] {
       else childrenByParent.set(parentId, [human]);
     }
   }
-  const clan: Entity[] = [];
+  const family: Entity[] = [];
   const included = new Set<number>();
-  const get = (id: number | undefined): Entity | undefined => id == null ? undefined : byId.get(id);
-  const add = (member: Entity | undefined): Entity | undefined => {
-    if (!member?.alive || member.faction) return undefined;
-    if (!included.has(member.id)) {
-      included.add(member.id);
-      clan.push(member);
+  const add = (human?: Entity): Entity | undefined => {
+    if (!human?.alive || human.faction) return undefined;
+    if (!included.has(human.id)) {
+      included.add(human.id);
+      family.push(human);
     }
-    return member;
+    return human;
   };
-  const partner = (member: Entity | undefined): Entity | undefined => add(get(member?.partnerId));
-  const parents = (member: Entity): Entity[] =>
-    [...new Set([
-      member.motherId, member.fatherId, member.adoptiveMotherId, member.adoptiveFatherId,
-    ])].map(get).filter((parent): parent is Entity => !!parent);
-  const children = (member: Entity): Entity[] => {
+  const childrenOf = (parent: Entity): Entity[] => {
     const found = new Map<number, Entity>();
-    for (const childId of member.childrenIds ?? []) {
-      const child = get(childId);
+    for (const child of childrenByParent.get(parent.id) ?? []) found.set(child.id, child);
+    for (const childId of parent.childrenIds ?? []) {
+      const child = byId.get(childId);
       if (child) found.set(child.id, child);
     }
-    for (const child of childrenByParent.get(member.id) ?? []) found.set(child.id, child);
     return [...found.values()];
   };
-  const roots = [add(leader), partner(leader)].filter((root): root is Entity => !!root);
-  for (const root of roots) {
-    // Descendants and their spouses, with no adult-child exclusion.
-    for (const child of children(root)) {
-      const addedChild = add(child);
-      if (!addedChild) continue;
-      partner(addedChild);
-      for (const grandchild of children(addedChild)) {
-        const addedGrandchild = add(grandchild);
-        if (addedGrandchild) partner(addedGrandchild);
-      }
-    }
-
-    for (const parent of parents(root)) {
-      add(parent);
-      partner(parent);
-      for (const grandparent of parents(parent)) add(grandparent);
-      // Brothers and sisters of the leader/spouse, and nieces and nephews.
-      for (const sibling of children(parent)) {
-        if (sibling.id === root.id) continue;
-        const addedSibling = add(sibling);
-        if (!addedSibling) continue;
-        partner(addedSibling);
-        for (const nieceOrNephew of children(addedSibling)) add(nieceOrNephew);
-      }
-      // Grandparents' other children are aunts and uncles; their children are cousins.
-      for (const grandparent of parents(parent)) {
-        for (const auntOrUncle of children(grandparent)) {
-          if (auntOrUncle.id === parent.id) continue;
-          const addedRelative = add(auntOrUncle);
-          if (!addedRelative) continue;
-          partner(addedRelative);
-          for (const cousin of children(addedRelative)) add(cousin);
-        }
-      }
+  const spouse = add(byId.get(leader.partnerId ?? -1));
+  add(leader);
+  const firstGeneration = new Map<number, Entity>();
+  for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
+    for (const child of childrenOf(root)) {
+      const added = add(child);
+      if (added) firstGeneration.set(added.id, added);
     }
   }
-  return clan;
+  for (const child of firstGeneration.values()) {
+    for (const grandchild of childrenOf(child)) add(grandchild);
+  }
+  return family;
 }
 
 /**
