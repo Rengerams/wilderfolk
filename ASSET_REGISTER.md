@@ -9,7 +9,7 @@ Licensing of third-party assets lives in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_
 The table is one row per file on disk; the register is reconciled against the tree — files with no
 row and rows with no file both fail — by `tests/renderer.overheadBadgeAndAssets.test.ts`.
 
-The inventory includes `graveyard.png`, `square.jpg` and `villa.png`; historical byte-size and unused-asset totals need remeasurement after additions. "No code path" means the file's full
+The inventory includes `graveyard.png`, `square.png` and `villa.png`; historical byte-size and unused-asset totals need remeasurement after additions. "No code path" means the file's full
 URL appears in no `src/`, `scripts/` or `tests/` file; it is not a claim that the art is worthless —
 several entries are rollback copies or regeneration sources the project keeps on purpose, and each
 one says so. Nothing here has been deleted: removing art needs the owner's decision.
@@ -221,7 +221,7 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 | `roads/road_tee_2.png` | `stripRender.ts` | in-repo road strip art |
 | `school.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `silo.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
-| `square.jpg` | `buildings.ts` | village square artwork — in-repo asset, provenance not yet recorded |
+| `square.png` | `buildings.ts` | village square artwork — in-repo asset, provenance not yet recorded |
 | `store.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `storehouse_wood.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `stump.png` | `spriteLoader.ts`, `trees.ts` | earlier in-repo art pass — origin not recorded |
