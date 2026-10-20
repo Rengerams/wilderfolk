@@ -928,8 +928,11 @@ export class GameLoop {
         this.workerHost.setPaused(false);
         this.lastPausedSentToWorker = false;
       }
-      this.tickAccumulator += dtMs;
       const msPerTick = 1000 / (BASE_TICKS_PER_SECOND * this.world.speed);
+      // Never replay an unbounded backlog after a slow worker tick or a stalled tab.
+      // Dropping overdue simulation time keeps the interface responsive instead of
+      // attempting hundreds of catch-up ticks on the main thread.
+      this.tickAccumulator = Math.min(this.tickAccumulator + dtMs, msPerTick * 4);
       let steps = 0;
       const catchUpBudget = catchUpBudgetFor(this.world.speed);
       const canvas = this.getCanvas();
@@ -973,7 +976,9 @@ export class GameLoop {
       }
 
       if (!this.workerEnabled && !this.workerBooting) {
-        while (this.tickAccumulator >= msPerTick && steps < catchUpBudget) {
+        // Main-thread simulation is an emergency fallback; never execute a burst
+        // of expensive ticks inside a single animation frame.
+        while (this.tickAccumulator >= msPerTick && steps < 1) {
           const advanced = this.stepFallbackTick(focus);
           this.tickAccumulator -= msPerTick;
           if (!advanced) break;
