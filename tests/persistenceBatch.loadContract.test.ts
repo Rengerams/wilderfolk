@@ -80,7 +80,7 @@ describe('a load adopts the saved auto-save setting without writing the browser 
     saveAutoSavePreference(false);
     const payload = realPayload();
     payload.autoSave = true;
-    delete payload.resources; // genuinely invalid: missing research nodes now migrate safely
+    payload.entities = null; // genuinely invalid mandatory container
 
     const outcome = loadGameFromParsedOutcome(payload);
 
@@ -143,7 +143,7 @@ describe('a refusal message describes the cause it actually is', () => {
     expect(otherBuild.valid).toBe(false);
     if (!otherBuild.valid) {
       expect(otherBuild.reason).toBe('version-mismatch');
-      expect(describeSaveReadFailure(otherBuild)).toContain('different build');
+      expect(describeSaveReadFailure(otherBuild)).toContain('not supported');
     }
   });
 });
