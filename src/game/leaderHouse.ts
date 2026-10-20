@@ -38,7 +38,8 @@ function leaderDisplayName(leader: Entity): string {
 export function collectLeaderHousehold(state: WorldState): Entity[] {
   if (state.villageLeaderId == null) return [];
   const leader = state.entities.find(
-    (e) => e.id === state.villageLeaderId && e.alive && e.type === EntityType.Human,
+    (e) => e.id === state.villageLeaderId && e.alive
+      && (e.type === EntityType.Human || (e.type === EntityType.Werewolf && e.moonHowlerCursed)),
   );
   if (!leader) return [];
   const livingHumans = state.entities.filter(
@@ -116,6 +117,9 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   //Move in all members of the current leader's household
   for (const member of household) {
     if (member.residenceBuildingId !== house.id) {
+      // Release the old home's reserved slot before finding homes for displaced residents.
+      const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);
+      if (previous) previous.occupants = previous.occupants.filter((id) => id !== member.id);
       member.residenceBuildingId = house.id;
       movedIn = true;
     }
@@ -130,10 +134,11 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   // Running a whole-village convergence here used to trigger up to 24 passes
   // over thousands of settlers whenever the leader household changed.
   // The periodic assignment layer remains responsible for all other housing.
+  // Rebuild occupancy from authoritative residence IDs before vacancy selection, even
+  // when the previous leader's household needs emergency rehousing.
+  syncResidenceOccupants(state.entities, state.buildings);
   if (displaced.length > 0) {
     assignMissingResidences(displaced, state.buildings, state.entities, state.tick);
-  } else {
-    syncResidenceOccupants(state.entities, state.buildings);
   }
 
   //Chronicle events
