@@ -53,7 +53,7 @@ describe('storage caps are recomputed by the daily economy owner', () => {
     addCompleted(state, BuildingType.Silo);
 
     // Land exactly on a day boundary when gameTick increments the tick.
-    state.tick = TICKS_PER_DAY - 1;
+    state.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
     gameTick(state);
 
     expect(state.storageMax.wood).toBe(800 + 300); // base + Barn
@@ -66,7 +66,7 @@ describe('storage caps are recomputed by the daily economy owner', () => {
     const ticked = initGame({ seed: FIXTURE_SEED });
     addCompleted(ticked, BuildingType.WoodStorehouse);
     addCompleted(ticked, BuildingType.Store);
-    ticked.tick = TICKS_PER_DAY - 1;
+    ticked.tick = TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
     gameTick(ticked);
 
     const formula = initGame({ seed: FIXTURE_SEED });
