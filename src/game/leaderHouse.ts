@@ -42,7 +42,7 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
   const livingHumans = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e),
   );
-  return collectLeaderClan(leader, livingHumans).filter((member) => !isImprisoned(member));
+  return collectLeaderDescendants(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
 export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | null): void {
