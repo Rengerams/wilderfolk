@@ -72,7 +72,8 @@ describe('seeded worker versus main-thread parity', () => {
     const workerSimRng = await import('../src/game/simRng');
     const workerNameLoader = await import('../src/game/nameLoader');
     await workerNameLoader.loadNames().catch(() => {});
-    await import('../src/game/simWorker/gameWorker');
+    const { installWorkerMessageHandlers } = await import('../src/game/simWorker/gameWorker');
+    installWorkerMessageHandlers();
     if (!self.onmessage) throw new Error('gameWorker did not register an onmessage handler');
     const send = self.onmessage;
 
