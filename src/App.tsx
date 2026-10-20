@@ -183,15 +183,9 @@ export default function App() {
     s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
     return s;
   });
-  // A text battle unfolds at a readable pace; the outcome remains owned by the simulation.
-  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; phase: number; incoming?: boolean } | null>(null);
-  useEffect(() => {
-    if (!battleReport || battleReport.phase >= 7) return;
-    const timeout = window.setTimeout(() => {
-      setBattleReport((current) => current ? { ...current, phase: Math.min(7, current.phase + 1) } : null);
-    }, 2800);
-    return () => window.clearTimeout(timeout);
-  }, [battleReport]);
+  // The dialog follows authoritative combat events rather than a fake countdown.
+  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; incoming?: boolean } | null>(null);
+  const [razeConfirmationId, setRazeConfirmationId] = useState<string | null>(null);
   const [view, setView] = useState<ViewState>(() => createInitialView(world.width, world.height));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
@@ -1503,7 +1497,6 @@ export default function App() {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
                                   baselineId: world.eventLog[0]?.id ?? 0,
-                                  phase: 0,
                                 });
                               }
                               applyGameAction({
@@ -2175,68 +2168,60 @@ export default function App() {
           }
         />
       )}
-      {battleReport && (
-        <div role="dialog" aria-modal="true" aria-label="Battle chronicle" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
-          <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Live battle chronicle</p>
-            <h2 className="mt-2 text-2xl font-bold text-amber-100">{battleReport.incoming ? `Defense against ${battleReport.rivalName}` : world.eventLog.some((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && event.type === 'combat' && event.message.includes('accepted tribute') && event.message.includes('no bloodshed')) ? `Tribute from ${battleReport.rivalName}` : `Battle for ${battleReport.rivalName}`}</h2>
-            <p className="mt-2 text-sm text-stone-400">A new battle phase unfolds every 2.8 seconds. The casualty and result reports below come from the game event log.</p>
-            <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm leading-relaxed">
-              {(world.eventLog.some((event) =>
-                event.id > battleReport.baselineId
-                && event.entityName === battleReport.rivalName
-                && event.type === 'combat'
-                && event.message.includes('accepted tribute')
-                && event.message.includes('no bloodshed')
-              ) ? [
-                `Your war-band approaches ${battleReport.rivalName}.`,
-                'Scouts make contact with the rival settlement.',
-                'The rival leaders agree to negotiate rather than fight.',
-                'Both sides discuss the terms of a peaceful settlement.',
-                'The defenders agree to deliver tribute.',
-                'Your war-band collects the tribute without casualties.',
-                'The expedition returns to the village without bloodshed.',
-              ] : battleReport.incoming ? [
-                `Scouts warn that ${battleReport.rivalName} is approaching the village.`,
-                'The villagers take shelter as the defenders assemble.',
-                'Barricades and defensive positions are prepared.',
-                'The attackers reach the village perimeter.',
-                'The defenders fight to protect the settlement.',
-                'The surviving villagers regroup.',
-                'Reports from the defense reach the village.',
-              ] : [
-                `Your war-band marches toward ${battleReport.rivalName}.`,
-                'Scouts report movement near the enemy defenses.',
-                'The defenders form ranks and prepare to resist.',
-                'The front lines collide. Both sides fight for control.',
-                'The fighting intensifies. The outcome is still unfolding...',
-                'The surviving combatants regroup as the dust settles.',
-                'The battle report reaches the village.',
-              ]).slice(0, battleReport.phase + 1).map((line, index) => (
-                <p key={index} className="border-l-2 border-amber-800 pl-3 text-stone-200">
-                  <span className="mr-3 text-amber-500">{String(index + 1).padStart(2, '0')}</span>{line}
-                </p>
-              ))}
-              {battleReport.phase >= 6 && world.eventLog
-                .filter((event) => event.id > battleReport.baselineId && (event.entityName === battleReport.rivalName && event.type === 'combat' || event.type === 'death' && event.message.includes(battleReport.rivalName)))
-                .slice().reverse().map((event) => (
-                  <p key={event.id} className="border-l-2 border-rose-600 pl-3 text-rose-200">{event.message}</p>
+      {battleReport && (() => {
+        const events = world.eventLog.filter((event) =>
+          event.id > battleReport.baselineId &&
+          (event.combatKind === 'outgoing_raid' || event.combatKind === 'defense' || event.combatKind === 'incoming_raid') &&
+          (event.entityName === battleReport.rivalName || event.message.includes(battleReport.rivalName))
+        ).slice().reverse();
+        const resolved = events.some((event) => event.combatStage === 'resolved');
+        const pending = (world.pendingRaidVictories ?? []).find((entry) => entry.rivalName === battleReport.rivalName);
+        const casualties = events.filter((event) => event.combatStage === 'casualties');
+        return (
+          <div role="dialog" aria-modal="true" aria-label="Battle report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
+            <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col gap-3 rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Battle report — recorded events</p>
+              <h2 className="text-2xl font-bold text-amber-100">{battleReport.incoming ? 'Defense against' : 'Raid on'} {battleReport.rivalName}</h2>
+              <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
+              {pending && (
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-stone-700 p-3 text-sm">
+                  <div className="text-emerald-300">Your village: {pending.playerDead} killed</div>
+                  <div className="text-rose-300">Enemy: {pending.enemyDead} killed · {pending.enemySurvivors} survivors</div>
+                  <div className="text-emerald-300">Village dead: {pending.playerCasualties.length ? pending.playerCasualties.join(', ') : 'None'}</div>
+                  <div className="text-rose-300">Enemy dead: {pending.enemyCasualties.length ? pending.enemyCasualties.join(', ') : 'No identifiable fighters'}{pending.enemyDead > pending.enemyCasualties.length ? ` · ${pending.enemyDead - pending.enemyCasualties.length} off-map` : ''}</div>
+                </div>
+              )}
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm">
+                {events.length === 0 && <p className="text-amber-300">No battle events received yet.</p>}
+                {events.map((event) => (
+                  <p key={event.id} className={`border-l-2 pl-3 ${event.combatStage === 'casualties' ? 'border-rose-600 text-rose-200' : 'border-amber-800 text-stone-200'}`}>{event.message}</p>
                 ))}
-              {battleReport.phase >= 6 && !world.eventLog.some((event) => event.id > battleReport.baselineId && event.entityName === battleReport.rivalName && event.type === 'combat') && (
-                <p className="text-amber-300">Awaiting the simulation's battle report...</p>
+                {casualties.length === 0 && resolved && !pending && <p className="text-stone-400">No casualty event was recorded for this encounter.</p>}
+              </div>
+              {pending && (
+                <div className="space-y-2 rounded-lg border border-amber-700/70 p-3">
+                  <p className="font-bold text-amber-200">{battleReport.rivalName} has surrendered. Choose its fate.</p>
+                  <p className="text-sm text-stone-300">Its remaining population is {pending.enemySurvivors}. The decision is saved until you make it.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rounded bg-emerald-800 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'mercy' }); setBattleReport(null); }}>Show mercy — 30-day truce</button>
+                    <button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'tribute' }); setBattleReport(null); }}>Demand one-time tribute</button>
+                    <button type="button" className="rounded bg-rose-900 px-3 py-2" onClick={() => setRazeConfirmationId(pending.raidId)}>Raze settlement…</button>
+                  </div>
+                  {razeConfirmationId === pending.raidId && (
+                    <div className="space-y-2 rounded border border-rose-500 p-3">
+                      <p className="text-rose-200">Permanently destroy {battleReport.rivalName}? The camp and its remaining inhabitants will be removed; reputation −30. This cannot be undone.</p>
+                      <button type="button" className="mr-2 rounded bg-rose-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' }); setRazeConfirmationId(null); setBattleReport(null); }}>Confirm raze</button>
+                      <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(null)}>Cancel</button>
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <span className="text-xs text-stone-400">Phase {Math.min(battleReport.phase + 1, 7)} / 7</span>
-              {battleReport.phase >= 7 ? (
-                <button type="button" onClick={() => setBattleReport(null)} className="rounded-lg bg-amber-600 px-5 py-2 font-bold text-stone-950 hover:bg-amber-500">Return to village</button>
-              ) : (
-                <span className="text-sm text-amber-300">Battle unfolding…</span>
-              )}
+              <button type="button" className="self-end rounded-lg bg-amber-600 px-5 py-2 font-bold text-stone-950 hover:bg-amber-500" onClick={() => setBattleReport(null)}>{resolved || pending ? 'Return to village' : 'Close — battle still pending'}</button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
         </GameOverlays>
       )}
     />
