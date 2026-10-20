@@ -1032,8 +1032,18 @@ function reassignDivorcedResidences(
   const residences = buildings.filter(isResidenceBuilding);
 
   const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : null;
-  const custodian = wife ?? a;
-  const leaver = wife ? (a === wife ? b : a) : b;
+  // A sitting leader keeps the manor on divorce, regardless of gender.
+  // Generic marital-home rules would otherwise evict the leader until the next
+  // leader-house reconciliation pulse and produce a residence bounce.
+  const sharedManor = a.residenceBuildingId != null
+    && a.residenceBuildingId === b.residenceBuildingId
+    && buildings.some((building) => building.id === a.residenceBuildingId
+      && building.type === BuildingType.LeaderHouse && building.completed);
+  const manorLeader = sharedManor
+    ? [a, b].find((person) => person.occupation === LEADER_OCCUPATION)
+    : undefined;
+  const custodian = manorLeader ?? wife ?? a;
+  const leaver = custodian === a ? b : a;
 
   const formerHomes = new Set<number>();
   for (const resident of [custodian, leaver]) {
