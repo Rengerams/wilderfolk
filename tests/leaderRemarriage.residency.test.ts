@@ -94,6 +94,35 @@ describe('leader remarriage residency', () => {
     expect(manor.occupants).not.toContain(2);
   });
 
+  it('keeps the sitting leader in the manor when displaced residents must be rehoused', () => {
+    const leader = human(1158, {
+      occupation: LEADER_OCCUPATION, residenceBuildingId: 11,
+      partnerId: 2, relationshipStatus: 'married',
+    });
+    const spouse = human(2, {
+      partnerId: 1158, relationshipStatus: 'married', residenceBuildingId: 11,
+    });
+    const formerResident = human(3, { residenceBuildingId: 0 });
+    const manor = building(0, BuildingType.LeaderHouse, { occupants: [3] });
+    const normalHouse = building(11, BuildingType.House, { occupants: [1158, 2] });
+    const state = {
+      entities: [leader, spouse, formerResident],
+      buildings: [manor, normalHouse],
+      villageLeaderId: 1158,
+      eventLog: [],
+    } as unknown as WorldState;
+
+    syncLeaderHouseResidency(state);
+    expect(leader.residenceBuildingId).toBe(0);
+    expect(spouse.residenceBuildingId).toBe(0);
+    expect(formerResident.residenceBuildingId).not.toBe(0);
+    expect(manor.occupants).toContain(1158);
+
+    syncLeaderHouseResidency(state);
+    expect(leader.residenceBuildingId).toBe(0);
+    expect(spouse.residenceBuildingId).toBe(0);
+  });
+
   it('is idempotent — calling twice changes nothing', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
