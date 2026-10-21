@@ -22,7 +22,7 @@ import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { addBigNews } from '../src/game/simEffects';
 import { tickMoonHowlerCycle, MOON_HOWLER_REPLACEMENT_CHANCE } from '../src/game/moonHowler';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/dayCycleConstants';
+import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/daycycleconstants';
 
 const FIXTURE_SEED = 20240913;
 
