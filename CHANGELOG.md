@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** autumn migration departure clears predators' and hunters' stale deer targets and removes departing deer from the active tick's id/type indexes. Moon Howler curse eligibility now excludes all foreign factions, including trade caravans, and returning priests are positioned at the church's south entrance.
 - **Fixed:** Whittaker ground chunk cache includes terrain revision; 20px construction cells validate every 10px subcell in generated and rebaked grids; startup forest clearings rebake walkability/buildability; non-edited big rock reservations survive grid rebakes.
 - **Fixed:** continuous terrain relief no longer jumps at 50% elevation; river incision depth scales with channel width rather than saturating, and river-distance classification samples the dedicated water-resolution lattice.
 - **Fixed:** wildlife viewport culling respects foot-anchored sprite bounds; build-zone blocker and snap markers follow 2.5D terrain rise; spousal connection markers remain visible while married couples are expecting.
