@@ -49,6 +49,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
           {leaderBreakdown && (
             <p className="mt-1 text-[10px] text-stone-300">
               Merit {leaderBreakdown.totalScore} — skills {leaderBreakdown.skillPoints}, experience {leaderBreakdown.experiencePoints}
+              {leaderBreakdown.battlePoints > 0 ? `, battles +${leaderBreakdown.battlePoints}` : ''}
               {leaderBreakdown.communityPoints > 0 ? `, family +${leaderBreakdown.communityPoints}` : ''}
               {leaderBreakdown.recordPoints > 0 ? `, record +${leaderBreakdown.recordPoints}` : ''}
               {leaderBreakdown.recordPoints < 0 ? `, record ${leaderBreakdown.recordPoints}` : ''}
