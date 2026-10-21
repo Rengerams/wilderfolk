@@ -5,7 +5,6 @@ import { readSkill, rewardProductionSkills, gainSkill } from './skills';
 import { addReputation } from './simHelpers';
 import { spendFood } from './economyLedger';
 import { addFloatingText, addNotification } from './simEffects';
-import { addResource } from './economy';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
@@ -81,19 +80,6 @@ export function tickTownHallCivic(
   const skill = getTownHallOfficialSkillAvg(state, building);
   addReputation(state, 3 + Math.max(0, officials - 1));
 
-  const adults = playerHumans.filter((h) => !h.isJuvenile).length;
-  const taxGold = Math.max(1, Math.floor((adults * 0.4 + officials * 2) * (1 + skill / 80)));
-  const added = addResource(state, 'gold', taxGold);
-  if (added > 0) {
-    addFloatingText(
-      state,
-      building.x + building.width / 2,
-      building.y - 12,
-      `+${added} gold (taxes)`,
-      '#eab308',
-      'brief',
-    );
-  }
   rewardProductionSkills(state, building, 0.25);
 }
 
@@ -150,9 +136,9 @@ export function hostTownFestival(originalState: WorldState, buildingId: number):
 
 export function describeTownHallPerks(building: Building): string {
   if (building.occupants.length === 0) {
-    return 'Assign officials (Official job) to collect taxes, grow trade & immigration, and host festivals. Settlers petition the hall for aid & audiences.';
+    return 'Assign officials (Official job) to support trade, immigration, and festivals. Settlers petition the hall for aid & audiences.';
   }
-  return 'Every 3 days: +rep & tax gold · trade · immigration · efficiency · softer scandals · petitions & leader audiences · host festivals below';
+  return 'Every 3 days: +rep · trade · immigration · efficiency · softer scandals · petitions & leader audiences · host festivals below';
 }
 
 export function isOfficialAtHall(
