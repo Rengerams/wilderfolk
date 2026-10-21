@@ -796,6 +796,22 @@ export interface WorldState {
   storyFlags?: Record<string, number>;
   pendingOutgoingRaidEvents: OutgoingRaidEvent[];
   /** Resolved outgoing victories awaiting an explicit settlement-fate choice. */
+  raidBattleReports?: Array<{
+    raidId: string;
+    rivalId: string;
+    rivalName: string;
+    side: 'defense' | 'offense';
+    outcome: string;
+    resolvedAtTick: number;
+    leaderId: number | null;
+    leadershipMerit: number;
+    playerFallen: string[];
+    enemyFallen: string[];
+    playerDeaths: number;
+    enemyDeaths: number;
+    damagedBuildings: number;
+    suppliesLost: { food: number; gold: number; wood: number; stone: number };
+  }>;
   pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[] }>;
 
   renffrOmen?: RenffrOmen | null;
