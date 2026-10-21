@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_CONFIGS } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
 
@@ -86,10 +86,18 @@ export function isNearResidence(human: Entity, buildings: Building[] | ReadonlyM
 
 export type ResidenceOccupancy = Map<number, number>;
 
+/** One occupancy rule for living player settlers, including cursed Moon Howlers.
+ * The housing solver and occupant sync both use this leaf owner. */
+export function isResidenceOccupantEntity(entity: Entity): boolean {
+  if (!entity.alive) return false;
+  if (entity.type === EntityType.Human) return isPlayerHuman(entity);
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed && !entity.faction;
+}
+
 export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
   const occupancy: ResidenceOccupancy = new Map();
   for (const h of humans) {
-    if (!h.alive || !isPlayerHuman(h)) continue;
+    if (!isResidenceOccupantEntity(h)) continue;
     const id = h.residenceBuildingId;
     if (id == null) continue;
     occupancy.set(id, (occupancy.get(id) ?? 0) + 1);
@@ -109,7 +117,7 @@ export function occupancyMove(occupancy: ResidenceOccupancy, fromId: number | un
 
 export function countResidentsInBuilding(humans: Entity[], buildingId: number, occupancy?: ResidenceOccupancy): number {
   if (occupancy) return occupancy.get(buildingId) ?? 0;
-  return humans.filter((h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === buildingId).length;
+  return humans.filter((h) => isResidenceOccupantEntity(h) && h.residenceBuildingId === buildingId).length;
 }
 
 export function residenceRoomFor(human: Entity, residence: Building, humans: Entity[], occupancy?: ResidenceOccupancy): boolean {
