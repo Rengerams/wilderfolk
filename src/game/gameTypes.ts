@@ -812,6 +812,7 @@ export interface WorldState {
   electionCeremony: ElectionCeremonyState | null;
   nextElectionId?: number;
   lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; turnout: number; eligibleVoters: number };
+  electionPromiseRecords?: Array<{ electionId: number; leaderId: number; year: number; dueDay: number; codes: number[]; evaluated: boolean }>;
   villageForge?: VillageForgeState;
   tutorialSeen?: string[];
   economyLedger?: DailyEconomyLedger;
