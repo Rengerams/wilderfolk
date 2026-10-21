@@ -690,7 +690,6 @@ export function getRivalTradePactEligibility(
 ): { ok: boolean; blockReason?: string } {
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return { ok: false, blockReason: 'No such rival' };
-  if (rival.peaceTreatyDays > 0) return { ok: false, blockReason: 'Peace treaty already active' };
   if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations too tense' };
   if (rival.relationship === 'friendly') return { ok: false, blockReason: 'Already friendly' };
   if (state.resources.gold < RIVAL_TRADE_PACT_GOLD_COST) {
@@ -779,6 +778,7 @@ export function getPeaceTreatyEligibility(
 ): { ok: boolean; blockReason?: string } {
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return { ok: false, blockReason: 'No such rival' };
+  if (rival.peaceTreatyDays > 0) return { ok: false, blockReason: 'Peace treaty already active' };
   if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations too tense' };
   if (state.resources.gold < PEACE_TREATY_GOLD_COST || state.resources.food < PEACE_TREATY_FOOD_COST) {
     return {
