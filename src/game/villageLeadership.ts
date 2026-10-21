@@ -93,7 +93,6 @@ export interface LeadershipScoreBreakdown {
   totalScore: number;
   skillPoints: number;
   experiencePoints: number;
-  servicePoints: number;
   communityPoints: number;
   recordPoints: number;
   titlePoints: number;
@@ -127,8 +126,6 @@ const EXPERIENCE_MERIT_PER_YEAR = 1.0;
 /** One capped trade is worth 50 merit; expertise across trades is capped at 100. */
 const SKILL_MERIT_PER_POINT = 0.5;
 const SKILL_MERIT_CAP = 100;
-/** Merit for holding a Town Hall seat — serving the village, not merely living in it. */
-const SERVICE_MERIT = 60;
 /** Merit per close friendship (`relationships.friendCount`, the ≥60 bond the owner calls a friend). */
 const COMMUNITY_MERIT_PER_FRIEND = 2;
 /** Merit for being married, the household half of standing. */
@@ -310,21 +307,18 @@ export function getLeadershipScoreBreakdown(
     Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * EXPERIENCE_MERIT_PER_YEAR,
   );
 
-  const townHall = findPlayerTownHall(state.buildings);
-  const servicePoints = townHall?.occupants.includes(entity.id) ? SERVICE_MERIT : 0;
   const communityPoints =
     friendCount(entity) * COMMUNITY_MERIT_PER_FRIEND +
     (entity.relationshipStatus === 'married' ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
-  const baseScore = skillPoints + experiencePoints + servicePoints + communityPoints + titlePoints;
+  const baseScore = skillPoints + experiencePoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
     name: formatSettlerName(entity),
     skillPoints,
     experiencePoints,
-    servicePoints,
     communityPoints,
     recordPoints,
     titlePoints,
@@ -448,7 +442,6 @@ function getYearsUntilElectionForYear(year: number, lastElectionYear: number): n
 function scoreSummary(b: LeadershipScoreBreakdown): string {
   const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
   if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
-  if (b.servicePoints > 0) parts.push(`Town Hall +${b.servicePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
   if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);
   if (b.recordPoints < 0) parts.push(`record ${b.recordPoints}`);
