@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { WORK_COMMUTE_RUSH } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
