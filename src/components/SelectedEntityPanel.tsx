@@ -295,7 +295,7 @@ export default function SelectedEntityPanel({
         {entity.combatTicks && entity.combatTicks > 0 && (
           <p className="text-amber-300">⚔️ In combat</p>
         )}
-        {isHuman && !isVisitor && !isRival && getHumanArmamentLabel(state) && (
+        {isHuman && !entity.isJuvenile && !isVisitor && !isRival && getHumanArmamentLabel(state) && (
           <p className="text-sky-300">⚔️ Village gear: {getHumanArmamentLabel(state)}</p>
         )}
         {entity.tamedBy && (
