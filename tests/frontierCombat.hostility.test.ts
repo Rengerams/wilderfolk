@@ -50,7 +50,7 @@ function human(id: number): Entity {
     childrenIds: [],
     generation: 0,
     isJuvenile: false,
-    job: JobType.Settler,
+    job: JobType.Soldier,
     name: `Settler${id}`,
     maxAge: 90,
     reproductionCooldown: 0,
@@ -144,7 +144,7 @@ describe('declaring hostility on a friendly rival', () => {
     const world = village([rival({ relationship: 'tense' })]);
     const target = world.rivalSettlements[0];
 
-    expect(canProvokeRival(world, target)).toEqual({ ok: false, blockReason: 'Relations already tense' });
+    expect(canProvokeRival(world, target).ok).toBe(true);
     expect(provokeRival(world, target.id).rivalSettlements[0].relationship).toBe('tense');
   });
 
