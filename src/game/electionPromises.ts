@@ -180,6 +180,8 @@ export function getActiveElectionPromises(state: WorldState): {
   daysRemaining: number;
   promises: PromiseDetail[];
 } | null {
+  const active = state.electionPromiseRecords?.findLast((record) => !record.evaluated);
+  if (active) return { year: active.year, daysRemaining: Math.max(0, active.dueDay - getColonyDay(state)), promises: active.codes.map((code) => getPromiseDetail(state, code)) };
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
   if (storyFlag(state, evaluatedKey(year)) > 0) return null;
   // An unrecorded set reads 0 here too, so the eval day below is what says "nothing was promised".
@@ -200,6 +202,11 @@ export function getActiveElectionPromises(state: WorldState): {
 export function recordElectionPromises(state: WorldState, year: number): void {
   const colonyDay = getColonyDay(state);
   const [first, second] = selectPromiseCodes(state, year);
+  const leaderId = state.villageLeaderId;
+  if (leaderId != null) {
+    const electionId = state.lastElectionResult?.electionId ?? state.nextElectionId ?? 0;
+    state.electionPromiseRecords = [...(state.electionPromiseRecords ?? []), { electionId, leaderId, year, dueDay: colonyDay + EVAL_DAY_OFFSET, codes: [first, second], evaluated: false }];
+  }
   setStoryFlags(state, {
     [FLAG_ACTIVE_YEAR]: year,
     [promiseKey(year, 0)]: first,
@@ -231,6 +238,20 @@ function promiseKept(state: WorldState, year: number, index: number): boolean {
 }
 
 export function tickElectionPromises(state: WorldState): void {
+  for (const record of state.electionPromiseRecords ?? []) {
+    if (record.evaluated || getColonyDay(state) < record.dueDay) continue;
+    const kept = record.codes.filter((code) => getPromiseDetail(state, code).fulfilled).length;
+    const failed = record.codes.length - kept;
+    const change = kept * 3 - failed * 2;
+    addReputation(state, change);
+    record.evaluated = true;
+    const originalLeader = state.entities.find((person) => person.id === record.leaderId);
+    const leaderName = originalLeader?.name ? `${originalLeader.name}${originalLeader.surname ? ` ${originalLeader.surname}` : ''}` : `Settler #${record.leaderId}`;
+    if (failed > 0) logEvent(state, 'scandal', `${leaderName} broke ${failed} election promise${failed === 1 ? '' : 's'}.`, leaderName);
+    addBigNews(state, '🗳️ Promises judged', `${leaderName}: ${kept}/${record.codes.length} kept. Reputation ${change >= 0 ? '+' : ''}${change}.`, change >= 0 ? 'positive' : 'negative');
+    logEvent(state, 'election', `Election #${record.electionId}: ${leaderName} kept ${kept}/${record.codes.length} promises.`, leaderName);
+  }
+  if ((state.electionPromiseRecords?.length ?? 0) > 0) return;
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
   if (storyFlag(state, evaluatedKey(year)) > 0) return;
 
