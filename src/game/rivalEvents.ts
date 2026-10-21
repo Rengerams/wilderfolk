@@ -1,6 +1,6 @@
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
-import { getColonyDay, isNewCalendarDayTick } from './dayCycle';
+import { getColonyDay } from './dayCycle';
 import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
@@ -192,7 +192,10 @@ export function tickRivalSettlements(
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
 ): void {
-  if (!isNewCalendarDayTick(state)) return;
+  // Called once per day by tickDailyWorldEvents at 18:00. The former midnight-only
+  // isNewCalendarDayTick guard prevented peace treaties, raid cooldowns and rival
+  // growth from advancing at all during normal gameplay.
+
 
   callbacks.tickPendingDiplomacyEvents(state);
   const aliveById = buildAliveEntityIndex(allAlive);
