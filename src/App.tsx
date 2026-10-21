@@ -2141,6 +2141,7 @@ export default function App() {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
           }}
+          onRecallRaid={(eventId) => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId, choiceId: 'recall' })}
           onProvokeRival={(rivalId) => {
             playClickSound();
             applyGameAction({ proto: 1, op: 'provokeRival', rivalId });
