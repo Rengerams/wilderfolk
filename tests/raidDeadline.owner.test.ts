@@ -98,6 +98,26 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
     expect(world.pendingRaidVictories).toHaveLength(1);
   });
 
+  it('changes neighboring rival reactions once without changing remote settlements', () => {
+    const mercyWorld = victoriousWorld();
+    const original = mercyWorld.rivalSettlements[0]!;
+    mercyWorld.rivalSettlements.push(
+      { ...original, id: 'neighbor', campX: 150, campY: 100, relationship: 'competitive' },
+      { ...original, id: 'remote', campX: 2500, campY: 2500, relationship: 'competitive' },
+    );
+    const spared = resolveRaidVictory(mercyWorld, 'unique-raid', 'mercy');
+    expect(spared.rivalSettlements.find((settlement) => settlement.id === 'neighbor')?.relationship).toBe('neutral');
+    expect(spared.rivalSettlements.find((settlement) => settlement.id === 'remote')?.relationship).toBe('competitive');
+    expect(resolveRaidVictory(spared, 'unique-raid', 'mercy')).toBe(spared);
+
+    const razeWorld = victoriousWorld();
+    razeWorld.rivalSettlements.push(
+      { ...razeWorld.rivalSettlements[0]!, id: 'neighbor', campX: 150, campY: 100, relationship: 'neutral' },
+    );
+    const razed = resolveRaidVictory(razeWorld, 'unique-raid', 'raze');
+    expect(razed.rivalSettlements.find((settlement) => settlement.id === 'neighbor')?.relationship).toBe('competitive');
+  });
+
   it('only confirmed razing destroys a camp and does not reapply a result', () => {
     const world = victoriousWorld();
     const pending = resolveRaidVictory(world, 'unique-raid', 'not-confirmed');
