@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Visuals:** Ground Reinforcement uses the existing case-sensitive `public/sprites/ground_soil.PNG` art in the Build catalogue and paints persistent reinforced terrain tiles without creating a blocking building.
 - **Changed:** shallow water is now walkable for settlers and visitors; deep water and rivers remain impassable. Existing wall gates retain their normal passable behavior.
 - **Added:** Ground Reinforcement in Build → Resources. Spend 30 stone and 8 gold to prepare a 30 × 30 pixel patch of mountains, snow, shallow water or riverbank for later construction. The operation leaves no blocking building, persists terrain overrides and refreshes terrain grids; active rivers and deep water remain protected.
 - **Changed:** outgoing raid marches take at least two in-game days to reach their destination, with visible strategic-map army progress. Food provisions now scale with deployed soldiers and both legs of the journey.
