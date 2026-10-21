@@ -18,7 +18,7 @@ import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY, tickAtDailyPhase } from '../src/game/dayCycleClock';
-import { updateStorageCaps } from '../src/game/economy';
+import { updateStorageCaps, siloFoodStorageForLevel } from '../src/game/economy';
 
 const FIXTURE_SEED = 20240913;
 
@@ -57,7 +57,7 @@ describe('storage caps are recomputed by the daily economy owner', () => {
     gameTick(state);
 
     expect(state.storageMax.wood).toBe(800 + 300); // base + Barn
-    expect(state.storageMax.food).toBe(800 + 400 + 600); // base + Barn + Silo
+    expect(state.storageMax.food).toBe(800 + 400 + siloFoodStorageForLevel(1)); // base + Barn + Silo
     expect(state.storageMax.gold).toBe(20000);
     expect(state.foodSpoilageRate).toBeCloseTo(0.008); // Silo cut
   });
