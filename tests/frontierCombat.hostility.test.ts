@@ -20,6 +20,7 @@ import {
   launchRaidOnRival,
   respondToOutgoingRaidEvent,
   tickPendingOutgoingRaidEvents,
+  getOutgoingRaidCasualtyLimit,
   raiseRaidLootToFloor,
 } from '../src/game/frontierCombat';
 import { tickRivalSettlements } from '../src/game/rivalEvents';
@@ -172,6 +173,21 @@ describe('declaring hostility on a friendly rival', () => {
   });
 });
 
+describe('proportional raid casualties', () => {
+  it('does not scale our deaths with a huge army facing five weak defenders', () => {
+    expect(getOutgoingRaidCasualtyLimit(150, 5, 5, 150)).toBeLessThanOrEqual(1);
+    expect(getOutgoingRaidCasualtyLimit(1500, 5, 5, 150)).toBeLessThanOrEqual(1);
+    expect(getOutgoingRaidCasualtyLimit(150, 0, 0, 150)).toBe(0);
+  });
+
+  it('allows more danger in even or losing battles without excessive losses', () => {
+    const overwhelming = getOutgoingRaidCasualtyLimit(150, 5, 5, 150);
+    const contested = getOutgoingRaidCasualtyLimit(150, 150, 80, 150);
+    expect(contested).toBeGreaterThan(overwhelming);
+    expect(contested).toBeLessThanOrEqual(150);
+  });
+});
+
 describe('mobilized raid lifecycle', () => {
   it('deploys all eligible soldiers and allows recall without instant village defense', () => {
     const world = village([rival({ relationship: 'tense' })]);
@@ -235,7 +251,11 @@ describe('mobilized raid lifecycle', () => {
     world.tick = started + TICKS_PER_HOUR;
     tickPendingOutgoingRaidEvents(world);
     expect(raid.battleChronicle).toHaveLength(3);
-    expect(raid.battleChronicle![2]).toContain('no casualties have been confirmed');
+    expect(raid.battleCasualtiesApplied).toBe(true);
+    expect(raid.battleChronicle![2]).toMatch(/Fallen in the fighting|no village deaths confirmed/);
+    const deadAtMidpoint = world.entities.filter((person) => !person.alive).length;
+    tickPendingOutgoingRaidEvents(world);
+    expect(world.entities.filter((person) => !person.alive)).toHaveLength(deadAtMidpoint);
 
     world.tick = started + Math.ceil(TICKS_PER_HOUR * 1.5);
     tickPendingOutgoingRaidEvents(world);
