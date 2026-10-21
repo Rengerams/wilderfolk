@@ -28,7 +28,7 @@ function StrategicWorldMap({ state, selectedRivalId, onSelectRival, onLaunchRaid
   const offsetY = 187 - (minY + maxY) * scale / 2;
   const locate = (x: number, y: number) => ({ x: x * scale + offsetX, y: y * scale + offsetY });
   const home = locate(origin.x, origin.y);
-  const soldiers = getRaidParticipants(state, state.entities, 'barricade').length;
+  const soldiers = getRaidParticipants(state, state.entities, 'outgoing').length;
   const livingIds = new Set(state.entities.filter((person) => person.alive).map((person) => person.id));
   const raids = [
     ...(state.pendingOutgoingRaidEvents ?? []).map((event) => ({ event, outgoing: true })),
@@ -112,6 +112,8 @@ function StrategicWorldMap({ state, selectedRivalId, onSelectRival, onLaunchRaid
                 {onDeclareWar && <button type="button" disabled={!war.ok} title={war.ok ? 'Declare hostility and damage diplomatic relations' : war.blockReason} onClick={() => onDeclareWar(rival.id)} className="flex-1 rounded bg-red-950 px-2 py-1 text-[11px] text-rose-100 disabled:opacity-40">Declare war</button>}
                 {onLaunchRaid && <button type="button" disabled={!raid.ok} title={raid.ok ? 'Send available soldiers on a raid' : raid.blockReason} onClick={() => onLaunchRaid(rival.id)} className="flex-1 rounded bg-amber-900 px-2 py-1 text-[11px] text-amber-100 disabled:opacity-40">Raid · {getOutgoingRaidFoodCostForRival(state, rival)} food</button>}
               </div>
+              {!war.ok && onDeclareWar && <p className="mt-1 text-[11px] text-rose-300">Declare war unavailable: {war.blockReason}</p>}
+              {!raid.ok && onLaunchRaid && <p className="mt-1 text-[11px] text-amber-300">Raid unavailable: {raid.blockReason}</p>}
             </div>
           );
         })}
