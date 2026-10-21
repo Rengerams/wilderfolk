@@ -247,8 +247,13 @@ describe('Town Hall civic pulse (no tax mechanic)', () => {
 
 describe('Hunting Spot research multiplier (L29)', () => {
   function huntWorld(day: number, withStoneSpears: boolean): WorldState {
-    const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8 });
+    const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0 });
     const prey = deer(2);
+    // Keep the target touching the hunter until the production phase.
+    // An animal that wanders away turns this research test into a chase test.
+    prey.x = hunter.x;
+    prey.y = hunter.y;
+    prey.speed = 0;
     const state = baseState();
     state.tick = tickAtDailyPhase(day, 'production') - 1;
     state.entities = [hunter, prey];
