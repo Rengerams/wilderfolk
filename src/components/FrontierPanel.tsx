@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import CombatPreviewPanel from '../game/CombatPreviewPanel';
 import StrategicWorldMap from './StrategicWorldMap';
@@ -50,6 +50,7 @@ function FrontierPanel({
   onProvokeRival,
   onRecallRaid,
 }: FrontierPanelProps) {
+  const [selectedRivalId, setSelectedRivalId] = useState<string | null>(null);
   const pendingRaids = state.pendingRaidEvents ?? [];
   const firstPendingRaid = pendingRaids[0];
   const pendingDiplomacy = state.pendingDiplomacyEvents ?? [];
@@ -71,7 +72,7 @@ function FrontierPanel({
     const year = state.year ?? 0;
     return (
       <div className="space-y-3">
-        <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
+        <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
         <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
         <p className="mt-1 text-[13px] text-stone-300">
@@ -92,7 +93,7 @@ function FrontierPanel({
 
   return (
     <div className="space-y-3">
-      <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} />
+      <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
       {(state.raidBattleReports?.length ?? 0) > 0 && (
         <section className="rounded-lg border border-amber-600/40 bg-stone-900/70 px-3 py-2 text-[12px]">
           <h4 className="text-[13px] font-bold text-amber-200">Battle aftermath and recovery</h4>
@@ -211,11 +212,11 @@ function FrontierPanel({
               return (
                 <div
                   key={r.id}
-                  className="rounded-lg bg-stone-800/60 px-2.5 py-2"
+                  className={`rounded-lg border px-2.5 py-2 ${selectedRivalId === r.id ? 'border-amber-500 bg-amber-950/40' : 'border-transparent bg-stone-800/60'}`}
                 >
                   <button
                     type="button"
-                    onClick={() => onFocusRival(r.id, r.campX, r.campY, r.buildingIds[0])}
+                    onClick={() => setSelectedRivalId(r.id)}
                     className="flex w-full flex-col gap-1 text-left transition-colors hover:opacity-90"
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -244,7 +245,7 @@ function FrontierPanel({
                         {hasDiplo ? '📜 Diplomacy pending' : ''}
                       </p>
                     )}
-                    <p className="text-[10px] text-stone-600">Open camp on map for gifts, peace, diplomacy →</p>
+                    <p className="text-[10px] text-stone-400">Select to highlight this settlement on the strategic map; no village-camera jump.</p>
                   </button>
                   {onLaunchRaid && (
                     <>
