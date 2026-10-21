@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
 /**
  * Worker-boundary closure — measured 2026-09-16.
  *
@@ -60,7 +61,7 @@ import { createInitialView } from '../src/game/viewState';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { getVenueSchedule } from '../src/game/venueSchedule';
 import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes';
-import { HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
+
 
 const SEED = 4242;
 const TICKS = 240; // 5 colony days — crosses every daily cadence at least five times
