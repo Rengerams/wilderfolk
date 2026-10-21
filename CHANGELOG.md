@@ -2,6 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Leader's House residents are recorded when leadership becomes vacant and retain their beds through the succession period, including housing sweeps and save/load. The chosen successor takes over the manor only after the election, at which point the prior household is relocated.
+- **Fixed:** hotel lodging notices and Chronicle entries report occupied beds across all completed player hotels instead of one hotel's eight-bed capacity. Occupancy announcements no longer disappear when no visitors are waiting to check in.
+- **Fixed:** the citizen inspector no longer infers hunting or work from proximity to a building. Juveniles show no work shift or military gear; the simulation clears stale juvenile hunting targets and excludes children from hunting-post movement.
+- **Added:** regression cases for child activity near hunting posts, citywide hotel reporting with no waiting visitors, and Leader's House retention through succession and elected handover.
+
 - **Fixed:** the colony-wide Auto-fill command switches every player workplace from Manual to Auto-fill before staffing, remains available from Manual workplaces, and reports when no additional idle adults were assigned.
 
 - **Fixed:** generic family convergence leaves manor residents to the leader-house owner; leader move-ins immediately clear old residence occupant lists, preventing duplicate households after reload.
