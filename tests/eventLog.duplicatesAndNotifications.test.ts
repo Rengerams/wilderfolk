@@ -163,6 +163,10 @@ describe('citywide hotel occupancy reporting', () => {
     const guests = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) =>
       visitor(500 + index, 300, 300));
     first.hotelGuestIds = guests.map((guest) => guest.id);
+    for (const guest of guests) {
+      guest.hotelStayBuildingId = first.id;
+      guest.hotelStayUntilTick = TICKS_PER_DAY * 3;
+    }
     state.entities = guests;
     state.buildings = [first, second];
     state.tick = TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
