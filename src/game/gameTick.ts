@@ -45,7 +45,7 @@ import type { TickContext } from './simulation/simulationTypes';
 import { buildHuntTargetByPreyIndex } from './simulation/simulationEntities';
 import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
-import { tickLayerAssign, LAYER_ASSIGN_INTERVAL } from './tickLayerAssign';
+import { tickLayerAssign, LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from './tickLayerAssign';
 import { tickLayerDaily } from './tickLayerDaily';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickWinterHeating } from './dailyBuildingEconomy';
@@ -246,7 +246,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
 
   // Spread four daily assignment sweeps away from the midnight daily workload.
   // 3h, 9h, 15h and 21h instead of 0h, 6h, 12h and 18h.
-  if (state.tick % LAYER_ASSIGN_INTERVAL === 3 * (TICKS_PER_DAY / 24)) {
+  if (state.tick % LAYER_ASSIGN_INTERVAL === LAYER_ASSIGN_PHASE_TICK) {
     const assignStart = profileStart();
     tickLayerAssign(state, ctx);
     profileEnd('sim.assign', assignStart);
