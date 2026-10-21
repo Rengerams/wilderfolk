@@ -93,6 +93,7 @@ export const WORLD_STATE_SAVE_KEYS = [
 export const ENTITY_PERSISTED_FIELDS = [
   'skills',
   'battleLeadershipMerit',
+  'promiseLeadershipMerit',
   'moonHowlerSaved',
   'moonHowlerCursed',
   'pregnantById',
