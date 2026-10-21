@@ -1785,6 +1785,14 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       if (neighbor.relationship === 'friendly') neighbor.relationship = 'neutral';
       else if (neighbor.relationship === 'neutral') neighbor.relationship = 'competitive';
       else if (neighbor.relationship === 'competitive') neighbor.relationship = 'tense';
+      // The settlements that witnessed the razing remember the threat. Hostile
+      // neighbors prepare their next move sooner; peaceful witnesses become wary
+      // and hold off immediate engagement. Both use persistent rival timers.
+      if (neighbor.relationship === 'tense') {
+        neighbor.daysUntilAction = Math.min(neighbor.daysUntilAction, 10);
+      } else {
+        neighbor.raidCooldownDays = Math.max(neighbor.raidCooldownDays, 20);
+      }
     }
     const structureIds = new Set(rival.buildingIds);
     const personIds = new Set(rival.entityIds);
@@ -1797,7 +1805,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
     state.rivalSettlements = state.rivalSettlements.filter((entry) => entry.id !== rival.id);
     addReputation(state, -30);
-    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants lost their settlement; -30 reputation`, rival.name, 'outgoing_raid', 'resolved');
+    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants lost their settlement; -30 reputation. ${witnesses.length} neighboring settlements witnessed the destruction and may respond.`, rival.name, 'outgoing_raid', 'resolved');
   }
   return state;
 }
