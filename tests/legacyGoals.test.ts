@@ -42,6 +42,8 @@ function closeFirstYear(state: WorldState): void {
 /** Satisfy every promise option, so whichever two the owner records are kept. */
 function satisfyEveryPromiseTarget(state: WorldState): void {
   state.resources.food = GRANARY_FOOD_REQUIREMENT;
+  state.villageReputation = 100;
+  state.buildings.push(building(6999, BuildingType.Hospital));
   for (let i = 0; i < 5; i++) {
     state.buildings.push(building(7000 + i, BuildingType.Wall));
   }
