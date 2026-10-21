@@ -28,6 +28,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
+| Yearly world event selection | `groupEvents.ts` | yearly event pulse | `rollYearlyWorldEvent` — delegates rival founding to the strategic settlement owner. |
 | Frontier founding | `groupEvents.ts` | new-calendar-day | `tryFrontierSettlement`, `FIRST_RIVAL_MIN_DAY`, `FIRST_RIVAL_MIN_HUMANS`, `spawnRivalSettlement` — strategic records only, with optional founding relationship. |
 | Village camp hit testing | `groupEvents.ts` | UI query | `hitTestCamp` — visitor camps only; rival settlements belong to the strategic map. |
 | Village camp highlights | `renderer/markers.ts` | render pass | `drawCampHighlightRings` — visitor camp selection only. |
@@ -319,6 +320,7 @@ exports it.
 | Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn` |
 | Social test human fixture | `tests/phase7.social.test.ts` | test tier only | `addHuman` — create humans with age and childhood status consistent. |
 | Company-following movement fixture | `tests/low-8-humans.test.ts` | test tier only | `runCompanyFollow` — compare velocities in independently cloned worlds. |
+| Rival growth fixture | `tests/frontierCombat.hostility.test.ts` | test tier only | `growWorld` — advances strategic population while retiring legacy local actors. |
 | Full-year integration diagnostics | `tests/fullYear.integration.test.ts` | test tier only | `runFullYear`, `printCheckpoint`, `writeFullYearDebug`, `fullYearEntitySnapshot`, `fullYearResidentRecords`, `printFullYearFailure`, `traceFullYearTick` — observe lifecycle and housing changes without repairing simulation state. |
 | Hot-path equivalence settler fixture | `tests/audit.hotPathScans.equivalence.test.ts` | test tier only | `settler` — create housed humans at the requested calendar age. |
 
