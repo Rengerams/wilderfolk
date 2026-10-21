@@ -34,12 +34,11 @@ vi.mock('../src/game/canvasLayer', () => ({
   disposeCanvasSurface: () => {},
 }));
 
-import {
-  beginEntityLayerPaint,
-  disposeEntityLayerCache,
-  entityLayerNeedsRebuild,
-  paintEntityLayerTo,
-} from '../src/game/entityLayer';
+type EntityLayerModule = typeof import('../src/game/entityLayer');
+let beginEntityLayerPaint: EntityLayerModule['beginEntityLayerPaint'];
+let disposeEntityLayerCache: EntityLayerModule['disposeEntityLayerCache'];
+let entityLayerNeedsRebuild: EntityLayerModule['entityLayerNeedsRebuild'];
+let paintEntityLayerTo: EntityLayerModule['paintEntityLayerTo'];
 
 /**
  * `targetX` / `targetY` / `targetZoom` are the camera's smoothing targets; `Camera` requires
@@ -50,7 +49,12 @@ import {
 const CAM = { x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1 };
 
 describe('entity layer device-pixel rasterisation', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Import after resetting the module cache so the canvasLayer test double is used
+    // even when another renderer test imported the real entityLayer earlier.
+    vi.resetModules();
+    ({ beginEntityLayerPaint, disposeEntityLayerCache, entityLayerNeedsRebuild, paintEntityLayerTo } =
+      await import('../src/game/entityLayer'));
     mock.created.length = 0;
     mock.transforms.length = 0;
     mock.drawCalls.length = 0;
