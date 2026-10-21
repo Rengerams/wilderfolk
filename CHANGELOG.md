@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** a rare natural-talent roll at human birth: roughly 1% of newborns begin with one strong professional skill (40–75), including about 0.1% with exceptional talent (80–95). The trade and level use reproducible seeded rolls, are persisted as ordinary skills and do not alter school attendance or aging. Existing settlers and savegame skills remain unchanged.
+- **Added:** regression coverage for natural-talent frequency, single-trade awards and skill bounds.
+
 - **Changed:** childhood age now follows calendar days only; school attendance and nurturing villagers no longer accelerate physical aging, preventing abrupt age changes when staffing or school attendance changes.
 - **Changed:** the Village → Schooling entry shows enrolled children versus school-age children without places, and the Schooling window distinguishes classroom attendance during school hours from enrollment and children too young for school.
 
