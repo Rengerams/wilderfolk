@@ -3,7 +3,7 @@ import { tickAtDailyPhase } from '../src/game/dayCycleClock';
  * Low-severity simulation/data audit fixes (2026-09-13).
  *
  * See BUG_REPORTS/2026-09-13-simulation-logic-audit.md:
- *   L9/L10 — Town Hall pulse counted settlers who died earlier in the same tick
+ *   L9/L10 — Town Hall no longer generates taxes (retired mechanic)
  *   L29    — Hunting Spot read the undefined research key `hunt_yield`
  *   L45    — autumn herd deer bypassed the canonical entity-id index
  *   L46    — every herd loss was reported and remembered as a hunt
@@ -216,10 +216,6 @@ function floatingTexts(state: WorldState): string[] {
   return state.floatingTexts.map((t) => t.text);
 }
 
-function taxesText(state: WorldState): string | undefined {
-  return floatingTexts(state).find((t) => /^\+\d+ gold \(taxes\)$/.test(t));
-}
-
 const MEAT_TEXT = /^\+(\d+) meat$/;
 
 function meatText(state: WorldState): string | undefined {
@@ -232,35 +228,18 @@ function meatAmount(text: string): number {
 
 // ==================== L9 / L10 ====================
 
-describe('Town Hall daily pulse tax base (L9/L10)', () => {
-  /**
-   * gameTick replaces `state.entities` only at the end of the tick, so a settler who died
-   * earlier in the same tick is still in `state.entities` during the daily layer but not in
-   * `allAlive`. Two living adults deliberately straddle the Math.floor boundary of the tax
-   * formula (0.8 + 2 = 2 vs 1.2 + 2 = 3), so counting the corpse changes the paid tax.
-   */
-  function townHallWorld(includeDeadSettler: boolean): WorldState {
+describe('Town Hall civic pulse (no tax mechanic)', () => {
+  it('does not create tax income or tax notifications', () => {
     const official = human(1, { homeBuildingId: 10, x: 100, y: 100 });
-    const neighbour = human(2, { x: 140, y: 100 });
-    const dead = human(3, { alive: false, x: 100, y: 140 });
     const state = baseState();
-    // gameTick increments first: 215 -> 216 is day 3, the every-3-days Town Hall pulse.
     state.tick = tickAtDailyPhase(3, 'production') - 1;
-    state.entities = includeDeadSettler ? [official, neighbour, dead] : [official, neighbour];
+    state.entities = [official];
     state.buildings = [building(10, BuildingType.TownHall, { occupants: [official.id] })];
-    return state;
-  }
-
-  it('L9/L10 — does not tax a settler who is already dead in the same tick', () => {
+    const goldBefore = state.resources.gold;
     seedRun();
-    const withDead = taxesText(gameTick(townHallWorld(true)));
-    seedRun();
-    const withoutDead = taxesText(gameTick(townHallWorld(false)));
-
-    expect(withDead, 'Town Hall pulse did not run').toMatch(/^\+\d+ gold \(taxes\)$/);
-    expect(withoutDead, 'Town Hall pulse did not run').toMatch(/^\+\d+ gold \(taxes\)$/);
-    // The corpse in state.entities must not add tax gold to the pulse.
-    expect(withDead).toBe(withoutDead);
+    gameTick(state);
+    expect(state.resources.gold).toBe(goldBefore);
+    expect(floatingTexts(state).some((text) => /taxes/i.test(text))).toBe(false);
   });
 });
 
