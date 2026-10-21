@@ -732,6 +732,8 @@ export interface GraveRecord {
 export interface WorldState {
   /** Up to fifty memorial records per completed player graveyard. */
   graveRecords?: GraveRecord[];
+  /** Permanent genealogy of living and deceased villagers. */
+  genealogyRegistry?: import('./genealogyRegistry').GenealogyRegistry;
   entities: Entity[];
   buildings: Building[];
   deathParticles: DeathParticle[];
