@@ -58,6 +58,11 @@ describe('seeded worker versus main-thread parity', () => {
     await loadNames().catch(() => {});
     resetSimRng();
     const mainThread = initGame({ seed: SEED });
+    // Both execution engines must begin with the very same generated world,
+    // just as a real GameWorkerHost upload does. Generating a second map in a
+    // fresh module realm tests world generation twice, not worker tick parity.
+    const initialWorld = structuredClone(mainThread);
+    initialWorld.simRng = snapshotSimRng();
     for (let i = 0; i < TICKS; i++) gameTick(mainThread);
     const mainThreadRng = snapshotSimRng();
     const mainThreadPayload = buildSaveData(
@@ -68,7 +73,6 @@ describe('seeded worker versus main-thread parity', () => {
     // ---- The real worker module, in its own module registry. ----
     const { self, posted } = installWorkerSelf();
     vi.resetModules();
-    const workerWorldGen = await import('../src/game/worldGen');
     const workerSimRng = await import('../src/game/simRng');
     const workerNameLoader = await import('../src/game/nameLoader');
     await workerNameLoader.loadNames().catch(() => {});
@@ -78,8 +82,7 @@ describe('seeded worker versus main-thread parity', () => {
     const send = self.onmessage;
 
     // What `GameWorkerHost.queueFullWorldUpload` posts: the world plus its RNG positions.
-    const seedWorld = workerWorldGen.initGame({ seed: SEED });
-    seedWorld.simRng = workerSimRng.snapshotSimRng();
+    const seedWorld = structuredClone(initialWorld);
     const seedWorldRng: SimRngSnapshot | undefined = seedWorld.simRng;
 
     send({ data: { type: 'init', proto: WORKER_PROTO, world: seedWorld, features: [], headless: true } });
