@@ -57,6 +57,18 @@ describe('a prisoner is never mustered', () => {
     expect(canBeMustered(settler)).toBe(false);
   });
 
+  it('excludes civilians from combat strength and casualties even when armed', () => {
+    const state = world();
+    const soldier = adult(1);
+    const farmer = adult(2, [], { job: JobType.Farmer });
+    expect(canBeMustered(soldier)).toBe(true);
+    expect(canBeMustered(farmer)).toBe(false);
+    const breakdown = computeMilitiaBreakdown(state, [soldier, farmer], { includeStructures: false });
+    expect(breakdown.adultCount).toBe(1);
+    expect(getRaidParticipants(state, [soldier, farmer], 'barricade').map((person) => person.id)).toEqual([soldier.id]);
+    expect(getRaidParticipants(state, [soldier, farmer], 'outgoing').some((person) => person.id === farmer.id)).toBe(false);
+  });
+
   it('adds no militia strength and no adult to the breakdown', () => {
     const state = world();
     const own = settlers();
