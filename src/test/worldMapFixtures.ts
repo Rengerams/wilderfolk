@@ -17,6 +17,7 @@ import type { WorldMap } from '../game/gameTypes';
 import { generateRawTerrain } from '../game/terrain/terragen';
 import {
   DEFAULT_MOISTURE_FOREST,
+  Walkability,
   rebakeTerrainGrids,
   setTileOverride,
 } from '../game/terrain/terrainGrid';
@@ -52,6 +53,9 @@ export function testWorldMap(options: TestMapOptions): WorldMap {
 
   // Sized to exactly these tiles, so the generated cell grid is never larger than the map asked for.
   const map = generateRawTerrain(tilesX * 10, tilesY * 10, seed, MapSize.Medium, preset);
+  // This fixture supplies terrain only; generated boulders must not reserve its flat ground.
+  map.decorations = [];
+  map.pathGrid!.fill(Walkability.Open);
 
   // Open grassland: dry enough to miss the forest cut, warm enough to miss the taiga band, flat
   // enough that no cliff or slope rule fires, and with no river anywhere.

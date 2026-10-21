@@ -422,12 +422,11 @@ describe('L60 — imprisoned custodian in a caught-affair divorce', () => {
     const { state, cheater, child, spouse } = scandalWorld();
     caughtScandal(state, state.entities);
 
-    // The cheater is the female parent, so they are the custody holder — and they are
-    // in prison. Pre-fix they were re-housed into an empty house and the child followed.
+    // The imprisoned cheater stays unhoused; the wronged parent retains the family home.
     expect(cheater.residenceBuildingId).toBeUndefined();
     expect(child.residenceBuildingId).toBe(2);
-    // The freed spouse is still relocated out of the former shared home.
-    expect(spouse.residenceBuildingId).toBe(1);
+    expect(spouse.residenceBuildingId).toBe(2);
+    expect(child.residenceBuildingId).toBe(spouse.residenceBuildingId);
   });
 });
 
