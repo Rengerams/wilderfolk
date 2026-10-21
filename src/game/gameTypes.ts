@@ -662,6 +662,8 @@ export interface OutgoingRaidEvent {
   launchedAtTick?: number;
   arrivalAtTick?: number;
   returnAtTick?: number;
+  returnStartedAtTick?: number;
+  returnStartProgress?: number;
   id: string;
   rivalId: string;
   rivalName: string;
