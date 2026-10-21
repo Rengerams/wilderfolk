@@ -1027,6 +1027,7 @@ function reassignDivorcedResidences(
   b: Entity,
   buildings: Building[],
   villagers: Entity[],
+  preferredCustodian?: Entity,
 ): void {
   const residences = buildings.filter(isResidenceBuilding);
 
@@ -1041,7 +1042,7 @@ function reassignDivorcedResidences(
   const manorLeader = sharedManor
     ? [a, b].find((person) => person.occupation === LEADER_OCCUPATION)
     : undefined;
-  const custodian = manorLeader ?? wife ?? a;
+  const custodian = manorLeader ?? preferredCustodian ?? wife ?? a;
   const leaver = custodian === a ? b : a;
 
   const formerHomes = new Set<number>();
@@ -1146,7 +1147,7 @@ function tryDivorceOnCaughtCheater(
   addFloatingText(state, (spouse.x + cheater.x) / 2, (spouse.y + cheater.y) / 2 - 22, 'Divorced!', '#f97316');
 
   const villagers = playerHumans.filter(isPlayerHuman);
-  reassignDivorcedResidences(spouse, cheater, buildings, villagers);
+  reassignDivorcedResidences(spouse, cheater, buildings, villagers, spouse);
 
   const isParamourMarried =
     (paramour.relationshipStatus === 'married' || paramour.relationshipStatus === 'expecting') &&
@@ -1166,7 +1167,7 @@ function tryDivorceOnCaughtCheater(
         humanDisplayName(paramourSpouse),
       );
       addNotification(state, 'Divorce', formatCaughtCheaterDivorceDetail(paramourSpouse, paramour), 'warning');
-      reassignDivorcedResidences(paramourSpouse, paramour, buildings, villagers);
+      reassignDivorcedResidences(paramourSpouse, paramour, buildings, villagers, paramourSpouse);
     }
   }
 }
@@ -1733,7 +1734,7 @@ export function tryDailyAffairEncounter(
   entity.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (entity.affairProgress || 0) + bump);
   paramour.affairProgress = Math.min(R.AFFAIR_PROGRESS_MAX, (paramour.affairProgress || 0) + bump);
   recordRelationshipDiagnostic('affairProgressGains');
-  recordAffairTrystSite(entity, paramour, state, buildingById);
+  recordAffairTrystSite(entity, paramour, state, buildingById, entityById);
 
   // An established pair re-ran this block on every later successful roll, re-announcing the same
   // affair. Establishment is the transition, so only a pair that is not already each other's logs it.
