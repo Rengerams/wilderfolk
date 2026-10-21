@@ -26,7 +26,7 @@ import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/gam
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { gameTick } from '../src/game/gameTick';
 import { initGame } from '../src/game/worldGen';
-import { seededRandomForRun } from '../src/game/simRng';
+import { seededRandomForRun, setSimSeed } from '../src/game/simRng';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 
 const FIXTURE_SEED = 20_260_917;
@@ -123,6 +123,7 @@ function harvest(tick: number, food: number, type: SpotKind): Harvest {
 
 /** The Hunting Spot's shot is a stateless seeded roll keyed on building, tick and prey. */
 function shotLands(tick: number): boolean {
+  setSimSeed(FIXTURE_SEED);
   return seededRandomForRun(`hunt:${SPOT_ID}:${tick}:${PREY_ID}:success`) < 0.85;
 }
 
