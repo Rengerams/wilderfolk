@@ -230,7 +230,7 @@ export function getOpenPlayerBeds(state: WorldState): number {
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    if (!isResidenceBuilding(building) || isLeaderHouseResidence(building)) continue;
+    if (!isResidenceBuilding(building) || isLeaderHouseResidence(building) || building.faction === 'rival') continue;
     open += Math.max(0, getResidenceCapacity(building) - (occupancy.get(building.id) ?? 0));
   }
 
