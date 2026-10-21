@@ -68,7 +68,6 @@ import {
   applyEducationGraduation,
   creditChildSchoolDay,
   findSchoolForChild,
-  getSchoolAgeMultiplier,
   recordChildSchoolTick,
 } from './education';
 import {
@@ -252,10 +251,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
   }
 
-  const nurturingSettlerCount = allHumans.filter(
-    (h) => h.alive && !h.isJuvenile && h.traits?.includes('nurturing'),
-  ).length;
-
   const livingHumanAt = (id: number | null | undefined): Entity | undefined => {
     if (id == null) return undefined;
     const h = entityById.get(id);
@@ -430,13 +425,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (entity.isJuvenile && isPlayerHuman(entity)) {
         creditChildSchoolDay(entity);
       }
-      const schoolMult =
-        entity.isJuvenile && isPlayerHuman(entity)
-          ? getSchoolAgeMultiplier(entity, updatedBuildings, nurturingSettlerCount)
-          : 1;
-      syncHumanAgeFromCalendar(entity, state, {
-        schoolAgeMultiplier: schoolMult > 1 ? schoolMult : undefined,
-      });
+      syncHumanAgeFromCalendar(entity, state);
     }
 
     entity.flash = Math.max(0, entity.flash - 1);
