@@ -174,7 +174,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickFestivals(state, counts);
 
   // Every 3 days — soft wildlife floor so passive play doesn't empty the map by mid-year
-  if (state.tick > 0 && state.tick % (TICKS_PER_DAY * 3) === 0) {
+  if (state.tick > 0 && getAbsoluteCalendarDay(state.tick) % 3 === 0) {
     replenishDepletedWildlife(state, (entity) => pushNewEntity(state, ctx, entity));
   }
 
