@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
 /**
  * An orphan must never end up in the Leader's House.
  *
@@ -17,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { ensureOrphanAdoption } from '../src/game/residencySelection';
 import { syncLeaderHouseResidency } from '../src/game/leaderHouse';
-import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycle';
+
 import { BuildingType, EntityType, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 
