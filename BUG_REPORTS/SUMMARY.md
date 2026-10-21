@@ -1708,3 +1708,5 @@ Closed since the list above was written, each by measurement rather than assumpt
 - **2026-10-20 → open:** `2026-10-20-preexisting-performance-validation-blockers.md` — supplied saves duplicate residence memberships after reload; yearly-spawn and worker-boundary fixture failures reproduce on the unchanged base. Recorded separately from the performance improvements.
 
 - **2026-10-20 follow-up:** leader-house capacity protection and full-family convergence no longer move current manor residents into ordinary homes; leader move-ins reconcile old occupant lists. The supplied day-267 save now roundtrips with zero residence invariant errors. The unrelated day-boundary fixed-point assertion also reproduces on the base and remains open.
+
+- **2026-10-22 → open:** `2026-10-22-full-year-residence-mirror.md` — the seed-12345 integration scenario has four residents missing from residence 1's occupants at day 180 on base 9bd92db. Kept separate from test-fixture and asset-case corrections.
