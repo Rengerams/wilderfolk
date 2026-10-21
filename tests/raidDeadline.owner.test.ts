@@ -134,6 +134,32 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
     expect(razed.rivalSettlements.find((settlement) => settlement.id === 'neighbor')?.relationship).toBe('competitive');
   });
 
+  it('persists local fear and retaliation readiness but leaves distant rivals alone', () => {
+    const world = victoriousWorld();
+    const origin = world.rivalSettlements[0]!;
+    world.rivalSettlements.push(
+      { ...origin, id: 'hostile-witness', campX: 140, campY: 100, relationship: 'competitive', daysUntilAction: 80 },
+      { ...origin, id: 'peaceful-witness', campX: 180, campY: 100, relationship: 'friendly', raidCooldownDays: 0 },
+      { ...origin, id: 'far-away', campX: 2500, campY: 2500, relationship: 'friendly', daysUntilAction: 80 },
+    );
+
+    const result = resolveRaidVictory(world, 'unique-raid', 'raze');
+    const hostile = result.rivalSettlements.find((camp) => camp.id === 'hostile-witness')!;
+    const peaceful = result.rivalSettlements.find((camp) => camp.id === 'peaceful-witness')!;
+    const distant = result.rivalSettlements.find((camp) => camp.id === 'far-away')!;
+    expect(hostile.relationship).toBe('tense');
+    expect(hostile.daysUntilAction).toBeLessThanOrEqual(10);
+    expect(peaceful.relationship).toBe('neutral');
+    expect(peaceful.raidCooldownDays).toBeGreaterThanOrEqual(20);
+    expect(distant.relationship).toBe('friendly');
+    expect(distant.daysUntilAction).toBe(80);
+
+    const repeated = resolveRaidVictory(result, 'unique-raid', 'raze');
+    expect(repeated).toBe(result);
+    expect(world.rivalSettlements).toHaveLength(4);
+    expect(world.pendingRaidVictories).toHaveLength(1);
+  });
+
   it('only confirmed razing destroys a camp and does not reapply a result', () => {
     const world = victoriousWorld();
     const pending = resolveRaidVictory(world, 'unique-raid', 'not-confirmed');
