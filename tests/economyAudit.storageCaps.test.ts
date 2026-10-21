@@ -110,7 +110,7 @@ describe('economy audit fixes', () => {
 
   it('the Storehouse config retains its sprite and saved building type', () => {
     const cfg = BUILDING_CONFIGS[BuildingType.WoodStorehouse];
-    expect(cfg.sprite).toBe('/sprites/storehouse_wood.png');
+    expect(cfg.sprite).toBe('/sprites/storehouse.png');
     expect(cfg.label).toBe('Storehouse');
     expect(cfg.maxOccupants).toBe(0);
   });
