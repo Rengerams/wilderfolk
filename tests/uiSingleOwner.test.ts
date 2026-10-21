@@ -165,7 +165,7 @@ describe('C2 — building output copy is built from the owners, not typed as pro
     // Pre-fix, SelectedBuildingPanel.tsx:67-69,52-53,63 typed "+8 … (max +72 …)", "+15 …",
     // "+25% per worker", "+25%", "+35%", "+600 food storage", "+800 wood storage" as prose.
     const panel = read('src/components/SelectedBuildingPanel.tsx');
-    expect(panel).toContain('function ownerOutputHint(type: BuildingType, state: WorldState): string | null {');
+    expect(panel).toContain('function ownerOutputHint(building: Building, state: WorldState): string | null {');
     expect(panel).toContain('getWallSegmentCap(state)');
     expect(panel).toContain('SMITH_BONUS_PER_WORKER');
     expect(panel, 'the hardcoded wall cap is back').not.toContain('max +72 from all wall pieces');
