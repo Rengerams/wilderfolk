@@ -43,8 +43,7 @@ const RAID_RESPONSE_MAX_DAYS = 6;
 function getRaidExpireTicksLegacy(): number {
   return 3 * TICKS_PER_DAY;
 }
-const RAID_FOOD_MIN = 22;
-const RAID_FOOD_MAX = 50;
+const RAID_FOOD_MIN = 40;
 /** Home-turf bonus when you attack a rival camp (harder than meeting them at your gate). */
 const OUTGOING_RAID_DEFENSE_MULT = 1.25;
 /** Population both raid gates require before a war-band can march on a camp. */
@@ -113,11 +112,15 @@ export function formatRaidDeadline(evt: RaidEvent, currentTick: number): string 
   return `${days} day${days === 1 ? '' : 's'} left`;
 }
 
-/** March provisions for an outgoing raid — farther camps need more food packed. */
-export function getOutgoingRaidFoodCost(distancePixels: number): number {
-  const tiles = distancePixels / PATH_CELL;
-  const cost = 18 + Math.round(tiles / 4);
-  return Math.min(RAID_FOOD_MAX, Math.max(RAID_FOOD_MIN, cost));
+/** Food is packed for the outward AND return march; deployed soldiers cannot
+ * resupply at home en route. One ration per soldier per game day.
+ * The fixed pack cost includes wagons and losses during travel.
+ */
+export function getOutgoingRaidFoodCost(distancePixels: number, soldierCount = 0): number {
+  const tiles = getCampDistanceTiles(distancePixels);
+  const marchDays = getIncomingRaidResponseDays(tiles); // at least two days each way
+  const transportFood = Math.max(RAID_FOOD_MIN, 30 + Math.ceil(tiles / 2));
+  return transportFood + Math.max(0, soldierCount) * marchDays * 2;
 }
 
 /** Remove in-flight raid events when a truce is signed. */
@@ -197,7 +200,10 @@ function getCounterRaidBlockReason(
 }
 
 export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalSettlement): number {
-  return getOutgoingRaidFoodCost(getCampDistancePixels(state, state.buildings, rival));
+  return getOutgoingRaidFoodCost(
+    getCampDistancePixels(state, state.buildings, rival),
+    getRaidParticipants(state, state.entities, 'outgoing').length,
+  );
 }
 
 /**
