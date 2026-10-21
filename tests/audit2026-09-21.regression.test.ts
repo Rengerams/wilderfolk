@@ -234,7 +234,7 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     const trivial = respondToRaidEvent(world, eventId, 'defend');
     expect(trivial.raidBattleReports?.[0]?.leadershipMerit).toBe(0);
     const serious = structuredClone(world);
-    serious.pendingRaidEvents[0].attackerStrength = 10;
+    serious.pendingRaidEvents[0]!.attackerStrength = 10;
     const outcome = respondToRaidEvent(serious, eventId, 'defend');
     const report = outcome.raidBattleReports?.find((entry) => entry.raidId === eventId);
     expect(report).toBeDefined();
