@@ -1,5 +1,5 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
-import { JobType, PATH_CELL } from './gameTypes';
+import { EntityType, JobType, PATH_CELL } from './gameTypes';
 import { TICKS_PER_DAY, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
