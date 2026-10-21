@@ -2,29 +2,8 @@ import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
-/** Compact historical record, independent of removable simulation entities. */
-export interface GenealogyPerson {
-  id: number;
-  name: string;
-  birthSurname: string;
-  surname: string;
-  gender?: 'male' | 'female';
-  bornYear?: number;
-  bornDay?: number;
-  diedYear?: number;
-  diedDay?: number;
-  alive: boolean;
-  motherId?: number;
-  fatherId?: number;
-  adoptiveMotherId?: number;
-  adoptiveFatherId?: number;
-  partners: number[];
-  childrenIds: number[];
-}
-
-export interface GenealogyRegistry {
-  people: Record<string, GenealogyPerson>;
-}
+import type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
+export type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 
 function recordedHuman(entity: Entity): boolean {
   return entity.type === EntityType.Human && isPlayerHuman(entity);
