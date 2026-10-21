@@ -1479,8 +1479,8 @@ describe('virtual player remaining action surface', () => {
     // (`SETTLERS_PER_FOOD_PRODUCER`), and adding one is food work, not rival policy.
     const crowded = (food: number) => makeWorld(
       [
-        ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 1 })),
-        ...ids.slice(6).map((id) => human(id, { residenceBuildingId: 2, homeBuildingId: 2 })),
+        ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 1, job: JobType.Soldier })),
+        ...ids.slice(6).map((id) => human(id, { residenceBuildingId: 2, homeBuildingId: 2, job: JobType.Soldier })),
       ],
       [
         building(1, BuildingType.House, { occupants: ids.slice(0, 6) }),
