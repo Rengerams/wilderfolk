@@ -8,7 +8,6 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { getHourOfDay } from '../src/game/dayCycleClock';
-import { NIGHT_START } from '../src/game/dayCycleConstants';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
 
@@ -178,15 +177,15 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   // must not turn this festival participant into another farm commuter.
   farm.staffingMode = 'manual';
   tavern.staffingMode = 'manual';
-  const farmer = human(1, { job: JobType.Farmer, homeBuildingId: 10, residenceBuildingId: 20 });
-  const innkeeper = human(2, { job: JobType.Innkeeper, homeBuildingId: 30, residenceBuildingId: 20 });
+  const farmer = human(1, { job: JobType.Farmer, homeBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
+  const innkeeper = human(2, { job: JobType.Innkeeper, homeBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
   const idler = human(3);
   const state = worldState(
     [farmer, innkeeper, idler],
     [house, farm, tavern],
     { active: true, name: 'Test Festival', daysLeft: 3 },
   );
-  state.tick = 15 * TICKS_PER_HOUR - 1;
+  state.tick = 44 - 1; // 14:40 systems pulse, inside the afternoon work shift
   return { state, farmer, innkeeper, idler };
 }
 
@@ -276,7 +275,7 @@ describe('settlers keep working during a festival', () => {
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'credited outside the configured shift').toBe(0);
 
     // …and the ordinary window still credits, so this is a boundary and not a dead shift.
-    state.tick = 18 * TICKS_PER_HOUR - 1;
+    state.tick = 56 - 1; // 18:40 systems pulse, during tavern service
     gameTick(state);
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'the 18:00 hour is inside the window').toBeGreaterThan(0);
   });
@@ -318,7 +317,7 @@ describe('a priest serving at a completed church', () => {
   it('records attendance across the colony workday, and none on a rest day', () => {
     const weekday = churchWorld();
     // Day 2 is a Wednesday, and 10:00 is inside the 07:00-16:00 window every day post works.
-    weekday.state.tick = 2 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1;
+    weekday.state.tick = 2 * TICKS_PER_DAY + 32 - 1; // 10:40 systems pulse
     gameTick(weekday.state);
     expect(
       weekday.priest.scheduleWorkedTicksToday ?? 0,
@@ -327,7 +326,7 @@ describe('a priest serving at a completed church', () => {
 
     const restDay = churchWorld();
     // Day 5 is a Saturday: the same hour credits nothing to a day-shift post.
-    restDay.state.tick = 5 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1;
+    restDay.state.tick = 5 * TICKS_PER_DAY + 32 - 1; // 10:40 systems pulse
     gameTick(restDay.state);
     expect(
       restDay.priest.scheduleWorkedTicksToday ?? 0,
@@ -338,7 +337,7 @@ describe('a priest serving at a completed church', () => {
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
     const { state, priest } = churchWorld();
     // The night duty begins at NIGHT_START on a full-moon day.
-    state.tick = 14 * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR - 1;
+    state.tick = 15 * TICKS_PER_DAY - 1; // 00:00 after full-moon 23:00, systems pulse
     gameTick(state);
     expect(
       priest.scheduleWorkedTicksToday ?? 0,
