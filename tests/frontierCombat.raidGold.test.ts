@@ -56,7 +56,7 @@ function raidFixture(adults: number): { state: WorldState; rival: RivalSettlemen
   // `initGame` rolls traits without the sim seed, so the fixture normalises them: only the count may
   // differ between two sizes of the same village, or a chivalrous settler would decide the ratio.
   for (const entity of state.entities) {
-    if (entity.alive && entity.type === EntityType.Human) entity.traits = [];
+    if (entity.alive && entity.type === EntityType.Human) { entity.traits = []; entity.job = JobType.Soldier; }
   }
   let id = 500_000;
   while (state.entities.filter((e) => e.alive && e.type === EntityType.Human).length < adults) {
