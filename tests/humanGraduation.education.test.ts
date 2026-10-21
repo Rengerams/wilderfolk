@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * A child graduates into adulthood exactly once, and keeps the education payoff.
  *
