@@ -464,14 +464,27 @@ export function tickHotelLodging(state: WorldState): void {
   );
   if (fullHotel && (state.storyFlags?.[HOTEL_LODGING_NOTICE_DAY_FLAG] ?? -1) !== colonyDay) {
     state.storyFlags = { ...state.storyFlags, [HOTEL_LODGING_NOTICE_DAY_FLAG]: colonyDay };
+    // Report the entire city's occupied beds, not a single hotel's eight-bed cap.
+    // Visitors and settlers share beds; use the same counts as room assignment.
+    const occupiedBeds = hotels.reduce(
+      (total, hotel) => total + guestCount(hotel, state.entities, byId)
+        + (settlerLodgersByHotel.get(hotel.id) ?? 0),
+      0,
+    );
+    const totalBeds = hotels.length * HOTEL_GUEST_CAPACITY;
+    const fullHotels = hotels.filter(
+      (hotel) => guestCount(hotel, state.entities, byId)
+        + (settlerLodgersByHotel.get(hotel.id) ?? 0) >= HOTEL_GUEST_CAPACITY,
+    ).length;
+    const summary = `${occupiedBeds}/${totalBeds} beds occupied across ${hotels.length} hotel${hotels.length === 1 ? '' : 's'} (${fullHotels} full)`;
     addNotification(
       state,
-      'Hotel full of guests',
-      `All ${HOTEL_GUEST_CAPACITY} beds taken at the hotel`,
+      'Hotel lodging occupancy',
+      summary,
       'success',
       { x: fullHotel.x + fullHotel.width / 2, y: fullHotel.y + fullHotel.height / 2 },
     );
-    logEvent(state, 'trade', `Hotel lodging: all ${HOTEL_GUEST_CAPACITY} beds taken`);
+    logEvent(state, 'trade', `Hotel lodging: ${summary}`);
   }
 }
 
