@@ -305,6 +305,7 @@ export function canLaunchRaidOnRival(
   }
   if (isRivalAtPeace(rival)) return { ok: false, foodCost, blockReason: 'At peace' };
   if (rival.relationship === 'friendly') return { ok: false, foodCost, blockReason: 'Friendly relations' };
+  if (getRaidParticipants(state, state.entities, 'outgoing').length === 0) return { ok: false, foodCost, blockReason: 'No available soldiers' };
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
   }
@@ -332,6 +333,7 @@ export function canProvokeRival(
 ): { ok: boolean; blockReason?: string } {
   if (!state.rivalSettlements.some((r) => r.id === rival.id)) return { ok: false, blockReason: 'No such rival' };
   if (rival.atWarWithPlayer) return { ok: false, blockReason: 'Already at war' };
+  if (isRivalAtPeace(rival)) return { ok: false, blockReason: 'Peace treaty still active' };
   return { ok: true };
 }
 
@@ -1390,7 +1392,7 @@ function resolveOutgoingRaidCombat(
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   // The strength you brought over their defense is what decides how much there is to carry home.
   const lootScale = Math.sqrt(event.attackerStrength / Math.max(event.defenderStrength, 1));
-  const warBand = getRaidParticipants(state, state.entities, 'outgoing');
+  const warBand = raidArmy(state, event);
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
 
   flashMilitia(state.entities, 20);
@@ -1471,34 +1473,45 @@ function resolveOutgoingRaidCombat(
   rival.daysUntilAction = 30;
 }
 
+function releaseRaidSoldiers(state: WorldState, raidId: string): void {
+  for (const soldier of state.entities) {
+    if (soldier.raidDeploymentId === raidId) soldier.raidDeploymentId = undefined;
+  }
+}
+
+function raidArmy(state: WorldState, event: OutgoingRaidEvent): Entity[] {
+  if (!event.soldierIds) return getRaidParticipants(state, state.entities, 'outgoing');
+  const selected = new Set(event.soldierIds);
+  return state.entities.filter((person) => selected.has(person.id) && person.alive && person.raidDeploymentId === event.id);
+}
+
 export function tickPendingOutgoingRaidEvents(state: WorldState): void {
   if (!state.pendingOutgoingRaidEvents?.length) return;
-
-  const expired: OutgoingRaidEvent[] = [];
-  state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents.filter((evt) => {
-    // The deadline is the raid owner's, not a raw field read: a save written before `expiresAtTick`
-    // existed still gets the legacy window (duplication A19).
-    if (state.tick < getRaidExpiresAtTick(evt)) return true;
-    expired.push(evt);
-    return false;
-  });
-
-  for (const evt of expired) {
-    const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
-    const verb = evt.isCounterRaid ? 'Counter-raid' : 'Raid';
-    logEvent(
-      state,
-      'combat',
-      `${verb} on ${evt.rivalName} fizzled — war-band returned without fighting`,
-      evt.rivalName,
-      'outgoing_raid',
-      'cancelled',
-    );
-    if (rival) {
-      rival.daysUntilAction = 24;
+  const remaining: OutgoingRaidEvent[] = [];
+  for (const event of state.pendingOutgoingRaidEvents) {
+    if (event.phase === 'returning') {
+      if (state.tick >= (event.returnAtTick ?? event.expiresAtTick)) {
+        releaseRaidSoldiers(state, event.id);
+        logEvent(state, 'combat', `War-band returned from ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'resolved');
+      } else remaining.push(event);
+      continue;
     }
-    addBigNews(state, '🏹 March recalled', `${evt.rivalName} — your war-band stood down (provisions spent).`, 'neutral');
+    if (event.phase === 'marching') {
+      if (state.tick >= (event.arrivalAtTick ?? event.expiresAtTick)) {
+        event.phase = 'engaging';
+        event.expiresAtTick = state.tick + 3 * TICKS_PER_DAY;
+        addBigNews(state, '⚔️ War-band arrived', `Your soldiers reached ${event.rivalName}. Choose the battle outcome in the raid banner.`, 'negative');
+        logEvent(state, 'combat', `War-band arrived at ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'engagement');
+      }
+      remaining.push(event);
+      continue;
+    }
+    if (state.tick >= getRaidExpiresAtTick(event)) {
+      releaseRaidSoldiers(state, event.id);
+      logEvent(state, 'combat', `War-band returned from ${event.rivalName} without battle`, event.rivalName, 'outgoing_raid', 'cancelled');
+    } else remaining.push(event);
   }
+  state.pendingOutgoingRaidEvents = remaining;
 }
 
 export function respondToOutgoingRaidEvent(
@@ -1517,8 +1530,20 @@ export function respondToOutgoingRaidEvent(
     return state;
   }
 
+  if (choiceId === 'recall') {
+    if (event.phase === 'returning') return state;
+    const outbound = Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick));
+    const travelled = Math.max(1, Math.min(outbound, state.tick - (event.launchedAtTick ?? event.createdAtTick)));
+    event.phase = 'returning';
+    event.returnAtTick = state.tick + travelled;
+    event.expiresAtTick = event.returnAtTick;
+    logEvent(state, 'combat', `Recall ordered for the war-band marching on ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'recalled');
+    return state;
+  }
+  if (event.phase === 'returning' || event.phase === 'marching') return state;
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
+    releaseRaidSoldiers(state, event.id);
     state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents!.filter((e) => e.id !== eventId);
     if (cancelPendingRaidsForRival(state, event.rivalId)) {
       logEvent(
@@ -1537,7 +1562,7 @@ export function respondToOutgoingRaidEvent(
     const gained = grantRaidSpoils(state, raidEventLoot(event));
     rewardRaidParticipants(
       state,
-      getRaidParticipants(state, state.entities, 'outgoing'),
+      raidArmy(state, event),
       'tribute',
       rival.name,
     );
@@ -1615,7 +1640,12 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   const responseDays = getIncomingRaidResponseDays(marchDistanceTiles);
   const distanceLabel = formatCampDistance(marchDistancePx);
 
+  const soldierIds = getRaidParticipants(state, state.entities, 'outgoing').map((person) => person.id);
   const event: OutgoingRaidEvent = {
+    phase: 'marching',
+    soldierIds,
+    launchedAtTick: state.tick,
+    arrivalAtTick: state.tick + responseDays * TICKS_PER_DAY,
     id: `outgoing_raid_${rival.id}_${state.tick}`,
     rivalId: rival.id,
     rivalName: rival.name,
@@ -1640,6 +1670,9 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
     lootStone: payoffLoot.stone,
   };
 
+  for (const soldier of state.entities) {
+    if (soldierIds.includes(soldier.id)) soldier.raidDeploymentId = event.id;
+  }
   state.pendingOutgoingRaidEvents.push(event);
   flashMilitia(state.entities, 12);
   addBigNews(
