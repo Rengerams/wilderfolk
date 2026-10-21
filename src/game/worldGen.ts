@@ -352,6 +352,7 @@ export function replenishDepletedWildlife(
   const TARGET_RABBITS = 150;
   const MIN_DEER = 12;
   const TARGET_DEER = 45;
+  const MAX_PREY_SPAWN_PER_PULSE = 16;
   const MIN_FOXES = 8;
   const TARGET_FOXES = 20;
   const MIN_WOLVES = 5;
@@ -390,14 +391,14 @@ export function replenishDepletedWildlife(
   let wildlifeSpawned = false;
 
   if (needsRabbits) {
-    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, TARGET_RABBITS - rabbits, 120, 320, {
+    spawnWildlifeRing(state, EntityType.Rabbit, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, TARGET_RABBITS - rabbits), 120, 320, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
   }
 
   if (needsDeer) {
-    spawnWildlifeRing(state, EntityType.Deer, cx, cy, TARGET_DEER - deer, 220, 440, {
+    spawnWildlifeRing(state, EntityType.Deer, cx, cy, Math.min(MAX_PREY_SPAWN_PER_PULSE, TARGET_DEER - deer), 220, 440, {
       recordBirthYear: true, onSpawn,
     });
     wildlifeSpawned = true;
