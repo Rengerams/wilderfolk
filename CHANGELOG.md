@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** strip-built wall corners preserve 180°/270° rotations; demolition immediately recalculates resource-storage limits and invalidates population-bed snapshots; repair/demolition particles appear at the true building centre.
+- **Fixed:** manually unassigning a workplace employee switches the workplace to manual staffing, preventing instant auto-refill. Bulk Fill Workers now emits one consolidated notification and floating label rather than a notification for each worker.
 - **Fixed:** newborns now receive their actual colony-day birth date at creation and are immediately registered in their residence's occupants list; rival houses no longer inflate player open beds, villas appear in housing counts, and trade caravan humans count as transient visitors.
 - **Fixed:** affair encounters pass the entity index when recording secret tryst locations; caught-cheating divorces prioritize the wronged spouse for ordinary housing while preserving a sitting leader's manor; home standing slots use the canonical building-centre coordinates.
 - **Improved:** entity-type cache now stores rebuilt buckets on a miss, the schooling maturation helper is exported for integration, and regression tests cover building geometry and transient populations.
