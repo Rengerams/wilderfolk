@@ -799,6 +799,11 @@ export function startElectionCeremony(
   const electionId = state.nextElectionId ?? 1;
   state.nextElectionId = electionId + 1;
   const nominated = ranked.slice(0, 12);
+  const incumbentId = getVillageLeader(state)?.id;
+  if (incumbentId != null && !nominated.some((candidate) => candidate.entityId === incumbentId)) {
+    const incumbent = ranked.find((candidate) => candidate.entityId === incumbentId);
+    if (incumbent) nominated[nominated.length - 1] = incumbent;
+  }
   const vote = simulateElectionVotes(state, nominated, electionId);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const site = getElectionGatherSite(state);
