@@ -23,6 +23,34 @@ describe('selected human activity projection', () => {
     expect(human.y).toBe(before.y);
   });
 
+  it('does not describe a child near a Hunting Spot as a working hunter', () => {
+    const world = initGame({ villageName: 'Child Activity', size: MapSize.Medium, seed: 102 });
+    const child = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    if (!child) throw new Error('Expected a human');
+    child.age = 1;
+    child.isJuvenile = true;
+    child.homeBuildingId = undefined;
+    child.residenceBuildingId = undefined;
+    child.huntTargetId = undefined;
+    const spot = {
+      id: 90001, type: BuildingType.HuntingSpot, x: 500, y: 500,
+      width: 40, height: 40, occupants: [], level: 1,
+      constructionProgress: 1, completed: true, health: 100,
+      maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    world.buildings = [spot];
+    child.x = 520;
+    child.y = 520;
+
+    const projection = getHumanActivityProjection(world, child);
+
+    expect(projection.activity).toBe('At Hunting Spot');
+    expect(projection.schedule.label).toBe('Child — no work schedule');
+    expect(projection.schedule.onShift).toBe(false);
+    expect(projection.workReason.code).toBe('no-post');
+    expect(projection.target?.kind).toBe('nearby-building');
+  });
+
   it('reports a presentation-only activity transition when the label changes', () => {
     const world = initGame({ villageName: 'Projection', size: MapSize.Medium, seed: 303 });
     const human = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
