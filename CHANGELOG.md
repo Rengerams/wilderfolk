@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** newborns now receive their actual colony-day birth date at creation and are immediately registered in their residence's occupants list; rival houses no longer inflate player open beds, villas appear in housing counts, and trade caravan humans count as transient visitors.
+- **Fixed:** affair encounters pass the entity index when recording secret tryst locations; caught-cheating divorces prioritize the wronged spouse for ordinary housing while preserving a sitting leader's manor; home standing slots use the canonical building-centre coordinates.
+- **Improved:** entity-type cache now stores rebuilt buckets on a miss, the schooling maturation helper is exported for integration, and regression tests cover building geometry and transient populations.
 - **Fixed:** case-sensitive `dayCycleConstants` import in entity factory for Linux builds; school routing and classroom attendance now measure distance to the actual centred school footprint instead of adding half its width and height. Corrected stale centred-anchor documentation and added schooling geometry regression tests.
 - **Fixed:** correct case-sensitive housing constants import and adult threshold; married adult grandchildren no longer return to the Leader House. Adoption checks and custodian lookup consult the full living genealogy pool, including parents excluded from assignment. Full-moon Moon Howlers continue occupying beds in both occupancy-counting paths.
 - **Fixed:** entity-layer anchor now stays centred on the camera at paint time, preserving the full 160 px cache margin in all pan directions and preventing unnecessary layer rebakes on slight right/down movement.
