@@ -467,12 +467,12 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(unrelated.familyPoints).toBe(0);
     });
 
-    it('one capped trade is worth 50 points and broad expertise caps at 100', () => {
+    it('one capped trade is worth 50 points and broad expertise caps at 60', () => {
       const specialist = stubHuman(1, { skills: { farmer: 100 } });
       const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
 
       expect(getLeadershipScoreBreakdown(stubState([specialist]), specialist).skillPoints).toBe(50);
-      expect(getLeadershipScoreBreakdown(stubState([expert]), expert).skillPoints).toBe(100);
+      expect(getLeadershipScoreBreakdown(stubState([expert]), expert).skillPoints).toBe(60);
     });
 
     it('keeps a scandal measurably expensive for the incumbent', () => {
