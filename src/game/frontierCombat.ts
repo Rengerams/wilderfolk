@@ -1076,6 +1076,7 @@ export function tickPendingRaidEvents(
   });
 
   for (const evt of expired) {
+    const battleBefore = structuredClone(state);
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
     if (!rival) continue;
     const structureBonus = computeMilitiaBreakdown(state, allAlive).structureBonus;
@@ -1104,6 +1105,7 @@ export function tickPendingRaidEvents(
       defenseFactor < 0.55 ? 'moderate' : 'heavy',
       evt.rivalName,
     );
+    persistBattleAftermath(battleBefore, state, evt.id, evt.rivalId, evt.rivalName, 'defense', 'unanswered', 0);
   }
 }
 
@@ -1233,6 +1235,7 @@ export function respondToRaidEvent(
     }
     flashMilitia(allAlive, 14);
     if (rival) rival.raidCooldownDays = 18;
+    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, effectiveDef / Math.max(1, event.attackerStrength));
     remove();
     return state;
   }
