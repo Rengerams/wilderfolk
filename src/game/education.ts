@@ -2,7 +2,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { WORK_HOURS_PER_DAY, TICKS_PER_HOUR, isOnWorkShift, isWorkHour } from './dayCycle';
 import { SCHOOL_MIN_AGE } from './gameConstants';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { ensureEntitySkills } from './skills';
 import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
