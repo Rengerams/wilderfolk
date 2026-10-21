@@ -156,3 +156,62 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   person.diedYear ??= state.year;
   person.diedDay ??= state.dayInYear;
 }
+
+/** Connected family network: parentage (biological and adoptive) plus known partners.
+ * One living member is counted once, even if multiple family paths reach them.
+ */
+export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10): Array<{
+  memberIds: number[];
+  livingMembers: number;
+  historicalMembers: number;
+  surnames: Array<{ name: string; members: number }>;
+}> {
+  const records = Object.values(registry.people);
+  const byId = new Map(records.map(person => [person.id, person]));
+  const root = new Map(records.map(person => [person.id, person.id]));
+  const find = (id: number): number => {
+    let node = id;
+    while (root.get(node) !== node) node = root.get(node)!;
+    while (root.get(id) !== node) {
+      const next = root.get(id)!;
+      root.set(id, node);
+      id = next;
+    }
+    return node;
+  };
+  const unite = (a: number, b: number): void => {
+    if (!root.has(b)) return;
+    const x = find(a), y = find(b);
+    if (x !== y) root.set(Math.max(x, y), Math.min(x, y));
+  };
+  for (const person of records) {
+    for (const id of [person.motherId, person.fatherId, person.adoptiveMotherId,
+      person.adoptiveFatherId, ...person.partners]) {
+      if (id != null && id !== person.id) unite(person.id, id);
+    }
+  }
+  const groups = new Map<number, GenealogyPerson[]>();
+  for (const person of records) {
+    const key = find(person.id);
+    const group = groups.get(key) ?? [];
+    group.push(person);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map(group => {
+    const living = group.filter(person => person.alive);
+    const counts = new Map<string, number>();
+    for (const person of living) {
+      if (person.surname) counts.set(person.surname, (counts.get(person.surname) ?? 0) + 1);
+    }
+    return {
+      memberIds: group.map(person => person.id).sort((a, b) => a - b),
+      livingMembers: living.length,
+      historicalMembers: group.length,
+      surnames: [...counts].map(([name, members]) => ({ name, members }))
+        .sort((a, b) => b.members - a.members || a.name.localeCompare(b.name)),
+    };
+  }).filter(group => group.livingMembers > 0)
+    .sort((a, b) => b.livingMembers - a.livingMembers ||
+      b.historicalMembers - a.historicalMembers || a.memberIds[0] - b.memberIds[0])
+    .slice(0, limit);
+}
