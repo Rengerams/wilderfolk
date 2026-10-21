@@ -1,5 +1,5 @@
 import type { Entity } from './gameTypes';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import { hasResidenceAssignment } from './residencyOccupancy';
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
@@ -66,13 +66,16 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
     for (const child of childrenOf(root)) {
       // Married adult descendants form a separate household with their partner.
-      if (child.partnerId != null && !child.isJuvenile && child.age >= HUMAN_MOVE_OUT_MIN_AGE) continue;
+      if (child.partnerId != null && !child.isJuvenile && child.age >= HUMAN_ADULT_MIN_AGE) continue;
       const added = add(child);
       if (added) firstGeneration.set(added.id, added);
     }
   }
   for (const child of firstGeneration.values()) {
-    for (const grandchild of childrenOf(child)) add(grandchild);
+    for (const grandchild of childrenOf(child)) {
+      if (grandchild.partnerId != null && !grandchild.isJuvenile && grandchild.age >= HUMAN_ADULT_MIN_AGE) continue;
+      add(grandchild);
+    }
   }
   return family;
 }
