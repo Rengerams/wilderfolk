@@ -8,11 +8,12 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, Season, WeatherType } from '../src/game/gameTypes';
-import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
+import type { Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickRivalSettlements, type RivalEventCallbacks } from '../src/game/rivalEvents';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { building, human } from '../src/test/factories';
+import { hitTestCamp, spawnRivalSettlement } from '../src/game/groupEvents';
 
 /** First tick of a calendar day, i.e. one `isNewCalendarDayTick` sees. */
 const FIRST_DAY_TICK = TICKS_PER_DAY;
@@ -115,7 +116,6 @@ const callbacks: RivalEventCallbacks = {
   logEvent: () => {},
   tickPendingDiplomacyEvents: () => {},
   queueDiplomacyEvent: () => {},
-  createRivalBuilding: (_state, type, x, y): Building => building(800, type, { x, y, faction: 'rival' }),
   killWildGameForPoach: () => {},
 };
 
@@ -124,6 +124,66 @@ afterEach(() => {
 });
 
 describe('incoming raid cadence', () => {
+  it('founds a strategic rival without adding a village camp or settlers', () => {
+    setSimSeed(12345);
+    const { state, allAlive } = makeState();
+    const buildingsBefore = [...state.buildings];
+    const entitiesBefore = [...allAlive];
+    const nextBuildingId = state.nextBuildingId;
+    const nextEntityId = state.nextEntityId;
+    spawnRivalSettlement(state, state.buildings);
+    const rival = state.rivalSettlements.at(-1)!;
+    expect(rival.population).toBeGreaterThan(0);
+    expect(rival.entityIds).toEqual([]);
+    expect(rival.buildingIds).toEqual([]);
+    expect(state.buildings).toEqual(buildingsBefore);
+    expect(allAlive).toEqual(entitiesBefore);
+    expect(state.nextBuildingId).toBe(nextBuildingId);
+    expect(state.nextEntityId).toBe(nextEntityId);
+    expect(hitTestCamp(state, rival.campX, rival.campY)).toBeNull();
+  });
+
+  it('retires legacy camp objects without destroying strategic population or raid records', () => {
+    const { state, allAlive } = makeState();
+    const rival = state.rivalSettlements[0];
+    const legacyHouse = building(99, BuildingType.House, { faction: 'rival', groupId: rival.id });
+    state.buildings.push(legacyHouse);
+    rival.buildingIds = [legacyHouse.id];
+    rival.peaceTreatyDays = 60;
+    const population = rival.population;
+    const rivalIds = new Set(rival.entityIds);
+    const nextBuildingId = state.nextBuildingId;
+    const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
+    settler.residenceBuildingId = legacyHouse.id;
+    const raids = state.pendingRaidEvents;
+    tickRivalSettlements(state, allAlive, callbacks);
+    expect(state.buildings.map((entry) => entry.id)).toEqual([1]);
+    expect(settler.alive).toBe(true);
+    expect(settler.residenceBuildingId).toBeUndefined();
+    expect(allAlive.filter((entity) => rivalIds.has(entity.id)).every((entity) => !entity.alive)).toBe(true);
+    expect(rival.population).toBe(population);
+    expect(rival.buildingIds).toEqual([]);
+    expect(rival.entityIds).toEqual([]);
+    expect(rival.peaceTreatyDays).toBe(59);
+    expect(state.pendingRaidEvents).toBe(raids);
+    expect(state.nextBuildingId).toBe(nextBuildingId);
+  });
+
+  it('never expands strategic settlements onto the village map', () => {
+    setSimSeed(12345);
+    const { state } = makeState();
+    state.entities = state.entities.filter((entity) => entity.faction !== 'rival');
+    state.rivalSettlements[0].entityIds = [];
+    state.rivalSettlements[0].relationship = 'friendly';
+    const buildingsBefore = [...state.buildings];
+    for (let day = 0; day < 100; day++) {
+      state.tick += TICKS_PER_DAY;
+      tickRivalSettlements(state, state.entities, callbacks);
+    }
+    expect(state.buildings).toEqual(buildingsBefore);
+    expect(state.rivalSettlements[0].buildingIds).toEqual([]);
+  });
+
   it('decrements peace treaty days at the 18:00 world-events pulse', () => {
     const { state, allAlive } = makeState();
     const camp = state.rivalSettlements[0];

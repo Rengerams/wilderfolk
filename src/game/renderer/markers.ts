@@ -34,31 +34,6 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
       ctx.fillText(`${group.daysLeft}d`, sx, sy + Math.max(14, 18 * cam.zoom));
     }
   }
-
-  for (const rival of state.rivalSettlements) {
-    const sx = (rival.campX - cam.x) * cam.zoom + cw / 2;
-    const sy = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
-    ctx.fillStyle = 'rgba(67, 20, 7, 0.5)';
-    ctx.beginPath();
-    ctx.arc(sx, sy, Math.max(12, 16 * cam.zoom), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(251, 146, 60, 0.75)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    if (cam.zoom > 0.5) {
-      ctx.font = `bold ${Math.max(7, 8 * cam.zoom)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#fed7aa';
-      ctx.fillText(rival.name, sx, sy - Math.max(12, 16 * cam.zoom));
-      ctx.fillStyle = '#fdba74';
-      ctx.font = `${Math.max(6, 7 * cam.zoom)}px sans-serif`;
-      const action = rival.profile?.lastAction && rival.profile.lastAction !== 'none'
-        ? rival.profile.lastAction.replace('_', ' ')
-        : rival.peaceTreatyDays > 0 ? 'treaty' : 'quiet';
-      ctx.fillText(`${rival.population} · ${rival.relationship} · ${action}`, sx, sy + Math.max(14, 18 * cam.zoom));
-    }
-  }
 }
 
 /** Render-clock camp selection pulses; these must not be baked into the tick cache. */
@@ -66,20 +41,16 @@ export function drawCampHighlightRings(ctx: CanvasRenderingContext2D, state: Ren
   const cam = state.camera;
   if (cam.zoom < 0.35 || !state.highlightedCampKey) return;
   const key = state.highlightedCampKey;
-  const visitor = state.visitorGroups.find(group => key === `visitor:${group.id}`);
-  const rival = visitor ? undefined : state.rivalSettlements.find(group => key === `rival:${group.id}`);
-  const camp = visitor ?? rival;
+  const camp = state.visitorGroups.find(group => key === `visitor:${group.id}`);
   if (!camp) return;
   const sx = (camp.campX - cam.x) * cam.zoom + cw / 2;
   const sy = (camp.campY - cam.y) * cam.zoom + ch / 2;
   if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) return;
   ctx.save();
-  ctx.strokeStyle = visitor
-    ? `rgba(34, 211, 238, ${campHighlightPulse()})`
-    : `rgba(251, 146, 60, ${campHighlightPulse()})`;
+  ctx.strokeStyle = `rgba(34, 211, 238, ${campHighlightPulse()})`;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(sx, sy, Math.max(visitor ? 18 : 20, (visitor ? 22 : 24) * cam.zoom), 0, Math.PI * 2);
+  ctx.arc(sx, sy, Math.max(18, 22 * cam.zoom), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }

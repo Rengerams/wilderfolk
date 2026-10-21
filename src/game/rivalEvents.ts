@@ -1,5 +1,5 @@
-import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
-import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
+import type { Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
@@ -15,35 +15,7 @@ export interface RivalEventCallbacks {
   logEvent: (state: WorldState, type: GameEventLog['type'], message: string, subject?: string) => void;
   tickPendingDiplomacyEvents: (state: WorldState) => void;
   queueDiplomacyEvent: (state: WorldState, rival: RivalSettlement) => void;
-  createRivalBuilding: (
-    state: WorldState,
-    type: BuildingType,
-    x: number,
-    y: number,
-    groupId: string,
-    campLabel: string,
-  ) => Building;
   killWildGameForPoach: (state: WorldState, animal: Entity) => void;
-}
-
-const RIVAL_CAMP_MAX_BUILDINGS = 7;
-const RIVAL_EXPAND_SLOTS: { dx: number; dy: number }[] = [
-  { dx: 0, dy: 0 },
-  { dx: 55, dy: 10 },
-  { dx: -40, dy: 25 },
-  { dx: 35, dy: -45 },
-  { dx: -55, dy: -20 },
-  { dx: 70, dy: 40 },
-  { dx: -20, dy: 55 },
-  { dx: 20, dy: 70 },
-];
-
-function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
-  const index = new Map<number, Entity>();
-  for (const entity of allAlive) {
-    if (entity.alive) index.set(entity.id, entity);
-  }
-  return index;
 }
 
 function buildAliveDeerList(allAlive: Entity[]): Entity[] {
@@ -64,129 +36,6 @@ function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
   };
 }
 
-function rivalBuildingTypes(state: WorldState, rival: RivalSettlement): Map<BuildingType, number> {
-  const counts = new Map<BuildingType, number>();
-  for (const id of rival.buildingIds) {
-    const building = state.buildings.find((candidate) => candidate.id === id);
-    if (!building) continue;
-    counts.set(building.type, (counts.get(building.type) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function pickRivalExpansionType(
-  rival: RivalSettlement,
-  counts: Map<BuildingType, number>,
-): BuildingType | null {
-  const houses = counts.get(BuildingType.House) ?? 0;
-  const farms = counts.get(BuildingType.Farm) ?? 0;
-  const wells = counts.get(BuildingType.Well) ?? 0;
-  const towers = counts.get(BuildingType.Watchtower) ?? 0;
-  const markets = counts.get(BuildingType.Market) ?? 0;
-
-  if (houses < 2 && rival.population >= 6) return BuildingType.House;
-  if (farms < 2 && rival.population >= 5) return BuildingType.Farm;
-  if (wells < 1) return BuildingType.Well;
-  if (houses < 3 && rival.population >= 9) return BuildingType.House;
-
-  switch (rival.relationship) {
-    case 'friendly':
-      if (markets < 1) return BuildingType.Market;
-      if (houses < 3) return BuildingType.House;
-      if (farms < 2) return BuildingType.Farm;
-      return null;
-    case 'neutral':
-      if (houses < 3) return BuildingType.House;
-      if (farms < 2) return BuildingType.Farm;
-      return null;
-    case 'competitive':
-      if (farms < 2) return BuildingType.Farm;
-      if (towers < 1) return BuildingType.Watchtower;
-      if (houses < 2) return BuildingType.House;
-      return null;
-    case 'tense':
-      if (towers < 1) return BuildingType.Watchtower;
-      if (towers < 2 && rival.population >= 8) return BuildingType.Watchtower;
-      if (houses < 2) return BuildingType.House;
-      return null;
-    default:
-      return null;
-  }
-}
-
-function findFreeRivalSlot(
-  state: WorldState,
-  rival: RivalSettlement,
-  type: BuildingType,
-): { x: number; y: number } | null {
-  const config = BUILDING_CONFIGS[type];
-  const margin = 12;
-  for (const slot of RIVAL_EXPAND_SLOTS) {
-    const x = rival.campX + slot.dx - config.width / 2;
-    const y = rival.campY + slot.dy - config.height / 2;
-    if (
-      x < margin || y < margin
-      || x + config.width > state.width - margin
-      || y + config.height > state.height - margin
-    ) continue;
-
-    const overlaps = state.buildings.some((building) => {
-      const pad = 8;
-      return !(
-        x + config.width + pad < building.x
-        || building.x + building.width + pad < x
-        || y + config.height + pad < building.y
-        || building.y + building.height + pad < y
-      );
-    });
-    if (!overlaps) return { x, y };
-  }
-  return null;
-}
-
-function maybeExpandRivalCamp(
-  state: WorldState,
-  rival: RivalSettlement,
-  buildings: Building[],
-  callbacks: RivalEventCallbacks,
-): void {
-  if (rival.buildingIds.length >= RIVAL_CAMP_MAX_BUILDINGS) return;
-  if (state.year < rival.foundedYear) return;
-  if (state.year === rival.foundedYear && state.dayInYear < 20) return;
-
-  const chance = rival.relationship === 'friendly' ? 0.14
-    : rival.relationship === 'neutral' ? 0.10
-      : rival.relationship === 'competitive' ? 0.12 : 0.11;
-  if (getSimRng('rivalEvents')() > chance) return;
-
-  const type = pickRivalExpansionType(rival, rivalBuildingTypes(state, rival));
-  if (!type) return;
-  const pos = findFreeRivalSlot(state, rival, type);
-  if (!pos) return;
-
-  const building = callbacks.createRivalBuilding(state, type, pos.x, pos.y, rival.id, rival.name);
-  buildings.push(building);
-  rival.buildingIds.push(building.id);
-
-  const label = BUILDING_CONFIGS[type]?.label ?? type;
-  const peaceful = rival.relationship === 'friendly' || rival.relationship === 'neutral';
-  callbacks.pushFloat(state, rival.campX, rival.campY - 28, `+${label}`, peaceful ? '#67e8f9' : '#fb923c');
-  callbacks.logEvent(
-    state,
-    'event',
-    `${rival.name} raised a ${label.toLowerCase()} at their camp`,
-    rival.name,
-  );
-  if (type === BuildingType.Watchtower || type === BuildingType.Market) {
-    callbacks.pushNews(
-      state,
-      peaceful ? '🏕️ Neighbors grow' : '🏕️ Camp expands',
-      `${rival.name} built a ${label.toLowerCase()} (${rival.relationship}).`,
-      peaceful ? 'neutral' : 'negative',
-    );
-  }
-}
-
 export function tickRivalSettlements(
   state: WorldState,
   allAlive: Entity[],
@@ -198,25 +47,38 @@ export function tickRivalSettlements(
 
 
   callbacks.tickPendingDiplomacyEvents(state);
-  const aliveById = buildAliveEntityIndex(allAlive);
+  // Retire legacy village camp objects; strategic population and raid records stay authoritative.
+  for (const rival of state.rivalSettlements) {
+    if (rival.buildingIds.length === 0 && rival.entityIds.length === 0) continue;
+    const buildingIds = new Set(rival.buildingIds);
+    const removedBuildings = new Set<number>();
+    for (let index = state.buildings.length - 1; index >= 0; index--) {
+      const building = state.buildings[index];
+      if (!buildingIds.has(building.id) || building.faction !== 'rival' || building.groupId !== rival.id) continue;
+      removedBuildings.add(building.id);
+      state.buildings.splice(index, 1);
+    }
+    const entityIds = new Set(rival.entityIds);
+    for (const entity of allAlive) {
+      if (entityIds.has(entity.id) && entity.faction === 'rival' && entity.groupId === rival.id) {
+        entity.alive = false;
+      }
+      if (entity.residenceBuildingId != null && removedBuildings.has(entity.residenceBuildingId)) {
+        entity.residenceBuildingId = undefined;
+      }
+      if (entity.homeBuildingId != null && removedBuildings.has(entity.homeBuildingId)) {
+        entity.homeBuildingId = undefined;
+      }
+    }
+    rival.buildingIds = [];
+    rival.entityIds = [];
+  }
   const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
-  const buildings = state.buildings;
   let tenseRepDrainToday = 0;
   const maxTenseRepDrainPerDay = 2;
 
   for (const rival of state.rivalSettlements) {
     ensureRivalProfile(rival);
-    // A camp that fields no entities still carries a population — the ledger-growth number below.
-    // Writing the roster count unconditionally erased every settler that growth added, so the camp
-    // stayed at its founding size forever; the count is a floor, never a shrink.
-    if (rival.entityIds.length > 0) {
-      let population = 0;
-      for (const id of rival.entityIds) {
-        if (aliveById.get(id)?.alive) population++;
-      }
-      rival.population = Math.max(rival.population, population);
-    }
-
     if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
     if (rival.peaceTreatyDays > 0) {
       rival.peaceTreatyDays--;
@@ -228,8 +90,6 @@ export function tickRivalSettlements(
     // Raids roll every day: `raidCooldownDays` and the chance roll are the cadence, so this must not
     // sit under the action-timer gate below (which is reached once per 45–90 days).
     if (!isRivalAtPeace(rival)) maybeQueueRaid(state, rival, allAlive);
-
-    maybeExpandRivalCamp(state, rival, buildings, callbacks);
 
     // Growth rolls on its own cadence: the action-timer gate below is reached once per 45-90 days,
     // so a camp that only grew there stayed at its founding size for years.

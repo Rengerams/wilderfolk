@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Rival founding and growth no longer create enemy houses, farms or resident settlers inside the village. Legacy camp objects retire on the next rival update; strategic population, diplomacy and raids remain. Village camp markers and hit tests now cover visitors only.
+- **Added:** Full-year diagnostics report the first invariant failure, watched settlers' moves, confirmed deaths and unconfirmed removals, actual versus assigned residents, and recent combat events. Checkpoint details print before assertions; debug output can be disabled.
 - **Fixed:** Company-following movement regression clones one isolated terrain-free world across all eight comparisons, avoiding repeated world generation and load-sensitive timeouts without changing its assertions.
 - **Fixed:** Ground Reinforcement catalogue artwork and its asset registration now match the shipped filename casing, restoring the preview on case-sensitive hosts.
 - **Fixed:** Regression fixtures now create adults with consistent calendar ages, provide decoration-free terrain for pathfinding, and assert that a wronged parent keeps the family home with their child after a caught-affair divorce.

@@ -3,7 +3,7 @@ import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
   DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice, VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
-import { EntityType, BuildingType, BUILDING_CONFIGS, JobType } from './gameTypes';
+import { EntityType, BuildingType, JobType } from './gameTypes';
 import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
@@ -302,34 +302,6 @@ function createFactionHuman(
   return ent;
 }
 
-function createRivalBuilding(
-  state: WorldState,
-  type: BuildingType,
-  x: number,
-  y: number,
-  groupId: string,
-  campLabel: string
-): Building {
-  const config = BUILDING_CONFIGS[type];
-  return {
-    id: state.nextBuildingId++,
-    type, x, y,
-    width: config.width,
-    height: config.height,
-    occupants: [],
-    level: 1,
-    constructionProgress: 100,
-    completed: true,
-    health: 100,
-    maxHealth: 100,
-    spriteScale: 1,
-    buildAnimTimer: 0,
-    faction: 'rival',
-    groupId,
-    campLabel,
-  };
-}
-
 const VISITOR_TEMPLATES: Record<VisitorKind, { emoji: string; names: string[]; days: [number, number]; members: [number, number] }> = {
   traders: { emoji: '🛒', names: ['River Traders', 'Wandering Merchants', 'Highland Caravan'], days: [12, 22], members: [3, 5] },
   pilgrims: { emoji: '🕯️', names: ['Pilgrims of the Glen', 'Wayfarer Monks', 'Lantern Pilgrimage'], days: [10, 18], members: [4, 6] },
@@ -432,9 +404,7 @@ export function spawnVisitorGroup(
 
 export function spawnRivalSettlement(
   state: WorldState,
-  allAlive: Entity[],
   buildings: Building[],
-  ctx?: TickContext,
   /** Scripted founding state; the pool draws its own when this is omitted. */
   foundingRelationship?: RivalSettlement['relationship'],
 ): GameEvent {
@@ -447,28 +417,7 @@ export function spawnRivalSettlement(
   ];
   const site = pickSite(state, center, 180, Math.min(state.width, state.height) * 0.38, avoid);
   const groupId = `rival_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
-  const surname = name;
   const pop = 4 + Math.floor(getSimRng('groupEvents')() * 4);
-  const entityIds: number[] = [];
-  const buildingIds: number[] = [];
-
-  const offsets = [
-    { type: BuildingType.House, dx: 0, dy: 0 },
-    { type: BuildingType.Farm, dx: 55, dy: 10 },
-    { type: BuildingType.Well, dx: -40, dy: 25 },
-  ];
-  for (const off of offsets) {
-    const b = createRivalBuilding(state, off.type, site.x + off.dx, site.y + off.dy, groupId, name);
-    buildings.push(b);
-    buildingIds.push(b.id);
-  }
-
-  for (let i = 0; i < pop; i++) {
-    const ent = createFactionHuman(state, site.x, site.y, 'rival', groupId, surname);
-    entityIds.push(ent.id);
-    registerSpawnedEntity(state, allAlive, ent, ctx);
-  }
-
   const relRoll = getSimRng('groupEvents')();
   const relationship: RivalSettlement['relationship'] = foundingRelationship
     ?? (relRoll < 0.3 ? 'friendly' : relRoll < 0.7 ? 'neutral' : relRoll < 0.95 ? 'competitive' : 'tense');
@@ -479,8 +428,8 @@ export function spawnRivalSettlement(
     campX: site.x,
     campY: site.y,
     population: pop,
-    entityIds,
-    buildingIds,
+    entityIds: [],
+    buildingIds: [],
     relationship,
     foundedYear: state.year,
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
@@ -497,13 +446,13 @@ export function spawnRivalSettlement(
     tense: 'Their leader looks… unamused.',
   }[relationship];
 
-  addBigNews(state, '🏕️ New Settlement!', `${name} (${pop} settlers) founded a camp on the map. ${relText}`, relationship === 'tense' ? 'negative' : 'neutral');
+  addBigNews(state, '🏕️ New Settlement!', `${name} (${pop} settlers) founded a settlement beyond your village. ${relText}`, relationship === 'tense' ? 'negative' : 'neutral');
   logEvent(state, 'migration', `${name} established a rival settlement on the frontier`, name);
 
   return {
     id: `rival_settlement_${state.tick}`,
     title: `🏕️ ${name} Settles Nearby`,
-    description: `Another group has claimed land on the same frontier — ${pop} settlers and a small camp.`,
+    description: `Another group has claimed land on the same frontier — ${pop} inhabitants beyond your village.`,
     emoji: '🏕️',
     effect: `Relationship: ${relationship}`,
     type: relationship === 'tense' ? 'negative' : 'neutral',
@@ -1585,12 +1534,6 @@ export function hitTestCamp(
       return { kind: 'visitor', id: group.id, x: group.campX, y: group.campY };
     }
   }
-  for (const rival of state.rivalSettlements) {
-    if (Math.hypot(rival.campX - worldX, rival.campY - worldY) <= hitRadius) {
-      const buildingId = rival.buildingIds[0] ?? null;
-      return { kind: 'rival', id: rival.id, x: rival.campX, y: rival.campY, buildingId };
-    }
-  }
   return null;
 }
 
@@ -1601,7 +1544,6 @@ export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[])
     logEvent,
     tickPendingDiplomacyEvents,
     queueDiplomacyEvent: maybeQueueDiplomacyEvent,
-    createRivalBuilding,
     killWildGameForPoach,
   });
 }
@@ -1734,7 +1676,7 @@ export function rollYearlyWorldEvent(
     case 'wandering_performers':
       return { event: spawnVisitorGroup(state, allAlive, buildings, 'performers', ctx), bountifulHarvest };
     case 'rival_settlement':
-      return { event: spawnRivalSettlement(state, allAlive, buildings, ctx), bountifulHarvest };
+      return { event: spawnRivalSettlement(state, buildings), bountifulHarvest };
     case 'surveyors_crown':
       addReputation(state, 5);
       return {
@@ -1867,7 +1809,6 @@ export function tryFrontierSettlement(
   state: WorldState,
   allAlive: Entity[],
   buildings: Building[],
-  ctx?: TickContext,
 ): GameEvent | null {
   if (state.rivalSettlements.length > 0) return null;
   if (state.tick < FIRST_RIVAL_MIN_DAY * TICKS_PER_DAY) return null;
@@ -1881,5 +1822,5 @@ export function tryFrontierSettlement(
   );
   if (!hasPlayerHouse) return null;
 
-  return spawnRivalSettlement(state, allAlive, buildings, ctx, 'competitive');
+  return spawnRivalSettlement(state, buildings, 'competitive');
 }
