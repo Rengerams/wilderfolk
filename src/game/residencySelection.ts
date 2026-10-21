@@ -9,7 +9,7 @@ import {
   isAdultChildAtHome,
   isMinorChild,
 } from './householdComposition';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isResidenceBuilding,
   isLeaderHouseResidence,
