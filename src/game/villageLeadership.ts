@@ -326,7 +326,7 @@ export function getLeadershipScoreBreakdown(
     (entity.relationshipStatus === 'married' ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
-  const battlePoints = Math.min(100, Math.max(0, entity.battleLeadershipMerit ?? 0));
+  const battlePoints = Math.min(100, Math.max(-100, entity.battleLeadershipMerit ?? 0));
   const familyPoints = (familyPrestige ?? familyPrestigeBySurname(state)).get(entity.surname?.trim() ?? '') ?? 0;
   const promisePoints = Math.max(-60, Math.min(60, entity.promiseLeadershipMerit ?? 0));
   const baseScore = skillPoints + experiencePoints + battlePoints + familyPoints + promisePoints + communityPoints + titlePoints;
