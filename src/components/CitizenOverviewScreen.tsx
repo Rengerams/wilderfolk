@@ -348,6 +348,7 @@ export default function CitizenOverviewScreen({
                         }}
                         onLaunchRaid={onLaunchRaid}
                         onProvokeRival={onProvokeRival}
+                        onRecallRaid={onRecallRaid}
                       />
                     </section>
                   );
