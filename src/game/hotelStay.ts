@@ -438,10 +438,8 @@ export function tickHotelLodging(state: WorldState): void {
   }
 
   // Offer rooms at dusk / night when hotels staffed
-  if (!windowOpen) return;
-
   const settlerLodgersByHotel = buildHotelSettlerLodgerCounts(hotels, state.buildings, state.entities, hour);
-  for (const v of visitors) {
+  for (const v of windowOpen ? visitors : []) {
     // Stable chance per visitor per night so not everyone piles in same tick
     if (personDayRoll(v.id, state.tick, 910) > 0.55) continue;
     const hotel = pickHotelForVisitor(v, state.buildings, state.entities, byId, settlerLodgersByHotel);
