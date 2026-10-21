@@ -217,7 +217,8 @@ export function recordElectionPromises(state: WorldState, year: number): void {
   const [first, second] = selectPromiseCodes(state, year);
   const leaderId = state.villageLeaderId;
   if (leaderId != null) {
-    const electionId = state.lastElectionResult?.electionId ?? state.nextElectionId ?? 0;
+    const previousId = (state.electionPromiseRecords ?? []).reduce((max, record) => Math.max(max, record.electionId), 0);
+    const electionId = Math.max(state.lastElectionResult?.electionId ?? 0, previousId + 1);
     state.electionPromiseRecords = [...(state.electionPromiseRecords ?? []), { electionId, leaderId, year, dueDay: colonyDay + EVAL_DAY_OFFSET, codes: [first, second], evaluated: false }];
   }
   setStoryFlags(state, {
