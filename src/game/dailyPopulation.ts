@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 /**
  * Daily population reconciliation owner called by tickLayerDaily — once per colony day.
  * Manages immigration rolls, housing capacities, dead entity pruning, and residence assignment.
@@ -6,10 +7,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
 import { indexLivingEntity } from './entityIndex';
-import {
-  getResidenceCapacity,
-  HUMAN_ADULT_MIN_AGE,
-} from './dayCycle';
+import { getResidenceCapacity } from './dayCycle';
 import { assignMissingResidences } from './residencyReconciliation';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
