@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, GameEventLog, OutgoingRaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import {
   countArmedMilitia,
