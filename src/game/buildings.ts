@@ -262,7 +262,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     emoji: '🏚️',
     label: 'Storehouse',
     description: 'Materials storage for wood, stone, iron and gold: +800 each at level 1, +1,800 at level 2, +2,800 at level 3. No workers needed.',
-    sprite: '/sprites/storehouse_wood.png',
+    sprite: '/sprites/storehouse.png',
     backgroundColor: '#92400e',
     padShape: 'rect',
     // This art's painted base sits at 96.2 % of the PNG rather than the 100 % of the edge-to-edge
