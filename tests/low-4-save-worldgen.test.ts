@@ -171,7 +171,7 @@ describe('daily lows', () => {
     const world = initGame({ seed: 128, size: MapSize.Medium });
     world.entities = world.entities.filter((entity) => ![
       EntityType.Rabbit, EntityType.Deer, EntityType.Fox, EntityType.Wolf,
-    ].includes(entity.type));
+    ].some((type) => entity.type === type));
     world.wildlifeCounts = { ...world.wildlifeCounts, rabbits: 0, deer: 0, foxes: 0, wolves: 0 };
     world.tick = tickAtDailyPhase(3, 'worldEvents') - 1;
     const next = gameTick(world);
