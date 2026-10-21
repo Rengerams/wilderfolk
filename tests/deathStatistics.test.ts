@@ -39,8 +39,11 @@ describe('the per-tick death tally matches what actually died', () => {
 
     gameTick(state);
 
-    const diedHumans = watched.filter((entity) => entity.type === EntityType.Human && !entity.alive).length;
-    const diedAnimals = watched.filter((entity) => isAnimal(entity) && !entity.alive).length;
+    // gameTick can replace its entity collection. Count deaths against the
+    // authoritative final world by id, including entities already pruned.
+    const aliveNow = new Set(state.entities.filter((entity) => entity.alive).map((entity) => entity.id));
+    const diedHumans = watched.filter((entity) => entity.type === EntityType.Human && !aliveNow.has(entity.id)).length;
+    const diedAnimals = watched.filter((entity) => isAnimal(entity) && !aliveNow.has(entity.id)).length;
 
     expect(diedAnimals).toBeGreaterThan(0);
     expect(state.deathsThisYear?.humans ?? 0).toBe(diedHumans);
