@@ -9,7 +9,7 @@ import { logEvent } from './eventLog';
 import { getSimRng } from './simRng';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import type { TickContext } from './simulation/simulationTypes';
-import { pushNewEntity } from './simulation/simulationEntities';
+import { clearHuntersTargetingPrey, pushNewEntity } from './simulation/simulationEntities';
 import { isPassableWildlifePosition, spawnWildlifeRing } from './worldGen';
 
 export const MIGRATION_WINDOW_DAYS = 7;
@@ -155,7 +155,15 @@ export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickC
     const alive = herd.filter((e) => e.alive).length;
     for (const e of herd) {
       e.alive = false;
+      // Clear hunter targets before removing the prey from tick lookup structures.
+      clearHuntersTargetingPrey(e.id, ctx?.entityById ?? state.entityById ?? new Map(state.entities.map(h => [h.id, h])), ctx?.huntTargetByPreyId, ctx?.byType);
       unindexEntityFromState(state, e.id);
+      if (ctx) {
+        ctx.entityById.delete(e.id);
+        const bucket = ctx.byType[EntityType.Deer];
+        const index = bucket?.indexOf(e) ?? -1;
+        if (index >= 0) bucket!.splice(index, 1);
+      }
       const idx = state.entities.indexOf(e);
       if (idx >= 0) state.entities.splice(idx, 1);
       const aliveIdx = allAlive.indexOf(e);
