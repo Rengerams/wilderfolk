@@ -1,6 +1,7 @@
 import type { Entity } from './gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { hasResidenceAssignment } from './residencyOccupancy';
+import { isPlayerHuman } from './playerHuman';
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
   if (child.partnerId != null) return false;
@@ -44,7 +45,7 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   const family: Entity[] = [];
   const included = new Set<number>();
   const add = (human?: Entity): Entity | undefined => {
-    if (!human?.alive || human.faction) return undefined;
+    if (!human?.alive || !isPlayerHuman(human)) return undefined;
     if (!included.has(human.id)) {
       included.add(human.id);
       family.push(human);
@@ -222,7 +223,7 @@ export function isAdultChildAtHome(
    */
   byId?: ReadonlyMap<number, Entity>,
 ): boolean {
-  if (!human.alive || human.faction || human.isJuvenile) return false;
+  if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.age < HUMAN_ADULT_MIN_AGE || !hasResidenceAssignment(human)) return false;
   const findLivingParent = (id: number | undefined): Entity | undefined => {
     if (byId) {
