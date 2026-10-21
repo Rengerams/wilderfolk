@@ -63,10 +63,9 @@ describe('a catalogue tile without a sprite shows the building itself', () => {
   it('guards the image on the optional sprite path', () => {
     // `BuildingConfig.sprite` is optional for procedural decor, and `<img src>` with an absent path
     // asks the server for the page itself. The image must sit behind the guard, not beside it.
-    expect(catalogue).toContain('{config.sprite ? (');
-    expect(catalogue).toMatch(
-      /\{config\.sprite \? \(\n\s*<img\n\s*src=\{config\.sprite\}/,
-    );
+    expect(catalogue).toContain('(config.sprite || type === BuildingType.GroundReinforcement) ? (');
+    expect(catalogue).toContain("'/sprites/ground_soil.png' : config.sprite");
+    expect(catalogue).toContain(') : (');
     expect(catalogue).toContain('{config.emoji}');
   });
 });
