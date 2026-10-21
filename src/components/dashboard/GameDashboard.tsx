@@ -43,6 +43,9 @@ const STATUS_STYLE: Record<string, string> = {
   working: 'text-emerald-300',
   'at school': 'text-sky-300',
   'going to school': 'text-cyan-300',
+  'school off-hours': 'text-stone-300',
+  'no school place': 'text-amber-300',
+  'too young for school': 'text-stone-400',
   idle: 'text-stone-400',
   prison: 'text-rose-300',
 };
