@@ -199,9 +199,15 @@ describe('mobilized raid lifecycle', () => {
     const event = state.pendingOutgoingRaidEvents[0]!;
     state.tick = event.arrivalAtTick!;
     tickPendingOutgoingRaidEvents(state);
-    expect(state.pendingOutgoingRaidEvents[0]?.phase).toBe('engaging');
-    const action = event.rivalResponse === 'fight' ? 'fight' : 'accept_payoff';
-    const result = respondToOutgoingRaidEvent(state, event.id, action);
+    const result = event.rivalResponse === 'fight'
+      ? state
+      : respondToOutgoingRaidEvent(state, event.id, 'accept_payoff');
+    if (event.rivalResponse === 'fight') {
+      expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('fighting');
+      expect(result.pendingOutgoingRaidEvents[0]?.battleChronicle?.length).toBeGreaterThan(0);
+      result.tick += 2 * 2;
+      tickPendingOutgoingRaidEvents(result);
+    }
     expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
     expect(result.entities.some((person) => person.alive && person.raidDeploymentId === event.id)).toBe(true);
     result.tick = result.pendingOutgoingRaidEvents[0]!.returnAtTick!;
