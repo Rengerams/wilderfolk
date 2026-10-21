@@ -146,7 +146,6 @@ export function largestExtendedFamilies(registry: GenealogyRegistry, limit = 10)
   surnames: Array<{ name: string; members: number }>;
 }> {
   const records = Object.values(registry.people);
-  const byId = new Map(records.map(person => [person.id, person]));
   const root = new Map(records.map(person => [person.id, person.id]));
   const find = (id: number): number => {
     let node = id;
