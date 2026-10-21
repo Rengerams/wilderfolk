@@ -1486,6 +1486,38 @@ function raidArmy(state: WorldState, event: OutgoingRaidEvent): Entity[] {
   return state.entities.filter((person) => selected.has(person.id) && person.alive && person.raidDeploymentId === event.id);
 }
 
+/** A short, automatic battle narrative; no tactical battlefield or per-tick troop AI. */
+function beginTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void {
+  if (event.phase === 'fighting') return;
+  event.phase = 'fighting';
+  event.battleStartedAtTick = state.tick;
+  event.battleChronicle = [`Our soldiers engage the defenders of ${event.rivalName}.`];
+  event.title = `Battle at ${event.rivalName}`;
+  logEvent(state, 'combat', event.battleChronicle[0], event.rivalName, 'outgoing_raid', 'dispatched');
+}
+
+function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void {
+  const rival = state.rivalSettlements.find((r) => r.id === event.rivalId);
+  if (rival) {
+    const initial = raidArmy(state, event).length;
+    const enemyBefore = rival.population;
+    resolveOutgoingRaidCombat(state, rival, event);
+    const survivors = raidArmy(state, event).length;
+    const narrative = `Battle ended: ${Math.max(0, initial - survivors)} of our soldiers lost, ${Math.max(0, enemyBefore - rival.population)} defenders lost. ${survivors} soldiers are returning home.`;
+    event.battleChronicle = [...(event.battleChronicle ?? []), narrative];
+    logEvent(state, 'combat', narrative, rival.name, 'outgoing_raid', 'casualties');
+    const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
+    const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
+    persistBattleAftermath(state, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
+  }
+  event.phase = 'returning';
+  event.returnStartedAtTick = state.tick;
+  event.returnStartProgress = 1;
+  event.returnAtTick = state.tick + Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick));
+  event.expiresAtTick = event.returnAtTick;
+  event.choices = [];
+}
+
 export function tickPendingOutgoingRaidEvents(state: WorldState): void {
   if (!state.pendingOutgoingRaidEvents?.length) return;
   const remaining: OutgoingRaidEvent[] = [];
@@ -1502,8 +1534,22 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       if (state.tick >= (event.arrivalAtTick ?? event.expiresAtTick)) {
         event.phase = 'engaging';
         event.expiresAtTick = state.tick + 3 * TICKS_PER_DAY;
+        event.battleChronicle = [`Our soldiers reached ${event.rivalName}.`];
+        if (event.rivalResponse === 'fight') beginTextRaidBattle(state, event);
         addBigNews(state, '⚔️ War-band arrived', `Your soldiers reached ${event.rivalName}. Choose the battle outcome in the raid banner.`, 'negative');
         logEvent(state, 'combat', `War-band arrived at ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'dispatched');
+      }
+      remaining.push(event);
+      continue;
+    }
+    if (event.phase === 'fighting') {
+      const elapsed = state.tick - (event.battleStartedAtTick ?? state.tick);
+      if (elapsed >= TICKS_PER_HOUR * 2) {
+        finishTextRaidBattle(state, event);
+      } else if (elapsed >= TICKS_PER_HOUR && (event.battleChronicle?.length ?? 0) < 2) {
+        const update = `Fighting continues at ${event.rivalName}. Both sides are taking losses; the result is not yet certain.`;
+        event.battleChronicle = [...(event.battleChronicle ?? []), update];
+        logEvent(state, 'combat', update, event.rivalName, 'outgoing_raid', 'dispatched');
       }
       remaining.push(event);
       continue;
@@ -1539,12 +1585,14 @@ export function respondToOutgoingRaidEvent(
     const outbound = Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick));
     const travelled = Math.max(1, Math.min(outbound, state.tick - (event.launchedAtTick ?? event.createdAtTick)));
     event.phase = 'returning';
+    event.returnStartedAtTick = state.tick;
+    event.returnStartProgress = travelled / outbound;
     event.returnAtTick = state.tick + travelled;
     event.expiresAtTick = event.returnAtTick;
     logEvent(state, 'combat', `Recall ordered for the war-band marching on ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'cancelled');
     return state;
   }
-  if (event.phase === 'returning' || event.phase === 'marching') return state;
+  if (event.phase === 'returning' || event.phase === 'marching' || event.phase === 'fighting') return state;
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
     if (!event.phase) {
@@ -1597,6 +1645,10 @@ export function respondToOutgoingRaidEvent(
   if (choiceId === 'decline_payoff' || choiceId === 'fight') {
     if (choiceId === 'decline_payoff' && event.rivalResponse !== 'payoff_offer') return state;
     if (choiceId === 'fight' && event.rivalResponse !== 'fight') return state;
+    if (event.phase === 'engaging') {
+      beginTextRaidBattle(state, event);
+      return state;
+    }
     remove();
     resolveOutgoingRaidCombat(state, rival, event);
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
