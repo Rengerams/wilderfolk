@@ -125,10 +125,10 @@ const TITLE_MERIT_BONUS = 30;
 /**
  * Merit per year served past adulthood, at the top of the witnessed age range.
  */
-const EXPERIENCE_MERIT_PER_YEAR = 1.0;
+const EXPERIENCE_MERIT_PER_YEAR = 0.5;
 /** One capped trade is worth 50 merit; expertise across trades is capped at 100. */
 const SKILL_MERIT_PER_POINT = 0.5;
-const SKILL_MERIT_CAP = 100;
+const SKILL_MERIT_CAP = 60;
 /** Merit per close friendship (`relationships.friendCount`, the ≥60 bond the owner calls a friend). */
 const COMMUNITY_MERIT_PER_FRIEND = 2;
 /** Merit for being married, the household half of standing. */
@@ -317,7 +317,7 @@ export function getLeadershipScoreBreakdown(
   const skillPoints = Math.min(SKILL_MERIT_CAP, Math.round(skillSum * SKILL_MERIT_PER_POINT));
   const ageYears = leadershipAgeYears(entity, state);
   const experiencePoints = Math.round(
-    Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 200) * EXPERIENCE_MERIT_PER_YEAR,
+    Math.min(Math.max(0, ageYears - HUMAN_ADULT_MIN_AGE), 100) * EXPERIENCE_MERIT_PER_YEAR,
   );
 
   const communityPoints =
