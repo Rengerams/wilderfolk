@@ -13,7 +13,7 @@ import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // half a building to the south-east of the building on screen. Importing the owner is the fix; the
 // duplicate was deleted rather than corrected so the two can never disagree again.
 import { getBuildingCenter } from '../placementUtils';
-import { HUMAN_ADULT_MIN_AGE } from '../dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import {
   HUMAN_MAX_LIFESPAN_YEARS,
   getColonyDay,
