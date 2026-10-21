@@ -194,6 +194,7 @@ export function getActiveElectionPromises(state: WorldState): {
 } | null {
   const active = [...(state.electionPromiseRecords ?? [])].reverse().find((record) => !record.evaluated);
   if (active) return { year: active.year, daysRemaining: Math.max(0, active.dueDay - getColonyDay(state)), promises: active.codes.map((code) => getPromiseDetail(state, code)) };
+  if ((state.electionPromiseRecords?.length ?? 0) > 0) return null;
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
   if (storyFlag(state, evaluatedKey(year)) > 0) return null;
   // An unrecorded set reads 0 here too, so the eval day below is what says "nothing was promised".
