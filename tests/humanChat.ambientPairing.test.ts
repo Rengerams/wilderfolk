@@ -11,22 +11,23 @@ import {
   tryAmbientRandomDialogue,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, getDialogueTreeById, installDialogueBankPayload } from '../src/game/dialogueTrees';
+import { setSimSeed, resetSimRng } from '../src/game/simRng';
 
 afterEach(() => {
   vi.restoreAllMocks();
   resetDialogueSessions();
+  resetSimRng();
 });
 
 describe('ambient dialogue pairing', () => {
   it('uses a nearby free settler even when the old optional-partner roll would select solo speech', () => {
     const leader: ChatSpeaker = { id: 1 };
     const ordinarySettler: ChatSpeaker = { id: 2 };
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0) // ambient chance succeeds
-      .mockReturnValueOnce(0) // context selection
-      .mockReturnValueOnce(0.8); // old 60% partner branch would have rejected this
-
+    installDialogueBankPayload(canonicalDialogueBank);
+    setSimSeed(11);
+    // Chance 1 guarantees the ambient gate; seeded context/partner rolls are
+    // controlled by the simulation RNG, not Math.random.
     tryAmbientRandomDialogue(leader, [ordinarySettler], 0, 1);
 
     expect(leader.chatPartnerId).toBe(ordinarySettler.id);
