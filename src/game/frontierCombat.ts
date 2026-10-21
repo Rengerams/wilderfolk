@@ -1620,18 +1620,6 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   const { verb } = isCounterRaid
     ? { verb: 'Counter-raid' }
     : getOutgoingRaidActionLabel(state, rivalId);
-  if (isCounterRaid) {
-    if (cancelPendingRaidsForRival(state, rivalId)) {
-      logEvent(
-        state,
-        'combat',
-        `${rival.name}'s war-band broke off — you marched out to meet them`,
-        rival.name,
-        'incoming_raid',
-        'cancelled',
-      );
-    }
-  }
 
   spendFood(state, 'raid', raidFoodCost);
   const attackerStrength = getMilitiaStrength(state, state.entities);
