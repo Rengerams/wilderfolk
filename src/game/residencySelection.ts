@@ -349,7 +349,8 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
     // children had all grown up formed a unit spanning two houses; `isFamilyHousingValid`
     // then failed and the convergence loop re-homed the whole unit together, silently
     // undoing the adult-child move-out on every pass (it could never persist).
-    const unit = collectMinorHousehold(human, alive);
+    const unit = collectMinorHousehold(human, alive).filter((member) => !visited.has(member.id));
+    if (unit.length === 0) continue;
     for (const member of unit) visited.add(member.id);
     units.push(unit);
   }
