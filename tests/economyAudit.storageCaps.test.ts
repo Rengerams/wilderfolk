@@ -72,6 +72,20 @@ describe('economy audit fixes', () => {
     expect(w.foodSpoilageRate).toBeCloseTo(0.008);
   });
 
+  it('upgraded Silos grant 2500 at level 2 and 3000 at level 3, stacking by building', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.Silo);
+    w.buildings[0]!.level = 2;
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(3300);
+    w.buildings[0]!.level = 3;
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(3800);
+    addBuilding(w, BuildingType.Silo);
+    updateStorageCaps(w);
+    expect(w.storageMax.food).toBe(5800);
+  });
+
   it('a Barn raises wood storage +300 and food +400', () => {
     const w = makeWorld();
     addBuilding(w, BuildingType.Barn);
