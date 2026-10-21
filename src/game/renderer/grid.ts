@@ -171,7 +171,7 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
       const wx = tx * PATH_CELL + PATH_CELL / 2;
       const wy = ty * PATH_CELL + PATH_CELL / 2;
       const cx = worldToScreenX(wx, cam, cw);
-      const cy = worldToScreenY(wy, cam, ch);
+      const cy = worldToScreenY(wy, cam, ch) - terrainRiseAt(map, wx, wy) * cam.zoom;
 
       drawIsoCellMarker(
         ctx, cx, cy, blockerHw, blockerHh,
@@ -220,7 +220,7 @@ export function drawBuildZoneOverlay(ctx: CanvasRenderingContext2D, state: Rende
       const { x: snapX, y: snapY } = snapBuildingCenter(placeType, wx, wy, state.buildRotation);
       const valid = canPlaceBuildingSnapshot(state, placeType, snapX, snapY, state.buildRotation);
       const px = worldToScreenX(snapX, cam, cw);
-      const py = worldToScreenY(snapY, cam, ch);
+      const py = worldToScreenY(snapY, cam, ch) - terrainRiseAt(map, snapX, snapY) * cam.zoom;
 
       if (valid) {
         drawIsoCellMarker(
