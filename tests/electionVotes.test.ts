@@ -15,7 +15,7 @@ function makeWorld(): WorldState {
 }
 
 function addVoter(w: WorldState, id: number): void {
-  const e = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}` });
+  const e = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}`, ageYears: 30 });
   e.alive = true;
   w.entities.push(e);
 }
