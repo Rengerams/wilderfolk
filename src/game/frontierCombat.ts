@@ -496,7 +496,7 @@ function flashMilitia(entities: Entity[], ticks = 22) {
 }
 
 function persistBattleAftermath(
-  before: WorldState,
+  before: Pick<WorldState, 'entities' | 'buildings' | 'resources' | 'villageLeaderId'>,
   after: WorldState,
   raidId: string,
   rivalId: string,
@@ -1076,7 +1076,12 @@ export function tickPendingRaidEvents(
   });
 
   for (const evt of expired) {
-    const battleBefore = structuredClone(state);
+    const battleBefore = {
+      entities: state.entities.map((entity) => ({ ...entity })),
+      buildings: state.buildings.map((building) => ({ ...building })),
+      resources: { ...state.resources },
+      villageLeaderId: state.villageLeaderId,
+    };
     const rival = state.rivalSettlements.find((r) => r.id === evt.rivalId);
     if (!rival) continue;
     const structureBonus = computeMilitiaBreakdown(state, allAlive).structureBonus;
