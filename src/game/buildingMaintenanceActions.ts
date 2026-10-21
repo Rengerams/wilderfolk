@@ -102,7 +102,7 @@ export function repairBuilding(originalState: WorldState, buildingId: number): W
   state.resources.wood -= REPAIR_COST.wood;
   state.resources.stone -= REPAIR_COST.stone;
   building.health = building.maxHealth;
-  createDeathParticles(state, building.x + building.width / 2, building.y, '#22c55e', 10, 'sparkle');
+  createDeathParticles(state, building.x, building.y, '#22c55e', 10, 'sparkle');
   addFloatingText(state, building.x, building.y - 10, 'Repaired!', '#22c55e');
   return state;
 }
@@ -229,7 +229,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
     addFloatingText(state, building.x, building.y - 15, `Upgraded to Lv.${building.level}!`, '#3b82f6');
   }
 
-  createDeathParticles(state, building.x + building.width / 2, building.y, '#3b82f6', 15, 'star');
+  createDeathParticles(state, building.x, building.y, '#3b82f6', 15, 'star');
   impulseScreenShake(state, 3);
   return state;
 }
@@ -304,8 +304,8 @@ export function demolishBuildingInPlace(state: WorldState, buildingId: number): 
   clearAssignmentsForDemolishedBuilding(state, buildingId);
   createDeathParticles(
     state,
-    building.x + building.width / 2,
-    building.y + building.height / 2,
+    building.x,
+    building.y,
     '#71717a',
     25,
     'smoke',
@@ -314,6 +314,9 @@ export function demolishBuildingInPlace(state: WorldState, buildingId: number): 
   impulseScreenShake(state, 4);
 
   removeBuildingFromState(state, building);
+  // Demolition changes authoritative capacity immediately, even while paused.
+  updateStorageCaps(state);
+  invalidatePopulationSnapshotCache(state);
   reconcileAssignmentsAfterBuildingRemoval(state);
   return state;
 }
