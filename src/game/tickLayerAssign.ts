@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, BuildingType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import {
   syncResidenceOccupants,
@@ -20,6 +20,31 @@ export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR;
 /** First assignment sweep is at 03:00; subsequent sweeps recur every six hours. */
 export const LAYER_ASSIGN_FIRST_HOUR = 3;
 export const LAYER_ASSIGN_PHASE_TICK = LAYER_ASSIGN_FIRST_HOUR * TICKS_PER_HOUR;
+
+/**
+ * Cheap housing-change fingerprint for the scheduled sweeps. Work and movement
+ * do not affect housing, so checking a few primitive fields is much cheaper
+ * than rebuilding all household units four times a day. A full reconciliation
+ * still runs at the final sweep every day as a safety net.
+ */
+const lastHousingSignature = new WeakMap<WorldState, string>();
+
+function housingSignature(world: WorldState, humans: readonly WorldState['entities'][number][]): string {
+  const parts: (number | string)[] = [];
+  for (const building of world.buildings) {
+    if (building.faction === 'rival') continue;
+    if (building.type !== BuildingType.House && building.type !== BuildingType.Mansion
+      && building.type !== BuildingType.Villa && building.type !== BuildingType.LeaderHouse) continue;
+    parts.push(building.id, building.completed ? 1 : 0, building.level);
+  }
+  for (const h of humans) {
+    if (!h.alive || h.faction) continue;
+    parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
+      h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
+      h.age, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
+  }
+  return parts.join(',');
+}
 
 /**
  * Assignment layer — residence + workforce bookkeeping.
@@ -78,7 +103,13 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   const eligibleForHousing = protectedIds.size === 0
     ? playerHumans
     : playerHumans.filter((person) => !protectedIds.has(person.id));
-  assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick);
+  const signatureBefore = housingSignature(world, allHumans);
+  const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
+    % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
+  if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
+    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick);
+    lastHousingSignature.set(world, housingSignature(world, allHumans));
+  }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');
   // Housing sweeps run four times per day, after the daily leader-house repair.
