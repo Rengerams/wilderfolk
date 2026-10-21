@@ -15,8 +15,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { GameLoop } from '../src/game/gameLoop';
-import { gameTick } from '../src/game/gameEngine';
 import { createInitialView } from '../src/game/viewState';
 
 vi.mock('../src/game/gameEngine', async (importOriginal) => {
@@ -85,7 +83,10 @@ afterEach(() => {
 });
 
 describe('main-thread fallback tick rollback (P-3)', () => {
-  it('holds simulation off the UI thread while worker recovery is scheduled', () => {
+  it('holds simulation off the UI thread while worker recovery is scheduled', async () => {
+    vi.resetModules();
+    const { GameLoop } = await import('../src/game/gameLoop');
+    const { gameTick } = await import('../src/game/gameEngine');
     const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);
     const internals = loop as unknown as {
       running: boolean; tickAccumulator: number; workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
@@ -111,7 +112,10 @@ describe('main-thread fallback tick rollback (P-3)', () => {
     }
   });
 
-  it('restores the pre-tick world and stops retrying when a fallback tick throws', () => {
+  it('restores the pre-tick world and stops retrying when a fallback tick throws', async () => {
+    vi.resetModules();
+    const { GameLoop } = await import('../src/game/gameLoop');
+    const { gameTick } = await import('../src/game/gameEngine');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const loop = new GameLoop(makeWorld(), createInitialView(400, 300), () => null);
     (loop as unknown as { running: boolean }).running = true;
