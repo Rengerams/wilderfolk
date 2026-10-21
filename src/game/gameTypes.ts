@@ -796,6 +796,8 @@ export interface WorldState {
   ecoHealthYearsAbove80: number;
   firstWeekVisitorSpawned: boolean;
   villageLeaderId: number | null;
+  /** Residents permitted to remain in the manor until succession is resolved. */
+  pendingLeaderHouseResidentIds?: number[];
   leaderSinceYear: number;
   lastElectionYear: number;
   pendingElectionYear: number | null;
