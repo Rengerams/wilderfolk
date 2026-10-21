@@ -93,6 +93,7 @@ export interface LeadershipScoreBreakdown {
   totalScore: number;
   skillPoints: number;
   experiencePoints: number;
+  battlePoints: number;
   communityPoints: number;
   recordPoints: number;
   titlePoints: number;
@@ -312,13 +313,15 @@ export function getLeadershipScoreBreakdown(
     (entity.relationshipStatus === 'married' ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
-  const baseScore = skillPoints + experiencePoints + communityPoints + titlePoints;
+  const battlePoints = Math.min(100, Math.max(0, entity.battleLeadershipMerit ?? 0));
+  const baseScore = skillPoints + experiencePoints + battlePoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
     name: formatSettlerName(entity),
     skillPoints,
     experiencePoints,
+    battlePoints,
     communityPoints,
     recordPoints,
     titlePoints,
@@ -441,6 +444,7 @@ function getYearsUntilElectionForYear(year: number, lastElectionYear: number): n
 
 function scoreSummary(b: LeadershipScoreBreakdown): string {
   const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
+  if (b.battlePoints > 0) parts.push(`defense & raids +${b.battlePoints}`);
   if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
   if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);
