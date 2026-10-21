@@ -1,3 +1,6 @@
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/dayCycleConstants';
 /**
  * The adult floor is 18 (fixed 2026-09-16; it was 16).
  *
@@ -10,8 +13,8 @@
  * `BUG_REPORTS/2026-09-16-adult-floor-was-16-against-the-documented-18.md`.
  */
 import { describe, expect, it } from 'vitest';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
-import { HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/residencyOccupancy';
+
+
 import { Relationship } from '../src/game/gameConstants';
 import { isEligibleForLeadership } from '../src/game/villageLeadership';
 import { isEligibleToCourt, isValidAffairTarget } from '../src/game/simulation/humanRelationships';
