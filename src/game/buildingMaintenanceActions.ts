@@ -1,6 +1,6 @@
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
-import { addResource } from './economy';
+import { addResource, updateStorageCaps } from './economy';
 import { addFloatingText, addNotification, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
@@ -206,6 +206,9 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
   state.resources.stone -= costStone;
   state.resources.gold -= costGold;
   building.level += 1;
+  if (building.type === BuildingType.Silo || building.type === BuildingType.WoodStorehouse) {
+    updateStorageCaps(state);
+  }
   // Bed capacity is level-dependent (`getResidenceCapacity`), and the population snapshot is cached
   // per tick on counts a level change does not touch — so the header, the focus hints and the sim
   // summary kept reporting the pre-upgrade bed count until the next tick. `populationGrowth` names
