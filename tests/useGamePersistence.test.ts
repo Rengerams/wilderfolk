@@ -56,6 +56,29 @@ describe('persistGame', () => {
     expect(showToast).toHaveBeenCalledWith({ message: 'Game saved successfully', type: 'success' });
   });
 
+  it('refuses a degraded worker export instead of overwriting upgraded buildings', async () => {
+    const staleWorld = initGame({ villageName: 'Stale copy' });
+    const view = createInitialView(staleWorld.width, staleWorld.height);
+    const showToast = vi.fn();
+    const markGameSaved = vi.fn();
+    const loop = {
+      exportAuthoritativeWorld: async () => staleWorld,
+      lastExportWasDegraded: () => true,
+      getView: () => view,
+      getWorld: () => staleWorld,
+      mutateWorld: (mutator: (world: WorldState) => void) => mutator(staleWorld),
+    };
+    expect(await persistGame(
+      { getLoop: () => loop, getWorld: () => staleWorld, getView: () => view },
+      { markGameSaved, showToast },
+      { feedback: true },
+    )).toBe(false);
+    expect(saveGameMock).not.toHaveBeenCalled();
+    expect(saveGameToSlotMock).not.toHaveBeenCalled();
+    expect(markGameSaved).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+  });
+
   it('does not save or report success when neither the loop nor display state supplies a view', async () => {
     const world = initGame();
     const showToast = vi.fn();
