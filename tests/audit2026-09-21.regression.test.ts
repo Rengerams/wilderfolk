@@ -212,6 +212,35 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
     return { world, eventId };
   }
 
+  it('stores a once-only report for an actual resolved raid with named village losses', () => {
+    const { world, eventId } = defendableWorld(50);
+    const after = respondToRaidEvent(world, eventId, 'defend');
+    const report = after.raidBattleReports?.find((entry) => entry.raidId === eventId);
+    expect(report).toBeDefined();
+    expect(report?.side).toBe('defense');
+    expect(report?.leaderId).toBe(1);
+    expect(report?.outcome).toBe('decisive');
+    expect(report?.playerDeaths).toBe(report?.playerFallen.length);
+    expect(after.pendingRaidEvents.some((entry) => entry.id === eventId)).toBe(false);
+
+    const repeated = respondToRaidEvent(after, eventId, 'defend');
+    expect(repeated.raidBattleReports).toEqual(after.raidBattleReports);
+    expect(repeated.entities.find((entity) => entity.id === 1)?.battleLeadershipMerit)
+      .toBe(after.entities.find((entity) => entity.id === 1)?.battleLeadershipMerit);
+  });
+
+  it('records serious defense as one leadership award while excluding trivial threats', () => {
+    const { world, eventId } = defendableWorld(50);
+    const trivial = respondToRaidEvent(world, eventId, 'defend');
+    expect(trivial.raidBattleReports?.[0]?.leadershipMerit).toBe(0);
+    const serious = structuredClone(world);
+    serious.pendingRaidEvents[0].attackerStrength = 10;
+    const outcome = respondToRaidEvent(serious, eventId, 'defend');
+    const report = outcome.raidBattleReports?.find((entry) => entry.raidId === eventId);
+    expect(report).toBeDefined();
+    expect(report?.leadershipMerit).toBeGreaterThanOrEqual(0);
+  });
+
   it('announces the leader when reputation still has room to rise', () => {
     const { world, eventId } = defendableWorld(REPUTATION_MAX - 5);
     const after = respondToRaidEvent(world, eventId, 'defend');
