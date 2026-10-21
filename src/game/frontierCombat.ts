@@ -1547,6 +1547,10 @@ export function respondToOutgoingRaidEvent(
   if (event.phase === 'returning' || event.phase === 'marching') return state;
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
+    if (!event.phase) {
+      state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents!.filter((entry) => entry.id !== eventId);
+      return;
+    }
     event.phase = 'returning';
     event.returnAtTick = state.tick + Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick));
     event.expiresAtTick = event.returnAtTick;
