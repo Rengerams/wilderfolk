@@ -254,6 +254,9 @@ describe('settlers keep working during a festival', () => {
 
   it('labels the settler on shift as working and the free one as gathering', () => {
     const { state, farmer, idler } = festivalWorkWorld();
+    // The gathering opens at 15:00; the earlier 14:40 systems sample is
+    // valid for attendance but is still outside the festival's gathering window.
+    state.tick = 15 * TICKS_PER_HOUR - 1;
     gameTick(state);
 
     // One verdict, read by the tick and by the label: the two cannot disagree about who gathers.
@@ -337,7 +340,7 @@ describe('a priest serving at a completed church', () => {
   it('still records the moon-howler night duty, which is the church’s other shift', () => {
     const { state, priest } = churchWorld();
     // The night duty begins at NIGHT_START on a full-moon day.
-    state.tick = 15 * TICKS_PER_DAY - 1; // 00:00 after full-moon 23:00, systems pulse
+    state.tick = 15 * TICKS_PER_DAY + 4 - 1; // 01:20 after full-moon night, systems pulse (past midnight fatigue reset)
     gameTick(state);
     expect(
       priest.scheduleWorkedTicksToday ?? 0,
