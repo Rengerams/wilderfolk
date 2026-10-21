@@ -92,7 +92,17 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   // The succession election owns the handover: until a living successor is elected,
   // do not replace the residents with an empty entitlement set.
   const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
-  if (!incumbent?.alive) return;
+  if (!incumbent?.alive) {
+    const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
+    for (const person of state.entities) {
+      if (person.alive && !person.faction && !isImprisoned(person) && entitledIds.has(person.id)) {
+        person.residenceBuildingId = house.id;
+      }
+    }
+    syncResidenceOccupants(state.entities, state.buildings);
+    return;
+  }
+  state.pendingLeaderHouseResidentIds = undefined;
 
   const household = collectLeaderHousehold(state);
   // A household reads empty while the office is still held (Moon Howler form, prison sentence), so
