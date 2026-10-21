@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isResidenceBuilding } from './residencyOccupancy';
+import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { TickContext } from './simulation/simulationTypes';
 import {
@@ -39,7 +40,7 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
     parts.push(building.id, building.completed ? 1 : 0, building.level);
   }
   for (const h of humans) {
-    if (!h.alive || h.faction) continue;
+    if (!h.alive || !isPlayerHuman(h)) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
       h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
@@ -122,6 +123,17 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   syncLeaderHouseResidency(world);
   profileEnd('assign.syncLeaderHouseResidency', startedsyncLeaderHouseResidency);
   checkLeader('syncLeaderHouseResidency');
+  // Assigning or relocating residents changes residenceBuildingId after the opening
+  // occupant sync. Rebuild the authoritative occupancy lists once more at the end
+  // of the housing pass so snapshots and invariants cannot see stale beds.
+  // Include cursed Moon Howlers, whose human residence survives their temporary form.
+  const residentEntities = [
+    ...allHumans,
+    ...(byType[EntityType.Werewolf] ?? []).filter((entity) => entity.alive && entity.moonHowlerCursed),
+  ];
+  const finalOccupancySync = profileStart();
+  syncResidenceOccupants(residentEntities, updatedBuildings);
+  profileEnd('assign.syncResidenceOccupantsFinal', finalOccupancySync);
   const startedassignMissingWorkers = profileStart();
   assignMissingWorkers(playerHumans, updatedBuildings, world);
   profileEnd('assign.assignMissingWorkers', startedassignMissingWorkers);
