@@ -46,6 +46,7 @@ export const BuildingType = {
   Hotel: 'hotel',
   /** Cross rivers — place on river / bank tiles only. */
   Bridge: 'bridge',
+  GroundReinforcement: 'groundReinforcement',
   // ── Decor (Phase 3.2 — beauty grid) ──
   /** Flower garden — neighborhood beauty + a spot settlers like to sit. */
   Garden: 'garden',
@@ -715,6 +716,18 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     padShape: 'road',
     unlockRequirement: 'architecture_1',
     spriteDisplayScale: 1.05,
+  },
+  [BuildingType.GroundReinforcement]: {
+    width: 30,
+    height: 30,
+    cost: { wood: 0, stone: 30, gold: 8 },
+    buildTime: 1,
+    maxOccupants: 0,
+    emoji: '🪨',
+    label: 'Ground Reinforcement',
+    description: 'Prepare a 3×3-tile patch of unstable ground for construction. Uses stone and gold; no permanent structure. Cannot fill deep water or active rivers.',
+    backgroundColor: '#78716c',
+    padShape: 'rect',
   },
   [BuildingType.Garden]: {
     width: 42,
