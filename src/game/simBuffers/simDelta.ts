@@ -106,6 +106,7 @@ export interface SimTickDelta {
   pendingRaidEvents: WorldState['pendingRaidEvents'];
   pendingOutgoingRaidEvents: WorldState['pendingOutgoingRaidEvents'];
   pendingRaidVictories?: WorldState['pendingRaidVictories'];
+  raidBattleReports?: WorldState['raidBattleReports'];
   pendingDiplomacyEvents: WorldState['pendingDiplomacyEvents'];
   villageLeaderId: number | null;
   leaderSinceYear: number;
@@ -335,6 +336,7 @@ export function extractSimTickDelta(
     pendingRaidEvents: deltaClone(world.pendingRaidEvents ?? [], cloneMode),
     pendingOutgoingRaidEvents: deltaClone(world.pendingOutgoingRaidEvents ?? [], cloneMode),
     pendingRaidVictories: world.pendingRaidVictories === undefined ? undefined : deltaClone(world.pendingRaidVictories, cloneMode),
+    raidBattleReports: world.raidBattleReports === undefined ? undefined : deltaClone(world.raidBattleReports, cloneMode),
     pendingDiplomacyEvents: deltaClone(world.pendingDiplomacyEvents ?? [], cloneMode),
     villageLeaderId: world.villageLeaderId,
     leaderSinceYear: world.leaderSinceYear,
@@ -498,6 +500,8 @@ export function applySimTickDelta(
   world.pendingOutgoingRaidEvents = deltaClone(delta.pendingOutgoingRaidEvents, cloneMode);
   if (delta.pendingRaidVictories === undefined) delete world.pendingRaidVictories;
   else world.pendingRaidVictories = deltaClone(delta.pendingRaidVictories, cloneMode);
+  if (delta.raidBattleReports === undefined) delete world.raidBattleReports;
+  else world.raidBattleReports = deltaClone(delta.raidBattleReports, cloneMode);
   world.pendingDiplomacyEvents = deltaClone(delta.pendingDiplomacyEvents, cloneMode);
   world.villageLeaderId = delta.villageLeaderId;
   world.leaderSinceYear = delta.leaderSinceYear;
