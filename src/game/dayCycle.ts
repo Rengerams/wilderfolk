@@ -226,19 +226,13 @@ export function setHumanBirthFromAge(
 export function computeHumanAgeYears(
   entity: Entity,
   colonyDay: number,
-  options?: { schoolAgeMultiplier?: number },
 ): number {
   if (!Number.isFinite(entity.birthYear) || !Number.isFinite(entity.birthDay)) {
     return Math.max(0, entity.age);
   }
   const birthColonyDay = entity.birthYear * DAYS_PER_YEAR + entity.birthDay;
-  let daysLived = Math.max(0, colonyDay - birthColonyDay);
+  const daysLived = Math.max(0, colonyDay - birthColonyDay);
   const juvenileSpan = HUMAN_CHILDHOOD_YEARS * JUVENILE_DAYS_PER_AGE_YEAR;
-  const schoolMult = options?.schoolAgeMultiplier ?? 1;
-
-  if (schoolMult > 1 && daysLived < juvenileSpan) {
-    daysLived = Math.min(daysLived * schoolMult, juvenileSpan);
-  }
   if (daysLived < juvenileSpan) {
     return Math.floor(daysLived / JUVENILE_DAYS_PER_AGE_YEAR);
   }
@@ -249,10 +243,9 @@ export function computeHumanAgeYears(
 export function syncHumanAgeFromCalendar(
   entity: Entity,
   state: { year: number; dayInYear: number },
-  options?: { schoolAgeMultiplier?: number },
 ): void {
   if (entity.type !== EntityType.Human) return;
-  entity.age = computeHumanAgeYears(entity, getColonyDay(state), options);
+  entity.age = computeHumanAgeYears(entity, getColonyDay(state));
   // Deliberately does NOT write `isJuvenile`: the graduation transition owns that flag.
   // Setting it here made `tryGraduateHumanChild` — called every tick from humanTick.ts
   // *after* this sync — unsatisfiable, because it requires `isJuvenile && age >=
