@@ -167,7 +167,8 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
     if (home) {
       const cap = getResidenceCapacity(home);
       const residents = countResidentsInBuilding(humans, home.id);
-      if (residents < cap) {
+      const isLeaderManor = home.type === BuildingType.LeaderHouse && were.id === opts?.villageLeaderId;
+      if (isLeaderManor || residents < cap) {
         were.residenceBuildingId = home.id;
         if (!home.occupants.includes(were.id)) home.occupants.push(were.id);
       }
