@@ -2193,16 +2193,25 @@ export default function App() {
           event.id > battleReport.baselineId &&
           (event.combatKind === 'outgoing_raid' || event.combatKind === 'defense' || event.combatKind === 'incoming_raid') &&
           (event.entityName === battleReport.rivalName || event.message.includes(battleReport.rivalName))
-        ).slice().reverse();
+        );
         const resolved = events.some((event) => event.combatStage === 'resolved');
         const pending = (world.pendingRaidVictories ?? []).find((entry) => entry.rivalName === battleReport.rivalName);
         const casualties = events.filter((event) => event.combatStage === 'casualties');
+        const liveArmy = (world.pendingOutgoingRaidEvents ?? []).find((army) =>
+          army.rivalName === battleReport.rivalName && army.phase === 'fighting');
+        const liveSoldiers = liveArmy
+          ? (liveArmy.soldierIds ?? []).filter((id) => world.entities.some((person) =>
+              person.id === id && person.alive && person.raidDeploymentId === liveArmy.id)).length
+          : null;
         return (
           <div role="dialog" aria-modal="true" aria-label="Battle report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
             <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col gap-3 rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Battle report — recorded events</p>
               <h2 className="text-2xl font-bold text-amber-100">{battleReport.incoming ? 'Defense against' : 'Raid on'} {battleReport.rivalName}</h2>
-              <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
+              <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : liveArmy ? 'LIVE · Text commentary follows the simulation. Casualties are named only after their deaths are recorded.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
+              {liveArmy && <div className="rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+                Battle underway · {liveSoldiers} soldiers still deployed · {Math.min(100, Math.round((world.tick - (liveArmy.battleStartedAtTick ?? world.tick)) / (2 * 6) * 100))}% of battle time elapsed
+              </div>}
               {pending && (
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-stone-700 p-3 text-sm">
                   <div className="text-emerald-300">Your village: {pending.playerDead} killed</div>
