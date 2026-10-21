@@ -64,7 +64,7 @@ function FrontierPanel({
   // "Unarmed adults" beside a non-zero militia strength (`LIVE-FINDINGS-STATUS.md`, F15).
   const armament = getMilitiaArmamentLabel(state) ?? 'Unarmed adults';
 
-  if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0) {
+  if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0 && !(state.raidBattleReports?.length)) {
     const year = state.year ?? 0;
     return (
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
@@ -86,6 +86,26 @@ function FrontierPanel({
 
   return (
     <div className="space-y-3">
+      {(state.raidBattleReports?.length ?? 0) > 0 && (
+        <section className="rounded-lg border border-amber-600/40 bg-stone-900/70 px-3 py-2 text-[12px]">
+          <h4 className="text-[13px] font-bold text-amber-200">Battle aftermath and recovery</h4>
+          {state.raidBattleReports!.slice(-5).reverse().map((report) => (
+            <details key={report.raidId} className="mt-2 rounded border border-stone-700 px-2 py-1">
+              <summary className="cursor-pointer font-semibold text-stone-100">
+                {report.side === 'defense' ? 'Defending against' : 'Raiding'} {report.rivalName} · {report.outcome}
+              </summary>
+              <p className="mt-1 text-stone-300">{report.playerDeaths} villagers lost · {report.enemyDeaths} enemies lost · {report.damagedBuildings} buildings damaged</p>
+              <p className="text-stone-400">Supplies lost: {report.suppliesLost.food} food, {report.suppliesLost.wood} wood, {report.suppliesLost.stone} stone, {report.suppliesLost.gold} gold</p>
+              <p className="text-stone-400">Leadership merit: {report.leadershipMerit > 0 ? '+' : ''}{report.leadershipMerit}</p>
+              {report.playerFallen.length > 0 && <div className="mt-1 text-emerald-300"><strong>Village fallen</strong>{report.playerFallen.map((name, i) => <p key={i}>{name} — killed</p>)}</div>}
+              {report.enemyFallen.length > 0 && <div className="mt-1 text-red-300"><strong>Enemy fallen</strong>{report.enemyFallen.map((name, i) => <p key={i}>{name} — killed</p>)}</div>}
+              {report.enemyDeaths > report.enemyFallen.length && <p className="text-red-300">Enemy losses without known names: {report.enemyDeaths - report.enemyFallen.length}</p>}
+              {report.side === 'defense' && report.outcome !== 'decisive' && <p className="mt-1 text-amber-200">Recovery: inspect damaged buildings, restaff defenses and rebuild supplies.</p>}
+            </details>
+          ))}
+        </section>
+      )}
+
       <div className="rounded-lg border border-slate-600/50 bg-slate-950/40 px-3 py-2">
         <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-slate-400">Village readiness</h4>
         <p className="mb-2 text-[10px] leading-relaxed text-stone-300">
