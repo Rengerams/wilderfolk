@@ -445,6 +445,28 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(getLeadershipScoreBreakdown(state, official).totalScore).toBe(baseline);
     });
 
+    it('rewards verified battlefield achievements with a 100-point cap', () => {
+      const fighter = stubHuman(1, { battleLeadershipMerit: 40 });
+      const state = stubState([fighter]);
+      const score = getLeadershipScoreBreakdown(state, fighter);
+      expect(score.battlePoints).toBe(40);
+      fighter.battleLeadershipMerit = 300;
+      expect(getLeadershipScoreBreakdown(state, fighter).battlePoints).toBe(100);
+    });
+
+    it('gives established family names bounded popularity without awarding lone surnames', () => {
+      const founder = stubHuman(1, { surname: 'Stone', generation: 1 });
+      const parent = stubHuman(2, { surname: 'Stone', generation: 2 });
+      const candidate = stubHuman(3, { surname: 'Stone', generation: 3 });
+      const outsider = stubHuman(4, { surname: 'Other', generation: 1 });
+      const state = stubState([founder, parent, candidate, outsider]);
+      const family = getLeadershipScoreBreakdown(state, candidate);
+      const unrelated = getLeadershipScoreBreakdown(state, outsider);
+      expect(family.familyPoints).toBeGreaterThan(0);
+      expect(family.familyPoints).toBeLessThanOrEqual(25);
+      expect(unrelated.familyPoints).toBe(0);
+    });
+
     it('one capped trade is worth 50 points and broad expertise caps at 100', () => {
       const specialist = stubHuman(1, { skills: { farmer: 100 } });
       const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
