@@ -138,7 +138,7 @@ describe('L47 wall-cap label', () => {
     state.buildings = Array.from({ length: 10 }, (_, i) =>
       building(100 + i, BuildingType.Wall, { x: i * 20 }),
     );
-    state.entities = [entity(1, EntityType.Human, { job: JobType.Settler })];
+    state.entities = [entity(1, EntityType.Human, { job: JobType.Soldier })];
     state.villageForge = forge;
     return state;
   }
