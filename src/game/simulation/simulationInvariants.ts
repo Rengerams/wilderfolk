@@ -36,6 +36,7 @@ import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameType
 import { isActingVillageHead } from '../villageLeadership';
 import { countActiveMoonHowlerCurses, isActiveMoonHowler } from '../moonHowler';
 import { isSettlerRelationshipEntity } from '../moonHowlerForm';
+import { isResidenceOccupantEntity } from '../residencyReconciliation';
 import { BUILDING_CONFIGS } from '../buildings';
 import { isResidenceBuildingType } from '../dayCycle';
 
@@ -173,7 +174,9 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
       }
     }
 
-    if (entity.residenceBuildingId != null) {
+    // Housing mirrors include player settlers only. Visiting and rival humans may
+    // carry residence hints, but are not entries in player house occupants.
+    if (entity.residenceBuildingId != null && isResidenceOccupantEntity(entity)) {
       const home = buildingById.get(entity.residenceBuildingId);
       if (!home) {
         errors.push(
