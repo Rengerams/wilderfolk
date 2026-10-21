@@ -508,7 +508,7 @@ function carveRivers(
       const bedSurface = sampleElev(elevation, cols, rows, p.x, p.y);
       const halfWidth = p.w;
       if (halfWidth <= 0) continue;
-      const depth = clamp(halfWidth * CHANNEL_DEPTH_OF_WIDTH * TERRAIN_CELL, CHANNEL_DEPTH_MIN, CHANNEL_DEPTH_MAX);
+      const depth = clamp(halfWidth * CHANNEL_DEPTH_OF_WIDTH, CHANNEL_DEPTH_MIN, CHANNEL_DEPTH_MAX);
       const bed = Math.max(seaLevel - 0.01, bedSurface - depth);
       const run = halfWidth * BANK_RUN_OF_WIDTH;
       const x0 = Math.max(0, Math.floor(p.x - run - 1));
@@ -855,19 +855,18 @@ export function generateRawTerrain(
   const cuts = moistureCuts(moisture, s.forest);
 
   /** The centre of L0 cell `cell`, in the generator field cells — the 10 px grid over the 16 px one. */
-  const cellCentreInFieldCells = (cell: number): number =>
-    (cell * PATH_CELL + PATH_CELL / 2) / TERRAIN_CELL;
-
   /** The projected tile type holding L0 cell (x, y). One shared projection for both grids, so
    *  L0 walkability and L1 buildability can never disagree about the same ground. */
   const pathTileType = (x: number, y: number): TerrainType => {
-    const cx = cellCentreInFieldCells(x);
-    const cy = cellCentreInFieldCells(y);
+    const wx = x * PATH_CELL + PATH_CELL / 2;
+    const wy = y * PATH_CELL + PATH_CELL / 2;
+    const cx = wx / TERRAIN_CELL;
+    const cy = wy / TERRAIN_CELL;
     return classifyTile(
       sampleElev(elevation, cols, rows, cx, cy),
       sampleElev(moisture, cols, rows, cx, cy),
       sampleElev(temperature, cols, rows, cx, cy),
-      sampleElev(riverDist, cols, rows, cx, cy),
+      sampleElev(riverDist, wCols, wRows, wx / WATER_CELL, wy / WATER_CELL),
       seaLevel,
       cuts.forest,
       cuts.darkForest,
@@ -890,7 +889,7 @@ export function generateRawTerrain(
   const per = BUILD_CELL / PATH_CELL; // 2
   for (let y = 0; y < bRows; y++)
     for (let x = 0; x < bCols; x++) {
-      let water = 0, reserved = 0;
+      let water = 0, reserved = 0, hard = 0;
       for (let j = 0; j < per; j++)
         for (let i = 0; i < per; i++) {
           // `pCols`/`pRows` are the ceiling tile counts and `bCols * per >= pCols` by the
@@ -898,14 +897,13 @@ export function generateRawTerrain(
           const v = pathGrid[Math.min(pRows - 1, y * per + j) * pCols + Math.min(pCols - 1, x * per + i)];
           if (v === Walkability.Water) water++;
           else if (v === Walkability.Reserved) reserved++;
+          const tx = Math.min(tileW - 1, x * per + i);
+          const ty = Math.min(tileH - 1, y * per + j);
+          if (isUnbuildableTerrainType(pathTileType(tx, ty))) hard++;
         }
-      const tx = Math.min(tileW - 1, x * per);
-      const ty = Math.min(tileH - 1, y * per);
-      const type = pathTileType(tx, ty);
-      const hard = isUnbuildableTerrainType(type);
       buildGrid[y * bCols + x] = water
         ? Buildability.Water
-        : hard
+        : hard > 0
           ? Buildability.Hard
           : reserved
             ? Buildability.Mixed
