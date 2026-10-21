@@ -331,7 +331,7 @@ export function canProvokeRival(
   rival: RivalSettlement,
 ): { ok: boolean; blockReason?: string } {
   if (!state.rivalSettlements.some((r) => r.id === rival.id)) return { ok: false, blockReason: 'No such rival' };
-  if (rival.relationship === 'tense') return { ok: false, blockReason: 'Relations already tense' };
+  if (rival.atWarWithPlayer) return { ok: false, blockReason: 'Already at war' };
   return { ok: true };
 }
 
@@ -347,20 +347,22 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
   }
 
   rival.relationship = 'tense';
+  rival.atWarWithPlayer = true;
+  rival.peaceTreatyDays = 0;
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PROVOKE_RAID_COOLDOWN_DAYS);
   rival.daysUntilAction = Math.max(rival.daysUntilAction, PROVOKE_RAID_COOLDOWN_DAYS);
   addReputation(state, -PROVOKE_REPUTATION_COST);
   addFloatingText(state, rival.campX, rival.campY - 20, '⚠️ Hostility declared', '#f87171');
   addBigNews(
     state,
-    '⚔️ Hostility declared',
+    '⚔️ War declared',
     `${state.villageName} sent ${rival.name} a war challenge — they will answer it.`,
     'negative',
   );
   logEvent(
     state,
     'combat',
-    `Declared hostility toward ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
+    `Declared war on ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
     rival.name,
     'outgoing_raid',
     'challenge',
@@ -1675,6 +1677,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       else if (neighbor.relationship === 'competitive') neighbor.relationship = 'neutral';
     }
     rival.relationship = 'neutral';
+    rival.atWarWithPlayer = false;
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 30);
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 30);
     addReputation(state, 12);
