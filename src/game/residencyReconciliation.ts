@@ -337,6 +337,21 @@ export function assignMissingResidences(
       const traitsAfterEvict = buildResidenceTraits(alive);
       fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
     }
+
+    // Earlier buckets can acquire a newly available house only after later
+    // buckets release it. At the final daily pulse, revisit those units once
+    // against the now-current occupancy. This removes the one-day delay without
+    // re-running the expensive 24-pass unsplit allocator every tick.
+    if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
+      const occupancy = buildResidenceOccupancy(alive);
+      const traits = buildResidenceTraits(alive);
+      const ordered = sortHousingUnitsForAssignment(housingUnitsBase, alive, residences, occupancy, traits);
+      for (const unit of ordered) {
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+        for (const member of unit) moveResident(occupancy, traits, member, undefined);
+        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+      }
+    }
   }
 
   {
