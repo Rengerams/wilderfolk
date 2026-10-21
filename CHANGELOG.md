@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** childhood age now follows calendar days only; school attendance and nurturing villagers no longer accelerate physical aging, preventing abrupt age changes when staffing or school attendance changes.
+- **Changed:** the Village → Schooling entry shows enrolled children versus school-age children without places, and the Schooling window distinguishes classroom attendance during school hours from enrollment and children too young for school.
+
 - **Fixed:** Leader's House residents are recorded when leadership becomes vacant and retain their beds through the succession period, including housing sweeps and save/load. The chosen successor takes over the manor only after the election, at which point the prior household is relocated.
 - **Fixed:** hotel lodging notices and Chronicle entries report occupied beds across all completed player hotels instead of one hotel's eight-bed capacity. Occupancy announcements no longer disappear when no visitors are waiting to check in.
 - **Fixed:** the citizen inspector no longer infers hunting or work from proximity to a building. Juveniles show no work shift or military gear; the simulation clears stale juvenile hunting targets and excludes children from hunting-post movement.
