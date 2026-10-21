@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { collectDashboard, explainSettler } from '../src/game/dashboardData';
 import { EntityType } from '../src/game/gameTypes';
+import { createEntity } from '../src/game/entityFactory';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import type { Entity, PopulationHistoryEntry, WorldState } from '../src/game/gameTypes';
@@ -120,5 +121,26 @@ describe('"vs yesterday" compares a real previous day', () => {
     const line = collectDashboard(state).council.find((l) => l.label === 'Settlers');
     // 20 − 18 = +2 against yesterday. The ten-tick baseline is +10 different and would print −10.
     expect(line?.value).toContain('+2 vs yesterday');
+  });
+});
+
+describe('child school statuses in the dashboard', () => {
+  it('never labels children as idle or credits stale work attendance', () => {
+    const state = freshWorld();
+    const child = createEntity(EntityType.Human, 100, 100, 99991, 100, true, { name: 'Pupil', ageYears: 10 });
+    Object.assign(child, { alive: true, age: 10, isJuvenile: true, scheduleWorkedTicksToday: 27 });
+    state.entities.unshift(child);
+    const row = collectDashboard(state).settlers.find((entry) => entry.id === child.id);
+    expect(row?.status).toBe('no school place');
+    expect(row?.hoursToday).toBe(0);
+    expect(row?.role).toBe('Child');
+  });
+
+  it('distinguishes children too young for school', () => {
+    const state = freshWorld();
+    const child = createEntity(EntityType.Human, 100, 100, 99992, 100, true, { name: 'Toddler', ageYears: 2 });
+    Object.assign(child, { alive: true, age: 2, isJuvenile: true });
+    state.entities.unshift(child);
+    expect(collectDashboard(state).settlers.find((entry) => entry.id === child.id)?.status).toBe('too young for school');
   });
 });
