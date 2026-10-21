@@ -118,6 +118,7 @@ function village(rivals: RivalSettlement[] = [rival()]): WorldState {
     bigNews: [],
     dismissedBigNewsIds: [],
     eventLog: [],
+    lifetimeStats: { totalResourcesGathered: { food: 0, wood: 0, stone: 0, gold: 0 } },
   } as unknown as WorldState;
 }
 
