@@ -651,6 +651,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       continue;
     }
 
+    if (entity.raidDeploymentId) {
+      entity.vx = 0;
+      entity.vy = 0;
+      applySettlerUpkeep(entity);
+      advancePregnancy(entity, conceivedToday);
+      syncEntityGrids(ctx, entity);
+      continue;
+    }
+
     // Asleep at home or in a hotel bed: keep the mouth shut, so no speech bubble sits over somebody
     // in bed. A scripted dialogue session is left alone — the dialogue tree owns it.
     const asleepAtHome =
