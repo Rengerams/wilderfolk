@@ -153,10 +153,11 @@ export function tickMigration(state: WorldState, allAlive: Entity[], ctx?: TickC
   if (active && day >= active.endDay) {
     const herd = state.entities.filter((e) => isMigratedHerdDeer(e, active.herdYear));
     const alive = herd.filter((e) => e.alive).length;
+    const hunterIndex = ctx?.entityById ?? state.entityById ?? new Map(state.entities.map(entity => [entity.id, entity]));
     for (const e of herd) {
       e.alive = false;
       // Clear hunter targets before removing the prey from tick lookup structures.
-      clearHuntersTargetingPrey(e.id, ctx?.entityById ?? state.entityById ?? new Map(state.entities.map(h => [h.id, h])), ctx?.huntTargetByPreyId, ctx?.byType);
+      clearHuntersTargetingPrey(e.id, hunterIndex, ctx?.huntTargetByPreyId, ctx?.byType);
       unindexEntityFromState(state, e.id);
       if (ctx) {
         ctx.entityById.delete(e.id);
