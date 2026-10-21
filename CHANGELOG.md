@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** camera zoom-out now reaches the overview and LOD presets (minimum 0.2); rabbits and deer replenish in bounded 16-animal batches instead of large single-tick bursts; a reverting sitting Moon Howler leader regains their Leader House entitlement immediately even at generic capacity.
 - **Fixed:** autumn migration departure clears predators' and hunters' stale deer targets and removes departing deer from the active tick's id/type indexes. Moon Howler curse eligibility now excludes all foreign factions, including trade caravans, and returning priests are positioned at the church's south entrance.
 - **Fixed:** Whittaker ground chunk cache includes terrain revision; 20px construction cells validate every 10px subcell in generated and rebaked grids; startup forest clearings rebake walkability/buildability; non-edited big rock reservations survive grid rebakes.
 - **Fixed:** continuous terrain relief no longer jumps at 50% elevation; river incision depth scales with channel width rather than saturating, and river-distance classification samples the dedicated water-resolution lattice.
