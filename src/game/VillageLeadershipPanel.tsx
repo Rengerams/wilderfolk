@@ -25,6 +25,11 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
   // until now nothing in the UI said what was promised or how it was going
   // (`LIVE-FINDINGS-STATUS.md`, F4).
   const promises = getActiveElectionPromises(state);
+  const lastVote = state.lastElectionResult;
+  const liveVote = state.electionCeremony?.ballotCast ? state.electionCeremony : null;
+  const ballotEntries = liveVote?.ballotTally ?? lastVote?.tally ?? {};
+  const ballots = liveVote?.ballotTotal ?? lastVote?.ballots ?? 0;
+  const voters = liveVote ? state.entities.filter((person) => person.alive && person.type === 'human' && !person.faction && !person.isJuvenile).length : lastVote?.eligibleVoters ?? 0;
 
   return (
     <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 p-3">
@@ -93,6 +98,24 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {(liveVote || lastVote) && (
+        <div className="mb-2 rounded-lg bg-stone-900/50 px-2 py-2 text-[12px] text-stone-200">
+          <p className="font-bold text-amber-100">{liveVote ? 'Election ballots recorded — reveal pending' : `Last election #${lastVote?.electionId ?? 0}`}</p>
+          <p className="text-stone-400">{ballots} ballots cast · {voters} eligible voters · {voters > 0 ? Math.round((ballots / voters) * 100) : 0}% turnout</p>
+          <div className="mt-2 space-y-1">
+            {Object.entries(ballotEntries).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, count]) => {
+              const entity = state.entities.find((person) => person.id === Number(id));
+              return (
+                <div key={id}>
+                  <div className="flex justify-between gap-2"><span>{entity ? formatSettlerName(entity) : `Candidate #${id}`}</span><span>{count} · {ballots > 0 ? (count / ballots * 100).toFixed(1) : '0.0'}%</span></div>
+                  <div className="h-1.5 rounded bg-stone-700 overflow-hidden"><div className="h-full bg-amber-500" style={{ width: `${ballots > 0 ? (count / ballots) * 100 : 0}%` }}/></div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
