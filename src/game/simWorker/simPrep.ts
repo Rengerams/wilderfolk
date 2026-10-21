@@ -91,6 +91,7 @@ type SimPrepKeys =
   | 'electionCeremony'
   | 'activeEvent'
   | 'eventLog'
+  | 'genealogyRegistry'
   | 'eventsThisYear'
   | 'lastEventYear'
   | 'bountifulHarvest'
@@ -241,6 +242,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     // payload did not.
     activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
+    genealogyRegistry: state.genealogyRegistry ? { people: Object.fromEntries(Object.entries(state.genealogyRegistry.people).map(([id, person]) => [id, { ...person, partners: [...person.partners], childrenIds: [...person.childrenIds] }])) } : undefined,
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
     bountifulHarvest: state.bountifulHarvest,
@@ -353,6 +355,7 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.electionCeremony = prep.electionCeremony;
   world.activeEvent = prep.activeEvent;
   world.eventLog = prep.eventLog;
+  world.genealogyRegistry = prep.genealogyRegistry;
   world.eventsThisYear = prep.eventsThisYear;
   world.lastEventYear = prep.lastEventYear;
   world.bountifulHarvest = prep.bountifulHarvest;
