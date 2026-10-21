@@ -69,8 +69,9 @@ describe('election promises survive a second election in the same year (M7)', ()
   it('keeps overlapping promises attached to their original leaders and elections', () => {
     const state = world();
     const humans = state.entities.filter((person) => person.alive && person.type === 'human' && !person.faction);
-    if (humans.length < 2) return;
-    const [first, second] = humans;
+    expect(humans.length).toBeGreaterThanOrEqual(2);
+    const first = humans[0]!;
+    const second = humans[1]!;
     state.villageLeaderId = first.id;
     state.lastElectionResult = { electionId: 11, winnerId: first.id, ballots: 2, tally: {}, turnout: 2, eligibleVoters: 2 };
     recordElectionPromises(state, YEAR);
