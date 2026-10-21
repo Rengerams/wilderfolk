@@ -437,6 +437,14 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(veteranScore.totalScore).toBeGreaterThan(farmerScore.totalScore);
     });
 
+    it('town hall assignment does not affect leadership merit', () => {
+      const official = stubHuman(1, { age: 32, skills: { official: 30 } });
+      const state = stubState([official]);
+      const baseline = getLeadershipScoreBreakdown(state, official).totalScore;
+      state.buildings = [building(10, BuildingType.TownHall, { occupants: [official.id] })];
+      expect(getLeadershipScoreBreakdown(state, official).totalScore).toBe(baseline);
+    });
+
     it('one capped trade is worth 50 points and broad expertise caps at 100', () => {
       const specialist = stubHuman(1, { skills: { farmer: 100 } });
       const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
