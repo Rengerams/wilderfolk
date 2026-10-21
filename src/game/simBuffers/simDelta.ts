@@ -325,7 +325,7 @@ export function extractSimTickDelta(
     aliveEntities: deltaClone(aliveNow, cloneMode),
     eventLogTail: deltaClone(eventLogTail, cloneMode),
     graveRecords: deltaClone(world.graveRecords ?? [], cloneMode),
-    genealogyRegistry: deltaCloneOptional(world.genealogyRegistry, cloneMode),
+    genealogyRegistry: deltaCloneOptional(world.genealogyRegistry, cloneMode) ?? undefined,
     bigNews: deltaClone(world.bigNews, cloneMode),
     notifications: deltaClone(world.notifications, cloneMode),
     festival: deltaCloneOptional(world.festival, cloneMode),
@@ -467,7 +467,7 @@ export function applySimTickDelta(
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
   world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
   world.graveRecords = deltaClone(delta.graveRecords ?? [], cloneMode);
-  world.genealogyRegistry = deltaCloneOptional(delta.genealogyRegistry, cloneMode);
+  world.genealogyRegistry = deltaCloneOptional(delta.genealogyRegistry, cloneMode) ?? undefined;
 
   if (delta.changedBuildings) {
     const removed = new Set(delta.removedBuildingIds ?? []);
