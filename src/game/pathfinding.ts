@@ -376,8 +376,16 @@ function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: 
     }
     if (x === x1 && y === y1) break;
     const e2 = 2 * err;
-    if (e2 > -dy) { err -= dy; x += sx; }
-    if (e2 < dx) { err += dx; y += sy; }
+    const stepX = e2 > -dy;
+    const stepY = e2 < dx;
+    if (stepX && stepY) {
+      // Match A*: no diagonal crossing between blocked orthogonal neighbours.
+      if (blocked[y * cols + (x + sx)] || blocked[(y + sy) * cols + x]) return false;
+      if (elevation && (Math.abs(elevation[y * cols + (x + sx)] - prevElev) > CLIFF_STEP
+        || Math.abs(elevation[(y + sy) * cols + x] - prevElev) > CLIFF_STEP)) return false;
+    }
+    if (stepX) { err -= dy; x += sx; }
+    if (stepY) { err += dx; y += sy; }
   }
   return true;
 }
@@ -537,7 +545,11 @@ export function lineCrossesBlocked(
   const span = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   // Sub-tile sampling steps prevent tunneling through 1-tile diagonal obstacles
   const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
-  let prevElev: number | null = null;
+  const startTx = Math.floor(x0 / PATH_CELL);
+  const startTy = Math.floor(y0 / PATH_CELL);
+  let prevElev: number | null = grid.elevation && startTx >= 0 && startTy >= 0
+    && startTx < grid.cols && startTy < grid.rows
+    ? grid.elevation[startTy * grid.cols + startTx] : null;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const px = x0 + (x1 - x0) * t;
@@ -778,7 +790,8 @@ export function isWalkStepAllowed(fromX: number, fromY: number, toX: number, toY
   // A blocked start may be escaped, but cells beyond it must still be walkable.
   const span = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY));
   const steps = Math.max(4, Math.min(128, Math.ceil(span / (PATH_CELL * 0.5))));
-  let prevElev: number | null = null;
+  let prevElev: number | null = grid.elevation && startIdx >= 0
+    ? grid.elevation[startIdx] : null;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const tx = Math.floor((fromX + (toX - fromX) * t) / PATH_CELL);
