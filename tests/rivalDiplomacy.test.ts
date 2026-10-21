@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tickPendingDiplomacyEvents } from '../src/game/groupEvents';
+import { getPeaceTreatyEligibility, tickPendingDiplomacyEvents } from '../src/game/groupEvents';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
@@ -45,5 +45,19 @@ describe('R3 rival diplomacy expiry contract', () => {
     tickPendingDiplomacyEvents(state);
     expect(state.pendingDiplomacyEvents).toHaveLength(0);
     expect((state as unknown as { resources: { food: number; gold: number } }).resources).toEqual({ food: 40, gold: 20 });
+  });
+});
+
+describe('peace treaty eligibility', () => {
+  it('rejects an already-active truce before charging resources or repeating AI action', () => {
+    const world = {
+      rivalSettlements: [{ id: 'r1', relationship: 'neutral', peaceTreatyDays: 45 }],
+      resources: { gold: 10000, food: 10000 },
+    } as unknown as WorldState;
+    expect(getPeaceTreatyEligibility(world, 'r1')).toEqual({
+      ok: false, blockReason: 'Peace treaty already active',
+    });
+    world.rivalSettlements[0]!.peaceTreatyDays = 0;
+    expect(getPeaceTreatyEligibility(world, 'r1').ok).toBe(true);
   });
 });
