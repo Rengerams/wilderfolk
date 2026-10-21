@@ -12,7 +12,7 @@ import {
   type RaidEvent,
 } from '../src/game/frontierCombat';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
