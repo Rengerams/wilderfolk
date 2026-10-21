@@ -1,3 +1,4 @@
+import { isMarriedOrExpecting } from '../civilStatus';
 import type { Camera, Entity, EntityByType } from '../gameTypes';
 import { EntityType as EntityTypeEnum, UNCACHED_RENDER_TICK } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -268,7 +269,7 @@ function syncEntityDrawViewport(
 
   _cachedPartnerById.clear();
   for (const h of _cachedHumans) {
-    if (h.partnerId && h.relationshipStatus === 'married') {
+    if (h.partnerId && isMarriedOrExpecting(h)) {
       _cachedPartnerById.set(h.id, h.partnerId);
     }
   }
