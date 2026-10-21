@@ -9,9 +9,10 @@ interface Props {
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid?: (id: string) => void;
   onDeclareWar?: (id: string) => void;
+  onRecallRaid?: (id: string) => void;
 }
 
-function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: Props) {
+function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, onRecallRaid }: Props) {
   const origin = getPlayerCampCenter(state, state.buildings);
   const settlements = state.rivalSettlements;
   const points = [origin, ...settlements.map((rival) => ({ x: rival.campX, y: rival.campY }))];
@@ -51,9 +52,9 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
           return (
             <g key={rival.id}>
               <line x1={home.x} y1={home.y} x2={target.x} y2={target.y} stroke="#a59c83" strokeOpacity="0.32" strokeDasharray="4 7" />
-              <circle cx={target.x} cy={target.y} r="12" fill={rival.relationship === 'tense' ? '#8e3333' : '#756241'} stroke="#ead4a2" strokeWidth="1.5" />
+              <circle onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])} style={{ cursor: 'pointer' }} cx={target.x} cy={target.y} r="12" fill={rival.relationship === 'tense' ? '#8e3333' : '#756241'} stroke="#ead4a2" strokeWidth="1.5" />
               <text x={target.x} y={target.y + 4} fontSize="11" textAnchor="middle" fill="white">◆</text>
-              <text x={target.x} y={target.y + 25} fontSize="11" textAnchor="middle" fill="#f9deb2" stroke="#16201a" strokeWidth="3" paintOrder="stroke">{rival.name}</text>
+              <text onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])} style={{ cursor: 'pointer' }} x={target.x} y={target.y + 25} fontSize="11" textAnchor="middle" fill="#f9deb2" stroke="#16201a" strokeWidth="3" paintOrder="stroke">{rival.name}</text>
               <text x={target.x} y={target.y + 38} fontSize="9" textAnchor="middle" fill="#e6dbbf">{rival.atWarWithPlayer ? 'AT WAR' : rival.relationship} · {rival.population} people</text>
             </g>
           );
@@ -65,10 +66,16 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
           const rival = settlements.find((candidate) => candidate.id === event.rivalId);
           if (!rival) return null;
           const endpoint = locate(rival.campX, rival.campY);
-          const start = outgoing ? home : endpoint;
-          const end = outgoing ? endpoint : home;
-          const duration = Math.max(1, event.expiresAtTick - event.createdAtTick);
-          const progress = Math.max(0, Math.min(1, (state.tick - event.createdAtTick) / duration));
+          const returning = outgoing && 'phase' in event && event.phase === 'returning';
+          const engaging = outgoing && 'phase' in event && event.phase === 'engaging';
+          const origin = returning ? endpoint : outgoing ? home : endpoint;
+          const destination = returning ? home : outgoing ? endpoint : home;
+          const start = origin;
+          const end = destination;
+          const initial = returning ? (event.returnAtTick ?? event.expiresAtTick) - Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick)) : event.createdAtTick;
+          const finish = returning ? (event.returnAtTick ?? event.expiresAtTick) : outgoing && 'arrivalAtTick' in event ? (event.arrivalAtTick ?? event.expiresAtTick) : event.expiresAtTick;
+          const duration = Math.max(1, finish - initial);
+          const progress = engaging ? 1 : Math.max(0, Math.min(1, (state.tick - initial) / duration));
           const x = start.x + (end.x - start.x) * progress;
           const y = start.y + (end.y - start.y) * progress;
           return (
@@ -76,7 +83,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
               <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={outgoing ? '#8de5af' : '#ef9c8d'} strokeWidth="2.5" strokeDasharray="7 5" />
               <circle cx={x} cy={y} r="9" fill={outgoing ? '#276d47' : '#993f38'} stroke="white" strokeWidth="1.5" />
               <text x={x} y={y + 4} fontSize="12" textAnchor="middle" fill="white">{outgoing ? '➤' : '⚔'}</text>
-              <text x={x} y={y - 16} fontSize="10" textAnchor="middle" fill={outgoing ? '#c4f9ce' : '#ffc4ba'} stroke="#17251f" strokeWidth="3" paintOrder="stroke">{outgoing ? 'Your war-band' : 'Enemy raiders'} · {Math.round(progress * 100)}%</text>
+              <text x={x} y={y - 16} fontSize="10" textAnchor="middle" fill={outgoing ? '#c4f9ce' : '#ffc4ba'} stroke="#17251f" strokeWidth="3" paintOrder="stroke">{returning ? 'Returning army' : engaging ? 'Army arrived' : outgoing ? 'Your war-band' : 'Enemy raiders'} · {Math.round(progress * 100)}%</text>
             </g>
           );
         })}
@@ -93,6 +100,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
                 {rival.name} · {rival.atWarWithPlayer ? 'AT WAR' : rival.relationship}
               </button>
               <p className="text-[10px] text-stone-400">{rival.population} residents · rival settlement</p>
+              {(state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === rival.id).map((army) => <div key={army.id} className="mt-2 text-xs text-emerald-200">{army.phase === 'returning' ? 'Returning' : army.phase === 'engaging' ? 'Arrived' : 'Marching'} · {army.soldierIds?.filter((id) => state.entities.some((person) => person.id === id && person.alive)).length ?? '?'} soldiers {onRecallRaid && army.phase !== 'returning' && <button type="button" className="ml-2 rounded bg-amber-700 px-2 py-1 text-white" onClick={() => onRecallRaid(army.id)}>Recall Army</button>}</div>)}
               <div className="mt-2 flex gap-2">
                 {onDeclareWar && <button type="button" disabled={!war.ok} title={war.ok ? 'Declare hostility and damage diplomatic relations' : war.blockReason} onClick={() => onDeclareWar(rival.id)} className="flex-1 rounded bg-red-950 px-2 py-1 text-[11px] text-rose-100 disabled:opacity-40">Declare war</button>}
                 {onLaunchRaid && <button type="button" disabled={!raid.ok} title={raid.ok ? 'Send available soldiers on a raid' : raid.blockReason} onClick={() => onLaunchRaid(rival.id)} className="flex-1 rounded bg-amber-900 px-2 py-1 text-[11px] text-amber-100 disabled:opacity-40">Raid · {getOutgoingRaidFoodCostForRival(state, rival)} food</button>}
