@@ -49,6 +49,12 @@ let paintEntityLayerTo: EntityLayerModule['paintEntityLayerTo'];
 const CAM = { x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1 };
 
 describe('entity layer device-pixel rasterisation', () => {
+  // Import the painter after resetting the registry: the hoisted canvas mock
+  // must bind to the same module instance as entityLayer.
+  let beginEntityLayerPaint: typeof import('../src/game/entityLayer').beginEntityLayerPaint;
+  let disposeEntityLayerCache: typeof import('../src/game/entityLayer').disposeEntityLayerCache;
+  let entityLayerNeedsRebuild: typeof import('../src/game/entityLayer').entityLayerNeedsRebuild;
+  let paintEntityLayerTo: typeof import('../src/game/entityLayer').paintEntityLayerTo;
   beforeEach(async () => {
     // Import after resetting the module cache so the canvasLayer test double is used
     // even when another renderer test imported the real entityLayer earlier.
