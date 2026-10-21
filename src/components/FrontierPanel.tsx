@@ -45,7 +45,6 @@ function FrontierPanel({
   pendingOutgoingRaidCount,
   pendingDiplomacyCount,
   onFocusVisitor,
-  onFocusRival,
   onLaunchRaid,
   onProvokeRival,
   onRecallRaid,
