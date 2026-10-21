@@ -1539,6 +1539,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }
     }
     world.villageLeaderId = (parsed.villageLeaderId as number | null | undefined) ?? null;
+    world.pendingLeaderHouseResidentIds = Array.isArray(parsed.pendingLeaderHouseResidentIds)
+      ? (parsed.pendingLeaderHouseResidentIds as unknown[]).filter((id): id is number => Number.isSafeInteger(id) && (id as number) >= 0)
+      : undefined;
     world.leaderSinceYear = (parsed.leaderSinceYear as number | undefined) ?? 0;
     world.lastElectionYear = (parsed.lastElectionYear as number | undefined) ?? -1;
     world.pendingElectionYear = (parsed.pendingElectionYear as number | null | undefined) ?? null;
