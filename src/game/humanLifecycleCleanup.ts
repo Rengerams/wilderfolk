@@ -162,9 +162,8 @@ function reassignOrphansAfterDeath(
     const livesInLeaderHouse = residences.some(
       (residence) => residence.id === child.residenceBuildingId && residence.type === 'leaderHouse',
     );
-    if (livesInLeaderHouse) continue;
-
     ensureOrphanAdoption(child, humans, residences);
+    if (livesInLeaderHouse) continue;
     const home = pickResidenceFromChildCustodian(child, humans, residences);
     if (home !== undefined) {
       child.residenceBuildingId = home;
