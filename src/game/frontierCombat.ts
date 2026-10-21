@@ -1554,7 +1554,8 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       if (elapsed >= TICKS_PER_HOUR * 2) {
         finishTextRaidBattle(state, event);
       } else if (elapsed >= TICKS_PER_HOUR && (event.battleChronicle?.length ?? 0) < 2) {
-        const update = `Fighting continues at ${event.rivalName}. Both sides are taking losses; the result is not yet certain.`;
+        const defenders = Math.max(0, raidArmy(state, event).length);
+        const update = `The battle for ${event.rivalName} is contested. ${defenders} of our soldiers remain in the field; the defenders have not yet surrendered.`;
         event.battleChronicle = [...(event.battleChronicle ?? []), update];
         logEvent(state, 'combat', update, event.rivalName, 'outgoing_raid', 'dispatched');
       }
