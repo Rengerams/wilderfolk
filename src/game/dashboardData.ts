@@ -155,11 +155,13 @@ function energyPct(e: Entity): number {
 
 /** Work-hours logged today from the authoritative schedule-worked tick counter. */
 function hoursToday(e: Entity): number {
+  if (e.isJuvenile) return 0;
   const ticks = e.scheduleWorkedTicksToday ?? 0;
   return Math.min(24, Math.round((ticks / (TICKS_PER_DAY / 24)) * 10) / 10);
 }
 
 function settlerStatus(e: Entity): DashboardSettler['status'] {
+  if (e.isJuvenile) return 'idle';
   if (e.prisonBuildingId != null) return 'prison';
   if ((e.scheduleWorkedTicksToday ?? 0) > 0) return 'working';
   return 'idle';
@@ -469,7 +471,7 @@ export function collectDashboard(state: WorldState): DashboardData {
   const postedReasons: SettlerWorkReason[] = [];
   for (const e of state.entities) {
     if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
-    const role =
+    const role = e.isJuvenile ? 'Child' :
       e.occupation && e.occupation !== 'settler'
         ? e.occupation
         : (e.job ?? 'settler');
