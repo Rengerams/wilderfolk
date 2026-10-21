@@ -265,6 +265,7 @@ export function tickElectionPromises(state: WorldState): void {
     if (failed > 0) logEvent(state, 'scandal', `${leaderName} broke ${failed} election promise${failed === 1 ? '' : 's'}.`, leaderName);
     addBigNews(state, '🗳️ Promises judged', `${leaderName}: ${kept}/${record.codes.length} kept. Reputation ${change >= 0 ? '+' : ''}${change}.`, change >= 0 ? 'positive' : 'negative');
     logEvent(state, 'election', `Election #${record.electionId}: ${leaderName} kept ${kept}/${record.codes.length} promises.`, leaderName);
+    logEvent(state, 'event', `Year ${displayYear(record.year)} election promises evaluated: ${kept}/${record.codes.length} kept (reputation ${change >= 0 ? '+' : ''}${change}).`, leaderName);
   }
   if ((state.electionPromiseRecords?.length ?? 0) > 0) return;
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
