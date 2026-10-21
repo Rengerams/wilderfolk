@@ -67,7 +67,11 @@ describe('work-commute departure window', () => {
     // Blocked ground makes the first tick a detour, so the gap is measured across the whole window.
     while (getHourOfDay(state.tick) < schedule.startHour) gameTick(state, createSimFocus(state));
 
-    expect(Math.hypot(stand.x - person.x, stand.y - person.y)).toBeLessThan(before);
+    // Read the authoritative post-tick entity; the simulation may replace the
+    // entity collection while merging newly processed entities.
+    const current = state.entities.find((entity) => entity.id === person.id);
+    expect(current, 'commuting worker disappeared from the simulation').toBeDefined();
+    expect(Math.hypot(stand.x - current!.x, stand.y - current!.y)).toBeLessThan(before);
   });
 
   it('does not treat the middle of the night as the commute window', () => {
