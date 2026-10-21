@@ -36,6 +36,7 @@ export interface FrontierPanelProps {
   onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
   onLaunchRaid?: (rivalId: string) => void;
   onProvokeRival?: (rivalId: string) => void;
+  onRecallRaid?: (eventId: string) => void;
 }
 
 function FrontierPanel({
@@ -47,6 +48,7 @@ function FrontierPanel({
   onFocusRival,
   onLaunchRaid,
   onProvokeRival,
+  onRecallRaid,
 }: FrontierPanelProps) {
   const pendingRaids = state.pendingRaidEvents ?? [];
   const firstPendingRaid = pendingRaids[0];
@@ -69,7 +71,7 @@ function FrontierPanel({
     const year = state.year ?? 0;
     return (
       <div className="space-y-3">
-        <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} />
+        <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
         <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
         <p className="mt-1 text-[13px] text-stone-300">
