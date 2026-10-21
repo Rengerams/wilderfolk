@@ -445,6 +445,7 @@ export interface RivalSettlement {
   daysUntilAction: number;
   raidCooldownDays: number;
   peaceTreatyDays: number;
+  atWarWithPlayer?: boolean;
   /** Food gifts the colony has sent this rival — the bot's "already paid" marker. */
   giftsGiven?: number;
   profile?: RivalProfile;
