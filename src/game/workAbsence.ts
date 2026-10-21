@@ -172,6 +172,7 @@ function resolveShift(
 export function getSettlerWorkReason(state: WorldState, entity: Entity): SettlerWorkReason {
   if (!entity.alive) return { code: 'dead', label: 'Dead' };
   if (isImprisoned(entity)) return { code: 'in-prison', label: 'In prison' };
+  if (entity.raidDeploymentId) return { code: 'off-duty', label: 'Away with the war-band' };
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
