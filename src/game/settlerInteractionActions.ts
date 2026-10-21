@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType, EntityType, WEREWOLF_CURSE_LINES } from './gameTypes';
 import { addBigNews, addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
@@ -6,7 +7,7 @@ import { assignMissingResidences } from './residencyReconciliation';
 import { indexLivingEntity } from './entityIndex';
 import { allPlayerHumans, isPlayerHuman, playerHumanCount } from './playerHuman';
 import { citizenFullName } from './citizenId';
-import { HUMAN_ADULT_MIN_AGE, getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';
+import { getAbsoluteCalendarDay, getColonyDay, getHourOfDay, setHumanBirthFromAge } from './dayCycle';
 import { canBeginMoonHowlerCurse, canMoonHowlerCurse, curseMoonHowler, isMoonHowlerTransformTick, transformToWerewolfForm } from './moonHowler';
 import { createEntity } from './entityFactory';
 import { getRandomSurname } from './nameLoader';
