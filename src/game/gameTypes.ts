@@ -305,6 +305,7 @@ export interface Entity {
   job?: JobType;
   skills?: Partial<Record<JobType, number>>;
   battleLeadershipMerit?: number;
+  raidDeploymentId?: string;
   promiseLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
@@ -656,6 +657,11 @@ export interface RaidEvent {
 }
 
 export interface OutgoingRaidEvent {
+  phase?: 'marching' | 'engaging' | 'returning';
+  soldierIds?: number[];
+  launchedAtTick?: number;
+  arrivalAtTick?: number;
+  returnAtTick?: number;
   id: string;
   rivalId: string;
   rivalName: string;
