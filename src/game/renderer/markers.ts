@@ -17,15 +17,6 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
     const sx = (group.campX - cam.x) * cam.zoom + cw / 2;
     const sy = (group.campY - cam.y) * cam.zoom + ch / 2;
     if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
-    const highlighted = state.highlightedCampKey === `visitor:${group.id}`;
-    if (highlighted) {
-      const pulse = campHighlightPulse();
-      ctx.strokeStyle = `rgba(34, 211, 238, ${pulse})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(sx, sy, Math.max(18, 22 * cam.zoom), 0, Math.PI * 2);
-      ctx.stroke();
-    }
     ctx.fillStyle = 'rgba(6, 78, 59, 0.55)';
     ctx.beginPath();
     ctx.arc(sx, sy, Math.max(10, 14 * cam.zoom), 0, Math.PI * 2);
@@ -48,15 +39,6 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
     const sx = (rival.campX - cam.x) * cam.zoom + cw / 2;
     const sy = (rival.campY - cam.y) * cam.zoom + ch / 2;
     if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) continue;
-    const highlighted = state.highlightedCampKey === `rival:${rival.id}`;
-    if (highlighted) {
-      const pulse = campHighlightPulse();
-      ctx.strokeStyle = `rgba(251, 146, 60, ${pulse})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(sx, sy, Math.max(20, 24 * cam.zoom), 0, Math.PI * 2);
-      ctx.stroke();
-    }
     ctx.fillStyle = 'rgba(67, 20, 7, 0.5)';
     ctx.beginPath();
     ctx.arc(sx, sy, Math.max(12, 16 * cam.zoom), 0, Math.PI * 2);
@@ -77,6 +59,29 @@ export function drawCampMarkers(ctx: CanvasRenderingContext2D, state: RenderSnap
       ctx.fillText(`${rival.population} · ${rival.relationship} · ${action}`, sx, sy + Math.max(14, 18 * cam.zoom));
     }
   }
+}
+
+/** Render-clock camp selection pulses; these must not be baked into the tick cache. */
+export function drawCampHighlightRings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
+  const cam = state.camera;
+  if (cam.zoom < 0.35 || !state.highlightedCampKey) return;
+  const key = state.highlightedCampKey;
+  const visitor = state.visitorGroups.find(group => key === `visitor:${group.id}`);
+  const rival = visitor ? undefined : state.rivalSettlements.find(group => key === `rival:${group.id}`);
+  const camp = visitor ?? rival;
+  if (!camp) return;
+  const sx = (camp.campX - cam.x) * cam.zoom + cw / 2;
+  const sy = (camp.campY - cam.y) * cam.zoom + ch / 2;
+  if (sx < -40 || sx > cw + 40 || sy < -40 || sy > ch + 40) return;
+  ctx.save();
+  ctx.strokeStyle = visitor
+    ? `rgba(34, 211, 238, ${campHighlightPulse()})`
+    : `rgba(251, 146, 60, ${campHighlightPulse()})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(sx, sy, Math.max(visitor ? 18 : 20, (visitor ? 22 : 24) * cam.zoom), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ============ FLOATING TEXTS ============
