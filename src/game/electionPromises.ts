@@ -20,6 +20,8 @@ export const PROMISE_CODES = {
   fill_granary: 1,
   build_walls: 2,
   run_forge: 3,
+  raise_reputation: 4,
+  strengthen_healthcare: 5,
 } as const;
 
 export type PromiseCode = (typeof PROMISE_CODES)[keyof typeof PROMISE_CODES];
@@ -94,6 +96,8 @@ function selectPromiseCodes(state: WorldState, year: number): number[] {
     { code: PROMISE_CODES.fill_granary, need: foodNeed },
     { code: PROMISE_CODES.build_walls, need: wallsNeed },
     { code: PROMISE_CODES.run_forge, need: forgeNeed },
+    { code: PROMISE_CODES.raise_reputation, need: Math.max(0, 65 - state.villageReputation) },
+    { code: PROMISE_CODES.strengthen_healthcare, need: state.buildings.some((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival') ? 0 : 10 },
   ];
 
   needs.sort((a, b) => {
@@ -168,6 +172,14 @@ export function getPromiseDetail(state: WorldState, code: number): PromiseDetail
         fulfilled: current >= FORGE_ORDERS_REQUIREMENT,
         pct: promiseProgressPct(current, FORGE_ORDERS_REQUIREMENT),
       };
+    }
+    case PROMISE_CODES.raise_reputation: {
+      const current = Math.floor(state.villageReputation);
+      return { code, label: 'Restore public trust: Reach 65 village reputation', current, target: 65, fulfilled: current >= 65, pct: promiseProgressPct(current, 65) };
+    }
+    case PROMISE_CODES.strengthen_healthcare: {
+      const current = state.buildings.filter((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival').length;
+      return { code, label: 'Provide healthcare: Build a hospital', current, target: 1, fulfilled: current >= 1, pct: promiseProgressPct(current, 1) };
     }
     default:
       return { code, label: 'Unknown promise', current: 0, target: 1, fulfilled: false, pct: 0 };
