@@ -35,9 +35,7 @@ vi.mock('../src/game/simulation/simulationEntities', async (importOriginal) => {
   };
 });
 
-import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
-import { setSimSeed } from '../src/game/simRng';
 
 /**
  * These fixtures are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
@@ -201,7 +199,10 @@ function makeState(): WorldState {
 }
 
 describe('Hunting Spot wildlife cleanup', () => {
-  it('uses the shared cleanup transitions when its daily hunt succeeds', () => {
+  it('uses the shared cleanup transitions when its daily hunt succeeds', async () => {
+    vi.resetModules();
+    const { gameTick } = await import('../src/game/gameTick');
+    const { setSimSeed: setWorkerSimSeed } = await import('../src/game/simRng');
     cleanupSpies.markWildlifeDead.mockClear();
     cleanupSpies.clearHuntersTargetingPrey.mockClear();
     // Choose a real successful hunt, including the actual weekday/attendance
@@ -209,7 +210,7 @@ describe('Hunting Spot wildlife cleanup', () => {
     let success: { state: WorldState; after: WorldState; huntTick: number } | undefined;
     for (let day = 1; day <= 22 && !success; day++) {
       for (let seed = 1; seed <= 16 && !success; seed++) {
-        setSimSeed(seed);
+        setWorkerSimSeed(seed);
         const state = makeState();
         state.tick = day * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
         const after = gameTick(state);
