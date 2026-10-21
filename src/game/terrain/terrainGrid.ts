@@ -347,10 +347,9 @@ export function patchTile(map: WorldMap, tx: number, ty: number, patch: Partial<
 
 /* ===== L0 / L1 occupancy ===== */
 
-/** Terrain that blocks walking. Land is climbable, however high. */
+/** Deep water and rivers block walking; shallow water is wadeable. */
 const WALK_BLOCKED_TERRAIN = new Set<TerrainType>([
   TerrainType.DeepWater,
-  TerrainType.ShallowWater,
   TerrainType.River,
 ]);
 
