@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { DAILY_PHASE_HOURS } from '../src/game/dayCycleClock';
+import { repairStaleFestivalOnLoad } from '../src/game/dailyWorldEvents';
+import { isFestivalGatheringHour } from '../src/game/humanSchedule';
 
 /**
  * These settlers are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
@@ -167,5 +171,41 @@ describe('festival participant behavior', () => {
     // The festival still gathers the settler with no shift: the staffed Town Hall is right/down.
     expect(idlerAfter.vx).toBeGreaterThan(0);
     expect(idlerAfter.vy).toBeGreaterThan(0);
+  });
+});
+
+describe('festival lifecycle regressions', () => {
+  it('counts down at the daily world-event phase rather than midnight', () => {
+    const { state } = makeState(true);
+    state.year = 1;
+    state.dayInYear = 20;
+    state.tick = 20 * TICKS_PER_DAY + DAILY_PHASE_HOURS.worldEvents * TICKS_PER_HOUR - 1;
+    state.festival = { active: true, name: 'Test Festival', daysLeft: 2 };
+    gameTick(state);
+    expect(state.festival?.daysLeft).toBe(1);
+    state.tick += TICKS_PER_DAY;
+    gameTick(state);
+    expect(state.festival).toBeNull();
+  });
+
+  it('repairs a stale saved festival when its event log proves it is older than 40 days', () => {
+    const { state } = makeState(true);
+    state.tick = 100 * TICKS_PER_DAY;
+    state.eventLog = [{ id: 1, type: 'season', tick: 20 * TICKS_PER_DAY, year: 0, day: 20, message: 'Test Festival began in the village' }];
+    repairStaleFestivalOnLoad(state);
+    expect(state.festival).toBeNull();
+  });
+
+  it('keeps a recent festival on load', () => {
+    const { state } = makeState(true);
+    state.tick = 22 * TICKS_PER_DAY;
+    state.eventLog = [{ id: 1, type: 'season', tick: 20 * TICKS_PER_DAY, year: 0, day: 20, message: 'Test Festival began in the village' }];
+    repairStaleFestivalOnLoad(state);
+    expect(state.festival?.daysLeft).toBe(3);
+  });
+
+  it('allows gathering at 22:00 but not from 23:00', () => {
+    expect(isFestivalGatheringHour(22, true)).toBe(true);
+    expect(isFestivalGatheringHour(23, true)).toBe(false);
   });
 });
