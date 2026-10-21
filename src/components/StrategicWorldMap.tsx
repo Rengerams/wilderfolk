@@ -106,14 +106,14 @@ function StrategicWorldMap({ state, selectedRivalId, onSelectRival, onLaunchRaid
               <button type="button" className="w-full text-left text-[12px] font-semibold text-amber-200 hover:underline" onClick={() => onSelectRival(rival.id)}>
                 {rival.name} · {rival.atWarWithPlayer ? 'AT WAR' : rival.relationship}
               </button>
-              <p className="text-[10px] text-stone-400">{rival.population} residents · {formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} from your village · approximately {getIncomingRaidResponseDays(getCampDistanceTiles(getCampDistancePixels(state, state.buildings, rival)))} days march</p>
+              <p className="text-[10px] text-stone-400">{rival.population} residents · {formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} from your village · approximately {getIncomingRaidResponseDays(getCampDistanceTiles(getCampDistancePixels(state, state.buildings, rival)))} days march{rival.peaceTreatyDays > 0 && ` · peace treaty: ${rival.peaceTreatyDays} days remaining`}</p>
               {(state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === rival.id).map((army) => <div key={army.id} className="mt-2 text-xs text-emerald-200">{army.phase === 'returning' ? 'Returning' : army.phase === 'fighting' ? 'Battle underway' : army.phase === 'engaging' ? 'Arrived' : 'Marching'} · {army.soldierIds?.filter((id) => livingIds.has(id)).length ?? '?'} soldiers {onRecallRaid && army.phase !== 'returning' && army.phase !== 'fighting' && <button type="button" className="ml-2 rounded bg-amber-700 px-2 py-1 text-white" onClick={() => onRecallRaid(army.id)}>Recall Army</button>}</div>)}
               <div className="mt-2 flex gap-2">
                 {onDeclareWar && <button type="button" disabled={!war.ok} title={war.ok ? 'Declare hostility and damage diplomatic relations' : war.blockReason} onClick={() => onDeclareWar(rival.id)} className="flex-1 rounded bg-red-950 px-2 py-1 text-[11px] text-rose-100 disabled:opacity-40">Declare war</button>}
                 {onLaunchRaid && <button type="button" disabled={!raid.ok} title={raid.ok ? 'Send available soldiers on a raid' : raid.blockReason} onClick={() => onLaunchRaid(rival.id)} className="flex-1 rounded bg-amber-900 px-2 py-1 text-[11px] text-amber-100 disabled:opacity-40">Raid · {getOutgoingRaidFoodCostForRival(state, rival)} food</button>}
               </div>
-              {!war.ok && onDeclareWar && <p className="mt-1 text-[11px] text-rose-300">Declare war unavailable: {war.blockReason}</p>}
-              {!raid.ok && onLaunchRaid && <p className="mt-1 text-[11px] text-amber-300">Raid unavailable: {raid.blockReason}</p>}
+              {!war.ok && onDeclareWar && <p className="mt-1 text-[11px] text-rose-300">Declare war unavailable: {war.blockReason}{rival.peaceTreatyDays > 0 ? ` (${rival.peaceTreatyDays} days remaining)` : ""}</p>}
+              {!raid.ok && onLaunchRaid && <p className="mt-1 text-[11px] text-amber-300">Raid unavailable: {raid.blockReason}{rival.peaceTreatyDays > 0 ? ` (${rival.peaceTreatyDays} days remaining)` : ""}</p>}
             </div>
           );
         })}
