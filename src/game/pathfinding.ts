@@ -65,10 +65,12 @@ function stampBuildingFootprint(
   b: Building,
   value = 1,
 ): void {
-  const x0 = Math.max(0, Math.floor(b.x / PATH_CELL));
-  const y0 = Math.max(0, Math.floor(b.y / PATH_CELL));
-  const x1 = Math.min(cols - 1, Math.floor((b.x + Math.max(0, b.width - 0.001)) / PATH_CELL));
-  const y1 = Math.min(rows - 1, Math.floor((b.y + Math.max(0, b.height - 0.001)) / PATH_CELL));
+  // Building positions are centres, not top-left corners. The walking mask must
+  // cover the same footprint that placement and rendering use.
+  const x0 = Math.max(0, Math.floor((b.x - b.width / 2) / PATH_CELL));
+  const y0 = Math.max(0, Math.floor((b.y - b.height / 2) / PATH_CELL));
+  const x1 = Math.min(cols - 1, Math.ceil((b.x + b.width / 2) / PATH_CELL) - 1);
+  const y1 = Math.min(rows - 1, Math.ceil((b.y + b.height / 2) / PATH_CELL) - 1);
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
@@ -146,18 +148,16 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   }
   let road: Uint8Array | null = null;
   if (buildings) {
+    // Bridges open water first. Walls always win at overlapping footprints,
+    // regardless of building array order. A gate remains an intentional gap.
     for (const b of buildings) {
-      if (isBlockingWall(b)) {
-        stampBuildingFootprint(blocked, cols, rows, b);
-      } else if (isWalkableRoad(b)) {
-        road ??= new Uint8Array(cols * rows);
-        stampBuildingFootprint(road, cols, rows, b);
-        // `isWalkableRoad` calls a road or bridge walkable, so the deck also **opens** the water it
-        // spans. Stamping only the mask left a bridge as a cost discount on a tile the router still
-        // refused: no route was found, the walk fell back to the straight line, and the settler waded
-        // the river the bridge was built across.
-        stampBuildingFootprint(blocked, cols, rows, b, 0);
-      }
+      if (!isWalkableRoad(b)) continue;
+      road ??= new Uint8Array(cols * rows);
+      stampBuildingFootprint(road, cols, rows, b);
+      stampBuildingFootprint(blocked, cols, rows, b, 0);
+    }
+    for (const b of buildings) {
+      if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
   return road ? { cols, rows, blocked, elevation, road } : { cols, rows, blocked, elevation };
