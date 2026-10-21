@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { updateStorageCaps } from '../src/game/economy';
+import { buildingTypeHasLevelBenefit, getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { BUILDING_CONFIGS, BuildingType } from '../src/game/buildings';
 import type { WorldState } from '../src/game/gameTypes';
 
@@ -106,6 +107,20 @@ describe('economy audit fixes', () => {
     updateStorageCaps(w);
     expect(w.storageMax.wood).toBe(1100);
     expect(w.storageMax.food).toBe(1200);
+  });
+
+  it('offers upgrades for both storage types at levels 1 and 2', () => {
+    for (const type of [BuildingType.Silo, BuildingType.WoodStorehouse]) {
+      const world = makeWorld();
+      world.resources = { wood: 500, stone: 500, gold: 500, food: 0, iron: 0 };
+      addBuilding(world, type);
+      expect(buildingTypeHasLevelBenefit(type)).toBe(true);
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(true);
+      world.buildings[0]!.level = 2;
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(true);
+      world.buildings[0]!.level = 3;
+      expect(getBuildingUpgradeEligibility(world, world.buildings[0]!.id).ok).toBe(false);
+    }
   });
 
   it('the Storehouse config retains its sprite and saved building type', () => {
