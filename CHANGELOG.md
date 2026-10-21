@@ -2,6 +2,12 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** working at the Town Hall no longer grants 60 election merit simply for holding an assignment; existing profession experience remains part of the normal skill score.
+- **Changed:** only living, non-imprisoned adult settlers currently assigned the Soldier job can be mustered for militia strength, defenses, barricades, outgoing raids, combat animations, experience and raid casualties. Ordinary civilian villagers are excluded from the fighting pool.
+- **Added:** participants in successful defenses earn +15 permanent leadership merit, and soldiers in successful outgoing raids earn +25. The combined battle-service election bonus is capped at 100 per settler and persists in saved entity data. Stalemates, losses and partial outgoing raids do not award this merit.
+- **Added:** recognizable family names contribute election popularity based on the existing living-surname dynasty records: up to +25 merit from having several living relatives and generations. A single-person surname gets no family bonus. Candidate ranking builds the dynasty summary once per ranking pass.
+- **Added:** election and militia regression tests for Town Hall neutrality, soldier-only combat, earned battle merit, and family-name prestige.
+
 - **Added:** a rare natural-talent roll at human birth: roughly 1% of newborns begin with one strong professional skill (40–75), including about 0.1% with exceptional talent (80–95). The trade and level use reproducible seeded rolls, are persisted as ordinary skills and do not alter school attendance or aging. Existing settlers and savegame skills remain unchanged.
 - **Added:** regression coverage for natural-talent frequency, single-trade awards and skill bounds.
 
