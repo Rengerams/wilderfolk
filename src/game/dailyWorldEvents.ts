@@ -56,6 +56,25 @@ export function normalizeFestivalState(
   return { active: candidate.active, name: candidate.name, daysLeft: candidate.daysLeft };
 }
 
+/** Recover old saves whose festivals never advanced because world events run at 18:00,
+ * while the former countdown required the tick to be exactly midnight.
+ * Only clear when a matching start entry proves that the stored festival is stale.
+ */
+export function repairStaleFestivalOnLoad(state: WorldState): void {
+  if (!state.festival?.active) return;
+  const match = [...(state.eventLog ?? [])].reverse().find(
+    (entry) => typeof entry.message === 'string'
+      && entry.message.includes(state.festival!.name)
+      && /(?:began in the village|festival began|hosted a village festival)/i.test(entry.message)
+      && typeof entry.tick === 'number',
+  );
+  if (!match || typeof match.tick !== 'number') return;
+  // Even the longest randomly scheduled festival runs for fewer than 40 days.
+  if (state.tick - match.tick > 40 * TICKS_PER_DAY) {
+    state.festival = null;
+  }
+}
+
 function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   const townHallFestivalBoost = isTownHallStaffed(state.buildings) ? 1.4 : 1;
 
@@ -100,7 +119,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   if (
     !state.festival
     && state.tick >= (state.townHallFestivalCooldownUntilTick ?? 0)
-    && state.tick % FESTIVAL_CHECK_TICKS === 0
+    && getAbsoluteCalendarDay(state.tick) % Math.max(1, Math.round(FESTIVAL_CHECK_TICKS / TICKS_PER_DAY)) === 0
     && counts.humans >= 6
     && festivalRng() < 0.25 * townHallFestivalBoost
   ) {
@@ -115,7 +134,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
   }
 
   // Don't burn a day on the same tick the festival starts
-  if (state.festival && !festivalStartedThisTick && state.tick > 0 && state.tick % TICKS_PER_DAY === 0) {
+  if (state.festival && !festivalStartedThisTick && state.tick > 0) {
     state.festival.daysLeft--;
     if (state.festival.daysLeft <= 0) {
       addBigNews(state, '🎉 Festival Ended', `${state.festival.name} is over. The village returns to normal.`, 'neutral');
