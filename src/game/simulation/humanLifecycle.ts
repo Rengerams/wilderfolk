@@ -1,5 +1,5 @@
 import type { Entity, WorldState } from '../gameTypes';
-import { EntityType } from '../gameTypes';
+import { EntityType, JobType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
 import {
   PREGNANCY_TICKS,
@@ -23,6 +23,24 @@ import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { seededRandomForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../residencyOccupancy';
+
+const BIRTH_TALENT_JOBS = [
+  JobType.Farmer, JobType.Lumberjack, JobType.Miner, JobType.Blacksmith,
+  JobType.Merchant, JobType.Teacher, JobType.Doctor, JobType.Official,
+  JobType.Priest, JobType.Gravekeeper, JobType.Hunter, JobType.Builder,
+  JobType.Soldier, JobType.PrisonGuard, JobType.Innkeeper, JobType.Hotelier,
+] as const;
+
+export function grantRareBirthTalent(child: Entity, birthKey: string): void {
+  if (child.type !== EntityType.Human || !child.isJuvenile) return;
+  const chance = seededRandomForRun(`${birthKey}:talent-chance`);
+  if (chance >= 0.01) return;
+  const roll = seededRandomForRun(`${birthKey}:talent-job`);
+  const job = BIRTH_TALENT_JOBS[Math.floor(roll * BIRTH_TALENT_JOBS.length)]!;
+  const strength = seededRandomForRun(`${birthKey}:talent-strength`);
+  const value = chance < 0.001 ? 80 + strength * 15 : 40 + strength * 35;
+  child.skills = { ...child.skills, [job]: Math.round(value * 10) / 10 };
+}
 
 export interface BirthContext {
   livingHumanAt: (id: number | null | undefined) => Entity | undefined;
@@ -161,6 +179,7 @@ export function tickPregnancyAndBirth(
   });
 
   child.name = getRandomName(childGender);
+  grantRareBirthTalent(child, birthKey);
   // Newborns stay with their mother. The Leader's House is exempt from ordinary
   // bed capacity for the leader's descendants; regular residences still require room.
   const motherHome = entity.residenceBuildingId == null
