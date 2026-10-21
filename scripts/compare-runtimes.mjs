@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const env = {
   ...process.env,
-  PERF_POPS: process.env.PERF_POPS ?? "300,600",
+  PERF_POPS: process.env.PERF_POPS ?? "300,600,900,1200,1500,1800,2100,2400,2700,3000,3300,3600,3900",
   PERF_TICKS: process.env.PERF_TICKS ?? "120",
   PERF_WARMUP: process.env.PERF_WARMUP ?? "30",
   SIM_FULL_SIM: process.env.SIM_FULL_SIM ?? "1",
