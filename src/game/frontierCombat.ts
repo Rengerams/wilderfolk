@@ -1662,7 +1662,13 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
   const rival = state.rivalSettlements.find((entry) => entry.id === pending.rivalId);
   state.pendingRaidVictories = (state.pendingRaidVictories ?? []).filter((entry) => entry.raidId !== raidId);
   if (!rival) return state;
+  const witnesses = state.rivalSettlements.filter((neighbor) =>
+    neighbor.id !== rival.id && Math.hypot(neighbor.campX - rival.campX, neighbor.campY - rival.campY) <= 750);
   if (choice === 'mercy') {
+    for (const neighbor of witnesses) {
+      if (neighbor.relationship === 'tense') neighbor.relationship = 'competitive';
+      else if (neighbor.relationship === 'competitive') neighbor.relationship = 'neutral';
+    }
     rival.relationship = 'neutral';
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 30);
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 30);
@@ -1677,6 +1683,11 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     addReputation(state, -3);
     logEvent(state, 'combat', `Terms imposed on ${rival.name} — one-time tribute ${formatLootParts(gained)}; 21-day truce`, rival.name, 'outgoing_raid', 'resolved');
   } else {
+    for (const neighbor of witnesses) {
+      if (neighbor.relationship === 'friendly') neighbor.relationship = 'neutral';
+      else if (neighbor.relationship === 'neutral') neighbor.relationship = 'competitive';
+      else if (neighbor.relationship === 'competitive') neighbor.relationship = 'tense';
+    }
     const structureIds = new Set(rival.buildingIds);
     const personIds = new Set(rival.entityIds);
     for (const person of state.entities) {
