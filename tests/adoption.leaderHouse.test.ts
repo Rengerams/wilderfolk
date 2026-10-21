@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
  * An orphan must never end up in the Leader's House.
  *
