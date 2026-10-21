@@ -94,7 +94,7 @@ describe('A3 — the colony-human rule has one owner', () => {
     // gone from this lane's fixtures, but the runtime rule it exercises must keep working.
     const voters: [number, string | undefined][] = [[1, undefined], [2, 'visitor'], [3, 'rival'], [4, 'player']];
     for (const [id, faction] of voters) {
-      const voter = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}` });
+      const voter = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}`, ageYears: 30 });
       voter.alive = true;
       state.entities.push(Object.assign(voter, { faction }));
     }
