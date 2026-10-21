@@ -261,7 +261,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🏚️',
     label: 'Storehouse',
-    description: 'Stores materials and valuables: +800 capacity each for wood, stone, iron and gold. No workers needed.'
+    description: 'Materials storage for wood, stone, iron and gold: +800 each at level 1, +1,800 at level 2, +2,800 at level 3. No workers needed.'
     sprite: '/sprites/storehouse_wood.png',
     backgroundColor: '#92400e',
     padShape: 'rect',
