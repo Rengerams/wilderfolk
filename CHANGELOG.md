@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** step validation and straight-line obstruction now seed elevation from the origin tile, preventing first-boundary cliff traversal; A* waypoint smoothing checks diagonal side cells so wall corners cannot be cut. Added regression tests for steep first steps and corner obstructions.
 - **Fixed:** strip-built wall corners preserve 180°/270° rotations; demolition immediately recalculates resource-storage limits and invalidates population-bed snapshots; repair/demolition particles appear at the true building centre.
 - **Fixed:** manually unassigning a workplace employee switches the workplace to manual staffing, preventing instant auto-refill. Bulk Fill Workers now emits one consolidated notification and floating label rather than a notification for each worker.
 - **Fixed:** newborns now receive their actual colony-day birth date at creation and are immediately registered in their residence's occupants list; rival houses no longer inflate player open beds, villas appear in housing counts, and trade caravan humans count as transient visitors.
