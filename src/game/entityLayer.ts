@@ -210,8 +210,8 @@ export function commitEntityLayerPaint(key: string): void {
  * Blit the cached layer onto the target, translating for the current camera.
  *
  * Derivation: screen_x(W) = (W − cam.x)·zoom + cw/2. The layer paints world
- * relative to anchorX (a point margin/zoom LEFT of the rebake camera) into a
- * (cw + 2·margin) surface, so the layer-x of viewport-left is 2·margin and the
+ * relative to anchorX (the rebake camera centre) into a
+ * (cw + 2·margin) surface, so the viewport starts at margin and the
  * correct offset is dx = (anchorX − cam.x)·zoom − margin. (Earlier versions used
  * +margin — everything drew shifted 2·margin px right/down.)
  *
