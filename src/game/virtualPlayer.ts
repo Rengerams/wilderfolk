@@ -1372,7 +1372,7 @@ function hasJuvenileSettler(state: WorldState): boolean {
 }
 
 /** The `state.resources.storageMax` key a storage building extends. */
-type StorageResourceKey = 'wood' | 'stone' | 'gold' | 'food';
+type StorageResourceKey = 'wood' | 'stone' | 'iron' | 'gold' | 'food';
 
 /** Two thirds full: the shelf is nearly full, so extra capacity is the next useful build. */
 const STORAGE_PRESSURE_RATIO = 2 / 3;
