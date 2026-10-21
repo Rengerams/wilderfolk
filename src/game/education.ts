@@ -270,7 +270,7 @@ export function describeSchoolingSummary(
 }
 
 /** Maturation multiplier while a child is actively attending a staffed school. */
-export function getSchoolAgeMultiplier(
+function getSchoolAgeMultiplier(
   child: Entity,
   buildings: Building[],
   nurturingCount = 0,

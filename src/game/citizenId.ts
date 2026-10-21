@@ -1,5 +1,5 @@
 import { EntityType, type Entity } from './gameTypes';
-import { HUMAN_CHILDHOOD_YEARS, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
 
 /**
  * The name the UI shows for a settler who has none — one fallback, owned here.
@@ -99,7 +99,7 @@ export function matchesCitizenSearch(entity: Entity, query: string): boolean {
 export function formatDeathAgeSuffix(entity: Pick<Entity, 'age' | 'isJuvenile'>): string {
   const years = Math.max(0, entity.age);
   const stage =
-    years < HUMAN_CHILDHOOD_YEARS
+    years < HUMAN_ADULT_MIN_AGE
       ? 'child'
       : years >= HUMAN_VENERABLE_AGE
         ? 'elder'

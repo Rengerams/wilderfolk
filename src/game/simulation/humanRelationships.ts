@@ -13,10 +13,9 @@ import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // half a building to the south-east of the building on screen. Importing the owner is the fix; the
 // duplicate was deleted rather than corrected so the two can never disagree again.
 import { getBuildingCenter } from '../placementUtils';
+import { HUMAN_ADULT_MIN_AGE } from '../dayCycleConstants';
 import {
-  HUMAN_ADULT_MIN_AGE,
   HUMAN_MAX_LIFESPAN_YEARS,
-  HUMAN_MOVE_OUT_MIN_AGE,
   getColonyDay,
   TICKS_PER_DAY,
   DAYS_PER_YEAR,
@@ -507,8 +506,8 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
  * (`BUG_REPORTS/2026-09-13-youth-love-min-age-12-lets-12-13-year-olds-enter-youth-lov.md`). Fertility
  * starts at the same age through the mutual youth-love gate, and every adult system stays 18+.
  */
-export const YOUTH_LOVE_MIN_AGE = 12;
-export const YOUTH_LOVE_MAX_AGE_EXCLUSIVE = HUMAN_MOVE_OUT_MIN_AGE;
+const YOUTH_LOVE_MIN_AGE = 12;
+
 /**
  * Largest age difference a youth-love pair may have when it forms — and therefore also how long an
  * existing link may wait past the older partner's 18th birthday for the younger one to come of age
@@ -550,7 +549,7 @@ export function isEligibleForYouthLove(entity: Entity): boolean {
     isPlayerHuman(entity) &&
     entity.alive &&
     entity.age >= YOUTH_LOVE_MIN_AGE &&
-    entity.age < YOUTH_LOVE_MAX_AGE_EXCLUSIVE &&
+    entity.age < HUMAN_ADULT_MIN_AGE &&
     entity.prisonBuildingId == null &&
     !entity.pregnant &&
     entity.partnerId == null &&
@@ -579,7 +578,7 @@ function isValidYouthLoveTarget(entity: Entity, candidate: Entity): boolean {
  * here by the same age gap that let the pair form, because the younger partner is then at most
  * `YOUTH_LOVE_MAX_AGE_GAP` years from the adult floor.
  *
- * Audit F3: the previous `Math.max(age) > HUMAN_MOVE_OUT_MIN_AGE` clause cleared the link as soon as
+ * Audit F3: the previous `Math.max(age) > HUMAN_ADULT_MIN_AGE` clause cleared the link as soon as
  * the older partner turned 19 — the very day a pair one year apart became (19, 18) — so
  * `promoteYouthLoveToCourtship` was unreachable for every pair whose birthdays fall in different
  * years and those pairs were dropped silently instead of "growing up together".
@@ -643,7 +642,7 @@ export function advanceYouthLove(
       if (!shouldLeadAffairPair(entity, partner)) continue;
       // Both adults → the documented handoff. A pair retained by `reconcileYouthLove` (one adult, one
       // 12–17) waits here until the younger partner comes of age.
-      if (entity.age >= HUMAN_MOVE_OUT_MIN_AGE && partner.age >= HUMAN_MOVE_OUT_MIN_AGE) {
+      if (entity.age >= HUMAN_ADULT_MIN_AGE && partner.age >= HUMAN_ADULT_MIN_AGE) {
         promoteYouthLoveToCourtship(state, entity, partner);
         continue;
       }
@@ -720,7 +719,7 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
-  if (entity.age < Relationship.AFFAIR_MIN_AGE || target.age < Relationship.AFFAIR_MIN_AGE) return false;
+  if (entity.age < HUMAN_ADULT_MIN_AGE || target.age < HUMAN_ADULT_MIN_AGE) return false;
   if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
   if (target.affairPartnerId != null && target.affairPartnerId !== entity.id) return false;
@@ -1662,7 +1661,7 @@ export function tryDailyAffairEncounter(
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
   if ((entity.relationshipStatus !== 'married' && entity.relationshipStatus !== 'expecting') || entity.isJuvenile) return;
-  if (!entity.gender || entity.age < Relationship.AFFAIR_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
+  if (!entity.gender || entity.age < HUMAN_ADULT_MIN_AGE || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;
   const workplace = findHumanWorkplace(entity, buildings, { buildingById });
@@ -1768,7 +1767,7 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   if (entity.id >= partner.id) return false;
   if (!entity.gender || !partner.gender || entity.gender === partner.gender) return false;
   if ((entity.courtshipProgress ?? 0) < 100 || (partner.courtshipProgress ?? 0) < 100) return false;
-  if (entity.age < HUMAN_MOVE_OUT_MIN_AGE || partner.age < HUMAN_MOVE_OUT_MIN_AGE) return false;
+  if (entity.age < HUMAN_ADULT_MIN_AGE || partner.age < HUMAN_ADULT_MIN_AGE) return false;
   if (!isEligibleToCourt(entity) || !isEligibleToCourt(partner)) return false;
   // A pair who were married before must stay apart a year before they can marry again. Checked on
   // both sides, because either partner may be the one whose courtship completes the pair.

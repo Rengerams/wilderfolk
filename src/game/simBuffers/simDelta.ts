@@ -616,7 +616,7 @@ function applyCatalogPatch(existing: Entity, patch: Entity): void {
   }
 }
 
-export function syncCatalogEntitiesToWorld(world: WorldState, catalogEntities: Entity[]): void {
+function syncCatalogEntitiesToWorld(world: WorldState, catalogEntities: Entity[]): void {
   const byId = new Map(world.entities.map((e) => [e.id, e]));
   for (const patch of catalogEntities) {
     const existing = byId.get(patch.id);

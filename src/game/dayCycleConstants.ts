@@ -1,22 +1,8 @@
-/** Pure calendar/time constants with no game-module dependencies. */
-
-/** Full moon hits every ~2 in-game weeks */
 export const DAYS_PER_MOON_CYCLE = 14;
-
-/** Adult floor: courtship, marriage, affairs, leadership, adoption singles and recruit ages. Must
- *  match `HUMAN_MOVE_OUT_MIN_AGE` and `Relationship.AFFAIR_MIN_AGE`; do not lower it. */
-export const HUMAN_ADULT_MIN_AGE = 18;
-
-/** Childhood in life-years ends where adulthood begins; the graduation tick promotes at this age. */
-export const HUMAN_CHILDHOOD_YEARS = HUMAN_ADULT_MIN_AGE;
-
-/** Age in life-years at which the old-age death rate starts to apply. */
+export const HUMAN_ADULT_MIN_AGE = 18; 
 export const HUMAN_VENERABLE_AGE = 60;
-
-
 export const NIGHT_START = 23;
 export const NIGHT_END = 6;
-
 export function isNightHour(hour: number): boolean {
   return hour >= NIGHT_START || hour < NIGHT_END;
 }

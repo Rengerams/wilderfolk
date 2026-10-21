@@ -1,7 +1,7 @@
 import { EntityType, JobType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 
-import { HUMAN_ADULT_MIN_AGE, HUMAN_CHILDHOOD_YEARS, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './dayCycleConstants';
 import { hasWorkAssignment } from './residencyOccupancy';
 import {
   DAYS_PER_YEAR,
@@ -65,7 +65,6 @@ export {
 } from './humanSchedule';
 
 export {
-  HUMAN_MOVE_OUT_MIN_AGE,
   buildResidenceOccupancy,
   countResidentsInBuilding,
   getResidenceCapacity,
@@ -116,8 +115,6 @@ export type { ResidenceOccupancy } from './residencyOccupancy';
 
 export {
   DAYS_PER_MOON_CYCLE,
-  HUMAN_ADULT_MIN_AGE,
-  HUMAN_CHILDHOOD_YEARS,
   HUMAN_VENERABLE_AGE,
   isFullMoonDay,
   isFullMoonNight,
@@ -133,7 +130,7 @@ export function tryGraduateHumanChild(
   adultSpeed: number,
   onGraduate?: (entity: Entity) => void,
 ): boolean {
-  if (!entity.isJuvenile || entity.age < HUMAN_CHILDHOOD_YEARS) return false;
+  if (!entity.isJuvenile || entity.age < HUMAN_ADULT_MIN_AGE) return false;
   entity.isJuvenile = false;
   entity.size = adultSize;
   entity.speed = adultSpeed;
@@ -146,7 +143,7 @@ export function tryGraduateHumanChild(
  * youth love (`YOUTH_LOVE_MIN_AGE` = 12 in `simulation/humanRelationships.ts`).
  *
  * Ages 12–17 may only conceive through the youth-love gate in
- * `tryDailyConception`: marriage requires `HUMAN_MOVE_OUT_MIN_AGE` (18) and an
+ * `tryDailyConception`: marriage requires `HUMAN_ADULT_MIN_AGE` (18) and an
  * affair requires `Relationship.AFFAIR_MIN_AGE` (18) on both sides, so below 18
  * this window is reachable exclusively through an existing mutual youth-love pair.
  */
@@ -187,12 +184,12 @@ export function getColonyDay(state: { year: number; dayInYear: number }): number
 }
 
 export function daysLivedFromAgeYears(ageYears: number): number {
-  if (ageYears <= HUMAN_CHILDHOOD_YEARS) {
+  if (ageYears <= HUMAN_ADULT_MIN_AGE) {
     return ageYears * JUVENILE_DAYS_PER_AGE_YEAR;
   }
   return (
-    HUMAN_CHILDHOOD_YEARS * JUVENILE_DAYS_PER_AGE_YEAR +
-    (ageYears - HUMAN_CHILDHOOD_YEARS) * ADULT_DAYS_PER_AGE_YEAR
+    HUMAN_ADULT_MIN_AGE* JUVENILE_DAYS_PER_AGE_YEAR +
+    (ageYears - HUMAN_ADULT_MIN_AGE) * ADULT_DAYS_PER_AGE_YEAR
   );
 }
 
@@ -219,7 +216,7 @@ export function setHumanBirthFromAge(
   }
 
   entity.age = Math.max(0, ageYears);
-  entity.isJuvenile = entity.age < HUMAN_CHILDHOOD_YEARS;
+  entity.isJuvenile = entity.age < HUMAN_ADULT_MIN_AGE;
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
 }
 
@@ -232,12 +229,12 @@ export function computeHumanAgeYears(
   }
   const birthColonyDay = entity.birthYear * DAYS_PER_YEAR + entity.birthDay;
   const daysLived = Math.max(0, colonyDay - birthColonyDay);
-  const juvenileSpan = HUMAN_CHILDHOOD_YEARS * JUVENILE_DAYS_PER_AGE_YEAR;
+  const juvenileSpan = HUMAN_ADULT_MIN_AGE * JUVENILE_DAYS_PER_AGE_YEAR;
   if (daysLived < juvenileSpan) {
     return Math.floor(daysLived / JUVENILE_DAYS_PER_AGE_YEAR);
   }
   const adultDays = daysLived - juvenileSpan;
-  return HUMAN_CHILDHOOD_YEARS + Math.floor(adultDays / ADULT_DAYS_PER_AGE_YEAR);
+  return HUMAN_ADULT_MIN_AGE + Math.floor(adultDays / ADULT_DAYS_PER_AGE_YEAR);
 }
 
 export function syncHumanAgeFromCalendar(
@@ -249,7 +246,7 @@ export function syncHumanAgeFromCalendar(
   // Deliberately does NOT write `isJuvenile`: the graduation transition owns that flag.
   // Setting it here made `tryGraduateHumanChild` — called every tick from humanTick.ts
   // *after* this sync — unsatisfiable, because it requires `isJuvenile && age >=
-  // HUMAN_CHILDHOOD_YEARS` and the sync had just cleared the flag on exactly that tick.
+  // HUMAN_ADULT_MIN_AGE` and the sync had just cleared the flag on exactly that tick.
   // No human ever graduated, so `entity.size`/`speed` stayed at child values and
   // `applyEducationGraduation` (the only writer of `educated`) never ran.
   entity.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
@@ -264,7 +261,7 @@ export function syncHumanAgeFromCalendar(
 export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
   for (const entity of world.entities ?? []) {
     if (entity.type !== EntityType.Human) continue;
-    if (entity.age >= HUMAN_CHILDHOOD_YEARS) continue;
+    if (entity.age >= HUMAN_ADULT_MIN_AGE) continue;
     entity.isJuvenile = true;
     // Children cannot retain work attendance or fatigue from invalid legacy assignments.
     entity.scheduleWorkedTicksToday = 0;
@@ -415,7 +412,7 @@ export function migrateHumanAges(
         ageYears = computed;
       } else if ((human.generation ?? 0) <= 1 && colonyDay < DAYS_PER_YEAR * 2) {
         ageYears = human.isJuvenile
-          ? Math.min(HUMAN_CHILDHOOD_YEARS - 1, Math.floor(colonyDay / JUVENILE_DAYS_PER_AGE_YEAR))
+          ? Math.min(HUMAN_ADULT_MIN_AGE - 1, Math.floor(colonyDay / JUVENILE_DAYS_PER_AGE_YEAR))
           : Math.min(35, 28 + Math.floor(colonyDay / ADULT_DAYS_PER_AGE_YEAR));
       } else {
         ageYears = Math.min(
@@ -433,7 +430,7 @@ export function migrateHumanAges(
       human.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
       human.age = ageYears;
     }
-    if (human.isJuvenile && human.age >= HUMAN_CHILDHOOD_YEARS) {
+    if (human.isJuvenile && human.age >= HUMAN_ADULT_MIN_AGE) {
       human.isJuvenile = false;
     }
   }

@@ -1,4 +1,4 @@
-import { COMMUTE_CONFIG, commuteWalkSpeed } from '../commuteReach';
+import { COMMUTE_CONFIG, commuteWalkSpeed, WORK_COMMUTE_RUSH } from '../commuteReach';
 import { PATH_CELL } from '../gameTypes';
 import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
@@ -401,9 +401,6 @@ export function nearestActiveMoonHowler(
 export {
   MAX_ASSIGNABLE_COMMUTE_HOURS,
   MAX_COMMUTE_LEAD_HOURS,
-  MAX_COMMUTE_SPEED_MULTIPLIER,
-  WORK_COMMUTE_RUSH,
-  commuteWalkSpeed,
   commuteLeadHoursFor,
   isWithinAssignableCommute,
 } from '../commuteReach';

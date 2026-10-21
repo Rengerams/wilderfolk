@@ -6,7 +6,7 @@ import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
-  LONG_RANGE_DIST: 50,
+  LONG_RANGE_DIST: 150,
   ARRIVAL_DIST: 8,
   /** Final-approach easing: the last stretch closes at `dist * APPROACH_RATE_PER_TICK` per tick. */
   APPROACH_RATE_PER_TICK: 0.1,
@@ -19,10 +19,7 @@ export const COMMUTE_CONFIG = {
 export const MAX_COMMUTE_LEAD_HOURS = 24;
 
 /** Urgent commutes may walk faster, but never exceed 3.5 times the settler's normal pace. */
-export const MAX_COMMUTE_SPEED_MULTIPLIER = 3.5;
-
-/** The multiplier used for work and overnight commutes. */
-export const WORK_COMMUTE_RUSH = MAX_COMMUTE_SPEED_MULTIPLIER;
+export const WORK_COMMUTE_RUSH = 3.5;
 
 /** Roads are quicker to walk, so a settler who may use them can be housed further out. */
 const COMMUTE_ROAD_SPEED_MULT = ROAD_SPEED_MULT;
@@ -37,7 +34,7 @@ export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
 export function commuteWalkSpeed(walkSpeed: number, rush = 1): number {
   const speed = Number.isFinite(walkSpeed) && walkSpeed > 0 ? walkSpeed : 1;
   const multiplier = Number.isFinite(rush) && rush > 0
-    ? Math.min(MAX_COMMUTE_SPEED_MULTIPLIER, Math.max(1, rush))
+    ? Math.min(WORK_COMMUTE_RUSH, Math.max(1, rush))
     : 1;
   return speed * multiplier;
 }

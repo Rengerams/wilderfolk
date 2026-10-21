@@ -7,12 +7,12 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import {
   isProductionTick,
   EVENT_INTERVAL,
   isNewCalendarDayTick,
   killHuman,
-  HUMAN_CHILDHOOD_YEARS,
   TICKS_PER_HOUR,
 } from './dayCycle';
 import type { TickContext } from './simulation/simulationTypes';
@@ -32,7 +32,7 @@ import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
 import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
-import { isActiveMoonHowler } from './moonHowler';
+import { isActiveMoonHowler } from './moonHowler ;
 import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';
@@ -278,7 +278,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 3. Growth transitions
-      if (entity.isJuvenile && entity.age >= HUMAN_CHILDHOOD_YEARS) {
+      if (entity.isJuvenile && entity.age >= HUMAN_ADULT_MIN_AGE) {
         entity.isJuvenile = false;
         entity.size = SPECIES_CONFIG[entity.type].size;
         entity.speed = SPECIES_CONFIG[entity.type].speed;

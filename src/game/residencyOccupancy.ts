@@ -2,8 +2,6 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
-/** Adult children may leave the parental home at this age when a house is free. */
-export const HUMAN_MOVE_OUT_MIN_AGE = 18;
 
 export function isResidenceBuilding(b: Building): boolean {
   return b.completed && isResidenceBuildingType(b.type);

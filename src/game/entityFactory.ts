@@ -2,11 +2,11 @@ import type { Entity, SettlerTrait, WorldState } from './gameTypes';
 import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,
-  HUMAN_ADULT_MIN_AGE,
-  HUMAN_CHILDHOOD_YEARS,
   PREGNANCY_TICKS,
   setHumanBirthFromAge,
 } from './dayCycle';
+
+import {  HUMAN_ADULT_MIN_AGE } from './dayCycleconstants';
 import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -78,7 +78,7 @@ export function createEntity(
   // Auto-detect juvenile status from the calendar age against the dayCycle owner's childhood
   // boundary, the same one `setHumanBirthFromAge` below applies, so the flag and `size` agree.
   const effectiveJuvenile =
-    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_CHILDHOOD_YEARS : false);
+    isJuvenile ?? (isHuman && opts?.ageYears !== undefined ? opts.ageYears < HUMAN_ADULT_MIN_AGE : false);
 
   let name: string | undefined;
   if (isHuman) {

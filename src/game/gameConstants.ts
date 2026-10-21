@@ -1,36 +1,4 @@
-/**
- * Central game constants — the ONE place to change gameplay values.
- *
- * Rules (see docs/CONSTANTS_GUIDELINE.md and docs/plans/constant-centralization-plan.md):
- * - Every gameplay constant (windows, multipliers, thresholds, intervals) is
- *   declared here in a labelled section and imported by name everywhere else.
- * - No gameplay constant is declared mid-file or inside a function body.
- * - Every entry explains WHY that magnitude (why 6 and not 20) — derivation,
- *   cadence anchor, or a playtest note ("tuned by testing: 4 too tight, 8 too
- *   easy, 6 was right"). Where no honest reason exists yet the entry is marked
- *   `TODO(tuning)` and sits on the balance backlog.
- * - Files that historically exported a constant keep a thin re-export so
- *   existing importers don't change, but the value itself lives here.
- */
 
-/**
- * Social-class spread for settler sprites — one distribution shared by the male and
- * female class ladders (female 2026-09-10, male 2026-09-16). Lower classes are common
- * in a frontier village; the gentry and aristocracy are rare. Weights are relative —
- * higher number = more common.
- *
- * Index order matches both class ladders in `humanSprites.ts` (lowest class first):
- * female 0 Mudlark · 1 Factory Hand · 2 Scullery Maid · 3 Pioneer · 4 Shop Assistant ·
- *        5 Governess · 6 Merchant's Wife · 7 Wealthy Gentry · 8 High Society · 9 Aristocrat
- * male   0 Poor Labourer · 1 Farmhand · 2 Craftsman · 3 Pioneer · 4 Shopkeeper ·
- *        5 Clerk · 6 Merchant · 7 Prosperous Farmer · 8 Wealthy Gentry · 9 Aristocrat
- *
- * Rationale: ~47% of villagers are the bottom two classes (mudlark/factory hand,
- * poor labourer/farmhand), while the top two (high society, aristocrat) make up ~1.5%,
- * so a rare grand dress or a gentleman's coat in the wilderness reads as a real event.
- * Both genders draw the same shape on purpose; split this into two entries only if a
- * designer wants the male and female distributions to differ.
- */
 export const Social = {
   CLASS_LADDER_WEIGHTS: [26, 21, 16, 12, 9, 7, 5, 2.5, 1.2, 0.3],
 } as const;
@@ -45,44 +13,19 @@ export const Social = {
  * AFFAIR_PROGRESS_MAX — only establishment can produce a scandal.
  */
 export const Relationship = {
-  /**
-   * 18 = an affair is an *adult* relationship system, so both the cheater and the
-   * paramour must already be adults. Ages 12–17 are the youth-love phase, where a
-   * mutual youth-love pair is the only relationship and the only conception route
-   * (see `YOUTH_LOVE_MIN_AGE` / `YOUTH_CONCEPTION_MULTIPLIERS`); leaving the affair
-   * floor at the 16-year courtship age let a married adult take a 16–17-year-old
-   * paramour and conceive with them outside the youth gate.
-   */
   AFFAIR_MIN_AGE: 18,
-  /** 0.07 = per-pair daily tryst chance while a church stands (was 0.14). */
   AFFAIR_DAILY_TRYST_CHANCE_WITH_CHURCH: 0.07,
-  /** 0.1 = per-pair daily tryst chance with no church (was 0.20). */
   AFFAIR_DAILY_TRYST_CHANCE_NO_CHURCH: 0.1,
-  /**
-   * Church strength scales the base chance down toward this floor factor:
-   * factor = FLOOR + (1 - churchStrength) × (1 - FLOOR), so a full-strength
-   * church leaves 0.72 of the base chance and a weak church approaches 1.0.
-   */
   AFFAIR_CHURCH_FLOOR_FACTOR: 0.72,
-  /** Per in-game hour. 4/hour = 96 per 72-tick day, before the situational multipliers. */
   COURTSHIP_BASE_RATE_PER_HOUR: 4,
-  /** Multiplier while on a work shift: courting continues, far slower, and never chases. */
   COURTSHIP_WORK_RATE_FACTOR: 0.15,
-  /** In-game days before courting again after a courtship or marriage ends. */
   COURTSHIP_COOLDOWN_DAYS: 1,
-  /** 1.4 = festivals loosen inhibitions (unchanged by the rebalance). */
   AFFAIR_FESTIVAL_MULTIPLIER: 1.4,
-  /** 1.35 = visiting performers are a distraction (unchanged). */
   AFFAIR_PERFORMERS_MULTIPLIER: 1.35,
-  /** 1.55 = a tryst at the paramour's own home is likelier to get that far. */
   AFFAIR_COHABIT_MULTIPLIER: 1.55,
-  /** 16 = minimum progress one successful tryst adds, before multipliers. */
   AFFAIR_PROGRESS_BUMP_MIN: 16,
-  /** 12 = span of the random extra progress above the minimum, so 16–27. */
   AFFAIR_PROGRESS_BUMP_SPAN: 12,
-  /** 100 = progress both partners need before the affair is established. */
   AFFAIR_PROGRESS_MAX: 100,
-  /** Feud score the cheated spouse opens against the paramour when a rumour reaches them. */
   SCANDAL_RUMOR_FEUD_SCORE: 20,
 } as const;
 
@@ -127,20 +70,10 @@ export const Human = {
   MEAL_ENERGY_RESTORE: 65,
 } as const;
 
-/**
- * Daily immigration composition — owner `dailyPopulation.ts`, party shape built by
- * `worldGen.createImmigrantSettler`.
- *
- * A party is one of three shapes, rolled in this order: a **lone youth** (12–17), a **married
- * couple** (which may bring 1–2 children), or a **single adult**. Ages use the simulation's own
- * bands: under `HUMAN_CHILDHOOD_YEARS` (18) is a child, so the 12–17 lone youth arrives a
- * juvenile too and only the 18+ lane may marry (`HUMAN_MOVE_OUT_MIN_AGE`). A family child (2–11)
- * only ever arrives with both parents; the lone youth lane brings its settler alone.
- */
 export const Immigration = {
   /** Ages a lone adult, or a couple's lead adult, can arrive with. */
   ADULT_AGE_MIN: 18,
-  ADULT_AGE_MAX: 55,
+  ADULT_AGE_MAX: 65,
   /**
    * A lone arrival this young is a youth. 12 is the floor the age owner already uses for youth
    * love and fertility, so such a settler can be courted but not married on arrival.
@@ -155,8 +88,8 @@ export const Immigration = {
   PREGNANT_WIFE_CHANCE: 0.4,
   /** Chance an arriving couple brings children (only when the colony has room for them). */
   FAMILY_WITH_CHILD_CHANCE: 0.6,
-  /** Children are under `HUMAN_CHILDHOOD_YEARS`, so they enrol at school and graduate there. */
-  CHILD_AGE_MIN: 2,
+  /** Children are under `HUMAN_ADULT_MIN_AGE`, so they enrol at school and graduate there. */
+  CHILD_AGE_MIN: 0,
   CHILD_AGE_MAX: 11,
   /** Up to two children per family; the caller's free-slot count caps it further. */
   FAMILY_MAX_CHILDREN: 2,
@@ -169,14 +102,14 @@ export const Immigration = {
  * ladder `0-2 baby / 2-6 toddler / 6-12 child / 12-18 juvenile`.
  *
  * School had **no minimum age at all**: `humanTick` gated the school run on `entity.isJuvenile` alone,
- * and that flag is `age < HUMAN_CHILDHOOD_YEARS` (18) — true from birth. So a newborn was eligible for
+ * and that flag is `age < HUMAN_ADULT_MIN_AGE` (18) — true from birth. So a newborn was eligible for
  * a school shift and would walk to one whenever a school was in range; the only thing that ever
  * stopped it was the building being absent or too far, which is why it reads as an intermittent
  * absurdity rather than a constant one.
  *
  * 6 is the owner's own number for the start of the "child" band, and it is the first of their four
  * stages that implies schooling. Deliberately **not** a new global age ladder: the simulation's bands
- * stay as they are (`HUMAN_CHILDHOOD_YEARS` = graduation = `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
+ * stay as they are (`HUMAN_ADULT_MIN_AGE` = graduation = `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
  * is one gate on one activity — a baby does not go to school. Turning the other three stages into real
  * mechanics is a separate, balance-affecting decision.
  */

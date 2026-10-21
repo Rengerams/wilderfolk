@@ -1,7 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isResidenceBuilding } from './residencyOccupancy';
-import { HUMAN_MOVE_OUT_MIN_AGE } from './residencyOccupancy';
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import type { TickContext } from './simulation/simulationTypes';
 import {
   syncResidenceOccupants,
@@ -42,7 +42,7 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
     if (!h.alive || h.faction) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
-      h.age >= HUMAN_MOVE_OUT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
+      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
   }
   return parts.join(',');
 }
