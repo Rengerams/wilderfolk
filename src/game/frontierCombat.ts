@@ -1502,7 +1502,7 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
         event.phase = 'engaging';
         event.expiresAtTick = state.tick + 3 * TICKS_PER_DAY;
         addBigNews(state, '⚔️ War-band arrived', `Your soldiers reached ${event.rivalName}. Choose the battle outcome in the raid banner.`, 'negative');
-        logEvent(state, 'combat', `War-band arrived at ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'engagement');
+        logEvent(state, 'combat', `War-band arrived at ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'dispatched');
       }
       remaining.push(event);
       continue;
@@ -1539,7 +1539,7 @@ export function respondToOutgoingRaidEvent(
     event.phase = 'returning';
     event.returnAtTick = state.tick + travelled;
     event.expiresAtTick = event.returnAtTick;
-    logEvent(state, 'combat', `Recall ordered for the war-band marching on ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'recalled');
+    logEvent(state, 'combat', `Recall ordered for the war-band marching on ${event.rivalName}`, event.rivalName, 'outgoing_raid', 'cancelled');
     return state;
   }
   if (event.phase === 'returning' || event.phase === 'marching') return state;
