@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory } from '../src/game/frontierCombat';
+import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory, provokeRival } from '../src/game/frontierCombat';
 import { initGame } from '../src/game/worldGen';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import type { RaidEvent } from '../src/game/gameTypes';
@@ -85,6 +85,22 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
     }];
     return world;
   }
+
+  it('declares a persistent war and ends it when the defeated camp is spared', () => {
+    const state = victoriousWorld();
+    state.pendingRaidVictories = [];
+    const declared = provokeRival(state, 'test-rival');
+    expect(declared.rivalSettlements[0]?.atWarWithPlayer).toBe(true);
+    expect(declared.rivalSettlements[0]?.relationship).toBe('tense');
+    const originalReputation = declared.villageReputation;
+    const repeated = provokeRival(declared, 'test-rival');
+    expect(repeated.villageReputation).toBe(originalReputation);
+
+    declared.pendingRaidVictories = victoriousWorld().pendingRaidVictories;
+    const spared = resolveRaidVictory(declared, 'unique-raid', 'mercy');
+    expect(spared.rivalSettlements[0]?.atWarWithPlayer).toBe(false);
+    expect(spared.rivalSettlements[0]?.peaceTreatyDays).toBeGreaterThan(0);
+  });
 
   it('does not raze the rival until explicit confirmation', () => {
     const world = victoriousWorld();
