@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** entity-layer anchor now stays centred on the camera at paint time, preserving the full 160 px cache margin in all pan directions and preventing unnecessary layer rebakes on slight right/down movement.
+- **Fixed:** adopted adult children qualify for move-out when living with an adoptive parent; separated parents can no longer claim the same child in competing housing units; married adult leader descendants leave the manor household rather than repeatedly moving between homes.
 - **Visuals:** Ground Reinforcement uses the existing case-sensitive `public/sprites/ground_soil.PNG` art in the Build catalogue and paints persistent reinforced terrain tiles without creating a blocking building.
 - **Changed:** shallow water is now walkable for settlers and visitors; deep water and rivers remain impassable. Existing wall gates retain their normal passable behavior.
 - **Added:** Ground Reinforcement in Build → Resources. Spend 30 stone and 8 gold to prepare a 30 × 30 pixel patch of mountains, snow, shallow water or riverbank for later construction. The operation leaves no blocking building, persists terrain overrides and refreshes terrain grids; active rivers and deep water remain protected.
