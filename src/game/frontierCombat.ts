@@ -1422,7 +1422,6 @@ function resolveOutgoingRaidCombat(
   const lootScale = Math.sqrt(event.attackerStrength / Math.max(event.defenderStrength, 1));
   const warBand = raidArmy(state, event);
   const allRaidSoldiers = state.entities.filter((person) => event.soldierIds?.includes(person.id) && person.raidDeploymentId === event.id);
-  const fallenNames = allRaidSoldiers.filter((person) => !person.alive).map((person) => formatCitizenName(person));
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
 
   flashMilitia(state.entities, 20);
