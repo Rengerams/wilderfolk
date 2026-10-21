@@ -73,6 +73,11 @@ export function simulateElectionVotes(
   let totalVotes = 0;
 
   for (const voter of voters) {
+    if (electionId > 0) {
+      const energyShare = voter.maxEnergy > 0 ? voter.energy / voter.maxEnergy : 0.5;
+      const attendanceChance = Math.max(0.65, Math.min(0.98, 0.85 + (energyShare - 0.5) * 0.2));
+      if (seededRandomForRun(`election-attendance:${electionId}:${voter.id}`) >= attendanceChance) continue;
+    }
     const supports: Array<{ entityId: number; support: number }> = [];
     let maxSupport = -Infinity;
     for (const c of electionCandidates) {
