@@ -432,7 +432,7 @@ export function getCombatPreview(
     const distancePx = getCampDistancePixels(state, state.buildings, options.rival);
     distanceTiles = getCampDistanceTiles(distancePx);
     distanceLabel = formatCampDistance(distancePx);
-    outgoingRaidFoodCost = getOutgoingRaidFoodCost(distancePx);
+    outgoingRaidFoodCost = getOutgoingRaidFoodCostForRival(state, options.rival);
     breakdown.push(`${options.rival.name} camp: ${distanceLabel} from your village`);
     breakdown.push(`Raid provisions: ${outgoingRaidFoodCost}🍖 (march rations)`);
   }
