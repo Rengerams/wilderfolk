@@ -123,7 +123,28 @@ export default function FamilyTreeWindow({
     const partners = mode === 'descendants' ? [...partnerIds].filter(partnerId => {
       const p = people.get(partnerId);
       return p && (showDeceased || p.alive);
-    }).slice(0, 5) : [];
+    }) : [];
+    const childrenByParent = new Map<number | null, number[]>();
+    if (mode === 'descendants') {
+      for (const childId of visible) {
+        const child = people.get(childId);
+        if (!child) continue;
+        const otherParentId = PARENT_KEYS.map(k => child[k])
+          .find(parentId => parentId != null && parentId !== id && people.has(parentId)) ?? null;
+        const group = childrenByParent.get(otherParentId) ?? [];
+        group.push(childId);
+        childrenByParent.set(otherParentId, group);
+      }
+    }
+    const childBranch = (childIds: number[]) => (
+      <div className="relative ml-5 border-l-2 border-amber-600/60 pl-5">
+        {childIds.map(nextId => (
+          <div key={nextId} className="relative pb-3 before:absolute before:-left-5 before:top-5 before:w-5 before:border-t-2 before:border-amber-600/60">
+            {branch(nextId, generation + 1, nextTrail)}
+          </div>
+        ))}
+      </div>
+    );
     return (
       <div key={id} className="flex flex-col items-start">
         <div className="flex items-center gap-3">
@@ -140,15 +161,21 @@ export default function FamilyTreeWindow({
             </div>
           )}
         </div>
-        {visible.length > 0 && (
-          <div className="ml-5 mt-2 space-y-3 border-l-2 border-amber-600/50 pl-5">
-            {visible.map(nextId => (
-              <div key={nextId} className="relative before:absolute before:-left-5 before:top-5 before:w-5 before:border-t-2 before:border-amber-600/50">
-                {branch(nextId, generation + 1, nextTrail)}
+        {mode === 'descendants' ? (
+          <div className="mt-3 space-y-4">
+            {[...childrenByParent].map(([coParentId, childrenIds]) => (
+              <div key={coParentId ?? 'unrecorded'} className="relative ml-6 border-l-2 border-rose-600/50 pl-5">
+                <p className="mb-2 text-[10px] text-rose-200">
+                  {coParentId == null ? 'Other parent not recorded' :
+                    `Children shared with ${people.get(coParentId)?.name ?? 'unknown parent'}`}
+                </p>
+                {childBranch(childrenIds)}
               </div>
             ))}
           </div>
-        )}
+        ) : visible.length > 0 ? (
+          <div className="mt-3">{childBranch(visible)}</div>
+        ) : null}
         {generation === depth && relatives.length > 0 && (
           <span className="mt-1 text-[11px] text-stone-400">More generations available · increase depth</span>
         )}
