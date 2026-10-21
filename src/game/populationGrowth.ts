@@ -46,7 +46,7 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
     if (!building.completed || building.faction === 'rival' || !isResidenceBuilding(building)) continue;
     beds += getResidenceCapacity(building);
     if (building.type === BuildingType.House) houseCount += 1;
-    else if (building.type === BuildingType.Mansion) mansionCount += 1;
+    else if (building.type === BuildingType.Mansion || building.type === BuildingType.Villa) mansionCount += 1;
   }
 
   return { pop, beds, houseCount, mansionCount };
@@ -141,7 +141,7 @@ function formatHousingCapReason(
   return (
     `Housing raises immigration cap by resident capacity `
     + `(houses ~${houseBeds} beds, mansions ~${mansionBeds} beds each; upgrades add +2 per level) `
-    + `— ${houseCount} houses, ${mansionCount} mansions (${beds} beds for ${pop} settlers).`
+    + `— ${houseCount} houses, ${mansionCount} mansions/villas (${beds} beds for ${pop} settlers).`
   );
 }
 
