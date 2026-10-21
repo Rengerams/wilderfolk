@@ -144,9 +144,9 @@ export function getCachedNameWidth(
   ctx: CanvasRenderingContext2D,
   fullName: string,
   fontSize: number,
-  zoom: number,
+  _zoom?: number,
 ): number {
-  const key = `${fontSize.toFixed(2)}|${zoom.toFixed(3)}|${fullName}`;
+  const key = `${fontSize.toFixed(2)}|${fullName}`;
   let tw = _nameWidthCache.get(key);
   if (tw == null) {
     ctx.font = `bold ${fontSize}px sans-serif`;
