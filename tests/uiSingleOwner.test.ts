@@ -187,7 +187,7 @@ describe('C2 — building output copy is built from the owners, not typed as pro
     expect(WATCHTOWER_BASE_BONUS).toBe(15);
     expect(MILL_FOOD_PRODUCTION_MULT).toBe(1.25);
     expect(BARN_ADJACENCY_BONUS).toBe(0.35);
-    expect(SILO_FOOD_STORAGE).toBe(600);
+    expect(SILO_FOOD_STORAGE).toBe(2000);
     expect(WOOD_STOREHOUSE_STORAGE).toBe(800);
     expect(SMITH_BONUS_PER_WORKER * 4).toBeGreaterThan(SMITH_BONUS_CAP - 1);
   });
