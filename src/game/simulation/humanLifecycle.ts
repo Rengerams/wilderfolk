@@ -13,6 +13,7 @@ import { resolveChildSurname, getRandomName } from '../nameLoader';
 import { inheritSettlerTraits } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
+import { recordGenealogyBirth } from '../genealogyRegistry';
 import { pickHumanVariant } from '../humanSprites';
 import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { logEvent } from '../eventLog';
@@ -202,6 +203,8 @@ export function tickPregnancyAndBirth(
   if (newbornBucket && !newbornBucket.includes(child)) {
     newbornBucket.push(child);
   }
+
+  recordGenealogyBirth(state, child);
 
   // Synchronize family relationships
   safeAddChildId(entity, child.id);
