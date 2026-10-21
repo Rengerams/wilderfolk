@@ -1,6 +1,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
+import { recordGenealogyDeath } from './genealogyRegistry';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -236,6 +237,7 @@ export function killHuman(
   state?: WorldState,
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
+  if (state) recordGenealogyDeath(state, entity);
   entity.alive = false;
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
