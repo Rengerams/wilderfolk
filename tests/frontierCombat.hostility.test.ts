@@ -17,6 +17,9 @@ import {
   RAID_GROWTH_BASE_ADULTS,
   RAID_LOOT_MAX_SCALE,
   provokeRival,
+  launchRaidOnRival,
+  respondToOutgoingRaidEvent,
+  tickPendingOutgoingRaidEvents,
   raiseRaidLootToFloor,
 } from '../src/game/frontierCombat';
 import { tickRivalSettlements } from '../src/game/rivalEvents';
@@ -164,6 +167,50 @@ describe('declaring hostility on a friendly rival', () => {
     const world = village();
     expect(canProvokeRival(world, { ...rival({ id: 'rival_ghost' }) }).ok).toBe(false);
     expect(provokeRival(world, 'rival_ghost').rivalSettlements[0].relationship).toBe('friendly');
+  });
+});
+
+describe('mobilized raid lifecycle', () => {
+  it('deploys all eligible soldiers and allows recall without instant village defense', () => {
+    const world = village([rival({ relationship: 'tense' })]);
+    const launched = launchRaidOnRival(world, 'rival_oakcrossing');
+    const army = launched.pendingOutgoingRaidEvents[0]!;
+    expect(army.phase).toBe('marching');
+    expect(army.soldierIds).toHaveLength(12);
+    expect(launched.entities.filter((person) => person.raidDeploymentId === army.id)).toHaveLength(12);
+    expect(launched.entities.every((person) => person.raidDeploymentId === army.id)).toBe(true);
+
+    const premature = respondToOutgoingRaidEvent(launched, army.id, army.rivalResponse === 'fight' ? 'fight' : 'accept_payoff');
+    expect(premature.pendingOutgoingRaidEvents[0]?.phase).toBe('marching');
+
+    launched.tick = army.createdAtTick + Math.floor((army.arrivalAtTick! - army.createdAtTick) / 2);
+    const recalled = respondToOutgoingRaidEvent(launched, army.id, 'recall');
+    expect(recalled.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
+    expect(recalled.entities.filter((person) => person.raidDeploymentId === army.id)).toHaveLength(12);
+    recalled.tick = recalled.pendingOutgoingRaidEvents[0]!.returnAtTick!;
+    tickPendingOutgoingRaidEvents(recalled);
+    expect(recalled.pendingOutgoingRaidEvents).toHaveLength(0);
+    expect(recalled.entities.every((person) => !person.raidDeploymentId)).toBe(true);
+  });
+
+  it('reaches the enemy before allowing combat, and then sends survivors home', () => {
+    const state = launchRaidOnRival(village([rival({ relationship: 'tense' })]), 'rival_oakcrossing');
+    const event = state.pendingOutgoingRaidEvents[0]!;
+    state.tick = event.arrivalAtTick!;
+    tickPendingOutgoingRaidEvents(state);
+    expect(state.pendingOutgoingRaidEvents[0]?.phase).toBe('engaging');
+    const action = event.rivalResponse === 'fight' ? 'fight' : 'accept_payoff';
+    const result = respondToOutgoingRaidEvent(state, event.id, action);
+    expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
+    expect(result.entities.some((person) => person.alive && person.raidDeploymentId === event.id)).toBe(true);
+    result.tick = result.pendingOutgoingRaidEvents[0]!.returnAtTick!;
+    tickPendingOutgoingRaidEvents(result);
+    expect(result.entities.every((person) => !person.raidDeploymentId)).toBe(true);
+  });
+
+  it('does not allow a war declaration during an active treaty', () => {
+    const state = village([rival({ relationship: 'neutral', peaceTreatyDays: 14 })]);
+    expect(canProvokeRival(state, state.rivalSettlements[0]!).ok).toBe(false);
   });
 });
 
