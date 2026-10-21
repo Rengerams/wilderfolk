@@ -244,8 +244,8 @@ export function reliefY(type: TerrainType, elevation: number): number {
       break;
   }
   const e = Math.max(0, Math.min(100, elevation)) / 100;
-  if (e < 0.5) return 0;
-  return Math.min(0.35, (e - 0.5) * 0.7 + 0.08);
+  if (e <= 0.5) return 0;
+  return Math.min(0.35, (e - 0.5) * 0.7);
 }
 
 /** Elevation at a world position (10px tile grid), 0–100. */
