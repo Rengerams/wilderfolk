@@ -223,7 +223,7 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 | `silo.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `square.png` | `buildings.ts` | village square artwork — in-repo asset, provenance not yet recorded |
 | `store.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
-| `storehouse_wood.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
+| `storehouse.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `stump.png` | `spriteLoader.ts`, `trees.ts` | earlier in-repo art pass — origin not recorded |
 | `taming_post.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `tavern.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
