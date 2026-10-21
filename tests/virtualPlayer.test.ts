@@ -1494,15 +1494,11 @@ describe('virtual player remaining action surface', () => {
       },
     );
 
-    // 12 settlers eat 36 a day: 100 food is under the 4-day reserve the gift step
-    // wants but still triple the 18-food march provisions.
+    // March provisions now cover the whole deployed army's outward and return
+    // journey. A lean stockpile must not launch an under-provisioned expedition.
     const lean = crowded(100);
-    expect(canLaunchRaidOnRival(lean, lean.rivalSettlements[0]).ok).toBe(true);
-    expect(decideVirtualPlayerAction(lean)!.command).toEqual({
-      proto: WORKER_CMD_PROTO,
-      op: 'launchRaidOnRival',
-      rivalId: 'rival_ravenhold',
-    });
+    expect(canLaunchRaidOnRival(lean, lean.rivalSettlements[0]).ok).toBe(false);
+    expect(decideVirtualPlayerAction(lean)?.command?.op).not.toBe('launchRaidOnRival');
 
     // With a full larder the bot mends fences instead of marching: no warmonger.
     const rich = crowded(500);
