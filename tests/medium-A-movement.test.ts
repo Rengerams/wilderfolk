@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
-import { getPathGrid, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { getPathGrid, invalidateCommutePathsForWalker, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import {
   applyHumanWalkStep,
@@ -471,5 +471,21 @@ describe('commute approach easing (the doorstep stretch)', () => {
     expect(ticks).toBeGreaterThanOrEqual(4);
     expect(Math.max(...steps)).toBeLessThanOrEqual(1.05 * MAX_COMMUTE_SPEED_MULTIPLIER);
     expect(steps[0]!).toBeGreaterThan(steps[steps.length - 1]! * 2);
+  });
+});
+describe('blocked commuter path recovery', () => {
+  it('invalidates only the stalled settler commute route for replanning', () => {
+    const map = makeMap(40, 40, 921, (x, y) => x === 20 && y !== 20);
+    setCurrentPathMap(map, []);
+    const first = human(9901, pixel(12), pixel(12));
+    const second = human(9902, pixel(12), pixel(12));
+    const targetX = pixel(28);
+    const targetY = pixel(25);
+    expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
+    expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
+    invalidateCommutePathsForWalker(first.id);
+    expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
+    expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
+    setCurrentPathMap(null);
   });
 });
