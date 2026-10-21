@@ -7,7 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import {
   isProductionTick,
   EVENT_INTERVAL,
