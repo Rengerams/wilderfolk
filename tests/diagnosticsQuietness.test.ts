@@ -18,6 +18,7 @@ import {
   flushRelationshipDiagnostics,
   getRelationshipDiagnosticsHistory,
   resetRelationshipDiagnostics,
+  setRelationshipDiagnosticsEnabled,
   setRelationshipDiagnosticsConsoleLoggingEnabled,
 } from '../src/game/relationshipDiagnostics';
 
@@ -25,6 +26,7 @@ afterEach(() => resetRelationshipDiagnostics());
 
 describe('diagnostics quietness (roadmap U5)', () => {
   it('collects without emitting when console logging is off', () => {
+    setRelationshipDiagnosticsEnabled(true);
     setRelationshipDiagnosticsConsoleLoggingEnabled(false);
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     try {
@@ -40,6 +42,7 @@ describe('diagnostics quietness (roadmap U5)', () => {
   });
 
   it('emits the collected snapshot once when console logging is on (the debug path)', () => {
+    setRelationshipDiagnosticsEnabled(true);
     setRelationshipDiagnosticsConsoleLoggingEnabled(true);
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     try {
