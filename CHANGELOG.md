@@ -2,6 +2,14 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** shallow water is now walkable for settlers and visitors; deep water and rivers remain impassable. Existing wall gates retain their normal passable behavior.
+- **Added:** Ground Reinforcement in Build → Resources. Spend 30 stone and 8 gold to prepare a 30 × 30 pixel patch of mountains, snow, shallow water or riverbank for later construction. The operation leaves no blocking building, persists terrain overrides and refreshes terrain grids; active rivers and deep water remain protected.
+- **Changed:** outgoing raid marches take at least two in-game days to reach their destination, with visible strategic-map army progress. Food provisions now scale with deployed soldiers and both legs of the journey.
+- **Improved:** outgoing battles provide staged, text-only commentary based on simulation events. Named soldier deaths are recorded during combat using the existing death and Graveyard system, retained in final battle reports, and guarded against duplicate resolution.
+- **Balanced:** outgoing raid casualties now account for enemy strength and population. Overwhelming superiority can result in no village casualties instead of imposing deaths based on army size alone.
+- **Improved:** razing a surrendered rival affects nearby settlements' persistent diplomacy and response readiness; faraway rivals do not automatically react. Confirmed decisions apply only once.
+- **Added:** regression coverage for terrain reinforcement, raid marching provisions, live commentary, proportional casualties and razing reactions.
+
 - **Changed:** launching an outgoing raid mobilizes every available adult Soldier into a persistent roster of soldier IDs, with a saved deployment ID that excludes them from home militia strength and barracks defense; deployed soldiers suspend normal work and are shown as away with the war-band.
 - **Added:** persistent outgoing-raid marching, engagement and returning phases. Battle or tribute decisions only unlock after the simulated march reaches the target. The original soldier roster, not newly assigned soldiers, supplies combat experience, fatalities and survivors.
 - **Added:** Recall Army reverses a deployed force from its current travel position. Survivors return over the remaining distance and cannot defend home until arrival; provisions are not refunded.
