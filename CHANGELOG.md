@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** case-sensitive `dayCycleConstants` import in entity factory for Linux builds; school routing and classroom attendance now measure distance to the actual centred school footprint instead of adding half its width and height. Corrected stale centred-anchor documentation and added schooling geometry regression tests.
 - **Fixed:** correct case-sensitive housing constants import and adult threshold; married adult grandchildren no longer return to the Leader House. Adoption checks and custodian lookup consult the full living genealogy pool, including parents excluded from assignment. Full-moon Moon Howlers continue occupying beds in both occupancy-counting paths.
 - **Fixed:** entity-layer anchor now stays centred on the camera at paint time, preserving the full 160 px cache margin in all pan directions and preventing unnecessary layer rebakes on slight right/down movement.
 - **Fixed:** adopted adult children qualify for move-out when living with an adoptive parent; separated parents can no longer claim the same child in competing housing units; married adult leader descendants leave the manor household rather than repeatedly moving between homes.
