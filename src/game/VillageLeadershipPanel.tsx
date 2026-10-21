@@ -108,7 +108,7 @@ export default function VillageLeadershipPanel({ state }: { state: WorldState })
           <p className="font-bold text-amber-100">{liveVote ? 'Election ballots recorded — reveal pending' : `Last election #${lastVote?.electionId ?? 0}`}</p>
           <p className="text-stone-400">{ballots} ballots cast · {voters} eligible voters · {voters > 0 ? Math.round((ballots / voters) * 100) : 0}% turnout</p>
           <div className="mt-2 space-y-1">
-            {Object.entries(ballotEntries).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, count]) => {
+            {Object.entries(ballotEntries).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, count]) => {
               const entity = state.entities.find((person) => person.id === Number(id));
               return (
                 <div key={id}>
