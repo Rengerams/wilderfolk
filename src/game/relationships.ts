@@ -129,6 +129,7 @@ export function reconcileCloseFriendships(people: Entity[]): void {
   }
   edges.sort((x, y) => y.strength - x.strength || x.a.id - y.a.id || x.b.id - y.b.id);
   const accepted = new Map<number, number>();
+  const originallyMutual = new Set(edges.map(({ a, b }) => `${a.id}|${b.id}`));
   const retained = new Set<string>();
   for (const { a, b } of edges) {
     if ((accepted.get(a.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER ||
@@ -151,8 +152,7 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       // A one-way imported bond below the ceiling is still a valid recorded
       // friendship. Only demote excess close bonds; the normal daily pass will
       // remove links to people who have actually died.
-      if (friendshipScore(b, a.id) < FRIEND_CLOSE_THRESHOLD &&
-          friendCount(a) <= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
+      if (!originallyMutual.has(pair) && friendCount(a) <= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
       // Drop just below the close-friend threshold, preserving acquaintance history.
       a.friendships![key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
     }
