@@ -3,7 +3,7 @@ import { BuildingType, BUILDING_JOB_TYPES, type JobType } from './gameTypes';
 import { ensureEntitySkills, readSkill } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { SCHOOL_GRADUATION_DAYS } from './education';
 
 /**
