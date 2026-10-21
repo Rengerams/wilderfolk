@@ -32,7 +32,7 @@ import {
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
 import { assignMissingWorkers } from './workforce';
-import { collectLeaderHousehold } from './leaderHouse';
+import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
 import { getSimRng } from './simRng';
@@ -715,6 +715,7 @@ export function tickMoonHowlerCycle(
       // the venue auto-staff targets. Without it the pass ran under `DEFAULT_WORKFORCE_POLICY`
       // ('survival') and sized venues from the default window, so a reverted settler could be pushed
       // into a second innkeeper slot the player never asked for.
+      syncLeaderHouseResidency(state);
       assignMissingWorkers(villagers, buildings, state);
     }
     changed = true;
