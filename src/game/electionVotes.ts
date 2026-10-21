@@ -50,6 +50,9 @@ export function simulateElectionVotes(
   const voters = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile,
   );
+  const peopleById = new Map(state.entities.map((person) => [person.id, person]));
+  const foodNeed = state.resources.food / Math.max(1, state.humanPopulation) < 10;
+  const securityNeed = (state.pendingRaidEvents?.length ?? 0) > 0;
   const electionCandidates = candidates.map((candidate) => {
     const swing =
       (seededRandomForRun(
@@ -58,7 +61,14 @@ export function simulateElectionVotes(
         2 -
         1) *
       ELECTION_SUPPORT_SWING_CAP;
-    return { ...candidate, supportFactor: 1 + swing };
+    const person = peopleById.get(candidate.entityId);
+    return {
+      ...candidate,
+      supportFactor: 1 + swing,
+      job: person?.job,
+      farming: person?.skills?.[JobType.Farmer] ?? 0,
+      battle: person?.battleLeadershipMerit ?? 0,
+    };
   });
   let totalVotes = 0;
 
@@ -73,11 +83,9 @@ export function simulateElectionVotes(
           friendshipScore(voter, c.entityId) * FRIEND_WEIGHT - feudScore(voter, c.entityId) * FEUD_WEIGHT,
         ),
       );
-      const foodNeed = state.resources.food / Math.max(1, state.humanPopulation) < 10;
-      const securityNeed = (state.pendingRaidEvents?.length ?? 0) > 0;
-      const occupationAffinity = voter.job != null && voter.job !== JobType.Settler && voter.job === state.entities.find((person) => person.id === c.entityId)?.job ? 8 : 0;
-      const foodPreference = foodNeed && state.entities.find((person) => person.id === c.entityId)?.skills?.[JobType.Farmer] ? 4 : 0;
-      const defensePreference = securityNeed ? Math.min(12, (state.entities.find((person) => person.id === c.entityId)?.battleLeadershipMerit ?? 0) / 5) : 0;
+      const occupationAffinity = voter.job != null && voter.job !== JobType.Settler && voter.job === c.job ? 8 : 0;
+      const foodPreference = foodNeed && c.farming >= 30 ? 4 : 0;
+      const defensePreference = securityNeed ? Math.min(12, c.battle / 5) : 0;
       const support = c.totalScore * c.supportFactor + bond + occupationAffinity + foodPreference + defensePreference;
       supports.push({ entityId: c.entityId, support });
       if (support > maxSupport) maxSupport = support;
