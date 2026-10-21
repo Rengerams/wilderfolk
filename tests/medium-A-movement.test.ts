@@ -477,10 +477,10 @@ describe('blocked commuter path recovery', () => {
   it('invalidates only the stalled settler commute route for replanning', () => {
     const map = makeMap(40, 40, 921, (x, y) => x === 20 && y !== 20);
     setCurrentPathMap(map, []);
-    const first = human(9901, pixel(12), pixel(12));
-    const second = human(9902, pixel(12), pixel(12));
-    const targetX = pixel(28);
-    const targetY = pixel(25);
+    const first = human(9901, pixel(12, 0), pixel(12, 0));
+    const second = human(9902, pixel(12, 0), pixel(12, 0));
+    const targetX = pixel(28, 0);
+    const targetY = pixel(25, 0);
     expect(steerWithPath(first, targetX, targetY, 2, 'c_9901_8_w')).toBe('path');
     expect(steerWithPath(second, targetX, targetY, 2, 'c_9902_8_w')).toBe('path');
     invalidateCommutePathsForWalker(first.id);
