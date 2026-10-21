@@ -1,7 +1,7 @@
 import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState } from './gameTypes';
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
-import { EntityType } from './gameTypes';
+import { BuildingType, EntityType } from './gameTypes';
 import { DAYS_PER_YEAR, getAgeInYears, HUMAN_ADULT_MIN_AGE, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
