@@ -1,4 +1,5 @@
 import type { WorldState } from './gameTypes';
+import { JobType } from './gameTypes';
 import { friendshipScore, feudScore } from './relationships';
 import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
@@ -41,6 +42,7 @@ const VOTE_SUPPORT_TEMPERATURE = 20;
 export function simulateElectionVotes(
   state: WorldState,
   candidates: VoteCandidate[],
+  electionId = 0,
 ): ElectionVoteResult {
   const tally = new Map<number, number>();
   for (const c of candidates) tally.set(c.entityId, 0);
@@ -51,7 +53,7 @@ export function simulateElectionVotes(
   const electionCandidates = candidates.map((candidate) => {
     const swing =
       (seededRandomForRun(
-        `election-support-swing:${state.year}:${state.lastElectionYear ?? 'none'}:${candidate.entityId}`,
+        `election-support-swing:${electionId}:${state.year}:${candidate.entityId}`,
       ) *
         2 -
         1) *
@@ -71,7 +73,12 @@ export function simulateElectionVotes(
           friendshipScore(voter, c.entityId) * FRIEND_WEIGHT - feudScore(voter, c.entityId) * FEUD_WEIGHT,
         ),
       );
-      const support = c.totalScore * c.supportFactor + bond;
+      const foodNeed = state.resources.food / Math.max(1, state.humanPopulation) < 10;
+      const securityNeed = (state.pendingRaidEvents?.length ?? 0) > 0;
+      const occupationAffinity = voter.job != null && voter.job !== JobType.Settler && voter.job === state.entities.find((person) => person.id === c.entityId)?.job ? 8 : 0;
+      const foodPreference = foodNeed && state.entities.find((person) => person.id === c.entityId)?.skills?.[JobType.Farmer] ? 4 : 0;
+      const defensePreference = securityNeed ? Math.min(12, (state.entities.find((person) => person.id === c.entityId)?.battleLeadershipMerit ?? 0) / 5) : 0;
+      const support = c.totalScore * c.supportFactor + bond + occupationAffinity + foodPreference + defensePreference;
       supports.push({ entityId: c.entityId, support });
       if (support > maxSupport) maxSupport = support;
     }
@@ -81,7 +88,7 @@ export function simulateElectionVotes(
         Math.exp((candidate.support - maxSupport) / VOTE_SUPPORT_TEMPERATURE),
       );
       const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-      let roll = seededRandomForRun(`election-vote:${state.year}:${state.lastElectionYear ?? 'none'}:${voter.id}`) * totalWeight;
+      let roll = seededRandomForRun(`election-vote:${electionId}:${state.year}:${voter.id}`) * totalWeight;
       let chosenIndex = weights.length - 1;
       for (let i = 0; i < weights.length; i++) {
         roll -= weights[i];
