@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
 /**
  * Workforce authority — SIMULATION_AUTHORITY.md §3 workforce row + Objective 4.
  *
@@ -37,7 +38,7 @@ import {
   removeWorkerFromBuilding,
 } from '../src/game/buildingActions';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
-import { HUMAN_CHILDHOOD_YEARS, setHumanBirthFromAge } from '../src/game/dayCycle';
+import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
