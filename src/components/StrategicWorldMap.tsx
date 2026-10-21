@@ -54,7 +54,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
               <circle cx={target.x} cy={target.y} r="12" fill={rival.relationship === 'tense' ? '#8e3333' : '#756241'} stroke="#ead4a2" strokeWidth="1.5" />
               <text x={target.x} y={target.y + 4} fontSize="11" textAnchor="middle" fill="white">◆</text>
               <text x={target.x} y={target.y + 25} fontSize="11" textAnchor="middle" fill="#f9deb2" stroke="#16201a" strokeWidth="3" paintOrder="stroke">{rival.name}</text>
-              <text x={target.x} y={target.y + 38} fontSize="9" textAnchor="middle" fill="#e6dbbf">{rival.relationship} · {rival.population} people</text>
+              <text x={target.x} y={target.y + 38} fontSize="9" textAnchor="middle" fill="#e6dbbf">{rival.atWarWithPlayer ? 'AT WAR' : rival.relationship} · {rival.population} people</text>
             </g>
           );
         })}
@@ -90,7 +90,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar }: 
           return (
             <div key={rival.id} className="rounded-lg border border-stone-700 bg-stone-900/80 p-2">
               <button type="button" className="w-full text-left text-[12px] font-semibold text-amber-200 hover:underline" onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])}>
-                {rival.name} · {rival.relationship}
+                {rival.name} · {rival.atWarWithPlayer ? 'AT WAR' : rival.relationship}
               </button>
               <p className="text-[10px] text-stone-400">{rival.population} residents · rival settlement</p>
               <div className="mt-2 flex gap-2">
