@@ -34,6 +34,7 @@ import type { HumanActivityTarget } from './humanStatus';
 import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
 import type { SettlerWorkReason } from './workAbsence';
 import { getSettlerWorkReason } from './workAbsence';
+import { buildSchoolRosters } from './education';
 import { pickSocialImpulse } from './socialLife';
 import { getRouteObstruction } from './pathfinding';
 import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
@@ -74,7 +75,7 @@ export interface DashboardSettler {
   noWork: boolean;
   /** No residence assigned (homeless). */
   noHome: boolean;
-  status: 'working' | 'idle' | 'prison' | 'leader' | 'home' | 'none';
+  status: 'working' | 'idle' | 'at school' | 'going to school' | 'prison' | 'leader' | 'home' | 'none';
   /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
   workReason: SettlerWorkReason;
 }
@@ -466,6 +467,16 @@ export function collectDashboard(state: WorldState): DashboardData {
   const foodProducedToday = foodLedger.producedTotal;
   const foodConsumedToday = foodLedger.consumedTotal;
 
+  // Use the same roster and class-time rules as the school inspector, once per snapshot.
+  const schoolRosters = buildSchoolRosters(state.buildings, state.entities, state.tick, getHourOfDay(state.tick));
+  const inClassIds = new Set<number>();
+  const onWayToSchoolIds = new Set<number>();
+  for (const roster of schoolRosters.values()) {
+    for (const pupil of roster.inClassNow) inClassIds.add(pupil.id);
+    // A reserved seat is not evidence of attendance outside class hours.
+    for (const pupil of roster.pupils) onWayToSchoolIds.add(pupil.id);
+  }
+  const classInSession = schoolRosters.size > 0 && isOnWorkScheduleShift(state.tick, getHourOfDay(state.tick));
   const settlers: DashboardSettler[] = [];
   /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
   const postedReasons: SettlerWorkReason[] = [];
@@ -494,7 +505,11 @@ export function collectDashboard(state: WorldState): DashboardData {
       // purpose, so that absence is not a player-actionable gap (same rule as `noWork` above, and the
       // residence owner's own {@link isHomelessSettler}).
       noHome: isHomelessSettler(e),
-      status: settlerStatus(e),
+      status: e.isJuvenile && classInSession && inClassIds.has(e.id)
+        ? 'at school'
+        : e.isJuvenile && classInSession && onWayToSchoolIds.has(e.id)
+          ? 'going to school'
+          : settlerStatus(e),
       workReason,
     });
   }
