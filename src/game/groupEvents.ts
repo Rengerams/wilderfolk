@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
   DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice, VillageRequest, VillageRequestHistoryEntry,
