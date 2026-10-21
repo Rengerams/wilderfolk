@@ -519,10 +519,10 @@ function persistBattleAftermath(
     stone: Math.max(0, before.resources.stone - after.resources.stone),
   };
   const leaderId = before.villageLeaderId;
-  const notableDefense = side === 'defense' && (outcome === 'decisive' || outcome === 'narrow') && forceRatio >= 0.45;
+  const notableDefense = side === 'defense' && (outcome === 'decisive' || outcome === 'narrow') && forceRatio <= 2.5;
   let leadershipMerit = 0;
   if (side === 'defense') {
-    if (notableDefense) leadershipMerit = forceRatio < 0.75 ? 60 : outcome === 'narrow' ? 20 : 40;
+    if (notableDefense) leadershipMerit = forceRatio <= 1.05 ? 60 : outcome === 'narrow' ? 20 : 40;
     else if (outcome === 'defeat') leadershipMerit = -25;
   } else if (outcome === 'success' && forceRatio <= 4) {
     leadershipMerit = forceRatio <= 1.5 ? 30 : forceRatio <= 2.5 ? 25 : 15;
