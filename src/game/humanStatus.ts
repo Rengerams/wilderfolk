@@ -6,7 +6,7 @@
  * "At Market", "Hunting", etc.
  */
 import type { Building, Entity, WorldState } from './gameTypes';
-import { BuildingType, JobType } from './gameTypes';
+import { JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
 import { EVENING_START, prefersHomeTonight } from './dayCycle';
 import { isFestivalGatherer } from './humanSchedule';
@@ -15,25 +15,6 @@ import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
 import { BUILDING_CONFIGS } from './gameTypes';
 import { WORK_ARRIVE_DISTANCE, getSettlerWorkReason, type SettlerWorkReason } from './workAbsence';
-
-/** Distance under which a human is considered "at" a nearby building. */
-const NEAR_BUILDING_DISTANCE = 48;
-
-function nearestBuilding(state: WorldState, entity: Entity): Building | null {
-  let best: Building | null = null;
-  let bestDist = NEAR_BUILDING_DISTANCE;
-  for (const b of state.buildings) {
-    if (!b.completed || b.faction === 'rival') continue;
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    const d = Math.hypot(entity.x - cx, entity.y - cy);
-    if (d <= bestDist) {
-      bestDist = d;
-      best = b;
-    }
-  }
-  return best;
-}
 
 function labelFor(building: Building): string {
   return BUILDING_CONFIGS[building.type]?.label ?? 'Building';
@@ -89,11 +70,14 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
   const workplace = findHumanWorkplace(entity, state.buildings);
-  const onWorkSchedule = workplace != null && isOnWorkScheduleShift(state, hourOfDay);
+  const onWorkSchedule = !entity.isJuvenile && workplace != null && isOnWorkScheduleShift(state, hourOfDay);
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
   if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule, entity.job === JobType.Innkeeper)) {
     return 'Gathering at festival';
   }
+
+  if (!entity.isJuvenile && entity.combatTicks != null && entity.combatTicks > 0) return 'In combat';
+  if (!entity.isJuvenile && entity.huntTargetId != null) return 'Hunting';
 
   // Assigned workplace during the configured work shift.
   if (workplace && onWorkSchedule) {
@@ -112,14 +96,15 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     && !onWorkSchedule;
   if (isEveningOuting) return 'Socialising — evening outing';
 
-  // Otherwise: use the building the human is standing near.
-  const near = nearestBuilding(state, entity);
-  if (near) {
-    const label = labelFor(near);
-    if (near.id === entity.residenceBuildingId) return `At home (${label})`;
-    if (near.type === BuildingType.Tavern || near.type === BuildingType.Hotel) return `Relaxing at ${label}`;
-    if (near.type === BuildingType.HuntingSpot) return 'At Hunting Spot';
-    return `At ${label}`;
+  // Home is a real residence assignment, not proximity to a random building.
+  if (entity.residenceBuildingId != null) {
+    const residence = state.buildings.find((b) => b.id === entity.residenceBuildingId && b.completed);
+    if (residence) {
+      const point = humanBuildingTarget(residence, entity.id, true);
+      if (Math.hypot(point.x - entity.x, point.y - entity.y) <= WORK_ARRIVE_DISTANCE) {
+        return `At home (${labelFor(residence)})`;
+      }
+    }
   }
 
   // Not near any building but has a home → likely walking home (or away).
@@ -132,7 +117,7 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     }
   }
 
-  return 'Idle';
+  return entity.isJuvenile ? 'Free time' : 'Idle';
 }
 
 /**
@@ -147,14 +132,13 @@ export function getHumanActivityProjection(
 ): HumanActivityProjection {
   const hour = getHourOfDay(state.tick);
   const schedule = getWorkSchedule(state);
-  const workplace = findHumanWorkplace(entity, state.buildings);
+  const workplace = entity.isJuvenile ? undefined : findHumanWorkplace(entity, state.buildings);
   const homeBuilding = entity.residenceBuildingId == null
     ? null
     : state.buildings.find((building) => building.id === entity.residenceBuildingId) ?? null;
   const activity = getHumanActivityStatus(state, entity);
-  const near = nearestBuilding(state, entity);
   const target: HumanActivityTarget | null = (() => {
-    if (workplace && isOnWorkScheduleShift(state, hour)) {
+    if (!entity.isJuvenile && workplace && isOnWorkScheduleShift(state, hour)) {
       const point = humanBuildingTarget(workplace, entity.id, false);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }
@@ -165,27 +149,18 @@ export function getHumanActivityProjection(
     if (eveningOuting) {
       return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };
     }
-    if (entity.huntTargetId != null) {
+    if (!entity.isJuvenile && entity.huntTargetId != null) {
       const huntTarget = state.entities.find((candidate) => candidate.id === entity.huntTargetId && candidate.alive);
       if (huntTarget) {
         return { kind: 'hunt', label: huntTarget.name || huntTarget.type, entityId: huntTarget.id, x: huntTarget.x, y: huntTarget.y };
       }
     }
-    if (entity.combatTicks != null && entity.combatTicks > 0) {
+    if (!entity.isJuvenile && entity.combatTicks != null && entity.combatTicks > 0) {
       return { kind: 'combat', label: 'Combat', x: entity.x, y: entity.y };
     }
     if (activity === 'Walking home' && homeBuilding) {
       const point = humanBuildingTarget(homeBuilding, entity.id, true);
       return { kind: 'home', label: labelFor(homeBuilding), buildingId: homeBuilding.id, ...point };
-    }
-    if (near) {
-      return {
-        kind: near.id === entity.residenceBuildingId ? 'home' : 'nearby-building',
-        label: labelFor(near),
-        buildingId: near.id,
-        x: near.x + near.width / 2,
-        y: near.y + near.height / 2,
-      };
     }
     return null;
   })();
