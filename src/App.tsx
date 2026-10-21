@@ -1486,8 +1486,11 @@ export default function App() {
                           <span> · {evt.marchDistanceTiles} tiles march</span>
                         )}
                       </p>
+                      {evt.phase === 'marching' && <p className="mt-2 text-xs font-semibold text-amber-200">War-band marching — {evt.soldierIds?.length ?? 0} soldiers deployed. Battle decisions unlock at arrival.</p>}
+                      {evt.phase === 'returning' && <p className="mt-2 text-xs font-semibold text-emerald-200">War-band returning. Surviving soldiers rejoin village defense when they reach home.</p>}
+                      {evt.phase !== 'returning' && <button type="button" className="mt-2 rounded bg-amber-800 px-3 py-1.5 text-xs font-bold text-white" onClick={() => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId: evt.id, choiceId: 'recall' })}>Recall Army</button>}
                       <div className="mt-2 grid grid-cols-1 gap-1">
-                        {evt.choices.map((choice) => (
+                        {(evt.phase === 'engaging' || !evt.phase ? evt.choices : []).map((choice) => (
                           <button
                             key={choice.id}
                             type="button"
