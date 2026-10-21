@@ -1,6 +1,6 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
-import { TICKS_PER_DAY, killHuman } from './dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
@@ -1501,6 +1501,7 @@ function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void
   if (rival) {
     const initial = raidArmy(state, event).length;
     const enemyBefore = rival.population;
+    const beforeBattle = structuredClone(state);
     resolveOutgoingRaidCombat(state, rival, event);
     const survivors = raidArmy(state, event).length;
     const narrative = `Battle ended: ${Math.max(0, initial - survivors)} of our soldiers lost, ${Math.max(0, enemyBefore - rival.population)} defenders lost. ${survivors} soldiers are returning home.`;
@@ -1508,7 +1509,7 @@ function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void
     logEvent(state, 'combat', narrative, rival.name, 'outgoing_raid', 'casualties');
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
     const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
-    persistBattleAftermath(state, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
+    persistBattleAftermath(beforeBattle, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
   }
   event.phase = 'returning';
   event.returnStartedAtTick = state.tick;
@@ -1581,7 +1582,7 @@ export function respondToOutgoingRaidEvent(
   }
 
   if (choiceId === 'recall') {
-    if (event.phase === 'returning') return state;
+    if (event.phase === 'returning' || event.phase === 'fighting') return state;
     const outbound = Math.max(1, (event.arrivalAtTick ?? event.expiresAtTick) - (event.launchedAtTick ?? event.createdAtTick));
     const travelled = Math.max(1, Math.min(outbound, state.tick - (event.launchedAtTick ?? event.createdAtTick)));
     event.phase = 'returning';
