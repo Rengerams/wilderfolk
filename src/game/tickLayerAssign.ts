@@ -1,7 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isResidenceBuilding } from './residencyOccupancy';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { TickContext } from './simulation/simulationTypes';
 import {
   syncResidenceOccupants,
