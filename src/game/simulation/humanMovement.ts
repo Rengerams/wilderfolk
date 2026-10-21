@@ -108,8 +108,9 @@ const VENUE_GATHER_ARC_GAP_PX = 10;
  * so family members and roommates do not overlap sprites or get hidden behind the roof.
  */
 export function homeStandPosition(building: Building, entityId: number): { x: number; y: number } {
-  const cx = building.x + building.width / 2;
-  const cy = building.y + building.height / 2;
+  // Building coordinates are already the centre of the footprint.
+  const cx = building.x;
+  const cy = building.y;
   const seed = Math.abs(entityId * 17 + building.id * 31);
 
   // Bias angle toward the south (front yard / porch arc: 30° to 150°)
