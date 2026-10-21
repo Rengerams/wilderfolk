@@ -710,8 +710,9 @@ function applyRaidCasualties(
   tier: RaidCasualtyTier,
   rivalName: string,
   mode: 'defending' | 'raiding' = 'defending',
+  selectedIds?: ReadonlySet<number>,
 ): number {
-  const pool = entities.filter((e) => canBeMustered(e));
+  const pool = entities.filter((e) => selectedIds ? selectedIds.has(e.id) && e.alive : canBeMustered(e));
   if (pool.length === 0) return 0;
 
   const [minK, maxK] = getRaidCasualtyBounds(tier, pool.length);
@@ -1543,7 +1544,6 @@ export function respondToOutgoingRaidEvent(
   if (event.phase === 'returning' || event.phase === 'marching') return state;
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
   const remove = () => {
-    releaseRaidSoldiers(state, event.id);
     state.pendingOutgoingRaidEvents = state.pendingOutgoingRaidEvents!.filter((e) => e.id !== eventId);
     if (cancelPendingRaidsForRival(state, event.rivalId)) {
       logEvent(
@@ -1581,6 +1581,7 @@ export function respondToOutgoingRaidEvent(
       'resolved',
     );
     remove();
+    releaseRaidSoldiers(state, event.id);
     return state;
   }
 
@@ -1589,6 +1590,7 @@ export function respondToOutgoingRaidEvent(
     if (choiceId === 'fight' && event.rivalResponse !== 'fight') return state;
     remove();
     resolveOutgoingRaidCombat(state, rival, event);
+    releaseRaidSoldiers(state, event.id);
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
     const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
     persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
