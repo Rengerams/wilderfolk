@@ -78,7 +78,7 @@ vi.mock('../src/game/prisonGuardDuty', async () => {
   };
 });
 
-import { gameTick } from '../src/game/gameTick';
+
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { LAYER_SYSTEMS_INTERVAL } from '../src/game/tickLayerSystems';
 import { LAYER_ASSIGN_INTERVAL } from '../src/game/tickLayerAssign';
@@ -144,7 +144,9 @@ function world(startTick: number): WorldState {
   } as unknown as WorldState;
 }
 
-function runTicks(fromTick: number, count: number): void {
+async function runTicks(fromTick: number, count: number): Promise<void> {
+  vi.resetModules();
+  const { gameTick } = await import('../src/game/gameTick');
   let state = world(fromTick);
   for (let i = 0; i < count; i++) {
     state = gameTick(state);
@@ -166,14 +168,14 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(LAYER_ASSIGN_INTERVAL).toBe(18);
   });
 
-  it('calls the four layers in fixed order on a full-stack tick (72)', () => {
-    runTicks(0, 72);
+  it('calls the four layers in fixed order on a full-stack tick (72)', async () => {
+    await runTicks(0, 72);
     const tail = callLog.calls.slice(-4);
     expect(tail).toEqual(['realtime@72', 'systems@72', 'prison-presence@72', 'daily@72']);
   });
 
-  it('runs each layer only on its declared interval over 216 ticks (3 days)', () => {
-    runTicks(0, 216); // 216 = 3 × TICKS_PER_DAY
+  it('runs each layer only on its declared interval over 216 ticks (3 days)', async () => {
+    await runTicks(0, 216); // 216 = 3 × TICKS_PER_DAY
     const count = (name: string) => callLog.calls.filter((c) => c.startsWith(`${name}@`)).length;
 
     expect(count('realtime')).toBe(216); // every tick
@@ -183,28 +185,28 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
     expect(count('daily')).toBe(216 / (TICKS_PER_DAY / 4)); // four daily phases
   });
 
-  it('fires no daily tick before the first day boundary', () => {
-    runTicks(0, TICKS_PER_DAY / 4 - 1);
+  it('fires no daily tick before the first day boundary', async () => {
+    await runTicks(0, TICKS_PER_DAY / 4 - 1);
     expect(callLog.calls.some((c) => c.startsWith('daily@'))).toBe(false);
   });
 
-  it('runs assignment at 03:00, 09:00, 15:00 and 21:00, never midnight', () => {
-    runTicks(0, 72);
+  it('runs assignment at 03:00, 09:00, 15:00 and 21:00, never midnight', async () => {
+    await runTicks(0, 72);
     const assignments = callLog.calls.filter((c) => c.startsWith('assign@'));
     expect(assignments).toEqual(['assign@9', 'assign@27', 'assign@45', 'assign@63']);
   });
 
-  it('daily runs exactly once per colony day at the day boundary', () => {
-    runTicks(0, 3 * TICKS_PER_DAY);
+  it('daily runs exactly once per colony day at the day boundary', async () => {
+    await runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
     expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * 18}`));
   });
 
-  it('produces an identical trace on repeated runs (deterministic schedule)', () => {
-    runTicks(0, 216);
+  it('produces an identical trace on repeated runs (deterministic schedule)', async () => {
+    await runTicks(0, 216);
     const first = [...callLog.calls];
     callLog.calls.length = 0;
-    runTicks(0, 216);
+    await runTicks(0, 216);
     expect(callLog.calls).toEqual(first);
   });
 });
