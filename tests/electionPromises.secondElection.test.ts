@@ -66,6 +66,34 @@ describe('election promises survive a second election in the same year (M7)', ()
     expect(getActiveElectionPromises(state), 'the succession promises were never judged').toBeNull();
   });
 
+  it('keeps overlapping promises attached to their original leaders and elections', () => {
+    const state = world();
+    const humans = state.entities.filter((person) => person.alive && person.type === 'human' && !person.faction);
+    if (humans.length < 2) return;
+    const [first, second] = humans;
+    state.villageLeaderId = first.id;
+    state.lastElectionResult = { electionId: 11, winnerId: first.id, ballots: 2, tally: {}, turnout: 2, eligibleVoters: 2 };
+    recordElectionPromises(state, YEAR);
+
+    setColonyDay(state, YEAR * DAYS_PER_YEAR + 20);
+    state.villageLeaderId = second.id;
+    state.lastElectionResult = { electionId: 12, winnerId: second.id, ballots: 2, tally: {}, turnout: 2, eligibleVoters: 2 };
+    recordElectionPromises(state, YEAR);
+
+    expect(state.electionPromiseRecords).toHaveLength(2);
+    expect(state.electionPromiseRecords?.map((record) => record.electionId)).toEqual([11, 12]);
+    expect(state.electionPromiseRecords?.map((record) => record.leaderId)).toEqual([first.id, second.id]);
+
+    setColonyDay(state, YEAR * DAYS_PER_YEAR + EVAL_DAY_OFFSET);
+    tickElectionPromises(state);
+    expect(state.electionPromiseRecords?.[0]?.evaluated).toBe(true);
+    expect(state.electionPromiseRecords?.[1]?.evaluated).toBe(false);
+
+    setColonyDay(state, YEAR * DAYS_PER_YEAR + 20 + EVAL_DAY_OFFSET);
+    tickElectionPromises(state);
+    expect(state.electionPromiseRecords?.[1]?.evaluated).toBe(true);
+  });
+
   it('treats an election held in the founding year as an election', () => {
     // Year 0 is the founding year — a real election year — and it is also what an unrecorded promise set
     // reads, so the year cannot be the "nothing was promised" test. The evaluation day is.
