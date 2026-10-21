@@ -9,7 +9,7 @@ export const RENDER_HEADER_WORDS = 8;
 /** Words per alive entity row — append-only when bumping version. */
 export const RENDER_STRIDE_V1 = 16;
 
-export const RENDER_MAX_SLOTS = 1500;
+export const RENDER_MAX_SLOTS = 3000;
 
 export const RENDER_FIELD = {
   id: 0,
