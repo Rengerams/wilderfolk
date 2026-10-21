@@ -599,20 +599,5 @@ export function applySimTickDelta(
   }
 }
 
-function applyCatalogPatch(existing: Entity, patch: Entity): void {
-  for (const key of CATALOG_PATCH_KEYS) {
-    const value = patch[key];
-    const clearable = (CATALOG_CLEARABLE_KEYS as readonly string[]).includes(key);
-    if (value === undefined && !clearable) continue;
-    if (key === 'skills') {
-      existing.skills = structuredClone(patch.skills ?? {});
-      continue;
-    }
-    if (key === 'traits' || key === 'childhoodFriendsIds') {
-      (existing as unknown as Record<string, unknown>)[key] = value ? structuredClone(value) : undefined;
-      continue;
-    }
-    (existing as unknown as Record<string, unknown>)[key] = value;
-  }
-}
+
 
