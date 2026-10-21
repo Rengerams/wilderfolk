@@ -74,7 +74,7 @@ export function getRefugeeWelcomeBonus(buildings: Building[]): number {
 export function tickTownHallCivic(
   state: WorldState,
   building: Building,
-  playerHumans: Entity[],
+  _playerHumans: Entity[],
 ): void {
   const officials = building.occupants.length;
   const skill = getTownHallOfficialSkillAvg(state, building);
