@@ -285,8 +285,12 @@ export function refundBuildingCost(
   };
 }
 
-export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
+/**
+ * Worker-authoritative demolition. The worker already owns its state, so cloning
+ * the entire save (entities, world map and all) for one building is unnecessary.
+ * Keep the immutable wrapper below for direct callers and tests.
+ */
+export function demolishBuildingInPlace(state: WorldState, buildingId: number): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return state;
 
@@ -309,4 +313,9 @@ export function demolishBuilding(originalState: WorldState, buildingId: number):
   removeBuildingFromState(state, building);
   reconcileAssignmentsAfterBuildingRemoval(state);
   return state;
+}
+
+/** Immutable public API used outside the worker-command owner. */
+export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
+  return demolishBuildingInPlace(structuredClone(originalState), buildingId);
 }
