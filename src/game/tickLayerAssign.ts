@@ -1,5 +1,7 @@
 import type { WorldState } from './gameTypes';
-import { EntityType, BuildingType } from './gameTypes';
+import { EntityType } from './gameTypes';
+import { isResidenceBuilding } from './residencyOccupancy';
+import { HUMAN_MOVE_OUT_MIN_AGE } from './residencyOccupancy';
 import type { TickContext } from './simulation/simulationTypes';
 import {
   syncResidenceOccupants,
@@ -33,15 +35,14 @@ function housingSignature(world: WorldState, humans: readonly WorldState['entiti
   const parts: (number | string)[] = [];
   for (const building of world.buildings) {
     if (building.faction === 'rival') continue;
-    if (building.type !== BuildingType.House && building.type !== BuildingType.Mansion
-      && building.type !== BuildingType.Villa && building.type !== BuildingType.LeaderHouse) continue;
+    if (!isResidenceBuilding(building)) continue;
     parts.push(building.id, building.completed ? 1 : 0, building.level);
   }
   for (const h of humans) {
     if (!h.alive || h.faction) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
-      h.age, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
+      h.age >= HUMAN_MOVE_OUT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
   }
   return parts.join(',');
 }
