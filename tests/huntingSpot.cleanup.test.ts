@@ -37,7 +37,7 @@ vi.mock('../src/game/simulation/simulationEntities', async (importOriginal) => {
 
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
-import { seededRandomForRun, setSimSeed } from '../src/game/simRng';
+import { setSimSeed } from '../src/game/simRng';
 
 /**
  * These fixtures are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
@@ -204,20 +204,24 @@ describe('Hunting Spot wildlife cleanup', () => {
   it('uses the shared cleanup transitions when its daily hunt succeeds', () => {
     cleanupSpies.markWildlifeDead.mockClear();
     cleanupSpies.clearHuntersTargetingPrey.mockClear();
-    // Hunting accuracy uses a stateless seeded roll, not Math.random.
-    // Find a deterministic colony seed with a hit; the test is about cleanup, not misses.
-    const hitSalt = `hunt:10:${TICKS_PER_DAY + TICKS_PER_DAY / 2}:2:success`;
-    let hitSeed = 1;
-    for (; hitSeed < 10_000; hitSeed++) {
-      setSimSeed(hitSeed);
-      if (seededRandomForRun(hitSalt) < 0.85) break;
+    // Choose a real successful hunt, including the actual weekday/attendance
+    // gates and the hunter's movement. A favourable RNG roll alone is not a kill.
+    let success: { state: WorldState; after: WorldState; huntTick: number } | undefined;
+    for (let day = 1; day <= 22 && !success; day++) {
+      for (let seed = 1; seed <= 16 && !success; seed++) {
+        setSimSeed(seed);
+        const state = makeState();
+        state.tick = day * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+        const after = gameTick(state);
+        if (!after.entities.some((entity) => entity.id === 2)) {
+          success = { state, after, huntTick: state.tick };
+        }
+      }
     }
-    expect(hitSeed).toBeLessThan(10_000);
+    expect(success, 'no legitimate hunting-spot kill found in workday candidates').toBeDefined();
 
     {
-      setSimSeed(hitSeed);
-      const state = makeState();
-      const after = gameTick(state);
+      const { state, after, huntTick } = success!;
 
       // Wildlife is marked dead through the shared transition and then removed
       // from the authoritative entity collection at the end of the tick.
@@ -226,7 +230,7 @@ describe('Hunting Spot wildlife cleanup', () => {
         expect.anything(),
         expect.objectContaining({ id: 2, type: EntityType.Deer }),
         undefined,
-        TICKS_PER_DAY + TICKS_PER_DAY / 2,
+        huntTick,
         // The world, so a Wildkin's death can be chronicled from the one transition every wildlife
         // death passes through (wildkinChronicle.logWildkinDeath).
         state,
