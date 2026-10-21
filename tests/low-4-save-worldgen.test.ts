@@ -167,6 +167,22 @@ describe('worldGen lows', () => {
 });
 
 describe('daily lows', () => {
+  it('replenishes extinct wildlife on the three-day world-events phase', () => {
+    const world = initGame({ seed: 128, size: MapSize.Medium });
+    world.entities = world.entities.filter((entity) => ![
+      EntityType.Rabbit, EntityType.Deer, EntityType.Fox, EntityType.Wolf,
+    ].includes(entity.type));
+    world.wildlifeCounts = { ...world.wildlifeCounts, rabbits: 0, deer: 0, foxes: 0, wolves: 0 };
+    world.tick = tickAtDailyPhase(3, 'worldEvents') - 1;
+    const next = gameTick(world);
+    expect(next.tick).toBe(tickAtDailyPhase(3, 'worldEvents'));
+    expect(countType(next, EntityType.Rabbit)).toBeGreaterThan(0);
+    expect(countType(next, EntityType.Deer)).toBeGreaterThan(0);
+    expect(countType(next, EntityType.Fox)).toBeGreaterThan(0);
+    expect(countType(next, EntityType.Wolf)).toBeGreaterThan(0);
+  });
+
+
   it('L12 — createImmigrantSettler already caps a family at the passed slot count', () => {
     const world = initGame({ seed: 77, size: MapSize.Medium });
     // With a single free slot the family roll is impossible, so the "admit only 1 of a couple"
