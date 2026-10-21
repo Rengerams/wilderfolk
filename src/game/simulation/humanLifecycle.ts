@@ -170,6 +170,8 @@ export function tickPregnancyAndBirth(
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,
+    ageYears: 0,
+    colonyDay: getColonyDay(state),
     fatherId: biologicalFatherIdAtBirth,
     motherId: entity.id,
     generation: babyGen,
