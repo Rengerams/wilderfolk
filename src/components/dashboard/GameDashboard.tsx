@@ -41,6 +41,8 @@ function sourceLabel(key: string): string {
 
 const STATUS_STYLE: Record<string, string> = {
   working: 'text-emerald-300',
+  'at school': 'text-sky-300',
+  'going to school': 'text-cyan-300',
   idle: 'text-stone-400',
   prison: 'text-rose-300',
 };
