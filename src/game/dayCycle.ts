@@ -266,6 +266,10 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     if (entity.type !== EntityType.Human) continue;
     if (entity.age >= HUMAN_CHILDHOOD_YEARS) continue;
     entity.isJuvenile = true;
+    // Children cannot retain work attendance or fatigue from invalid legacy assignments.
+    entity.scheduleWorkedTicksToday = 0;
+    entity.scheduleLastWorkedHours = 0;
+    entity.scheduleFatigue = 0;
     // Premature graduations from older builds are invalid: schooling lasts until 18.
     // Reset only prematurely graduated pupils; ordinary school attendance remains.
     if (entity.educated) {
