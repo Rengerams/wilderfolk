@@ -137,7 +137,7 @@ describe('a night of hotel lodging is announced once', () => {
     invalidateEntityByIdMap(state);
 
     tickHotelLodging(state);
-    const afterFirstNight = state.notifications.filter((note) => note.title === 'Hotel full of guests');
+    const afterFirstNight = state.notifications.filter((note) => note.title === 'Hotel lodging occupancy');
     expect(afterFirstNight).toHaveLength(1);
 
     const secondBatch = ids.slice(HOTEL_GUEST_CAPACITY);
@@ -150,8 +150,29 @@ describe('a night of hotel lodging is announced once', () => {
 
     tickHotelLodging(state);
 
-    expect(state.notifications.filter((note) => note.title === 'Hotel full of guests')).toHaveLength(1);
+    expect(state.notifications.filter((note) => note.title === 'Hotel lodging occupancy')).toHaveLength(1);
     expect(state.eventLog.filter((entry) => entry.message.startsWith('Hotel lodging'))).toHaveLength(1);
+  });
+});
+
+describe('citywide hotel occupancy reporting', () => {
+  it('reports occupied beds across hotels even when no visitors are waiting to check in', () => {
+    const state = initGame();
+    const first = hotel(100, 300, 300);
+    const second = hotel(101, 700, 300);
+    const guests = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) =>
+      visitor(500 + index, 300, 300));
+    first.hotelGuestIds = guests.map((guest) => guest.id);
+    state.entities = guests;
+    state.buildings = [first, second];
+    state.tick = TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
+    invalidateEntityByIdMap(state);
+
+    tickHotelLodging(state);
+
+    expect(state.eventLog.some((event) =>
+      event.message.includes(`8/${HOTEL_GUEST_CAPACITY * 2} beds occupied across 2 hotels (1 full)`)
+    )).toBe(true);
   });
 });
 
