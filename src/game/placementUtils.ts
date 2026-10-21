@@ -72,11 +72,13 @@ export function isFootprintOnBuildableTerrain(
 
   if (startTx > endTx || startTy > endTy) return false;
 
+  const reinforcement = buildingType === BuildingType.GroundReinforcement;
   const bridge = buildingType === BuildingType.Bridge;
   const fishing = buildingType === BuildingType.FishingSpot;
   let riverCells = 0;
   let waterCells = 0;
   let cells = 0;
+  let unstableCells = 0;
 
   for (let ty = startTy; ty <= endTy; ty++) {
     for (let tx = startTx; tx <= endTx; tx++) {
@@ -84,7 +86,10 @@ export function isFootprintOnBuildableTerrain(
       const tile = tileAt(snapshot.worldMap, tx, ty);
       if (!tile) return false;
       cells++;
-      if (bridge) {
+      if (reinforcement) {
+        if (tile.type === TerrainType.DeepWater || tile.type === TerrainType.River) return false;
+        if (isUnbuildableTerrainType(tile.type)) unstableCells++;
+      } else if (bridge) {
         if (!RIVER_PLACE_TERRAIN.has(tile.type)) return false;
         if (tile.type === TerrainType.River) riverCells++;
       } else if (fishing) {
@@ -96,6 +101,7 @@ export function isFootprintOnBuildableTerrain(
       }
     }
   }
+  if (reinforcement) return unstableCells > 0;
   if (bridge) {
     // Must span actual river water, not only dry bank
     return riverCells >= 1 && cells > 0;
