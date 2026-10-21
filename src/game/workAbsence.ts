@@ -174,6 +174,7 @@ export function getSettlerWorkReason(state: WorldState, entity: Entity): Settler
   if (!entity.alive) return { code: 'dead', label: 'Dead' };
   if (isImprisoned(entity)) return { code: 'in-prison', label: 'In prison' };
   if (entity.raidDeploymentId) return { code: 'deployed', label: 'Away with the war-band' };
+  if (entity.isJuvenile) return { code: 'no-post', label: 'Child — too young for a post' };
 
   const hour = getHourOfDay(state.tick);
   const buildings = state.buildings;
