@@ -1,18 +1,10 @@
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
   DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice, VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
 import { EntityType, BuildingType, BUILDING_CONFIGS, JobType } from './gameTypes';
-import {
-  assignMissingResidences,
-  getAbsoluteCalendarDay,
-  getColonyDay,
-  HUMAN_ADULT_MIN_AGE,
-  HUMAN_MAX_LIFESPAN_YEARS,
-  isNewCalendarDayTick,
-  syncResidenceOccupants,
-  TICKS_PER_DAY,
-} from './dayCycle';
+import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
