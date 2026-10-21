@@ -148,6 +148,24 @@ function occupantsById(state: WorldState): Array<[number, number[]]> {
   return state.buildings.map((b) => [b.id, [...b.occupants]]);
 }
 
+describe('residence ownership classification', () => {
+  it('includes explicitly player-owned humans but excludes visiting and rival humans', () => {
+    const player = settler(901, HOUSE_ONE_ID);
+    player.faction = 'player' as Entity['faction'];
+    const visitor = settler(902, HOUSE_ONE_ID);
+    visitor.faction = 'visitor';
+    const rival = settler(903, HOUSE_ONE_ID);
+    rival.faction = 'rival';
+    const home = finishedBuilding(HOUSE_ONE_ID, BuildingType.House);
+
+    expect(isResidenceOccupantEntity(player)).toBe(true);
+    expect(isResidenceOccupantEntity(visitor)).toBe(false);
+    expect(isResidenceOccupantEntity(rival)).toBe(false);
+    syncResidenceOccupants([player, visitor, rival], [home]);
+    expect(home.occupants).toEqual([player.id]);
+  });
+});
+
 describe('syncResidenceOccupants is equivalent to its pre-N-7 body (N-7)', () => {
   it('buckets in one pass and keeps the humans-array order of every occupant list', () => {
     const source = buildVillage();
