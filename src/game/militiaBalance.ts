@@ -100,7 +100,7 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
  * (`docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M1).
  */
 export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier;
+  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
 }
 
 function countMusterableAdults(entities: Entity[]): number {
