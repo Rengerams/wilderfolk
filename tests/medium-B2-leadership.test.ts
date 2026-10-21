@@ -140,7 +140,7 @@ describe('M18 leader household composition', () => {
     expect(marriedChild.residenceBuildingId).toBe(11); // married adults keep their own household
     expect(singleAdultChild.residenceBuildingId).toBe(10);
     expect(manor.occupants).toEqual(expect.arrayContaining([1, 2, 3]));
-    expect(manor.occupants).toContain(4);
+    expect(manor.occupants).not.toContain(4);
     expect(manor.occupants).toContain(6);
     expect(
       state.eventLog.filter((e) => e.message.includes("moved into the Leader's House")),
