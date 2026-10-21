@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** wildlife viewport culling respects foot-anchored sprite bounds; build-zone blocker and snap markers follow 2.5D terrain rise; spousal connection markers remain visible while married couples are expecting.
+- **Improved:** name-width measurements no longer key redundantly by zoom, and visitor/rival camp highlight pulses render in the per-frame overlay while static camp markers remain cached.
 - **Fixed:** step validation and straight-line obstruction now seed elevation from the origin tile, preventing first-boundary cliff traversal; A* waypoint smoothing checks diagonal side cells so wall corners cannot be cut. Added regression tests for steep first steps and corner obstructions.
 - **Fixed:** strip-built wall corners preserve 180°/270° rotations; demolition immediately recalculates resource-storage limits and invalidates population-bed snapshots; repair/demolition particles appear at the true building centre.
 - **Fixed:** manually unassigning a workplace employee switches the workplace to manual staffing, preventing instant auto-refill. Bulk Fill Workers now emits one consolidated notification and floating label rather than a notification for each worker.
