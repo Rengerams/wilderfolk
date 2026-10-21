@@ -35,6 +35,7 @@ import { tickEcosystemMetrics } from './dailyEcology';
 import { tickValleyEcologyStage } from './ecologyStage';
 import { decayIdleSkills } from './skills';
 import { getSimRng } from './simRng';
+import { syncGenealogyRegistry } from './genealogyRegistry';
 
 /**
  * A festival the simulation can actually run, or `null`.
@@ -146,6 +147,7 @@ function tickFestivals(state: WorldState, counts: PopulationCounts): void {
 
 
 export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAlive: Entity[], counts: PopulationCounts): void {
+  syncGenealogyRegistry(state);
   // Catch burials delayed by missing or full graveyards; constant-time when none await.
   assignPendingGraves(state);
   // Frontier systems
