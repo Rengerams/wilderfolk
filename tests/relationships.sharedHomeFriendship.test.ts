@@ -137,9 +137,9 @@ describe('close friendships are capped per settler', () => {
     expect(close, 'some close bonds formed').toBeGreaterThan(0);
   });
 
-  it('does not prune bonds a loaded save already holds above the ceiling', () => {
+  it('reconciles loaded saves above the close-friend ceiling', () => {
     // An 11-settler house whose first settler carries ten standing close bonds — the shape a
-    // save written before the ceiling has. The pass must leave them and simply stop adding.
+    // save written before the ceiling has. The pass must preserve six strongest bonds.
     // Scored relative to the threshold, so retuning it does not silently make these un-close.
     const closeScore = FRIEND_CLOSE_THRESHOLD + 10;
     const friends = Object.fromEntries(
@@ -156,7 +156,7 @@ describe('close friendships are capped per settler', () => {
 
     advanceSocialRelationships(world, everyone);
 
-    expect(friendCount(loaded), 'the ten standing bonds survive').toBe(10);
+    expect(friendCount(loaded), 'loaded bonds obey the six-friend ceiling').toBe(MAX_CLOSE_FRIENDS_PER_SETTLER);
     // Warming an un-close bond is still allowed; only a *new close* bond is refused.
     expect(friendshipScore(newcomer, loaded.id)).toBeGreaterThan(0);
     expect(friendCount(newcomer), 'the newcomer takes on no close bond').toBe(0);
