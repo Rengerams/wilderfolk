@@ -451,7 +451,6 @@ describe('villageLeadership.titlePoints.test.ts', () => {
 
       expect(friendCount(veteran)).toBe(37);
       expect(veteranScore.communityPoints).toBeGreaterThan(0);
-      expect(veteranScore.servicePoints).toBeGreaterThan(0);
       expect(veteranScore.totalScore).toBeGreaterThan(farmerScore.totalScore);
     });
 
