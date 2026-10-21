@@ -32,7 +32,7 @@ import {
   DAYS_PER_MOON_CYCLE,
   NIGHT_END,
   NIGHT_START as NIGHT_START_FROM_CONSTANTS,
-} from '../src/game/dayCycleConstants';
+} from '../src/game/daycycleconstants';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import {
