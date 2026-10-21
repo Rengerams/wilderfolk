@@ -123,12 +123,13 @@ const FoodLedger = memo(function FoodLedger({ state }: { state: WorldState }) {
  * child the seat rule leaves out, counted under the schooling owner's own reason.
  */
 const SchoolingBreakdown = memo(function SchoolingBreakdown({ state }: { state: WorldState }) {
-  const summary = describeSchoolingSummary(
-    summarizeSchooling(state, state.tick, getHourOfDay(state.tick)),
-  );
+  const attendance = summarizeSchooling(state, state.tick, getHourOfDay(state.tick));
+  const summary = describeSchoolingSummary(attendance);
   return (
     <div className="space-y-1 text-[13px]">
-      <p className="font-bold text-stone-200">{summary.headline}</p>
+      <p className="font-bold text-stone-200">{attendance.enrolled} enrolled · {attendance.schoolAge - attendance.enrolled} without a school place · {attendance.tooYoung} too young</p>
+      <p className="text-stone-300">{attendance.classHours ? `${attendance.inClassNow} physically in class now` : 'Classes are not currently in session'}</p>
+      <p className="text-stone-400">{summary.headline}</p>
       {summary.lines.map((line) => (
         <p key={line} className="rounded bg-amber-950/30 px-2 py-1 text-amber-200">⚠️ {line}</p>
       ))}
@@ -217,7 +218,7 @@ export default function VillageTabPanel({
           { id: 'food' as const, icon: '🍖', label: 'Food this day', hint: 'Produced vs eaten today, by source' },
           { id: 'leadership' as const, icon: '👑', label: 'Village leadership', hint: 'Standings, the head and their record' },
           { id: 'roster' as const, icon: '👨‍👩‍👧', label: 'Household roster', hint: 'Everyone, grouped by home' },
-          { id: 'schooling' as const, icon: '🎓', label: 'Schooling', hint: 'Who is in school, and why the rest are not' },
+          { id: 'schooling' as const, icon: '🎓', label: 'Schooling', hint: (() => { const n = summarizeSchooling(state, state.tick, getHourOfDay(state.tick)); return `${n.enrolled} enrolled · ${n.schoolAge - n.enrolled} without a place`; })() },
           { id: 'armament' as const, icon: '⚔️', label: 'Armament', hint: getHumanArmamentLabel(state) ?? 'Research Defense tech' },
           { id: 'reputation' as const, icon: '⭐', label: 'Reputation', hint: 'How it grows, and what caravans charge' },
         ]).map((subject) => (
