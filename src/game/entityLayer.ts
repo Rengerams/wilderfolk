@@ -169,8 +169,8 @@ export function beginEntityLayerPaint(
     && entityLayerCache.dpr === dpr
   ) {
     entityLayerCache.key = key;
-    entityLayerCache.anchorX = cam.x - LAYER_MARGIN_PX / cam.zoom;
-    entityLayerCache.anchorY = cam.y - LAYER_MARGIN_PX / cam.zoom;
+    entityLayerCache.anchorX = cam.x;
+    entityLayerCache.anchorY = cam.y;
     entityLayerCache.anchorZoom = cam.zoom;
     // Clear in device px (the helper resets the transform), then restore the painter scale.
     clearCanvasSurface(entityLayerCache.ctx, deviceW, deviceH);
@@ -190,8 +190,8 @@ export function beginEntityLayerPaint(
     width: w,
     height: h,
     dpr,
-    anchorX: cam.x - LAYER_MARGIN_PX / cam.zoom,
-    anchorY: cam.y - LAYER_MARGIN_PX / cam.zoom,
+    anchorX: cam.x,
+    anchorY: cam.y,
     anchorZoom: cam.zoom,
     margin: LAYER_MARGIN_PX,
   };

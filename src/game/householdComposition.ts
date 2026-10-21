@@ -65,6 +65,8 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   const firstGeneration = new Map<number, Entity>();
   for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
     for (const child of childrenOf(root)) {
+      // Married adult descendants form a separate household with their partner.
+      if (child.partnerId != null && !child.isJuvenile && child.age >= HUMAN_MOVE_OUT_MIN_AGE) continue;
       const added = add(child);
       if (added) firstGeneration.set(added.id, added);
     }
@@ -229,6 +231,8 @@ export function isAdultChildAtHome(
   const parents = [
     findLivingParent(human.motherId),
     findLivingParent(human.fatherId),
+    findLivingParent(human.adoptiveMotherId),
+    findLivingParent(human.adoptiveFatherId),
   ].filter((parent): parent is Entity => !!parent && hasResidenceAssignment(parent));
   return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
 }
