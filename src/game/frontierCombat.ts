@@ -1553,11 +1553,22 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       const elapsed = state.tick - (event.battleStartedAtTick ?? state.tick);
       if (elapsed >= TICKS_PER_HOUR * 2) {
         finishTextRaidBattle(state, event);
-      } else if (elapsed >= TICKS_PER_HOUR && (event.battleChronicle?.length ?? 0) < 2) {
-        const defenders = Math.max(0, raidArmy(state, event).length);
-        const update = `The battle for ${event.rivalName} is contested. ${defenders} of our soldiers remain in the field; the defenders have not yet surrendered.`;
-        event.battleChronicle = [...(event.battleChronicle ?? []), update];
-        logEvent(state, 'combat', update, event.rivalName, 'outgoing_raid', 'dispatched');
+      } else {
+        // Commentary milestones are derived from the real muster and recorded combat
+        // strengths. No casualties are claimed until killHuman actually records them.
+        const phases = [
+          { at: Math.ceil(TICKS_PER_HOUR / 2), count: 2,
+            text: `Our ${raidArmy(state, event).length} soldiers have met ${event.rivalName}'s defenders. The first assault is underway.` },
+          { at: TICKS_PER_HOUR, count: 3,
+            text: `Fighting continues at ${event.rivalName}. ${raidArmy(state, event).length} of our soldiers still hold the line; no casualties have been confirmed yet.` },
+          { at: Math.ceil(TICKS_PER_HOUR * 1.5), count: 4,
+            text: `The battle approaches its decisive stage. The enemy defense was assessed at ${Math.round(event.defenderStrength)} strength against our ${Math.round(event.attackerStrength)} at departure.` },
+        ];
+        for (const phase of phases) {
+          if (elapsed < phase.at || (event.battleChronicle?.length ?? 0) >= phase.count) continue;
+          event.battleChronicle = [...(event.battleChronicle ?? []), phase.text];
+          logEvent(state, 'combat', phase.text, event.rivalName, 'outgoing_raid', 'dispatched');
+        }
       }
       remaining.push(event);
       continue;
