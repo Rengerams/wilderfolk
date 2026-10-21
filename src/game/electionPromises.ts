@@ -88,16 +88,16 @@ export function countCompletedForgeOrders(state: WorldState): number {
  * If the village is thriving everywhere, fall back to a deterministic pair.
  */
 function selectPromiseCodes(state: WorldState, year: number): number[] {
-  const foodNeed = Math.max(0, GRANARY_FOOD_REQUIREMENT - state.resources.food);
-  const wallsNeed = Math.max(0, WALLS_REQUIREMENT - countCompletedWalls(state));
-  const forgeNeed = Math.max(0, FORGE_ORDERS_REQUIREMENT - countCompletedForgeOrders(state));
+  const foodNeed = Math.max(0, 1 - state.resources.food / GRANARY_FOOD_REQUIREMENT);
+  const wallsNeed = Math.max(0, 1 - countCompletedWalls(state) / WALLS_REQUIREMENT);
+  const forgeNeed = Math.max(0, 1 - countCompletedForgeOrders(state) / FORGE_ORDERS_REQUIREMENT);
 
   const needs: { code: number; need: number }[] = [
     { code: PROMISE_CODES.fill_granary, need: foodNeed },
     { code: PROMISE_CODES.build_walls, need: wallsNeed },
     { code: PROMISE_CODES.run_forge, need: forgeNeed },
-    { code: PROMISE_CODES.raise_reputation, need: Math.max(0, 65 - state.villageReputation) },
-    { code: PROMISE_CODES.strengthen_healthcare, need: state.buildings.some((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival') ? 0 : 10 },
+    { code: PROMISE_CODES.raise_reputation, need: Math.max(0, 1 - state.villageReputation / 65) },
+    { code: PROMISE_CODES.strengthen_healthcare, need: state.buildings.some((building) => building.completed && building.type === BuildingType.Hospital && building.faction !== 'rival') ? 0 : 1 },
   ];
 
   needs.sort((a, b) => {
