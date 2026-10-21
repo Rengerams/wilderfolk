@@ -157,6 +157,35 @@ describe('Leader house after a leader dies', () => {
   });
 });
 
+describe('succession residency handover', () => {
+  it('restores displaced former-family residents during vacancy and evicts them only on election', () => {
+    const formerChild = human(3, { residenceBuildingId: 10, isJuvenile: true, age: 8 });
+    const successor = human(4, { residenceBuildingId: 10 });
+    const manor = building(0, BuildingType.LeaderHouse, { occupants: [] });
+    const cottage = building(10, BuildingType.House, { occupants: [3, 4] });
+    const state = {
+      entities: [formerChild, successor],
+      buildings: [manor, cottage],
+      villageLeaderId: null,
+      pendingLeaderHouseResidentIds: [3],
+      eventLog: [],
+      tick: 0,
+    } as unknown as WorldState;
+
+    syncLeaderHouseResidency(state);
+    expect(formerChild.residenceBuildingId).toBe(0);
+    expect(manor.occupants).toContain(3);
+
+    state.villageLeaderId = 4;
+    syncLeaderHouseResidency(state);
+
+    expect(state.pendingLeaderHouseResidentIds).toBeUndefined();
+    expect(successor.residenceBuildingId).toBe(0);
+    expect(formerChild.residenceBuildingId).not.toBe(0);
+    expect(manor.occupants).toEqual([4]);
+  });
+});
+
 describe('manual staffing policy', () => {
   it('defaults every workplace to auto and honours an explicit manual flag', () => {
     const church = building(4, BuildingType.Church);
