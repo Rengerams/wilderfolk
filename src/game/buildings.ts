@@ -725,6 +725,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🪨',
     label: 'Ground Reinforcement',
+    decor: true,
     description: 'Prepare a 3×3-tile patch of unstable ground for construction. Uses stone and gold; no permanent structure. Cannot fill deep water or active rivers.',
     backgroundColor: '#78716c',
     padShape: 'rect',
