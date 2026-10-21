@@ -13,7 +13,7 @@ import {
   isFullMoonNight,
   NIGHT_END,
   NIGHT_START,
-} from './dayCycleConstants';
+} from './daycycleconstants';
 import {
   assignMissingResidences,
   isStartOfClockHour,
