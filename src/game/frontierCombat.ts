@@ -53,6 +53,14 @@ export function hasMilitiaWeapons(state: WorldState): boolean {
   return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
 }
 
+/** Elapsed share of the two-hour automatic text battle, for the raid UI. */
+export function getOutgoingBattleProgressPercent(event: OutgoingRaidEvent, tick: number): number {
+  if (event.phase === 'returning') return 100;
+  if (event.phase !== 'fighting' || event.battleStartedAtTick == null) return 0;
+  const elapsed = Math.max(0, tick - event.battleStartedAtTick);
+  return Math.min(100, Math.round(elapsed / (2 * TICKS_PER_HOUR) * 100));
+}
+
 export function getCampDistancePixels(
   state: WorldState,
   buildings: Building[],
