@@ -8,7 +8,6 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { BUILDING_CONFIGS, BuildingType, type Building } from '../src/game/buildings';
-import { drawBuildings } from '../src/game/renderer/buildings';
 import { parseHexRgb, rgbaFromRgb } from '../src/game/renderer/shared';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
@@ -116,7 +115,9 @@ function expectedPadFill(type: BuildingType): string {
 }
 
 describe('F-RND-15 — the sprite-less fallback is the building, not a blank box', () => {
-  it('paints the footprint pad in the building config colour', () => {
+  it('paints the footprint pad in the building config colour', async () => {
+    vi.resetModules();
+    const { drawBuildings } = await import('../src/game/renderer/buildings');
     const { ctx, fillStyles } = recorder();
     drawBuildings(ctx, snapshot([completedBuilding(BuildingType.House)]), 800, 600);
 
@@ -125,6 +126,8 @@ describe('F-RND-15 — the sprite-less fallback is the building, not a blank box
   });
 
   it('is not drawn once the frame is loaded — the pad is the missing-sprite path only', async () => {
+    vi.resetModules();
+    const { drawBuildings } = await import('../src/game/renderer/buildings');
     class FakeImage {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
