@@ -495,6 +495,53 @@ function flashMilitia(entities: Entity[], ticks = 22) {
   }
 }
 
+function persistBattleAftermath(
+  before: WorldState,
+  after: WorldState,
+  raidId: string,
+  rivalId: string,
+  rivalName: string,
+  side: 'defense' | 'offense',
+  outcome: string,
+  forceRatio: number,
+  enemyDeaths = 0,
+  enemyFallen: string[] = [],
+): void {
+  if ((after.raidBattleReports ?? []).some((report) => report.raidId === raidId)) return;
+  const beforeAlive = new Map(before.entities.filter((entity) => entity.alive && !entity.faction && entity.type === EntityType.Human).map((entity) => [entity.id, formatCitizenName(entity)]));
+  const fallen = after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!);
+  const previousBuildings = new Map(before.buildings.filter((building) => !building.faction).map((building) => [building.id, building.health]));
+  const damagedBuildings = after.buildings.filter((building) => !building.faction && (previousBuildings.get(building.id) ?? building.health) > building.health).length;
+  const suppliesLost = {
+    food: Math.max(0, before.resources.food - after.resources.food),
+    gold: Math.max(0, before.resources.gold - after.resources.gold),
+    wood: Math.max(0, before.resources.wood - after.resources.wood),
+    stone: Math.max(0, before.resources.stone - after.resources.stone),
+  };
+  const leaderId = before.villageLeaderId;
+  const notableDefense = side === 'defense' && (outcome === 'decisive' || outcome === 'narrow') && forceRatio >= 0.45;
+  let leadershipMerit = 0;
+  if (side === 'defense') {
+    if (notableDefense) leadershipMerit = forceRatio < 0.75 ? 60 : outcome === 'narrow' ? 20 : 40;
+    else if (outcome === 'defeat') leadershipMerit = -25;
+  } else if (outcome === 'success' && forceRatio <= 4) {
+    leadershipMerit = forceRatio <= 1.5 ? 30 : forceRatio <= 2.5 ? 25 : 15;
+  } else if (outcome === 'fail' && fallen.length > 0) {
+    leadershipMerit = -20;
+  }
+  const leader = leaderId == null ? undefined : after.entities.find((entity) => entity.id === leaderId);
+  if (leader && leadershipMerit !== 0) {
+    leader.battleLeadershipMerit = Math.max(-100, Math.min(100, (leader.battleLeadershipMerit ?? 0) + leadershipMerit));
+    logEvent(after, 'combat', `${formatCitizenName(leader)} ${leadershipMerit > 0 ? 'earned' : 'lost'} ${Math.abs(leadershipMerit)} leadership merit after ${outcome} against ${rivalName}`, formatCitizenName(leader), side === 'defense' ? 'defense' : 'outgoing_raid', 'resolved');
+  }
+  after.raidBattleReports = [...(after.raidBattleReports ?? []).slice(-39), {
+    raidId, rivalId, rivalName, side, outcome, resolvedAtTick: after.tick, leaderId,
+    leadershipMerit: leader && leadershipMerit !== 0 ? leadershipMerit : 0,
+    playerFallen: fallen, enemyFallen, playerDeaths: fallen.length, enemyDeaths,
+    damagedBuildings, suppliesLost,
+  }];
+}
+
 export type RaidParticipantMode = 'militia' | 'barricade' | 'outgoing';
 
 /** Adults who can fight — `canBeMustered` owns that test, so a jailed settler is in neither pool. */
@@ -1275,6 +1322,7 @@ export function respondToRaidEvent(
         break;
       }
     }
+    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, defenderStrength / Math.max(1, event.attackerStrength));
     remove();
     return state;
   }
@@ -1506,6 +1554,9 @@ export function respondToOutgoingRaidEvent(
     if (choiceId === 'fight' && event.rivalResponse !== 'fight') return state;
     remove();
     resolveOutgoingRaidCombat(state, rival, event);
+    const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
+    const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
+    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
     return state;
   }
 
