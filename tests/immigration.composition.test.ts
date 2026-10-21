@@ -1,5 +1,5 @@
-import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/dayCycleConstants';
-import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
  * Immigration party composition (2026-09-16).
  *
