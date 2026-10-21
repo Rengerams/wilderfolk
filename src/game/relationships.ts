@@ -110,6 +110,50 @@ export function friendCount(e: Entity): number {
   return count;
 }
 
+/** Repair close bonds in imported/legacy state without changing weaker acquaintances.
+ * Strongest mutual friendships take priority; ties use stable settler IDs.
+ */
+export function reconcileCloseFriendships(people: Entity[]): void {
+  const byId = new Map(people.map(person => [person.id, person]));
+  const edges: Array<{ a: Entity; b: Entity; strength: number }> = [];
+  for (const a of people) {
+    for (const [key, value] of Object.entries(a.friendships ?? {})) {
+      if (!key.startsWith(FRIEND_PREFIX) || !Number.isFinite(value) || value < FRIEND_CLOSE_THRESHOLD) continue;
+      const otherId = Number(key.slice(FRIEND_PREFIX.length));
+      const b = byId.get(otherId);
+      if (!b || b.id <= a.id) continue;
+      const reverse = friendshipScore(b, a.id);
+      if (reverse < FRIEND_CLOSE_THRESHOLD) continue;
+      edges.push({ a, b, strength: Math.min(value, reverse) });
+    }
+  }
+  edges.sort((x, y) => y.strength - x.strength || x.a.id - y.a.id || x.b.id - y.b.id);
+  const accepted = new Map<number, number>();
+  const retained = new Set<string>();
+  for (const { a, b } of edges) {
+    if ((accepted.get(a.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER ||
+        (accepted.get(b.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
+    accepted.set(a.id, (accepted.get(a.id) ?? 0) + 1);
+    accepted.set(b.id, (accepted.get(b.id) ?? 0) + 1);
+    retained.add(`${a.id}|${b.id}`);
+  }
+  for (const a of people) {
+    for (const [key, value] of Object.entries(a.friendships ?? {})) {
+      if (!key.startsWith(FRIEND_PREFIX) || value < FRIEND_CLOSE_THRESHOLD) continue;
+      const otherId = Number(key.slice(FRIEND_PREFIX.length));
+      const b = byId.get(otherId);
+      if (!b || b.id === a.id) {
+        if (b?.id === a.id) delete a.friendships![key];
+        continue;
+      }
+      const pair = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+      if (retained.has(pair)) continue;
+      // Drop just below the close-friend threshold, preserving acquaintance history.
+      a.friendships![key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
+    }
+  }
+}
+
 export interface BondCensus {
   closeBonds: number;
   withFriend: number;
@@ -153,6 +197,7 @@ export function advanceSocialRelationships(
 ): void {
   const people = peopleForPass ?? playerHumansFrom(allAlive);
   if (people.length < 2) return;
+  reconcileCloseFriendships(people);
 
   const byId = new Map(people.map((e) => [e.id, e]));
   const aliveIds = new Set(allAlive.map((e) => e.id));
