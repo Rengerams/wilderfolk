@@ -27,6 +27,7 @@ import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameEngine';
 import { indexLivingEntity } from '../src/game/entityIndex';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import {
   FIRST_RIVAL_MIN_DAY,
   FIRST_RIVAL_MIN_HUMANS,
@@ -623,10 +624,14 @@ describe('the first rival camp is a milestone, not a lottery ticket', () => {
     const { state } = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
     state.paused = false;
 
-    const days = FIRST_RIVAL_MIN_DAY + 2;
-    for (let i = 0; i < days * TICKS_PER_DAY; i++) gameTick(state);
+    // Exercise the real daily world-events integration at the first eligible day.
+    // The colony fixture is deliberately synthetic (cloned people, one tiny house);
+    // simulating ten days of unrelated survival can kill those people before the
+    // frontier milestone and does not test the event dispatch contract.
+    state.tick = tickAtDailyPhase(FIRST_RIVAL_MIN_DAY, 'worldEvents') - 1;
+    gameTick(state);
 
-    expect(state.tick).toBeGreaterThanOrEqual(FIRST_RIVAL_MIN_DAY * TICKS_PER_DAY);
+    expect(state.tick).toBe(tickAtDailyPhase(FIRST_RIVAL_MIN_DAY, 'worldEvents'));
     expect(state.rivalSettlements.length, 'the frontier never opened in a played run').toBe(1);
   });
 });
