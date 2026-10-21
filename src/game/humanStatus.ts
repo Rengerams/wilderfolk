@@ -118,7 +118,7 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
     const label = labelFor(near);
     if (near.id === entity.residenceBuildingId) return `At home (${label})`;
     if (near.type === BuildingType.Tavern || near.type === BuildingType.Hotel) return `Relaxing at ${label}`;
-    if (near.type === BuildingType.HuntingSpot) return 'Hunting';
+    if (near.type === BuildingType.HuntingSpot) return 'At Hunting Spot';
     return `At ${label}`;
   }
 
@@ -202,10 +202,10 @@ export function getHumanActivityProjection(
   return {
     activity,
     schedule: {
-      label: getWorkScheduleLabel(schedule),
+      label: entity.isJuvenile ? 'Child — no work schedule' : getWorkScheduleLabel(schedule),
       startHour: schedule.startHour,
       endHour: schedule.endHour,
-      onShift: isOnWorkScheduleShift(state, hour),
+      onShift: !entity.isJuvenile && isOnWorkScheduleShift(state, hour),
     },
     home: homeBuilding ? { id: homeBuilding.id, label: labelFor(homeBuilding) } : null,
     workplace: workplace ? { id: workplace.id, label: labelFor(workplace) } : null,
