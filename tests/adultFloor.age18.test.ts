@@ -1,6 +1,6 @@
-import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
-import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
-import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
  * The adult floor is 18 (fixed 2026-09-16; it was 16).
  *
