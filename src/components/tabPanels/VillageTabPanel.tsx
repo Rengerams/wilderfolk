@@ -15,6 +15,7 @@ import { resolvePopulationCap } from '../../game/populationGrowth';
 import { summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import { describeSchoolingSummary, summarizeSchooling } from '../../game/education';
 import { getHourOfDay } from '../../game/dayCycle';
+import { largestBloodlines } from '../../game/genealogyRegistry';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
@@ -183,7 +184,7 @@ export default function VillageTabPanel({
   // owner derived a fallback for a save without it.
   const popCap = resolvePopulationCap(state);
   /** Which subject window is open, if any — the same index-plus-windows shape the building panel uses. */
-  const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'schooling' | 'armament' | 'reputation' | null>(null);
+  const [openSubject, setOpenSubject] = useState<'population' | 'food' | 'leadership' | 'roster' | 'schooling' | 'armament' | 'reputation' | 'genealogy' | null>(null);
   const closeSubject = () => setOpenSubject(null);
 
   return (
@@ -218,6 +219,7 @@ export default function VillageTabPanel({
           { id: 'food' as const, icon: '🍖', label: 'Food this day', hint: 'Produced vs eaten today, by source' },
           { id: 'leadership' as const, icon: '👑', label: 'Village leadership', hint: 'Standings, the head and their record' },
           { id: 'roster' as const, icon: '👨‍👩‍👧', label: 'Household roster', hint: 'Everyone, grouped by home' },
+          { id: 'genealogy' as const, icon: '🌳', label: 'Family registry', hint: 'Bloodline rankings across surnames and generations' },
           { id: 'schooling' as const, icon: '🎓', label: 'Schooling', hint: (() => { const n = summarizeSchooling(state, state.tick, getHourOfDay(state.tick)); return `${n.enrolled} enrolled · ${n.schoolAge - n.enrolled} without a place`; })() },
           { id: 'armament' as const, icon: '⚔️', label: 'Armament', hint: getHumanArmamentLabel(state) ?? 'Research Defense tech' },
           { id: 'reputation' as const, icon: '⭐', label: 'Reputation', hint: 'How it grows, and what caravans charge' },
@@ -341,6 +343,29 @@ export default function VillageTabPanel({
         <Suspense fallback={<p className="text-[13px] text-stone-300">Loading leadership…</p>}>
           <VillageLeadershipPanel state={state} />
         </Suspense>
+      </SubjectWindow>
+
+      <SubjectWindow
+        windowKey="village-genealogy"
+        open={openSubject === 'genealogy'}
+        onClose={closeSubject}
+        icon="🌳"
+        title="Family registry"
+        subtitle="Biological descendants, across surnames"
+      >
+        {state.genealogyRegistry ? (
+          <div className="space-y-2 text-[13px] text-stone-200">
+            <p className="text-stone-400">{Object.keys(state.genealogyRegistry.people).length} historical settler records, including the deceased.</p>
+            {largestBloodlines(state.genealogyRegistry, 15).map((line, index) => (
+              <div key={line.ancestor.id} className="flex items-center justify-between gap-3 rounded bg-stone-700/30 px-3 py-2">
+                <span>{index + 1}. {line.ancestor.name} {line.ancestor.surname}{line.ancestor.alive ? '' : ' †'}</span>
+                <span className="shrink-0 text-stone-300">{line.livingDescendants} living · {line.totalDescendants} total descendants</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13px] text-stone-300">The genealogy registry begins tracking this colony on the next simulation day. Earlier records can only be reconstructed where family links survive.</p>
+        )}
       </SubjectWindow>
 
       {/* The "Family tree" section that stood here is **removed**, on the owner's report:
