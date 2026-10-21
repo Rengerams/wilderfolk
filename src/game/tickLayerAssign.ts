@@ -17,6 +17,9 @@ import { profileStart, profileEnd } from './performanceProfiler';
  * Scales to fire ~4× per calendar day (18 ticks @ 3 ticks/hour with 72 ticks/day).
  */
 export const LAYER_ASSIGN_INTERVAL = 6 * TICKS_PER_HOUR;
+/** First assignment sweep is at 03:00; subsequent sweeps recur every six hours. */
+export const LAYER_ASSIGN_FIRST_HOUR = 3;
+export const LAYER_ASSIGN_PHASE_TICK = LAYER_ASSIGN_FIRST_HOUR * TICKS_PER_HOUR;
 
 /**
  * Assignment layer — residence + workforce bookkeeping.
