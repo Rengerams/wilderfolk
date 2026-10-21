@@ -258,6 +258,7 @@ export function tickElectionPromises(state: WorldState): void {
     addReputation(state, change);
     record.evaluated = true;
     const originalLeader = state.entities.find((person) => person.id === record.leaderId);
+    if (originalLeader) originalLeader.promiseLeadershipMerit = Math.max(-60, Math.min(60, (originalLeader.promiseLeadershipMerit ?? 0) + kept * 12 - failed * 16));
     const leaderName = originalLeader?.name ? `${originalLeader.name}${originalLeader.surname ? ` ${originalLeader.surname}` : ''}` : `Settler #${record.leaderId}`;
     if (failed > 0) logEvent(state, 'scandal', `${leaderName} broke ${failed} election promise${failed === 1 ? '' : 's'}.`, leaderName);
     addBigNews(state, '🗳️ Promises judged', `${leaderName}: ${kept}/${record.codes.length} kept. Reputation ${change >= 0 ? '+' : ''}${change}.`, change >= 0 ? 'positive' : 'negative');
