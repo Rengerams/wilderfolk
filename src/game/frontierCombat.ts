@@ -718,6 +718,17 @@ export function getRaidCasualtyBounds(tier: RaidCasualtyTier, adultPop: number):
   return [minK, maxK];
 }
 
+/** Cap attacker deaths by the actual resistance they face, not by the size of
+ * their own army. Overwhelming victories may have no casualties at all. */
+export function getOutgoingRaidCasualtyLimit(attackerStrength: number, defenderStrength: number, defenderPopulation: number, soldierCount: number): number {
+  if (soldierCount <= 0 || defenderPopulation <= 0 || defenderStrength <= 0) return 0;
+  const ratio = attackerStrength / Math.max(1, defenderStrength);
+  if (ratio >= 12) return 1;
+  if (ratio >= 6) return Math.min(2, Math.ceil(defenderPopulation / 5));
+  if (ratio >= 3) return Math.min(Math.ceil(soldierCount * 0.025), Math.ceil(defenderPopulation / 3));
+  return Math.min(soldierCount, Math.max(1, Math.ceil(defenderPopulation * 0.35)));
+}
+
 function applyRaidCasualties(
   state: WorldState,
   entities: Entity[],
@@ -725,15 +736,17 @@ function applyRaidCasualties(
   rivalName: string,
   mode: 'defending' | 'raiding' = 'defending',
   selectedIds?: ReadonlySet<number>,
+  casualtyLimit?: number,
 ): number {
   const pool = entities.filter((e) => selectedIds ? selectedIds.has(e.id) && e.alive : canBeMustered(e));
   if (pool.length === 0) return 0;
 
   const [minK, maxK] = getRaidCasualtyBounds(tier, pool.length);
-  const killCount = Math.min(
-    pool.length,
-    minK + Math.floor(getSimRng('frontierCombat')() * (maxK - minK + 1)),
-  );
+  const adjustedMin = casualtyLimit == null ? minK : 0;
+  const adjustedMax = casualtyLimit == null ? maxK : Math.min(maxK, Math.max(0, casualtyLimit));
+  const killCount = Math.min(pool.length,
+    adjustedMin + Math.floor(getSimRng('frontierCombat')() * (adjustedMax - adjustedMin + 1)));
+
   if (killCount <= 0) return 0;
 
   const remaining = [...pool];
@@ -1523,7 +1536,10 @@ function resolveLiveRaidCasualties(state: WorldState, event: OutgoingRaidEvent):
     soldierIds.has(person.id) && person.raidDeploymentId === event.id && person.alive);
   // Flag before applying so the casualty event can never be repeated.
   event.battleCasualtiesApplied = true;
-  applyRaidCasualties(state, state.entities, severity, event.rivalName, 'raiding', soldierIds);
+  const rival = state.rivalSettlements.find((camp) => camp.id === event.rivalId);
+  const limit = getOutgoingRaidCasualtyLimit(event.attackerStrength, event.defenderStrength,
+    rival?.population ?? 0, previouslyAlive.length);
+  applyRaidCasualties(state, state.entities, severity, event.rivalName, 'raiding', soldierIds, limit);
   const killed = previouslyAlive.filter((person) => !person.alive).map((person) => formatCitizenName(person));
   event.battlePlayerCasualties = killed;
   const commentary = killed.length
