@@ -1,3 +1,4 @@
+import { getOutgoingBattleProgressPercent } from './game/frontierCombat';
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   initGame,
@@ -2210,7 +2211,7 @@ export default function App() {
               <h2 className="text-2xl font-bold text-amber-100">{battleReport.incoming ? 'Defense against' : 'Raid on'} {battleReport.rivalName}</h2>
               <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : liveArmy ? 'LIVE · Text commentary follows the simulation. Casualties are named only after their deaths are recorded.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
               {liveArmy && <div className="rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
-                Battle underway · {liveSoldiers} soldiers still deployed · {Math.min(100, Math.round((world.tick - (liveArmy.battleStartedAtTick ?? world.tick)) / (2 * TICKS_PER_HOUR) * 100))}% of battle time elapsed
+                Battle underway · {liveSoldiers} soldiers still deployed · {getOutgoingBattleProgressPercent(liveArmy, world.tick)}% of battle time elapsed
               </div>}
               {pending && (
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-stone-700 p-3 text-sm">
