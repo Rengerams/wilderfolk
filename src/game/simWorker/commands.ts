@@ -1,3 +1,4 @@
+import { demolishBuildingInPlace } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import { BuildingType } from '../gameTypes';
@@ -38,7 +39,6 @@ import {
   repairBuilding,
   repairBuildings,
   upgradeBuilding,
-  demolishBuilding,
   setWorkshopRecipe,
   setHuntingSpotPrey,
   setMineMode,
@@ -347,7 +347,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
     case 'upgradeBuilding':
       return upgradeBuilding(world, cmd.buildingId);
     case 'demolishBuilding':
-      return demolishBuilding(world, cmd.buildingId);
+      return demolishBuildingInPlace(world, cmd.buildingId);
     case 'setWorkshopRecipe':
       return setWorkshopRecipe(world, cmd.buildingId, cmd.recipeId);
     case 'setHuntingSpotPrey':
