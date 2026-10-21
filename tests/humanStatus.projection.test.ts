@@ -44,11 +44,32 @@ describe('selected human activity projection', () => {
 
     const projection = getHumanActivityProjection(world, child);
 
-    expect(projection.activity).toBe('At Hunting Spot');
+    expect(projection.activity).toBe('Free time');
     expect(projection.schedule.label).toBe('Child — no work schedule');
     expect(projection.schedule.onShift).toBe(false);
     expect(projection.workReason.code).toBe('no-post');
-    expect(projection.target?.kind).toBe('nearby-building');
+    expect(projection.target).toBeNull();
+  });
+
+  it('does not infer adult activity from proximity to a public building', () => {
+    const world = initGame({ villageName: 'No Proximity Jobs', size: MapSize.Medium, seed: 105 });
+    const adult = world.entities.find((e) => e.alive && e.type === EntityType.Human);
+    if (!adult) throw new Error('Expected a human');
+    adult.homeBuildingId = undefined;
+    adult.residenceBuildingId = undefined;
+    adult.huntTargetId = undefined;
+    const spot = {
+      id: 90002, type: BuildingType.HuntingSpot, x: 500, y: 500,
+      width: 40, height: 40, occupants: [], level: 1,
+      constructionProgress: 1, completed: true, health: 100,
+      maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    world.buildings = [spot];
+    adult.x = 520;
+    adult.y = 520;
+    const projection = getHumanActivityProjection(world, adult);
+    expect(projection.activity).not.toMatch(/Hunt|Working|Commuting/);
+    expect(projection.target).toBeNull();
   });
 
   it('reports a presentation-only activity transition when the label changes', () => {
