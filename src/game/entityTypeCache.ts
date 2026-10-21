@@ -34,7 +34,9 @@ export function getCachedEntityByType(state: WorldState, aliveEntities: readonly
   const cached = stableByTypeByWorld.get(state);
   if (cached && bucketedEntityCount(cached) === aliveEntities.length) return cached;
   if (cached) stableByTypeByWorld.delete(state);
-  return buildEntityByType(aliveEntities);
+  const fresh = buildEntityByType(aliveEntities);
+  stableByTypeByWorld.set(state, fresh);
+  return fresh;
 }
 
 export function cacheEntityByType(state: WorldState, byType: EntityByType): void {
