@@ -10,19 +10,20 @@ export { canAffordWorkshopRecipe } from './workshops';
  * Storage one completed building adds, per resource.
  *
  * Exported (with `updateStorageCaps` as the single reader) because the inspector's Silo and
- * WoodStorehouse hints typed "+600 food storage" and "+800 wood storage" as prose — the numbers a
+ * Storehouse hints typed "+600 food storage" and "+800 materials storage" as prose — the numbers a
  * designer tunes now live only here.
  */
 export const BARN_FOOD_STORAGE = 400;
 export const BARN_WOOD_STORAGE = 300;
 export const SILO_FOOD_STORAGE = 600;
 export const SILO_STONE_STORAGE = 200;
+/** Capacity added to each non-food resource by one completed Storehouse. */
 export const WOOD_STOREHOUSE_STORAGE = 800;
 export const STORE_WAREHOUSE_STORAGE = 200;
 export const BASE_WOOD_STORAGE = 800;
 export const BASE_FOOD_STORAGE = 800;
 export const BASE_STONE_STORAGE = 300;
-/** Gold and iron are not storage-building driven: a flat ceiling and a warehouse-count bonus. */
+/** Base gold and iron ceilings are augmented by completed Storehouses (and iron by warehouses). */
 export const BASE_GOLD_STORAGE = 20000;
 export const BASE_IRON_STORAGE = 300;
 export const WAREHOUSE_IRON_STORAGE = 100;
@@ -63,10 +64,10 @@ export function computeStorageMax(
       barns * BARN_WOOD_STORAGE +
       storehouses * WOOD_STOREHOUSE_STORAGE +
       warehouses * STORE_WAREHOUSE_STORAGE,
-    stone: BASE_STONE_STORAGE + silos * SILO_STONE_STORAGE + warehouses * STORE_WAREHOUSE_STORAGE,
+    stone: BASE_STONE_STORAGE + silos * SILO_STONE_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE + warehouses * STORE_WAREHOUSE_STORAGE,
     food: BASE_FOOD_STORAGE + barns * BARN_FOOD_STORAGE + silos * SILO_FOOD_STORAGE,
-    gold: BASE_GOLD_STORAGE,
-    iron: BASE_IRON_STORAGE + warehouses * WAREHOUSE_IRON_STORAGE,
+    gold: BASE_GOLD_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE,
+    iron: BASE_IRON_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE + warehouses * WAREHOUSE_IRON_STORAGE,
   };
 }
 
