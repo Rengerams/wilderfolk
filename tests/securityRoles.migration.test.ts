@@ -1,8 +1,9 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { migrateLegacySecurityRoles } from '../src/game/saveLoad';
-import { repairJuvenileAssignmentsOnLoad, HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
+import { repairJuvenileAssignmentsOnLoad } from '../src/game/dayCycle';
 
 function legacyHuman(id: number, homeBuildingId?: number): Entity {
   return {
