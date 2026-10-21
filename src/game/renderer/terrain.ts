@@ -14,6 +14,8 @@ import { worldToScreen as w2s, screenToWorld } from '../viewState';
 import { TERRAIN_PALETTE } from '../terrainAtlas';
 import { createCanvasSurface, disposeCanvasSurface, getCanvasContext, type CanvasSurface } from '../canvasLayer';
 import { hasContinuousFields } from '../terrain/terrainGrid';
+import { PATH_CELL } from '../gameTypes';
+import { getSprite } from '../spriteLoader';
 
 // Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake
 // and the minimap cannot drift apart — audit D12.
@@ -671,10 +673,30 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
  * renderer that nothing renders, nothing reviews, and only tests assert the *shape* of is not an
  * option; it is maintenance surface with no user, and it kept `pixi.js` in the dependency list.
  */
+/** Sparse painted foundations live in terrain overrides, not in Buildings.
+ * Draw only the marked cells visible on screen; ordinary terrain stays baked. */
+function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
+  const overrides = state.worldMap?.overrides;
+  if (!overrides?.size) return;
+  const sprite = getSprite('/sprites/ground_soil.PNG');
+  if (!sprite || !sprite.complete || sprite.naturalWidth === 0) return;
+  const mapWidth = state.worldMap!.width;
+  const size = PATH_CELL * state.camera.zoom;
+  for (const [index, tile] of overrides) {
+    if (!tile.reinforced) continue;
+    const tx = index % mapWidth;
+    const ty = Math.floor(index / mapWidth);
+    const [sx, sy] = w2s(tx * PATH_CELL, ty * PATH_CELL, state.camera, cw, ch);
+    if (sx + size <= 0 || sy + size <= 0 || sx >= cw || sy >= ch) continue;
+    ctx.drawImage(sprite, sx, sy, size, size);
+  }
+}
+
 export function drawGround(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.worldMap) {
     buildTerrainCache(state, cw, ch);
     drawProceduralGround(ctx, state, cw, ch);
+    drawReinforcedSoil(ctx, state, cw, ch);
     return;
   }
   // Fallback if terrain missing (should not happen in normal play)
