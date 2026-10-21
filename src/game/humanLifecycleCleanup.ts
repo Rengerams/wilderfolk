@@ -156,6 +156,14 @@ function reassignOrphansAfterDeath(
       || (dead.childrenIds?.includes(child.id) ?? false);
     if (!related) continue;
 
+    // A deceased village leader's family retains the official residence until
+    // the succession is settled. Do not let orphan adoption relocate a minor
+    // who already lives there; general housing reconciliation also protects it.
+    const livesInLeaderHouse = residences.some(
+      (residence) => residence.id === child.residenceBuildingId && residence.type === 'leaderHouse',
+    );
+    if (livesInLeaderHouse) continue;
+
     ensureOrphanAdoption(child, humans, residences);
     const home = pickResidenceFromChildCustodian(child, humans, residences);
     if (home !== undefined) {
