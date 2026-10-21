@@ -1926,6 +1926,7 @@ export default function App() {
                       <FamilyTreeWindow
                         entity={treeEntity}
                         allEntities={world.entities}
+                        genealogyRegistry={world.genealogyRegistry}
                         tick={world.tick}
                         onClose={() => setFamilyTreeFor(null)}
                         onSelect={(entityId) => {
