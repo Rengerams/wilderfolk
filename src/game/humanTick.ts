@@ -444,7 +444,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.combatTicks--;
       if (entity.combatTicks <= 0) entity.combatTicks = 0;
     }
-    if (entity.huntTargetId) {
+    // Children cannot pursue prey, including stale targets carried by old saves.
+    if (entity.isJuvenile) {
+      entity.huntTargetId = undefined;
+    } else if (entity.huntTargetId) {
       const prey = entityById.get(entity.huntTargetId);
       if (!prey?.alive) entity.huntTargetId = undefined;
     }
@@ -992,6 +995,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !festivalGathering &&
       (goWorkTime || onWorkCommuteHours) &&
       workplace?.type === BuildingType.HuntingSpot &&
+      !entity.isJuvenile &&
       isHuntingSpotHunter(workplace, entity, entityById)
     ) {
       /**
