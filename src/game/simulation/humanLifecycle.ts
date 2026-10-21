@@ -193,6 +193,10 @@ export function tickPregnancyAndBirth(
       || residenceRoomFor(child, motherHome, allLivingHumans(state, newEntities, entityById)))
     ? motherHome.id
     : undefined;
+  // Keep the residence mirror valid even for checks between birth and the end-of-tick sync.
+  if (child.residenceBuildingId != null && motherHome && !motherHome.occupants.includes(child.id)) {
+    motherHome.occupants.push(child.id);
+  }
   pushNewEntity(state, ctx, child);
 
   // The assign layer rebuilds residence occupants from `ctx.byType`, which cannot see a
