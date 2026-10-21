@@ -438,7 +438,7 @@ export function tickHotelLodging(state: WorldState): void {
   }
 
   // Offer rooms at dusk / night when hotels staffed
-  if (!windowOpen || visitors.length === 0) return;
+  if (!windowOpen) return;
 
   const settlerLodgersByHotel = buildHotelSettlerLodgerCounts(hotels, state.buildings, state.entities, hour);
   for (const v of visitors) {
