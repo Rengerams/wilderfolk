@@ -1,5 +1,5 @@
 import { EntityType, type Entity } from './gameTypes';
-import { HUMAN_ADULT_MIN_AGE, HUMAN_VENERABLE_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE, HUMAN_VENERABLE_AGE } from './daycycleconstants';
 
 /**
  * The name the UI shows for a settler who has none — one fallback, owned here.
