@@ -1,3 +1,5 @@
+import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { WORK_COMMUTE_RUSH } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
@@ -30,26 +32,7 @@ import {
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
-import {
-  HUMAN_ADULT_MIN_AGE,
-  HUMAN_MAX_LIFESPAN_YEARS,
-  tryGraduateHumanChild,
-  syncHumanAgeFromCalendar,
-  PER_TICK_RATE_SCALE,
-  TICKS_PER_HOUR,
-  hasResidenceAssignment,
-  isOnWorkShift,
-  isOnMoonHowlerNightShift,
-  isWeekend,
-  personDayRoll,
-  getAbsoluteCalendarDay,
-  isNearResidence,
-  isResidenceBuilding,
-  shareResidence,
-  isNewCalendarDayTick,
-  EVENING_START,
-  isStartOfClockHour,
-} from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -109,14 +92,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import {
-  applyHumanWalkStep,
-  commuteDistanceToBuilding,
-  commuteHumanToBuilding,
-  commuteLeadHoursFor,
-  nearestActiveMoonHowler,
-  WORK_COMMUTE_RUSH,
-} from './simulation/humanMovement';
+import { applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
