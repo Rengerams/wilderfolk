@@ -1,4 +1,4 @@
-import { NIGHT_START } from '../src/game/dayCycleConstants';
+import { NIGHT_START } from '../src/game/daycycleconstants';
 /**
  * F5 — Settlement Memory and Legacy Goals (`Roadmap_V0_6.4.1.MD`).
  *
