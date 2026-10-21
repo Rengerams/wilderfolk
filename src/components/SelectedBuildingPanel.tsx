@@ -61,7 +61,7 @@ import { FORGE_BONUSES } from '../game/forge';
 import { MILL_FOOD_PRODUCTION_MULT } from '../game/dailyBuildingEconomy';
 import { PRESERVE_HEALTH_BONUS } from '../game/dailyEcology';
 import { BARN_ADJACENCY_BONUS } from '../game/adjacencyIndex';
-import { SILO_FOOD_STORAGE, WOOD_STOREHOUSE_STORAGE } from '../game/economy';
+import { siloFoodStorageForLevel, WOOD_STOREHOUSE_STORAGE } from '../game/economy';
 import type { Building, WorldState, Entity } from '../game/gameEngine';
 import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
@@ -129,7 +129,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.Barn:
       return `Boosts nearby Farms/Greenhouses +${Math.round(BARN_ADJACENCY_BONUS * 100)}% — place next to fields, not a farm itself.`;
     case BuildingType.Silo:
-      return `Passive food every 2 days, +${SILO_FOOD_STORAGE} food storage, less spoilage — no workers.`;
+      return `Passive food every 2 days, +${siloFoodStorageForLevel(building.level ?? 1)} food storage at level ${building.level ?? 1} (L1 +2,000 / L2 +2,500 / L3 +3,000), less spoilage — no workers.`;
     case BuildingType.WoodStorehouse:
       return `Passive — +${WOOD_STOREHOUSE_STORAGE} capacity each for wood, stone, iron and gold. No workers needed.`;
     case BuildingType.Barracks:
