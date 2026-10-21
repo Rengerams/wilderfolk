@@ -28,6 +28,8 @@ export default function FamilyTreeWindow({
 }: FamilyTreeWindowProps) {
   useOverlayKeyboard('family-tree-window', onClose);
   const [depth, setDepth] = useState(3);
+  const [historicalFocusId, setHistoricalFocusId] = useState<number | null>(null);
+  const focusId = historicalFocusId ?? entity.id;
   const [mode, setMode] = useState<'descendants' | 'ancestors'>('descendants');
   const [showDeceased, setShowDeceased] = useState(true);
 
@@ -73,13 +75,18 @@ export default function FamilyTreeWindow({
     return { people: known, children: childIds };
   }, [allEntities, genealogyRegistry]);
 
-  const renderPerson = (person: Person, focus: boolean) => {
+  const focus = people.get(focusId);
+  const focusName = focus ? `${focus.name} ${focus.surname}`.trim() : citizenFullName(entity);
+  const renderPerson = (person: Person, isFocus: boolean) => {
     const label = `${person.name} ${person.surname}`.trim();
     return (
-      <button type="button" disabled={!onSelect || person.id === entity.id}
-        onClick={() => onSelect?.(person.id)}
+      <button type="button" disabled={person.id === focusId}
+        onClick={() => {
+          setHistoricalFocusId(person.id);
+          if (person.alive) onSelect?.(person.id);
+        }}
         className={`inline-flex min-w-40 max-w-56 flex-col rounded-lg border px-3 py-2 text-left shadow-sm transition
-          ${focus ? 'border-amber-300 bg-amber-900/60 text-amber-50' :
+          ${isFocus ? 'border-amber-300 bg-amber-900/60 text-amber-50' :
             'border-stone-600 bg-stone-800 text-stone-100 hover:border-amber-500'}
           ${!person.alive ? 'opacity-65' : ''}`}>
         <span className="text-[13px] font-semibold">{label}</span>
@@ -101,9 +108,38 @@ export default function FamilyTreeWindow({
       const candidate = people.get(nextId);
       return candidate && (showDeceased || candidate.alive) && !nextTrail.has(nextId);
     }) : [];
+    const partnerIds = new Set<number>();
+    const recorded = genealogyRegistry?.people[String(id)];
+    for (const partnerId of recorded?.partners ?? []) if (people.has(partnerId)) partnerIds.add(partnerId);
+    // Only the co-parent of a recorded child is an assured family link; historic partners
+    // not recorded on the current entity are marked as known partners, not current spouses.
+    for (const childId of children.get(id) ?? []) {
+      const child = people.get(childId);
+      if (!child) continue;
+      for (const parentId of PARENT_KEYS.map(k => child[k])) {
+        if (parentId != null && parentId !== id && people.has(parentId)) partnerIds.add(parentId);
+      }
+    }
+    const partners = mode === 'descendants' ? [...partnerIds].filter(partnerId => {
+      const p = people.get(partnerId);
+      return p && (showDeceased || p.alive);
+    }).slice(0, 5) : [];
     return (
       <div key={id} className="flex flex-col items-start">
-        {renderPerson(person, id === entity.id)}
+        <div className="flex items-center gap-3">
+          {renderPerson(person, id === focusId)}
+          {partners.length > 0 && (
+            <div className="flex items-center gap-2 border-l-2 border-rose-500/50 pl-3">
+              {partners.map(partnerId => {
+                const partner = people.get(partnerId)!;
+                return <div key={partnerId} className="flex flex-col gap-1">
+                  <span className="text-[10px] text-rose-300">Partner / co-parent</span>
+                  {renderPerson(partner, false)}
+                </div>;
+              })}
+            </div>
+          )}
+        </div>
         {visible.length > 0 && (
           <div className="ml-5 mt-2 space-y-3 border-l-2 border-amber-600/50 pl-5">
             {visible.map(nextId => (
@@ -120,14 +156,13 @@ export default function FamilyTreeWindow({
     );
   };
 
-  const focus = people.get(entity.id);
   const knownCount = people.size;
   const familyCount = focus ? (mode === 'ancestors'
-    ? PARENT_KEYS.filter(k => focus[k] != null).length : (children.get(entity.id)?.size ?? 0)) : 0;
+    ? PARENT_KEYS.filter(k => focus[k] != null).length : (children.get(focusId)?.size ?? 0)) : 0;
 
   return (
     <GameWindow
-      title={`Family tree · ${citizenFullName(entity)}`}
+      title={`Family tree · ${focusName}`}
       icon="🌳"
       subtitle={`${knownCount} people recorded · ${familyCount} direct ${mode === 'ancestors' ? 'parents' : 'children'}`}
       onClose={onClose}
@@ -159,7 +194,7 @@ export default function FamilyTreeWindow({
         </div>
         <p className="text-xs text-stone-400">
           Lines show recorded biological or adoptive parent-child relationships.
-          Marriage alone does not imply shared ancestry. Click a card to explore that person.
+          Marriage alone does not imply shared ancestry. Click any card, including deceased relatives, to explore their branch.
         </p>
         <div className="max-h-[57vh] overflow-auto rounded-xl border border-amber-900/40 bg-stone-950/60 p-5">
           {focus ? branch(focus.id, 0, new Set<number>()) : (
