@@ -24,7 +24,7 @@ import type { Entity, WorldState } from './gameTypes';
  *   pair as `disasters`. `notifications` is not: a toast's life is wall clock, so a restored one is stale.
  */
 export const WORLD_STATE_SAVE_KEYS = [
-  'entities', 'buildings', 'tick', 'season', 'year', 'dayInYear', 'populationHistory',
+  'entities', 'genealogyRegistry', 'buildings', 'tick', 'season', 'year', 'dayInYear', 'populationHistory',
   'width', 'height', 'nextEntityId', 'nextBuildingId', 'nextFloatingTextId',
   'paused', 'speed', 'activeEvent', 'lastEventYear', 'bountifulHarvest',
   'humanPopulation', 'maxHumanPopulation', 'wildlifeCounts', 'villageName', 'workSchedule', 'tavernSchedule', 'hotelSchedule', 'villageReputation',
