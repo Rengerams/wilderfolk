@@ -13,7 +13,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createBuilding, createEntity, initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameEngine';
 import { RESIDENCE_SWEEP_BUCKETS, assignMissingResidences } from '../src/game/residencyReconciliation';
-import { LAYER_ASSIGN_INTERVAL } from '../src/game/tickLayerAssign';
+import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
 import {
   buildHousingUnits,
   buildResidenceTraits,
@@ -36,7 +36,7 @@ const BOUNDARY_CEILING_MS = 5000;
 /** One day of assignment pulses, in tick order. */
 const DAY_PULSES = Array.from(
   { length: TICKS_PER_DAY / LAYER_ASSIGN_INTERVAL },
-  (_, i) => i * LAYER_ASSIGN_INTERVAL,
+  (_, i) => LAYER_ASSIGN_PHASE_TICK + i * LAYER_ASSIGN_INTERVAL,
 );
 
 /** The pulse whose bucket one housing unit belongs to. */
@@ -240,11 +240,9 @@ describe('the day-boundary residency pass on a large colony', () => {
   it('reaches a fixed point by the end of the day, not on the boundary tick alone', () => {
     resetSimRng();
     const after = gameTick(parkBeforeDayBoundary(largeColony()));
-    // The boundary tick owns one bucket; the rest of the day's pulses own the others.
-    runPulses(
-      after,
-      DAY_PULSES.filter((tick) => tick > 0).map((tick) => after.tick + tick),
-    );
+    // All four assignment pulses run at 03:00, 09:00, 15:00 and 21:00.
+    // Midnight is a daily phase, not an assignment pulse.
+    runPulses(after, DAY_PULSES.map((tick) => after.tick + tick));
 
     expect(housingViolations(after)).toEqual([]);
     const before = assignment(after);
