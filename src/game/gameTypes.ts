@@ -657,7 +657,9 @@ export interface RaidEvent {
 }
 
 export interface OutgoingRaidEvent {
-  phase?: 'marching' | 'engaging' | 'returning';
+  phase?: 'marching' | 'engaging' | 'fighting' | 'returning';
+  battleStartedAtTick?: number;
+  battleChronicle?: string[];
   soldierIds?: number[];
   launchedAtTick?: number;
   arrivalAtTick?: number;
