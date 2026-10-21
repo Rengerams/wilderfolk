@@ -1,7 +1,7 @@
 import { EntityType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { collectFamilyMembers, collectOwnHousehold, isMinorChild } from './householdComposition';
+import { collectFamilyMembers, collectOwnHousehold, indexFamilyRelations, isMinorChild } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned } from './residencyOccupancy';
 import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
@@ -91,9 +91,10 @@ export function rebalanceOvercrowdedResidences(
 
     const visited = new Set<number>();
     const familiesInHouse: Entity[][] = [];
+    const relations = indexFamilyRelations(occupants);
     for (const occupant of occupants.sort((a, b) => a.id - b.id)) {
       if (visited.has(occupant.id)) continue;
-      familiesInHouse.push(collectFamilyMembers(occupant, occupants, visited));
+      familiesInHouse.push(collectFamilyMembers(occupant, occupants, visited, relations));
     }
 
     familiesInHouse.sort((a, b) => b.length - a.length);
