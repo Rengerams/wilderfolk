@@ -25,7 +25,7 @@ import {
   getHourOfDay,
 } from '../src/game/dayCycleClock';
 import { isAsleepAtHome } from '../src/game/humanSchedule';
-import { endAmbientHumanChat } from '../src/game/humanChat';
+import { endAmbientHumanChat, resetDialogueSessions } from '../src/game/humanChat';
 import { resetSimRng, seededRandomForRun, setSimSeed } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
@@ -145,6 +145,7 @@ function nightAmbientTick(id: number): number {
       // The random roll is only one gate: shifts and context can also prevent
       // a conversation. Find a night tick where the real away-from-home control
       // actually speaks, then compare the same tick at home.
+      resetDialogueSessions();
       const control = newWorld();
       control.tick = tick;
       control.buildings = [house(1)];
@@ -211,6 +212,7 @@ describe('ambient chatter at home after dark', () => {
     setSimSeed(TEST_SEED);
     expect(seededRandomForRun(`chat-ambient:1:${tick}`)).toBeLessThanOrEqual(AMBIENT_CHANCE);
 
+    resetDialogueSessions();
     // Control: away from home at night, the ambient roll lands and the settler speaks.
     const openWorld = newWorld();
     openWorld.tick = tick;
@@ -236,7 +238,8 @@ describe('ambient chatter at home after dark', () => {
   });
 
   it('stops a chat that is already running when the settler is home for the night', () => {
-    const tick = nightAmbientTick(1);
+    const tick = TICKS_PER_DAY + 23 * TICKS_PER_HOUR;
+    resetDialogueSessions();
     const state = newWorld();
     state.tick = tick;
     state.buildings = [house(1)];
