@@ -398,10 +398,9 @@ function rebakePathCell(map: WorldMap, tx: number, ty: number): void {
   const type = tileTypeAt(map, tx, ty);
   // Reserved decor cells (a big rock the L3 pass blocked) are not terrain, so a
   // clearing must not un-reserve one that survived the edit.
-  if (type === null) {
-    grid[ty * map.width + tx] = previous === Walkability.Reserved ? previous : Walkability.Open;
-    return;
-  }
+  if (type === null) return;
+  // Preserve generator decor reservations unless this tile was explicitly edited.
+  if (previous === Walkability.Reserved && !map.overrides?.has(ty * map.width + tx)) return;
   grid[ty * map.width + tx] = isWalkableTerrainType(type) ? Walkability.Open : Walkability.Water;
 }
 
@@ -414,6 +413,7 @@ function rebakeBuildCell(map: WorldMap, bx: number, by: number): void {
   const per = BUILD_CELL / PATH_CELL;
   let water = 0;
   let reserved = 0;
+  let hard = 0;
   for (let j = 0; j < per; j++) {
     for (let i = 0; i < per; i++) {
       const tx = Math.min(map.width - 1, bx * per + i);
@@ -421,11 +421,9 @@ function rebakeBuildCell(map: WorldMap, bx: number, by: number): void {
       const value = map.pathGrid?.[ty * map.width + tx] ?? Walkability.Open;
       if (value === Walkability.Water) water++;
       else if (value === Walkability.Reserved) reserved++;
+      if (!isTileBuildable(map, tx, ty)) hard++;
     }
   }
-  const hard = isTileBuildable(map, Math.min(map.width - 1, bx * per), Math.min(map.height - 1, by * per))
-    ? 0
-    : 1;
   grid[by * bCols + bx] = water
     ? Buildability.Water
     : hard
