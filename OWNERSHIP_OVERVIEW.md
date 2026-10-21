@@ -316,6 +316,7 @@ exports it.
 | Family tree window | `components/FamilyTreeWindow.tsx` | UI (read-only; the data owner is `game/familyTree.buildFullFamilyTree`) | `FamilyTreeWindow` |
 | Test map fixtures | `src/test/worldMapFixtures.ts` | test tier only — never in the app build | `testWorldMap`, `blockedColumn` |
 | Social test human fixture | `tests/phase7.social.test.ts` | test tier only | `addHuman` — create humans with age and childhood status consistent. |
+| Company-following movement fixture | `tests/low-8-humans.test.ts` | test tier only | `runCompanyFollow` — compare velocities in independently cloned worlds. |
 | Hot-path equivalence settler fixture | `tests/audit.hotPathScans.equivalence.test.ts` | test tier only | `settler` — create housed humans at the requested calendar age. |
 
 ## Owners recorded by the 2026-10-08 audit-remediation session

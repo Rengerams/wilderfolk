@@ -343,10 +343,9 @@ describe('L42 — company-following leisure blends velocity once', () => {
     return ticks;
   }
 
-  function runCompanyFollow(tick: number, previousVx: number): number {
-    const state = newWorld();
+  function runCompanyFollow(fixture: WorldState, tick: number, previousVx: number): number {
+    const state = structuredClone(fixture);
     state.tick = tick;
-    state.worldMap = null;
     const speaker = settler(1, {
       x: 400,
       y: 400,
@@ -363,9 +362,11 @@ describe('L42 — company-following leisure blends velocity once', () => {
   }
 
   it('weights the previous velocity at 0.5 like every other leisure kind', () => {
+    const fixture = newWorld();
+    fixture.worldMap = null;
     setSimSeed(TEST_SEED);
     const deltas = companyFollowTicks()
-      .map((tick) => runCompanyFollow(tick, 20) - runCompanyFollow(tick, 0));
+      .map((tick) => runCompanyFollow(fixture, tick, 20) - runCompanyFollow(fixture, tick, 0));
 
     // Pre-fix the branch blended 0.45/0.55 and the shared tail blended 0.5/0.5 again,
     // weighting the previous velocity at 0.225. Only a single 0.5 blend is correct.

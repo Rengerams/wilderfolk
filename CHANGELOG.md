@@ -2,6 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Company-following movement regression clones one isolated terrain-free world across all eight comparisons, avoiding repeated world generation and load-sensitive timeouts without changing its assertions.
 - **Fixed:** Ground Reinforcement catalogue artwork and its asset registration now match the shipped filename casing, restoring the preview on case-sensitive hosts.
 - **Fixed:** Regression fixtures now create adults with consistent calendar ages, provide decoration-free terrain for pathfinding, and assert that a wronged parent keeps the family home with their child after a caught-affair divorce.
 - **Fixed:** camera zoom-out now reaches the overview and LOD presets (minimum 0.2); rabbits and deer replenish in bounded 16-animal batches instead of large single-tick bursts; a reverting sitting Moon Howler leader regains their Leader House entitlement immediately even at generic capacity.
