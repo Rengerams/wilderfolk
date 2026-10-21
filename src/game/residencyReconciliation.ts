@@ -2,7 +2,7 @@ import { EntityType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, indexFamilyRelations, isMinorChild } from './householdComposition';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned } from './residencyOccupancy';
+import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { isPlayerHuman } from './playerHuman';
@@ -119,12 +119,7 @@ export function rebalanceOvercrowdedResidences(
 
 
 /** Player settler in human or cursed full-moon werewolf form — counts for residence sync. */
-export function isResidenceOccupantEntity(entity: Entity): boolean {
-  if (!entity.alive) return false;
-  if (entity.type === EntityType.Human) return isPlayerHuman(entity);
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed && !entity.faction;
-}
-
+export { isResidenceOccupantEntity } from './residencyOccupancy';
 
 /**
  * Keep house/mansion occupants in sync with residenceBuildingId for the UI.
