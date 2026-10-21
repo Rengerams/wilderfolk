@@ -222,7 +222,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     rivalSettlements: structuredClone(state.rivalSettlements ?? []),
     pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
     pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
-    raidBattleReports: structuredClone(state.raidBattleReports ?? []),
+    raidBattleReports: state.raidBattleReports === undefined ? undefined : structuredClone(state.raidBattleReports),
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: structuredClone(state.tradeRoutes ?? []),
     disasters: structuredClone(state.disasters ?? []),
@@ -336,7 +336,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.rivalSettlements = prep.rivalSettlements;
   world.pendingRaidEvents = prep.pendingRaidEvents;
   world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;
-  world.raidBattleReports = prep.raidBattleReports;
+  if (prep.raidBattleReports === undefined) delete world.raidBattleReports;
+  else world.raidBattleReports = prep.raidBattleReports;
   world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents;
   world.tradeRoutes = prep.tradeRoutes;
   world.disasters = prep.disasters;
