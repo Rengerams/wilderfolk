@@ -40,7 +40,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
-  'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories',
+  'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',
   'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'pendingLeaderHouseResidentIds', 'leaderSinceYear',
