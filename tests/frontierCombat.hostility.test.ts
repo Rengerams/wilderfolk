@@ -215,6 +215,40 @@ describe('mobilized raid lifecycle', () => {
     expect(result.entities.every((person) => !person.raidDeploymentId)).toBe(true);
   });
 
+  it('streams factual text commentary in chronological stages without replaying deaths', () => {
+    const world = launchRaidOnRival(village([rival({ relationship: 'tense' })]), 'rival_oakcrossing');
+    const raid = world.pendingOutgoingRaidEvents![0]!;
+    world.tick = raid.arrivalAtTick!;
+    tickPendingOutgoingRaidEvents(world);
+    if (raid.rivalResponse !== 'fight') return;
+
+    const started = raid.battleStartedAtTick!;
+    expect(raid.battleChronicle).toHaveLength(1);
+    world.tick = started + Math.ceil(TICKS_PER_HOUR / 2);
+    tickPendingOutgoingRaidEvents(world);
+    expect(raid.battleChronicle).toHaveLength(2);
+    const halfHour = [...raid.battleChronicle!];
+    tickPendingOutgoingRaidEvents(world);
+    expect(raid.battleChronicle).toEqual(halfHour);
+
+    world.tick = started + TICKS_PER_HOUR;
+    tickPendingOutgoingRaidEvents(world);
+    expect(raid.battleChronicle).toHaveLength(3);
+    expect(raid.battleChronicle![2]).toContain('no casualties have been confirmed');
+
+    world.tick = started + Math.ceil(TICKS_PER_HOUR * 1.5);
+    tickPendingOutgoingRaidEvents(world);
+    expect(raid.battleChronicle).toHaveLength(4);
+
+    world.tick = started + 2 * TICKS_PER_HOUR;
+    tickPendingOutgoingRaidEvents(world);
+    expect(raid.phase).toBe('returning');
+    expect(raid.battleChronicle).toHaveLength(5);
+    const graveCount = world.graveRecords?.length ?? 0;
+    tickPendingOutgoingRaidEvents(world);
+    expect(world.graveRecords?.length ?? 0).toBe(graveCount);
+  });
+
   it('does not allow a war declaration during an active treaty', () => {
     const state = village([rival({ relationship: 'neutral', peaceTreatyDays: 14 })]);
     expect(canProvokeRival(state, state.rivalSettlements[0]!).ok).toBe(false);
