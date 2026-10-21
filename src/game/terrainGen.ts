@@ -134,6 +134,7 @@ function clearStartAreaForest(map: WorldMap, worldX: number, worldY: number, rad
       setTileOverride(map, tx, ty, { ...tile, type: TerrainType.Grassland });
     }
   }
+  rebakeTerrainGrids(map, rect);
 }
 
 /**
