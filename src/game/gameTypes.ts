@@ -304,6 +304,7 @@ export interface Entity {
   occupation?: string;
   job?: JobType;
   skills?: Partial<Record<JobType, number>>;
+  battleLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
   affairPartnerId?: number;
