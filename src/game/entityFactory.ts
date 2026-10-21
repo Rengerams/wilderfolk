@@ -6,7 +6,7 @@ import {
   setHumanBirthFromAge,
 } from './dayCycle';
 
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
