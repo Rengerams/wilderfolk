@@ -1487,8 +1487,10 @@ export default function App() {
                         )}
                       </p>
                       {evt.phase === 'marching' && <p className="mt-2 text-xs font-semibold text-amber-200">War-band marching — {evt.soldierIds?.length ?? 0} soldiers deployed. Battle decisions unlock at arrival.</p>}
+                      {evt.phase === 'fighting' && <p className="mt-2 text-xs font-semibold text-rose-200">Battle underway — reports arrive automatically as time advances.</p>}
+                      {(evt.battleChronicle?.length ?? 0) > 0 && <div className="mt-2 space-y-1 rounded bg-stone-950/70 p-2 text-xs text-stone-200" aria-label="Battle chronicle">{evt.battleChronicle?.slice(-4).map((line, index) => <p key={index}>{line}</p>)}</div>}
                       {evt.phase === 'returning' && <p className="mt-2 text-xs font-semibold text-emerald-200">War-band returning. Surviving soldiers rejoin village defense when they reach home.</p>}
-                      {evt.phase !== 'returning' && <button type="button" className="mt-2 rounded bg-amber-800 px-3 py-1.5 text-xs font-bold text-white" onClick={() => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId: evt.id, choiceId: 'recall' })}>Recall Army</button>}
+                      {evt.phase !== 'returning' && evt.phase !== 'fighting' && <button type="button" className="mt-2 rounded bg-amber-800 px-3 py-1.5 text-xs font-bold text-white" onClick={() => applyGameAction({ proto: 1, op: 'respondToOutgoingRaidEvent', eventId: evt.id, choiceId: 'recall' })}>Recall Army</button>}
                       <div className="mt-2 grid grid-cols-1 gap-1">
                         {(evt.phase === 'engaging' || !evt.phase ? evt.choices : []).map((choice) => (
                           <button
