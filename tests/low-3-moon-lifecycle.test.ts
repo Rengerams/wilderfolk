@@ -21,7 +21,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/dayCycleConstants';
+import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/daycycleconstants';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { countActiveMoonHowlerCurses, tickMoonHowlerCycle } from '../src/game/moonHowler';
 import { spawnMoonHowlerDebug } from '../src/game/settlerInteractionActions';
