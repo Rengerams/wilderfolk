@@ -1120,6 +1120,15 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   // during the two-month vacancy.
   const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
   const electionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
+  // Snapshot the actual living manor residents at the moment the office becomes
+  // vacant. Their entitlement must outlive the late leader's entity and relationship
+  // cleanup, and survive save/load until a successor takes office.
+  const manor = state.buildings.find((building) =>
+    building.type === BuildingType.LeaderHouse && building.completed && building.faction !== 'rival');
+  state.pendingLeaderHouseResidentIds = manor
+    ? state.entities.filter((person) => person.alive && !person.faction
+      && person.residenceBuildingId === manor.id).map((person) => person.id)
+    : [];
   state.pendingElectionYear = electionYear;
   state.villageLeaderId = null;
 
