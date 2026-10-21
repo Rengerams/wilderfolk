@@ -177,11 +177,12 @@ describe('workforce policy — manual assignment stays authoritative', () => {
         humanId: 1,
       });
       const releasedFromFarm = afterFarmRemoval.entities.find((e) => e.id === 1)!;
-      // The no-op pass that follows legitimately re-offers the now-idle settler to the same
-      // open Farm slot (the farm is auto-staffed under every preset), so the end state is a
-      // valid single-worker Farm — never a refusal of the removal itself.
-      expect(releasedFromFarm.homeBuildingId, `preset "${preset}" re-fill`).toBe(11);
-      expect(afterFarmRemoval.buildings.find((b) => b.id === 11)!.occupants, `preset "${preset}" removal`).toEqual([1]);
+      // Explicit removal switches the workplace to manual staffing, preventing the
+      // immediately following auto pass from undoing the player's decision.
+      expect(releasedFromFarm.homeBuildingId, `preset "${preset}" removal`).toBeUndefined();
+      expect(releasedFromFarm.job, `preset "${preset}" removal job`).toBe(JobType.Settler);
+      expect(afterFarmRemoval.buildings.find((b) => b.id === 11)!.occupants, `preset "${preset}" removal`).toEqual([]);
+      expect(afterFarmRemoval.buildings.find((b) => b.id === 11)!.staffingMode).toBe('manual');
 
       // A manual-staffing workplace proves the removal end state in isolation: the auto pass
       // skips it under every preset, so the settler stays released.
