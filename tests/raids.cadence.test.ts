@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickRivalSettlements, type RivalEventCallbacks } from '../src/game/rivalEvents';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { building, human } from '../src/test/factories';
@@ -124,6 +124,18 @@ afterEach(() => {
 });
 
 describe('incoming raid cadence', () => {
+  it('decrements peace treaty days at the 18:00 world-events pulse', () => {
+    const { state, allAlive } = makeState();
+    const camp = state.rivalSettlements[0];
+    camp.peaceTreatyDays = 60;
+    state.tick = TICKS_PER_DAY + 18 * TICKS_PER_HOUR;
+    tickRivalSettlements(state, allAlive, callbacks);
+    expect(camp.peaceTreatyDays).toBe(59);
+    state.tick += TICKS_PER_DAY;
+    tickRivalSettlements(state, allAlive, callbacks);
+    expect(camp.peaceTreatyDays).toBe(58);
+  });
+
   it('asks the raid question on days the rival takes no major action', () => {
     setSimSeed(7);
     const { state, allAlive } = makeState();
