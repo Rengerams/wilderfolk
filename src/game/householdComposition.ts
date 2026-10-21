@@ -1,5 +1,5 @@
 import type { Entity } from './gameTypes';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { hasResidenceAssignment } from './residencyOccupancy';
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
