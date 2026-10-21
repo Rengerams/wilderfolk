@@ -64,11 +64,11 @@ describe('economy audit fixes', () => {
     expect(w.storageMax.food).toBe(800);
   });
 
-  it('a Silo raises food storage to 1400 and cuts spoilage to 0.8%', () => {
+  it('a Silo raises food storage to 2800 and cuts spoilage to 0.8%', () => {
     const w = makeWorld();
     addBuilding(w, BuildingType.Silo);
     updateStorageCaps(w);
-    expect(w.storageMax.food).toBe(1400);
+    expect(w.storageMax.food).toBe(2800);
     expect(w.foodSpoilageRate).toBeCloseTo(0.008);
   });
 
