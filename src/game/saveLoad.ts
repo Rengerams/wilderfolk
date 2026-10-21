@@ -32,7 +32,7 @@ import { TICKED_SPECIES } from './entityFactory';
 import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy } from './workforcePolicy';
 import { normalizeVenueSchedule } from './venueSchedule';
-import { normalizeFestivalState } from './dailyWorldEvents';
+import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
@@ -1551,6 +1551,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
+    repairStaleFestivalOnLoad(world);
     for (const challenge of world.challenges ?? []) {
       const fresh = INITIAL_CHALLENGES.find((c) => c.id === challenge.id);
       if (!fresh || challenge.completed) continue;
