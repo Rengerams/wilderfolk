@@ -137,7 +137,7 @@ describe('M18 leader household composition', () => {
     syncLeaderHouseResidency(state); // daily reconciliation runs again the next colony day
 
     expect(minorChild.residenceBuildingId).toBe(10);
-    expect(marriedChild.residenceBuildingId).toBe(10);
+    expect(marriedChild.residenceBuildingId).toBe(11); // married adults keep their own household
     expect(singleAdultChild.residenceBuildingId).toBe(10);
     expect(manor.occupants).toEqual(expect.arrayContaining([1, 2, 3]));
     expect(manor.occupants).toContain(4);
