@@ -100,7 +100,10 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // for syncLeaderHouseResidency to undo it later in this same tick.
   // Keep everyone in allHumans for genealogy; only remove protected members
   // from the set of people eligible to be reassigned.
-  const protectedIds = new Set(collectLeaderHousehold(world).map((person) => person.id));
+  const protectedIds = new Set([
+    ...collectLeaderHousehold(world).map((person) => person.id),
+    ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
+  ]);
   const eligibleForHousing = protectedIds.size === 0
     ? playerHumans
     : playerHumans.filter((person) => !protectedIds.has(person.id));
