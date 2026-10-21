@@ -1,18 +1,19 @@
 import { memo } from 'react';
 import type { OutgoingRaidEvent, WorldState } from '../game/gameTypes';
 import { getPlayerCampCenter } from '../game/villageAnchor';
-import { canLaunchRaidOnRival, canProvokeRival, getOutgoingRaidFoodCostForRival } from '../game/frontierCombat';
+import { canLaunchRaidOnRival, canProvokeRival, getOutgoingRaidFoodCostForRival, getCampDistancePixels, formatCampDistance, getCampDistanceTiles, getIncomingRaidResponseDays } from '../game/frontierCombat';
 import { getRaidParticipants } from '../game/frontierCombat';
 
 interface Props {
   state: WorldState;
-  onFocusRival: (id: string, x: number, y: number, buildingId?: number) => void;
+  selectedRivalId: string | null;
+  onSelectRival: (id: string) => void;
   onLaunchRaid?: (id: string) => void;
   onDeclareWar?: (id: string) => void;
   onRecallRaid?: (id: string) => void;
 }
 
-function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, onRecallRaid }: Props) {
+function StrategicWorldMap({ state, selectedRivalId, onSelectRival, onLaunchRaid, onDeclareWar, onRecallRaid }: Props) {
   const origin = getPlayerCampCenter(state, state.buildings);
   const settlements = state.rivalSettlements;
   const points = [origin, ...settlements.map((rival) => ({ x: rival.campX, y: rival.campY }))];
@@ -50,13 +51,15 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, on
         <path d="M 12 75 Q 190 25 280 75 T 690 48 M 4 315 Q 180 265 300 303 T 716 278" fill="none" stroke="#455d49" strokeWidth="18" strokeOpacity="0.3" />
         {settlements.map((rival) => {
           const target = locate(rival.campX, rival.campY);
+          const selected = selectedRivalId === rival.id;
           return (
             <g key={rival.id}>
               <line x1={home.x} y1={home.y} x2={target.x} y2={target.y} stroke="#a59c83" strokeOpacity="0.32" strokeDasharray="4 7" />
-              <circle onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])} style={{ cursor: 'pointer' }} cx={target.x} cy={target.y} r="12" fill={rival.relationship === 'tense' ? '#8e3333' : '#756241'} stroke="#ead4a2" strokeWidth="1.5" />
+              <circle onClick={() => onSelectRival(rival.id)} style={{ cursor: 'pointer' }} cx={target.x} cy={target.y} r="12" fill={rival.relationship === 'tense' ? '#8e3333' : '#756241'} stroke={selected ? "#ffffff" : "#ead4a2"} strokeWidth={selected ? 3 : 1.5} />
               <text x={target.x} y={target.y + 4} fontSize="11" textAnchor="middle" fill="white">◆</text>
-              <text onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])} style={{ cursor: 'pointer' }} x={target.x} y={target.y + 25} fontSize="11" textAnchor="middle" fill="#f9deb2" stroke="#16201a" strokeWidth="3" paintOrder="stroke">{rival.name}</text>
+              <text onClick={() => onSelectRival(rival.id)} style={{ cursor: 'pointer' }} x={target.x} y={target.y + 25} fontSize="11" textAnchor="middle" fill="#f9deb2" stroke="#16201a" strokeWidth="3" paintOrder="stroke">{rival.name}</text>
               <text x={target.x} y={target.y + 38} fontSize="9" textAnchor="middle" fill="#e6dbbf">{rival.atWarWithPlayer ? 'AT WAR' : rival.relationship} · {rival.population} people</text>
+              <text x={target.x} y={target.y + 50} fontSize="9" textAnchor="middle" fill="#d5e3cf">{formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} away</text>
             </g>
           );
         })}
@@ -99,11 +102,11 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, on
           const raid = canLaunchRaidOnRival(state, rival);
           const war = canProvokeRival(state, rival);
           return (
-            <div key={rival.id} className="rounded-lg border border-stone-700 bg-stone-900/80 p-2">
-              <button type="button" className="w-full text-left text-[12px] font-semibold text-amber-200 hover:underline" onClick={() => onFocusRival(rival.id, rival.campX, rival.campY, rival.buildingIds[0])}>
+            <div key={rival.id} className={`rounded-lg border bg-stone-900/80 p-2 ${selectedRivalId === rival.id ? "border-amber-400" : "border-stone-700"}`}>
+              <button type="button" className="w-full text-left text-[12px] font-semibold text-amber-200 hover:underline" onClick={() => onSelectRival(rival.id)}>
                 {rival.name} · {rival.atWarWithPlayer ? 'AT WAR' : rival.relationship}
               </button>
-              <p className="text-[10px] text-stone-400">{rival.population} residents · rival settlement</p>
+              <p className="text-[10px] text-stone-400">{rival.population} residents · {formatCampDistance(getCampDistancePixels(state, state.buildings, rival))} from your village · approximately {getIncomingRaidResponseDays(getCampDistanceTiles(getCampDistancePixels(state, state.buildings, rival)))} days march</p>
               {(state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === rival.id).map((army) => <div key={army.id} className="mt-2 text-xs text-emerald-200">{army.phase === 'returning' ? 'Returning' : army.phase === 'fighting' ? 'Battle underway' : army.phase === 'engaging' ? 'Arrived' : 'Marching'} · {army.soldierIds?.filter((id) => livingIds.has(id)).length ?? '?'} soldiers {onRecallRaid && army.phase !== 'returning' && army.phase !== 'fighting' && <button type="button" className="ml-2 rounded bg-amber-700 px-2 py-1 text-white" onClick={() => onRecallRaid(army.id)}>Recall Army</button>}</div>)}
               <div className="mt-2 flex gap-2">
                 {onDeclareWar && <button type="button" disabled={!war.ok} title={war.ok ? 'Declare hostility and damage diplomatic relations' : war.blockReason} onClick={() => onDeclareWar(rival.id)} className="flex-1 rounded bg-red-950 px-2 py-1 text-[11px] text-rose-100 disabled:opacity-40">Declare war</button>}
