@@ -111,7 +111,7 @@ export function largestBloodlines(registry: GenealogyRegistry, limit = 10): Arra
 
 /** Record a newborn before its entity is merged into the main world array. */
 export function recordGenealogyBirth(state: WorldState, child: Entity): void {
-  const registry = syncGenealogyRegistry(state);
+  const registry = state.genealogyRegistry ??= { people: {} };
   const key = String(child.id);
   if (registry.people[key]) return;
   registry.people[key] = {
@@ -139,9 +139,19 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
 /** Capture a death while the entity still has its identity and family links. */
 export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   if (!recordedHuman(entity)) return;
-  const registry = syncGenealogyRegistry(state);
+  const registry = state.genealogyRegistry ??= { people: {} };
+  if (!registry.people[String(entity.id)]) {
+    registry.people[String(entity.id)] = {
+      id: entity.id, name: entity.name ?? 'Unknown settler',
+      birthSurname: entity.surname ?? '', surname: entity.surname ?? '', gender: entity.gender,
+      bornYear: entity.birthYear, bornDay: entity.birthDay, alive: true,
+      motherId: entity.motherId, fatherId: entity.fatherId,
+      adoptiveMotherId: entity.adoptiveMotherId, adoptiveFatherId: entity.adoptiveFatherId,
+      partners: entity.partnerId == null ? [] : [entity.partnerId],
+      childrenIds: [...(entity.childrenIds ?? [])],
+    };
+  }
   const person = registry.people[String(entity.id)];
-  if (!person) return;
   person.alive = false;
   person.diedYear ??= state.year;
   person.diedDay ??= state.dayInYear;
