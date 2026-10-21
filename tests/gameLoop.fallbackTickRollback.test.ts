@@ -125,8 +125,18 @@ describe('main-thread fallback tick rollback (P-3)', () => {
       throw new Error('simulated tick failure');
     });
 
-    // Enough accumulated time for the full catch-up budget: 12 steps at 1× (1000 ms per tick).
-    (loop as unknown as { tickAccumulator: number }).tickAccumulator = 12_000;
+    // Force the unsupported-worker fallback path. A recovery timer or worker
+    // boot gate would correctly prevent all local ticks, masking the rollback.
+    const internals = loop as unknown as {
+      workerBooting: boolean; workerEnabled: boolean;
+      workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
+      workerRecoveryInFlight: boolean; tickAccumulator: number;
+    };
+    internals.workerBooting = false;
+    internals.workerEnabled = false;
+    internals.workerRecoveryTimer = null;
+    internals.workerRecoveryInFlight = false;
+    internals.tickAccumulator = 12_000;
     const frameBody = (loop as unknown as { frameBody: (time: number) => void }).frameBody.bind(loop);
 
     frameBody(1000);
