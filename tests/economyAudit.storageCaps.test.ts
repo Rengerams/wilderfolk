@@ -64,6 +64,20 @@ describe('economy audit fixes', () => {
     expect(w.storageMax.food).toBe(800);
   });
 
+  it('upgraded Storehouses add 1800 at level 2 and 2800 at level 3 to each non-food resource', () => {
+    const w = makeWorld();
+    addBuilding(w, BuildingType.WoodStorehouse);
+    w.buildings[0]!.level = 2;
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 2600, stone: 2100, iron: 2100, gold: 21800, food: 800 });
+    w.buildings[0]!.level = 3;
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 3600, stone: 3100, iron: 3100, gold: 22800, food: 800 });
+    addBuilding(w, BuildingType.WoodStorehouse);
+    updateStorageCaps(w);
+    expect(w.storageMax).toMatchObject({ wood: 4400, stone: 3900, iron: 3900, gold: 23600, food: 800 });
+  });
+
   it('a Silo raises food storage to 2800 and cuts spoilage to 0.8%', () => {
     const w = makeWorld();
     addBuilding(w, BuildingType.Silo);
