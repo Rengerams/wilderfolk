@@ -183,8 +183,9 @@ describe('festival lifecycle regressions', () => {
     state.festival = { active: true, name: 'Test Festival', daysLeft: 2 };
     gameTick(state);
     expect(state.festival?.daysLeft).toBe(1);
-    state.tick += TICKS_PER_DAY;
-    gameTick(state);
+    // Advance every intervening tick: gameTick increments the clock itself.
+    // Jumping by a full day and calling gameTick once skips the 18:00 phase.
+    for (let tick = 0; tick < TICKS_PER_DAY; tick++) gameTick(state);
     expect(state.festival).toBeNull();
   });
 
