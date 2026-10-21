@@ -25,7 +25,7 @@ import {
 import { tickRivalSettlements } from '../src/game/rivalEvents';
 import { createRivalProfile } from '../src/game/rivalProfiles';
 import { setSimSeed } from '../src/game/simRng';
-import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 
 const CAMP_X = 600;
 const CAMP_Y = 450;
@@ -205,7 +205,7 @@ describe('mobilized raid lifecycle', () => {
     if (event.rivalResponse === 'fight') {
       expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('fighting');
       expect(result.pendingOutgoingRaidEvents[0]?.battleChronicle?.length).toBeGreaterThan(0);
-      result.tick += 2 * 2;
+      result.tick += 2 * TICKS_PER_HOUR;
       tickPendingOutgoingRaidEvents(result);
     }
     expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
