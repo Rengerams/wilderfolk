@@ -1060,6 +1060,8 @@ export const TerrainType = {
 export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
 
 export interface TerrainTile {
+  /** Persistent construction-ready soil tile; rendered with ground_soil.PNG. */
+  reinforced?: boolean;
   type: TerrainType;
   elevation: number;
   moisture: number;
