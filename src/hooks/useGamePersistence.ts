@@ -116,6 +116,16 @@ async function persistGameOnce(
   let worldToSave = accessors.getWorld();
   if (loop) {
     worldToSave = await loop.exportAuthoritativeWorld();
+    // Never overwrite a valid save with the potentially stale display shadow.
+    // An unacknowledged building upgrade may exist only in the worker or only
+    // optimistically on screen; neither is a trustworthy persisted snapshot.
+    if (loop.lastExportWasDegraded?.()) {
+      if (feedback) callbacks.showToast({
+        message: 'Save not written — simulation worker did not confirm the current world. Please retry.',
+        type: 'error',
+      });
+      return false;
+    }
   }
 
   const background = options?.background ?? false;
@@ -138,16 +148,6 @@ async function persistGameOnce(
     if (feedback) callbacks.showToast({ message: result.error, type: 'error' });
     return false;
   }
-  // The worker export is allowed to fall back to the display world, which carries optimistic commands
-  // the worker never confirmed. Say so rather than let a success toast imply the file matches the
-  // running colony.
-  if (feedback && loop?.lastExportWasDegraded?.()) {
-    callbacks.showToast({
-      message: 'Saved from the screen copy — the simulation worker did not answer in time.',
-      type: 'warning',
-    });
-  }
-
   const chronicleExported = chronicle && loadExportChronicleOnSave();
   if (chronicleExported) {
     try {
