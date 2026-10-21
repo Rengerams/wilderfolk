@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error Benchmark runner is a plain .mjs utility without TypeScript declarations.
 import { median, parseResults, validateComparable } from '../scripts/compare-runtimes.mjs';
 
 const result = { label: 'City 300 player humans', humans: 300, alive: 350, p95Ms: 2.34567, averageMs: 1.23456, deltaHash: 'same-state' };
