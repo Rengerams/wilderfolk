@@ -190,6 +190,38 @@ export function startBuilding(
     state.resources.gold -= config.cost.gold;
   }
 
+  if (type === BuildingType.GroundReinforcement) {
+    // This is a terrain operation, not a structure. The saved tile overrides
+    // carry the result; nothing remains to obstruct a future building.
+    const map = state.worldMap;
+    if (!map) return state;
+    const { startTx, endTx, startTy, endTy } = {
+      startTx: Math.floor((x - config.width / 2) / PATH_CELL),
+      endTx: Math.ceil((x + config.width / 2) / PATH_CELL),
+      startTy: Math.floor((y - config.height / 2) / PATH_CELL),
+      endTy: Math.ceil((y + config.height / 2) / PATH_CELL),
+    };
+    let changed = 0;
+    for (let ty = startTy; ty < endTy; ty++) {
+      for (let tx = startTx; tx < endTx; tx++) {
+        const tile = tileAt(map, tx, ty);
+        if (!tile) continue;
+        if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow ||
+            tile.type === TerrainType.ShallowWater || tile.type === TerrainType.RiverBank) {
+          patchTile(map, tx, ty, { type: TerrainType.Rocky });
+          changed++;
+        }
+      }
+    }
+    if (changed) {
+      rebakeTerrainGrids(map, { startTx, endTx: endTx - 1, startTy, endTy: endTy - 1 });
+      bumpTerrainRevision();
+      addFloatingText(state, x, y, `Ground reinforced · ${changed} tiles`, '#22c55e', 'brief');
+      logEvent(state, 'building', `Ground reinforced (${changed} tiles)`);
+    }
+    return state;
+  }
+
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
   building.spriteScale = 0;
   state.buildings.push(building);
