@@ -854,7 +854,6 @@ export function generateRawTerrain(
   // field every tile projection reads.
   const cuts = moistureCuts(moisture, s.forest);
 
-  /** The centre of L0 cell `cell`, in the generator field cells — the 10 px grid over the 16 px one. */
   /** The projected tile type holding L0 cell (x, y). One shared projection for both grids, so
    *  L0 walkability and L1 buildability can never disagree about the same ground. */
   const pathTileType = (x: number, y: number): TerrainType => {
