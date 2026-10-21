@@ -1,3 +1,5 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycleConstants';
 /**
  * Immigration party composition (2026-09-16).
  *
@@ -6,8 +8,8 @@
  * juvenile, since childhood ends at the adult floor.
  */
 import { describe, expect, it } from 'vitest';
-import { HUMAN_ADULT_MIN_AGE } from '../src/game/dayCycle';
-import { HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/residencyOccupancy';
+
+
 import { Immigration } from '../src/game/gameConstants';
 import { setSimSeed } from '../src/game/simRng';
 import { createImmigrantSettler } from '../src/game/worldGen';
