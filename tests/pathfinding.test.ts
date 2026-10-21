@@ -125,8 +125,8 @@ describe('pathfinding', () => {
     const bridge: Building = {
       id: 2,
       type: BuildingType.Bridge,
-      x: 5 * PATH_CELL,
-      y: 5 * PATH_CELL,
+      x: 5.5 * PATH_CELL,
+      y: 5.5 * PATH_CELL,
       width: PATH_CELL,
       height: PATH_CELL,
       occupants: [],

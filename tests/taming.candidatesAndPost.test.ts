@@ -54,9 +54,10 @@ function addPost(state: WorldState, faction: 'player' | 'rival' = 'player'): voi
 }
 
 function addHuman(state: WorldState, faction: Entity['faction'], juvenile = false): Entity {
-  const human = createEntity(EntityType.Human, 300, 300, state.nextEntityId++, 300, juvenile);
+  const human = createEntity(EntityType.Human, 300, 300, state.nextEntityId++, 300, juvenile, {
+    ageYears: juvenile ? 8 : 25,
+  });
   human.faction = faction;
-  human.age = 25;
   state.entities.push(human);
   state.humanPopulation++;
   return human;
