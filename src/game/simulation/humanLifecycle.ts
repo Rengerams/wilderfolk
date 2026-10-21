@@ -6,7 +6,6 @@ import {
   REPRODUCTION_COOLDOWN_TICKS,
   ticksForDays,
   rebuildChildrenIds,
-  setHumanBirthFromAge,
   getColonyDay,
 } from '../dayCycle';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
@@ -194,7 +193,6 @@ export function tickPregnancyAndBirth(
       || residenceRoomFor(child, motherHome, allLivingHumans(state, newEntities, entityById)))
     ? motherHome.id
     : undefined;
-  setHumanBirthFromAge(child, 0, getColonyDay(state));
   pushNewEntity(state, ctx, child);
 
   // The assign layer rebuilds residence occupants from `ctx.byType`, which cannot see a
