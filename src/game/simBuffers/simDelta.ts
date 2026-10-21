@@ -567,9 +567,10 @@ export function applySimTickDelta(
 
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
 
-  if (delta.catalogEntities?.length) {
-    syncCatalogEntitiesToWorld(world, delta.catalogEntities);
-  }
+  // aliveEntities is already a complete authoritative entity snapshot.
+  // catalogEntities contains the same humans from that snapshot, so patching
+  // them again deep-cloned their skills, traits and friendships each tick.
+  // Keep syncCatalogEntitiesToWorld exported for explicit partial catalog updates.
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
