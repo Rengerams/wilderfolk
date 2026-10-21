@@ -35,6 +35,7 @@ import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
 import type { SettlerWorkReason } from './workAbsence';
 import { getSettlerWorkReason } from './workAbsence';
 import { buildSchoolRosters } from './education';
+import { SCHOOL_MIN_AGE } from './gameConstants';
 import { pickSocialImpulse } from './socialLife';
 import { getRouteObstruction } from './pathfinding';
 import type { WorkerAssignmentRefusal } from './buildingStaffingActions';
@@ -75,7 +76,7 @@ export interface DashboardSettler {
   noWork: boolean;
   /** No residence assigned (homeless). */
   noHome: boolean;
-  status: 'working' | 'idle' | 'at school' | 'going to school' | 'prison' | 'leader' | 'home' | 'none';
+  status: 'working' | 'idle' | 'at school' | 'going to school' | 'school off-hours' | 'no school place' | 'too young for school' | 'prison' | 'leader' | 'home' | 'none';
   /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
   workReason: SettlerWorkReason;
 }
@@ -509,7 +510,13 @@ export function collectDashboard(state: WorldState): DashboardData {
         ? 'at school'
         : e.isJuvenile && classInSession && onWayToSchoolIds.has(e.id)
           ? 'going to school'
-          : settlerStatus(e),
+          : e.isJuvenile && e.age < SCHOOL_MIN_AGE
+            ? 'too young for school'
+            : e.isJuvenile && !onWayToSchoolIds.has(e.id)
+              ? 'no school place'
+              : e.isJuvenile
+                ? 'school off-hours'
+                : settlerStatus(e),
       workReason,
     });
   }
