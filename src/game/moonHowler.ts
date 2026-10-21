@@ -194,7 +194,6 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
     && !entity.isJuvenile
     && entity.age >= HUMAN_ADULT_MIN_AGE
     && !entity.moonHowlerCursed
-
   );
 }
 
