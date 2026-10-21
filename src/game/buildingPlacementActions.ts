@@ -208,7 +208,7 @@ export function startBuilding(
         if (!tile) continue;
         if (tile.type === TerrainType.Mountains || tile.type === TerrainType.Snow ||
             tile.type === TerrainType.ShallowWater || tile.type === TerrainType.RiverBank) {
-          patchTile(map, tx, ty, { type: TerrainType.Rocky });
+          patchTile(map, tx, ty, { type: TerrainType.Rocky, reinforced: true });
           changed++;
         }
       }
