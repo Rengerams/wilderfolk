@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
 /**
  * A child graduates into adulthood exactly once, and keeps the education payoff.
  *
@@ -17,13 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import {
-  HUMAN_CHILDHOOD_YEARS,
-  getColonyDay,
-  setHumanBirthFromAge,
-  syncHumanAgeFromCalendar,
-  tryGraduateHumanChild,
-} from '../src/game/dayCycle';
+import { getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, tryGraduateHumanChild } from '../src/game/dayCycle';
 import { SCHOOL_GRADUATION_DAYS, applyEducationGraduation, getEducationTier } from '../src/game/education';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { grantRareBirthTalent } from '../src/game/simulation/humanLifecycle';
