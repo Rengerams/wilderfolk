@@ -816,7 +816,7 @@ export function startElectionCeremony(
     pendingLeaderId: winner.entityId,
     pendingLeaderName: winner.name,
     pendingChanged: state.villageLeaderId !== winner.entityId,
-    finalistIds: ranked.slice(0, 3).map((candidate) => candidate.entityId),
+    finalistIds: [...ranked].sort((a, b) => (vote.tally.get(b.entityId) ?? 0) - (vote.tally.get(a.entityId) ?? 0) || b.totalScore - a.totalScore).slice(0, 3).map((candidate) => candidate.entityId),
   };
 
   const place = state.buildings.some((building) => building.type === 'square' && building.completed && building.faction !== 'rival')
