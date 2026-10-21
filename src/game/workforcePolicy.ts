@@ -114,6 +114,7 @@ const JOB_BUILDING_IDS: Readonly<Record<BuildingType, string>> = {
   tavern: 'tavern',
   hotel: 'hotel',
   bridge: 'bridge',
+  groundReinforcement: 'groundReinforcement',
   garden: 'garden',
   statue: 'statue',
   lamp: 'lamp',
