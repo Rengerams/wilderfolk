@@ -1,9 +1,10 @@
+import { WORK_COMMUTE_RUSH } from './commuteReach';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { PER_TICK_RATE_SCALE } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';
 import { seededRandomForRun } from './simRng';
-import { commuteHumanToBuilding, WORK_COMMUTE_RUSH } from './simulation/humanMovement';
+import { commuteHumanToBuilding } from './simulation/humanMovement';
 import {
   isOfficialAtHall,
   officialHandlePetitioners,
