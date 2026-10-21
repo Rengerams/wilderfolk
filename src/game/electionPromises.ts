@@ -180,7 +180,7 @@ export function getActiveElectionPromises(state: WorldState): {
   daysRemaining: number;
   promises: PromiseDetail[];
 } | null {
-  const active = state.electionPromiseRecords?.findLast((record) => !record.evaluated);
+  const active = [...(state.electionPromiseRecords ?? [])].reverse().find((record) => !record.evaluated);
   if (active) return { year: active.year, daysRemaining: Math.max(0, active.dueDay - getColonyDay(state)), promises: active.codes.map((code) => getPromiseDetail(state, code)) };
   const year = storyFlag(state, FLAG_ACTIVE_YEAR);
   if (storyFlag(state, evaluatedKey(year)) > 0) return null;
