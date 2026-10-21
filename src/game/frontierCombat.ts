@@ -1387,7 +1387,7 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
 function resolveOutgoingRaidCombat(
   state: WorldState,
   rival: RivalSettlement,
-  event: Pick<OutgoingRaidEvent, 'id' | 'isCounterRaid' | 'attackerStrength' | 'defenderStrength' | 'rivalId'>,
+  event: OutgoingRaidEvent,
 ): void {
   const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
   const verb = event.isCounterRaid ? 'Counter-raid' : 'Raid';
