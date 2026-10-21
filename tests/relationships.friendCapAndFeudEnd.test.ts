@@ -9,6 +9,7 @@ import {
   advanceSocialRelationships,
   feudScore,
   friendCount,
+  reconcileCloseFriendships,
   friendshipScore,
 } from '../src/game/relationships';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -69,6 +70,40 @@ describe('six friends per settler', () => {
     expect(close, 'close bonds did form').toBeGreaterThan(0);
     const scores = people.flatMap((p) => Object.values(p.friendships ?? {}));
     expect(Math.max(...scores)).toBeGreaterThan(FRIEND_CLOSE_THRESHOLD);
+  });
+});
+
+describe('legacy friendship reconciliation', () => {
+  it('keeps the strongest six mutual friends and demotes surplus bonds symmetrically', () => {
+    const people = Array.from({ length: 9 }, (_, i) => human(i + 1));
+    const central = people[0];
+    people.slice(1).forEach((other, i) => {
+      const strength = 70 + i;
+      central.friendships = { ...central.friendships, [`friend_${other.id}`]: strength };
+      other.friendships = { ...other.friendships, [`friend_${central.id}`]: strength };
+    });
+    reconcileCloseFriendships(people);
+    expect(friendCount(central)).toBe(6);
+    expect(friendshipScore(central, 2)).toBe(59);
+    expect(friendshipScore(people[1], 1)).toBe(59);
+    expect(friendshipScore(central, 9)).toBe(77);
+    expect(closePairAgreement(people)).toEqual([]);
+    reconcileCloseFriendships(people);
+    expect(friendCount(central)).toBe(6);
+  });
+
+  it('repairs an imported over-cap state on the next social update', () => {
+    const people = Array.from({ length: 9 }, (_, i) => human(i + 1));
+    const central = people[0];
+    for (const other of people.slice(1)) {
+      central.friendships = { ...central.friendships, [`friend_${other.id}`]: 80 };
+      other.friendships = { ...other.friendships, [`friend_${central.id}`]: 80 };
+    }
+    const world = state();
+    world.entities = people;
+    advanceSocialRelationships(world, people, undefined, () => 0.99);
+    expect(friendCount(central)).toBeLessThanOrEqual(MAX_CLOSE_FRIENDS_PER_SETTLER);
+    expect(closePairAgreement(people)).toEqual([]);
   });
 });
 
