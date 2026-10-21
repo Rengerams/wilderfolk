@@ -37,8 +37,8 @@ describe('pathfinding', () => {
     const road: Building = {
       id: 1,
       type: BuildingType.Road,
-      x: 0,
-      y: PATH_CELL,
+      x: (11 * PATH_CELL) / 2,
+      y: 1.5 * PATH_CELL,
       width: 11 * PATH_CELL,
       height: PATH_CELL,
       occupants: [],
