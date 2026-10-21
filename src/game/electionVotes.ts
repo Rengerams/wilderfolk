@@ -51,7 +51,7 @@ export function simulateElectionVotes(
     (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile,
   );
   const peopleById = new Map(state.entities.map((person) => [person.id, person]));
-  const foodNeed = state.resources.food / Math.max(1, state.humanPopulation) < 10;
+  const foodNeed = (state.resources?.food ?? 0) / Math.max(1, state.humanPopulation ?? 1) < 10;
   const securityNeed = (state.pendingRaidEvents?.length ?? 0) > 0;
   const electionCandidates = candidates.map((candidate) => {
     const swing =
