@@ -12,7 +12,7 @@
 import type { Building, Entity, Season, WorldState } from './gameTypes';
 import { BUILDING_JOB_TYPES, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { TICKS_PER_DAY } from './dayCycle';
+import { TICKS_PER_DAY, isOnWorkShift } from './dayCycle';
 import { getHourOfDay } from './dayCycleClock';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { foodSharePct, summarizeFoodLedger } from './economyLedger';
@@ -476,7 +476,7 @@ export function collectDashboard(state: WorldState): DashboardData {
     // A reserved seat is not evidence of attendance outside class hours.
     for (const pupil of roster.pupils) onWayToSchoolIds.add(pupil.id);
   }
-  const classInSession = schoolRosters.size > 0 && isOnWorkScheduleShift(state.tick, getHourOfDay(state.tick));
+  const classInSession = schoolRosters.size > 0 && isOnWorkShift(state.tick, getHourOfDay(state.tick));
   const settlers: DashboardSettler[] = [];
   /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
   const postedReasons: SettlerWorkReason[] = [];
