@@ -4,7 +4,7 @@ import { BuildingType } from '../buildings';
 import type { Building, Entity } from '../gameTypes';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
-import { isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
+import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
 
 // ============ COMMUTE HELPERS ============
@@ -261,6 +261,9 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
     ? previous.ticks + 1
     : 1;
   stuckWalkers.set(entity, { x: entity.x, y: entity.y, ticks });
+  // Recalculate a stale route early; don't let a blocked waypoint hold a commuter
+  // stationary until the emergency stand-point relocation after twelve ticks.
+  if (ticks === 3) invalidateCommutePathsForWalker(entity.id);
   if (ticks < STUCK_WALK_RECOVERY_TICKS) return;
 
   const tileX = Math.floor(entity.x / PATH_CELL);
