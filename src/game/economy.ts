@@ -10,12 +10,12 @@ export { canAffordWorkshopRecipe } from './workshops';
  * Storage one completed building adds, per resource.
  *
  * Exported (with `updateStorageCaps` as the single reader) because the inspector's Silo and
- * Storehouse hints typed "+600 food storage" and "+800 materials storage" as prose — the numbers a
+ * Storehouse hints typed "+2000 food storage" and "+800 materials storage" as prose — the numbers a
  * designer tunes now live only here.
  */
 export const BARN_FOOD_STORAGE = 400;
 export const BARN_WOOD_STORAGE = 300;
-export const SILO_FOOD_STORAGE = 600;
+export const SILO_FOOD_STORAGE = 2000;
 export const SILO_STONE_STORAGE = 200;
 /** Capacity added to each non-food resource by one completed Storehouse. */
 export const WOOD_STOREHOUSE_STORAGE = 800;
