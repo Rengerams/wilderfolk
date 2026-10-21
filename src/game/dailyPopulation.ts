@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 /**
  * Daily population reconciliation owner called by tickLayerDaily — once per colony day.
  * Manages immigration rolls, housing capacities, dead entity pruning, and residence assignment.
