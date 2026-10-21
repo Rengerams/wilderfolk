@@ -23,6 +23,10 @@ export function siloFoodStorageForLevel(level: number): number {
 export const SILO_STONE_STORAGE = 200;
 /** Capacity added to each non-food resource by one completed Storehouse. */
 export const WOOD_STOREHOUSE_STORAGE = 800;
+/** Total bonus for each non-food resource: L1 800, L2 1800, L3+ 2800. */
+export function storehouseStorageForLevel(level: number): number {
+  return WOOD_STOREHOUSE_STORAGE + Math.min(2, Math.max(0, Math.floor(Number.isFinite(level) ? level : 1) - 1)) * 1000;
+}
 export const STORE_WAREHOUSE_STORAGE = 200;
 export const BASE_WOOD_STORAGE = 800;
 export const BASE_FOOD_STORAGE = 800;
@@ -62,19 +66,21 @@ export function computeStorageMax(
   const siloFoodCapacity = buildings.reduce((sum, building) =>
     sum + (building.completed && building.faction !== 'rival' && building.type === BuildingType.Silo
       ? siloFoodStorageForLevel(building.level ?? 1) : 0), 0);
-  const storehouses = countOf(BuildingType.WoodStorehouse);
+  const storehouseCapacity = buildings.reduce((sum, building) =>
+    sum + (building.completed && building.faction !== 'rival' && building.type === BuildingType.WoodStorehouse
+      ? storehouseStorageForLevel(building.level ?? 1) : 0), 0);
   const warehouses = countOf(BuildingType.Store) + countOf(BuildingType.Market);
 
   return {
     wood:
       BASE_WOOD_STORAGE +
       barns * BARN_WOOD_STORAGE +
-      storehouses * WOOD_STOREHOUSE_STORAGE +
+      storehouseCapacity +
       warehouses * STORE_WAREHOUSE_STORAGE,
-    stone: BASE_STONE_STORAGE + silos * SILO_STONE_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE + warehouses * STORE_WAREHOUSE_STORAGE,
+    stone: BASE_STONE_STORAGE + silos * SILO_STONE_STORAGE + storehouseCapacity + warehouses * STORE_WAREHOUSE_STORAGE,
     food: BASE_FOOD_STORAGE + barns * BARN_FOOD_STORAGE + siloFoodCapacity,
-    gold: BASE_GOLD_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE,
-    iron: BASE_IRON_STORAGE + storehouses * WOOD_STOREHOUSE_STORAGE + warehouses * WAREHOUSE_IRON_STORAGE,
+    gold: BASE_GOLD_STORAGE + storehouseCapacity,
+    iron: BASE_IRON_STORAGE + storehouseCapacity + warehouses * WAREHOUSE_IRON_STORAGE,
   };
 }
 
