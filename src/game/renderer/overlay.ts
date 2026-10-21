@@ -1,3 +1,4 @@
+import { drawCampHighlightRings } from './markers';
 import { drawRenffrOmen } from '../renffrStar';
 import { profileEnd, profileStart } from '../performanceProfiler';
 import type { RenderSnapshot } from '../renderSnapshot';
@@ -40,6 +41,7 @@ export function drawGameOverlay(
   // Leader aura pulses on `renderTime`, so it lives here rather than in the tick-keyed entity
   // layer (where it froze between rebakes). See `drawLeaderAuraOverlay`.
   drawLeaderAuraOverlay(ctx, state, cw, ch);
+  drawCampHighlightRings(ctx, state, cw, ch);
   // Weather takes the snapshot rather than just `state.weather`: the ported Teraforge effects paint in
   // screen space against a camera-aware frame (the cloud and fog layers drift with a parallax factor),
   // and the daylight cast needs the hour.
