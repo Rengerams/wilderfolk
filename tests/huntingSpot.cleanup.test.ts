@@ -37,6 +37,7 @@ vi.mock('../src/game/simulation/simulationEntities', async (importOriginal) => {
 
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { seededRandomForRun, setSimSeed } from '../src/game/simRng';
 
 /**
  * These fixtures are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
@@ -203,9 +204,18 @@ describe('Hunting Spot wildlife cleanup', () => {
   it('uses the shared cleanup transitions when its daily hunt succeeds', () => {
     cleanupSpies.markWildlifeDead.mockClear();
     cleanupSpies.clearHuntersTargetingPrey.mockClear();
-    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    // Hunting accuracy uses a stateless seeded roll, not Math.random.
+    // Find a deterministic colony seed with a hit; the test is about cleanup, not misses.
+    const hitSalt = `hunt:10:${TICKS_PER_DAY + TICKS_PER_DAY / 2}:2:success`;
+    let hitSeed = 1;
+    for (; hitSeed < 10_000; hitSeed++) {
+      setSimSeed(hitSeed);
+      if (seededRandomForRun(hitSalt) < 0.85) break;
+    }
+    expect(hitSeed).toBeLessThan(10_000);
 
-    try {
+    {
+      setSimSeed(hitSeed);
       const state = makeState();
       const after = gameTick(state);
 
@@ -232,8 +242,6 @@ describe('Hunting Spot wildlife cleanup', () => {
         expect.any(Object),
       );
       expect(after.entities.find((entity) => entity.id === 1)?.huntTargetId).toBeUndefined();
-    } finally {
-      random.mockRestore();
     }
   });
 });
