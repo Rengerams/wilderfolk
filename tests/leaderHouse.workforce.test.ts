@@ -7,6 +7,7 @@ import { housingUnitNeedsReassignment } from '../src/game/residencySelection';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { building, human } from '../src/test/factories';
+import { killHuman } from '../src/game/humanLifecycleCleanup';
 
 describe("Leader's House", () => {
   it('keeps an oversized leader household in manor zero during general housing convergence', () => {
@@ -125,6 +126,34 @@ describe("Leader's House", () => {
     expect(leader.homeBuildingId).toBe(2);
     expect(leader.job).toBe(JobType.Farmer);
     expect(farm.occupants).toEqual([1]);
+  });
+});
+
+describe('Leader house after a leader dies', () => {
+  it('keeps minor children in the manor during orphan placement and the vacant succession', () => {
+    const leader = human(1, { residenceBuildingId: 0, childrenIds: [3] });
+    const parent = human(2, { residenceBuildingId: 10 });
+    const child = human(3, {
+      age: 8, isJuvenile: true, fatherId: 1, motherId: 2,
+      residenceBuildingId: 0,
+    });
+    const manor = building(0, BuildingType.LeaderHouse, { occupants: [1, 3] });
+    const normalHouse = building(10, BuildingType.House, { occupants: [2] });
+    const state = {
+      entities: [leader, parent, child], buildings: [manor, normalHouse],
+      villageLeaderId: 1, eventLog: [],
+    } as unknown as WorldState;
+
+    killHuman(leader, state.buildings, new Map([[2, parent], [3, child]]));
+    state.villageLeaderId = null; // Succession election pending
+    state.entities = [parent, child];
+
+    syncLeaderHouseResidency(state);
+    assignMissingResidences(state.entities, state.buildings, state.entities);
+
+    expect(child.residenceBuildingId).toBe(0);
+    expect(manor.occupants).toContain(3);
+    expect(parent.residenceBuildingId).toBe(10);
   });
 });
 
