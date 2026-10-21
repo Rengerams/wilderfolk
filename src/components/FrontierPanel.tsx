@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import CombatPreviewPanel from '../game/CombatPreviewPanel';
+import StrategicWorldMap from './StrategicWorldMap';
 import {
   canLaunchRaidOnRival,
   canProvokeRival,
@@ -86,6 +87,7 @@ function FrontierPanel({
 
   return (
     <div className="space-y-3">
+      <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} />
       {(state.raidBattleReports?.length ?? 0) > 0 && (
         <section className="rounded-lg border border-amber-600/40 bg-stone-900/70 px-3 py-2 text-[12px]">
           <h4 className="text-[13px] font-bold text-amber-200">Battle aftermath and recovery</h4>
@@ -109,7 +111,7 @@ function FrontierPanel({
       <div className="rounded-lg border border-slate-600/50 bg-slate-950/40 px-3 py-2">
         <h4 className="mb-1.5 text-[13px] font-bold uppercase tracking-wider text-slate-400">Village readiness</h4>
         <p className="mb-2 text-[10px] leading-relaxed text-stone-300">
-          Raids test prep you already made — no battle screen. Stock spears, walls, guards, and tribute food before they arrive.
+          Check the valley map to watch raiding forces and declare war. Stock spears, walls, guards, and tribute food before enemies arrive.
         </p>
         <div className="grid grid-cols-2 gap-1.5 text-[13px]">
           <div className="rounded bg-stone-800/80 px-2 py-1">
