@@ -51,6 +51,7 @@ import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
 import { rebuildBeautyGridFromWorld } from './beautyGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
+import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint } from './pathfinding';
@@ -262,6 +263,7 @@ export function readSavePayload(): SaveReadResult {
 
 /** Build the JSON object written to browser storage or a .json file. */
 export function buildSaveData(world: WorldState, view: ViewState): Record<string, unknown> {
+  syncGenealogyRegistry(world);
   const persistable = stripRuntimeWorldFields(world);
   return {
     ...mergeForSave(persistable, view),
