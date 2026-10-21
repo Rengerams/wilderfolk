@@ -61,9 +61,9 @@ const MONTHS_PER_YEAR = 12;
  * assembly is the ceremony the owner asked for, and the ring maths (`getElectionGatherTarget`) is
  * untouched.
  */
-const CEREMONY_GATHERING_HOURS = 24;
-const CEREMONY_GOSSIP_HOURS = 20;
-const CEREMONY_TENSION_HOURS = 8;
+const CEREMONY_GATHERING_HOURS = 8;
+const CEREMONY_GOSSIP_HOURS = 10;
+const CEREMONY_TENSION_HOURS = 6;
 
 function getPhaseTicks(phase: 'gathering' | 'gossip' | 'tension'): number {
   switch (phase) {
@@ -792,11 +792,18 @@ export function startElectionCeremony(
     return false;
   }
 
-  const vote = simulateElectionVotes(state, ranked);
+  const electionId = state.nextElectionId ?? 1;
+  state.nextElectionId = electionId + 1;
+  const vote = simulateElectionVotes(state, ranked, electionId);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const site = getElectionGatherSite(state);
 
   state.electionCeremony = {
+    electionId,
+    ballotTally: Object.fromEntries(vote.tally),
+    ballotTotal: vote.totalVotes,
+    ballotWinnerVotes: vote.winnerVotes,
+    ballotCast: true,
     phase: 'gathering',
     phaseTicksLeft: getPhaseTicks('gathering'),
     gatherX: site.x,
@@ -858,13 +865,16 @@ export function tickElectionBuildup(
 }
 
 function refreshCeremonyPendingLeader(state: WorldState, ceremony: ElectionCeremonyState): void {
-  const ranked = rankLeadershipCandidates(state);
-  if (ranked.length === 0) return;
-  const vote = simulateElectionVotes(state, ranked);
-  const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
-  ceremony.pendingLeaderId = winner.entityId;
-  ceremony.pendingLeaderName = winner.name;
-  ceremony.pendingChanged = state.villageLeaderId !== winner.entityId;
+  const nominee = state.entities.find((candidate) => candidate.id === ceremony.pendingLeaderId);
+  if (nominee && isEligibleForLeadership(nominee, state)) return;
+  const eligible = (ceremony.finalistIds ?? []).map((id) => state.entities.find((candidate) => candidate.id === id))
+    .filter((candidate): candidate is Entity => !!candidate && isEligibleForLeadership(candidate, state));
+  eligible.sort((a, b) => (ceremony.ballotTally?.[String(b.id)] ?? 0) - (ceremony.ballotTally?.[String(a.id)] ?? 0));
+  const successor = eligible[0];
+  if (!successor) return;
+  ceremony.pendingLeaderId = successor.id;
+  ceremony.pendingLeaderName = formatSettlerName(successor);
+  ceremony.pendingChanged = state.villageLeaderId !== successor.id;
 }
 
 function advanceCeremonyPhase(state: WorldState, ceremony: ElectionCeremonyState): void {
@@ -1001,11 +1011,22 @@ export function runVillageElection(
     };
   }
 
-  const vote = simulateElectionVotes(state, ranked);
+  const ceremony = state.electionCeremony;
+  const vote = ceremony?.ballotCast && ceremony.ballotTally
+    ? { winnerId: ceremony.pendingLeaderId, winnerVotes: ceremony.ballotTally[String(ceremony.pendingLeaderId)] ?? 0, totalVotes: ceremony.ballotTotal ?? 0, tally: new Map(Object.entries(ceremony.ballotTally).map(([id, count]) => [Number(id), count])) }
+    : simulateElectionVotes(state, ranked, state.nextElectionId ?? 0);
   const winner = ranked.find((b) => b.entityId === vote.winnerId) ?? ranked[0];
   const prevId = state.villageLeaderId;
   const changed = prevId !== winner.entityId;
 
+  state.lastElectionResult = {
+    electionId: ceremony?.electionId ?? state.nextElectionId ?? 0,
+    winnerId: winner.entityId,
+    ballots: vote.totalVotes,
+    tally: Object.fromEntries(vote.tally),
+    eligibleVoters: state.entities.filter((person) => person.alive && isPlayerHuman(person) && !person.isJuvenile).length,
+    turnout: vote.totalVotes,
+  };
   state.villageLeaderId = winner.entityId;
   state.leaderSinceYear = year;
   applyLeaderOccupation(state, prevId);
