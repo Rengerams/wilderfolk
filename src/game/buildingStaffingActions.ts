@@ -126,6 +126,7 @@ function _applyBuilderAssignmentMut(
   state: WorldState,
   buildingId: number,
   preferredHumanId?: number,
+  quiet = false,
 ): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building || building.faction === 'rival' || building.completed) return state;
@@ -142,10 +143,11 @@ function _applyBuilderAssignmentMut(
   // addToConstructionCrew re-validates and returns false when it refuses — never
   // announce a builder it rejected.
   if (!builder || !addToConstructionCrew(builder, building)) {
-    addFloatingText(state, building.x + building.width / 2, building.y, 'No idle settlers!', '#eab308');
+    if (!quiet) addFloatingText(state, building.x, building.y, 'No idle settlers!', '#eab308');
     return state;
   }
 
+  if (!quiet) {
   addFloatingText(state, building.x, building.y - 10, '✓ Builder', '#22c55e', 'brief');
   addNotification(
     state,
@@ -153,6 +155,7 @@ function _applyBuilderAssignmentMut(
     `${builder.name || 'Settler'} is helping build ${config.label}`,
     'info',
   );
+  }
   return state;
 }
 
@@ -173,12 +176,13 @@ function _assignIdleWorkerToBuildingMut(
   state: WorldState,
   buildingId: number,
   preferredHumanId?: number,
+  quiet = false,
 ): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building || building.faction === 'rival') return state;
 
   if (!building.completed) {
-    return _applyBuilderAssignmentMut(state, buildingId, preferredHumanId);
+    return _applyBuilderAssignmentMut(state, buildingId, preferredHumanId, quiet);
   }
 
   if (isResidenceBuildingType(building.type)) return state;
@@ -220,10 +224,11 @@ function _assignIdleWorkerToBuildingMut(
   }
 
   if (!idleHuman) {
-    addFloatingText(state, building.x + building.width / 2, building.y, 'No idle workers!', '#eab308');
+    if (!quiet) addFloatingText(state, building.x, building.y, 'No idle workers!', '#eab308');
     return state;
   }
 
+  if (!quiet) {
   const fromLabel = reassignedFrom ? BUILDING_CONFIGS[reassignedFrom.type].label : undefined;
   addFloatingText(
     state,
@@ -241,6 +246,7 @@ function _assignIdleWorkerToBuildingMut(
       : `${idleHuman.name || 'Settler'} → ${BUILDING_CONFIGS[building.type].label}`,
     'info',
   );
+  }
 
   return state;
 }
@@ -268,20 +274,26 @@ export function fillBuildingWorkers(
   // 🚀 OPTIMIZED: Clone ONCE to avoid O(N) deep clones in the while loop
   let state = structuredClone(originalState);
   let guard = 0;
+  let assigned = 0;
   
   while (guard++ < Math.max(cap * 3, 6)) {
     const building = state.buildings.find((candidate) => candidate.id === buildingId);
     if (!building || building.occupants.length >= cap) break;
     
     const before = building.occupants.length;
-    state = _assignIdleWorkerToBuildingMut(state, buildingId, preferredHumanId);
+    state = _assignIdleWorkerToBuildingMut(state, buildingId, preferredHumanId, true);
     
     const afterBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
     if (!afterBuilding || afterBuilding.occupants.length <= before) break;
+    assigned += afterBuilding.occupants.length - before;
     
     preferredHumanId = undefined; // Only prefer the first one, then fill with anyone
   }
-  
+  if (assigned > 0) {
+    const label = BUILDING_CONFIGS[preview.type].label;
+    addFloatingText(state, preview.x, preview.y - 10, `✓ ${assigned} assigned`, '#22c55e', 'brief');
+    addNotification(state, 'Workers Assigned', `${assigned} settler${assigned === 1 ? '' : 's'} assigned to ${label}`, 'success');
+  }
   return state;
 }
 
