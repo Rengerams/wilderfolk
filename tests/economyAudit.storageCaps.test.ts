@@ -53,11 +53,15 @@ describe('economy audit fixes', () => {
     expect(w.foodSpoilageRate).toBeCloseTo(0.02);
   });
 
-  it('one Wood Storehouse adds +800 wood storage (winter fuel)', () => {
+  it('one Storehouse adds +800 capacity for all non-food resources', () => {
     const w = makeWorld();
     addBuilding(w, BuildingType.WoodStorehouse);
     updateStorageCaps(w);
     expect(w.storageMax.wood).toBe(1600);
+    expect(w.storageMax.stone).toBe(1100);
+    expect(w.storageMax.iron).toBe(1100);
+    expect(w.storageMax.gold).toBe(20800);
+    expect(w.storageMax.food).toBe(800);
   });
 
   it('a Silo raises food storage to 1400 and cuts spoilage to 0.8%', () => {
@@ -76,9 +80,10 @@ describe('economy audit fixes', () => {
     expect(w.storageMax.food).toBe(1200);
   });
 
-  it('the Wood Storehouse config exists with its sprite', () => {
+  it('the Storehouse config retains its sprite and saved building type', () => {
     const cfg = BUILDING_CONFIGS[BuildingType.WoodStorehouse];
     expect(cfg.sprite).toBe('/sprites/storehouse_wood.png');
+    expect(cfg.label).toBe('Storehouse');
     expect(cfg.maxOccupants).toBe(0);
   });
 });
