@@ -51,8 +51,8 @@ export function findNearestStaffedSchool(
   for (const school of schools) {
     // Skip schools already at capacity (children reserved earlier this pass).
     if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
-    const cx = school.x + school.width / 2;
-    const cy = school.y + school.height / 2;
+    const cx = school.x;
+    const cy = school.y;
     const dist = Math.hypot(child.x - cx, child.y - cy);
     if (dist < bestDist) {
       bestDist = dist;
@@ -71,8 +71,8 @@ export function findSchoolForChild(
 }
 
 export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
-  const cx = school.x + school.width / 2;
-  const cy = school.y + school.height / 2;
+  const cx = school.x;
+  const cy = school.y;
   return Math.hypot(child.x - cx, child.y - cy) <= maxDist;
 }
 
