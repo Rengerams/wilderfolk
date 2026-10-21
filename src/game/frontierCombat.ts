@@ -1403,7 +1403,7 @@ function resolveOutgoingRaidCombat(
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success', lootScale));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
-    applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding');
+    applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
     logEvent(
@@ -1444,7 +1444,7 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
     addReputation(state, -4);
-    applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding');
+    applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     const lootNote = formatLootParts(gained);
     logEvent(
       state,
@@ -1461,7 +1461,7 @@ function resolveOutgoingRaidCombat(
     spendFood(state, 'raid', 15);
     addReputation(state, -8);
     rival.relationship = 'tense';
-    applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding');
+    applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
     const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
