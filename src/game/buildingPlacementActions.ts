@@ -410,8 +410,7 @@ export function placeStripChain(
     state.resources.stone -= config.cost.stone;
     state.resources.gold -= config.cost.gold;
 
-    const cornerRotation = placementRotationFor(placeRotation);
-    const building = createBuilding(placeType, segment.x, segment.y, state.nextBuildingId++, cornerRotation);
+    const building = createBuilding(placeType, segment.x, segment.y, state.nextBuildingId++, placeRotation);
     building.spriteScale = 0;
     state.buildings.push(building);
     clearTreesUnderFootprint(state, building);
