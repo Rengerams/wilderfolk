@@ -42,7 +42,7 @@ function ceremonyWorld() {
  * is computed relative to the start tick instead of assuming tick 0.
  */
 function runToDayBoundary(world: ReturnType<typeof initGame>) {
-  const boundary = tickAtDailyPhase(Math.max(0, Math.ceil((world.tick - tickAtDailyPhase(0, 'economy')) / TICKS_PER_DAY)), 'economy');
+  const boundary = tickAtDailyPhase(Math.max(0, Math.ceil((world.tick - tickAtDailyPhase(0, 'production')) / TICKS_PER_DAY)), 'production');
   const ticksToRun = boundary - world.tick - 1;
   for (let t = 0; t < ticksToRun; t++) world = gameTick(world);
   vi.mocked(tickElectionGossip).mockClear();
