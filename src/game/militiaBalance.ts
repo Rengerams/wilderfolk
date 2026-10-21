@@ -129,7 +129,10 @@ export function computeMilitiaBreakdown(
   }
 
   const adultCount = countMusterableAdults(entities);
-  const guardCount = getBarracksGuardCount(state, state.buildings);
+  const staffedGuards = getBarracksGuardCount(state, state.buildings);
+  const activeIds = new Set(entities.filter(canBeMustered).map((soldier) => soldier.id));
+  const guardCount = state.buildings.filter((building) => building.type === BuildingType.Barracks && building.completed && building.faction !== 'rival')
+    .reduce((total, building) => total + building.occupants.filter((id) => activeIds.has(id)).length, 0);
   const spearTier = getMilitiaSpearTier(state);
   const shieldTier = getMilitiaShieldTier(state);
   const spearMultiplier = getMilitiaSpearMultiplier(spearTier);
@@ -186,7 +189,7 @@ export function computeMilitiaBreakdown(
   }
 
   if (guardCount > 0) {
-    const guardBonus = getBarracksGuardBonus(state, state.buildings);
+    const guardBonus = staffedGuards > 0 ? getBarracksGuardBonus(state, state.buildings) * guardCount / staffedGuards : 0;
     rawTotal += guardBonus;
     const perGuard = guardBonus / guardCount;
     // Show 1 decimal to avoid misleading integer rounding (e.g. 14.0, 14.5)
