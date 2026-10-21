@@ -43,7 +43,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',
-  'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'leaderSinceYear',
+  'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'pendingLeaderHouseResidentIds', 'leaderSinceYear',
   'lastElectionYear', 'pendingElectionYear', 'electionBuildupNotifiedYear', 'electionCeremony',
   'villageForge', 'tutorialSeen', 'dismissedBigNewsIds', 'dismissedActiveEventIds',
   // Live Big News cards: the dismissal ledger beside them already persists, so a load kept the
