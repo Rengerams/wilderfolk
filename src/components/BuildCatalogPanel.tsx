@@ -153,9 +153,9 @@ export default function BuildCatalogPanel({
                   {/* A sprite-less type (procedural decor) has no art on disk, and `<img src>` with an
                       absent path asks the server for the page itself — the tile shows the config's own
                       emoji instead, the same fallback the map's pad uses. */}
-                  {config.sprite ? (
+                  {(config.sprite || type === BuildingType.GroundReinforcement) ? (
                     <img
-                      src={config.sprite}
+                      src={type === BuildingType.GroundReinforcement ? '/sprites/ground_soil.PNG' : config.sprite}
                       alt=""
                       className="h-10 w-10 shrink-0 object-contain"
                       style={{ imageRendering: 'pixelated' }}
