@@ -675,6 +675,11 @@ export interface OutgoingRaidEvent {
 }
 
 export interface ElectionCeremonyState {
+  electionId?: number;
+  ballotTally?: Record<string, number>;
+  ballotTotal?: number;
+  ballotWinnerVotes?: number;
+  ballotCast?: boolean;
   /** Leading three candidates stand on the central platform; optional for old saves. */
   finalistIds?: number[];
   phase: ElectionCeremonyPhase;
@@ -805,6 +810,8 @@ export interface WorldState {
   pendingElectionYear: number | null;
   electionBuildupNotifiedYear: number | null;
   electionCeremony: ElectionCeremonyState | null;
+  nextElectionId?: number;
+  lastElectionResult?: { electionId: number; winnerId: number | null; ballots: number; tally: Record<string, number>; turnout: number; eligibleVoters: number };
   villageForge?: VillageForgeState;
   tutorialSeen?: string[];
   economyLedger?: DailyEconomyLedger;
