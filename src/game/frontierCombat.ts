@@ -1408,6 +1408,8 @@ function resolveOutgoingRaidCombat(
   // The strength you brought over their defense is what decides how much there is to carry home.
   const lootScale = Math.sqrt(event.attackerStrength / Math.max(event.defenderStrength, 1));
   const warBand = raidArmy(state, event);
+  const allRaidSoldiers = state.entities.filter((person) => event.soldierIds?.includes(person.id) && person.raidDeploymentId === event.id);
+  const fallenNames = allRaidSoldiers.filter((person) => !person.alive).map((person) => formatCitizenName(person));
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
 
   flashMilitia(state.entities, 20);
@@ -1417,7 +1419,7 @@ function resolveOutgoingRaidCombat(
     const gained = grantRaidSpoils(state, rollOutgoingRaidSpoils(rival, 'success', lootScale));
     rival.relationship = 'tense';
     rival.raidCooldownDays = 10;
-    applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
+    if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'victory', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Spoils!', '#22c55e');
     const lootNote = formatLootParts(gained);
     logEvent(
@@ -1433,7 +1435,7 @@ function resolveOutgoingRaidCombat(
     const livingEnemyBefore = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
-    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
     // Record a distinct, persistent post-victory decision. Battle deaths are already
     // applied exactly once; reopening the dialog must never run combat again.
     if (!(state.pendingRaidVictories ?? []).some((pending) => pending.raidId === event.id)) {
@@ -1444,7 +1446,7 @@ function resolveOutgoingRaidCombat(
         playerDead: playerDeaths,
         enemyDead: enemyDeaths,
         enemySurvivors: rival.population,
-        playerCasualties: warBand.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
+        playerCasualties: allRaidSoldiers.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
         enemyCasualties: livingEnemyBefore.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
       }];
     }
@@ -1458,7 +1460,7 @@ function resolveOutgoingRaidCombat(
     rival.relationship = 'tense';
     rival.raidCooldownDays = 14;
     addReputation(state, -4);
-    applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
+    if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'costly', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     const lootNote = formatLootParts(gained);
     logEvent(
       state,
@@ -1469,16 +1471,16 @@ function resolveOutgoingRaidCombat(
       'resolved',
     );
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
-    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
     logEvent(state, 'combat', `The war-band returned from ${rival.name} with limited success: ${playerDeaths} of our people died. No victory celebration was held.`, rival.name, 'outgoing_raid', 'resolved');
   } else {
     spendFood(state, 'raid', 15);
     addReputation(state, -8);
     rival.relationship = 'tense';
-    applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
+    if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
-    const playerDeaths = warBand.filter((fighter) => !fighter.alive).length;
+    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
     addBigNews(state, '⚔️ War-band defeated', `${verb} on ${rival.name} failed; ${playerDeaths} of our people were killed. The village mourns its losses.`, 'negative');
     logEvent(state, 'combat', `Village mourns after failed ${verb.toLowerCase()} on ${rival.name}: ${playerDeaths} dead.`, rival.name, 'outgoing_raid', 'resolved');
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
@@ -1510,10 +1512,31 @@ function beginTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void 
   logEvent(state, 'combat', event.battleChronicle[0], event.rivalName, 'outgoing_raid', 'dispatched');
 }
 
+/** Resolve actual soldier losses at the mid-battle milestone. This is persisted
+ * on the raid event, so reloads and later ticks cannot kill the same quota twice. */
+function resolveLiveRaidCasualties(state: WorldState, event: OutgoingRaidEvent): void {
+  if (event.battleCasualtiesApplied) return;
+  const tier = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
+  const severity: RaidCasualtyTier = tier === 'success' ? 'victory' : tier === 'meager' ? 'costly' : 'heavy';
+  const soldierIds = new Set(event.soldierIds ?? []);
+  const previouslyAlive = state.entities.filter((person) =>
+    soldierIds.has(person.id) && person.raidDeploymentId === event.id && person.alive);
+  // Flag before applying so the casualty event can never be repeated.
+  event.battleCasualtiesApplied = true;
+  applyRaidCasualties(state, state.entities, severity, event.rivalName, 'raiding', soldierIds);
+  const killed = previouslyAlive.filter((person) => !person.alive).map((person) => formatCitizenName(person));
+  event.battlePlayerCasualties = killed;
+  const commentary = killed.length
+    ? `Fallen in the fighting at ${event.rivalName}: ${killed.join(', ')}.`
+    : `Our troops hold their positions at ${event.rivalName}; no village deaths confirmed.`;
+  event.battleChronicle = [...(event.battleChronicle ?? []), commentary];
+  logEvent(state, 'combat', commentary, event.rivalName, 'outgoing_raid', killed.length ? 'casualties' : 'dispatched');
+}
+
 function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void {
   const rival = state.rivalSettlements.find((r) => r.id === event.rivalId);
   if (rival) {
-    const initial = raidArmy(state, event).length;
+    const initial = event.soldierIds?.length ?? raidArmy(state, event).length;
     const enemyBefore = rival.population;
     const beforeBattle = structuredClone(state);
     resolveOutgoingRaidCombat(state, rival, event);
@@ -1524,6 +1547,11 @@ function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
     const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
     persistBattleAftermath(beforeBattle, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
+    const report = state.raidBattleReports?.find((item) => item.raidId === event.id);
+    if (report && event.battlePlayerCasualties?.length) {
+      report.playerFallen = [...new Set([...report.playerFallen, ...event.battlePlayerCasualties])];
+      report.playerDeaths = report.playerFallen.length;
+    }
   }
   event.phase = 'returning';
   event.returnStartedAtTick = state.tick;
@@ -1562,6 +1590,7 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       if (elapsed >= TICKS_PER_HOUR * 2) {
         finishTextRaidBattle(state, event);
       } else {
+        if (elapsed >= TICKS_PER_HOUR && !event.battleCasualtiesApplied) resolveLiveRaidCasualties(state, event);
         // Commentary milestones are derived from the real muster and recorded combat
         // strengths. No casualties are claimed until killHuman actually records them.
         const phases = [
