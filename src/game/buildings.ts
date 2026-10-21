@@ -248,7 +248,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 0,
     emoji: '🌽',
     label: 'Silo',
-    description: 'Passive food storage bonus.',
+    description: 'Food storage: +2,000 at level 1, +2,500 at level 2, +3,000 at level 3. Reduces spoilage.',
     sprite: '/sprites/silo.png',
     backgroundColor: '#65a30d',
     padShape: 'rect',
