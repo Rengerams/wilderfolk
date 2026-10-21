@@ -131,7 +131,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.Silo:
       return `Passive food every 2 days, +${SILO_FOOD_STORAGE} food storage, less spoilage — no workers.`;
     case BuildingType.WoodStorehouse:
-      return `Passive — +${WOOD_STOREHOUSE_STORAGE} wood storage for winter fuel, no workers needed.`;
+      return `Passive — +${WOOD_STOREHOUSE_STORAGE} capacity each for wood, stone, iron and gold. No workers needed.`;
     case BuildingType.Barracks:
       return `Each living, non-imprisoned soldier assigned here adds +${MILITIA_BALANCE.guardBonusPerGuard} militia strength (more with Guard Halberds), even off shift.`;
     case BuildingType.WildlifePreserve:
