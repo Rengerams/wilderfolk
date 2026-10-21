@@ -69,7 +69,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, on
           const endpoint = locate(rival.campX, rival.campY);
           const army = outgoing ? event as OutgoingRaidEvent : null;
           const returning = army?.phase === 'returning';
-          const engaging = army?.phase === 'engaging';
+          const engaging = army?.phase === 'engaging' || army?.phase === 'fighting';
           const returnFraction = Math.max(0, Math.min(1, army?.returnStartProgress ?? 1));
           const origin = returning
             ? { x: home.x + (endpoint.x - home.x) * returnFraction, y: home.y + (endpoint.y - home.y) * returnFraction }
@@ -104,7 +104,7 @@ function StrategicWorldMap({ state, onFocusRival, onLaunchRaid, onDeclareWar, on
                 {rival.name} · {rival.atWarWithPlayer ? 'AT WAR' : rival.relationship}
               </button>
               <p className="text-[10px] text-stone-400">{rival.population} residents · rival settlement</p>
-              {(state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === rival.id).map((army) => <div key={army.id} className="mt-2 text-xs text-emerald-200">{army.phase === 'returning' ? 'Returning' : army.phase === 'engaging' ? 'Arrived' : 'Marching'} · {army.soldierIds?.filter((id) => livingIds.has(id)).length ?? '?'} soldiers {onRecallRaid && army.phase !== 'returning' && <button type="button" className="ml-2 rounded bg-amber-700 px-2 py-1 text-white" onClick={() => onRecallRaid(army.id)}>Recall Army</button>}</div>)}
+              {(state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === rival.id).map((army) => <div key={army.id} className="mt-2 text-xs text-emerald-200">{army.phase === 'returning' ? 'Returning' : army.phase === 'fighting' ? 'Battle underway' : army.phase === 'engaging' ? 'Arrived' : 'Marching'} · {army.soldierIds?.filter((id) => livingIds.has(id)).length ?? '?'} soldiers {onRecallRaid && army.phase !== 'returning' && army.phase !== 'fighting' && <button type="button" className="ml-2 rounded bg-amber-700 px-2 py-1 text-white" onClick={() => onRecallRaid(army.id)}>Recall Army</button>}</div>)}
               <div className="mt-2 flex gap-2">
                 {onDeclareWar && <button type="button" disabled={!war.ok} title={war.ok ? 'Declare hostility and damage diplomatic relations' : war.blockReason} onClick={() => onDeclareWar(rival.id)} className="flex-1 rounded bg-red-950 px-2 py-1 text-[11px] text-rose-100 disabled:opacity-40">Declare war</button>}
                 {onLaunchRaid && <button type="button" disabled={!raid.ok} title={raid.ok ? 'Send available soldiers on a raid' : raid.blockReason} onClick={() => onLaunchRaid(rival.id)} className="flex-1 rounded bg-amber-900 px-2 py-1 text-[11px] text-amber-100 disabled:opacity-40">Raid · {getOutgoingRaidFoodCostForRival(state, rival)} food</button>}
