@@ -186,6 +186,12 @@ export default function FamilyTreeWindow({
               {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
+          {historicalFocusId != null && historicalFocusId !== entity.id && (
+            <button type="button" onClick={() => setHistoricalFocusId(null)}
+              className="rounded bg-stone-700 px-3 py-1.5 text-xs hover:bg-stone-600">
+              Back to selected settler
+            </button>
+          )}
           <label className="ml-auto flex items-center gap-2 text-xs">
             <input type="checkbox" checked={showDeceased}
               onChange={event => setShowDeceased(event.target.checked)} />
