@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * Workforce authority — SIMULATION_AUTHORITY.md §3 workforce row + Objective 4.
  *
