@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { EntityType } from '../src/game/gameTypes';
+import { EntityType, JobType } from '../src/game/gameTypes';
 import { canBeMustered, computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getRaidParticipants } from '../src/game/frontierCombat';
 import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
@@ -28,6 +28,7 @@ function adult(id: number, traits: SettlerTrait[] = [], overrides: Partial<Entit
   const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
   entity.alive = true;
   entity.isJuvenile = false;
+  entity.job = JobType.Soldier;
   entity.traits = traits;
   Object.assign(entity, overrides);
   return entity;
