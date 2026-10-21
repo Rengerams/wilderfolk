@@ -12,6 +12,26 @@ function human(id: number, age: number, name = 'Settler') {
 }
 
 describe('older saves: schooling and adulthood begin/end at the correct ages', () => {
+  it('clears legacy child work counters and fatigue without erasing school progress', () => {
+    const state = initGame({ seed: 4242 });
+    const child = human(90009, 12);
+    Object.assign(child, {
+      isJuvenile: false, job: JobType.Settler,
+      scheduleWorkedTicksToday: 27,
+      scheduleLastWorkedHours: 9,
+      scheduleFatigue: 40,
+      schoolDays: 11, schoolTicksToday: 5, educated: false,
+    });
+    state.entities.push(child);
+    repairJuvenileAssignmentsOnLoad(state);
+    expect(child.isJuvenile).toBe(true);
+    expect(child.scheduleWorkedTicksToday).toBe(0);
+    expect(child.scheduleLastWorkedHours).toBe(0);
+    expect(child.scheduleFatigue).toBe(0);
+    expect(child.schoolDays).toBe(11);
+    expect(child.schoolTicksToday).toBe(5);
+  });
+
   it('repairs Demetrius-like early graduation without touching family or skills', () => {
     const state = initGame({ seed: 4242 });
     const child = human(90001, 12, 'Demetrius');
