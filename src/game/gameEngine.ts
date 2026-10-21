@@ -315,7 +315,6 @@ export {
   TICKS_PER_HOUR,
   TICKS_PER_DAY,
   DAYS_PER_YEAR,
-  HUMAN_ADULT_MIN_AGE,
 } from './dayCycle';
 
 export {
