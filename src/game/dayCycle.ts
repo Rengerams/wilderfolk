@@ -1,7 +1,7 @@
 import { EntityType, JobType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 
-import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
 import { hasWorkAssignment } from './residencyOccupancy';
 import {
   DAYS_PER_YEAR,
@@ -121,7 +121,7 @@ export {
   isNightHour,
   NIGHT_END,
   NIGHT_START,
-} from './dayCycleConstants';
+} from './daycycleconstants';
 
 /** Promote a child to adult size/speed once — returns true on the graduation tick. */
 export function tryGraduateHumanChild(
