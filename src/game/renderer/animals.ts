@@ -42,7 +42,7 @@ export function drawAnimals(
     const padDown = spriteH * (1 - ANIMAL_SPRITE_ANCHOR_Y);
     if (
       sx + padX < -20 || sx - padX > cw + 20 ||
-      sy + padUp < -20 || sy - padDown > ch + 20
+      sy + padDown < -20 || sy - padUp > ch + 20
     ) continue;
 
     const sel = state.selectedEntityIds.includes(e.id) || state.selectedEntity?.id === e.id;
