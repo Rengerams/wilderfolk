@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { EntityType } from '../src/game/gameTypes';
+import { EntityType, JobType } from '../src/game/gameTypes';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
 
@@ -26,6 +26,7 @@ function adult(id: number, traits: SettlerTrait[], faction?: Entity['faction']):
   const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
   entity.alive = true;
   entity.isJuvenile = false;
+  entity.job = JobType.Soldier;
   entity.traits = traits;
   if (faction) entity.faction = faction;
   return entity;
