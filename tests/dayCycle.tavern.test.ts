@@ -30,7 +30,8 @@ describe('tavern festival hours', () => {
     expect(isFestivalGatheringHour(14, true)).toBe(false);
     expect(isFestivalGatheringHour(15, true)).toBe(true);
     expect(isFestivalGatheringHour(21, true)).toBe(true);
-    expect(isFestivalGatheringHour(22, true)).toBe(false);
+    expect(isFestivalGatheringHour(22, true)).toBe(true);
+    expect(isFestivalGatheringHour(23, true)).toBe(false);
     expect(isFestivalGatheringHour(17, false)).toBe(false);
   });
 });
