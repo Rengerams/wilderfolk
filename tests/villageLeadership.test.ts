@@ -172,6 +172,24 @@ describe('villageLeadership.electionGaps.test.ts', () => {
       expect(state.electionCeremony?.reason).toBe('succession');
     });
 
+    it('keeps recorded ballots and election ID stable after candidate merits change', () => {
+      const state = world();
+      expect(tryStartTermElectionCeremony(state, TERM_YEAR, 0)).toBe(true);
+      const ceremony = state.electionCeremony!;
+      const electionId = ceremony.electionId;
+      const tally = { ...ceremony.ballotTally };
+      const ballots = ceremony.ballotTotal;
+      for (const candidate of state.entities) {
+        if (candidate.type === EntityType.Human) candidate.skills = { farmer: 100 };
+      }
+      expect(state.electionCeremony?.ballotTally).toEqual(tally);
+      const result = runVillageElection(state, TERM_YEAR, 'term');
+      expect(state.lastElectionResult?.electionId).toBe(electionId);
+      expect(state.lastElectionResult?.tally).toEqual(tally);
+      expect(state.lastElectionResult?.ballots).toBe(ballots);
+      expect(state.lastElectionResult?.winnerId).toBe(result.leaderId);
+    });
+
     it('still schedules a term election as a term, and arms no retry', () => {
       const state = world();
 
