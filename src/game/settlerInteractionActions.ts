@@ -1,4 +1,4 @@
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType, EntityType, WEREWOLF_CURSE_LINES } from './gameTypes';
 import { addBigNews, addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
