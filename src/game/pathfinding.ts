@@ -597,6 +597,15 @@ interface CachedPath {
 
 const pathCache = new Map<string, CachedPath>();
 
+/** Discard a walker's stale commute routes after its movement step repeatedly fails. */
+export function invalidateCommutePathsForWalker(entityId: number): void {
+  const prefix = `c_${entityId}_`;
+  for (const key of pathCache.keys()) {
+    if (key.startsWith(prefix)) pathCache.delete(key);
+  }
+}
+
+
 export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]): void {
   const next = map ? getPathGrid(map, buildings) : null;
   if (next !== currentGrid) {
