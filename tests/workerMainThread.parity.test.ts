@@ -115,8 +115,28 @@ describe('seeded worker versus main-thread parity', () => {
     // Saves cross a JSON boundary in production. Compare their actual persisted
     // representation rather than in-memory object identity/undefined properties.
     // This still catches every difference a loaded save can observe.
-    expect(JSON.parse(JSON.stringify(workerPayload))).toEqual(
-      JSON.parse(JSON.stringify(mainThreadPayload)),
-    );
+    const workerSaved = JSON.parse(JSON.stringify(workerPayload)) as Record<string, unknown>;
+    const mainSaved = JSON.parse(JSON.stringify(mainThreadPayload)) as Record<string, unknown>;
+    // Report the first concrete divergent field instead of allowing Vitest to
+    // truncate a 2,500-entity object into "no visual difference".
+    function firstDifference(a: unknown, b: unknown, path = '
+  });
+});
+): string | null {
+      if (Object.is(a, b)) return null;
+      if (typeof a !== typeof b || a === null || b === null ||
+          typeof a !== 'object' || typeof b !== 'object') {
+        return `${path}: worker=${JSON.stringify(a)} main=${JSON.stringify(b)}`;
+      }
+      const left = a as Record<string, unknown>;
+      const right = b as Record<string, unknown>;
+      const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+      for (const key of keys) {
+        const difference = firstDifference(left[key], right[key], `${path}.${key}`);
+        if (difference) return difference;
+      }
+      return null;
+    }
+    expect(firstDifference(workerSaved, mainSaved)).toBeNull();
   });
 });
