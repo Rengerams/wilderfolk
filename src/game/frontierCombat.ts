@@ -576,8 +576,15 @@ function rewardRaidParticipants(
   const leaderId = state.villageLeaderId;
   let leaderInFight = false;
 
+  const earnedMerit =
+    tier === 'decisive_win' || tier === 'narrow_win' ? 15
+      : tier === 'outgoing_success' ? 25
+        : 0;
   for (const fighter of participants) {
     gainSkill(state, fighter.id, JobType.Soldier, baseXp);
+    if (earnedMerit > 0) {
+      fighter.battleLeadershipMerit = Math.min(100, Math.max(0, fighter.battleLeadershipMerit ?? 0) + earnedMerit);
+    }
     if (fighter.id === leaderId) {
       leaderInFight = true;
       gainSkill(state, fighter.id, JobType.Soldier, RAID_LEADER_GUARD_XP_BONUS);
