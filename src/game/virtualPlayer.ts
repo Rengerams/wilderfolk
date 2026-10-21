@@ -1475,7 +1475,8 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
     type: BuildingType.WoodStorehouse,
     needed: (state) =>
       !ownsBuildingOfType(state, BuildingType.WoodStorehouse)
-      && storageNearlyFull(state, 'wood'),
+      && (storageNearlyFull(state, 'wood') || storageNearlyFull(state, 'stone')
+        || storageNearlyFull(state, 'iron') || storageNearlyFull(state, 'gold')),
     foodReserveDays: VirtualPlayer.FOOD_BUFFER_DAYS,
   },
   {
