@@ -53,12 +53,12 @@ export interface ViewState {
   favoriteEntityId: number | null;
 }
 
-export const CAMERA_ZOOM_MIN = 1;
+export const CAMERA_ZOOM_MIN = 0.2;
 export const CAMERA_ZOOM_MAX = 6;
 export const CAMERA_ZOOM_DEFAULT = 1.45;
 export const CAMERA_ZOOM_STEP_IN = 1.1;
 export const CAMERA_ZOOM_STEP_OUT = 0.9;
-export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.45, 1.75, 2.0, 2.5, 3.0];
+export const CAMERA_ZOOM_PRESETS: readonly number[] = [0.25, 0.5, 0.75, 1.0, 1.25, 1.45, 1.75, 2.0, 2.5, 3.0];
 
 const CAMERA_EPS = 1e-3;
 const CAMERA_LERP = 0.12;
