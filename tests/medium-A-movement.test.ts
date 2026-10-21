@@ -1,3 +1,4 @@
+import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/commuteReach';
 /**
  * Regression tests for the medium-severity movement/cadence findings from
  * BUG_REPORTS/2026-09-13-simulation-logic-audit.md:
@@ -20,12 +21,7 @@ import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { getPathGrid, invalidateCommutePathsForWalker, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
-import {
-  applyHumanWalkStep,
-  commuteHumanToBuilding,
-  humanBuildingTarget,
-  MAX_COMMUTE_SPEED_MULTIPLIER,
-} from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
