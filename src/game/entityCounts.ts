@@ -88,7 +88,7 @@ export function computePopulationCounts(entities: Entity[]): PopulationCounts {
     if (!e.alive) continue;
     if (e.type === EntityType.Human) {
       if (isPlayerHuman(e)) counts.humans++;
-      else if (e.faction === 'visitor') counts.visitorHumans++;
+      else if (e.faction === 'visitor' || e.faction === 'trade_caravan') counts.visitorHumans++;
       else if (e.faction === 'rival') counts.rivalHumans++;
       continue;
     }
