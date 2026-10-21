@@ -68,6 +68,8 @@ function FrontierPanel({
   if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0 && !(state.raidBattleReports?.length)) {
     const year = state.year ?? 0;
     return (
+      <div className="space-y-3">
+        <StrategicWorldMap state={state} onFocusRival={onFocusRival} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} />
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
         <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
         <p className="mt-1 text-[13px] text-stone-300">
@@ -81,6 +83,7 @@ function FrontierPanel({
             Rival camps can appear once your village reaches 6 population — they arrive with the yearly events.
           </p>
         )}
+      </div>
       </div>
     );
   }
