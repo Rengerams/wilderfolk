@@ -2,7 +2,7 @@
  * Historical genealogy viewer. Vertical ancestor and descendant branches follow recorded
  * biological/adoptive parent IDs, not surnames or household co-residence.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Entity } from '../game/gameTypes';
 import type { GenealogyRegistry, GenealogyPerson } from '../game/genealogyRegistry';
 import { citizenFullName } from '../game/citizenId';
@@ -90,7 +90,7 @@ export default function FamilyTreeWindow({
     );
   };
 
-  const branch = (id: number, generation: number, trail: ReadonlySet<number>): React.ReactNode => {
+  const branch = (id: number, generation: number, trail: ReadonlySet<number>): ReactNode => {
     const person = people.get(id);
     if (!person || (trail.has(id)) || (!showDeceased && !person.alive)) return null;
     const nextTrail = new Set(trail); nextTrail.add(id);
