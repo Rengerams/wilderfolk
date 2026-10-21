@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPeaceTreatyEligibility, tickPendingDiplomacyEvents } from '../src/game/groupEvents';
+import { getPeaceTreatyEligibility, getRivalTradePactEligibility, tickPendingDiplomacyEvents } from '../src/game/groupEvents';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
@@ -57,6 +57,8 @@ describe('peace treaty eligibility', () => {
     expect(getPeaceTreatyEligibility(world, 'r1')).toEqual({
       ok: false, blockReason: 'Peace treaty already active',
     });
+    // Peace should not accidentally block unrelated trade-pact eligibility.
+    expect(getRivalTradePactEligibility(world, 'r1').ok).toBe(true);
     world.rivalSettlements[0]!.peaceTreatyDays = 0;
     expect(getPeaceTreatyEligibility(world, 'r1').ok).toBe(true);
   });
