@@ -1,3 +1,4 @@
+import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycleConstants';
 /**
  * Low-tier simulation/geometry batch — one focused regression per finding fixed here.
  *
@@ -46,7 +47,7 @@ import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getDefenseStructureBreakdown, getWallSegmentCap } from '../src/game/defenseStructures';
 import { createEntity } from '../src/game/entityFactory';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
-import { HUMAN_CHILDHOOD_YEARS } from '../src/game/dayCycle';
+
 import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEntities';
 import * as residencySelection from '../src/game/residencySelection';
 import { auditHousingSharingIssues } from '../src/game/residencySelection';
