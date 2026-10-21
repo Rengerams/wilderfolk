@@ -122,21 +122,24 @@ describe('seeded worker versus main-thread parity', () => {
     const mainSaved = JSON.parse(JSON.stringify(mainThreadPayload)) as Record<string, unknown>;
     // Report the first concrete divergent field instead of allowing Vitest to
     // truncate a 2,500-entity object into "no visual difference".
-    function firstDifference(a: unknown, b: unknown, path = '$'): string | null {
-      if (Object.is(a, b)) return null;
+    function differences(a: unknown, b: unknown, path = '$', found: string[] = []): string[] {
+      if (found.length >= 20 || Object.is(a, b)) return found;
       if (typeof a !== typeof b || a === null || b === null ||
           typeof a !== 'object' || typeof b !== 'object') {
-        return `${path}: worker=${JSON.stringify(a)} main=${JSON.stringify(b)}`;
+        found.push(`${path}: worker=${JSON.stringify(a)} main=${JSON.stringify(b)}`);
+        return found;
       }
       const left = a as Record<string, unknown>;
       const right = b as Record<string, unknown>;
       const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
       for (const key of keys) {
-        const difference = firstDifference(left[key], right[key], `${path}.${key}`);
-        if (difference) return difference;
+        differences(left[key], right[key], `${path}.${key}`, found);
+        if (found.length >= 20) break;
       }
-      return null;
+      return found;
     }
-    expect(firstDifference(workerSaved, mainSaved)).toBeNull();
+    const mismatches = differences(workerSaved, mainSaved);
+    expect(mismatches, `First ${mismatches.length} divergent saved fields:\\n${mismatches.join('\\n')}`).toEqual([]);
+
   });
 });
