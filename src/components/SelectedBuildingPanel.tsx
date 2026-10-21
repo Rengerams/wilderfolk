@@ -61,7 +61,7 @@ import { FORGE_BONUSES } from '../game/forge';
 import { MILL_FOOD_PRODUCTION_MULT } from '../game/dailyBuildingEconomy';
 import { PRESERVE_HEALTH_BONUS } from '../game/dailyEcology';
 import { BARN_ADJACENCY_BONUS } from '../game/adjacencyIndex';
-import { siloFoodStorageForLevel, WOOD_STOREHOUSE_STORAGE } from '../game/economy';
+import { siloFoodStorageForLevel, storehouseStorageForLevel } from '../game/economy';
 import type { Building, WorldState, Entity } from '../game/gameEngine';
 import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
@@ -114,7 +114,8 @@ function RaidChoiceButtons({
  * is the build catalogue's `maxOccupants`, which is also the cap the staffing command enforces.
  * Returns null for buildings with no tuning numbers — those keep the plain table below.
  */
-function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
+function ownerOutputHint(building: Building, state: WorldState): string | null {
+  const type = building.type;
   switch (type) {
     case BuildingType.Farm:
       return `Produces food — more workers harvest more (up to ${getBuildingConfig(type).maxOccupants}). Watch Food in the header.`;
@@ -131,7 +132,7 @@ function ownerOutputHint(type: BuildingType, state: WorldState): string | null {
     case BuildingType.Silo:
       return `Passive food every 2 days, +${siloFoodStorageForLevel(building.level ?? 1)} food storage at level ${building.level ?? 1} (L1 +2,000 / L2 +2,500 / L3 +3,000), less spoilage — no workers.`;
     case BuildingType.WoodStorehouse:
-      return `Passive — +${WOOD_STOREHOUSE_STORAGE} capacity each for wood, stone, iron and gold. No workers needed.`;
+      return `Passive — +${storehouseStorageForLevel(building.level ?? 1)} capacity each for wood, stone, iron and gold (L1 +800 / L2 +1,800 / L3 +2,800). No workers needed.`;
     case BuildingType.Barracks:
       return `Each living, non-imprisoned soldier assigned here adds +${MILITIA_BALANCE.guardBonusPerGuard} militia strength (more with Guard Halberds), even off shift.`;
     case BuildingType.WildlifePreserve:
@@ -607,9 +608,9 @@ export default function SelectedBuildingPanel({
         {!building.completed && (
           <p className="text-[11px] text-sky-300">Builders work {getWorkScheduleLabel(getWorkSchedule(state))} only — auto-assigned each morning.</p>
         )}
-        {building.completed && (ownerOutputHint(building.type, state) ?? BUILDING_OUTPUT_HINTS[building.type]) && (
+        {building.completed && (ownerOutputHint(building, state) ?? BUILDING_OUTPUT_HINTS[building.type]) && (
           <p className="text-[11px] text-stone-300">
-            {ownerOutputHint(building.type, state) ?? BUILDING_OUTPUT_HINTS[building.type]}
+            {ownerOutputHint(building, state) ?? BUILDING_OUTPUT_HINTS[building.type]}
           </p>
         )}
         {building.completed && building.type === BuildingType.HuntingSpot && (
