@@ -26,6 +26,8 @@ import {
 } from '../src/game/dayCycle';
 import { SCHOOL_GRADUATION_DAYS, applyEducationGraduation, getEducationTier } from '../src/game/education';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { grantRareBirthTalent } from '../src/game/simulation/humanLifecycle';
+import { createEntity } from '../src/game/entityFactory';
 
 const CHILD_ID = 7;
 const ADULT_SIZE = 14;
@@ -124,5 +126,29 @@ describe('a child graduates once, with the education payoff', () => {
     expect(child.isJuvenile).toBe(true);
     expect(child.size).toBe(7);
     expect(child.educated).toBeUndefined();
+  });
+});
+describe('rare natural talent at birth', () => {
+  it('grants one exceptional trade to roughly one percent of newborns without stacking skills', () => {
+    initGame({ seed: FIXTURE_SEED });
+    let talented = 0;
+    let extraordinarilyTalented = 0;
+    for (let index = 0; index < 10000; index++) {
+      const child = createEntity(EntityType.Human, 0, 0, index + 100000, 80, true);
+      grantRareBirthTalent(child, `talent-fixture:${index}`);
+      const values = Object.values(child.skills ?? {});
+      expect(values.length).toBeLessThanOrEqual(1);
+      if (values.length > 0) {
+        talented++;
+        const skill = values[0] ?? 0;
+        expect(skill).toBeGreaterThanOrEqual(40);
+        expect(skill).toBeLessThan(95);
+        if (skill >= 80) extraordinarilyTalented++;
+      }
+    }
+    expect(talented).toBeGreaterThan(50);
+    expect(talented).toBeLessThan(150);
+    expect(extraordinarilyTalented).toBeGreaterThan(0);
+    expect(extraordinarilyTalented).toBeLessThan(30);
   });
 });
