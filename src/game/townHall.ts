@@ -77,7 +77,6 @@ export function tickTownHallCivic(
   _playerHumans: Entity[],
 ): void {
   const officials = building.occupants.length;
-  const skill = getTownHallOfficialSkillAvg(state, building);
   addReputation(state, 3 + Math.max(0, officials - 1));
 
   rewardProductionSkills(state, building, 0.25);
