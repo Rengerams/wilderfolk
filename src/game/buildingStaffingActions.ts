@@ -334,6 +334,8 @@ export function removeStaffWorkerFromBuilding(
   // construction-crew occupant list is the assignment this action removes.
   if (human.homeBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
 
+  // Explicit removal opts this workplace out of immediate auto-refilling.
+  if (building.completed && BUILDING_JOB_TYPES[building.type]) building.staffingMode = 'manual';
   removeWorkerTransition(human, state.buildings);
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;
