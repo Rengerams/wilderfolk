@@ -2,6 +2,13 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** launching an outgoing raid mobilizes every available adult Soldier into a persistent roster of soldier IDs, with a saved deployment ID that excludes them from home militia strength and barracks defense; deployed soldiers suspend normal work and are shown as away with the war-band.
+- **Added:** persistent outgoing-raid marching, engagement and returning phases. Battle or tribute decisions only unlock after the simulated march reaches the target. The original soldier roster, not newly assigned soldiers, supplies combat experience, fatalities and survivors.
+- **Added:** Recall Army in the raid banner and valley world map. A recalled army reverses course from its actual travel fraction and returns over the proportional remaining distance; survivors only rejoin home defense after their return trip, without a provisions refund. Victorious armies also march home rather than instantly resuming barracks service.
+- **Fixed:** launching a counter-raid no longer prematurely cancels an enemy incoming attack; the danger remains until the battle outcome is resolved. Active peace treaties prevent new war declarations.
+- **Improved:** clickable rival markers, current troop counts and army recall controls on the strategic world map. Returning markers use the saved recall position rather than jumping to the rival camp.
+- **Added:** targeted regression tests for whole-army mobilization, premature-engagement blocking, recall transit, battle arrival, returning forces and peace-treaty restrictions. Full build and gameplay verification remain pending.
+
 - **Added:** a strategic Valley World Map inside Frontier showing the player village and rival settlements at their actual world coordinates, with a legend, relationship status, population, and clickable settlement focus. The map remains available before rivals appear.
 - **Added:** persistent Declare War actions on the strategic map, using the existing hostility/diplomacy command and reputation penalty. War status is stored on the rival settlement; repeated declarations are blocked and Mercy ends the war with the existing 30-day truce.
 - **Added:** visible outgoing player war-bands and incoming enemy raiders on strategic routes. Markers advance from each event's created tick toward its expiry tick, with clearly labeled sides and elapsed-raid percentages. The existing simulation still controls actual engagement and its decisions; the markers do not falsely simulate tactical individual soldiers.
