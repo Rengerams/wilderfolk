@@ -122,10 +122,7 @@ describe('seeded worker versus main-thread parity', () => {
     const mainSaved = JSON.parse(JSON.stringify(mainThreadPayload)) as Record<string, unknown>;
     // Report the first concrete divergent field instead of allowing Vitest to
     // truncate a 2,500-entity object into "no visual difference".
-    function firstDifference(a: unknown, b: unknown, path = '
-  });
-});
-): string | null {
+    function firstDifference(a: unknown, b: unknown, path = '$'): string | null {
       if (Object.is(a, b)) return null;
       if (typeof a !== typeof b || a === null || b === null ||
           typeof a !== 'object' || typeof b !== 'object') {
