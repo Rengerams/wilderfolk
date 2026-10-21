@@ -32,7 +32,7 @@ import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
 import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
 import { rollPredatorBlock, rollCounterAttack } from './combat';
-import { isActiveMoonHowler } from './moonHowler ;
+import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { clampToMapBounds } from './mapBounds';

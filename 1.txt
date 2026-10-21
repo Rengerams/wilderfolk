@@ -1,0 +1,134 @@
+
+[1m> [1/6] standard[0m
+  node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs
+
+Source integrity OK: no JavaScript files shadow TypeScript modules, no source archives and no zero-byte files under src/, tests/, scripts/, or config/.
+Docs check passed: 7 documents linked clean, newest changelog section concise.
+Comments check passed: no newly added comment carries history.
+
+[1m> [2/6] standard[0m
+  node scripts/check-import-cycles.mjs --strict
+
+Import graph: 364 modules, 1972 runtime dependencies
+No runtime import cycles.
+Import-cycle gate OK — 364 modules checked.
+
+[1m> [3/6] standard[0m
+  jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"
+
+[1mClone found (typescript)[22m
+ - [1m[32mgame\buildingResidencyActions.ts[39m[22m [33:43 - 41:26] (9 lines, 72 tokens)
+   game\buildingStaffingActions.ts [332:46 - 340:26]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [502:67 - 510:10] (9 lines, 65 tokens)
+   game\dailyBuildingEconomy.ts [875:73 - 883:10]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [828:55 - 834:58] (7 lines, 73 tokens)
+   game\dailyBuildingEconomy.ts [923:54 - 929:58]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [829:9 - 838:15] (10 lines, 92 tokens)
+   game\dailyBuildingEconomy.ts [899:9 - 908:15]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\familyTree.ts[39m[22m [501:9 - 508:73] (8 lines, 104 tokens)
+   game\familyTree.ts [599:9 - 606:73]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\gameLoop.ts[39m[22m [379:7 - 386:8] (8 lines, 61 tokens)
+   game\gameLoop.ts [409:7 - 416:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [642:40 - 648:29] (7 lines, 64 tokens)
+   game\groupEvents.ts [687:45 - 693:29]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [642:40 - 648:13] (7 lines, 62 tokens)
+   game\groupEvents.ts [775:42 - 781:13]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [659:46 - 665:85] (7 lines, 81 tokens)
+   game\groupEvents.ts [705:51 - 711:85]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [1107:81 - 1113:10] (7 lines, 61 tokens)
+   game\groupEvents.ts [1119:70 - 1125:10]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\householdComposition.ts[39m[22m [11:36 - 18:16] (8 lines, 104 tokens)
+   game\householdComposition.ts [91:38 - 98:16]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\moonHowler.ts[39m[22m [704:95 - 713:9] (10 lines, 60 tokens)
+   game\moonHowler.ts [796:53 - 803:7]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\pathfindingMetrics.ts[39m[22m [65:57 - 76:44] (12 lines, 86 tokens)
+   game\spatialQueryMetrics.ts [47:81 - 58:44]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\grid.ts[39m[22m [26:40 - 34:8] (9 lines, 64 tokens)
+   game\renderer\grid.ts [147:29 - 155:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\grid.ts[39m[22m [85:48 - 91:42] (7 lines, 66 tokens)
+   game\renderer\grid.ts [103:42 - 109:42]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\terrain.ts[39m[22m [236:34 - 248:10] (13 lines, 98 tokens)
+   game\renderer\terrain.ts [430:36 - 441:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\saveLoad.ts[39m[22m [700:25 - 707:4] (8 lines, 60 tokens)
+   game\saveLoad.ts [712:31 - 719:4]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\simulation\humanRelationships.ts[39m[22m [761:68 - 770:9] (10 lines, 86 tokens)
+   game\simulation\humanRelationships.ts [778:67 - 787:9]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\spatialGrid.ts[39m[22m [295:5 - 304:39] (10 lines, 95 tokens)
+   game\spatialGrid.ts [339:5 - 348:39]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\stripBuild.ts[39m[22m [101:38 - 107:19] (7 lines, 64 tokens)
+   game\stripBuild.ts [113:38 - 119:19]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\stripRender.ts[39m[22m [124:35 - 135:8] (12 lines, 62 tokens)
+   game\stripRender.ts [211:36 - 222:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\terrain\hydrology.ts[39m[22m [89:23 - 99:13] (11 lines, 108 tokens)
+   game\terrain\hydrology.ts [181:31 - 191:13]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\terrain\noise.ts[39m[22m [77:23 - 88:2] (12 lines, 84 tokens)
+   game\terrain\noise.ts [111:15 - 122:2]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\tickLayerSystems.ts[39m[22m [662:48 - 671:15] (10 lines, 62 tokens)
+   game\tickLayerSystems.ts [702:28 - 711:15]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\travelingTheatre.ts[39m[22m [6:38 - 13:25] (8 lines, 61 tokens)
+   game\weddingDiplomacy.ts [7:35 - 14:25]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\virtualPlayer.ts[39m[22m [408:3 - 414:12] (7 lines, 72 tokens)
+   game\virtualPlayer.ts [465:3 - 471:12]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\virtualPlayer.ts[39m[22m [587:19 - 593:14] (7 lines, 66 tokens)
+   game\virtualPlayer.ts [1692:32 - 1697:14]
+[90m┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐[39m
+[90m│[39m[31m Format     [39m[90m│[39m[31m Files analyzed [39m[90m│[39m[31m Total lines [39m[90m│[39m[31m Total tokens [39m[90m│[39m[31m Clones found [39m[90m│[39m[31m Duplicated lines [39m[90m│[39m[31m Duplicated tokens [39m[90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m tsx        [90m│[39m 61             [90m│[39m 14721       [90m│[39m 92979        [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m typescript [90m│[39m 292            [90m│[39m 82476       [90m│[39m 500752       [90m│[39m 27           [90m│[39m 240 (0.29%)      [90m│[39m 2033 (0.41%)      [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m [1mTotal:[22m     [90m│[39m 353            [90m│[39m 97197       [90m│[39m 593731       [90m│[39m 27           [90m│[39m 240 (0.25%)      [90m│[39m 2033 (0.34%)      [90m│[39m
+[90m└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘[39m
+[90mFound 27 clones.[39m
+[90mtime: 164.546ms[39m
+
+[1m> [4/6] standard[0m
+  tsc -p tsconfig.vitest.json --noEmit
+
+src/game/dailyPopulation.ts(11,3): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+src/game/gameEngine.ts(318,3): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+src/game/groupEvents.ts(10,3): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+src/game/humanTick.ts(34,3): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+src/game/humanTick.ts(118,3): error TS2459: Module '"./simulation/humanMovement"' declares 'WORK_COMMUTE_RUSH' locally, but it is not exported.
+src/game/humanVenueBehavior.ts(6,34): error TS2459: Module '"./simulation/humanMovement"' declares 'WORK_COMMUTE_RUSH' locally, but it is not exported.
+src/game/settlerInteractionActions.ts(9,10): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+src/game/villageLeadership.ts(5,40): error TS2459: Module '"./dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+tests/adoption.leaderHouse.test.ts(20,10): error TS2459: Module '"../src/game/dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+tests/adultFloor.age18.test.ts(13,10): error TS2459: Module '"../src/game/dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+tests/adultFloor.age18.test.ts(13,31): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
+tests/adultFloor.age18.test.ts(14,10): error TS2305: Module '"../src/game/residencyOccupancy"' has no exported member 'HUMAN_MOVE_OUT_MIN_AGE'.
+tests/humanGraduation.education.test.ts(21,3): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
+tests/immigration.composition.test.ts(9,10): error TS2459: Module '"../src/game/dayCycle"' declares 'HUMAN_ADULT_MIN_AGE' locally, but it is not exported.
+tests/immigration.composition.test.ts(10,10): error TS2305: Module '"../src/game/residencyOccupancy"' has no exported member 'HUMAN_MOVE_OUT_MIN_AGE'.
+tests/low-7-sim-geometry.test.ts(49,10): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
+tests/medium-A-movement.test.ts(27,3): error TS2305: Module '"../src/game/simulation/humanMovement"' has no exported member 'MAX_COMMUTE_SPEED_MULTIPLIER'.
+tests/securityRoles.migration.test.ts(5,43): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
+tests/workerBoundary.closure.test.ts(63,10): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
+tests/workforce.transitions.test.ts(40,10): error TS2305: Module '"../src/game/dayCycle"' has no exported member 'HUMAN_CHILDHOOD_YEARS'.
