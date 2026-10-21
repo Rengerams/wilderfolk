@@ -147,6 +147,15 @@ const demolish = (buildingId: number): WorkerCommand => ({
 });
 
 describe('demolition round trip', () => {
+  it('updates the worker-owned world in place without cloning the whole save', () => {
+    const farm = building(2, BuildingType.Farm);
+    const world = makeWorld([human(1)], [farm], { totalBuildingsCompleted: 1 });
+    const result = applyWorkerCommand(world, demolish(2));
+    expect(result).toBe(world);
+    expect(world.buildings.find((item) => item.id === 2)).toBeUndefined();
+  });
+
+
   it('removes the building exactly once and cleans the worker assignment', () => {
     const worker = human(1, { homeBuildingId: 2, job: JobType.Farmer });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
