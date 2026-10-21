@@ -16,6 +16,7 @@ import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
 import { friendCount, startFeud } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
+import { computeDynasties } from './familyLegacy';
 
 /**
  * Years between scheduled (end-of-term) elections.
@@ -94,6 +95,7 @@ export interface LeadershipScoreBreakdown {
   skillPoints: number;
   experiencePoints: number;
   battlePoints: number;
+  familyPoints: number;
   communityPoints: number;
   recordPoints: number;
   titlePoints: number;
@@ -296,9 +298,19 @@ export function isEligibleForLeadership(
   );
 }
 
+function familyPrestigeBySurname(state: WorldState): Map<string, number> {
+  const prestige = new Map<string, number>();
+  for (const family of computeDynasties(state)) {
+    const points = Math.min(25, Math.max(0, family.generationsAlive - 1) * 8 + Math.min(9, Math.max(0, family.members - 1)));
+    prestige.set(family.surname, points);
+  }
+  return prestige;
+}
+
 export function getLeadershipScoreBreakdown(
   state: WorldState,
   entity: Entity,
+  familyPrestige?: ReadonlyMap<string, number>,
 ): LeadershipScoreBreakdown {
   const skills = ensureEntitySkills(entity);
   const skillSum = Object.values(skills).reduce((sum, value) => sum + (value ?? 0), 0);
@@ -314,7 +326,8 @@ export function getLeadershipScoreBreakdown(
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
   const battlePoints = Math.min(100, Math.max(0, entity.battleLeadershipMerit ?? 0));
-  const baseScore = skillPoints + experiencePoints + battlePoints + communityPoints + titlePoints;
+  const familyPoints = (familyPrestige ?? familyPrestigeBySurname(state)).get(entity.surname?.trim() ?? '') ?? 0;
+  const baseScore = skillPoints + experiencePoints + battlePoints + familyPoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
@@ -322,6 +335,7 @@ export function getLeadershipScoreBreakdown(
     skillPoints,
     experiencePoints,
     battlePoints,
+    familyPoints,
     communityPoints,
     recordPoints,
     titlePoints,
@@ -347,13 +361,14 @@ function sortCandidateBreakdowns(
 
 export function rankLeadershipCandidates(state: WorldState): LeadershipScoreBreakdown[] {
   const ageById = new Map<number, number>();
+  const familyPrestige = familyPrestigeBySurname(state);
   const candidates: LeadershipScoreBreakdown[] = [];
 
   for (let i = 0; i < state.entities.length; i++) {
     const entity = state.entities[i];
     if (!isEligibleForLeadership(entity, state)) continue;
     ageById.set(entity.id, leadershipAgeYears(entity, state));
-    candidates.push(getLeadershipScoreBreakdown(state, entity));
+    candidates.push(getLeadershipScoreBreakdown(state, entity, familyPrestige));
   }
 
   sortCandidateBreakdowns(candidates, ageById);
@@ -445,6 +460,7 @@ function getYearsUntilElectionForYear(year: number, lastElectionYear: number): n
 function scoreSummary(b: LeadershipScoreBreakdown): string {
   const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
   if (b.battlePoints > 0) parts.push(`defense & raids +${b.battlePoints}`);
+  if (b.familyPoints > 0) parts.push(`family name +${b.familyPoints}`);
   if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
   if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);
