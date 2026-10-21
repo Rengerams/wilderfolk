@@ -660,6 +660,8 @@ export interface OutgoingRaidEvent {
   phase?: 'marching' | 'engaging' | 'fighting' | 'returning';
   battleStartedAtTick?: number;
   battleChronicle?: string[];
+  battleCasualtiesApplied?: boolean;
+  battlePlayerCasualties?: string[];
   soldierIds?: number[];
   launchedAtTick?: number;
   arrivalAtTick?: number;
