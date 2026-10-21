@@ -171,10 +171,10 @@ export function createEntity(
   };
 
   if (isHuman) {
-    if (opts?.ageYears !== undefined) {
-      setHumanBirthFromAge(entity, opts.ageYears, opts.colonyDay ?? 0);
-      entity.age = opts.ageYears;
-    }
+    // Newborns also need a birth date at their actual colony day.
+    const ageYears = opts?.ageYears ?? 0;
+    setHumanBirthFromAge(entity, ageYears, opts?.colonyDay ?? 0);
+    entity.age = ageYears;
 
     if (opts?.pregnant && entGender === 'female') {
       entity.pregnant = true;
