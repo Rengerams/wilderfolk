@@ -7,7 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './civilStatus';
-import { HUMAN_ADULT_MIN_AGE } from './dayCycleConstants';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
 export type KinRelation =
