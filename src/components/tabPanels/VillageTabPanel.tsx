@@ -15,7 +15,7 @@ import { resolvePopulationCap } from '../../game/populationGrowth';
 import { summarizeFoodLedger, ECONOMY_SOURCE_LABELS } from '../../game/economyLedger';
 import { describeSchoolingSummary, summarizeSchooling } from '../../game/education';
 import { getHourOfDay } from '../../game/dayCycle';
-import { largestBloodlines } from '../../game/genealogyRegistry';
+import { largestBloodlines, largestExtendedFamilies } from '../../game/genealogyRegistry';
 import { REPUTATION_FRIENDLY_MIN, REPUTATION_HARSH_MAX } from '../../game/simHelpers';
 
 const FocusPanel = lazy(() => import('../../game/FocusPanel'));
@@ -356,6 +356,17 @@ export default function VillageTabPanel({
         {state.genealogyRegistry ? (
           <div className="space-y-2 text-[13px] text-stone-200">
             <p className="text-stone-400">{Object.keys(state.genealogyRegistry.people).length} historical settler records, including the deceased.</p>
+            <h3 className="font-bold text-stone-100">Extended family networks (including marriage)</h3>
+            {largestExtendedFamilies(state.genealogyRegistry, 10).map((family, index) => (
+              <div key={family.memberIds[0]} className="rounded bg-stone-700/30 px-3 py-2">
+                <div className="flex justify-between gap-3">
+                  <span>{index + 1}. {family.surnames.slice(0, 4).map(s => s.name).join(' – ')}</span>
+                  <span className="shrink-0">{family.livingMembers} living · {family.historicalMembers} historical</span>
+                </div>
+                <p className="text-stone-400">{family.surnames.length} surnames; marriage and parent-child connections</p>
+              </div>
+            ))}
+            <h3 className="pt-2 font-bold text-stone-100">Biological and adoptive descendants by ancestor</h3>
             {largestBloodlines(state.genealogyRegistry, 15).map((line, index) => (
               <div key={line.ancestor.id} className="flex items-center justify-between gap-3 rounded bg-stone-700/30 px-3 py-2">
                 <span>{index + 1}. {line.ancestor.name} {line.ancestor.surname}{line.ancestor.alive ? '' : ' †'}</span>
