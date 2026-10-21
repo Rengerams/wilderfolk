@@ -21,7 +21,7 @@ import {
   getWatchtowerBonus,
   MILITIA_BALANCE,
 } from './defenseStructures';
-import { BuildingType } from './gameTypes';
+import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
 
@@ -100,7 +100,7 @@ export function getMilitiaArmamentLabel(state: WorldState): string | null {
  * (`docs/private/audits/2026-09-16/LIVE-FINDINGS-STATUS.md`, M1).
  */
 export function canBeMustered(entity: Entity): boolean {
-  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity);
+  return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier;
 }
 
 function countMusterableAdults(entities: Entity[]): number {
@@ -138,7 +138,7 @@ export function computeMilitiaBreakdown(
 
   // Early exit: no adults means no militia and no barricade
   if (adultCount === 0) {
-    lines.push('No adult settlers to muster');
+    lines.push('No available soldiers to muster');
     return {
       adultCount: 0,
       guardCount,
