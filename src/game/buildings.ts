@@ -6,7 +6,7 @@ export const BuildingType = {
   Greenhouse: 'greenhouse',
   Barn: 'barn',
   Silo: 'silo',
-  /** Dry shelter for winter firewood — +800 wood storage, no workers. */
+  /** General materials storehouse; the persisted building id stays woodStorehouse for save compatibility. */
   WoodStorehouse: 'woodStorehouse',
   LumberMill: 'lumberMill',
   Quarry: 'quarry',
@@ -260,8 +260,8 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     buildTime: 4,
     maxOccupants: 0,
     emoji: '🏚️',
-    label: 'Wood Storehouse',
-    description: 'Dry shelter for winter firewood — +800 wood storage (winter fuel), no workers needed.',
+    label: 'Storehouse',
+    description: 'Stores materials and valuables: +800 capacity each for wood, stone, iron and gold. No workers needed.'
     sprite: '/sprites/storehouse_wood.png',
     backgroundColor: '#92400e',
     padShape: 'rect',
