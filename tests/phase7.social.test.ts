@@ -93,6 +93,10 @@ describe('relationship webs — feuds', () => {
 describe('apprenticeships', () => {
   it('a master may train a qualified adult after school', () => {
     const w = makeWorld();
+    // Isolate this apprenticeship from generated founders and workplaces: they may
+    // reuse fixture ids or claim apprentices before the farm under test.
+    w.entities = [];
+    w.buildings = [];
     const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 60 };
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
@@ -128,6 +132,10 @@ describe('apprenticeships', () => {
 
   it('an apprentice graduates at skill 50 and both bonds clear', () => {
     const w = makeWorld();
+    // Isolate this apprenticeship from generated founders and workplaces: they may
+    // reuse fixture ids or claim apprentices before the farm under test.
+    w.entities = [];
+    w.buildings = [];
     const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 100 };
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
