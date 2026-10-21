@@ -142,7 +142,18 @@ function nightAmbientTick(id: number): number {
       const hour = getHourOfDay(tick);
       if (!(hour >= 23 || hour < 6)) continue;
       if (seededRandomForRun(`chat-ambient:${id}:${tick}`) > AMBIENT_CHANCE) continue;
-      return tick;
+      // The random roll is only one gate: shifts and context can also prevent
+      // a conversation. Find a night tick where the real away-from-home control
+      // actually speaks, then compare the same tick at home.
+      const control = newWorld();
+      control.tick = tick;
+      control.buildings = [house(1)];
+      const speaker = settler(id, { x: 700, y: 600, residenceBuildingId: 1 });
+      const peer = settler(id + 1, { x: 710, y: 600 });
+      control.entities = [speaker, peer];
+      setSimSeed(TEST_SEED);
+      tickHumans(control, contextFor(control, [speaker, peer]));
+      if (speaker.chatPhrase !== undefined) return tick;
     }
   }
   throw new Error('no night ambient dialogue tick found');
