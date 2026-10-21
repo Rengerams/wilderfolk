@@ -1,10 +1,10 @@
-import chaosDialogueJson from './data/chaos.json';
-import environmentDialogueJson from './data/environment.json';
-import existentialDialogueJson from './data/existential.json';
-import festivalDialogueJson from './data/festival.json';
-import needsDialogueJson from './data/needs.json';
-import socialDialogueJson from './data/social.json';
-import workDialogueJson from './data/work.json';
+import chaosDialogueJson from './data/chaos.json' with { type: 'json' };
+import environmentDialogueJson from './data/environment.json' with { type: 'json' };
+import existentialDialogueJson from './data/existential.json' with { type: 'json' };
+import festivalDialogueJson from './data/festival.json' with { type: 'json' };
+import needsDialogueJson from './data/needs.json' with { type: 'json' };
+import socialDialogueJson from './data/social.json' with { type: 'json' };
+import workDialogueJson from './data/work.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
