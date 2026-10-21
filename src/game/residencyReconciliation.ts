@@ -120,9 +120,9 @@ export function rebalanceOvercrowdedResidences(
 
 /** Player settler in human or cursed full-moon werewolf form — counts for residence sync. */
 export function isResidenceOccupantEntity(entity: Entity): boolean {
-  if (!entity.alive || entity.faction) return false;
-  if (entity.type === EntityType.Human) return true;
-  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+  if (!entity.alive) return false;
+  if (entity.type === EntityType.Human) return isPlayerHuman(entity);
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed && !entity.faction;
 }
 
 
