@@ -40,7 +40,7 @@ export default function FamilyTreeWindow({
     for (const e of allEntities) {
       if (e.type !== 'human') continue;
       known.set(e.id, {
-        id: e.id, name: e.name ?? 'Unknown', surname: e.surname ?? '',
+        id: e.id, name: e.name ?? 'Unknown', surname: e.surname || '',
         alive: e.alive, motherId: e.motherId, fatherId: e.fatherId,
         adoptiveMotherId: e.adoptiveMotherId, adoptiveFatherId: e.adoptiveFatherId,
         childrenIds: e.childrenIds ?? [],
