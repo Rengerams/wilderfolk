@@ -190,12 +190,11 @@ export function isMoonHowlerEligible(entity: Entity): boolean {
 export function canMoonHowlerCurse(entity: Entity): boolean {
   return (
     entity.alive
-    && entity.type === EntityType.Human
+    && isPlayerHuman(entity)
     && !entity.isJuvenile
     && entity.age >= HUMAN_ADULT_MIN_AGE
     && !entity.moonHowlerCursed
-    && entity.faction !== 'visitor'
-    && entity.faction !== 'rival'
+
   );
 }
 
@@ -513,8 +512,8 @@ export function tryMoonHowlerChurchCures(
     }
     logEvent(state, 'event', `${howlerName} — ${line}`, howlerName);
     logEvent(state, 'event', `${priestName} survived the rite and returned to the Church`, priestName);
-    priest.x = church.x + church.width / 2;
-    priest.y = church.y + church.height * 0.9;
+    priest.x = church.x;
+    priest.y = church.y + church.height / 2 + 10;
     if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
     priest.homeBuildingId = church.id;
     priest.job = JobType.Priest;
