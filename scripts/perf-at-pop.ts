@@ -167,6 +167,8 @@ function bench(
   };
   setPerformanceProfilingEnabled(false);
   benchmarkReports.push(report);
+  // Machine-readable, unrounded result for runtime comparisons; human lines remain unchanged.
+  console.log('PERF_RESULT ' + JSON.stringify({ label: report.label, humans: report.population, alive: report.alive, p95Ms: report.p95Ms, averageMs: report.averageMs, deltaHash: report.deltaHash }));
   console.log(`  throughput=${report.ticksPerSecond.toFixed(2)} ticks/s`);
   console.log('  slowest clock hours: ' + [...report.byHour].sort((a,b) => b.avgMs-a.avgMs).slice(0, 5).map((h) => `${String(h.hour).padStart(2,'0')}:00 ${h.avgMs.toFixed(1)}ms (max ${h.maxMs.toFixed(1)}ms)`).join(' | '));
   if (BASELINE) {
