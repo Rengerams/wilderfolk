@@ -26,7 +26,7 @@ import {
   getResidenceCapacity,
   isLeaderHouseResidence,
 } from '../src/game/residencyOccupancy';
-import { collectFamilyMembers } from '../src/game/householdComposition';
+import { collectFamilyMembers, indexFamilyRelations } from '../src/game/householdComposition';
 import {
   isResidenceOccupantEntity,
   rebalanceOvercrowdedResidences,
@@ -375,5 +375,20 @@ describe('tryMoveOutOfFamilyHome keeps its single-scan verdict', () => {
 
     expect(tryMoveOutOfFamilyHome(minor, world.entities, world.buildings)).toBe(false);
     expect(minor.residenceBuildingId).toBe(familyHome.id);
+  });
+});
+
+
+describe('indexed family traversal', () => {
+  it('keeps reverse parent links and existing family relationships intact', () => {
+    const mother = settler(undefined, { childrenIds: [] });
+    const child = settler(undefined, { motherId: mother.id, childrenIds: [] });
+    const sibling = settler(undefined, { motherId: mother.id, childrenIds: [] });
+    const unrelated = settler();
+    const humans = [mother, child, sibling, unrelated];
+    const indexed = indexFamilyRelations(humans);
+    const family = collectFamilyMembers(mother, humans, new Set(), indexed);
+    expect(new Set(family.map((member) => member.id))).toEqual(new Set([mother.id, child.id, sibling.id]));
+    expect(collectFamilyMembers(mother, humans, new Set()).map((member) => member.id)).toEqual(family.map((member) => member.id));
   });
 });
