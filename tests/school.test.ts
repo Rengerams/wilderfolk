@@ -423,7 +423,7 @@ describe('school.roster.test.ts', () => {
 
     it('marks a pupil "in class" only inside the classroom during class hours', () => {
       const staffed = school(8000, 100, 100);
-      const inside = child(9000, 100 + 26, 100 + 23); // school centre
+      const inside = child(9000, staffed.x, staffed.y); // building coordinates are its centre
       const outside = child(9001, 600, 700);
       const tick = classTick();
 
