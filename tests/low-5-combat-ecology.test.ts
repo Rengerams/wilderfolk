@@ -163,6 +163,7 @@ describe('frontierCombat big news (L27)', () => {
 describe('frontierCombat militia count (cross-cutting dead militia rule)', () => {
   it('counts militia through the militia owner instead of a local arming rule', () => {
     const state = world();
+    for (const entity of state.entities) if (entity.alive && entity.type === EntityType.Human) entity.job = JobType.Soldier;
     const ownerCount = computeMilitiaBreakdown(state, state.entities, { includeStructures: false }).adultCount;
     expect(ownerCount).toBeGreaterThan(0);
     expect(countArmedMilitia(state, state.entities)).toBe(ownerCount);
