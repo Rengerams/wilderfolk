@@ -1489,7 +1489,8 @@ function raidArmy(state: WorldState, event: OutgoingRaidEvent): Entity[] {
 export function tickPendingOutgoingRaidEvents(state: WorldState): void {
   if (!state.pendingOutgoingRaidEvents?.length) return;
   const remaining: OutgoingRaidEvent[] = [];
-  for (const event of state.pendingOutgoingRaidEvents) {
+  for (const evt of state.pendingOutgoingRaidEvents) {
+    const event = evt;
     if (event.phase === 'returning') {
       if (state.tick >= (event.returnAtTick ?? event.expiresAtTick)) {
         releaseRaidSoldiers(state, event.id);
@@ -1507,8 +1508,9 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
       remaining.push(event);
       continue;
     }
-    if (state.tick >= getRaidExpiresAtTick(event)) {
+    if (state.tick >= getRaidExpiresAtTick(evt)) {
       releaseRaidSoldiers(state, event.id);
+      addBigNews(state, '🏹 March recalled', `${event.rivalName} — your war-band stood down (provisions spent).`, 'neutral');
       logEvent(state, 'combat', `War-band returned from ${event.rivalName} without battle`, event.rivalName, 'outgoing_raid', 'cancelled');
     } else remaining.push(event);
   }
