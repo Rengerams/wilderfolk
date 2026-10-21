@@ -184,46 +184,6 @@ function buildingFingerprint(building: Building): string {
   return JSON.stringify(building);
 }
 
-const CATALOG_PATCH_KEYS = [
-  'name', 'surname', 'maidenSurname', 'title', 'chatPhrase', 'gender', 'spriteVariant', 'faction',
-  'moonHowlerCursed', 'moonHowlerSaved', 'educated', 'pregnant', 'pregnantById', 'pregnancyFromYouthLove',
-  'pregnancyProgress', 'pregnancyDueProgress', 'courtshipPartnerId', 'courtshipProgress',
-  'courtshipCooldownDays',
-  'youthLovePartnerId', 'youthLoveProgress', 'childhoodFriendsIds', 'traits', 'schoolDays',
-  'relationshipStatus', 'partnerId', 'homeBuildingId', 'residenceBuildingId',
-  'tamedBy', 'combatTicks', 'griefUntilTick', 'job', 'occupation', 'skills', 'age', 'birthYear',
-  'birthMonth', 'birthDay', 'generation', 'energy', 'maxEnergy', 'x', 'y', 'vx', 'vy',
-  'spriteAngle', 'animFrame', 'size', 'flash', 'huntTargetId', 'chatTicks',
-  'chatPartnerId', 'chatDialogueSessionKey', 'prisonBuildingId', 'prisonerUntilTick',
-  'prisonSentenceCrime', 'affairPartnerId', 'affairProgress', 'isJuvenile', 'alive',
-  'scandalCooldownUntilTick',
-] as const satisfies readonly (keyof Entity)[];
-
-/**
- * Fields that can transition to undefined (divorces, breakups, release from prison, job changes, grief expiry).
- * Without being listed here, clearing a partner, title, or home would be skipped during UI sync.
- */
-const CATALOG_CLEARABLE_KEYS = [
-  'chatPhrase',
-  'chatTicks',
-  'chatPartnerId',
-  'chatDialogueSessionKey',
-  'partnerId',
-  'affairPartnerId',
-  'courtshipPartnerId',
-  'youthLovePartnerId',
-  'pregnantById',
-  'pregnancyFromYouthLove',
-  'prisonBuildingId',
-  'prisonerUntilTick',
-  'prisonSentenceCrime',
-  'homeBuildingId',
-  'residenceBuildingId',
-  'huntTargetId',
-  'title',
-  'griefUntilTick',
-] as const satisfies readonly (keyof Entity)[];
-
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
   return extractSimTickDelta(world, alive);
@@ -577,7 +537,7 @@ export function applySimTickDelta(
   // aliveEntities is already a complete authoritative entity snapshot.
   // catalogEntities contains the same humans from that snapshot, so patching
   // them again deep-cloned their skills, traits and friendships each tick.
-  // Keep syncCatalogEntitiesToWorld exported for explicit partial catalog updates.
+  // No second catalog patch pass is necessary.
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
