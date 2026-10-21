@@ -96,6 +96,7 @@ export interface LeadershipScoreBreakdown {
   experiencePoints: number;
   battlePoints: number;
   familyPoints: number;
+  promisePoints: number;
   communityPoints: number;
   recordPoints: number;
   titlePoints: number;
@@ -327,7 +328,8 @@ export function getLeadershipScoreBreakdown(
   const recordPoints = getIncumbentRecordPoints(state, entity);
   const battlePoints = Math.min(100, Math.max(0, entity.battleLeadershipMerit ?? 0));
   const familyPoints = (familyPrestige ?? familyPrestigeBySurname(state)).get(entity.surname?.trim() ?? '') ?? 0;
-  const baseScore = skillPoints + experiencePoints + battlePoints + familyPoints + communityPoints + titlePoints;
+  const promisePoints = Math.max(-60, Math.min(60, entity.promiseLeadershipMerit ?? 0));
+  const baseScore = skillPoints + experiencePoints + battlePoints + familyPoints + promisePoints + communityPoints + titlePoints;
 
   return {
     entityId: entity.id,
@@ -336,6 +338,7 @@ export function getLeadershipScoreBreakdown(
     experiencePoints,
     battlePoints,
     familyPoints,
+    promisePoints,
     communityPoints,
     recordPoints,
     titlePoints,
@@ -461,6 +464,7 @@ function scoreSummary(b: LeadershipScoreBreakdown): string {
   const parts = [`skills ${b.skillPoints}`, `experience ${b.experiencePoints}`];
   if (b.battlePoints > 0) parts.push(`defense & raids +${b.battlePoints}`);
   if (b.familyPoints > 0) parts.push(`family name +${b.familyPoints}`);
+  if (b.promisePoints !== 0) parts.push(`promises ${b.promisePoints > 0 ? '+' : ''}${b.promisePoints}`);
   if (b.titlePoints > 0) parts.push(`title +${b.titlePoints}`);
   if (b.communityPoints > 0) parts.push(`family +${b.communityPoints}`);
   if (b.recordPoints > 0) parts.push(`record +${b.recordPoints}`);
