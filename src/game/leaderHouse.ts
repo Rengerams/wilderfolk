@@ -95,7 +95,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   if (!incumbent?.alive) {
     const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
     for (const person of state.entities) {
-      if (person.alive && !person.faction && !isImprisoned(person) && entitledIds.has(person.id)) {
+      if (person.alive && isPlayerHuman(person) && !isImprisoned(person) && entitledIds.has(person.id)) {
         person.residenceBuildingId = house.id;
       }
     }
@@ -119,7 +119,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
 
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
-    if (!e.alive || e.faction) continue;
+    if (!e.alive || !isPlayerHuman(e)) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
       e.residenceBuildingId = undefined;
       displaced.push(e);
