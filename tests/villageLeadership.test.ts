@@ -467,6 +467,18 @@ describe('villageLeadership.titlePoints.test.ts', () => {
       expect(unrelated.familyPoints).toBe(0);
     });
 
+    it('applies the original leader promise record to election merit', () => {
+      const leader = stubHuman(1, { promiseLeadershipMerit: 24 });
+      const skeptic = stubHuman(2, { promiseLeadershipMerit: -32 });
+      const state = stubState([leader, skeptic]);
+      expect(getLeadershipScoreBreakdown(state, leader).promisePoints).toBe(24);
+      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-32);
+      leader.promiseLeadershipMerit = 90;
+      skeptic.promiseLeadershipMerit = -100;
+      expect(getLeadershipScoreBreakdown(state, leader).promisePoints).toBe(60);
+      expect(getLeadershipScoreBreakdown(state, skeptic).promisePoints).toBe(-60);
+    });
+
     it('one capped trade is worth 50 points and broad expertise caps at 60', () => {
       const specialist = stubHuman(1, { skills: { farmer: 100 } });
       const expert = stubHuman(2, { skills: { farmer: 100, miner: 100, hunter: 100 } });
