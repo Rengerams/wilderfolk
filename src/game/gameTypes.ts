@@ -218,6 +218,8 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
   BuildingType.Store,
   BuildingType.Market,
   BuildingType.Silo,
+  // Materials storehouse capacity rises at levels 2 and 3.
+  BuildingType.WoodStorehouse,
   BuildingType.HuntingSpot,
   BuildingType.FishingSpot,
 ]);
