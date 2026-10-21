@@ -5,7 +5,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { Entity } from '../game/gameTypes';
 import type { GenealogyRegistry, GenealogyPerson } from '../game/genealogyRegistry';
-import { citizenFullName } from '../game/citizenId';
+import { citizenFullName, humanDisplayName } from '../game/citizenId';
 import GameWindow from './GameWindow';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
@@ -76,9 +76,9 @@ export default function FamilyTreeWindow({
   }, [allEntities, genealogyRegistry]);
 
   const focus = people.get(focusId);
-  const focusName = focus ? `${focus.name} ${focus.surname}`.trim() : citizenFullName(entity);
+  const focusName = focus ? humanDisplayName(focus as Entity) : citizenFullName(entity);
   const renderPerson = (person: Person, isFocus: boolean) => {
-    const label = `${person.name} ${person.surname}`.trim();
+    const label = humanDisplayName(person as Entity);
     return (
       <button type="button" disabled={person.id === focusId}
         onClick={() => {
