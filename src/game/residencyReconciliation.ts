@@ -251,7 +251,7 @@ export function assignMissingResidences(
   rebuildChildrenIds(genealogyPool);
 
   for (const human of alive) {
-    if (isMinorChild(human)) ensureOrphanAdoption(human, alive, residences);
+    if (isMinorChild(human)) ensureOrphanAdoption(human, genealogyPool, residences);
   }
 
   // `residences` is built above and never mutated in this loop, and the body only writes the same
@@ -297,7 +297,7 @@ export function assignMissingResidences(
         for (const member of unit) {
           moveResident(occupancy, traits, member, undefined);
         }
-        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+        assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
         reassigned++;
       }
       const evicted = rebalanceOvercrowdedResidences(alive, residences);
@@ -328,7 +328,7 @@ export function assignMissingResidences(
         for (const member of unit) {
           moveResident(occupancy, traits, member, undefined);
         }
-        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+        assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
         moved = true;
       }
       if (!moved) break;
@@ -350,7 +350,7 @@ export function assignMissingResidences(
       for (const unit of ordered) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
         for (const member of unit) moveResident(occupancy, traits, member, undefined);
-        assignFamilyToResidence(unit, alive, residences, humans, occupancy, traits);
+        assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
       }
     }
   }
