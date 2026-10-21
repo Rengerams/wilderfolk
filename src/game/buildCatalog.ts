@@ -31,7 +31,7 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
     label: 'Resources',
     icon: '🪵',
     color: 'bg-stone-500',
-    types: [BuildingType.LumberMill, BuildingType.Quarry, BuildingType.Mine, BuildingType.WoodStorehouse],
+    types: [BuildingType.LumberMill, BuildingType.Quarry, BuildingType.Mine, BuildingType.WoodStorehouse, BuildingType.GroundReinforcement],
   },
   {
     id: 'industry',
