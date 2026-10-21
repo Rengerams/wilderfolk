@@ -1,4 +1,4 @@
-import { isFullMoonNight, isNightHour } from './dayCycleConstants';
+import { isFullMoonNight, isNightHour } from './daycycleconstants';
 import {
   getAbsoluteCalendarDay,
   getHourOfDay,
