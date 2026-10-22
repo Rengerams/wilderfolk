@@ -1,6 +1,7 @@
 import type { Building, Entity } from './gameTypes';
 import { LEADER_OCCUPATION } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
+import { estimatedCommuteHours } from './commuteReach';
 import {
   collectFamilyMembers,
   collectMinorHousehold,
@@ -631,6 +632,89 @@ export function sortHousingUnitsForAssignment(
     .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length }))
     .sort((a, b) => a.need - b.need || b.len - a.len)
     .map((x) => x.unit);
+}
+
+/** A commute move must save the household this many hours a day before it is worth making. */
+export const RELOCATION_MIN_SAVED_HOURS = 0.5;
+/** …and beat the current home by this fraction, so two near-equal homes never trade the household. */
+export const RELOCATION_MIN_IMPROVEMENT_RATIO = 0.25;
+
+/** One home's daily travel burden: every worker's trip to work plus every pupil's trip to school. */
+function householdCommuteHours(
+  unit: Entity[],
+  home: Building,
+  buildings: readonly Building[],
+  walkSpeed: number,
+  cache: Map<string, number>,
+): number {
+  let total = 0;
+  for (const member of unit) {
+    if (member.workerBuildingId != null) {
+      total += cachedCommuteHours(home, member.workerBuildingId, buildings, walkSpeed, cache);
+    }
+    if (member.schoolBuildingId != null) {
+      total += cachedCommuteHours(home, member.schoolBuildingId, buildings, walkSpeed, cache);
+    }
+  }
+  return total;
+}
+
+/** Per-pass travel time for one home→destination leg, keyed so a sweep prices each leg once. */
+function cachedCommuteHours(
+  home: Building,
+  destinationId: number,
+  buildings: readonly Building[],
+  walkSpeed: number,
+  cache: Map<string, number>,
+): number {
+  const destination = buildings.find((b) => b.id === destinationId);
+  if (!destination) return 0;
+  const key = `${home.id}:${destination.id}`;
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
+  const hours = estimatedCommuteHours(home, destination, buildings, walkSpeed);
+  cache.set(key, hours);
+  return hours;
+}
+
+/**
+ * The §12 commute move: the vacant home that most shortens this household's daily travel, when it
+ * beats the current home by a meaningful margin. Empty targets only, so the composition rule that
+ * prefers an empty home never trades the household straight back — the anti-oscillation guard.
+ */
+export function pickCommuteRelocation(
+  unit: Entity[],
+  alive: Entity[],
+  residences: Building[],
+  buildings: readonly Building[],
+  occupancy: ResidenceOccupancy | undefined,
+  cache: Map<string, number>,
+  walkSpeed: number,
+): number | undefined {
+  const homeId = unitResidenceId(unit);
+  if (homeId == null) return undefined;
+  const home = residences.find((r) => r.id === homeId);
+  if (!home || isLeaderHouseResidence(home)) return undefined;
+
+  const current = householdCommuteHours(unit, home, buildings, walkSpeed, cache);
+  if (current <= 0) return undefined;
+
+  let best: Building | undefined;
+  let bestHours = current;
+  for (const residence of residences) {
+    if (residence.id === homeId || isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
+    if (countResidentsInBuilding(alive, residence.id, occupancy) !== 0) continue;
+    if (!familyFitsInResidence(unit, residence, alive, occupancy)) continue;
+    const hours = householdCommuteHours(unit, residence, buildings, walkSpeed, cache);
+    if (hours < bestHours || (best !== undefined && hours === bestHours && residence.id < best.id)) {
+      bestHours = hours;
+      best = residence;
+    }
+  }
+  if (!best) return undefined;
+  if (current - bestHours < RELOCATION_MIN_SAVED_HOURS) return undefined;
+  if (bestHours > current * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO)) return undefined;
+  return best.id;
 }
 
 /**

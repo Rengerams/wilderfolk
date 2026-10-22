@@ -78,6 +78,22 @@ function routePassesRoad(
 }
 
 /**
+ * Estimated hours from a home to a building, a road route counting in the settler's favour.
+ * The household commute score compares whole homes with this; it is a comparator, not a boundary.
+ */
+export function estimatedCommuteHours(
+  home: Building,
+  destination: Building,
+  buildings: readonly Building[],
+  walkSpeed: number,
+): number {
+  const distance = Math.hypot(destination.x - home.x, destination.y - home.y);
+  const plain = commuteLeadHoursFor(distance, walkSpeed);
+  if (!routePassesRoad(home.x, home.y, destination.x, destination.y, buildings)) return plain;
+  return Math.min(plain, commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT));
+}
+
+/**
  * Whether this settler can be assigned a post here: the lead hours the scheduler would really hand out
  * must fit `MAX_ASSIGNABLE_COMMUTE_HOURS`, measured from home, with a road route counting in their favour.
  */

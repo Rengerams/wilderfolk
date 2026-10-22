@@ -3,9 +3,10 @@ import type { Building, Entity } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectOwnHousehold, indexFamilyRelations, isMinorChild } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
-import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove } from './residencySelection';
+import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { isPlayerHuman } from './playerHuman';
+import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
 
 /**
@@ -346,6 +347,15 @@ export function assignMissingResidences(
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
         for (const member of unit) moveResident(occupancy, traits, member, undefined);
         assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
+      }
+      // §12: once a day, a settled household may trade its home for a vacant one that meaningfully
+      // shortens its workers' commute and children's school trip — the whole household moves together.
+      const commuteCache = new Map<string, number>();
+      const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+      for (const unit of housingUnitsBase) {
+        const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, commuteCache, walkSpeed);
+        if (better === undefined) continue;
+        for (const member of unit) moveResident(occupancy, traits, member, better);
       }
     }
   }

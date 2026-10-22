@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** A household may trade its home for a vacant one that meaningfully shortens the family's commute and school trip, checked once a day with a margin that stops near-equal homes swapping them. The Leader's House stays exempt.
+
 - **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
 
 - **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names.
