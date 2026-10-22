@@ -16,12 +16,12 @@ import { SPECIES_CONFIG } from './speciesConfig';
 /** School days before faster maturation kicks in. */
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
 /** School days for basic graduation perks. */
-export const SCHOOL_GRADUATION_DAYS = 15;
+export const SCHOOL_GRADUATION_DAYS = 120;
 /** School days for full education tier. */
-export const SCHOOL_FULL_EDUCATION_DAYS = 45;
+export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 
 /** Max children who can attend one school at once — a classroom holds a classroom. */
-export const SCHOOL_MAX_CHILDREN = 10;
+export const SCHOOL_MAX_CHILDREN = 20;
 
 export const SCHOOL_START_HOUR = 9;
 export const SCHOOL_END_HOUR = 15;
