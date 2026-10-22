@@ -2,16 +2,14 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Changed:** Schools hold 20 pupils. Immigrant children arrive with 20 credited school days per completed school-age year; Tier 3 graduates gain +20 to skills and remain eligible for guaranteed grandmaster (80+ skill) apprenticeships when a training place opens.
-
+- **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
+- **Changed:** Tier 3 graduates gain +20 to skills andeligible for grandmaster (80+) apprenticeships w/a training place opens.
+= **Changed** Schools hold 20 pupils.
 - **Fixed:** Education now awards all three tiers at 120, 135 and 150 credited school days; Tier 1 was previously unreachable.
-
-- **Fixed:** School runs 09:00–15:00 on weekdays, with a three-hour classroom attendance threshold independent of work shifts. Enrollment stays with each child and transfers to a substantially closer school on a daily review; school commutes start at the real home standing point. Changed the count days needed for graduation
-
+- **Fixed:** School runs 09:00–15:00 on weekdays, with a three-hour classroom attendance threshold independent of work shifts. Enrollment stays with each child and transfers to a substantially 
+- **Fixed**  closer school on a daily review; school commutes start at the real home standing point. Changed the count days needed for graduation
 - **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
-
 - **Fixed:** Removed an unused staffing import left behind by the virtual-player auto-fill repair, restoring compilation.
-
 - **Fixed:** Rival founding and growth no longer create enemy houses, farms or resident settlers inside the village. Legacy camp objects retire on the next rival update; strategic population, diplomacy and raids remain. Village camp markers and hit tests now cover visitors only.
 - **Added:** Full-year diagnostics report the first invariant failure, watched settlers' moves, confirmed deaths and unconfirmed removals, actual versus assigned residents, and recent combat events. Checkpoint details print before assertions; debug output can be disabled.
 - **Fixed:** Company-following movement regression clones one isolated terrain-free world across all eight comparisons, avoiding repeated world generation and load-sensitive timeouts without changing its assertions.
