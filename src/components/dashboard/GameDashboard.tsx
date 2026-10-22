@@ -84,6 +84,15 @@ const CONCERN_NAV: Record<string, ConcernNav | undefined> = {
   diplomacy: 'frontier',
 };
 
+/** The dashboard's tabbed panels, in order — labels stay explicit rather than derived from the keys. */
+type DashboardTab = 'settlers' | 'buildings' | 'trend';
+
+const DASHBOARD_TABS: ReadonlyArray<{ id: DashboardTab; label: string }> = [
+  { id: 'settlers', label: 'Settlers & work' },
+  { id: 'buildings', label: 'Buildings' },
+  { id: 'trend', label: 'Population & wildlife' },
+];
+
 interface SeriesDef {
   key: 'humans' | 'deer' | 'rabbits' | 'wolves' | 'foxes';
   color: string;
@@ -287,6 +296,49 @@ function SettlersTable({
   );
 }
 
+function BuildingsTable({ data }: { data: DashboardData }) {
+  if (data.buildings.length === 0) {
+    return <p className="text-xs text-stone-500">No buildings yet.</p>;
+  }
+  return (
+    <div>
+      <p className="mb-1.5 text-[10px] text-stone-500">
+        {data.buildings.length} {data.buildings.length === 1 ? 'building' : 'buildings'} · sorted by type number, then by building ID
+      </p>
+      <div className="max-h-72 overflow-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-stone-700 text-stone-400">
+              <th className="py-1 pr-2 font-medium">Building</th>
+              <th className="py-1 pr-2 font-medium">Type #</th>
+              <th className="py-1 pr-2 font-medium">ID</th>
+              <th className="py-1 pr-2 font-medium">Level</th>
+              <th className="py-1 pr-2 font-medium">Status</th>
+              <th className="py-1 font-medium">Workers / beds</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.buildings.map((b) => (
+              <tr key={b.id} className="border-b border-stone-800/70">
+                <td className="py-1 pr-2 text-stone-100">{b.label}</td>
+                <td className="py-1 pr-2 tabular-nums text-sky-200">{b.typeCode}</td>
+                <td className="py-1 pr-2 tabular-nums text-stone-300">#{b.id}</td>
+                <td className="py-1 pr-2 tabular-nums text-stone-300">{b.level}</td>
+                <td className={`py-1 pr-2 ${b.completed ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {b.completed ? 'built' : `${b.progressPct}% built`}
+                </td>
+                <td className="py-1 tabular-nums text-stone-300">
+                  {b.slots ? `${b.slots.used}/${b.slots.cap}` : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function FoodTrendChart({ days }: { days: DashboardData['foodDays'] }) {
   if (days.length < 2) {
     return (
@@ -347,7 +399,7 @@ export default function GameDashboard({
 }) {
   // Derived each render: the WorldState prop is mutated in place, so a `[state]` memo never sees a tick.
   const data = collectDashboard(state);
-  const [openTab, setOpenTab] = useState<'settlers' | 'trend'>('settlers');
+  const [openTab, setOpenTab] = useState<DashboardTab>('settlers');
   const [selectedSettlerId, setSelectedSettlerId] = useState<number | null>(null);
   // The keyboard half of the overlay contract: the dashboard owns the keyboard while it is open and
   // handles Escape itself, in one place shared with the other three overlays.
@@ -533,31 +585,33 @@ export default function GameDashboard({
             )}
           </section>
 
-          {/* Trend + settlers tabbed panels */}
+          {/* Tabbed data panels */}
           <div className="flex gap-1.5">
-            {(['trend', 'settlers'] as const).map((t) => (
+            {DASHBOARD_TABS.map((tab) => (
               <button
-                key={t}
+                key={tab.id}
                 type="button"
-                onClick={() => setOpenTab(t)}
-                /* The selected panel was stated by background colour alone. These two do not form a
+                onClick={() => setOpenTab(tab.id)}
+                /* The selected panel was stated by background colour alone. These do not form a
                    real `tablist` — the panel below carries no id/`aria-labelledby` and there is no
                    roving tabindex — so the honest minimum is the pressed state rather than roles the
                    markup cannot back (2026-09-20 audit, A6). */
-                aria-pressed={openTab === t}
-                className={`rounded-t-lg px-3 py-1.5 text-xs font-semibold capitalize ${
-                  openTab === t
+                aria-pressed={openTab === tab.id}
+                className={`rounded-t-lg px-3 py-1.5 text-xs font-semibold ${
+                  openTab === tab.id
                     ? 'bg-stone-800 text-amber-200'
                     : 'bg-stone-900 text-stone-400 hover:text-stone-200'
                 }`}
               >
-                {t === 'trend' ? 'Population & wildlife' : 'Settlers & work'}
+                {tab.label}
               </button>
             ))}
           </div>
           <section className="-mt-px rounded-b-xl rounded-tr-xl border border-stone-800 bg-stone-900/50 p-3">
             {openTab === 'trend' ? (
               <LineChart data={data.history} />
+            ) : openTab === 'buildings' ? (
+              <BuildingsTable data={data} />
             ) : (
               <SettlersTable
                 data={data}

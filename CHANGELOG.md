@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** The daily council lists every village building in one table with its building type number and its unique building ID, sorted by type and number, so two buildings of the same kind are told apart at a glance.
+
+- **Changed:** A school day is now earned in the classroom: a pupil credits school days only while a teacher stands at the school, and each teacher seats ten pupils, so a fully staffed school holds twenty.
+
 - **Fixed:** The Leader's House can no longer be upgraded: its beds stay at 12, as the original design has it, and the building inspector no longer offers the button. A level an older save already carries still counts.
 
 - **Added:** A household may trade its home for a vacant one that meaningfully shortens the family's commute and school trip, checked once a day with a margin that stops near-equal homes swapping them. The Leader's House stays exempt.
