@@ -24,7 +24,6 @@ import {
   isManualStaffingBuilding,
 } from './workforce';
 import { readSkill } from './skills';
-import { canAssignWorkerToBuilding } from './buildingStaffingActions';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findPlayerTownHall } from './playerTownHall';
@@ -606,18 +605,6 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
     const owned = state.buildings.filter(
       (building) => building.type === entry.type && building.faction !== 'rival',
     );
-    const unmanned = owned.find((building) =>
-      building.completed
-      && !isManualStaffingBuilding(building)
-      && countWorkersAtBuilding(state.entities, building.id) === 0
-      && canAssignWorkerToBuilding(state, building.id),
-    );
-    if (short && unmanned) {
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
-        reason: `staff the ${BUILDING_CONFIGS[entry.type].label} — only ${Math.floor(stock)} ${entry.stock} left`,
-      };
-    }
     if (owned.length > 0) {
       // A wanted extra copy falls through to the build; a stand-in for an existing producer does not.
       if (!scaling) continue;
