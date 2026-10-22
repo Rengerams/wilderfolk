@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** School runs 09:00–15:00 on weekdays, with a three-hour classroom attendance threshold independent of work shifts.
+
 - **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
 
 - **Fixed:** Removed an unused staffing import left behind by the virtual-player auto-fill repair, restoring compilation.
