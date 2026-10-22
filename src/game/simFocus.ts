@@ -18,7 +18,7 @@ const FOCUS_MARGIN = 120;
 
 /**
  * How often off-screen humans run full AI (every N ticks).
- * Keep in sync with `TICKS_PER_HOUR` in dayCycle (3 → 24 ticks ≈ 8 clock hours).
+ * At 12 ticks/hour, 24 ticks span two clock hours; this is a presentation-focus throttle.
  * Do not import dayCycle here — avoids circular init (simFocus ↔ dayCycle).
  */
 export const OFFSCREEN_HUMAN_THROTTLE = 24;
