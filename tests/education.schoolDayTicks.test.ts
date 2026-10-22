@@ -7,8 +7,8 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
-import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, creditChildSchoolDay } from '../src/game/education';
-import { TICKS_PER_HOUR, WORK_HOURS_PER_DAY } from '../src/game/dayCycle';
+import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, creditChildSchoolDay } from '../src/game/education';
+import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 
 function child(overrides: Partial<Entity> = {}): Entity {
   return {
@@ -23,10 +23,10 @@ function child(overrides: Partial<Entity> = {}): Entity {
 
 describe('school-day credit threshold (F1)', () => {
   it('expresses half a school day in ticks, not in hours', () => {
-    expect(SCHOOL_DAY_MIN_HOURS).toBe(WORK_HOURS_PER_DAY * 0.5);
-    expect(SCHOOL_DAY_MIN_TICKS).toBe(Math.floor(WORK_HOURS_PER_DAY * 0.5 * TICKS_PER_HOUR));
+    expect(SCHOOL_DAY_MIN_HOURS).toBe(SCHOOL_HOURS_PER_DAY * 0.5);
+    expect(SCHOOL_DAY_MIN_TICKS).toBe(Math.floor(SCHOOL_HOURS_PER_DAY * 0.5 * TICKS_PER_HOUR));
     // 5.5 in-game hours at 3 ticks/hour.
-    expect(SCHOOL_DAY_MIN_TICKS).toBe(16);
+    expect(SCHOOL_DAY_MIN_TICKS).toBe(9);
   });
 
   it('does not credit a school day for a short visit', () => {
