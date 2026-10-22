@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
+
 - **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
 - **Changed:** Tier 3 graduates gain +20 to skills andeligible for grandmaster (80+) apprenticeships training place opens.
 = **Changed** Schools hold 20 pupils.

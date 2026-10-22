@@ -46,7 +46,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
 | Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |
 | RNG salt | `simRng.ts` | — | `hashSalt` |
-| Player commands | `simWorker/commands.ts` → domain owners | player-command | `applyWorkerCommand` |
+| Player commands | `simWorker/commands.ts` → domain owners | player-command | `isWorkerCommand`, `applyWorkerCommand` |
 
 ## Owners recorded by the 2026-09-13 simulation audit
 
