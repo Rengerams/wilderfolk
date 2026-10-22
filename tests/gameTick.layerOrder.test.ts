@@ -7,8 +7,8 @@
  *
  *   1. tickLayerRealtime — every tick (movement, animation, realtime spatial behavior)
  *   2. tickLayerSystems  — every LAYER_SYSTEMS_INTERVAL (4) ticks
- *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (18) ticks, offset 9 ticks (03:00)
- *   4. tickLayerDaily    — every TICKS_PER_DAY (72) ticks, once per colony day
+ *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (72) ticks, offset 36 ticks (03:00)
+ *   4. tickLayerDaily    — every TICKS_PER_DAY (288) ticks, once per colony day
  *
  * No tickLayerSocial.ts / tickLayerPregnancy.ts / tickLayerMoonHowler.ts /
  * tickLayerBuildings.ts may exist; new layers require an authority-document
