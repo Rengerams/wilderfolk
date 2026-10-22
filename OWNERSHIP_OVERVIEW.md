@@ -12,7 +12,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
-| Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `applyHumanWalkStep` (the one integration of a walk step) |
+| Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `commuteHumanToBuilding`, `humanBuildingTarget` (home, classroom and workplace destinations), `applyHumanWalkStep` (the one integration of a walk step) |
 | Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment and the panel) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_SPEED_MULTIPLIER`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
 | Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS` |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
