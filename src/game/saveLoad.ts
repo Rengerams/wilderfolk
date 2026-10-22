@@ -1269,9 +1269,19 @@ function floorIdAllocators(world: WorldState): void {
   for (const entity of world.entities ?? []) {
     if (Number.isSafeInteger(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
   }
+  // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
+  for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
+    if (Number.isSafeInteger(person.id) && person.id > highestEntity) highestEntity = person.id;
+  }
   let highestBuilding = 0;
   for (const building of world.buildings ?? []) {
     if (Number.isSafeInteger(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+  }
+  // A rival row names camp structures that left the map, so those ids retire with the row's history.
+  for (const rival of world.rivalSettlements ?? []) {
+    for (const id of rival.buildingIds ?? []) {
+      if (Number.isSafeInteger(id) && id > highestBuilding) highestBuilding = id;
+    }
   }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
   world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);

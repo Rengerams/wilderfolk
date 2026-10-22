@@ -93,6 +93,57 @@ describe('the id allocators are made safe to consume', () => {
 
     expect(world.nextEntityId).toBe(generous);
   });
+
+  it('retires the id of a settler the genealogy registry still keeps', () => {
+    const payload = realPayload();
+    const entities = payload.entities as { id: number }[];
+    if (entities.length === 0) throw new Error('fixture needs entities');
+    const deadSettlerId = Math.max(...entities.map((entity) => entity.id)) + 10;
+    payload.genealogyRegistry = {
+      people: {
+        [String(deadSettlerId)]: {
+          id: deadSettlerId,
+          name: 'Forgotten',
+          birthSurname: '',
+          surname: '',
+          alive: false,
+          partners: [],
+          childrenIds: [],
+        },
+      },
+    };
+    delete payload.nextEntityId;
+
+    const world = buildWorld(payload)!;
+
+    expect(world.nextEntityId).toBeGreaterThan(deadSettlerId);
+  });
+
+  it('retires a camp structure id a rival row still names', () => {
+    const payload = realPayload();
+    // A young colony may hold no buildings yet, so the live floor can legitimately be zero.
+    const buildings = payload.buildings as { id: number }[];
+    const retiredCampId = Math.max(0, ...buildings.map((building) => building.id)) + 10;
+    payload.rivalSettlements = [{
+      id: 'rival_camp',
+      name: 'FoxGlen',
+      campX: 10,
+      campY: 10,
+      population: 1,
+      entityIds: [],
+      buildingIds: [retiredCampId],
+      relationship: 'tense',
+      foundedYear: 1,
+      daysUntilAction: 0,
+      raidCooldownDays: 0,
+      peaceTreatyDays: 0,
+    }];
+    delete payload.nextBuildingId;
+
+    const world = buildWorld(payload)!;
+
+    expect(world.nextBuildingId).toBeGreaterThan(retiredCampId);
+  });
 });
 
 describe('entity ids must be integers, non-negative and unique', () => {

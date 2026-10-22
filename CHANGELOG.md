@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names.
+
 - **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
 
 - **Changed:** Workplace assignments use workerBuildingId throughout simulation, UI, diagnostics and worker transfers. Older saves translate the previous field once on load, including saved Moon Howler forms, without changing building IDs.
