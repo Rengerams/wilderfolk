@@ -182,7 +182,7 @@ describe('a selection strip states its selection instead of only painting it', (
     // Not a real tab set: the panel below carries no id and there is no roving tabindex, so roles
     // the markup cannot back would be a lie — `aria-pressed` is the honest minimum here.
     expect(source('src/components/dashboard/GameDashboard.tsx')).toContain(
-      'aria-pressed={openTab === t}',
+      'aria-pressed={openTab === tab.id}',
     );
   });
 

@@ -1789,6 +1789,26 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     .find((type) => isUnderConstruction(state, type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
 
+  // An unmanned producer outranks a low shelf: it is the concrete thing to fix, and the ladder above
+  // cannot crew it without a rebalance, so the wait must name the building rather than a neighbour.
+  for (const entry of INDUSTRY_BUILD_ORDER) {
+    const stock = Math.floor(state.resources[entry.stock] ?? 0);
+    const built = completedProducerCount(state, entry.type);
+    const scaling = entry.type !== BuildingType.Store && built >= 1 && built < wanted;
+    if (stock >= entry.minimumStock && !scaling) continue;
+
+    const unmanned = state.buildings.find(
+      (building) =>
+        building.type === entry.type &&
+        building.faction !== 'rival' &&
+        building.completed &&
+        countWorkersAtBuilding(state.entities, building.id) === 0,
+    );
+    if (unmanned) {
+      return `${BUILDING_CONFIGS[entry.type].label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;
+    }
+  }
+
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = Math.floor(state.resources[entry.stock] ?? 0);
     const short = stock < entry.minimumStock;
@@ -1806,9 +1826,6 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     }
     const standing = owned.find((building) => building.completed);
     if (standing) {
-      if (countWorkersAtBuilding(state.entities, standing.id) === 0) {
-        return `${label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;
-      }
       // No standing producer cannot "keep up": the ones that are missing are named by price below.
       if (!scaling) return `${stock} ${entry.stock} left — the ${label} cannot keep up`;
       return `${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers — ${buildingBlockReason(state, entry.type, true)}`;

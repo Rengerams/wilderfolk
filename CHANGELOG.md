@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** The auto-play status line names an unmanned producer before any other shortage, so an empty Quarry reads as a building waiting for a hand instead of its neighbour's low shelf.
+
 - **Added:** The daily council lists every village building in one table with its building type number and its unique building ID, sorted by type and number, so two buildings of the same kind are told apart at a glance.
 
 - **Changed:** A school day is now earned in the classroom: a pupil credits school days only while a teacher stands at the school, and each teacher seats ten pupils, so a fully staffed school holds twenty.

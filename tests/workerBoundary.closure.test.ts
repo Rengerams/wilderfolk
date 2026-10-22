@@ -67,6 +67,9 @@ import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes
 const SEED = 4242;
 const TICKS = 3 * TICKS_PER_DAY; // Advance three colony days across each daily phase.
 
+/** Room for the two fixtures that carry whole colony days of state across the wire. */
+const FIXTURE_TIMEOUT_MS = 120_000;
+
 /** Host-owned or runtime-cache keys — excluded for the reasons in the file header. */
 const HOST_OR_CACHE_KEYS: readonly string[] = [
   'speed',
@@ -194,6 +197,7 @@ function tickThroughDelta(ticks: number): { authority: WorldState; display: Worl
 }
 
 describe('worker boundary closure', () => {
+  // Three colony days are 864 ticks at the retuned 288-tick day, so these two fixtures need room.
   it('ships every simulation-written world field to the display world through tick deltas', () => {
     const { authority, display } = tickThroughDelta(TICKS);
 
@@ -205,7 +209,7 @@ describe('worker boundary closure', () => {
 
     const keys = comparableKeys(display, authority);
     expect(worldProjection(display, keys)).toEqual(worldProjection(authority, keys));
-  });
+  }, FIXTURE_TIMEOUT_MS);
 
   it('carries the whole world into the worker and rebuilds the worker-side indices', () => {
     resetSimRng();
@@ -408,5 +412,5 @@ describe('worker boundary closure', () => {
       }
     }
     expect(backfilled).toBeGreaterThan(0); // the round trip really did exercise the migration
-  });
+  }, FIXTURE_TIMEOUT_MS);
 });
