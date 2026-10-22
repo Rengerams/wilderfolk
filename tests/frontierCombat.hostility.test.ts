@@ -279,16 +279,14 @@ describe('mobilized raid lifecycle', () => {
 /** The growth roll the rival day pulse asks — a healthy larder feeds a camp, an empty one does not. */
 describe('rival camps grow from their own stores', () => {
   function growWorld(food: number, days: number): WorldState {
-    // The day pulse recounts `rival.population` from living camp entities, so a camp with no
-    // entities would read 0 every morning — the founders are real, the growth stays a number.
+    // Legacy local actors retire on the first pulse; strategic population remains authoritative.
     const founders = Array.from({ length: 5 }, (_, index) => human(index + 1));
     for (const founder of founders) {
       founder.faction = 'rival';
       founder.groupId = 'rival_oakcrossing';
     }
     const camp = rival({ entityIds: founders.map((founder) => founder.id), foundedYear: 0 });
-    // A camp already at its building ceiling: `maybeExpandRivalCamp` returns before it rolls, so the
-    // growth roll is the only draw on the shared stream and this case measures growth alone.
+    // Unrelated player houses survive cleanup even when legacy metadata references their ids.
     const campBuildings = Array.from({ length: 7 }, (_, index) => house(index + 100));
     camp.buildingIds = campBuildings.map((building) => building.id);
     camp.profile = {
@@ -318,7 +316,6 @@ describe('rival camps grow from their own stores', () => {
         logEvent: () => {},
         tickPendingDiplomacyEvents: () => {},
         queueDiplomacyEvent: () => {},
-        createRivalBuilding: () => house(world.nextBuildingId++),
         killWildGameForPoach: () => {},
       });
     }

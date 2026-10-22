@@ -36,6 +36,7 @@ import {
   setRelationshipDiagnosticsEnabled,
 } from '../src/game/relationshipDiagnostics';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
 
 const SEED = 12345;
 const FULL_YEAR_TICKS = DAYS_PER_YEAR * TICKS_PER_DAY;
@@ -44,11 +45,117 @@ const POPULATION_SANITY_LIMIT = 5_000;
 const TEST_TIMEOUT_MS = 300_000;
 /** The larder this scenario starts with; raised so food never gates a social event. */
 const SCAFFOLD_FOOD = 100_000;
-const DEBUG = process.argv.includes('--debug') || process.env.WILDERFOLK_DEBUG === '1';
+const DEBUG = process.env.WILDERFOLK_DEBUG !== '0';
+const VERBOSE = process.env.WILDERFOLK_VERBOSE === '1';
+const DEBUG_PROGRESS_DAYS = 30;
+const DEBUG_HISTORY_LIMIT = 80;
+const WATCH_ENTITY_IDS = new Set(
+  (process.env.WILDERFOLK_WATCH_IDS ?? '1096,1658,1720,2005')
+    .split(',').map(Number).filter(Number.isSafeInteger),
+);
 const CHECKPOINT_DAYS = Array.from(
   { length: Math.ceil(DAYS_PER_YEAR / 90) },
   (_, index) => Math.min((index + 1) * 90, DAYS_PER_YEAR),
 );
+
+function writeFullYearDebug(label: string, detail: unknown): void {
+  console.info(`[FullYear ${label}] ${JSON.stringify(detail)}`);
+}
+
+function fullYearEntitySnapshot(entity: Entity): Record<string, unknown> {
+  return {
+    id: entity.id, name: entity.name, surname: entity.surname, type: entity.type,
+    alive: entity.alive, faction: entity.faction ?? null, age: entity.age,
+    birthYear: entity.birthYear, birthDay: entity.birthDay, juvenile: entity.isJuvenile,
+    energy: entity.energy, x: entity.x, y: entity.y,
+    residenceBuildingId: entity.residenceBuildingId ?? null,
+    homeBuildingId: entity.homeBuildingId ?? null,
+    prisonBuildingId: entity.prisonBuildingId ?? null,
+    partnerId: entity.partnerId ?? null, occupation: entity.occupation,
+  };
+}
+
+function fullYearResidentRecords(world: WorldState): Map<number, {
+  entity: Entity;
+  snapshot: Record<string, unknown>;
+}> {
+  return new Map(world.entities.filter(isResidenceOccupantEntity).map((entity) => [
+    entity.id, { entity, snapshot: fullYearEntitySnapshot(entity) },
+  ]));
+}
+
+interface FullYearDebugState {
+  previous: ReturnType<typeof fullYearResidentRecords>;
+  history: Array<Record<string, unknown>>;
+  deaths: number;
+  removalsUnconfirmed: number;
+  moves: number;
+  firstFailureTick?: number;
+}
+
+function printFullYearFailure(
+  world: WorldState, debug: FullYearDebugState, errors: string[], seed: number,
+): void {
+  const ids = new Set(WATCH_ENTITY_IDS);
+  for (const error of errors) {
+    for (const match of error.matchAll(/human (\d+)/g)) ids.add(Number(match[1]));
+  }
+  writeFullYearDebug('failure', {
+    seed, tick: world.tick, day: world.tick / TICKS_PER_DAY,
+    firstFailureTick: debug.firstFailureTick, errors,
+    food: world.resources.food, deathsThisYear: world.deathsThisYear,
+    observedDeaths: debug.deaths, unconfirmedRemovals: debug.removalsUnconfirmed,
+    settlers: [...ids].map((id) => {
+      const entity = world.entities.find((person) => person.id === id);
+      return { id, present: !!entity, current: entity ? fullYearEntitySnapshot(entity) : null,
+        previous: debug.previous.get(id)?.snapshot ?? null,
+        graves: (world.graveRecords ?? []).filter((grave) => grave.deceasedId === id) };
+    }),
+    buildings: world.buildings.map((building) => ({
+      id: building.id, type: building.type, faction: building.faction ?? null,
+      completed: building.completed, health: building.health,
+      occupants: [...building.occupants],
+      assignedResidents: world.entities.filter((entity) => isResidenceOccupantEntity(entity)
+        && entity.residenceBuildingId === building.id).map((entity) => entity.id),
+    })),
+    recentChanges: debug.history,
+    recentEvents: world.eventLog.slice(0, 30),
+    recentCombatAndDeaths: world.eventLog.filter((event) => event.type === 'combat'
+      || event.type === 'death' || event.type === 'disaster').slice(0, 30),
+    raids: world.pendingRaidEvents, outgoingRaids: world.pendingOutgoingRaidEvents,
+  });
+}
+
+function traceFullYearTick(world: WorldState, debug: FullYearDebugState, seed: number): void {
+  const current = fullYearResidentRecords(world);
+  for (const [id, previous] of debug.previous) {
+    const next = current.get(id);
+    const changed = !next || next.snapshot.residenceBuildingId !== previous.snapshot.residenceBuildingId
+      || next.snapshot.type !== previous.snapshot.type;
+    if (!changed) continue;
+    const died = !previous.entity.alive
+      || (world.graveRecords ?? []).some((grave) => grave.deceasedId === id);
+    const status = next ? 'residence-or-form-change' : died ? 'confirmed-death' : 'removed-or-ineligible';
+    if (!next && died) debug.deaths++;
+    else if (!next) debug.removalsUnconfirmed++;
+    else if (next.snapshot.residenceBuildingId !== previous.snapshot.residenceBuildingId) debug.moves++;
+    const change = { tick: world.tick, day: world.tick / TICKS_PER_DAY, id, status,
+      before: previous.snapshot, after: next?.snapshot ?? fullYearEntitySnapshot(previous.entity) };
+    debug.history.push(change);
+    if (VERBOSE || WATCH_ENTITY_IDS.has(id)) writeFullYearDebug('settler-change', change);
+  }
+  if (debug.history.length > DEBUG_HISTORY_LIMIT) {
+    debug.history.splice(0, debug.history.length - DEBUG_HISTORY_LIMIT);
+  }
+  if (debug.firstFailureTick === undefined) {
+    const errors = collectSimulationInvariantErrors(world);
+    if (errors.length > 0) {
+      debug.firstFailureTick = world.tick;
+      printFullYearFailure(world, debug, errors, seed);
+    }
+  }
+  debug.previous = current;
+}
 
 function expectFiniteNumber(value: number, label: string): void {
   expect(Number.isFinite(value), `${label} must be finite`).toBe(true);
@@ -135,7 +242,7 @@ function printCheckpoint(
 
   // This is deliberately one line per 90-day checkpoint so `vitest` output is
   // useful when running the long integration test from a terminal or CI log.
-  console.info('[FullYear checkpoint]', {
+  writeFullYearDebug('checkpoint', {
     day,
     tick: world.tick,
     year: world.year,
@@ -225,9 +332,19 @@ function runFullYear(seed: number): {
   let birthsLogged = 0;
   let marriagesLogged = 0;
   const countedEventIds = new Set<number>();
+  const debug: FullYearDebugState = {
+    previous: fullYearResidentRecords(world), history: [], deaths: 0, removalsUnconfirmed: 0, moves: 0,
+  };
+  if (DEBUG) writeFullYearDebug('start', {
+    seed, ticks: FULL_YEAR_TICKS, ticksPerDay: TICKS_PER_DAY, debug: DEBUG, verbose: VERBOSE,
+    watchIds: [...WATCH_ENTITY_IDS], founders: [...debug.previous.values()].map((entry) => entry.snapshot),
+    starterHouse: { id: starterHouse.id, occupants: [...starterHouse.occupants] },
+    virtualPlayerUsed: false, note: 'Simulation ticks only; no player actions or automated colony management.',
+  });
 
   for (let tick = 1; tick <= FULL_YEAR_TICKS; tick += 1) {
     gameTick(world);
+    if (DEBUG) traceFullYearTick(world, debug, seed);
     if (world.pendingStoryEvents?.length) storyCardsQueued += 1;
     for (const event of world.eventLog) {
       if (countedEventIds.has(event.id)) continue;
@@ -235,13 +352,22 @@ function runFullYear(seed: number): {
       if (event.type === 'birth') birthsLogged += 1;
       if (event.type === 'marriage') marriagesLogged += 1;
     }
+    if (DEBUG && tick % (DEBUG_PROGRESS_DAYS * TICKS_PER_DAY) === 0) {
+      writeFullYearDebug('progress', {
+        day: tick / TICKS_PER_DAY, tick: world.tick, food: world.resources.food,
+        playerResidentsAlive: world.entities.filter(isResidenceOccupantEntity).length,
+        deathsObserved: debug.deaths, removalsUnconfirmed: debug.removalsUnconfirmed,
+        residenceChanges: debug.moves, firstFailureTick: debug.firstFailureTick ?? null,
+      });
+    }
     if (!checkpoints.has(tick)) continue;
 
     const day = tick / TICKS_PER_DAY;
     const errors = collectSimulationInvariantErrors(world);
-    expect(errors, `Simulation invariants at day ${day}`).toEqual([]);
     const history = getRelationshipDiagnosticsHistory();
     printCheckpoint(day, world, history.slice(lastDiagnosticSnapshotCount), history);
+    if (errors.length > 0) printFullYearFailure(world, debug, errors, seed);
+    expect(errors, `Simulation invariants at day ${day}; seed ${seed}; tick ${world.tick}`).toEqual([]);
     lastDiagnosticSnapshotCount = history.length;
   }
   if (DEBUG) {

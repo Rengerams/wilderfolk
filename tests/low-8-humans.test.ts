@@ -343,10 +343,9 @@ describe('L42 — company-following leisure blends velocity once', () => {
     return ticks;
   }
 
-  function runCompanyFollow(tick: number, previousVx: number): number {
-    const state = newWorld();
+  function runCompanyFollow(fixture: WorldState, tick: number, previousVx: number): number {
+    const state = structuredClone(fixture);
     state.tick = tick;
-    state.worldMap = null;
     const speaker = settler(1, {
       x: 400,
       y: 400,
@@ -363,9 +362,11 @@ describe('L42 — company-following leisure blends velocity once', () => {
   }
 
   it('weights the previous velocity at 0.5 like every other leisure kind', () => {
+    const fixture = newWorld();
+    fixture.worldMap = null;
     setSimSeed(TEST_SEED);
     const deltas = companyFollowTicks()
-      .map((tick) => runCompanyFollow(tick, 20) - runCompanyFollow(tick, 0));
+      .map((tick) => runCompanyFollow(fixture, tick, 20) - runCompanyFollow(fixture, tick, 0));
 
     // Pre-fix the branch blended 0.45/0.55 and the shared tail blended 0.5/0.5 again,
     // weighting the previous velocity at 0.225. Only a single 0.5 blend is correct.
@@ -422,12 +423,11 @@ describe('L60 — imprisoned custodian in a caught-affair divorce', () => {
     const { state, cheater, child, spouse } = scandalWorld();
     caughtScandal(state, state.entities);
 
-    // The cheater is the female parent, so they are the custody holder — and they are
-    // in prison. Pre-fix they were re-housed into an empty house and the child followed.
+    // The imprisoned cheater stays unhoused; the wronged parent retains the family home.
     expect(cheater.residenceBuildingId).toBeUndefined();
     expect(child.residenceBuildingId).toBe(2);
-    // The freed spouse is still relocated out of the former shared home.
-    expect(spouse.residenceBuildingId).toBe(1);
+    expect(spouse.residenceBuildingId).toBe(2);
+    expect(child.residenceBuildingId).toBe(spouse.residenceBuildingId);
   });
 });
 

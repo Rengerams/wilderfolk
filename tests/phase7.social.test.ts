@@ -37,7 +37,12 @@ function addHuman(
     opts.id,
     80,
     opts.isJuvenile ?? false,
-    { name: opts.name ?? `H${opts.id}`, surname: opts.surname, generation: opts.generation },
+    {
+      name: opts.name ?? `H${opts.id}`,
+      surname: opts.surname,
+      generation: opts.generation,
+      ageYears: opts.isJuvenile ? 8 : 18,
+    },
   );
   if (opts.homeBuildingId != null) e.homeBuildingId = opts.homeBuildingId;
   if (opts.job) e.job = opts.job;

@@ -276,7 +276,7 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
 
   // Frontier scout: the first rival camp opens the raid/diplomacy system, so it is not left to a draw.
   if (state.rivalSettlements.length === 0) {
-    const frontierEvent = tryFrontierSettlement(state, allAlive, ctx.updatedBuildings, ctx);
+    const frontierEvent = tryFrontierSettlement(state, allAlive, ctx.updatedBuildings);
     if (frontierEvent) {
       state.activeEvent = frontierEvent;
       trackYearEvent(state, frontierEvent.title);

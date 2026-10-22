@@ -611,7 +611,9 @@ describe('the first rival camp is a milestone, not a lottery ticket', () => {
       // `competitive`/`tense` are the only states `maybeQueueRaid` will ever raid from.
       expect(camp.relationship).toBe('competitive');
       expect(camp.population).toBeGreaterThan(0);
-      expect(camp.entityIds.length).toBeGreaterThan(0);
+      expect(camp.entityIds).toEqual([]);
+      expect(camp.buildingIds).toEqual([]);
+      expect(state.buildings.some((building) => building.faction === 'rival')).toBe(false);
       // One milestone, not one per day.
       expect(tryFrontierSettlement(state, allAlive, state.buildings)).toBeNull();
       expect(state.rivalSettlements).toHaveLength(1);

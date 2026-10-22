@@ -49,8 +49,8 @@ function settler(residenceBuildingId?: number, overrides: Partial<Entity> = {}):
   const human = createEntity(EntityType.Human, 400 + (id % 40), 400 + (id % 40), id, 200, false, {
     name: `H${id}`,
     surname: 'Vale',
+    ageYears: overrides.age ?? 30,
   });
-  human.age = 30;
   human.residenceBuildingId = residenceBuildingId;
   return Object.assign(human, overrides);
 }
