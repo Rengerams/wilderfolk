@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
+
 - **Fixed:** Removed an unused staffing import left behind by the virtual-player auto-fill repair, restoring compilation.
 
 - **Fixed:** Rival founding and growth no longer create enemy houses, farms or resident settlers inside the village. Legacy camp objects retire on the next rival update; strategic population, diplomacy and raids remain. Village camp markers and hit tests now cover visitors only.
