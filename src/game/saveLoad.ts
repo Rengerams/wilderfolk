@@ -1318,13 +1318,14 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
 
     let loadedTick = (worldData.tick ?? (source.tick as number | undefined) ?? 0) as number;
     /**
-     * Only the two tick resolutions this build has ever written: the legacy 24 ticks/day and the
-     * current `TICKS_PER_DAY`. `migrateTickTimeline` *scales the whole timeline* by this — `tick`,
+     * Accept the legacy 24- and 72-tick days alongside the current resolution.
+     * `migrateTickTimeline` *scales the whole timeline* by this — `tick`,
      * every cooldown and every deadline — and it used to accept any positive number, so
      * `_ticksPerDay: 1e-6` loaded a colony into **year 66666**.
      */
     const savedTicksPerDay = source._ticksPerDay === LEGACY_TICKS_PER_DAY
-      ? LEGACY_TICKS_PER_DAY
+      || source._ticksPerDay === 72
+      ? source._ticksPerDay
       : TICKS_PER_DAY;
     const autoSave = typeof worldData.autoSave === 'boolean'
       ? worldData.autoSave
