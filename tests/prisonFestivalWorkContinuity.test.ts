@@ -186,7 +186,7 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
     [house, farm, tavern],
     { active: true, name: 'Test Festival', daysLeft: 3 },
   );
-  state.tick = 44 - 1; // 14:40 systems pulse, inside the afternoon work shift
+  state.tick = 15 * TICKS_PER_HOUR - 1; // Enters 15:00 inside the afternoon shift
   return { state, farmer, innkeeper, idler };
 }
 
@@ -197,7 +197,7 @@ describe('a prison is open 24 hours', () => {
     state.tick = 0;
 
     let atTwoOClock: number | null = null;
-    for (let i = 0; i < 71; i++) {
+    for (let i = 0; i < TICKS_PER_DAY - 1; i++) {
       gameTick(state);
       if (getHourOfDay(state.tick) !== 2) continue;
       atTwoOClock = Math.hypot(
@@ -279,7 +279,7 @@ describe('settlers keep working during a festival', () => {
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'credited outside the configured shift').toBe(0);
 
     // …and the ordinary window still credits, so this is a boundary and not a dead shift.
-    state.tick = 56 - 1; // 18:40 systems pulse, during tavern service
+    state.tick = 18 * TICKS_PER_HOUR - 1; // Enters 18:00, during tavern service
     gameTick(state);
     expect(innkeeper.scheduleWorkedTicksToday ?? 0, 'the 18:00 hour is inside the window').toBeGreaterThan(0);
   });
@@ -321,7 +321,7 @@ describe('a priest serving at a completed church', () => {
   it('records attendance across the colony workday, and none on a rest day', () => {
     const weekday = churchWorld();
     // Day 2 is a Wednesday, and 10:00 is inside the 07:00-16:00 window every day post works.
-    weekday.state.tick = 2 * TICKS_PER_DAY + 32 - 1; // 10:40 systems pulse
+    weekday.state.tick = 2 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1; // 10:00 weekday service
     gameTick(weekday.state);
     expect(
       weekday.priest.scheduleWorkedTicksToday ?? 0,
@@ -330,7 +330,7 @@ describe('a priest serving at a completed church', () => {
 
     const restDay = churchWorld();
     // Day 5 is a Saturday: the same hour credits nothing to a day-shift post.
-    restDay.state.tick = 5 * TICKS_PER_DAY + 32 - 1; // 10:40 systems pulse
+    restDay.state.tick = 5 * TICKS_PER_DAY + 10 * TICKS_PER_HOUR - 1; // 10:00 rest day
     gameTick(restDay.state);
     expect(
       restDay.priest.scheduleWorkedTicksToday ?? 0,

@@ -24,7 +24,7 @@ import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/sa
 import { createImmigrantSettler, replenishDepletedWildlife } from '../src/game/worldGen';
 import { generateWorldMap } from '../src/game/terrainGen';
 import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from '../src/game/terrain/terrainGrid';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 
 function countType(state: ReturnType<typeof initGame>, type: EntityType): number {
   return state.entities.filter((e) => e.alive && e.type === type).length;
@@ -216,10 +216,10 @@ describe('daily lows', () => {
   it('L73 — the daily layer runs its social/chronicle block at tick 0 too', () => {
     const world = initGame({ seed: 8, size: MapSize.Medium });
     // gameTick increments first, so tick -1 becomes the tick-0 boundary the removed guards
-    // used to treat as "initialization" and skip. 36 worked ticks = 12h must raise fatigue.
+    // used to treat as "initialization" and skip. Twelve hours worked must raise fatigue.
     world.tick = -1;
     for (const entity of world.entities) {
-      if (entity.type === EntityType.Human) entity.scheduleWorkedTicksToday = 36;
+      if (entity.type === EntityType.Human) entity.scheduleWorkedTicksToday = 12 * TICKS_PER_HOUR;
     }
     const after = gameTick(world);
     const humans = after.entities.filter((e) => e.type === EntityType.Human);

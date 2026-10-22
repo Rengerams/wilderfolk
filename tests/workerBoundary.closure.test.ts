@@ -59,12 +59,13 @@ import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from '../src/game/save
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { getWorkSchedule } from '../src/game/workSchedule';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { getVenueSchedule } from '../src/game/venueSchedule';
 import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes';
 
 
 const SEED = 4242;
-const TICKS = 240; // 5 colony days — crosses every daily cadence at least five times
+const TICKS = 3 * TICKS_PER_DAY; // Advance three colony days across each daily phase.
 
 /** Host-owned or runtime-cache keys — excluded for the reasons in the file header. */
 const HOST_OR_CACHE_KEYS: readonly string[] = [

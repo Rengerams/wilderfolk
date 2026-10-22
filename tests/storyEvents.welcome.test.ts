@@ -19,12 +19,12 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import type { WorldState } from '../src/game/gameTypes';
 
 const FIXTURE_SEED = 20_260_917;
 /** `worldGen.initGame` starts the colony at 08:00 — mid-day, so the first daily tick is tick 72. */
-const START_TICK = 24;
+const START_TICK = 8 * TICKS_PER_HOUR;
 const FIRST_WORLD_EVENT_TICK = 18 * (TICKS_PER_DAY / 24);
 
 function freshWorld(): WorldState {

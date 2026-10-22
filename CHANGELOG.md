@@ -2,7 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
+- **Fixed:** Auto-play now staffs a needed but empty producer when eligible workers or transfers are available, rather than overlooking the shortage.
+
+- **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
+
+- **Changed:** Game hours now contain 12 simulation ticks, settlers walk faster, and commute reach uses building centres. Existing 72-tick-day saves retain their calendar dates on load.
 
 - **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
 - **Changed:** Tier 3 graduates gain +20 to skills andeligible for grandmaster (80+) apprenticeships training place opens.

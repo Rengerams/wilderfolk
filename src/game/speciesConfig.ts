@@ -140,9 +140,8 @@ export const SPECIES_CONFIG: Readonly<Record<EntityType, SpeciesConfig>> = Objec
     energyLossPerTick: 4.2 * PER_TICK_RATE_SCALE,
     energyGain: { deer: 350, rabbit: 150 },
     maxAge: 90, // Human years
-    // Walk speed tracks the map scale: Medium grew 1200x900 -> 2560x1920 (x2.133 per axis),
-    // so a commute covers the same share of the map in the same number of ticks.
-    speed: 6.4,
+    // Walking pace in world pixels per tick; commute timing uses the same speed.
+    speed: 8,
     size: 10,
     reproductionCooldown: cd(3600),
     reproductionEnergyThreshold: 180,

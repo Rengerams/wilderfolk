@@ -98,6 +98,20 @@ describe('a post beyond a two-hour walk is not offered', () => {
     expect(isWithinAssignableCommute(settler, outside, world.buildings, WALK_SPEED)).toBe(false);
   });
 
+  it('uses a workplace centre, not a second half-width offset', () => {
+    const home = placed(BuildingType.House, 400, 400, 8061);
+    const settler = settlerLivingIn(home, 7006);
+    const limit = distanceWhereHoursReach(MAX_ASSIGNABLE_COMMUTE_HOURS, WALK_SPEED);
+    const shop = placed(BuildingType.Store, home.x + limit - 15, home.y, 8062);
+    // A wide building must not push a centre-to-centre commute outside the two-hour limit.
+    shop.width = 200;
+    expect(isWithinAssignableCommute(settler, shop, world.buildings, WALK_SPEED)).toBe(true);
+  });
+
+  it('can assign a 370-pixel commute with the retuned hour and walking pace', () => {
+    expect(commuteLeadHoursFor(370, WALK_SPEED)).toBeLessThan(MAX_ASSIGNABLE_COMMUTE_HOURS);
+  });
+
   it('measures from the settler home, not from wherever they are standing', () => {
     const home = placed(BuildingType.House, 400, 400, 8021);
     const shop = placed(BuildingType.Store, 480, 400, 8022);
