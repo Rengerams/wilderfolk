@@ -79,41 +79,41 @@ export function advanceApprenticeships(
     const job = BUILDING_JOB_TYPES[b.type];
     if (!job || !PRODUCTION_TYPES.has(b.type)) continue;
 
-    const master = (b.occupants ?? [])
+    const masters = (b.occupants ?? [])
       .map((id) => byId.get(id))
-      .find((e): e is Entity => !!e && !e.isJuvenile && readSkill(e, job) >= MASTER_SKILL);
-    if (!master) continue;
+      .filter((e): e is Entity => !!e && !e.isJuvenile && readSkill(e, job) >= MASTER_SKILL);
 
-    const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
-    if (currentApprentice && currentApprentice.alive) {
-      teach(currentApprentice, master, job, state);
-      continue;
-    }
-    master.apprenticeId = undefined;
+    for (const master of masters) {
+      const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
+      if (currentApprentice && currentApprentice.alive) {
+        teach(currentApprentice, master, job, state);
+        continue;
+      }
+      master.apprenticeId = undefined;
 
-    const grandmaster = readSkill(master, job) >= GRANDMASTER_SKILL;
-    // Grandmasters reserve available places for Tier 3 graduates first.
-    // Oldest waiting scholars go first; ordinary training remains selective.
-    const scholar = grandmaster ? scholars.find((p) => !claimed.has(p.id)) : undefined;
-    const bx = b.x + b.width / 2;
-    const by = b.y + b.height / 2;
-    let best: Entity | null = scholar ?? null;
-    let bestD = Infinity;
-    if (!best) {
-      for (const j of candidates) {
-        if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
-        const d = Math.hypot(j.x - bx, j.y - by);
-        if (d < bestD) {
-          bestD = d;
-          best = j;
+      const grandmaster = readSkill(master, job) >= GRANDMASTER_SKILL;
+      // Grandmasters reserve free slots for the oldest waiting Tier 3 scholars.
+      const scholar = grandmaster ? scholars.find((p) => !claimed.has(p.id)) : undefined;
+      const bx = b.x + b.width / 2;
+      const by = b.y + b.height / 2;
+      let best: Entity | null = scholar ?? null;
+      let bestD = Infinity;
+      if (!best) {
+        for (const j of candidates) {
+          if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
+          const d = Math.hypot(j.x - bx, j.y - by);
+          if (d < bestD) {
+            bestD = d;
+            best = j;
+          }
         }
       }
-    }
-    if (best) {
-      master.apprenticeId = best.id;
-      best.apprenticeOfId = master.id;
-      claimed.add(best.id);
-      logEvent(state, 'event', `${best.name ?? 'A young settler'} began an apprenticeship under ${master.name ?? 'a master'}`);
+      if (best) {
+        master.apprenticeId = best.id;
+        best.apprenticeOfId = master.id;
+        claimed.add(best.id);
+        logEvent(state, 'event', `${best.name ?? 'A young settler'} began an apprenticeship under ${master.name ?? 'a master'}`);
+      }
     }
   }
 }
