@@ -22,6 +22,11 @@ export const SCHOOL_EDUCATED_DAYS = 135;
 /** School days for full education tier. */
 export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 
+/** Credit school years completed before a child immigrated: 20 days per year after age 6. */
+export function immigrantSchoolDaysForAge(age: number): number {
+  return Math.max(0, Math.min(HUMAN_ADULT_MIN_AGE - SCHOOL_MIN_AGE, Math.floor(age) - SCHOOL_MIN_AGE)) * 20;
+}
+
 /** Max children who can attend one school at once — a classroom holds a classroom. */
 export const SCHOOL_MAX_CHILDREN = 20;
 
@@ -397,7 +402,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   if (entity.educated) return;
 
   entity.educated = true;
-  const skillBonus = tier === 3 ? 12 : tier === 2 ? 8 : 5;
+  const skillBonus = tier === 3 ? 20 : tier === 2 ? 8 : 5;
   const energyBonus = tier === 3 ? 10 : tier === 2 ? 6 : 4;
   const skills = ensureEntitySkills(entity);
   for (const job of Object.values(JobType)) {
@@ -409,7 +414,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   const label = formatCitizenName(entity);
   const detail =
     tier === 3
-      ? `${label} finished school with honors — skilled worker & +research`
+      ? `${label} graduated with honors — eligible for grandmaster apprenticeship`
       : tier === 2
         ? `${label} graduated — bonus skills & stamina`
         : `${label} finished basic schooling — ready to work`;
