@@ -34,6 +34,17 @@ describe('worker command validation parity', () => {
     }
   });
 
+  it('accepts surrender decisions sent by the battle-report buttons', () => {
+    for (const choiceId of ['mercy', 'tribute', 'raze']) {
+      expect(
+        isWorkerCommand({ proto: 1, op: 'resolveRaidVictory', eventId: 'raid-123', choiceId }),
+        `resolveRaidVictory ${choiceId} must reach the worker`,
+      ).toBe(true);
+    }
+    expect(isWorkerCommand({ proto: 1, op: 'resolveRaidVictory', eventId: '', choiceId: 'raze' })).toBe(false);
+    expect(isWorkerCommand({ proto: 1, op: 'resolveRaidVictory', eventId: 'raid-123', choiceId: '' })).toBe(false);
+  });
+
   it('rejects unknown ops and unknown values', () => {
     expect(isWorkerCommand({ proto: 1, op: 'queueForgeOrder', buildingId: 1, orderId: 'bogus_order' })).toBe(false);
     expect(isWorkerCommand({ proto: 1, op: 'tradeWithVisitors', groupId: 'g1', action: 'bogus_action' })).toBe(false);

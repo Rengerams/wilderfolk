@@ -109,7 +109,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'setVenueSchedule'; venue: VenueScheduleKind; startHour: number; endHour: number }
   | { proto: 1; op: 'setWorkforcePolicy'; preset: WorkforcePreset };
 
-const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
+const WORKER_COMMAND_OPS = [
   'startBuilding',
   'placeStripChain',
   'assignWorker',
@@ -129,6 +129,7 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'notifyBuildingLocked',
   'respondToRaidEvent',
   'respondToOutgoingRaidEvent',
+  'resolveRaidVictory',
   'respondToDiplomacyEvent',
   'respondToStoryEvent',
   'startGuidedCampaign',
@@ -151,9 +152,10 @@ const WORKER_COMMAND_OPS = new Set<WorkerCommand['op']>([
   'setWorkSchedule',
   'setVenueSchedule',
   'setWorkforcePolicy',
-]);
+] as const satisfies readonly WorkerCommand['op'][];
+const WORKER_COMMAND_OP_SET = new Set<WorkerCommand['op']>(WORKER_COMMAND_OPS);
 
-type MissingOps = Exclude<WorkerCommand['op'], typeof WORKER_COMMAND_OPS extends Set<infer T> ? T : never>;
+type MissingOps = Exclude<WorkerCommand['op'], (typeof WORKER_COMMAND_OPS)[number]>;
 const _EXHAUSTIVE_OPS_CHECK: MissingOps extends never ? true : false = true;
 void _EXHAUSTIVE_OPS_CHECK;
 
@@ -314,7 +316,7 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
   if (!cmd || typeof cmd !== 'object') return false;
   const c = cmd as { proto?: unknown; op?: unknown };
   if (c.proto !== WORKER_CMD_PROTO) return false;
-  if (typeof c.op !== 'string' || !WORKER_COMMAND_OPS.has(c.op as WorkerCommand['op'])) {
+  if (typeof c.op !== 'string' || !WORKER_COMMAND_OP_SET.has(c.op as WorkerCommand['op'])) {
     return false;
   }
   return validateWorkerCommandShape(c as { op: WorkerCommand['op'] } & Record<string, unknown>);

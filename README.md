@@ -719,14 +719,6 @@ Wilderfolk is gradually moving toward its **first proper release**, so ease of a
 
 ### Prior release — v0.5.3 August 12, 2026)
 
-The night hunts back: Moon Howler exorcism overhaul — up to 4 priests, active night hunts, red-dot howlers, guard saves, and the **Moonslayer / Howlerbane** titles. Details → [Roadmap_V0_6.5.MD](Roadmap_V0_6.5.MD).
-
----
-
-### What's next
-
-Soon...
-
 ## How to install
 
 *Early alpha — you need **Node.js** for now. A normal installer or **Steam** build is planned.*
