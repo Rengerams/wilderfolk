@@ -18,6 +18,7 @@ dist/
 dist-ssr/
 /deno/
 target/
+src-tauri/
 src-tauri/target/
 src-tauri/gen/schemas/
 src-tauri/icons/
