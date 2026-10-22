@@ -31,8 +31,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
-import { SCHOOL_MIN_AGE } from './gameConstants';
-import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnWorkShift, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
