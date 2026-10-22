@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
+
 - **Changed:** Game hours now contain 12 simulation ticks, settlers walk faster, and commute reach uses building centres. Existing 72-tick-day saves retain their calendar dates on load.
 
 - **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
