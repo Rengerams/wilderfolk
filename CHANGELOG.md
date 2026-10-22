@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed:** Auto-play now staffs a needed but empty producer when eligible workers or transfers are available, rather than overlooking the shortage.
+- **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
 
