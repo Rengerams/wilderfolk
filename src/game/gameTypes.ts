@@ -349,6 +349,7 @@ export interface Entity {
   feudPeaks?: Record<string, number>;
   apprenticeOfId?: number;
   apprenticeId?: number;
+  grandmasterApprenticeshipCompleted?: boolean;
   maidenSurname?: string;
   generation?: number;
   spriteAngle?: number;
