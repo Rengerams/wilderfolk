@@ -15,7 +15,7 @@ import {
   migrationArrivalDay,
   tickMigration,
 } from '../src/game/migration';
-import { DAYS_PER_YEAR, getAbsoluteCalendarDay } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, getAbsoluteCalendarDay } from '../src/game/dayCycle';
 
 type Game = ReturnType<typeof initGame>;
 
@@ -25,7 +25,7 @@ function makeGame(): Game {
 
 /** Rewind the world clock to a given absolute day. */
 function setDay(state: Game, day: number): void {
-  state.tick = day * 72;
+  state.tick = day * TICKS_PER_DAY;
 }
 
 function herdDeer(state: Game, year: number) {
