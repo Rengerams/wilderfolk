@@ -17,6 +17,8 @@ import { SPECIES_CONFIG } from './speciesConfig';
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
 /** School days for basic graduation perks. */
 export const SCHOOL_GRADUATION_DAYS = 120;
+/** School days for the intermediate education tier. */
+export const SCHOOL_EDUCATED_DAYS = 135;
 /** School days for full education tier. */
 export const SCHOOL_FULL_EDUCATION_DAYS = 150;
 
@@ -368,7 +370,7 @@ export function recordChildSchoolTick(
 
 export function getEducationTier(schoolDays: number): 0 | 1 | 2 | 3 {
   if (schoolDays < SCHOOL_GRADUATION_DAYS) return 0;
-  if (schoolDays < 30) return 1;
+  if (schoolDays < SCHOOL_EDUCATED_DAYS) return 1;
   if (schoolDays < SCHOOL_FULL_EDUCATION_DAYS) return 2;
   return 3;
 }
