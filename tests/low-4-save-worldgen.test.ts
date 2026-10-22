@@ -24,7 +24,7 @@ import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/sa
 import { createImmigrantSettler, replenishDepletedWildlife } from '../src/game/worldGen';
 import { generateWorldMap } from '../src/game/terrainGen';
 import { rebakeTerrainGrids, setTileOverride, tileTypeAt } from '../src/game/terrain/terrainGrid';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 
 function countType(state: ReturnType<typeof initGame>, type: EntityType): number {
   return state.entities.filter((e) => e.alive && e.type === type).length;
