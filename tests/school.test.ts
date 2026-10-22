@@ -376,7 +376,7 @@ describe('school.roster.test.ts', () => {
     it('fills one school to capacity and sends the overflow to the next staffed school', () => {
       const near = school(8000, 100, 100);
       const far = school(8001, 200, 100);
-      const children = Array.from({ length: 12 }, (_, index) => child(9000 + index, 110, 100));
+      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([near, far], children, tick, 10);
@@ -386,16 +386,16 @@ describe('school.roster.test.ts', () => {
       expect(nearPupils).toHaveLength(SCHOOL_MAX_CHILDREN);
       expect(farPupils).toHaveLength(2);
       // World order, first come first served.
-      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, 10).map((c) => c.id));
-      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(10).map((c) => c.id));
+      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, SCHOOL_MAX_CHILDREN).map((c) => c.id));
+      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(SCHOOL_MAX_CHILDREN).map((c) => c.id));
       // Nobody is counted twice, and nobody is lost.
       const all = [...nearPupils, ...farPupils].map((pupil) => pupil.id);
-      expect(new Set(all).size).toBe(12);
+      expect(new Set(all).size).toBe(children.length);
     });
 
-    it('enrols no more than ten children when one school is the only one', () => {
+    it('enrols no more than the school capacity when one school is the only one', () => {
       const only = school(8000, 100, 100);
-      const children = Array.from({ length: 12 }, (_, index) => child(9000 + index, 110, 100));
+      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([only], children, tick, 10);
