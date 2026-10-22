@@ -9,6 +9,8 @@ import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
+import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
+import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 
 /** School days before faster maturation kicks in. */
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
@@ -73,16 +75,74 @@ export function findNearestStaffedSchool(
 
 export function findSchoolForChild(
   child: Entity,
-  buildings: Building[],
+  buildings: readonly Building[],
   reserved?: ReadonlyMap<number, number>,
+  reviewTransfer = false,
+  walkSpeed = child.speed,
 ): Building | undefined {
-  return findNearestStaffedSchool(child, findStaffedSchools(buildings), reserved);
+  const schools = findStaffedSchools(buildings);
+  const home = buildings.find((b) => b.id === child.residenceBuildingId);
+  const current = schools.find((b) => b.id === child.schoolBuildingId);
+  if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < SCHOOL_MAX_CHILDREN) return current;
+
+  let best: Building | undefined;
+  let bestDistance = Infinity;
+  for (const school of schools) {
+    if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    const distance = commuteDistanceFromResidence(child, home, school);
+    if (commuteLeadHoursFor(distance, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (distance < bestDistance) {
+      best = school;
+      bestDistance = distance;
+    }
+  }
+  if (!current || !best || current.id === best.id) return best;
+  const distance = commuteDistanceFromResidence(child, home, current);
+  if (distance - bestDistance < 12 || bestDistance > distance * 0.75) return current;
+  return best;
+}
+
+/** Keep existing seats first; review closer schools on a new day. */
+export function syncSchoolAssignments(
+  humans: readonly Entity[],
+  buildings: readonly Building[],
+  reviewTransfers: boolean,
+  walkSpeed: number,
+): Map<number, Building> {
+  const assignments = new Map<number, Building>();
+  const staffed = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
+  const reserved = new Map<number, number>();
+  const children = humans.filter((e) =>
+    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+  );
+  for (const child of children) {
+    const current = staffed.get(child.schoolBuildingId ?? -1);
+    if (!current || (reserved.get(current.id) ?? 0) >= SCHOOL_MAX_CHILDREN) {
+      child.schoolBuildingId = undefined;
+      continue;
+    }
+    assignments.set(child.id, current);
+    reserved.set(current.id, (reserved.get(current.id) ?? 0) + 1);
+  }
+  for (const child of children) {
+    const current = assignments.get(child.id);
+    if (current && !reviewTransfers) continue;
+    if (current) reserved.set(current.id, (reserved.get(current.id) ?? 1) - 1);
+    const selected = findSchoolForChild(child, buildings, reserved, reviewTransfers, walkSpeed);
+    if (selected) {
+      assignments.set(child.id, selected);
+      reserved.set(selected.id, (reserved.get(selected.id) ?? 0) + 1);
+    } else {
+      assignments.delete(child.id);
+    }
+    child.schoolBuildingId = selected?.id;
+  }
+  return assignments;
 }
 
 export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
-  const cx = school.x;
-  const cy = school.y;
-  return Math.hypot(child.x - cx, child.y - cy) <= maxDist;
+  const target = humanBuildingTarget(school, child.id, false);
+  return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
 }
 
 /**
