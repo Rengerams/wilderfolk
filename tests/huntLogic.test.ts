@@ -88,6 +88,6 @@ describe('moon howler rite cooldown ticks', () => {
   it('exorcism interval is clock hours × ticks-per-hour (not raw 2 ticks)', async () => {
     const { MOON_HOWLER_EXORCISM_INTERVAL_HOURS } = await import('../src/game/moonHowler');
     const { TICKS_PER_HOUR } = await import('../src/game/dayCycle');
-    expect(MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR).toBe(6);
+    expect(MOON_HOWLER_EXORCISM_INTERVAL_HOURS * TICKS_PER_HOUR).toBe(24);
   });
 });
