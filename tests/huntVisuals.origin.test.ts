@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { BuildingType, EntityType, JobType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 const SPOT_ID = 9001;
 const HUNTER_ID = 90001;
@@ -120,7 +121,7 @@ function makeWorld(seed: number, extraEntities: Entity[], occupants: number[]): 
 /** Advance up to two in-game days, returning the world at the tick the shot fired. */
 function runUntilShot(world: WorldState, shooterId: number): { world: WorldState; visual: HuntVisual } | null {
   let current = world;
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 2 * TICKS_PER_DAY; i++) {
     current = gameTick(current);
     const visual = (current.huntVisuals ?? []).find((candidate) => candidate.hunterId === shooterId);
     if (visual) return { world: current, visual };
