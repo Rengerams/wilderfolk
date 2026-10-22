@@ -19,7 +19,7 @@ import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/humanSchedule';
 import { officialHandlePetitioners, tickTownHallAudiences } from '../src/game/townHall';
 
@@ -29,7 +29,7 @@ const FIXTURE_SEED = 20240913;
 const HALL_X = 100;
 const HALL_Y = 100;
 /** Hour 8 of the day: inside the hall's open hours. */
-const WORK_HOUR_TICK_OFFSET = 8 * 3;
+const WORK_HOUR_TICK_OFFSET = 8 * TICKS_PER_HOUR;
 
 function human(id: number, job: JobType): Entity {
   return {
