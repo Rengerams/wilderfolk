@@ -153,6 +153,33 @@ describe('apprenticeships', () => {
     expect(ordinary.apprenticeOfId).toBeUndefined();
   });
 
+  it('does not let a busy ordinary master block an available grandmaster at the same workplace', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 60 };
+    const grandmaster = addHuman(w, { id: 5, job: JobType.Farmer });
+    grandmaster.skills = { [JobType.Farmer]: 90 };
+    const ordinary = addHuman(w, { id: 3 });
+    ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
+    ordinary.apprenticeOfId = master.id;
+    master.apprenticeId = ordinary.id;
+    const scholar = addHuman(w, { id: 2 });
+    scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    scholar.educated = true;
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id, grandmaster.id], level: 1,
+      constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1,
+      buildAnimTimer: 0, faction: 'player',
+    } as never);
+    advanceApprenticeships(w, w.entities);
+    expect(ordinary.apprenticeOfId).toBe(master.id);
+    expect(scholar.apprenticeOfId).toBe(grandmaster.id);
+  });
+
   it('a master may train a qualified adult after school', () => {
     const w = makeWorld();
     // Isolate this apprenticeship from generated founders and workplaces: they may
