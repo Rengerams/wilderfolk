@@ -42,6 +42,8 @@ Purpose: one decision → one owner module → one definition of each function.
 | Pregnancy progress / birth | `humanLifecycle.ts` | pregnancy-progress | `tickPregnancyAndBirth` |
 | Moon Howler | `moonHowler.ts` | full-moon-event | `tickMoonHowlerCycle`, … |
 | Leader residency | `leaderHouse.ts` | daily | `syncLeaderHouseResidency` |
+| Leader household membership | `leaderHouse.ts` | daily / query | `collectLeaderHousehold` — who is entitled to the manor |
+| Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
 | Blueberry foraging | `blueberryForaging.ts` + `worldGen.ts` (spawn ≤3) | staggered / daily | pick / regrowth / spawn |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
 | Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |

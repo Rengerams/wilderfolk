@@ -1,6 +1,6 @@
 import type { Entity } from './gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { hasResidenceAssignment } from './residencyOccupancy';
+import { hasResidenceAssignment, isResidenceOccupantEntity } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
@@ -44,8 +44,10 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   }
   const family: Entity[] = [];
   const included = new Set<number>();
+  // A cursed Moon Howler is still the leader's descendant; their wolf form must not orphan the
+  // children who keep their manor beds through them.
   const add = (human?: Entity): Entity | undefined => {
-    if (!human?.alive || !isPlayerHuman(human)) return undefined;
+    if (!human?.alive || !isResidenceOccupantEntity(human)) return undefined;
     if (!included.has(human.id)) {
       included.add(human.id);
       family.push(human);

@@ -10,7 +10,7 @@ import { logEvent } from './eventLog';
 import { collectLeaderDescendants } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
-import { isImprisoned } from './residencyOccupancy';
+import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 
 export { LEADER_OCCUPATION };
 
@@ -39,9 +39,9 @@ export function collectLeaderHousehold(state: WorldState): Entity[] {
       && (e.type === EntityType.Human || (e.type === EntityType.Werewolf && e.moonHowlerCursed)),
   );
   if (!leader) return [];
-  const livingHumans = state.entities.filter(
-    (e) => isPlayerHuman(e) && e.alive,
-  );
+  // Cursed Moon Howlers included: the wolf form is the same settler, and dropping them here unseated
+  // the family whose beds depend on them — a relocation at dusk and a move-in at dawn, every night.
+  const livingHumans = state.entities.filter((e) => isResidenceOccupantEntity(e));
   return collectLeaderDescendants(leader, livingHumans).filter((member) => !isImprisoned(member));
 }
 
@@ -112,7 +112,10 @@ export function syncLeaderHouseResidency(state: WorldState): void {
     && state.entities.some((e) => e.id === state.villageLeaderId && e.alive);
   if (household.length === 0 && officeHeld) return;
 
-  const entitledIds = new Set(household.map((m) => m.id));
+  // A cursed member's own bed belongs to the Moon Howler form switch (cleared on transform, restored
+  // on reversion), so the manor reads them as away without unseating the family who stay home.
+  const atHome = household.filter((member) => member.type !== EntityType.Werewolf);
+  const entitledIds = new Set(atHome.map((m) => m.id));
   let evicted = false;
   let movedIn = false;
   const displaced: Entity[] = [];
@@ -128,7 +131,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   }
 
   //Move in all members of the current leader's household
-  for (const member of household) {
+  for (const member of atHome) {
     if (member.residenceBuildingId !== house.id) {
       // Release the old home's reserved slot before finding homes for displaced residents.
       const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);
