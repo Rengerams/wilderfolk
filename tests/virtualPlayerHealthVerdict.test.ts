@@ -235,27 +235,28 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision!.reason).toContain('food');
   });
 
-  it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
-    // Owner report 1: ~18 settlers, 0 stone, wood and gold in store, beds free.
+  it('reports an unstaffed Quarry without repeatedly issuing persistent Auto-fill', () => {
+    // A resource shortage must remain visible, but persistent Auto-fill belongs to the workforce
+    // owner. The virtual player previously issued the same command every hour without progress.
     const unmanned = ownerColony(18, {
       resources: { food: 489, wood: 115, stone: 0, gold: 275, iron: 30 },
     }, {
       mills: 5, farms: 2,
-      // The Quarry stands complete with nobody assigned to it, and the Mills are the over-crewed
-      // donors the auto-staff owner rebalances out of (`findOverstaffedDonorBuilding`).
-      extraBuildings: [building(12, BuildingType.Quarry, { x: 700, y: 380 })],
+      extraBuildings: [building(12, BuildingType.Quarry, { x: 700, y: 380, staffingMode: 'auto' })],
     });
 
-    const decision = decideVirtualPlayerAction(unmanned);
+    expect(virtualPlayerWaitingReason(unmanned)).toContain('Quarry');
+    expect(hudStatus(unmanned)).not.toBe(VIRTUAL_PLAYER_IDLE_STATUS);
 
-    expect(decision).not.toBeNull();
-    expect(decision!.command.op).toBe('autoStaffWorkers');
-    expect(decision!.reason).toContain('Quarry');
-    // …and the command the ladder proposes really ends the shortage: a hand lands on the Quarry,
-    // so the step cannot re-propose the same no-op hour after hour.
-    const applied = applyWorkerCommand(unmanned, decision!.command);
-    const quarry = applied.buildings.find((candidate) => candidate.type === BuildingType.Quarry)!;
+    for (let hour = 0; hour < 3; hour++) {
+      expect(decideVirtualPlayerAction(unmanned)?.command.op).not.toBe('autoStaffWorkers');
+    }
+
+    // Explicit auto-staff still works; it is not a recurring virtual-player command.
+    const staffed = applyWorkerCommand(unmanned, { proto: 1, op: 'autoStaffWorkers' });
+    const quarry = staffed.buildings.find((candidate) => candidate.type === BuildingType.Quarry)!;
     expect(quarry.occupants.length).toBeGreaterThan(0);
+    expect(decideVirtualPlayerAction(staffed)?.command.op).not.toBe('autoStaffWorkers');
   });
 
   it('says which producer is short when no settler can be spared for it', () => {

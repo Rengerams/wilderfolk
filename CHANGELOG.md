@@ -21,6 +21,11 @@
 - **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 
 - **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
+- **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
+
+- **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
+
+- **Changed:** Game hours now contain 12 simulation ticks, settlers walk faster, and commute reach uses building centres. Existing 72-tick-day saves retain their calendar dates on load.
 
 - **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
 - **Changed:** Tier 3 graduates gain +20 to skills andeligible for grandmaster (80+) apprenticeships training place opens.

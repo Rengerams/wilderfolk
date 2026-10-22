@@ -87,8 +87,8 @@ function makeState(festivalActive: boolean): { state: WorldState; worker: Entity
   const state: WorldState = {
     entities: [worker, official, idler],
     buildings: [farm, hall],
-    // gameTick increments before running realtime behavior: 44 -> 45 = 15:00.
-    tick: 44,
+    // gameTick increments before realtime behaviour, entering 15:00.
+    tick: 15 * TICKS_PER_HOUR - 1,
     paused: false,
     speed: 1,
     width: 500,

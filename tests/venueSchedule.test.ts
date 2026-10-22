@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   DEFAULT_HOTEL_SCHEDULE,
   DEFAULT_TAVERN_SCHEDULE,
@@ -139,7 +139,7 @@ describe('independent venue schedules', () => {
   });
 
   it('recognizes the configured start tick', () => {
-    const state = { tick: 8 * 3, tavernSchedule: { startHour: 8, endHour: 14 }, hotelSchedule: undefined };
+    const state = { tick: 8 * TICKS_PER_HOUR, tavernSchedule: { startHour: 8, endHour: 14 }, hotelSchedule: undefined };
     expect(isVenueScheduleStartTick(state, 'tavern')).toBe(true);
     expect(isVenueScheduleStartTick({ ...state, tick: TICKS_PER_DAY }, 'tavern')).toBe(false);
   });

@@ -19,7 +19,7 @@ const TEST_SEED = 20_261_006;
 /** 23:00 on day 1: `prefersHomeTonightFor` is unconditional, so the settler walks home when active. */
 const NIGHT_TICK = TICKS_PER_DAY + 23 * TICKS_PER_HOUR;
 const NO_THROTTLE_ID = 7;
-const THROTTLE_ID = 3;
+const THROTTLE_ID = 12;
 const HOME_ID = 900;
 
 const OFF_SCREEN: SimulationFocus = { minX: -2000, maxX: -1000, minY: -2000, maxY: -1000 };

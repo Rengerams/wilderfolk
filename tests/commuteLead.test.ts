@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_COMMUTE_LEAD_HOURS, commuteLeadHoursFor } from '../src/game/simulation/humanMovement';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { EntityType } from '../src/game/gameTypes';
 
-const WALK_SPEED = 3.0; // SPECIES_CONFIG[EntityType.Human].speed
+const WALK_SPEED = SPECIES_CONFIG[EntityType.Human].speed
 
 describe('commute lead hours', () => {
   it('always answers inside its documented floor and ceiling', () => {
@@ -30,20 +32,20 @@ describe('commute lead hours', () => {
   });
 
   it('grows with distance and caps at the ceiling', () => {
-    const near = commuteLeadHoursFor(30, WALK_SPEED);
-    const far = commuteLeadHoursFor(60, WALK_SPEED);
+    const near = commuteLeadHoursFor(370, WALK_SPEED);
+    const far = commuteLeadHoursFor(800, WALK_SPEED);
 
     expect(far).toBeGreaterThan(near);
     expect(commuteLeadHoursFor(1_000_000, WALK_SPEED)).toBe(MAX_COMMUTE_LEAD_HOURS);
   });
 
   it('gives a long walk more lead time than a shorter one', () => {
-    expect(commuteLeadHoursFor(30, WALK_SPEED)).toBeGreaterThan(1);
-    expect(commuteLeadHoursFor(60, WALK_SPEED))
-      .toBeGreaterThan(commuteLeadHoursFor(30, WALK_SPEED));
+    expect(commuteLeadHoursFor(370, WALK_SPEED)).toBeGreaterThan(1);
+    expect(commuteLeadHoursFor(800, WALK_SPEED))
+      .toBeGreaterThan(commuteLeadHoursFor(370, WALK_SPEED));
   });
 
   it('asks for more lead from a slower walker at the same distance', () => {
-    expect(commuteLeadHoursFor(20, 1.5)).toBeGreaterThan(commuteLeadHoursFor(20, 3.0));
+    expect(commuteLeadHoursFor(200, 1.5)).toBeGreaterThan(commuteLeadHoursFor(200, 3.0));
   });
 });

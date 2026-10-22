@@ -92,9 +92,9 @@ describe('isProductionTick (EJ-11)', () => {
 });
 
 describe('day-length scaling (no 3× spam after 72 TPD)', () => {
-  it('off-screen human throttle matches ~8 clock hours at current day resolution', () => {
-    // Legacy: every 8 ticks when 1 tick = 1 hour. Now: 8 * TICKS_PER_HOUR.
-    expect(OFFSCREEN_HUMAN_THROTTLE).toBe(8 * TICKS_PER_HOUR);
+  it('off-screen human throttle runs every 2 clock hours at the higher resolution', () => {
+    // Twenty-four ticks now span two in-game hours; offscreen travel needs regular AI.
+    expect(OFFSCREEN_HUMAN_THROTTLE).toBe(2 * TICKS_PER_HOUR);
     expect(OFFSCREEN_HUMAN_THROTTLE).toBe(24);
   });
 

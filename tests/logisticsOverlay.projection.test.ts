@@ -314,13 +314,11 @@ describe('F4 projection — blocked paths (the row-text residual)', () => {
     expect(data.totals).toMatchObject({ blockedCommuteCount: 1, extremeCommuteCount: 0 });
   });
 
-  it('reports the identical leg as ordinary pressure when the terrain is clear', () => {
-    // Negative control: same buildings, same entity, same 40 wu distance — only the river differs,
-    // so nothing but terrain can account for the severity change.
+  it('keeps the short clear-water-free leg below the new commute budget', () => {
+    // With twelve ticks per hour, the same unobstructed 40-pixel walk is not over-budget.
     const data = computeLogisticsOverlay(mappedPair(false));
 
-    expect(data.commutes).toHaveLength(1);
-    expect(data.commutes[0]).toMatchObject({ severity: 'over_budget' });
+    expect(data.commutes).toHaveLength(0);
     expect(data.totals).toMatchObject({ blockedCommuteCount: 0 });
   });
 

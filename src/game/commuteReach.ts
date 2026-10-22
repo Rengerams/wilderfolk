@@ -109,8 +109,8 @@ export function isWithinAssignableCommute(
     ? undefined
     : buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
-  const toX = building.x + building.width / 2;
-  const toY = building.y + building.height / 2;
+  const toX = building.x;
+  const toY = building.y;
   const distance = Math.hypot(toX - from.x, toY - from.y);
   if (commuteLeadHoursFor(distance, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS) return true;
   if (commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT) > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;

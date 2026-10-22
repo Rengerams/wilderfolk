@@ -7,8 +7,8 @@
  *
  *   1. tickLayerRealtime — every tick (movement, animation, realtime spatial behavior)
  *   2. tickLayerSystems  — every LAYER_SYSTEMS_INTERVAL (4) ticks
- *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (18) ticks, offset 9 ticks (03:00)
- *   4. tickLayerDaily    — every TICKS_PER_DAY (72) ticks, once per colony day
+ *   3. tickLayerAssign   — every LAYER_ASSIGN_INTERVAL (72) ticks, offset 36 ticks (03:00)
+ *   4. tickLayerDaily    — every TICKS_PER_DAY (288) ticks, once per colony day
  *
  * No tickLayerSocial.ts / tickLayerPregnancy.ts / tickLayerMoonHowler.ts /
  * tickLayerBuildings.ts may exist; new layers require an authority-document
@@ -17,13 +17,14 @@
  * This test instruments the four layer modules with spies and drives the real
  * `gameTick` orchestration (all domain logic inside the layers is mocked out),
  * then asserts the fixed order and the exact per-interval call counts — the
- * executable version of the cadence law. TICKS_PER_DAY === 72 (production
+ * executable version of the cadence law. TICKS_PER_DAY === 288 (production
  * cadence) is asserted explicitly; a temporary benchmark cadence must never be
  * committed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
 import { Season, WeatherType } from '../src/game/gameTypes';
+import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const callLog = vi.hoisted(() => ({ calls: [] as string[] }));
 
@@ -73,7 +74,7 @@ vi.mock('../src/game/prisonGuardDuty', async () => {
   return {
     ...actual,
     tickPrisonPresence: vi.fn((state: { tick: number }) => {
-      if (state.tick % 3 === 0) callLog.calls.push(`prison-presence@${state.tick}`);
+      if (state.tick % TICKS_PER_HOUR === 0) callLog.calls.push(`prison-presence@${state.tick}`);
     }),
   };
 });
@@ -158,31 +159,32 @@ beforeEach(() => {
 });
 
 describe('gameTick layer orchestration (fixed schedule)', () => {
-  it('protects the production cadence: TICKS_PER_DAY is 72', () => {
-    expect(TICKS_PER_DAY).toBe(72);
+  it('protects the production cadence: TICKS_PER_DAY is 288', () => {
+    expect(TICKS_PER_DAY).toBe(288);
   });
 
   it('pins the layer intervals the schedule law declares', () => {
     // The counts below are written as the law's literals, so these two must agree with it.
     expect(LAYER_SYSTEMS_INTERVAL).toBe(4);
-    expect(LAYER_ASSIGN_INTERVAL).toBe(18);
+    expect(LAYER_ASSIGN_INTERVAL).toBe(72);
   });
 
-  it('calls the four layers in fixed order on a full-stack tick (72)', async () => {
-    await runTicks(0, 72);
+  it('calls the four layers in fixed order on a full-stack tick (288)', async () => {
+    await runTicks(0, TICKS_PER_DAY);
     const tail = callLog.calls.slice(-4);
-    expect(tail).toEqual(['realtime@72', 'systems@72', 'prison-presence@72', 'daily@72']);
+    expect(tail).toEqual(['realtime@288', 'systems@288', 'prison-presence@288', 'daily@288']);
   });
 
-  it('runs each layer only on its declared interval over 216 ticks (3 days)', async () => {
-    await runTicks(0, 216); // 216 = 3 × TICKS_PER_DAY
+  it('runs each layer only on its declared interval over three days', async () => {
+    const ticks = 3 * TICKS_PER_DAY;
+    await runTicks(0, ticks);
     const count = (name: string) => callLog.calls.filter((c) => c.startsWith(`${name}@`)).length;
 
-    expect(count('realtime')).toBe(216); // every tick
-    expect(count('systems')).toBe(216 / 4); // LAYER_SYSTEMS_INTERVAL
-    expect(count('assign')).toBe(216 / 18); // LAYER_ASSIGN_INTERVAL (4×/day)
-    expect(count('prison-presence')).toBe(216 / 3); // hourly sample after movement and assignment
-    expect(count('daily')).toBe(216 / (TICKS_PER_DAY / 4)); // four daily phases
+    expect(count('realtime')).toBe(ticks);
+    expect(count('systems')).toBe(ticks / LAYER_SYSTEMS_INTERVAL);
+    expect(count('assign')).toBe(ticks / LAYER_ASSIGN_INTERVAL);
+    expect(count('prison-presence')).toBe(ticks / TICKS_PER_HOUR);
+    expect(count('daily')).toBe(ticks / (TICKS_PER_DAY / 4));
   });
 
   it('fires no daily tick before the first day boundary', async () => {
@@ -191,22 +193,22 @@ describe('gameTick layer orchestration (fixed schedule)', () => {
   });
 
   it('runs assignment at 03:00, 09:00, 15:00 and 21:00, never midnight', async () => {
-    await runTicks(0, 72);
+    await runTicks(0, TICKS_PER_DAY);
     const assignments = callLog.calls.filter((c) => c.startsWith('assign@'));
-    expect(assignments).toEqual(['assign@9', 'assign@27', 'assign@45', 'assign@63']);
+    expect(assignments).toEqual(['assign@36', 'assign@108', 'assign@180', 'assign@252']);
   });
 
   it('daily runs exactly once per colony day at the day boundary', async () => {
     await runTicks(0, 3 * TICKS_PER_DAY);
     const dailies = callLog.calls.filter((c) => c.startsWith('daily@'));
-    expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * 18}`));
+    expect(dailies).toEqual(Array.from({ length: 12 }, (_, i) => `daily@${(i + 1) * (TICKS_PER_DAY / 4)}`));
   });
 
   it('produces an identical trace on repeated runs (deterministic schedule)', async () => {
-    await runTicks(0, 216);
+    await runTicks(0, 3 * TICKS_PER_DAY);
     const first = [...callLog.calls];
     callLog.calls.length = 0;
-    await runTicks(0, 216);
+    await runTicks(0, 3 * TICKS_PER_DAY);
     expect(callLog.calls).toEqual(first);
   });
 });

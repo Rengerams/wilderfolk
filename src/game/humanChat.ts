@@ -154,7 +154,7 @@ export function ticksForDialogueLine(text: string): number {
 }
 
 function activeChatTicksFromLegacyDuration(legacyTicks: number): number {
-  return Math.max(1, Math.round(legacyTicks * PER_TICK_RATE_SCALE));
+  return Math.max(4, Math.round(legacyTicks * PER_TICK_RATE_SCALE));
 }
 
 function sessionKeyFor(aId: number, bId: number): string {
