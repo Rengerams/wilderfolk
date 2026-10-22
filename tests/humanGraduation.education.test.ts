@@ -85,6 +85,19 @@ describe('education tiers', () => {
 });
 
 describe('a child graduates once, with the education payoff', () => {
+  it('awards Tier 3 twenty points across skills once', () => {
+    const state = initGame({ seed: FIXTURE_SEED });
+    const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
+    child.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    child.isJuvenile = false;
+    child.skills = { [JobType.Farmer]: 7 };
+    applyEducationGraduation(state, child);
+    expect(child.skills?.[JobType.Farmer]).toBe(27);
+    expect(child.skills?.[JobType.Teacher]).toBe(20);
+    applyEducationGraduation(state, child);
+    expect(child.skills?.[JobType.Farmer]).toBe(27);
+  });
+
   it('keeps the transition reachable on the age-sync tick', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
