@@ -1,6 +1,6 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
 import { isWorkHour, shouldBeAtHome } from '../dayCycle';
-import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool, SCHOOL_START_HOUR, SCHOOL_END_HOUR } from '../education';
+import { isChildAtSchool, SCHOOL_START_HOUR, SCHOOL_END_HOUR } from '../education';
 import {
   buildHumanCombatStatusFlags,
   getHumanStatusCombatIconFromFlags,
@@ -179,11 +179,13 @@ function buildHumanStatusIconContext(
   state: RenderSnapshot,
   humans: readonly Entity[],
 ): HumanStatusIconContext {
-  const staffedSchools = findStaffedSchools(state.buildings);
+  const schools = new Map(state.buildings.filter((b) =>
+    b.type === BuildingType.School && b.completed && b.faction !== 'rival' && b.occupants.length > 0,
+  ).map((b) => [b.id, b]));
   const childSchoolById = new Map<number, RenderSnapshot['buildings'][number] | undefined>();
   for (const human of humans) {
     if (!human.isJuvenile) continue;
-    childSchoolById.set(human.id, findNearestStaffedSchool(human, staffedSchools));
+    childSchoolById.set(human.id, schools.get(human.schoolBuildingId ?? -1));
   }
   return {
     hourOfDay: state.hourOfDay,
