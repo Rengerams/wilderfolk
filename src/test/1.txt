@@ -1,0 +1,464 @@
+
+[1m> [1/6] standard[0m
+  node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs
+
+Source integrity OK: no JavaScript files shadow TypeScript modules, no source archives and no zero-byte files under src/, tests/, scripts/, or config/.
+Docs check passed: 7 documents linked clean, newest changelog section concise.
+Comments check passed: no newly added comment carries history.
+
+[1m> [2/6] standard[0m
+  node scripts/check-import-cycles.mjs --strict
+
+Import graph: 364 modules, 1981 runtime dependencies
+No runtime import cycles.
+Import-cycle gate OK — 364 modules checked.
+
+[1m> [3/6] standard[0m
+  jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"
+
+[1mClone found (typescript)[22m
+ - [1m[32mgame\buildingResidencyActions.ts[39m[22m [33:43 - 41:26] (9 lines, 72 tokens)
+   game\buildingStaffingActions.ts [332:46 - 340:26]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [502:67 - 510:10] (9 lines, 65 tokens)
+   game\dailyBuildingEconomy.ts [875:73 - 883:10]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [828:55 - 834:58] (7 lines, 73 tokens)
+   game\dailyBuildingEconomy.ts [923:54 - 929:58]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\dailyBuildingEconomy.ts[39m[22m [829:9 - 838:15] (10 lines, 92 tokens)
+   game\dailyBuildingEconomy.ts [899:9 - 908:15]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\familyTree.ts[39m[22m [501:9 - 508:73] (8 lines, 104 tokens)
+   game\familyTree.ts [599:9 - 606:73]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\gameLoop.ts[39m[22m [379:7 - 386:8] (8 lines, 61 tokens)
+   game\gameLoop.ts [409:7 - 416:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [583:40 - 589:29] (7 lines, 64 tokens)
+   game\groupEvents.ts [628:45 - 634:29]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [583:40 - 589:13] (7 lines, 62 tokens)
+   game\groupEvents.ts [716:42 - 722:13]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [600:46 - 606:85] (7 lines, 81 tokens)
+   game\groupEvents.ts [646:51 - 652:85]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\groupEvents.ts[39m[22m [1048:81 - 1054:10] (7 lines, 61 tokens)
+   game\groupEvents.ts [1060:70 - 1066:10]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\householdComposition.ts[39m[22m [12:36 - 19:16] (8 lines, 104 tokens)
+   game\householdComposition.ts [92:38 - 99:16]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\moonHowler.ts[39m[22m [704:95 - 713:9] (10 lines, 60 tokens)
+   game\moonHowler.ts [796:53 - 803:7]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\pathfindingMetrics.ts[39m[22m [65:57 - 76:44] (12 lines, 86 tokens)
+   game\spatialQueryMetrics.ts [47:81 - 58:44]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\grid.ts[39m[22m [26:40 - 34:8] (9 lines, 64 tokens)
+   game\renderer\grid.ts [147:29 - 155:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\grid.ts[39m[22m [85:48 - 91:42] (7 lines, 66 tokens)
+   game\renderer\grid.ts [103:42 - 109:42]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\renderer\terrain.ts[39m[22m [236:34 - 248:10] (13 lines, 98 tokens)
+   game\renderer\terrain.ts [430:36 - 441:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\saveLoad.ts[39m[22m [700:25 - 707:4] (8 lines, 60 tokens)
+   game\saveLoad.ts [712:31 - 719:4]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\simulation\humanRelationships.ts[39m[22m [761:68 - 770:9] (10 lines, 86 tokens)
+   game\simulation\humanRelationships.ts [778:67 - 787:9]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\spatialGrid.ts[39m[22m [295:5 - 304:39] (10 lines, 95 tokens)
+   game\spatialGrid.ts [339:5 - 348:39]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\stripBuild.ts[39m[22m [101:38 - 107:19] (7 lines, 64 tokens)
+   game\stripBuild.ts [113:38 - 119:19]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\stripRender.ts[39m[22m [124:35 - 135:8] (12 lines, 62 tokens)
+   game\stripRender.ts [211:36 - 222:8]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\terrain\hydrology.ts[39m[22m [89:23 - 99:13] (11 lines, 108 tokens)
+   game\terrain\hydrology.ts [181:31 - 191:13]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\terrain\noise.ts[39m[22m [77:23 - 88:2] (12 lines, 84 tokens)
+   game\terrain\noise.ts [111:15 - 122:2]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\tickLayerSystems.ts[39m[22m [662:48 - 671:15] (10 lines, 62 tokens)
+   game\tickLayerSystems.ts [702:28 - 711:15]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\travelingTheatre.ts[39m[22m [6:38 - 13:25] (8 lines, 61 tokens)
+   game\weddingDiplomacy.ts [7:35 - 14:25]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\virtualPlayer.ts[39m[22m [408:3 - 414:12] (7 lines, 72 tokens)
+   game\virtualPlayer.ts [465:3 - 471:12]
+[1mClone found (typescript)[22m
+ - [1m[32mgame\virtualPlayer.ts[39m[22m [587:19 - 593:14] (7 lines, 66 tokens)
+   game\virtualPlayer.ts [1692:32 - 1697:14]
+[90m┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐[39m
+[90m│[39m[31m Format     [39m[90m│[39m[31m Files analyzed [39m[90m│[39m[31m Total lines [39m[90m│[39m[31m Total tokens [39m[90m│[39m[31m Clones found [39m[90m│[39m[31m Duplicated lines [39m[90m│[39m[31m Duplicated tokens [39m[90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m tsx        [90m│[39m 61             [90m│[39m 14721       [90m│[39m 92979        [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m typescript [90m│[39m 292            [90m│[39m 82164       [90m│[39m 498695       [90m│[39m 27           [90m│[39m 240 (0.29%)      [90m│[39m 2033 (0.41%)      [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m [1mTotal:[22m     [90m│[39m 353            [90m│[39m 96885       [90m│[39m 591674       [90m│[39m 27           [90m│[39m 240 (0.25%)      [90m│[39m 2033 (0.34%)      [90m│[39m
+[90m└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘[39m
+[90mFound 27 clones.[39m
+[90mtime: 169.840ms[39m
+
+[1m> [4/6] standard[0m
+  tsc -p tsconfig.vitest.json --noEmit
+
+
+[1m> [5/6] standard[0m
+  oxlint --type-aware --type-check src vite.config.ts vitest.config.ts
+
+Found 0 warnings and 0 errors.
+Finished in 1.7s on 365 files with 116 rules using 6 threads.
+
+[1m> [6/6] standard[0m
+  vitest run --exclude tests/fullYear.integration.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.5 [39m[90mC:/wilderfolk[39m
+
+ [32m✓[39m tests/adoption.leaderHouse.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | tests/actionOutcome.test.ts
+[22m[39m[nameloader] Full census name pool loaded successfully (2700 male, 4275 female, 5000 surnames).
+
+[90mstdout[2m | tests/affairExposure.rumour.test.ts
+[22m[39m[nameloader] Full census name pool loaded successfully (2700 male, 4275 female, 5000 surnames).
+
+[90mstdout[2m | tests/affairAge.adultOnly.test.ts
+[22m[39m[nameloader] Full census name pool loaded successfully (2700 male, 4275 female, 5000 surnames).
+
+[90mstdout[2m | tests/adultFloor.age18.test.ts
+[22m[39m[nameloader] Full census name pool loaded successfully (2700 male, 4275 female, 5000 surnames).
+
+ [32m✓[39m tests/affairAge.adultOnly.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/adultFloor.age18.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/affairTrystSite.walkIn.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/amicableDivorce.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/alertStrip.criticalVisibility.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstdout[2m | tests/affair.cadence.test.ts
+[22m[39m[nameloader] Full census name pool loaded successfully (2700 male, 4275 female, 5000 surnames).
+
+ [32m✓[39m tests/animalCare.orphanRelease.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 773[2mms[22m[39m
+ [32m✓[39m tests/audio.introDismiss.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/audio.workDetect.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/animalCare.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1892[2mms[22m[39m
+[90mstdout[2m | tests/affair.cadence.test.ts[2m > [22m[2maffair cadence (Objective 9)[2m > [22m[2mdaily owner is the sole establisher (deterministic unit)
+[22m[39m[Wilderfolk relationship diagnostics] {
+  tick: [33m100[39m,
+  calendarDay: [33m1[39m,
+  activeMarriages: [33m0[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m0[39m,
+  conceptionEligibilityRejected: [33m0[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m1[39m,
+  affairProgressGains: [33m1[39m,
+  affairsEstablished: [33m1[39m,
+  gossipChecks: [33m0[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+
+ [32m✓[39m tests/affair.cadence.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 93[2mms[22m[39m
+ [32m✓[39m tests/actionOutcome.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 2800[2mms[22m[39m
+   [32m✓[39m action outcome (roadmap U2/O2) [2m(14)[22m
+     [33m[2m✓[22m[39m blocks an answer refused for a condition rather than a cost, and still explains it[33m 1171[2mms[22m[39m
+ [32m✓[39m tests/audit.hotPathScans.equivalence.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 2258[2mms[22m[39m
+ [32m✓[39m tests/beauty.decor.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1064[2mms[22m[39m
+ [32m✓[39m tests/buildCatalog.reachability.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 293[2mms[22m[39m
+[90mstdout[2m | tests/autoStaff.notify.test.ts[2m > [22m[2mautoStaffAllWorkers feedback[2m > [22m[2mstaffs an idle job building and reports it in a notification
+[22m[39m[Wilderfolk relationship diagnostics] {
+  tick: [33m72[39m,
+  calendarDay: [33m1[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m2[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m144[39m,
+  calendarDay: [33m2[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m1[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m1[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m216[39m,
+  calendarDay: [33m3[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m3[39m,
+  conceptionEligibilityRejected: [33m2[39m,
+  conceptionProximityBlocked: [33m1[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m288[39m,
+  calendarDay: [33m4[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m3[39m,
+  conceptionEligibilityRejected: [33m2[39m,
+  conceptionProximityBlocked: [33m1[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m3[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m3[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m360[39m,
+  calendarDay: [33m5[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m3[39m,
+  conceptionEligibilityRejected: [33m2[39m,
+  conceptionProximityBlocked: [33m1[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m3[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m3[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+
+[90mstdout[2m | tests/autoStaff.notify.test.ts[2m > [22m[2mautoStaffAllWorkers feedback[2m > [22m[2mstays quiet if a pass finds nothing to assign
+[22m[39m[Wilderfolk relationship diagnostics] {
+  tick: [33m72[39m,
+  calendarDay: [33m1[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m2[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m144[39m,
+  calendarDay: [33m2[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m1[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m1[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m216[39m,
+  calendarDay: [33m3[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m1[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m1[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m288[39m,
+  calendarDay: [33m4[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m1[39m,
+  conceptionProximityBlocked: [33m1[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m0[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+[Wilderfolk relationship diagnostics] {
+  tick: [33m360[39m,
+  calendarDay: [33m5[39m,
+  activeMarriages: [33m1[39m,
+  activeCourtships: [33m0[39m,
+  activeYouthLovePairs: [33m0[39m,
+  activeAffairs: [33m0[39m,
+  conceptionCandidates: [33m2[39m,
+  conceptionEligibilityRejected: [33m1[39m,
+  conceptionProximityBlocked: [33m0[39m,
+  conceptionEnergyBlocked: [33m0[39m,
+  conceptionRollFailed: [33m1[39m,
+  pregnanciesStartedThisInterval: [33m0[39m,
+  affairChecks: [33m2[39m,
+  affairProgressGains: [33m0[39m,
+  affairsEstablished: [33m0[39m,
+  gossipChecks: [33m2[39m,
+  scandalExposures: [33m0[39m,
+  birthsCompletedThisInterval: [33m0[39m,
+  activePregnancies: [33m0[39m
+}
+
+ [32m✓[39m tests/buildGhost.failureReason.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 7371[2mms[22m[39m
+   [32m✓[39m F5 — the ghost carries the owner reason [2m(3)[22m
+     [33m[2m✓[22m[39m stores the reason beside `valid`, including a blocker away from the cursor tile[33m 1150[2mms[22m[39m
+     [33m[2m✓[22m[39m reports overlapping ground and the map edge as the same `blocked` reason[33m 1482[2mms[22m[39m
+     [33m[2m✓[22m[39m survives the snapshot the canvas reads[33m 1188[2mms[22m[39m
+   [32m✓[39m F5 — the game layer words each reason [2m(3)[22m
+     [33m[2m✓[22m[39m maps every reason to a distinct, non-empty label[33m 1144[2mms[22m[39m
+     [33m[2m✓[22m[39m names the water rule inside the footprint for Bridge and Fishing Spot[33m 1212[2mms[22m[39m
+     [33m[2m✓[22m[39m names the tech a research refusal is waiting on[33m 1192[2mms[22m[39m
+ [32m✓[39m tests/blueberryForaging.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 8943[2mms[22m[39m
+   [32m✓[39m blueberry foraging [2m(5)[22m
+     [33m[2m✓[22m[39m spawns only the intended scarce landmark count for each map size[33m 1899[2mms[22m[39m
+     [33m[2m✓[22m[39m picks one nearby ripe portion during free time and adds bounded food plus energy[33m 1192[2mms[22m[39m
+     [33m[2m✓[22m[39m does not forage when a routine, meal, festival, or famine rule has priority[33m 4719[2mms[22m[39m
+     [33m[2m✓[22m[39m regrows one portion on schedule outside winter, never beyond its cap, and pauses in winter[33m 1131[2mms[22m[39m
+ [32m✓[39m tests/buildingFocus.centre.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/buildingCosts.bootstrap.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 232[2mms[22m[39m
+ [31m❯[39m tests/buildingPanel.staffingRule.test.ts [2m([22m[2m9 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[32m 25[2mms[22m[39m
+   [31m❯[39m the inspector claims automatic staffing only where the workforce owner auto-staffs [2m(2)[22m
+[31m     [31m×[31m drops the claim for a completed School[39m[32m 13[2mms[22m[39m
+[31m     [31m×[31m keeps the claim for a completed Farm[39m[32m 2[2mms[22m[39m
+   [31m❯[39m the inspector measures a Prison by the owner's guard posts [2m(3)[22m
+[31m     [31m×[31m counts guards, not guards and prisoners, against the posts[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m does not offer the empty-picker notice once every post is filled[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m lists prison guards as workers without duplicating prisoners in the duty roster[39m[32m 1[2mms[22m[39m
+   [31m❯[39m the manual worker picker reports the settlers it leaves out [2m(1)[22m
+[31m     [31m×[31m counts the rest of the owner's list beside the sliced picker[39m[32m 1[2mms[22m[39m
+   [31m❯[39m building worker roster shows work duty, not private activities [2m(2)[22m
+[31m     [31m×[31m distinguishes working and walking to work on the same barracks roster[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m shows off duty even when an assigned soldier is sleeping at home[39m[32m 1[2mms[22m[39m
+   [31m❯[39m assigned workers vs actual presence [2m(1)[22m
+[31m     [31m×[31m does not present barracks staffing as soldiers currently standing at the barracks[39m[32m 1[2mms[22m[39m
+ [32m✓[39m tests/buildingPlacement.chronicle.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 277[2mms[22m[39m
+ [32m✓[39m tests/buildingProgressDisplay.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m tests/cacheAnchorHousing.regression.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/church.manualStaffing.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/church.unique.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m tests/citizenOverview.affairsThisYear.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/citizenOverview.youthLove.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/autoStaff.notify.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 11473[2mms[22m[39m
+   [32m✓[39m autoStaffAllWorkers feedback [2m(2)[22m
+     [33m[2m✓[22m[39m staffs an idle job building and reports it in a notification[33m 4519[2mms[22m[39m
+     [33m[2m✓[22m[39m stays quiet if a pass finds nothing to assign[33m 3754[2mms[22m[39m
+   [32m✓[39m colony-wide Auto-fill override [2m(2)[22m
+     [33m[2m✓[22m[39m enables manual workplaces and assigns idle adults without changing the input or rivals[33m 1484[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms Auto-fill is enabled even when there are no idle adults[33m 1714[2mms[22m[39m
+ [32m✓[39m tests/combatTierEffects.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m tests/commands.validation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/buildingFootprint.convention.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 3150[2mms[22m[39m
+   [32m✓[39m building.x/y is the footprint centre — the cleared ground is the drawn pad [2m(2)[22m
+     [33m[2m✓[22m[39m clears the trees and forest inside the pad, and leaves the ones beside the building[33m 1567[2mms[22m[39m
+     [33m[2m✓[22m[39m clears exactly up to the pad edge, not up to the corner rect edge[33m 1581[2mms[22m[39m
+ [32m✓[39m tests/commuteLead.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m tests/compareRuntimes.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m tests/civicPetition.cadence.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 2238[2mms[22m[39m
+   [32m✓[39m civic petitions resolve at the daily cadence only [2m(2)[22m
+     [33m[2m✓[22m[39m an official standing at the hall applies no petition effect per tick[33m 1150[2mms[22m[39m
+     [33m[2m✓[22m[39m the daily town-hall pulse still resolves a petition[33m 1088[2mms[22m[39m
+ [32m✓[39m tests/contextualTutorial.detection.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 596[2mms[22m[39m
+ [32m✓[39m tests/copyAndDayIndex.owners.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m tests/affairExposure.rumour.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 18742[2mms[22m[39m
+   [32m✓[39m affair gossip is a rumour, not an unwitnessed arrest [2m(1)[22m
+     [33m[2m✓[22m[39m exposes the pair as a rumour and never jails or divorces them[33m 1534[2mms[22m[39m
+   [32m✓[39m a jailing raises a card the player cannot miss [2m(3)[22m
+     [33m[2m✓[22m[39m raises exactly one card per jailed offender, and jails someone[33m 10187[2mms[22m[39m
+     [33m[2m✓[22m[39m jails nobody and raises no card while the prison has no guard[33m 4652[2mms[22m[39m
+     [33m[2m✓[22m[39m says why nothing happened when the prison has no guard, and only once[33m 2368[2mms[22m[39m
+ [32m✓[39m tests/courtship.churchRestraint.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 1[2mms[22m[39m

@@ -32,11 +32,12 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 **287 KiB**, and the drawn result at 256 px differs from the original by at most 13.6 levels of 255
 (mean 0.20).
 
-## Shipped files (`public/sprites/`, 218 files)
+## Shipped files (`public/sprites/`, 219 files)
 
 | Path | Loaded by | Origin |
 |---|---|---|
 | `Gate .png` | **no code path** | wall/gate art with no recorded generator — unwired draft |
+| `Ground_soil.png`|`spriteLoader.ts`| Art for stabilish  the ground |
 | `barn.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `barracks.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `blacksmith.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |

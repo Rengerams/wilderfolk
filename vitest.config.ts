@@ -1,58 +1,32 @@
-
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 import { srcAlias } from './config/vite.shared.ts';
 
+const cacheDir = path.resolve(import.meta.dirname, 'node_modules/.cache');
+const storageFile = path.join(cacheDir, 'wilderfolk-vitest-localstorage.json');
+mkdirSync(cacheDir, { recursive: true });
+if (!existsSync(storageFile)) {
+  writeFileSync(storageFile, '{}', 'utf8');
+}
+
 export default defineConfig({
-  cacheDir: 'node_modules/.vite',
-
-  resolve: {
-    alias: {
-      ...srcAlias,
-    },
-  },
-
   test: {
-    // Fast Node environment.
     environment: 'node',
-
-    // Faster worker communication than forked processes.
-    pool: 'threads',
-
-    // Keep CPU and memory usage predictable.
-    maxWorkers: 4,
-
-    // Execute independent test files concurrently.
-    fileParallelism: true,
-
-    // Preserve independent environments per test file.
-    // Important for simulation state and global mocks.
-    isolate: true,
-
-    // Skip CSS processing.
-    css: false,
-
-    // Discover tests only inside the tests directory.
-    dir: 'tests',
-    include: ['**/*.test.ts'],
-
+    isolate: true, // <-- Dit zorgt ervoor dat workers hergebruikt worden
+    include: ['tests/**/*.test.ts'],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/coverage/**',
-      '**/src-tauri/target/**',
-      '**/tmp/**',
     ],
-
-    // Existing browser API / localStorage mocks.
     setupFiles: ['./src/test/setup.ts'],
-
-    // Keep existing test behavior.
+    execArgv: [`--localstorage-file=${storageFile}`],
+    slowTestThreshold: 2000,
     testTimeout: 30_000,
-    slowTestThreshold: 2_000,
-
-    // No typechecking during test runs.
-    typecheck: {
-      enabled: false,
+  },
+  resolve: {
+    alias: {
+      ...srcAlias,
     },
   },
 });

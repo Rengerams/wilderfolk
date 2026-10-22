@@ -46,6 +46,8 @@ or an earlier pass whose origin is not recorded). Five sprite files are **not** 
 |---|---|---|---|---|
 | `sprites/mountain.png` | `as_mountain5x5` mountain peak | [Unknown Horizons](https://www.unknown-horizons.org/) contributors | [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | `natural-resources-mines.zip` (2011), as recorded by the deleted `public/sprites/mountains/CREDITS.txt` |
 | `sprites/new_terrain_tiles/Tiles/ts_mountains/{45,135,225,315}.png` | same `as_mountain5x5` peak, byte-identical copies | same | same | same |
+  `Ground_soil.png`|`spriteLoader.ts`| Art for stabilish  the ground |
+
 
 **Status: shipped but drawn by nothing.** These five files (322.5 KiB) sit in `public/` and are
 therefore copied into every build, yet no code path requests them — the ridge-peak stamp that once
