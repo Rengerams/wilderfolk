@@ -191,6 +191,17 @@ export function commuteDistanceToBuilding(
   return Math.hypot(target.x - entity.x, target.y - entity.y);
 }
 
+/** Commute distance from the actual home standing point to the destination. */
+export function commuteDistanceFromResidence(
+  entity: Entity,
+  residence: Building | undefined,
+  destination: Building,
+): number {
+  const origin = residence ? homeStandPosition(residence, entity.id) : entity;
+  const target = humanBuildingTarget(destination, entity.id, false);
+  return Math.hypot(target.x - origin.x, target.y - origin.y);
+}
+
 /**
  * Generates a stable path key per commute leg so A* is not recalculated on every tile crossed.
  */
