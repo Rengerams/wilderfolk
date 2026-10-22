@@ -161,8 +161,11 @@ export function getSchoolingBlockReason(
   if (!schools.some((b) => b.completed)) return 'School still under construction';
   const staffed = findStaffedSchools(buildings);
   if (staffed.length === 0) return 'School has no teacher assigned';
-  if (!findNearestStaffedSchool(child, staffed, reserved)) return 'Every classroom is full';
-  return null;
+  if (findSchoolForChild(child, buildings, reserved)) return null;
+  if (staffed.every((school) => (reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN)) {
+    return 'Every classroom is full';
+  }
+  return 'No school within two hours of home';
 }
 
 export interface SchoolRosterEntry {
@@ -173,17 +176,7 @@ export interface SchoolRosterEntry {
   inClassNow: Entity[];
 }
 
-/**
- * Which children belong to which school, by exactly the rule the tick uses: the nearest
- * **staffed** school with a free seat, children served in world order, so a school fills
- * to `SCHOOL_MAX_CHILDREN` before the next one takes anyone (`humanTick`'s
- * `schoolReserved` pass).
- *
- * Attendance is deliberately not stored on either side, so this is that same
- * computation exposed for presentation — the school inspector's pupil list. Anything
- * that changes what a child's school *is* must change `findSchoolForChild`, and this
- * follows automatically.
- */
+/** Read the same persisted school seats as the simulation, without changing them. */
 export function buildSchoolRosters(
   buildings: readonly Building[],
   humans: readonly Entity[],
@@ -191,25 +184,29 @@ export function buildSchoolRosters(
   hourOfDay: number,
 ): Map<number, SchoolRosterEntry> {
   const rosters = new Map<number, SchoolRosterEntry>();
-  const staffed = findStaffedSchools(buildings);
-  if (staffed.length === 0) return rosters;
-
+  const schools = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
+  const children = humans.filter((e) =>
+    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+  );
   const reserved = new Map<number, number>();
-  const classHours = isSchoolTime(tick, hourOfDay);
-  for (const child of humans) {
-    if (
-      !child.alive
-      || child.type !== EntityType.Human
-      || !child.isJuvenile
-      || child.age < SCHOOL_MIN_AGE
-      || !isPlayerHuman(child)
-    ) {
-      continue;
-    }
-    const school = findNearestStaffedSchool(child, staffed, reserved);
-    if (!school) continue;
+  const assigned = new Map<number, Building>();
+  for (const child of children) {
+    const school = schools.get(child.schoolBuildingId ?? -1);
+    if (!school || (reserved.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    assigned.set(child.id, school);
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
-
+  }
+  for (const child of children) {
+    if (assigned.has(child.id)) continue;
+    const school = findSchoolForChild(child, buildings, reserved);
+    if (!school) continue;
+    assigned.set(child.id, school);
+    reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
+  }
+  const classHours = isSchoolTime(tick, hourOfDay);
+  for (const child of children) {
+    const school = assigned.get(child.id);
+    if (!school) continue;
     let entry = rosters.get(school.id);
     if (!entry) {
       entry = { schoolId: school.id, pupils: [], inClassNow: [] };
@@ -243,7 +240,7 @@ export function describeSchoolRoster(
     emptyHint: entry.pupils.length > 0
       ? null
       : hasTeacher
-        ? 'No pupils yet — children walk to the nearest staffed school with a free seat.'
+        ? 'No pupils yet — children enroll at an available staffed school.'
         : 'No teacher assigned — children only attend a staffed school.',
     classroomFull: entry.pupils.length >= SCHOOL_MAX_CHILDREN,
   };
@@ -284,35 +281,32 @@ export function summarizeSchooling(
   const children = state.entities.filter(
     (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
   );
-  const staffed = findStaffedSchools(state.buildings);
   const classHours = isSchoolTime(tick, hourOfDay);
+  const rosters = buildSchoolRosters(state.buildings, children, tick, hourOfDay);
+  const enrolledIds = new Set<number>();
   const reserved = new Map<number, number>();
+  let inClassNow = 0;
+  for (const [schoolId, entry] of rosters) {
+    reserved.set(schoolId, entry.pupils.length);
+    for (const child of entry.pupils) enrolledIds.add(child.id);
+    inClassNow += entry.inClassNow.length;
+  }
   const buckets = new Map<string, number>();
-
   let tooYoung = 0;
   let schoolAge = 0;
-  let enrolled = 0;
-  let inClassNow = 0;
   for (const child of children) {
     if (child.age < SCHOOL_MIN_AGE) {
       tooYoung++;
       continue;
     }
     schoolAge++;
-    const seat = findNearestStaffedSchool(child, staffed, reserved);
-    if (seat) {
-      reserved.set(seat.id, (reserved.get(seat.id) ?? 0) + 1);
-      enrolled++;
-      if (classHours && isChildAtSchool(child, seat)) inClassNow++;
-      continue;
-    }
+    if (enrolledIds.has(child.id)) continue;
     const reason = getSchoolingBlockReason(child, state.buildings, reserved);
     if (reason) buckets.set(reason, (buckets.get(reason) ?? 0) + 1);
   }
-
   const outOfSchool = [...buckets].map(([reason, count]) => ({ reason, count }));
   outOfSchool.sort((a, b) => b.count - a.count);
-  return { tooYoung, schoolAge, enrolled, inClassNow, classHours, outOfSchool };
+  return { tooYoung, schoolAge, enrolled: enrolledIds.size, inClassNow, classHours, outOfSchool };
 }
 
 /** Player-facing schooling breakdown — the panel prints these strings verbatim. */
