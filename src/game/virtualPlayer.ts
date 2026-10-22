@@ -19,11 +19,9 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
-import { listAssignableWorkersForBuilding } from './buildingStaffingActions';
 import {
   completedJobBuildings,
   countWorkersAtBuilding,
-  findOverstaffedDonorBuilding,
   isManualStaffingBuilding,
 } from './workforce';
 import { readSkill } from './skills';
@@ -415,26 +413,6 @@ function decideLeaderHouse(state: WorldState): VirtualPlayerDecision | null {
   };
 }
 
-/** 3 — an idle adult plus a completed, auto-staffable workplace with a free slot. */
-function decideStaffing(state: WorldState): VirtualPlayerDecision | null {
-  // The labour counters' owner, not a second scan: a prisoner is not idle here and a settler on a
-  // construction crew counts as working, which is the rule the HUD and the People screen state
-  const idleAdults = computeVillageStats(state).idle;
-  if (idleAdults === 0) return null;
-
-  for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival') continue;
-    if (isManualStaffingBuilding(building)) continue;
-    if (listAssignableWorkersForBuilding(state, building.id).length === 0) continue;
-    return {
-      command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
-      reason: `staff the open slots at ${BUILDING_CONFIGS[building.type].label} — ${idleAdults} idle settler${idleAdults === 1 ? '' : 's'}`,
-    };
-  }
-
-  return null;
-}
-
 function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   const homeless = countHomelessSettlers(state);
   const openBeds = getOpenPlayerBeds(state);
@@ -611,23 +589,6 @@ const INDUSTRY_BUILD_ORDER: readonly {
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
 
-/**
- * Whether the staffing owner would really put a hand on a producer nobody works: an idle settler
- * who can take the post, or an over-crewed workplace the auto-staff command rebalances out of.
- * Both are the owner's own doors, so a proposal here is never the no-op the staffing step warns of.
- */
-function canStaffUnmannedProducer(state: WorldState, building: Building): boolean {
-  // Manual is a deliberate player choice: never propose auto-staff for this building.
-  if (isManualStaffingBuilding(building)) return false;
-  if (listAssignableWorkersForBuilding(state, building.id).length > 0) return true;
-  return findOverstaffedDonorBuilding(
-    completedJobBuildings(state.buildings),
-    state.entities,
-    building.id,
-  ) !== undefined;
-}
-
-
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
@@ -646,15 +607,6 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
       (building) => building.type === entry.type && building.faction !== 'rival',
     );
     if (owned.length > 0) {
-      const unmanned = owned.find(
-        (building) => building.completed && !isManualStaffingBuilding(building) && countWorkersAtBuilding(state.entities, building.id) === 0,
-      );
-      if (unmanned && canStaffUnmannedProducer(state, unmanned)) {
-        return {
-          command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
-          reason: `staff the ${BUILDING_CONFIGS[unmanned.type].label} — nobody works it, so no ${entry.stock} is made`,
-        };
-      }
       // A wanted extra copy falls through to the build; a stand-in for an existing producer does not.
       if (!scaling) continue;
     }
@@ -1723,7 +1675,6 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
   return (
     answerOpenCard(state)
     ?? decideLeaderHouse(state)
-    ?? decideStaffing(state)
     ?? decideHousing(state)
     ?? decideFood(state)
     ?? decideCivic(state)
