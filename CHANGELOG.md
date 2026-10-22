@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Game hours now contain 12 simulation ticks, settlers walk faster, and commute reach uses building centres. Existing 72-tick-day saves retain their calendar dates on load.
+
 - **Changed:**  Immigrant children arrive with 20 credited school days per completed school-age year; 
 - **Changed:** Tier 3 graduates gain +20 to skills andeligible for grandmaster (80+) apprenticeships training place opens.
 = **Changed** Schools hold 20 pupils.
