@@ -10,6 +10,7 @@ import {
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   SCHOOL_MAX_CHILDREN,
+  syncSchoolAssignments,
   findSchoolForChild,
   findStaffedSchools,
   buildSchoolRosters,
@@ -187,9 +188,20 @@ describe('school.capacity.test.ts', () => {
 
     it('a second school still takes overflow children', () => {
       const { child, school } = schoolFixture();
-      const school2: Building = { ...school, id: 8001, x: 400, y: 100 };
+      const school2: Building = { ...school, id: 8001, x: 190, y: 100 };
       const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN]]);
       expect(findSchoolForChild(child, [school, school2], reserved)?.id).toBe(8001);
+    });
+
+    it('keeps a school assignment until a meaningfully better school is available', () => {
+      const { child, school } = schoolFixture();
+      const farther = { ...school, id: 8004, x: 190, y: 100 };
+      child.schoolBuildingId = farther.id;
+      const keep = syncSchoolAssignments([child], [school, farther], false, 6.4);
+      expect(keep.get(child.id)?.id).toBe(farther.id);
+      const review = syncSchoolAssignments([child], [school, farther], true, 6.4);
+      expect(review.get(child.id)?.id).toBe(school.id);
+      expect(child.schoolBuildingId).toBe(school.id);
     });
 
     it('staffed schools are the only ones children consider', () => {
@@ -363,8 +375,8 @@ describe('school.roster.test.ts', () => {
   describe('school rosters', () => {
     it('fills one school to capacity and sends the overflow to the next staffed school', () => {
       const near = school(8000, 100, 100);
-      const far = school(8001, 500, 100);
-      const children = Array.from({ length: 12 }, (_, index) => child(9000 + index, 110, 100));
+      const far = school(8001, 200, 100);
+      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([near, far], children, tick, 10);
@@ -374,16 +386,16 @@ describe('school.roster.test.ts', () => {
       expect(nearPupils).toHaveLength(SCHOOL_MAX_CHILDREN);
       expect(farPupils).toHaveLength(2);
       // World order, first come first served.
-      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, 10).map((c) => c.id));
-      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(10).map((c) => c.id));
+      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, SCHOOL_MAX_CHILDREN).map((c) => c.id));
+      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(SCHOOL_MAX_CHILDREN).map((c) => c.id));
       // Nobody is counted twice, and nobody is lost.
       const all = [...nearPupils, ...farPupils].map((pupil) => pupil.id);
-      expect(new Set(all).size).toBe(12);
+      expect(new Set(all).size).toBe(children.length);
     });
 
-    it('enrols no more than ten children when one school is the only one', () => {
+    it('enrols no more than the school capacity when one school is the only one', () => {
       const only = school(8000, 100, 100);
-      const children = Array.from({ length: 12 }, (_, index) => child(9000 + index, 110, 100));
+      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([only], children, tick, 10);
@@ -424,7 +436,7 @@ describe('school.roster.test.ts', () => {
     it('marks a pupil "in class" only inside the classroom during class hours', () => {
       const staffed = school(8000, 100, 100);
       const inside = child(9000, staffed.x, staffed.y); // building coordinates are its centre
-      const outside = child(9001, 600, 700);
+      const outside = child(9001, 600, 700, { schoolBuildingId: staffed.id });
       const tick = classTick();
 
       const during = getSchoolRoster(staffed, [staffed], [inside, outside], tick, 10);

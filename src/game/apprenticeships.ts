@@ -4,7 +4,7 @@ import { ensureEntitySkills, readSkill } from './skills';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { SCHOOL_GRADUATION_DAYS } from './education';
+import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
 
 /**
  * Apprenticeships (Phase 7) — a skilled master (skill ≥ 40) working a production
@@ -13,6 +13,7 @@ import { SCHOOL_GRADUATION_DAYS } from './education';
  */
 
 const MASTER_SKILL = 40;
+const GRANDMASTER_SKILL = 80;
 const GRADUATE_SKILL = 50;
 
 const PRODUCTION_TYPES = new Set<BuildingType>([
@@ -62,9 +63,15 @@ export function advanceApprenticeships(
   const claimed = new Set<number>(people.filter((p) => p.apprenticeOfId != null).map((p) => p.id));
   // An apprenticeship is optional, not a guaranteed next step after school.
   // The stable id-based selection prevents repeatedly offering every eligible adult a place.
+  const scholars = people.filter((p) => !p.isJuvenile && p.age >= HUMAN_ADULT_MIN_AGE
+    && p.educated && getEducationTier(p.schoolDays ?? 0) === 3
+    && !p.grandmasterApprenticeshipCompleted && !claimed.has(p.id));
+  // Scholars keep their place in the waiting pool even after age 24.
+  scholars.sort((a, b) => b.age - a.age || a.id - b.id);
   const candidates = people.filter((p) => !p.isJuvenile
     && p.age >= HUMAN_ADULT_MIN_AGE && p.age <= HUMAN_ADULT_MIN_AGE + 6
     && (p.schoolDays ?? 0) >= SCHOOL_GRADUATION_DAYS
+    && getEducationTier(p.schoolDays ?? 0) < 3
     && (p.id * 37 + 17) % 4 === 0 && !claimed.has(p.id));
 
   for (const b of state.buildings) {
@@ -72,36 +79,41 @@ export function advanceApprenticeships(
     const job = BUILDING_JOB_TYPES[b.type];
     if (!job || !PRODUCTION_TYPES.has(b.type)) continue;
 
-    const master = (b.occupants ?? [])
+    const masters = (b.occupants ?? [])
       .map((id) => byId.get(id))
-      .find((e): e is Entity => !!e && !e.isJuvenile && readSkill(e, job) >= MASTER_SKILL);
-    if (!master) continue;
+      .filter((e): e is Entity => !!e && !e.isJuvenile && readSkill(e, job) >= MASTER_SKILL);
 
-    const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
-    if (currentApprentice && currentApprentice.alive) {
-      teach(currentApprentice, master, job, state);
-      continue;
-    }
-    master.apprenticeId = undefined;
-
-    // Claim the nearest still-unclaimed free juvenile.
-    const bx = b.x + b.width / 2;
-    const by = b.y + b.height / 2;
-    let best: Entity | null = null;
-    let bestD = Infinity;
-    for (const j of candidates) {
-      if (claimed.has(j.id)) continue; // a master elsewhere already claimed them this pass
-      const d = Math.hypot(j.x - bx, j.y - by);
-      if (d < bestD) {
-        bestD = d;
-        best = j;
+    for (const master of masters) {
+      const currentApprentice = master.apprenticeId != null ? byId.get(master.apprenticeId) : undefined;
+      if (currentApprentice && currentApprentice.alive) {
+        teach(currentApprentice, master, job, state);
+        continue;
       }
-    }
-    if (best) {
-      master.apprenticeId = best.id;
-      best.apprenticeOfId = master.id;
-      claimed.add(best.id);
-      logEvent(state, 'event', `${best.name ?? 'A young settler'} began an apprenticeship under ${master.name ?? 'a master'}`);
+      master.apprenticeId = undefined;
+
+      const grandmaster = readSkill(master, job) >= GRANDMASTER_SKILL;
+      // Grandmasters reserve free slots for the oldest waiting Tier 3 scholars.
+      const scholar = grandmaster ? scholars.find((p) => !claimed.has(p.id)) : undefined;
+      const bx = b.x + b.width / 2;
+      const by = b.y + b.height / 2;
+      let best: Entity | null = scholar ?? null;
+      let bestD = Infinity;
+      if (!best) {
+        for (const j of candidates) {
+          if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
+          const d = Math.hypot(j.x - bx, j.y - by);
+          if (d < bestD) {
+            bestD = d;
+            best = j;
+          }
+        }
+      }
+      if (best) {
+        master.apprenticeId = best.id;
+        best.apprenticeOfId = master.id;
+        claimed.add(best.id);
+        logEvent(state, 'event', `${best.name ?? 'A young settler'} began an apprenticeship under ${master.name ?? 'a master'}`);
+      }
     }
   }
 }
@@ -113,7 +125,10 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   skills[job] = Math.min(100, before + 0.4 + (masterSkill / 100) * 0.5);
   // A teacher keeps their own hand in.
   ensureEntitySkills(master)[job] = Math.min(100, masterSkill + 0.05);
-  if (before < GRADUATE_SKILL && skills[job] >= GRADUATE_SKILL) {
+  if (skills[job] >= GRADUATE_SKILL) {
+    if (masterSkill >= GRANDMASTER_SKILL && getEducationTier(ap.schoolDays ?? 0) === 3) {
+      ap.grandmasterApprenticeshipCompleted = true;
+    }
     ap.apprenticeOfId = undefined;
     master.apprenticeId = undefined;
     logEvent(state, 'milestone', `${ap.name ?? 'A young settler'} finished their apprenticeship under ${master.name ?? 'a master'} and joined the trade`);

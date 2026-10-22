@@ -141,6 +141,9 @@ export function humanBuildingTarget(
   if (arrivingHome) {
     return homeStandPosition(building, entityId);
   }
+  if (building.type === BuildingType.School && !building.occupants.includes(entityId)) {
+    return walkableStandPoint(building.x, building.y);
+  }
   /**
    * A real slot per worker, in a row across the building's front.
    *
@@ -186,6 +189,17 @@ export function commuteDistanceToBuilding(
 ): number {
   const target = humanBuildingTarget(building, entity.id, arrivingHome);
   return Math.hypot(target.x - entity.x, target.y - entity.y);
+}
+
+/** Commute distance from the actual home standing point to the destination. */
+export function commuteDistanceFromResidence(
+  entity: Entity,
+  residence: Building | undefined,
+  destination: Building,
+): number {
+  const origin = residence ? homeStandPosition(residence, entity.id) : entity;
+  const target = humanBuildingTarget(destination, entity.id, false);
+  return Math.hypot(target.x - origin.x, target.y - origin.y);
 }
 
 /**
@@ -344,7 +358,8 @@ export function commuteHumanToBuilding(
   if (handled === 'path') return false;
   if (handled === 'arrived') return true;
 
-  if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST) {
+  if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
+    || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
     entity.vx = (dx / dist) * step;
     entity.vy = (dy / dist) * step;

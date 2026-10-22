@@ -1,5 +1,5 @@
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { WORK_COMMUTE_RUSH } from './commuteReach';
+import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
@@ -50,8 +50,10 @@ import { isEntityOnBuilding } from './buildingRotation';
 import {
   applyEducationGraduation,
   creditChildSchoolDay,
-  findSchoolForChild,
+  syncSchoolAssignments,
   recordChildSchoolTick,
+  isSchoolTime,
+  SCHOOL_START_HOUR,
 } from './education';
 import {
   getPlayerCampCenterFromBuildings,
@@ -92,7 +94,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
@@ -339,7 +341,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const ambientChatNeighbors = (self: Entity): Entity[] =>
     simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
-  const schoolReserved = new Map<number, number>();
+  const schoolAssignments = syncSchoolAssignments(allHumans, updatedBuildings, isNewCalendarDay, config.speed);
 
   // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
   // looking, so the first barracks watch on shift builds the index and the rest reuse it.
@@ -481,15 +483,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
 
-    const schoolTarget =
-      entity.isJuvenile
-      && entity.age >= SCHOOL_MIN_AGE
-      && isPlayerHuman(entity)
-        ? findSchoolForChild(entity, updatedBuildings, schoolReserved)
-        : undefined;
+    const schoolTarget = schoolAssignments.get(entity.id);
 
     if (schoolTarget) {
-      schoolReserved.set(schoolTarget.id, (schoolReserved.get(schoolTarget.id) ?? 0) + 1);
       // Schoolyard rumours and new bonds require an awake child at school hours.
       // Run once per day at noon, not at midnight while the children sleep.
       if (
@@ -521,7 +517,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.id,
       commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed),
     ));
-    const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
+    const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
+    const schoolResidence = entity.residenceBuildingId == null
+      ? undefined : buildingById.get(entity.residenceBuildingId);
+    const schoolLeadHours = schoolTarget
+      ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(commuteLeadHoursFor(
+        commuteDistanceFromResidence(entity, schoolResidence, schoolTarget),
+        config.speed,
+      )))
+      : 0;
+    const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
+      && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
     const onDayJobShift =
       (goWorkTime &&
         !isInnkeeper &&
@@ -585,7 +591,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
       state.festival?.active,
-      onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue,
+      onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue,
       isInnkeeper,
     );
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
@@ -595,6 +601,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isPrisoner &&
       (inFocus ||
         hospitalCommuteDue ||
+        schoolCommuteDue || onSchoolShift ||
         prisonCommuteDue ||
         entity.pregnant ||
         hasAffairPartner(entity, entityById) ||
@@ -639,8 +646,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Asleep at home or in a hotel bed: keep the mouth shut, so no speech bubble sits over somebody
     // in bed. A scripted dialogue session is left alone — the dialogue tree owns it.
     const asleepAtHome =
-      isAsleepAtHome(entity, buildingById, hourOfDay, onJobShift || onOfficialShift || onPriestShift)
-      || (!onJobShift && !onOfficialShift && !onPriestShift && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay));
+      isAsleepAtHome(entity, buildingById, hourOfDay, onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue)
+      || (!onJobShift && !onOfficialShift && !onPriestShift && !schoolCommuteDue && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay));
     tickHumanChat(entity, resolveChatPartner);
     if (asleepAtHome) endAmbientHumanChat(entity);
 
@@ -747,7 +754,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Seven full hours of actual sleep restore one entire energy bar.
     // Sleeping fewer hours restores proportionally less; an awake settler
     // (including someone who sneaks out) earns no sleep recovery that tick.
-    const onDuty = onJobShift || onOfficialShift || onPriestShift;
+    const onDuty = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
     const sleepingHere = !onDuty && (
       isAsleepAtHome(entity, buildingById, hourOfDay, onDuty)
       || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
@@ -783,12 +790,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !onMoonPriestShift &&
       prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay);
 
-    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !stayIn);
+    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn);
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      !hospitalCommuteDue && !prisonCommuteDue && (
+      !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
@@ -888,7 +895,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
-    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && stayIn && hasResidenceAssignment(entity)) {
+    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
         commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH);
@@ -939,7 +946,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       }
-    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && onSchoolShift && !isInnkeeper && schoolTarget) {
+    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;

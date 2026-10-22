@@ -1,6 +1,7 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
-import { WORK_HOURS_PER_DAY, TICKS_PER_HOUR, isOnWorkShift, isWorkHour } from './dayCycle';
+import { TICKS_PER_HOUR } from './dayCycle';
+import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { ensureEntitySkills } from './skills';
@@ -8,25 +9,37 @@ import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
+import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
+import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 
 /** School days before faster maturation kicks in. */
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
 /** School days for basic graduation perks. */
-export const SCHOOL_GRADUATION_DAYS = 15;
+export const SCHOOL_GRADUATION_DAYS = 120;
+/** School days for the intermediate education tier. */
+export const SCHOOL_EDUCATED_DAYS = 135;
 /** School days for full education tier. */
-export const SCHOOL_FULL_EDUCATION_DAYS = 45;
+export const SCHOOL_FULL_EDUCATION_DAYS = 150;
+
+/** Credit school years completed before a child immigrated: 20 days per year after age 6. */
+export function immigrantSchoolDaysForAge(age: number): number {
+  return Math.max(0, Math.min(HUMAN_ADULT_MIN_AGE - SCHOOL_MIN_AGE, Math.floor(age) - SCHOOL_MIN_AGE)) * 20;
+}
 
 /** Max children who can attend one school at once — a classroom holds a classroom. */
-export const SCHOOL_MAX_CHILDREN = 10;
+export const SCHOOL_MAX_CHILDREN = 20;
 
-/**
- * In-game school hours a child must attend to be credited one full school day — half a work day.
- * `schoolTicksToday` counts **ticks**, so the hour threshold must be converted before comparing:
- * it was compared against that tick counter directly, which credited a full school day after
- * ~1.7 in-game hours and made `schoolDays` accrue ~3.3× too fast
- * (`BUG_REPORTS/2026-09-16-school-day-credited-from-a-tick-counter.md`).
- */
-export const SCHOOL_DAY_MIN_HOURS = WORK_HOURS_PER_DAY * 0.5;
+export const SCHOOL_START_HOUR = 9;
+export const SCHOOL_END_HOUR = 15;
+export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
+
+export function isSchoolTime(tick: number, hourOfDay: number): boolean {
+  return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
+}
+
+/** Attend at least half of the six-hour classroom day to earn one school day. */
+export const SCHOOL_DAY_MIN_HOURS = SCHOOL_HOURS_PER_DAY * 0.5;
 /** The same threshold expressed in ticks — the unit `schoolTicksToday` is actually counted in. */
 export const SCHOOL_DAY_MIN_TICKS = Math.floor(SCHOOL_DAY_MIN_HOURS * TICKS_PER_HOUR);
 
@@ -64,16 +77,74 @@ export function findNearestStaffedSchool(
 
 export function findSchoolForChild(
   child: Entity,
-  buildings: Building[],
+  buildings: readonly Building[],
   reserved?: ReadonlyMap<number, number>,
+  reviewTransfer = false,
+  walkSpeed = SPECIES_CONFIG[EntityType.Human].speed,
 ): Building | undefined {
-  return findNearestStaffedSchool(child, findStaffedSchools(buildings), reserved);
+  const schools = findStaffedSchools(buildings);
+  const home = buildings.find((b) => b.id === child.residenceBuildingId);
+  const current = schools.find((b) => b.id === child.schoolBuildingId);
+  if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < SCHOOL_MAX_CHILDREN) return current;
+
+  let best: Building | undefined;
+  let bestDistance = Infinity;
+  for (const school of schools) {
+    if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    const distance = commuteDistanceFromResidence(child, home, school);
+    if (commuteLeadHoursFor(distance, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (distance < bestDistance) {
+      best = school;
+      bestDistance = distance;
+    }
+  }
+  if (!current || !best || current.id === best.id) return best;
+  const distance = commuteDistanceFromResidence(child, home, current);
+  if (distance - bestDistance < 12 || bestDistance > distance * 0.75) return current;
+  return best;
+}
+
+/** Keep existing seats first; review closer schools on a new day. */
+export function syncSchoolAssignments(
+  humans: readonly Entity[],
+  buildings: readonly Building[],
+  reviewTransfers: boolean,
+  walkSpeed: number,
+): Map<number, Building> {
+  const assignments = new Map<number, Building>();
+  const staffed = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
+  const reserved = new Map<number, number>();
+  const children = humans.filter((e) =>
+    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+  );
+  for (const child of children) {
+    const current = staffed.get(child.schoolBuildingId ?? -1);
+    if (!current || (reserved.get(current.id) ?? 0) >= SCHOOL_MAX_CHILDREN) {
+      child.schoolBuildingId = undefined;
+      continue;
+    }
+    assignments.set(child.id, current);
+    reserved.set(current.id, (reserved.get(current.id) ?? 0) + 1);
+  }
+  for (const child of children) {
+    const current = assignments.get(child.id);
+    if (current && !reviewTransfers) continue;
+    if (current) reserved.set(current.id, (reserved.get(current.id) ?? 1) - 1);
+    const selected = findSchoolForChild(child, buildings, reserved, reviewTransfers, walkSpeed);
+    if (selected) {
+      assignments.set(child.id, selected);
+      reserved.set(selected.id, (reserved.get(selected.id) ?? 0) + 1);
+    } else {
+      assignments.delete(child.id);
+    }
+    child.schoolBuildingId = selected?.id;
+  }
+  return assignments;
 }
 
 export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
-  const cx = school.x;
-  const cy = school.y;
-  return Math.hypot(child.x - cx, child.y - cy) <= maxDist;
+  const target = humanBuildingTarget(school, child.id, false);
+  return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
 }
 
 /**
@@ -92,8 +163,11 @@ export function getSchoolingBlockReason(
   if (!schools.some((b) => b.completed)) return 'School still under construction';
   const staffed = findStaffedSchools(buildings);
   if (staffed.length === 0) return 'School has no teacher assigned';
-  if (!findNearestStaffedSchool(child, staffed, reserved)) return 'Every classroom is full';
-  return null;
+  if (findSchoolForChild(child, buildings, reserved)) return null;
+  if (staffed.every((school) => (reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN)) {
+    return 'Every classroom is full';
+  }
+  return 'No school within two hours of home';
 }
 
 export interface SchoolRosterEntry {
@@ -104,17 +178,7 @@ export interface SchoolRosterEntry {
   inClassNow: Entity[];
 }
 
-/**
- * Which children belong to which school, by exactly the rule the tick uses: the nearest
- * **staffed** school with a free seat, children served in world order, so a school fills
- * to `SCHOOL_MAX_CHILDREN` before the next one takes anyone (`humanTick`'s
- * `schoolReserved` pass).
- *
- * Attendance is deliberately not stored on either side, so this is that same
- * computation exposed for presentation — the school inspector's pupil list. Anything
- * that changes what a child's school *is* must change `findSchoolForChild`, and this
- * follows automatically.
- */
+/** Read the same persisted school seats as the simulation, without changing them. */
 export function buildSchoolRosters(
   buildings: readonly Building[],
   humans: readonly Entity[],
@@ -122,25 +186,29 @@ export function buildSchoolRosters(
   hourOfDay: number,
 ): Map<number, SchoolRosterEntry> {
   const rosters = new Map<number, SchoolRosterEntry>();
-  const staffed = findStaffedSchools(buildings);
-  if (staffed.length === 0) return rosters;
-
+  const schools = new Map(findStaffedSchools(buildings).map((school) => [school.id, school]));
+  const children = humans.filter((e) =>
+    e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
+  );
   const reserved = new Map<number, number>();
-  const classHours = isOnWorkShift(tick, hourOfDay);
-  for (const child of humans) {
-    if (
-      !child.alive
-      || child.type !== EntityType.Human
-      || !child.isJuvenile
-      || child.age < SCHOOL_MIN_AGE
-      || !isPlayerHuman(child)
-    ) {
-      continue;
-    }
-    const school = findNearestStaffedSchool(child, staffed, reserved);
-    if (!school) continue;
+  const assigned = new Map<number, Building>();
+  for (const child of children) {
+    const school = schools.get(child.schoolBuildingId ?? -1);
+    if (!school || (reserved.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    assigned.set(child.id, school);
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
-
+  }
+  for (const child of children) {
+    if (assigned.has(child.id)) continue;
+    const school = findSchoolForChild(child, buildings, reserved);
+    if (!school) continue;
+    assigned.set(child.id, school);
+    reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
+  }
+  const classHours = isSchoolTime(tick, hourOfDay);
+  for (const child of children) {
+    const school = assigned.get(child.id);
+    if (!school) continue;
     let entry = rosters.get(school.id);
     if (!entry) {
       entry = { schoolId: school.id, pupils: [], inClassNow: [] };
@@ -174,7 +242,7 @@ export function describeSchoolRoster(
     emptyHint: entry.pupils.length > 0
       ? null
       : hasTeacher
-        ? 'No pupils yet — children walk to the nearest staffed school with a free seat.'
+        ? 'No pupils yet — children enroll at an available staffed school.'
         : 'No teacher assigned — children only attend a staffed school.',
     classroomFull: entry.pupils.length >= SCHOOL_MAX_CHILDREN,
   };
@@ -215,35 +283,32 @@ export function summarizeSchooling(
   const children = state.entities.filter(
     (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
   );
-  const staffed = findStaffedSchools(state.buildings);
-  const classHours = isOnWorkShift(tick, hourOfDay);
+  const classHours = isSchoolTime(tick, hourOfDay);
+  const rosters = buildSchoolRosters(state.buildings, children, tick, hourOfDay);
+  const enrolledIds = new Set<number>();
   const reserved = new Map<number, number>();
+  let inClassNow = 0;
+  for (const [schoolId, entry] of rosters) {
+    reserved.set(schoolId, entry.pupils.length);
+    for (const child of entry.pupils) enrolledIds.add(child.id);
+    inClassNow += entry.inClassNow.length;
+  }
   const buckets = new Map<string, number>();
-
   let tooYoung = 0;
   let schoolAge = 0;
-  let enrolled = 0;
-  let inClassNow = 0;
   for (const child of children) {
     if (child.age < SCHOOL_MIN_AGE) {
       tooYoung++;
       continue;
     }
     schoolAge++;
-    const seat = findNearestStaffedSchool(child, staffed, reserved);
-    if (seat) {
-      reserved.set(seat.id, (reserved.get(seat.id) ?? 0) + 1);
-      enrolled++;
-      if (classHours && isChildAtSchool(child, seat)) inClassNow++;
-      continue;
-    }
+    if (enrolledIds.has(child.id)) continue;
     const reason = getSchoolingBlockReason(child, state.buildings, reserved);
     if (reason) buckets.set(reason, (buckets.get(reason) ?? 0) + 1);
   }
-
   const outOfSchool = [...buckets].map(([reason, count]) => ({ reason, count }));
   outOfSchool.sort((a, b) => b.count - a.count);
-  return { tooYoung, schoolAge, enrolled, inClassNow, classHours, outOfSchool };
+  return { tooYoung, schoolAge, enrolled: enrolledIds.size, inClassNow, classHours, outOfSchool };
 }
 
 /** Player-facing schooling breakdown — the panel prints these strings verbatim. */
@@ -258,7 +323,7 @@ export function describeSchoolingSummary(
     notes.push(`${summary.tooYoung} younger than ${SCHOOL_MIN_AGE} — not school age yet.`);
   }
   if (summary.schoolAge > 0 && !summary.classHours) {
-    notes.push('Outside school hours — classes run on weekday work hours only.');
+    notes.push('Outside school hours — classes run weekdays from 09:00 to 15:00.');
   } else if (summary.classHours && summary.enrolled > summary.inClassNow) {
     notes.push(`${summary.enrolled - summary.inClassNow} enrolled children not in class right now — still walking or busy.`);
   }
@@ -300,17 +365,17 @@ export function recordChildSchoolTick(
   hourOfDay: number,
   tick?: number,
 ): void {
-  // No school on weekends; weekday work hours only.
+  // Attendance counts only during the weekday 09:00–15:00 school shift.
   const inSchoolHours = tick != null
-    ? isOnWorkShift(tick, hourOfDay)
-    : isWorkHour(hourOfDay);
+    ? isSchoolTime(tick, hourOfDay)
+    : hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
   if (!school || !inSchoolHours || !isChildAtSchool(child, school)) return;
   child.schoolTicksToday = (child.schoolTicksToday ?? 0) + 1;
 }
 
 export function getEducationTier(schoolDays: number): 0 | 1 | 2 | 3 {
   if (schoolDays < SCHOOL_GRADUATION_DAYS) return 0;
-  if (schoolDays < 30) return 1;
+  if (schoolDays < SCHOOL_EDUCATED_DAYS) return 1;
   if (schoolDays < SCHOOL_FULL_EDUCATION_DAYS) return 2;
   return 3;
 }
@@ -337,7 +402,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   if (entity.educated) return;
 
   entity.educated = true;
-  const skillBonus = tier === 3 ? 12 : tier === 2 ? 8 : 5;
+  const skillBonus = tier === 3 ? 20 : tier === 2 ? 8 : 5;
   const energyBonus = tier === 3 ? 10 : tier === 2 ? 6 : 4;
   const skills = ensureEntitySkills(entity);
   for (const job of Object.values(JobType)) {
@@ -349,7 +414,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   const label = formatCitizenName(entity);
   const detail =
     tier === 3
-      ? `${label} finished school with honors — skilled worker & +research`
+      ? `${label} graduated with honors — eligible for grandmaster apprenticeship`
       : tier === 2
         ? `${label} graduated — bonus skills & stamina`
         : `${label} finished basic schooling — ready to work`;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import { repairJuvenileAssignmentsOnLoad } from '../src/game/dayCycle';
-import { applyEducationGraduation } from '../src/game/education';
+import { applyEducationGraduation, SCHOOL_GRADUATION_DAYS } from '../src/game/education';
 import { createEntity } from '../src/game/entityFactory';
 
 function human(id: number, age: number, name = 'Settler') {
@@ -81,7 +81,7 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
   it('cannot graduate at 17 even with enough days, but can at 18', () => {
     const state = initGame({ seed: 4242 });
     const pupil = human(90005, 17, 'Pupil');
-    Object.assign(pupil, { schoolDays: 45, skills: {}, maxEnergy: 100, energy: 100, surname: 'Test' });
+    Object.assign(pupil, { schoolDays: SCHOOL_GRADUATION_DAYS, skills: {}, maxEnergy: 100, energy: 100, surname: 'Test' });
     state.entities.push(pupil);
     applyEducationGraduation(state, pupil);
     expect(pupil.educated).not.toBe(true);

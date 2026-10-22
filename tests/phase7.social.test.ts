@@ -8,6 +8,7 @@ import { createEntity } from '../src/game/entityFactory';
 import { EntityType, BuildingType, JobType } from '../src/game/gameTypes';
 import { advanceSocialRelationships, friendshipScore, feudScore, startFeud, friendCount } from '../src/game/relationships';
 import { advanceApprenticeships } from '../src/game/apprenticeships';
+import { SCHOOL_GRADUATION_DAYS, SCHOOL_FULL_EDUCATION_DAYS } from '../src/game/education';
 import { computeDynasties, hasDynasty } from '../src/game/familyLegacy';
 import { advanceValleyChronicle } from '../src/game/valleyChronicle';
 import type { Entity, WorldState } from '../src/game/gameTypes';
@@ -96,6 +97,89 @@ describe('relationship webs — feuds', () => {
 });
 
 describe('apprenticeships', () => {
+  it('guarantees Tier 3 scholars a place under an available grandmaster, even after age 24', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 75 };
+    const scholar = addHuman(w, { id: 2 });
+    scholar.age = 26;
+    scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    scholar.educated = true;
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], level: 1, constructionProgress: 100,
+      completed: true, health: 100, maxHealth: 100,
+      spriteScale: 1, buildAnimTimer: 0, faction: 'player',
+    } as never);
+    advanceApprenticeships(w, w.entities);
+    expect(scholar.apprenticeOfId).toBeUndefined();
+    expect(scholar.grandmasterApprenticeshipCompleted).not.toBe(true);
+
+    master.skills[JobType.Farmer] = 85;
+    advanceApprenticeships(w, w.entities);
+    expect(scholar.apprenticeOfId).toBe(master.id);
+
+    scholar.skills = { [JobType.Farmer]: 49.5 };
+    advanceApprenticeships(w, w.entities);
+    expect(scholar.grandmasterApprenticeshipCompleted).toBe(true);
+    expect(scholar.apprenticeOfId).toBeUndefined();
+    expect(master.apprenticeId).toBeUndefined();
+
+    advanceApprenticeships(w, w.entities);
+    expect(scholar.apprenticeOfId).toBeUndefined();
+  });
+
+  it('gives a Tier 3 scholar priority over an ordinary apprentice', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 90 };
+    const scholar = addHuman(w, { id: 2 });
+    scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    scholar.educated = true;
+    const ordinary = addHuman(w, { id: 3 });
+    ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id], level: 1, constructionProgress: 100,
+      completed: true, health: 100, maxHealth: 100,
+      spriteScale: 1, buildAnimTimer: 0, faction: 'player',
+    } as never);
+    advanceApprenticeships(w, w.entities);
+    expect(master.apprenticeId).toBe(scholar.id);
+    expect(ordinary.apprenticeOfId).toBeUndefined();
+  });
+
+  it('does not let a busy ordinary master block an available grandmaster at the same workplace', () => {
+    const w = makeWorld();
+    w.entities = [];
+    w.buildings = [];
+    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    master.skills = { [JobType.Farmer]: 60 };
+    const grandmaster = addHuman(w, { id: 5, job: JobType.Farmer });
+    grandmaster.skills = { [JobType.Farmer]: 90 };
+    const ordinary = addHuman(w, { id: 3 });
+    ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
+    ordinary.apprenticeOfId = master.id;
+    master.apprenticeId = ordinary.id;
+    const scholar = addHuman(w, { id: 2 });
+    scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
+    scholar.educated = true;
+    w.buildings.push({
+      id: 10, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
+      occupants: [master.id, grandmaster.id], level: 1,
+      constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1,
+      buildAnimTimer: 0, faction: 'player',
+    } as never);
+    advanceApprenticeships(w, w.entities);
+    expect(ordinary.apprenticeOfId).toBe(master.id);
+    expect(scholar.apprenticeOfId).toBe(grandmaster.id);
+  });
+
   it('a master may train a qualified adult after school', () => {
     const w = makeWorld();
     // Isolate this apprenticeship from generated founders and workplaces: they may
@@ -106,7 +190,7 @@ describe('apprenticeships', () => {
     master.skills = { [JobType.Farmer]: 60 };
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
-    kid.schoolDays = 24;
+    kid.schoolDays = SCHOOL_GRADUATION_DAYS;
     w.buildings.push({
       id: 1,
       type: BuildingType.Farm,
@@ -145,7 +229,7 @@ describe('apprenticeships', () => {
     master.skills = { [JobType.Farmer]: 100 };
     const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
-    kid.schoolDays = 24;
+    kid.schoolDays = SCHOOL_GRADUATION_DAYS;
     kid.skills = { [JobType.Farmer]: 49.6 }; // one strong lesson → ≥ 50
     w.buildings.push({
       id: 1,

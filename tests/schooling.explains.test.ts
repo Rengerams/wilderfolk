@@ -114,7 +114,9 @@ describe('the schooling owner explains an empty classroom', () => {
   });
 
   it('separates a child at the classroom from one still walking, only during class hours', () => {
-    const state = village([child(1, 7, 100, 100), child(2, 7, 900, 900)], [school(50, [900])]);
+    const farChild = child(2, 7, 900, 900);
+    farChild.schoolBuildingId = 50;
+    const state = village([child(1, 7, 100, 100), farChild], [school(50, [900])]);
     const summary = summarizeSchooling(state, CLASS_TICK, CLASS_HOUR);
 
     expect(summary.classHours).toBe(isOnWorkShift(CLASS_TICK, CLASS_HOUR));

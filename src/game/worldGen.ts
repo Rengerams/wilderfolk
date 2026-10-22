@@ -34,6 +34,7 @@ import {
 import { loadAutoSavePreference } from './preferences';
 import { INITIAL_CHALLENGES } from './challenges';
 import { Immigration } from './gameConstants';
+import { immigrantSchoolDaysForAge } from './education';
 import { DEFAULT_WORKFORCE_POLICY } from './workforcePolicy';
 import { ensureNamesLoaded, getRandomName, getRandomSurname } from './nameLoader';
 import {
@@ -466,6 +467,7 @@ export function createImmigrantSettler(
       generation: 2,
       relationshipStatus: 'single',
     });
+    youth.schoolDays = immigrantSchoolDaysForAge(youth.age);
     return [youth];
   }
 
@@ -531,6 +533,7 @@ export function createImmigrantSettler(
             motherId: wife.id,
           },
         );
+        child.schoolDays = immigrantSchoolDaysForAge(child.age);
         children.push(child);
         husband.childrenIds = [...(husband.childrenIds ?? []), child.id];
         wife.childrenIds = [...(wife.childrenIds ?? []), child.id];
