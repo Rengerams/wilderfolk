@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
+import { BUILDING_TYPE_CODES } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 
 
@@ -7,8 +8,16 @@ export function isResidenceBuilding(b: Building): boolean {
   return b.completed && isResidenceBuildingType(b.type);
 }
 
+/** The type codes that are homes — filters match on the code, never on the type name. */
+const RESIDENCE_TYPE_CODES: ReadonlySet<number> = new Set<number>([
+  BUILDING_TYPE_CODES[BuildingType.House],
+  BUILDING_TYPE_CODES[BuildingType.Mansion],
+  BUILDING_TYPE_CODES[BuildingType.Villa],
+  BUILDING_TYPE_CODES[BuildingType.LeaderHouse],
+]);
+
 export function isResidenceBuildingType(type: BuildingType): boolean {
-  return type === BuildingType.House || type === BuildingType.Mansion || type === BuildingType.Villa || type === BuildingType.LeaderHouse;
+  return RESIDENCE_TYPE_CODES.has(BUILDING_TYPE_CODES[type]);
 }
 
 export function isLeaderHouseResidence(b: Building): boolean {
