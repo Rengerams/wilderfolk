@@ -14,7 +14,7 @@
 
 - **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
 
-- **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names.
+- **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names. An id so high that no next number exists is refused rather than loaded.
 
 - **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
 
@@ -23,8 +23,6 @@
 - **Fixed:** Legacy rival camp buildings left over from an older save — a house, farm or well that no rival settlement still listed — are removed when that save loads, and the daily rival pulse now retires any of them it finds. They no longer linger on the map as a camp you cannot interact with.
 
 - **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
-
-- **Fixed:** Auto-play now sends a settler to a producer that stands unmanned — naming the building — when only a rebalance can crew it, instead of leaving the hour empty while the store it makes runs dry. An idle settler stays the workforce owner's own assignment.
 
 - **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 

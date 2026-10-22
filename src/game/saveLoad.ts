@@ -862,15 +862,17 @@ function isFiniteWithin(limit: number): (value: unknown) => boolean {
   return (value) => isFiniteNumber(value) && value >= 0 && value <= limit;
 }
 
+/** The highest id an allocator can advance past: one at `Number.MAX_SAFE_INTEGER` leaves no successor. */
+const MAX_USABLE_ID = Number.MAX_SAFE_INTEGER - 1;
+
 /**
- * An id the rest of the engine can actually key on.
+ * An id the rest of the engine can key on, and one a later spawn can be numbered past.
  *
  * `isFiniteNumber` accepted `1.5` and `-4`, so a payload could restore entities the code looks up by
- * integer equality and never finds. Every id in the save is produced by the allocators, which only
- * ever emit non-negative safe integers, so nothing a current build writes is refused by this.
+ * integer equality and never finds; an id at the top of the range would leave the next one unusable.
  */
 function isUsableId(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_USABLE_ID;
 }
 
 /** An id the engine keys on by string equality — every camp, event and route id is a string. */
@@ -1267,20 +1269,20 @@ function floorIdAllocators(world: WorldState): void {
   };
   let highestEntity = 0;
   for (const entity of world.entities ?? []) {
-    if (Number.isSafeInteger(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+    if (isUsableId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
   }
   // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
   for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
-    if (Number.isSafeInteger(person.id) && person.id > highestEntity) highestEntity = person.id;
+    if (isUsableId(person.id) && person.id > highestEntity) highestEntity = person.id;
   }
   let highestBuilding = 0;
   for (const building of world.buildings ?? []) {
-    if (Number.isSafeInteger(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+    if (isUsableId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
   }
   // A rival row names camp structures that left the map, so those ids retire with the row's history.
   for (const rival of world.rivalSettlements ?? []) {
     for (const id of rival.buildingIds ?? []) {
-      if (Number.isSafeInteger(id) && id > highestBuilding) highestBuilding = id;
+      if (isUsableId(id) && id > highestBuilding) highestBuilding = id;
     }
   }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);

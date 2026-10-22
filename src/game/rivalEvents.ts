@@ -39,8 +39,7 @@ function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
 /**
  * Legacy village camp structures, removed in place; returns the ids that left the map.
  *
- * The deleted village-camp producer was the only writer of `faction: 'rival'`, so every such building
- * a world still holds is a camp object — including the ones no rival row lists any more.
+ * The deleted camp producer was the only writer of `faction: 'rival'`, so every such building is one.
  */
 export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
   const retired = new Set<number>();
