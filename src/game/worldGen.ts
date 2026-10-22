@@ -19,7 +19,7 @@ import {
   PATH_CELL,
   emptyEntityByType,
 } from './gameTypes';
-import { generateWorldMap, findCampSite } from './terrainGen';
+import { generateWorldMap } from './terrainGen';
 export { generateWorldMap } from './terrainGen';
 import { tileAt } from './terrain/terrainGrid';
 import {
@@ -748,18 +748,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   spawnWildlifeAtRandomPassable(state, EntityType.Wolf, 4);
 
   // 6. Camp Selection & Founding Pioneers
-  const houseFootprint = BUILDING_CONFIGS[BuildingType.House];
-  const camp = state.worldMap
-    ? findCampSite(
-        state.worldMap,
-        width,
-        height,
-        houseFootprint.width,
-        houseFootprint.height,
-        width / 2,
-        height / 2,
-      )
-    : { x: width / 2, y: height / 2 };
+  // The ground `generateWorldMap` cleared for the camp; the fallback covers a caller-made map.
+  const camp = state.worldMap?.campSite ?? { x: width / 2, y: height / 2 };
 
   const centerX = camp.x;
   const centerY = camp.y;

@@ -136,7 +136,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount`, `canStaffUnmannedProducer` |
 | Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
 | Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
-| Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
+| Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `createInitialViewForWorld`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
 | Building rotation rules | `buildingRotation.ts` | player-command (placement) | `isRotatableBuildingType`, `toggleBuildingRotation` |
 | Sprite metrics and class-ladder variants | `humanSprites.ts` | spawn (variant pick) + render pass | `pickHumanVariant`, `getHumanSpritePath`, `getHumanSpriteMetrics`, `getHumanSelectionBounds` |
 | Terrain atlas bake and tile picks | `terrainAtlas.ts` | render pass (cached; rebuild on readiness) | `terrainAtlasReady`, `pickAtlasTile`, `pickSandWaterOverlay`, `atlasFamily` |

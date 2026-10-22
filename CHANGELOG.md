@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
+
 - **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names.
 
 - **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
