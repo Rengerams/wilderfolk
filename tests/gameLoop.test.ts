@@ -798,23 +798,23 @@ describe('gameLoop.pacingContract.test.ts', () => {
   const HARNESS_COPIES = ['scripts/test.ts', 'scripts/probe-day-budget.mts'];
 
   describe('baseline pacing contract', () => {
-    it('runs one in-game day every 72 real seconds at 1×', () => {
+    it('runs one in-game day every 288 real seconds at 1×', () => {
       expect(BASE_TICKS_PER_SECOND).toBe(1);
-      expect(msPerDay(1)).toBeCloseTo(72_000, 6);
+      expect(msPerDay(1)).toBeCloseTo(288_000, 6);
     });
 
-    it('gives one in-game hour every three real seconds, on a 24 × 3 = 72 tick day', () => {
+    it('gives one in-game hour every twelve real seconds, on a 24 × 12 = 288 tick day', () => {
       expect(TICKS_PER_DAY).toBe(HOURS_PER_DAY * TICKS_PER_HOUR);
-      expect(TICKS_PER_HOUR / BASE_TICKS_PER_SECOND).toBe(3);
+      expect(TICKS_PER_HOUR / BASE_TICKS_PER_SECOND).toBe(12);
     });
 
     it('scales with the speed multipliers', () => {
-      expect(msPerDay(0.5)).toBeCloseTo(144_000, 6);
-      expect(msPerDay(2)).toBeCloseTo(36_000, 6);
-      expect(msPerDay(10)).toBeCloseTo(7_200, 6);
+      expect(msPerDay(0.5)).toBeCloseTo(576_000, 6);
+      expect(msPerDay(2)).toBeCloseTo(144_000, 6);
+      expect(msPerDay(10)).toBeCloseTo(28_800, 6);
     });
 
-    it('advances a little over one in-game hour per four real seconds of the HUD liveness window', () => {
+    it('advances part of an in-game hour per four real seconds of the HUD liveness window', () => {
       // The browser tier compares the HUD clock text across a 4 000 ms window (`scripts/browser-smoke.mjs`),
       // which is how the 24 s/day rate was caught: it advanced four in-game hours in four seconds, and the
       // 48 s/day rate advanced two. At 1 tick/s the same window is four ticks — the clock must move, and
@@ -822,7 +822,7 @@ describe('gameLoop.pacingContract.test.ts', () => {
       const ticksPerWindow = (4000 / 1000) * BASE_TICKS_PER_SECOND;
       expect(ticksPerWindow).toBeCloseTo(4, 9);
       expect(ticksPerWindow).toBeLessThan(TICKS_PER_DAY);
-      expect(ticksPerWindow / TICKS_PER_HOUR).toBeGreaterThan(1);
+      expect(ticksPerWindow / TICKS_PER_HOUR).toBeGreaterThan(0);
     });
 
     it('keeps the harness copies of the rate in sync', () => {
