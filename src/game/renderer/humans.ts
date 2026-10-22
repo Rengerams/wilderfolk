@@ -1,6 +1,6 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
 import { isWorkHour, shouldBeAtHome } from '../dayCycle';
-import { isChildAtSchool, SCHOOL_START_HOUR, SCHOOL_END_HOUR } from '../education';
+import { isChildAtSchool, isSchoolTime } from '../education';
 import {
   buildHumanCombatStatusFlags,
   getHumanStatusCombatIconFromFlags,
@@ -169,6 +169,7 @@ function buildConstructionWorkerIds(buildings: RenderSnapshot['buildings']): Set
 
 interface HumanStatusIconContext {
   hourOfDay: number;
+  classHours: boolean;
   villageLeaderId: number | null;
   constructionWorkerIds: Set<number>;
   combatFlags: HumanCombatStatusFlags;
@@ -189,6 +190,7 @@ function buildHumanStatusIconContext(
   }
   return {
     hourOfDay: state.hourOfDay,
+    classHours: isSchoolTime(state.tick, state.hourOfDay),
     villageLeaderId: state.villageLeaderId,
     constructionWorkerIds: buildConstructionWorkerIds(state.buildings),
     combatFlags: buildHumanCombatStatusFlags(
@@ -203,7 +205,7 @@ function buildHumanStatusIconContext(
 
 function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatusFacts {
   const school = human.isJuvenile ? ctx.childSchoolById.get(human.id) : undefined;
-  const schoolHours = !!school && ctx.hourOfDay >= SCHOOL_START_HOUR && ctx.hourOfDay < SCHOOL_END_HOUR;
+  const schoolHours = !!school && ctx.classHours;
   return {
     isLeader: ctx.villageLeaderId != null && human.id === ctx.villageLeaderId,
     isMoonHowler: !!human.moonHowlerCursed,
