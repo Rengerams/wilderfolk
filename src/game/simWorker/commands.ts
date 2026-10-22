@@ -152,7 +152,7 @@ const WORKER_COMMAND_OPS = [
   'setWorkSchedule',
   'setVenueSchedule',
   'setWorkforcePolicy',
- ] as const satisfies readonly WorkerCommand['op'][];
+] as const satisfies readonly WorkerCommand['op'][];
 const WORKER_COMMAND_OP_SET = new Set<WorkerCommand['op']>(WORKER_COMMAND_OPS);
 
 type MissingOps = Exclude<WorkerCommand['op'], (typeof WORKER_COMMAND_OPS)[number]>;
