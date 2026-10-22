@@ -1,6 +1,7 @@
 import type { WorldState, Entity, Building } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
-import { WORK_HOURS_PER_DAY, TICKS_PER_HOUR, isOnWorkShift, isWorkHour } from './dayCycle';
+import { TICKS_PER_HOUR } from './dayCycle';
+import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { ensureEntitySkills } from './skills';
@@ -19,6 +20,14 @@ export const SCHOOL_FULL_EDUCATION_DAYS = 45;
 /** Max children who can attend one school at once — a classroom holds a classroom. */
 export const SCHOOL_MAX_CHILDREN = 10;
 
+export const SCHOOL_START_HOUR = 9;
+export const SCHOOL_END_HOUR = 15;
+export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
+
+export function isSchoolTime(tick: number, hourOfDay: number): boolean {
+  return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
+}
+
 /**
  * In-game school hours a child must attend to be credited one full school day — half a work day.
  * `schoolTicksToday` counts **ticks**, so the hour threshold must be converted before comparing:
@@ -26,7 +35,7 @@ export const SCHOOL_MAX_CHILDREN = 10;
  * ~1.7 in-game hours and made `schoolDays` accrue ~3.3× too fast
  * (`BUG_REPORTS/2026-09-16-school-day-credited-from-a-tick-counter.md`).
  */
-export const SCHOOL_DAY_MIN_HOURS = WORK_HOURS_PER_DAY * 0.5;
+export const SCHOOL_DAY_MIN_HOURS = SCHOOL_HOURS_PER_DAY * 0.5;
 /** The same threshold expressed in ticks — the unit `schoolTicksToday` is actually counted in. */
 export const SCHOOL_DAY_MIN_TICKS = Math.floor(SCHOOL_DAY_MIN_HOURS * TICKS_PER_HOUR);
 
@@ -126,7 +135,7 @@ export function buildSchoolRosters(
   if (staffed.length === 0) return rosters;
 
   const reserved = new Map<number, number>();
-  const classHours = isOnWorkShift(tick, hourOfDay);
+  const classHours = isSchoolTime(tick, hourOfDay);
   for (const child of humans) {
     if (
       !child.alive
@@ -216,7 +225,7 @@ export function summarizeSchooling(
     (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
   );
   const staffed = findStaffedSchools(state.buildings);
-  const classHours = isOnWorkShift(tick, hourOfDay);
+  const classHours = isSchoolTime(tick, hourOfDay);
   const reserved = new Map<number, number>();
   const buckets = new Map<string, number>();
 
@@ -302,8 +311,8 @@ export function recordChildSchoolTick(
 ): void {
   // No school on weekends; weekday work hours only.
   const inSchoolHours = tick != null
-    ? isOnWorkShift(tick, hourOfDay)
-    : isWorkHour(hourOfDay);
+    ? isSchoolTime(tick, hourOfDay)
+    : hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
   if (!school || !inSchoolHours || !isChildAtSchool(child, school)) return;
   child.schoolTicksToday = (child.schoolTicksToday ?? 0) + 1;
 }
