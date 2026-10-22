@@ -283,6 +283,7 @@ export interface Entity {
   isJuvenile: boolean;
   schoolDays?: number;
   schoolTicksToday?: number;
+  schoolBuildingId?: number;
   scheduleWorkedTicksToday?: number;
  
   scheduleLastWorkedHours?: number;
