@@ -21,7 +21,6 @@ import {
   allowSocialLifeFor,
   isAsleepAtHome,
   isFestivalGatherer,
-  WORK_START,
   prefersHomeTonightFor,
   shouldBeAtHomeFor,
 } from './humanSchedule';
@@ -53,6 +52,8 @@ import {
   creditChildSchoolDay,
   findSchoolForChild,
   recordChildSchoolTick,
+  isSchoolTime,
+  SCHOOL_START_HOUR,
 } from './education';
 import {
   getPlayerCampCenterFromBuildings,
@@ -522,7 +523,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.id,
       commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed),
     ));
-    const onSchoolShift = schoolTarget != null && isOnWorkShift(state.tick, hourOfDay);
+    const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
     const schoolCommuteOrigin = buildingById.get(entity.residenceBuildingId!) ?? entity;
     const schoolLeadHours = schoolTarget
       ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(commuteLeadHoursFor(
@@ -531,7 +532,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       )))
       : 0;
     const schoolCommuteDue = schoolTarget != null && isWorkDay(state.tick)
-      && hourOfDay >= WORK_START - schoolLeadHours && hourOfDay < WORK_START;
+      && hourOfDay >= SCHOOL_START_HOUR - schoolLeadHours && hourOfDay < SCHOOL_START_HOUR;
     const onDayJobShift =
       (goWorkTime &&
         !isInnkeeper &&
