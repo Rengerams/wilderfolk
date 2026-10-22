@@ -7,6 +7,7 @@ import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/g
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, setHumanBirthFromAge } from '../src/game/dayCycle';
+import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
@@ -350,7 +351,7 @@ describe('a priest serving at a completed church', () => {
 });
 
 describe('school arrival before class', () => {
-  it.each([80, 100])('gets a pupil %i pixels away to school before 07:00', (distance) => {
+  it.each([80, 100])('gets a pupil %i pixels away to school before 09:00', (distance) => {
     const pupil = human(1, {
       x: 100, y: 100, age: 10, isJuvenile: true,
       residenceBuildingId: 20,
@@ -359,9 +360,12 @@ describe('school arrival before class', () => {
     const teacher = human(2, { job: JobType.Teacher, homeBuildingId: 10 });
     const home = building(20, BuildingType.House, 100, 100, [1]);
     const school = building(10, BuildingType.School, 100 + distance, 100, [2]);
+    const standing = homeStandPosition(home, pupil.id);
+    pupil.x = standing.x;
+    pupil.y = standing.y;
     const state = worldState([pupil, teacher], [home, school], null);
-    state.tick = 5 * TICKS_PER_HOUR;
-    while (state.tick < 7 * TICKS_PER_HOUR - 1) gameTick(state);
+    state.tick = 7 * TICKS_PER_HOUR;
+    while (state.tick < 9 * TICKS_PER_HOUR - 1) gameTick(state);
     expect(Math.hypot(pupil.x - school.x, pupil.y - school.y)).toBeLessThanOrEqual(28);
     expect(pupil.schoolTicksToday ?? 0).toBe(0);
     gameTick(state);
