@@ -197,7 +197,7 @@ describe('M35 zero-candidate election reveal', () => {
 describe('M37 removeWorkerTransition residence occupancy', () => {
   it('clears workplaces and crews but leaves the residence occupants list intact', () => {
     const settler = human(1, {
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       residenceBuildingId: 10,
       job: JobType.Farmer,
     });
@@ -214,8 +214,8 @@ describe('M37 removeWorkerTransition residence occupancy', () => {
     expect(house.occupants).toEqual([1]);
     expect(farm.occupants).toEqual([]);
     expect(site.occupants).toEqual([]);
-    expect(settler.homeBuildingId).toBeUndefined();
-    expect(builder.homeBuildingId).toBeUndefined();
+    expect(settler.workerBuildingId).toBeUndefined();
+    expect(builder.workerBuildingId).toBeUndefined();
     expect(settler.residenceBuildingId).toBe(10);
     expect(collectSimulationInvariantErrors(state)).toEqual([]);
   });

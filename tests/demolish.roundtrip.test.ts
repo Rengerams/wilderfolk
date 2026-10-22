@@ -157,7 +157,7 @@ describe('demolition round trip', () => {
 
 
   it('removes the building exactly once and cleans the worker assignment', () => {
-    const worker = human(1, { homeBuildingId: 2, job: JobType.Farmer });
+    const worker = human(1, { workerBuildingId: 2, job: JobType.Farmer });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const world = makeWorld([worker], [farm], { totalBuildingsCompleted: 3 });
 
@@ -165,7 +165,7 @@ describe('demolition round trip', () => {
     const survivor = next.entities.find((e) => e.id === 1)!;
 
     expect(next.buildings.some((b) => b.id === 2)).toBe(false);
-    expect(survivor.homeBuildingId).toBeUndefined();
+    expect(survivor.workerBuildingId).toBeUndefined();
     expect(survivor.occupation).toBe('settler');
     expect(survivor.job).toBe(JobType.Settler);
     expect(next.totalBuildingsCompleted).toBe(2); // decremented
@@ -190,7 +190,7 @@ describe('demolition round trip', () => {
   });
 
   it('does not reappear after subsequent sim ticks (no stale state)', () => {
-    const worker = human(1, { homeBuildingId: 2, job: JobType.Farmer, residenceBuildingId: 10 });
+    const worker = human(1, { workerBuildingId: 2, job: JobType.Farmer, residenceBuildingId: 10 });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const house = building(10, BuildingType.House, { occupants: [1] });
     const world = makeWorld([worker], [farm, house], { totalBuildingsCompleted: 1 });
@@ -202,7 +202,7 @@ describe('demolition round trip', () => {
     for (let i = 0; i < 3 * TICKS_PER_DAY; i++) ticked = gameTick(ticked);
 
     expect(ticked.buildings.some((b) => b.id === 2)).toBe(false);
-    expect(ticked.entities.some((e) => e.id === 1 && e.homeBuildingId === 2)).toBe(false);
+    expect(ticked.entities.some((e) => e.id === 1 && e.workerBuildingId === 2)).toBe(false);
     expect(collectSimulationInvariantErrors(ticked)).toEqual([]);
   });
 

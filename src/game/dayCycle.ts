@@ -290,11 +290,11 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
     if (entity.id === world.villageLeaderId) continue;
     if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
-    const workplace = (world.buildings ?? []).find((building) => building.id === entity.homeBuildingId);
+    const workplace = (world.buildings ?? []).find((building) => building.id === entity.workerBuildingId);
     if (workplace) {
       workplace.occupants = workplace.occupants.filter((id) => id !== entity.id);
     }
-    entity.homeBuildingId = undefined;
+    entity.workerBuildingId = undefined;
     entity.job = JobType.Settler;
     entity.occupation = 'settler';
   }

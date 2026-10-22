@@ -110,6 +110,16 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       (entity as unknown as Record<string, unknown>)[key] = value;
     }
   }
+  for (const assignment of [entity, entity.moonHowlerSaved]) {
+    if (!assignment) continue;
+    const legacy = assignment as typeof assignment & { homeBuildingId?: unknown };
+    if (!Object.hasOwn(assignment, 'workerBuildingId')
+      && typeof legacy.homeBuildingId === 'number'
+      && Number.isSafeInteger(legacy.homeBuildingId) && legacy.homeBuildingId >= 0) {
+      assignment.workerBuildingId = legacy.homeBuildingId;
+    }
+    delete legacy.homeBuildingId;
+  }
   ensureEntitySkills(entity);
 }
 
@@ -603,7 +613,7 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
   const buildingsById = new Map((world.buildings ?? []).map((building) => [building.id, building]));
   for (const entity of world.entities ?? []) {
     if (entity.type !== EntityType.Human || entity.job !== JobType.Guard) continue;
-    const workplace = entity.homeBuildingId == null ? undefined : buildingsById.get(entity.homeBuildingId);
+    const workplace = entity.workerBuildingId == null ? undefined : buildingsById.get(entity.workerBuildingId);
     if (workplace?.type === BuildingType.Barracks) {
       entity.job = JobType.Soldier;
       continue;
@@ -747,7 +757,7 @@ export function clearAutoFilledChurches(world: WorldState): number {
   for (const church of churches) {
     for (const occupantId of [...church.occupants]) {
       const human = world.entities.find((e) => e.id === occupantId);
-      if (human && human.alive && human.homeBuildingId === church.id) {
+      if (human && human.alive && human.workerBuildingId === church.id) {
         removeWorkerTransition(human, world.buildings);
       } else {
         church.occupants = church.occupants.filter((id) => id !== occupantId);
@@ -1225,8 +1235,8 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
   }
 
   for (const entity of world.entities ?? []) {
-    if (entity.homeBuildingId != null && !buildingIds.has(entity.homeBuildingId)) {
-      entity.homeBuildingId = undefined;
+    if (entity.workerBuildingId != null && !buildingIds.has(entity.workerBuildingId)) {
+      entity.workerBuildingId = undefined;
     }
     if (entity.residenceBuildingId != null && !buildingIds.has(entity.residenceBuildingId)) {
       entity.residenceBuildingId = undefined;

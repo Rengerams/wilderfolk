@@ -155,9 +155,9 @@ function prisonWorld(): { state: WorldState; prison: Building; nightGuard: Entit
   const house = building(20, BuildingType.House, 40, 40, [1, 2, 3]);
   const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [1, 2, 3, 4]);
   // Crew order decides the shift in week 0: morning, afternoon, night.
-  const morning = human(1, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, residenceBuildingId: 20, x: 60, y: 60 });
-  const afternoon = human(2, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, residenceBuildingId: 20, x: 80, y: 60 });
-  const night = human(3, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, residenceBuildingId: 20, x: 608, y: 71 });
+  const morning = human(1, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, residenceBuildingId: 20, x: 60, y: 60 });
+  const afternoon = human(2, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, residenceBuildingId: 20, x: 80, y: 60 });
+  const night = human(3, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, residenceBuildingId: 20, x: 608, y: 71 });
   const prisoner = human(4, {
     prisonBuildingId: PRISON_ID,
     prisonerUntilTick: 1000,
@@ -178,8 +178,8 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   // must not turn this festival participant into another farm commuter.
   farm.staffingMode = 'manual';
   tavern.staffingMode = 'manual';
-  const farmer = human(1, { job: JobType.Farmer, homeBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
-  const innkeeper = human(2, { job: JobType.Innkeeper, homeBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
+  const farmer = human(1, { job: JobType.Farmer, workerBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
+  const innkeeper = human(2, { job: JobType.Innkeeper, workerBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
   const idler = human(3);
   const state = worldState(
     [farmer, innkeeper, idler],
@@ -219,7 +219,7 @@ describe('a prison is open 24 hours', () => {
     const house = building(20, BuildingType.House, 40, 40, []);
     const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, []);
     const guards = [1, 2, 3, 4].map((id) =>
-      human(id, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, residenceBuildingId: 20, x: 608, y: 71 }),
+      human(id, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, residenceBuildingId: 20, x: 608, y: 71 }),
     );
     const prisoner = human(
       9,
@@ -309,7 +309,7 @@ function churchWorld(): { state: WorldState; priest: Entity } {
   const church = building(30, BuildingType.Church, 200, 60, [1]);
   const priest = human(1, {
     job: JobType.Priest,
-    homeBuildingId: 30,
+    workerBuildingId: 30,
     residenceBuildingId: 20,
     x: 224,
     y: 81,
@@ -357,7 +357,7 @@ describe('school arrival before class', () => {
       residenceBuildingId: 20,
     });
     setHumanBirthFromAge(pupil, 10, 0);
-    const teacher = human(2, { job: JobType.Teacher, homeBuildingId: 10 });
+    const teacher = human(2, { job: JobType.Teacher, workerBuildingId: 10 });
     const home = building(20, BuildingType.House, 100, 100, [1]);
     const school = building(10, BuildingType.School, 100 + distance, 100, [2]);
     const standing = homeStandPosition(home, pupil.id);

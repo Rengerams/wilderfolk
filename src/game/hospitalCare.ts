@@ -52,8 +52,8 @@ export function isDoctorAtHospital(
   entity: Entity,
   buildings: readonly Building[],
 ): Building | undefined {
-  if (entity.job !== JobType.Doctor || entity.homeBuildingId == null) return undefined;
-  const h = buildings.find((b) => b.id === entity.homeBuildingId);
+  if (entity.job !== JobType.Doctor || entity.workerBuildingId == null) return undefined;
+  const h = buildings.find((b) => b.id === entity.workerBuildingId);
   if (!h || h.type !== BuildingType.Hospital || !h.completed) return undefined;
   return h;
 }

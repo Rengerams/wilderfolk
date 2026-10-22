@@ -62,7 +62,7 @@ function tradeOf(e: Entity): Entity['job'] | null {
 
 function sharesContext(a: Entity, b: Entity): boolean {
   if (a.residenceBuildingId != null && a.residenceBuildingId === b.residenceBuildingId) return true;
-  if (a.homeBuildingId != null && a.homeBuildingId === b.homeBuildingId) return true;
+  if (a.workerBuildingId != null && a.workerBuildingId === b.workerBuildingId) return true;
   const trade = tradeOf(a);
   if (trade != null && trade === tradeOf(b)) return true;
   if (a.childhoodFriendsIds?.includes(b.id) || b.childhoodFriendsIds?.includes(a.id)) return true;
@@ -212,7 +212,7 @@ export function advanceSocialRelationships(
   const jobGroups = new Map<string, Entity[]>();
   for (const p of people) {
     if (p.residenceBuildingId != null) pushToGroup(residenceGroups, p.residenceBuildingId, p);
-    if (p.homeBuildingId != null) pushToGroup(workplaceGroups, p.homeBuildingId, p);
+    if (p.workerBuildingId != null) pushToGroup(workplaceGroups, p.workerBuildingId, p);
     const trade = tradeOf(p);
     if (trade != null) pushToGroup(jobGroups, trade, p);
   }

@@ -129,9 +129,9 @@ for (const act of acts) {
 }
 console.log(`ops: ${[...tally.entries()].map(([op, n]) => `${op}×${n}`).join(', ')}`);
 const assignedCount = (w: typeof world): number =>
-  w.entities.filter((e) => e.alive && isPlayerHuman(e) && e.homeBuildingId != null).length;
+  w.entities.filter((e) => e.alive && isPlayerHuman(e) && e.workerBuildingId != null).length;
 const idleAdults = (w: typeof world): number =>
-  w.entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile && e.homeBuildingId == null).length;
+  w.entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile && e.workerBuildingId == null).length;
 console.log(`idle adults: ${idleAdults(world)} · assigned settlers: ${assignedCount(world)}`);
 for (const building of world.buildings) {
   if (!building.completed || building.faction === 'rival') continue;

@@ -166,12 +166,12 @@ export function getHumanActivityProjection(
   })();
 
   let blockedReason: string | null = null;
-  const assignedWorkplace = entity.homeBuildingId == null
+  const assignedWorkplace = entity.workerBuildingId == null
     ? null
-    : state.buildings.find((building) => building.id === entity.homeBuildingId) ?? null;
+    : state.buildings.find((building) => building.id === entity.workerBuildingId) ?? null;
   const isAssignedConstruction = Boolean(workplace && !workplace.completed && workplace.occupants.includes(entity.id));
   if (entity.residenceBuildingId != null && !homeBuilding) blockedReason = 'Assigned home is unavailable';
-  else if (entity.homeBuildingId != null && !assignedWorkplace && !isAssignedConstruction) blockedReason = 'Assigned workplace is unavailable';
+  else if (entity.workerBuildingId != null && !assignedWorkplace && !isAssignedConstruction) blockedReason = 'Assigned workplace is unavailable';
   else if (workplace && !workplace.completed && !isAssignedConstruction) blockedReason = 'Construction site is unavailable';
 
   return {

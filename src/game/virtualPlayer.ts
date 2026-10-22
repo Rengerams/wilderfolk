@@ -293,11 +293,11 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
  * farm produces nothing. That is the owner's report *"there is no food"* next to a healthy status.
  *
  * It is the same assignment-versus-reality distinction as `countWorkersAtBuilding` (which counts
- * `homeBuildingId`, an assignment, not attendance) and as the daily-production fix.
+ * `workerBuildingId`, an assignment, not attendance) and as the daily-production fix.
  *
  * **Why it is not fixed here.** Narrowing the predicate to "completed AND staffed" was tried and
  * measured: it broke **22 of the 68** cases in `tests/virtualPlayer.test.ts`, because those fixtures
- * give a food producer `occupants` but never set `homeBuildingId`, so `countWorkersAtBuilding`
+ * give a food producer `occupants` but never set `workerBuildingId`, so `countWorkersAtBuilding`
  * reports 0 for a farm the fixture considers staffed. Fixing this properly therefore means deciding
  * the basis (assignment vs. presence) *and* migrating the fixtures to model it — a deliberate change,
  * not a drive-by. The guard was also tried without the predicate change and broke 1 case by letting
@@ -1026,7 +1026,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
 
     const crew = humans.filter(
-      (human) => human.alive && !human.isJuvenile && human.homeBuildingId === building.id,
+      (human) => human.alive && !human.isJuvenile && human.workerBuildingId === building.id,
     );
     if (crew.length <= cap) continue;
 

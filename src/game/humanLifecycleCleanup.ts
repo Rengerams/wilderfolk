@@ -58,7 +58,7 @@ export function finalizeHumanDeath(
     : undefined;
 
   removeHumanFromBuildingOccupants(entity, buildings);
-  entity.homeBuildingId = undefined;
+  entity.workerBuildingId = undefined;
   entity.residenceBuildingId = undefined;
   entity.prisonBuildingId = undefined;
   entity.prisonerUntilTick = undefined;

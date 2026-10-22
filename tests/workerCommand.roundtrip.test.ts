@@ -149,14 +149,14 @@ describe('worker command round trips (shared worker + fallback implementation)',
     const assigned = next.entities.find((e) => e.id === 1)!;
 
     expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
-    expect(assigned.homeBuildingId).toBe(4);
+    expect(assigned.workerBuildingId).toBe(4);
     expect(assigned.job).toBe(JobType.Priest);
     expect(assigned.occupation).toBe(JOB_LABELS[JobType.Priest]);
     expect(collectSimulationInvariantErrors(next)).toEqual([]);
   });
 
   it('removeWorker — clears the assignment', () => {
-    const priest = human(1, { homeBuildingId: 4, job: JobType.Priest });
+    const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
     const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const world = makeWorld([priest], [church]);
 
@@ -164,14 +164,14 @@ describe('worker command round trips (shared worker + fallback implementation)',
     const removed = next.entities.find((e) => e.id === 1)!;
 
     expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
-    expect(removed.homeBuildingId).toBeUndefined();
+    expect(removed.workerBuildingId).toBeUndefined();
     expect(removed.occupation).toBe('settler');
     expect(removed.job).toBe(JobType.Settler);
   });
 
   it('reassignment transfers a worker from an overstaffed building via the command', () => {
-    const workerA = human(1, { homeBuildingId: 2, job: JobType.Farmer });
-    const workerB = human(2, { homeBuildingId: 2, job: JobType.Farmer });
+    const workerA = human(1, { workerBuildingId: 2, job: JobType.Farmer });
+    const workerB = human(2, { workerBuildingId: 2, job: JobType.Farmer });
     const farmA = building(2, BuildingType.Farm, { occupants: [1, 2] });
     const lumber = building(3, BuildingType.LumberMill);
     const world = makeWorld([workerA, workerB], [farmA, lumber]);
@@ -181,14 +181,14 @@ describe('worker command round trips (shared worker + fallback implementation)',
     const lumberWorkers = assigned.buildings.find((b) => b.id === 3)!.occupants;
     expect(lumberWorkers.length).toBe(1);
     const transferred = assigned.entities.find((e) => e.id === lumberWorkers[0])!;
-    expect(transferred.homeBuildingId).toBe(3);
+    expect(transferred.workerBuildingId).toBe(3);
     expect(transferred.job).toBe(JobType.Lumberjack);
     expect(assigned.buildings.find((b) => b.id === 2)!.occupants.length).toBe(1);
     expect(collectSimulationInvariantErrors(assigned)).toEqual([]);
   });
 
   it('demolishBuilding removes the building once and cleans assignments', () => {
-    const worker = human(1, { homeBuildingId: 2, job: JobType.Farmer });
+    const worker = human(1, { workerBuildingId: 2, job: JobType.Farmer });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const world = makeWorld([worker], [farm]);
 
@@ -196,7 +196,7 @@ describe('worker command round trips (shared worker + fallback implementation)',
     const survivor = next.entities.find((e) => e.id === 1)!;
 
     expect(next.buildings.some((b) => b.id === 2)).toBe(false);
-    expect(survivor.homeBuildingId).toBeUndefined();
+    expect(survivor.workerBuildingId).toBeUndefined();
     expect(survivor.occupation).toBe('settler');
     expect(collectSimulationInvariantErrors(next)).toEqual([]);
   });

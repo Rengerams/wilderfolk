@@ -94,7 +94,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
 
   were.job = JobType.Settler;
   were.occupation = restoredOccupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
-  were.homeBuildingId = undefined;
+  were.workerBuildingId = undefined;
   were.residenceBuildingId = undefined;
   were.prisonBuildingId = undefined;
   were.prisonerUntilTick = undefined;
@@ -115,7 +115,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
     }
     were.job = saved.job ?? JobType.Settler;
     were.occupation = restoredOccupation;
-    were.homeBuildingId = saved.homeBuildingId;
+    were.workerBuildingId = saved.workerBuildingId;
     were.residenceBuildingId = saved.residenceBuildingId;
     return;
   }
@@ -146,13 +146,13 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
     }
   }
 
-  if (saved.homeBuildingId != null) {
-    const jobSite = buildings.find((b) => b.id === saved.homeBuildingId && b.completed && b.faction !== 'rival');
+  if (saved.workerBuildingId != null) {
+    const jobSite = buildings.find((b) => b.id === saved.workerBuildingId && b.completed && b.faction !== 'rival');
     if (jobSite) {
       const maxOcc = BUILDING_CONFIGS[jobSite.type]?.maxOccupants ?? 0;
       const workers = countWorkersAtBuilding(humans, jobSite.id);
       if (workers < maxOcc) {
-        were.homeBuildingId = jobSite.id;
+        were.workerBuildingId = jobSite.id;
         were.job = saved.job ?? JobType.Settler;
         were.occupation = restoredOccupation;
         if (!jobSite.occupants.includes(were.id)) jobSite.occupants.push(were.id);

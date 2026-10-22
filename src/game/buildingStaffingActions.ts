@@ -299,7 +299,7 @@ export function fillBuildingWorkers(
 
 export function autoStaffAllWorkers(originalState: WorldState): WorldState {
   const state = structuredClone(originalState);
-  const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.homeBuildingId != null).length;
+  const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.workerBuildingId != null).length;
   const before = countAssigned();
   const workplaces = state.buildings.filter((building) =>
     building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
@@ -342,9 +342,9 @@ export function removeStaffWorkerFromBuilding(
 
   // `removeWorkerTransition` releases the settler from every workplace and crew, so a
   // removal aimed at another building would silently free their real job. Refuse unless
-  // the settler actually works here — the workplace link (`homeBuildingId`) or the
+  // the settler actually works here — the workplace link (`workerBuildingId`) or the
   // construction-crew occupant list is the assignment this action removes.
-  if (human.homeBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
+  if (human.workerBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
 
   // Explicit removal opts this workplace out of immediate auto-refilling.
   if (building.completed && BUILDING_JOB_TYPES[building.type]) building.staffingMode = 'manual';

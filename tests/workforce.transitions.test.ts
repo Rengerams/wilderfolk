@@ -2,7 +2,7 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
 /**
  * Workforce authority — SIMULATION_AUTHORITY.md §3 workforce row + Objective 4.
  *
- * workforce.ts owns assignment: `homeBuildingId`, workplace `occupants`,
+ * workforce.ts owns assignment: `workerBuildingId`, workplace `occupants`,
  * `occupation`, and `job` must agree after every assignment, no living human
  * may occupy two workplaces, and the leader may work without losing office
  * status or manor residency.
@@ -102,13 +102,13 @@ function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
 
 describe('workforce named transitions', () => {
   it('rejects assigning a settler to a second workplace (duplicate prevention)', () => {
-    const settler = human(1, { homeBuildingId: 2 });
+    const settler = human(1, { workerBuildingId: 2 });
     const farmB = building(3, BuildingType.Farm);
 
     const ok = assignWorkerTransition(settler, farmB);
 
     expect(ok).toBe(false);
-    expect(settler.homeBuildingId).toBe(2);
+    expect(settler.workerBuildingId).toBe(2);
     expect(farmB.occupants).toEqual([]);
   });
 
@@ -120,7 +120,7 @@ describe('workforce named transitions', () => {
     expect(assignWorkerTransition(settler, farm)).toBe(true);
 
     expect(farm.occupants).toEqual([1]);
-    expect(settler.homeBuildingId).toBe(2);
+    expect(settler.workerBuildingId).toBe(2);
     expect(settler.occupation).toBe(JOB_LABELS[JobType.Farmer]);
     expect(settler.job).toBe(JobType.Farmer);
   });
@@ -138,7 +138,7 @@ describe('workforce named transitions', () => {
     const next = assignIdleWorkerToBuilding(world, 2, 1);
     const assigned = next.entities.find((e) => e.id === 1)!;
 
-    expect(assigned.homeBuildingId).toBe(2);
+    expect(assigned.workerBuildingId).toBe(2);
     expect(assigned.occupation).toBe(LEADER_OCCUPATION); // office survives
     expect(assigned.job).toBe(JobType.Farmer);
     expect(next.buildings.find((b) => b.id === 2)!.occupants).toEqual([1]);
@@ -156,7 +156,7 @@ describe('workforce named transitions', () => {
 
     expect(ok).toBe(true);
     expect(farm.occupants).toEqual([1]);
-    expect(leader.homeBuildingId).toBe(2);
+    expect(leader.workerBuildingId).toBe(2);
     expect(leader.occupation).toBe(LEADER_OCCUPATION); // office survives auto-staff
     expect(leader.job).toBe(JobType.Farmer);
   });
@@ -164,7 +164,7 @@ describe('workforce named transitions', () => {
   it('preserves a valid leader workplace through prepareWorkforce', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       job: JobType.Farmer,
     });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
@@ -172,7 +172,7 @@ describe('workforce named transitions', () => {
     const alive = prepareWorkforce([leader], [farm]);
 
     expect(alive.length).toBe(1);
-    expect(leader.homeBuildingId).toBe(2);
+    expect(leader.workerBuildingId).toBe(2);
     expect(leader.occupation).toBe(LEADER_OCCUPATION);
     expect(farm.occupants).toEqual([1]);
   });
@@ -180,21 +180,21 @@ describe('workforce named transitions', () => {
   it('clears a stale leader workplace through prepareWorkforce', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
-      homeBuildingId: 99,
+      workerBuildingId: 99,
       job: JobType.Farmer,
     });
     const farm = building(2, BuildingType.Farm);
 
     prepareWorkforce([leader], [farm]);
 
-    expect(leader.homeBuildingId).toBeUndefined();
+    expect(leader.workerBuildingId).toBeUndefined();
     expect(leader.job).toBe(JobType.Settler);
     expect(leader.occupation).toBe(LEADER_OCCUPATION);
   });
 
   it('reassigns a worker between workplaces consistently', () => {
     const worker = human(1, {
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       occupation: JOB_LABELS[JobType.Farmer],
       job: JobType.Farmer,
     });
@@ -205,14 +205,14 @@ describe('workforce named transitions', () => {
 
     expect(farmA.occupants).toEqual([]);
     expect(lumber.occupants).toEqual([1]);
-    expect(worker.homeBuildingId).toBe(3);
+    expect(worker.workerBuildingId).toBe(3);
     expect(worker.occupation).toBe(JOB_LABELS[JobType.Lumberjack]);
     expect(worker.job).toBe(JobType.Lumberjack);
   });
 
   it('removes a worker and resets assignment fields', () => {
     const worker = human(1, {
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       occupation: JOB_LABELS[JobType.Farmer],
       job: JobType.Farmer,
     });
@@ -221,7 +221,7 @@ describe('workforce named transitions', () => {
     removeWorkerTransition(worker, [farm]);
 
     expect(farm.occupants).toEqual([]);
-    expect(worker.homeBuildingId).toBeUndefined();
+    expect(worker.workerBuildingId).toBeUndefined();
     expect(worker.occupation).toBe('settler');
     expect(worker.job).toBe(JobType.Settler);
   });
@@ -229,7 +229,7 @@ describe('workforce named transitions', () => {
   it('keeps the leader office occupation on removal', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       job: JobType.Farmer,
     });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
@@ -237,7 +237,7 @@ describe('workforce named transitions', () => {
     removeWorkerTransition(leader, [farm]);
 
     expect(leader.occupation).toBe(LEADER_OCCUPATION);
-    expect(leader.homeBuildingId).toBeUndefined();
+    expect(leader.workerBuildingId).toBeUndefined();
     expect(leader.job).toBe(JobType.Settler);
   });
 
@@ -248,14 +248,14 @@ describe('workforce named transitions', () => {
     expect(addToConstructionCrew(builder, site)).toBe(true);
 
     expect(site.occupants).toEqual([1]);
-    expect(builder.homeBuildingId).toBeUndefined();
+    expect(builder.workerBuildingId).toBeUndefined();
   });
 });
 
 describe('workforce command surface', () => {
   it('removeWorkerFromBuilding clears a manual-staff building (Church) without refill', () => {
     const priest = human(1, {
-      homeBuildingId: 4,
+      workerBuildingId: 4,
       occupation: JOB_LABELS[JobType.Priest],
       job: JobType.Priest,
     });
@@ -265,7 +265,7 @@ describe('workforce command surface', () => {
     const next = removeWorkerFromBuilding(world, 4, 1);
     const removed = next.entities.find((e) => e.id === 1)!;
 
-    expect(removed.homeBuildingId).toBeUndefined();
+    expect(removed.workerBuildingId).toBeUndefined();
     expect(removed.occupation).toBe('settler');
     expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
     expect(collectSimulationInvariantErrors(next)).toEqual([]);
@@ -309,13 +309,13 @@ describe('the childhood boundary bars work until the adult floor', () => {
     const youthFarm = building(2, BuildingType.Farm);
     expect(assignWorkerTransition(youth, youthFarm)).toBe(false);
     expect(youthFarm.occupants).toEqual([]);
-    expect(youth.homeBuildingId).toBeUndefined();
+    expect(youth.workerBuildingId).toBeUndefined();
     expect(youth.job).toBe(JobType.Settler);
 
     const adultFarm = building(3, BuildingType.Farm);
     expect(assignWorkerTransition(adult, adultFarm)).toBe(true);
     expect(adultFarm.occupants).toEqual([2]);
-    expect(adult.homeBuildingId).toBe(3);
+    expect(adult.workerBuildingId).toBe(3);
     expect(adult.job).toBe(JobType.Farmer);
   });
 });
@@ -341,7 +341,7 @@ describe('invariant consistency across a full assignment cycle', () => {
 
 describe('prison occupant reconciliation (BUG 2026-08-20-prisoner-occupants-wiped)', () => {
   it('keeps prisoners in prison occupants across syncJobBuildingOccupants', () => {
-    const guard = human(1, { homeBuildingId: 8, job: JobType.PrisonGuard });
+    const guard = human(1, { workerBuildingId: 8, job: JobType.PrisonGuard });
     const prisoner = human(2, { prisonBuildingId: 8 });
     const prison = building(8, BuildingType.Prison, { occupants: [1, 2] });
 

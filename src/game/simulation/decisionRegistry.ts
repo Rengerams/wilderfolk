@@ -67,7 +67,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.occupants',
-      'human.homeBuildingId',
+      'human.workerBuildingId',
       'human.occupation',
       'human.job',
       'human.skills',
@@ -222,7 +222,7 @@ export const SIMULATION_DECISIONS = {
       'human.residenceBuildingId (household)',
       'human.occupation',
       'human.job',
-      'human.homeBuildingId (stale-repair only)',
+      'human.workerBuildingId (stale-repair only)',
       'building.occupants (stale leader assignment only)',
       'villageLeaderId',
       'leaderSinceYear',

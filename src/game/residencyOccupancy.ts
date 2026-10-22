@@ -29,7 +29,7 @@ export function getResidenceUpgradeSlotGain(type: BuildingType): number {
 
 /** Building id 0 is valid — never use bare !id for assignment checks. */
 export function hasWorkAssignment(human: Entity): boolean {
-  return human.homeBuildingId != null;
+  return human.workerBuildingId != null;
 }
 
 export function hasResidenceAssignment(human: Entity): boolean {

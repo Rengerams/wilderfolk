@@ -127,7 +127,7 @@ function huntingSpot(occupants: number[]): Building {
 }
 
 function makeState(): WorldState {
-  const hunter = human(1, { homeBuildingId: 10, huntTargetId: 2 });
+  const hunter = human(1, { workerBuildingId: 10, huntTargetId: 2 });
   // The spot is staffed and the hunter is standing at it (occupant 1, at the building's centre). Both
   // are needed now: the hunt is anchored on the *hunter's* position rather than the building's, and a
   // spot whose worker is elsewhere does nothing (owner: a spot is a work location, not a turret).

@@ -32,12 +32,12 @@ describe('automatic Barracks staffing', () => {
       EntityType.Human, 100 + i, 100, 1000 + i, 400, false,
       { gender: 'male', name: `Soldier${i}`, surname: 'Test', ageYears: 30, colonyDay: 0 },
     ));
-    settlers[0].homeBuildingId = barracks.id;
-    for (const worker of settlers.slice(1)) worker.homeBuildingId = donor.id;
+    settlers[0].workerBuildingId = barracks.id;
+    for (const worker of settlers.slice(1)) worker.workerBuildingId = donor.id;
     // A guard transfer must not drain the last worker from the source.
     assignMissingWorkers(settlers, [donor, barracks], { tick: 100 });
     expect(countWorkersAtBuilding(settlers, barracks.id)).toBeGreaterThan(1);
     expect(countWorkersAtBuilding(settlers, donor.id)).toBeGreaterThanOrEqual(1);
-    expect(settlers.filter((h) => h.homeBuildingId === barracks.id && h.lastAutoJobTransferTick === 100).length).toBeGreaterThan(0);
+    expect(settlers.filter((h) => h.workerBuildingId === barracks.id && h.lastAutoJobTransferTick === 100).length).toBeGreaterThan(0);
   });
 });

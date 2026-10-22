@@ -72,13 +72,13 @@ describe('split security roles', () => {
     expect(assignWorkerTransition(prisonGuard, prison)).toBe(true);
     expect(soldier.job).toBe(JobType.Soldier);
     expect(prisonGuard.job).toBe(JobType.PrisonGuard);
-    expect(soldier.homeBuildingId).toBe(barracks.id);
-    expect(prisonGuard.homeBuildingId).toBe(prison.id);
+    expect(soldier.workerBuildingId).toBe(barracks.id);
+    expect(prisonGuard.workerBuildingId).toBe(prison.id);
   });
 
   it('counts Soldiers for Barracks defense but excludes PrisonGuards', () => {
-    const soldier = human(1, { job: JobType.Soldier, homeBuildingId: 10 });
-    const prisonGuard = human(2, { job: JobType.PrisonGuard, homeBuildingId: 11 });
+    const soldier = human(1, { job: JobType.Soldier, workerBuildingId: 10 });
+    const prisonGuard = human(2, { job: JobType.PrisonGuard, workerBuildingId: 11 });
     const barracks = building(10, BuildingType.Barracks, [1]);
     const prison = building(11, BuildingType.Prison, [2]);
     const state = { entities: [soldier, prisonGuard], buildings: [barracks, prison] } as WorldState;
@@ -88,7 +88,7 @@ describe('split security roles', () => {
   });
 
   it('keeps PrisonGuard and prisoner entries synchronized without treating the prisoner as staff', () => {
-    const prisonGuard = human(1, { job: JobType.PrisonGuard, homeBuildingId: 10 });
+    const prisonGuard = human(1, { job: JobType.PrisonGuard, workerBuildingId: 10 });
     const prisoner = human(2, {
       job: JobType.Settler,
       prisonBuildingId: 10,

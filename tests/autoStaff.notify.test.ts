@@ -35,7 +35,7 @@ describe('autoStaffAllWorkers feedback', () => {
     const worker = playerHumans(world).find((entity) => !entity.isJuvenile);
     if (!worker) throw new Error('fixture needs an adult who can staff the farm');
     // Use an eligible local settler rather than depending on the generated colony's commute.
-    worker.homeBuildingId = undefined;
+    worker.workerBuildingId = undefined;
     worker.residenceBuildingId = undefined;
     worker.lastAutoJobTransferTick = undefined;
     worker.job = JobType.Settler;
@@ -78,9 +78,9 @@ describe('colony-wide Auto-fill override', () => {
     ];
     const next = autoStaffAllWorkers(world);
     expect(next.buildings.map((site) => site.staffingMode)).toEqual(['auto', 'auto', 'manual']);
-    expect(next.entities[0].homeBuildingId).toBeDefined();
+    expect(next.entities[0].workerBuildingId).toBeDefined();
     expect(world.buildings[0].staffingMode).toBe('manual');
-    expect(world.entities[0].homeBuildingId).toBeUndefined();
+    expect(world.entities[0].workerBuildingId).toBeUndefined();
   });
 
   it('confirms Auto-fill is enabled even when there are no idle adults', () => {

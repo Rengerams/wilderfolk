@@ -135,19 +135,7 @@ function buildEverything(world: WorldState): {
   return { world: next, built, skipped };
 }
 
-/**
- * Run until a settler is physically **at** the Church during a work shift, and report which.
- *
- * Owner, 2026-09-29: "no it need people workin there". `countWorkersAtBuilding` counts a setter's
- * `homeBuildingId` (`workforce.ts:85`) — an *assignment*, not an arrival — so `getChurchStrength`
- * reads 1 for a church whose keeper is still asleep at home. That is the same assignment-vs-attendance
- * distinction as the daily production calculation, and this bot must not report "the church is live"
- * on the strength of a roster entry.
- *
- * So it schedules the church from the start of the day and ticks until the keeper is within
- * `PRESENCE_RADIUS` of the church footprint, or the budget runs out. The answer it gives is therefore
- * about a settler standing in the building, not about a name in a list.
- */
+/** Wait for physical Church attendance during a work shift, bounded by the watch budget. */
 const PRESENCE_RADIUS = 40;
 const CHURCH_WATCH_DAYS = 2;
 

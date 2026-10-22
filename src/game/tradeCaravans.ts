@@ -128,7 +128,7 @@ function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): vo
   entity.alive = false;
   unindexEntityFromState(state, entity.id);
   entity.residenceBuildingId = undefined;
-  entity.homeBuildingId = undefined;
+  entity.workerBuildingId = undefined;
   // No manual splice: clearing `alive` is how every other despawn leaves the world, and the tick's
   // `state.entities = allAlive` rebuild is the single writer of membership.
   route.caravanCarrierId = undefined;
@@ -279,7 +279,7 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   carrier.groupId = route.id;
   carrier.occupation = 'merchant';
   carrier.residenceBuildingId = undefined;
-  carrier.homeBuildingId = undefined;
+  carrier.workerBuildingId = undefined;
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;
   // The carrier must go through the tick's canonical spawn path. Pushing it into

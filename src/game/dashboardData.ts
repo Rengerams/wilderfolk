@@ -589,8 +589,8 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
     tone: 'neutral',
   });
 
-  const workplace = settler.homeBuildingId != null
-    ? state.buildings.find((b) => b.id === settler.homeBuildingId)
+  const workplace = settler.workerBuildingId != null
+    ? state.buildings.find((b) => b.id === settler.workerBuildingId)
     : undefined;
   const residence = settler.residenceBuildingId != null
     ? state.buildings.find((b) => b.id === settler.residenceBuildingId)

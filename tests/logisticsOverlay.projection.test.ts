@@ -93,7 +93,7 @@ function place(id: number, type: BuildingType, x: number, y: number, over: Parti
   };
 }
 
-/** A settler. Remember the field-name trap: `homeBuildingId` is the **workplace**. */
+/** A settler. Remember the field-name trap: `workerBuildingId` is the **workplace**. */
 function settler(
   id: number,
   residenceBuildingId: number | undefined,
@@ -121,7 +121,7 @@ function settler(
     flash: 0,
     isJuvenile: false,
     residenceBuildingId,
-    homeBuildingId: workBuildingId,
+    workerBuildingId: workBuildingId,
     ...over,
   };
 }
@@ -243,7 +243,7 @@ describe('F4 projection — commute pressure', () => {
 
     expect(data.commutes.map((commute) => commute.entityId)).toEqual([1, 2]);
     expect(data.commutes[0]).toMatchObject({
-      homeBuildingId: 30,
+      residenceBuildingId: 30,
       workBuildingId: 31,
       severity: 'over_budget',
     });

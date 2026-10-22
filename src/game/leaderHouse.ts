@@ -51,7 +51,7 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
     const prev = state.entities.find((e) => e.id === prevLeaderId);
     if (prev?.alive && prev.occupation === LEADER_OCCUPATION) {
       prev.occupation = 'settler';
-      if (!prev.homeBuildingId) {
+      if (!prev.workerBuildingId) {
         prev.job = JobType.Settler;
       }
     }
@@ -64,8 +64,8 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
   if (!leader) return;
 
   // Preserve valid workplace
-  if (leader.homeBuildingId != null) {
-    const workplace = state.buildings.find((b) => b.id === leader.homeBuildingId);
+  if (leader.workerBuildingId != null) {
+    const workplace = state.buildings.find((b) => b.id === leader.workerBuildingId);
     const stale =
       !workplace ||
       !workplace.completed ||
@@ -76,7 +76,7 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
       if (workplace) {
         workplace.occupants = workplace.occupants.filter((id) => id !== leader.id);
       }
-      leader.homeBuildingId = undefined;
+      leader.workerBuildingId = undefined;
       leader.job = JobType.Settler;
     }
   }

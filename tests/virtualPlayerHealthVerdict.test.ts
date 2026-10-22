@@ -178,7 +178,7 @@ function ownerColony(
 
   const entities = ids.map((id) => human(id, {
     residenceBuildingId: houseIds[Math.floor((id - 1) / 6)],
-    ...(homeOf.has(id) ? { homeBuildingId: homeOf.get(id) } : {}),
+    ...(homeOf.has(id) ? { workerBuildingId: homeOf.get(id) } : {}),
   }));
   const buildings: Building[] = [
     ...(leaderHouse ? [building(90, BuildingType.LeaderHouse, { x: 60, y: 60 })] : []),
@@ -263,7 +263,7 @@ describe('the health verdict at the owner numbers', () => {
     // line must name the stone rather than the colony's health. Every building is at its top level,
     // so no upgrade can take the hour instead.
     const alone = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(90, BuildingType.LeaderHouse, { x: 60, y: 60 }),
         building(1, BuildingType.House, { x: 300, y: 300, occupants: [1], level: 3 }),

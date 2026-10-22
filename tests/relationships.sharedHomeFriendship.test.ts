@@ -1,6 +1,6 @@
 /**
  * F2 of the 2026-09-16 lifecycle/social audit (`docs/private/audits/2026-09-16/sim-lifecycle-social.md`):
- * the daily friendship pass grouped the "shared home" bump by `homeBuildingId`, which is the
+ * the daily friendship pass grouped the "shared home" bump by `workerBuildingId`, which is the
  * **workplace** in this codebase — so cohabitants never grew closer while coworkers in one building
  * were counted twice (workplace and job type).
  *
@@ -46,8 +46,8 @@ function state(): WorldState {
 
 describe('daily friendship sources (F2)', () => {
   it('grows friendship between settlers who share a house', () => {
-    const a = human(1, { residenceBuildingId: 10, homeBuildingId: 20, job: JobType.Farmer });
-    const b = human(2, { residenceBuildingId: 10, homeBuildingId: 30, job: JobType.Lumberjack });
+    const a = human(1, { residenceBuildingId: 10, workerBuildingId: 20, job: JobType.Farmer });
+    const b = human(2, { residenceBuildingId: 10, workerBuildingId: 30, job: JobType.Lumberjack });
     const world = state();
 
     advanceSocialRelationships(world, [a, b]);
@@ -57,8 +57,8 @@ describe('daily friendship sources (F2)', () => {
   });
 
   it('still grows friendship between coworkers who share a workplace building', () => {
-    const a = human(1, { residenceBuildingId: 10, homeBuildingId: 20, job: JobType.Farmer });
-    const b = human(2, { residenceBuildingId: 30, homeBuildingId: 20, job: JobType.Lumberjack });
+    const a = human(1, { residenceBuildingId: 10, workerBuildingId: 20, job: JobType.Farmer });
+    const b = human(2, { residenceBuildingId: 30, workerBuildingId: 20, job: JobType.Lumberjack });
     const world = state();
 
     advanceSocialRelationships(world, [a, b]);
@@ -67,8 +67,8 @@ describe('daily friendship sources (F2)', () => {
   });
 
   it('leaves settlers who share neither home nor work as strangers', () => {
-    const a = human(1, { residenceBuildingId: 10, homeBuildingId: 20, job: JobType.Farmer });
-    const b = human(2, { residenceBuildingId: 30, homeBuildingId: 40, job: JobType.Lumberjack });
+    const a = human(1, { residenceBuildingId: 10, workerBuildingId: 20, job: JobType.Farmer });
+    const b = human(2, { residenceBuildingId: 30, workerBuildingId: 40, job: JobType.Lumberjack });
     const world = state();
 
     advanceSocialRelationships(world, [a, b]);
@@ -79,8 +79,8 @@ describe('daily friendship sources (F2)', () => {
   it('does not treat the jobless as sharing a trade', () => {
     // `Settler` is the absence of a job. With nothing else in common they are strangers; keying the
     // job group on that value made every unemployed settler in the colony a "coworker".
-    const a = human(1, { residenceBuildingId: 10, homeBuildingId: 20, job: JobType.Settler });
-    const b = human(2, { residenceBuildingId: 30, homeBuildingId: 40, job: JobType.Settler });
+    const a = human(1, { residenceBuildingId: 10, workerBuildingId: 20, job: JobType.Settler });
+    const b = human(2, { residenceBuildingId: 30, workerBuildingId: 40, job: JobType.Settler });
     const world = state();
 
     advanceSocialRelationships(world, [a, b]);

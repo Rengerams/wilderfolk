@@ -58,7 +58,7 @@ const tally = (id: number): Tally => {
 
 function classify(e: Entity): keyof Omit<Tally, 'walked'> {
   if (Math.hypot(e.vx, e.vy) > 0.05) return 'travelling';
-  const workplace = state.buildings.find((b) => b.id === e.homeBuildingId);
+  const workplace = state.buildings.find((b) => b.id === e.workerBuildingId);
   if (workplace?.completed) {
     const target = humanBuildingTarget(workplace, e.id, false);
     if (dist(e, target) < 22) return 'atWork';
@@ -83,7 +83,7 @@ for (const day of [0, ...Array.from({ length: days }, (_, i) => i + 1)]) {
         previous.set(e.id, { x: e.x, y: e.y });
         t2[classify(e)]++;
         // First arrival at the workplace since the day began (shift window 07:00-16:00).
-        const workplace = state.buildings.find((b) => b.id === e.homeBuildingId);
+        const workplace = state.buildings.find((b) => b.id === e.workerBuildingId);
         if (workplace?.completed) {
           const dayStart = state.tick - getTickOfDay(state.tick);
           const key = `${e.id}|${dayStart}`;
@@ -102,7 +102,7 @@ for (const day of [0, ...Array.from({ length: days }, (_, i) => i + 1)]) {
     const total = t.travelling + t.atWork + t.atHome + t.idle;
     const pct = (n: number) => `${Math.round((n / Math.max(1, total)) * 100)}%`;
     console.log(
-      `#${e.id} occ=${e.occupation} job=${e.job} work=${e.homeBuildingId ?? '-'} | ` +
+      `#${e.id} occ=${e.occupation} job=${e.job} work=${e.workerBuildingId ?? '-'} | ` +
       `travelling ${pct(t.travelling)} atWork ${pct(t.atWork)} atHome ${pct(t.atHome)} idle ${pct(t.idle)} | ` +
       `walked ${Math.round(t.walked)}px over ${total} ticks`,
     );

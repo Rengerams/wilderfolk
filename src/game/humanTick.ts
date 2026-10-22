@@ -216,7 +216,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const workerIndexById = new Map<number, number>();
   for (const h of allHumans) {
     if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
-    const siteId = h.homeBuildingId;
+    const siteId = h.workerBuildingId;
     if (siteId == null) continue;
     const bucket = workersByWorkplace.get(siteId);
     if (bucket) {
@@ -532,7 +532,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         !isInnkeeper &&
         (ordinaryWorkplace ||
           (entity.job === JobType.Soldier &&
-            isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
+            isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)))) ||
       onSchoolShift;
     const onOfficialShift =
       entity.job === JobType.Official &&
@@ -922,7 +922,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       goWorkTime &&
       workplace &&
       entity.job === JobType.Soldier &&
-      isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)
+      isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)
     ) {
       const anchor = getCampAnchor();
       if (anchor) {
@@ -1359,7 +1359,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Midday coworker banter
     if (onDayJobShift && workplace && isPlayerHuman(entity) && !entity.isJuvenile && entity.job !== JobType.Innkeeper) {
-      const workplaceWorkers = workersByWorkplace.get(entity.homeBuildingId ?? -1) ?? [];
+      const workplaceWorkers = workersByWorkplace.get(entity.workerBuildingId ?? -1) ?? [];
       tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
     }
 
@@ -1487,8 +1487,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           .map((id) => livingHumanAt(id))
           .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
         const workplaceWorkers =
-          entity.homeBuildingId != null
-            ? workersByWorkplace.get(entity.homeBuildingId) ?? []
+          entity.workerBuildingId != null
+            ? workersByWorkplace.get(entity.workerBuildingId) ?? []
             : [];
         const selfIndex = workerIndexById.get(entity.id);
         const coworkerCount = workplaceWorkers.length - (selfIndex == null ? 0 : 1);

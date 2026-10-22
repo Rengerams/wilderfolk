@@ -234,7 +234,7 @@ export interface MoonHowlerSavedState {
   size: number;
   job?: JobType;
   occupation?: string;
-  homeBuildingId?: number;
+  workerBuildingId?: number;
   /** Last automated workplace transfer tick; keeps jobs stable across saves. */
   lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
@@ -295,7 +295,7 @@ export interface Entity {
   pregnancyDueProgress?: number;
   /** In-game days left before this settler may court again after a courtship or marriage ended. */
   courtshipCooldownDays?: number;
-  homeBuildingId?: number;
+  workerBuildingId?: number;
   /** Tick of the last automatic workplace assignment or transfer; optional for older saves. */
   lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;

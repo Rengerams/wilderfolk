@@ -238,7 +238,7 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: number): void {
   for (const entity of state.entities) {
     // Workforce cleanup through the owner's transition keeps work fields consistent.
-    if (entity.homeBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
+    if (entity.workerBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
     if (entity.residenceBuildingId === buildingId) entity.residenceBuildingId = undefined;
     if (entity.prisonBuildingId === buildingId) {
       entity.prisonBuildingId = undefined;

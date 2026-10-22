@@ -68,7 +68,7 @@ describe("Leader's House", () => {
     // Authority §5 (2026-08-20): the leader participates in normal workforce
     // assignment — office-taking preserves a valid workplace; only STALE
     // assignments (missing/demolished/invalid) are repaired.
-    const incoming = human(1, { homeBuildingId: 20, occupation: 'settler', job: JobType.Farmer });
+    const incoming = human(1, { workerBuildingId: 20, occupation: 'settler', job: JobType.Farmer });
     const former = human(2, { occupation: LEADER_OCCUPATION, job: JobType.Settler });
     const farm = building(20, BuildingType.Farm, { occupants: [1] });
     const construction = building(21, BuildingType.House, { occupants: [1] });
@@ -82,7 +82,7 @@ describe("Leader's House", () => {
 
     expect(incoming.occupation).toBe(LEADER_OCCUPATION);
     expect(incoming.job).toBe(JobType.Farmer); // valid workplace kept
-    expect(incoming.homeBuildingId).toBe(20);
+    expect(incoming.workerBuildingId).toBe(20);
     expect(farm.occupants).toContain(1);
     expect(construction.occupants).toContain(1); // crews preserved too
     expect(former.occupation).toBe('settler');
@@ -90,7 +90,7 @@ describe("Leader's House", () => {
   });
 
   it('repairs a STALE leader workplace (missing building) at office-taking', () => {
-    const incoming = human(1, { homeBuildingId: 99, occupation: 'settler', job: JobType.Farmer });
+    const incoming = human(1, { workerBuildingId: 99, occupation: 'settler', job: JobType.Farmer });
     const state = {
       entities: [incoming],
       buildings: [],
@@ -100,7 +100,7 @@ describe("Leader's House", () => {
     applyLeaderOccupation(state, null);
 
     expect(incoming.occupation).toBe(LEADER_OCCUPATION);
-    expect(incoming.homeBuildingId).toBeUndefined();
+    expect(incoming.workerBuildingId).toBeUndefined();
     expect(incoming.job).toBe(JobType.Settler);
   });
 
@@ -109,7 +109,7 @@ describe("Leader's House", () => {
     // every load — it must keep a manually assigned workplace (BUG
     // 2026-08-20-leader-cannot-hold-workplace.md).
     const leader = human(1, {
-      homeBuildingId: 2,
+      workerBuildingId: 2,
       occupation: LEADER_OCCUPATION,
       job: JobType.Farmer,
     });
@@ -123,7 +123,7 @@ describe("Leader's House", () => {
     applyLeaderOccupation(state, null); // load-time reconcile
 
     expect(leader.occupation).toBe(LEADER_OCCUPATION);
-    expect(leader.homeBuildingId).toBe(2);
+    expect(leader.workerBuildingId).toBe(2);
     expect(leader.job).toBe(JobType.Farmer);
     expect(farm.occupants).toEqual([1]);
   });

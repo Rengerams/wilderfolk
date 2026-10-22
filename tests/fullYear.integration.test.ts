@@ -69,7 +69,7 @@ function fullYearEntitySnapshot(entity: Entity): Record<string, unknown> {
     birthYear: entity.birthYear, birthDay: entity.birthDay, juvenile: entity.isJuvenile,
     energy: entity.energy, x: entity.x, y: entity.y,
     residenceBuildingId: entity.residenceBuildingId ?? null,
-    homeBuildingId: entity.homeBuildingId ?? null,
+    workerBuildingId: entity.workerBuildingId ?? null,
     prisonBuildingId: entity.prisonBuildingId ?? null,
     partnerId: entity.partnerId ?? null, occupation: entity.occupation,
   };
@@ -170,8 +170,8 @@ function expectEntitySanity(entity: Entity, buildingIds: Set<number>): void {
   expectFiniteNumber(entity.x, `entity ${entity.id} x`);
   expectFiniteNumber(entity.y, `entity ${entity.id} y`);
   expectFiniteNumber(entity.energy, `entity ${entity.id} energy`);
-  if (entity.homeBuildingId != null) {
-    expect(buildingIds.has(entity.homeBuildingId), `entity ${entity.id} homeBuildingId`).toBe(true);
+  if (entity.workerBuildingId != null) {
+    expect(buildingIds.has(entity.workerBuildingId), `entity ${entity.id} workerBuildingId`).toBe(true);
   }
   if (entity.residenceBuildingId != null) {
     expect(buildingIds.has(entity.residenceBuildingId), `entity ${entity.id} residenceBuildingId`).toBe(true);

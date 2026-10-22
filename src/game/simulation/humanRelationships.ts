@@ -1178,7 +1178,7 @@ function countGuardsAtPrison(humans: Entity[], prison: Building): number {
       human.alive &&
       !human.faction &&
       human.job === JobType.PrisonGuard &&
-      human.homeBuildingId === prison.id &&
+      human.workerBuildingId === prison.id &&
       human.prisonBuildingId == null,
   ).length;
 }
@@ -1346,12 +1346,12 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     return;
   }
 
-  if (offender.homeBuildingId != null) {
-    const jobBuilding = state.buildings.find((b) => b.id === offender.homeBuildingId);
+  if (offender.workerBuildingId != null) {
+    const jobBuilding = state.buildings.find((b) => b.id === offender.workerBuildingId);
     if (jobBuilding) {
       jobBuilding.occupants = jobBuilding.occupants.filter((id) => id !== offender.id);
     }
-    offender.homeBuildingId = undefined;
+    offender.workerBuildingId = undefined;
     offender.occupation = offender.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
     offender.job = JobType.Settler;
   }

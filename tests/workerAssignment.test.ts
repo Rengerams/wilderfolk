@@ -16,13 +16,13 @@ import { building as buildingFixture, human } from '../src/test/factories';
  * below exercise (`isPlayerHuman`, `alive`, `isJuvenile`, `hasWorkAssignment`, `isImprisoned`,
  * `isOnConstructionCrew`) reads the same either way, so the marker is simply dropped.
  */
-function makeWorker(id: number, homeBuildingId: number | undefined): Entity {
+function makeWorker(id: number, workerBuildingId: number | undefined): Entity {
   return human(id, {
     x: 100,
     y: 100,
     pregnant: false,
-    homeBuildingId,
-    job: homeBuildingId == null ? JobType.Settler : JobType.Farmer,
+    workerBuildingId,
+    job: workerBuildingId == null ? JobType.Settler : JobType.Farmer,
     skills: {},
   });
 }
@@ -69,8 +69,8 @@ describe('B2 worker assignment panel truth', () => {
 
     const assigned = assignWorkerInPlace(farm, [near, far], state.buildings);
     expect(assigned).toBe(true);
-    expect(near.homeBuildingId).toBe(100);
-    expect(far.homeBuildingId).toBeUndefined();
+    expect(near.workerBuildingId).toBe(100);
+    expect(far.workerBuildingId).toBeUndefined();
   });
 
   it('setBuildingStaffingMode persists auto/manual mode', () => {

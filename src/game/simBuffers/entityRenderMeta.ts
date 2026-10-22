@@ -41,7 +41,7 @@ export interface EntityRenderMeta {
   partnerId?: number;
   affairPartnerId?: number;
   courtshipPartnerId?: number;
-  homeBuildingId?: number;
+  workerBuildingId?: number;
   prisonBuildingId?: number;
   tamedBy?: number;
   skills?: Entity['skills'];
@@ -75,7 +75,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     partnerId: entity.partnerId,
     affairPartnerId: entity.affairPartnerId,
     courtshipPartnerId: entity.courtshipPartnerId,
-    homeBuildingId: entity.homeBuildingId,
+    workerBuildingId: entity.workerBuildingId,
     prisonBuildingId: entity.prisonBuildingId,
     tamedBy: entity.tamedBy,
     skills: entity.skills ? { ...entity.skills } : {},
@@ -129,7 +129,7 @@ export function buildRenderEntityShim(
     huntTargetId,
     chatTicks: chatTicksRaw > 0 ? chatTicksRaw : undefined,
     residenceBuildingId: residenceId !== RESIDENCE_BUILDING_NONE ? residenceId : undefined,
-    homeBuildingId: meta?.homeBuildingId,
+    workerBuildingId: meta?.workerBuildingId,
     prisonBuildingId: meta?.prisonBuildingId,
     name: meta?.name,
     surname: meta?.surname,

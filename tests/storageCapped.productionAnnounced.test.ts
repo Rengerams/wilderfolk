@@ -60,7 +60,7 @@ function millWorld(wood: number): WorldState {
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(worker, 'fixture premise: the colony starts with a settler').toBeTruthy();
   // Staffing is counted from the workplace assignment and only for settlers with no faction.
-  worker!.homeBuildingId = MILL_ID;
+  worker!.workerBuildingId = MILL_ID;
   worker!.faction = undefined;
   // Simulate a completed real shift, not merely an assigned worker.
   worker!.scheduleLastWorkedHours = 9;

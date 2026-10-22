@@ -177,7 +177,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       loop.applyCommand(cmdObj);
 
       const priest = loop.getWorld().entities.find((e) => e.id === 1)!;
-      expect(priest.homeBuildingId).toBe(4);
+      expect(priest.workerBuildingId).toBe(4);
       expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
 
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -227,11 +227,11 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       internals.workerRecoveryTimer = timer;
       try {
         loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' });
-        expect(loop.getWorld().entities[0].homeBuildingId).toBeUndefined();
+        expect(loop.getWorld().entities[0].workerBuildingId).toBeUndefined();
         clearTimeout(timer);
         internals.workerRecoveryTimer = null;
         internals.flushDeferredWorkerCommands();
-        expect(loop.getWorld().entities[0].homeBuildingId).toBe(4);
+        expect(loop.getWorld().entities[0].workerBuildingId).toBe(4);
       } finally {
         clearTimeout(timer);
         internals.workerRecoveryTimer = null;
@@ -303,11 +303,11 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
       const command: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' };
       loop.applyCommand(command);
-      expect(loop.getWorld().entities.find((entity) => entity.id === 1)!.homeBuildingId).toBeUndefined();
+      expect(loop.getWorld().entities.find((entity) => entity.id === 1)!.workerBuildingId).toBeUndefined();
       expect(authoritative.buildings[0].occupants).toEqual([]);
       const result = applyWorkerCommand(structuredClone(authoritative), command);
       fake.fireCommandResult(result, true);
-      expect(loop.getWorld().entities.find((entity) => entity.id === 1)!.homeBuildingId).toBe(4);
+      expect(loop.getWorld().entities.find((entity) => entity.id === 1)!.workerBuildingId).toBe(4);
     });
 
     it('tick results do NOT overwrite the optimistic display; the authoritative result replaces it', async () => {
@@ -322,10 +322,10 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
 
       fake.fireTick(structuredClone(world));
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBe(4);
+      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
 
       const authoritative = structuredClone(world);
-      authoritative.entities.find((e) => e.id === 1)!.homeBuildingId = 4;
+      authoritative.entities.find((e) => e.id === 1)!.workerBuildingId = 4;
       authoritative.buildings.find((b) => b.id === 4)!.occupants = [1];
       fake.fireCommandResult(authoritative, true);
       expect(loop.getWorld()).toBe(authoritative);
@@ -394,10 +394,10 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
 
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBe(4);
+      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
 
       fake.fireCommandResult(authoritative, false);
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBeUndefined();
+      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBeUndefined();
     });
 
     it('main-thread fallback applies the same domain implementation as the worker', async () => {
@@ -414,8 +414,8 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       const priestLoop = viaLoop.entities.find((e) => e.id === 1)!;
       const priestDirect = viaDirect.entities.find((e) => e.id === 1)!;
 
-      expect(priestLoop.homeBuildingId).toBe(4);
-      expect(priestDirect.homeBuildingId).toBe(4);
+      expect(priestLoop.workerBuildingId).toBe(4);
+      expect(priestDirect.workerBuildingId).toBe(4);
       expect(viaLoop.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
       expect(viaDirect.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
     });
@@ -480,7 +480,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
         (loop as unknown as { frame: (time: number) => void }).frame(1000);
         expect(fakeHost.dispose).toHaveBeenCalledOnce();
         expect((loop as unknown as { workerHost: unknown }).workerHost).toBeNull();
-        expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBeUndefined();
+        expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBeUndefined();
         expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
       } finally {
         now.mockRestore();
@@ -550,14 +550,14 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
 
       loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 4, humanId: 1 });
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBe(4);
+      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBe(4);
 
       fake.fireFault('tick', 'simulated tick failure');
 
       expect(dispose).toHaveBeenCalledOnce();
       expect((loop as unknown as { workerHost: unknown }).workerHost).toBeNull();
       expect(loop.isUsingSimWorker()).toBe(false);
-      expect(loop.getWorld().entities.find((e) => e.id === 1)!.homeBuildingId).toBeUndefined();
+      expect(loop.getWorld().entities.find((e) => e.id === 1)!.workerBuildingId).toBeUndefined();
       expect(loop.getWorld().buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
     });
 

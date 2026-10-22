@@ -71,8 +71,8 @@ export function tickRivalSettlements(
     if (entity.residenceBuildingId != null && retiredStructures.has(entity.residenceBuildingId)) {
       entity.residenceBuildingId = undefined;
     }
-    if (entity.homeBuildingId != null && retiredStructures.has(entity.homeBuildingId)) {
-      entity.homeBuildingId = undefined;
+    if (entity.workerBuildingId != null && retiredStructures.has(entity.workerBuildingId)) {
+      entity.workerBuildingId = undefined;
     }
   }
   for (const rival of state.rivalSettlements) {

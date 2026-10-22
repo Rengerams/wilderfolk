@@ -668,7 +668,7 @@ function transitionKeys(world: WorldState): TransitionKeys {
   const assignments = new Map<number, string>();
   const relationships = new Map<number, string>();
   for (const human of livingHumans(world)) {
-    assignments.set(human.id, `${human.homeBuildingId ?? '-'}|${human.residenceBuildingId ?? '-'}`);
+    assignments.set(human.id, `${human.workerBuildingId ?? '-'}|${human.residenceBuildingId ?? '-'}`);
     relationships.set(
       human.id,
       `${human.partnerId ?? '-'}|${human.courtshipPartnerId ?? '-'}|${human.affairPartnerId ?? '-'}|${human.youthLovePartnerId ?? '-'}`,
@@ -750,8 +750,8 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     const staffable = jobBuildings.filter((building) => BUILDING_CONFIGS[building.type].maxOccupants > 0);
     const assignedByBuilding = new Map<number, number>();
     for (const human of players) {
-      if (human.homeBuildingId == null) continue;
-      assignedByBuilding.set(human.homeBuildingId, (assignedByBuilding.get(human.homeBuildingId) ?? 0) + 1);
+      if (human.workerBuildingId == null) continue;
+      assignedByBuilding.set(human.workerBuildingId, (assignedByBuilding.get(human.workerBuildingId) ?? 0) + 1);
     }
     const staffedJobBuildings = staffable.filter((building) => (assignedByBuilding.get(building.id) ?? 0) > 0).length;
     const ledger = world.economyLedger;
