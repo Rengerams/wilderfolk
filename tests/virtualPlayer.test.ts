@@ -768,20 +768,19 @@ describe('virtual player decision engine', () => {
     expect(decision.reason).toContain('decline');
   });
 
-  it('staffs an empty workplace before building anything', () => {
-    // The fixture brings its own farm; the default one would take the single idle
-    // settler the staffing rule is about.
+  it('does not repeatedly enable Auto-fill when a workplace already uses it', () => {
     const world = makeWorld(
       [human(1, { residenceBuildingId: 1 })],
-      [building(1, BuildingType.House, { occupants: [1] }), building(2, BuildingType.Farm)],
+      [building(1, BuildingType.House, { occupants: [1] }), building(2, BuildingType.Farm, { staffingMode: 'auto' })],
       {},
       { foodProducer: false },
     );
 
-    const decision = decideVirtualPlayerAction(world);
-
-    expect(decision!.command).toEqual({ proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' });
-    expect(decision!.reason).toContain('Farm');
+    // Auto-fill is a persistent workplace policy handled by the workforce owner.
+    // The virtual player must allow subsequent decisions instead of sending the same command.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      expect(decideVirtualPlayerAction(world)?.command.op).not.toBe('autoStaffWorkers');
+    }
   });
 
   it('proposes no auto-staffing when only a transfer could fill a post', () => {
