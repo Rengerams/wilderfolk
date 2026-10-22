@@ -93,20 +93,20 @@ export function advanceApprenticeships(
 
     const grandmaster = readSkill(master, job) >= GRANDMASTER_SKILL;
     // Grandmasters reserve available places for Tier 3 graduates first.
-    const eligibleScholars = grandmaster
-      ? scholars.filter((p) => !claimed.has(p.id) && readSkill(p, job) < GRADUATE_SKILL)
-      : [];
-    const pool = eligibleScholars.length > 0 ? eligibleScholars : candidates;
+    // Oldest waiting scholars go first; ordinary training remains selective.
+    const scholar = grandmaster ? scholars.find((p) => !claimed.has(p.id)) : undefined;
     const bx = b.x + b.width / 2;
     const by = b.y + b.height / 2;
-    let best: Entity | null = null;
+    let best: Entity | null = scholar ?? null;
     let bestD = Infinity;
-    for (const j of pool) {
-      if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
-      const d = Math.hypot(j.x - bx, j.y - by);
-      if (d < bestD) {
-        bestD = d;
-        best = j;
+    if (!best) {
+      for (const j of candidates) {
+        if (claimed.has(j.id) || readSkill(j, job) >= GRADUATE_SKILL) continue;
+        const d = Math.hypot(j.x - bx, j.y - by);
+        if (d < bestD) {
+          bestD = d;
+          best = j;
+        }
       }
     }
     if (best) {
