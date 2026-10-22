@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Auto-play now staffs a needed but empty producer when eligible workers or transfers are available, rather than overlooking the shortage.
+
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
 
 - **Changed:** Game hours now contain 12 simulation ticks, settlers walk faster, and commute reach uses building centres. Existing 72-tick-day saves retain their calendar dates on load.
