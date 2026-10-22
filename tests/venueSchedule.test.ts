@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   DEFAULT_HOTEL_SCHEDULE,
   DEFAULT_TAVERN_SCHEDULE,
