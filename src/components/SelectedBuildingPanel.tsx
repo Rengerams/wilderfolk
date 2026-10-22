@@ -35,7 +35,7 @@ import {
 import { formatEducationLabel, getSchoolRoster, describeSchoolRoster } from '../game/education';
 import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../game/citizenId';
 import { isProductionBuildingType } from '../game/buildCatalog';
-import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
+import { BUILDING_TYPE_CODES, MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
@@ -241,7 +241,7 @@ export default function SelectedBuildingPanel({
           )}
           <div>
             <h3 className="text-sm font-bold text-indigo-200">{rival?.name ?? building.campLabel ?? 'Rival Camp'}</h3>
-            <p className="text-[11px] text-indigo-300/70">Building ID: {building.id}</p>
+            <p className="text-[11px] text-indigo-300/70">Type #{BUILDING_TYPE_CODES[building.type]} · Building ID: {building.id}</p>
             <p className="text-[11px] text-indigo-300/80">
               {config.label} · {rival ? formatRivalPopulationLabel(rival) : '?'} · <span className="capitalize">{rival?.relationship ?? 'unknown'}</span>
               {rival && (
@@ -490,7 +490,7 @@ export default function SelectedBuildingPanel({
         )}
         <div>
           <h3 className="text-base font-bold text-amber-200">{config.label} {building.level > 1 && `(Lv.${building.level})`}</h3>
-          <p className="text-[11px] text-amber-300/70">Building ID: {building.id}</p>
+          <p className="text-[11px] text-amber-300/70">Type #{BUILDING_TYPE_CODES[building.type]} · Building ID: {building.id}</p>
           <p className="text-[11px] text-amber-400">{config.description}</p>
         </div>
       </div>

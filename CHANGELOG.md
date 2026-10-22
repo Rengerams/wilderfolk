@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
+
 - **Changed:** Workplace assignments use workerBuildingId throughout simulation, UI, diagnostics and worker transfers. Older saves translate the previous field once on load, including saved Moon Howler forms, without changing building IDs.
 
 - **Fixed:** Legacy rival camp buildings left over from an older save — a house, farm or well that no rival settlement still listed — are removed when that save loads, and the daily rival pulse now retires any of them it finds. They no longer linger on the map as a camp you cannot interact with.
