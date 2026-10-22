@@ -21,7 +21,7 @@ export const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
 export const FESTIVAL_GATHER_START = 15;
 export const FESTIVAL_GATHER_END = 23;
-/** Legacy 07–18 hours per weekday (11); drives daily construction and the school-day floor. */
+/** Legacy 07–18 hours per weekday (11); school hours are defined in education.ts. */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 
 /** A work-day window (start inclusive, end exclusive). */
