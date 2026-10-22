@@ -772,7 +772,6 @@ npm start
 | Doc | For |
 |-----|-----|
 | **[CHANGELOG.md](CHANGELOG.md)** | Detailed change log by version |
-| **[Roadmap_V0_6.5.MD](Roadmap_V0_6.5.MD)** | Roadmap and shipped features by version |
 | **[AGENTS.md](AGENTS.md)** | Developers — build, test, lint, audit, commit conventions |
 
 ---
