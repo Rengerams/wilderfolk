@@ -30,8 +30,8 @@ export const Relationship = {
 } as const;
 
 export const Time = {
-  /** 3 = simulation ticks per clock hour (provides smooth pathing and task interaction). */
-  TICKS_PER_HOUR: 3,
+  /** 12 simulation ticks per clock hour give commuters finer steps without speeding up the real-time tick rate. */
+  TICKS_PER_HOUR: 12,
   /** 24 = one calendar day per sim day; keeps all math in whole days. */
   HOURS_PER_DAY: 24,
   /** 360 = 4 seasons × 90 days; chosen over 365 so every season and year divide evenly. */
