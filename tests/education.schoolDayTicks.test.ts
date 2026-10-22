@@ -25,8 +25,8 @@ describe('school-day credit threshold (F1)', () => {
   it('expresses half a school day in ticks, not in hours', () => {
     expect(SCHOOL_DAY_MIN_HOURS).toBe(SCHOOL_HOURS_PER_DAY * 0.5);
     expect(SCHOOL_DAY_MIN_TICKS).toBe(Math.floor(SCHOOL_HOURS_PER_DAY * 0.5 * TICKS_PER_HOUR));
-    // Three in-game hours at three ticks per hour.
-    expect(SCHOOL_DAY_MIN_TICKS).toBe(9);
+    // Three in-game hours at twelve ticks per hour.
+    expect(SCHOOL_DAY_MIN_TICKS).toBe(36);
   });
 
   it('runs classes from 09:00 until 15:00', () => {
