@@ -1,6 +1,6 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
 import { isWorkHour, shouldBeAtHome } from '../dayCycle';
-import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool } from '../education';
+import { findNearestStaffedSchool, findStaffedSchools, isChildAtSchool, SCHOOL_START_HOUR, SCHOOL_END_HOUR } from '../education';
 import {
   buildHumanCombatStatusFlags,
   getHumanStatusCombatIconFromFlags,
@@ -201,7 +201,7 @@ function buildHumanStatusIconContext(
 
 function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatusFacts {
   const school = human.isJuvenile ? ctx.childSchoolById.get(human.id) : undefined;
-  const schoolHours = !!school && isWorkHour(ctx.hourOfDay);
+  const schoolHours = !!school && ctx.hourOfDay >= SCHOOL_START_HOUR && ctx.hourOfDay < SCHOOL_END_HOUR;
   return {
     isLeader: ctx.villageLeaderId != null && human.id === ctx.villageLeaderId,
     isMoonHowler: !!human.moonHowlerCursed,
