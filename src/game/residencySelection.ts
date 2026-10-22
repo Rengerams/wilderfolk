@@ -677,11 +677,7 @@ function cachedCommuteHours(
   return hours;
 }
 
-/**
- * The §12 commute move: the vacant home that most shortens this household's daily travel, when it
- * beats the current home by a meaningful margin. Empty targets only, so the composition rule that
- * prefers an empty home never trades the household straight back — the anti-oscillation guard.
- */
+/** §12 commute move: the vacant home that most shortens the household's daily travel, and never back. */
 export function pickCommuteRelocation(
   unit: Entity[],
   alive: Entity[],

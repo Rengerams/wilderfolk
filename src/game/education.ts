@@ -27,7 +27,10 @@ export function immigrantSchoolDaysForAge(age: number): number {
   return Math.max(0, Math.min(HUMAN_ADULT_MIN_AGE - SCHOOL_MIN_AGE, Math.floor(age) - SCHOOL_MIN_AGE)) * 20;
 }
 
-/** Max children who can attend one school at once — a classroom holds a classroom. */
+/** Pupils one assigned teacher can supervise — a school's seats are ten per teacher. */
+export const SCHOOL_CHILDREN_PER_TEACHER = 10;
+
+/** Hard ceiling on one school's pupils — the two-teacher building's twenty seats. */
 export const SCHOOL_MAX_CHILDREN = 20;
 
 export const SCHOOL_START_HOUR = 9;
@@ -42,6 +45,11 @@ export function isSchoolTime(tick: number, hourOfDay: number): boolean {
 export const SCHOOL_DAY_MIN_HOURS = SCHOOL_HOURS_PER_DAY * 0.5;
 /** The same threshold expressed in ticks — the unit `schoolTicksToday` is actually counted in. */
 export const SCHOOL_DAY_MIN_TICKS = Math.floor(SCHOOL_DAY_MIN_HOURS * TICKS_PER_HOUR);
+
+/** A school's seats: ten per assigned teacher, never more than the building's ceiling. */
+export function schoolCapacity(school: Building): number {
+  return Math.min(SCHOOL_MAX_CHILDREN, school.occupants.length * SCHOOL_CHILDREN_PER_TEACHER);
+}
 
 export function findStaffedSchools(buildings: readonly Building[]): Building[] {
   return buildings.filter(
@@ -63,7 +71,7 @@ export function findNearestStaffedSchool(
   let bestDist = Infinity;
   for (const school of schools) {
     // Skip schools already at capacity (children reserved earlier this pass).
-    if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
     const cx = school.x;
     const cy = school.y;
     const dist = Math.hypot(child.x - cx, child.y - cy);
@@ -85,12 +93,12 @@ export function findSchoolForChild(
   const schools = findStaffedSchools(buildings);
   const home = buildings.find((b) => b.id === child.residenceBuildingId);
   const current = schools.find((b) => b.id === child.schoolBuildingId);
-  if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < SCHOOL_MAX_CHILDREN) return current;
+  if (current && !reviewTransfer && (reserved?.get(current.id) ?? 0) < schoolCapacity(current)) return current;
 
   let best: Building | undefined;
   let bestDistance = Infinity;
   for (const school of schools) {
-    if ((reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    if ((reserved?.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
     const distance = commuteDistanceFromResidence(child, home, school);
     if (commuteLeadHoursFor(distance, walkSpeed) > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
     if (distance < bestDistance) {
@@ -119,7 +127,7 @@ export function syncSchoolAssignments(
   );
   for (const child of children) {
     const current = staffed.get(child.schoolBuildingId ?? -1);
-    if (!current || (reserved.get(current.id) ?? 0) >= SCHOOL_MAX_CHILDREN) {
+    if (!current || (reserved.get(current.id) ?? 0) >= schoolCapacity(current)) {
       child.schoolBuildingId = undefined;
       continue;
     }
@@ -147,6 +155,21 @@ export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): 
   return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
 }
 
+/** Whether a teacher on this school's staff is standing at the school right now. */
+export function hasTeacherPresent(
+  school: Building,
+  entityById: ReadonlyMap<number, Entity>,
+  maxDist = 28,
+): boolean {
+  for (const id of school.occupants) {
+    const teacher = entityById.get(id);
+    if (!teacher || !teacher.alive) continue;
+    const target = humanBuildingTarget(school, teacher.id, false);
+    if (Math.hypot(teacher.x - target.x, teacher.y - target.y) <= maxDist) return true;
+  }
+  return false;
+}
+
 /**
  * The schooling owner's reason this settler has no classroom seat, or `null` when the seat rule would
  * take them. Pass the pass's `reserved` tally to ask the same question in the tick's world order.
@@ -164,7 +187,7 @@ export function getSchoolingBlockReason(
   const staffed = findStaffedSchools(buildings);
   if (staffed.length === 0) return 'School has no teacher assigned';
   if (findSchoolForChild(child, buildings, reserved)) return null;
-  if (staffed.every((school) => (reserved?.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN)) {
+  if (staffed.every((school) => (reserved?.get(school.id) ?? 0) >= schoolCapacity(school))) {
     return 'Every classroom is full';
   }
   return 'No school within two hours of home';
@@ -194,7 +217,7 @@ export function buildSchoolRosters(
   const assigned = new Map<number, Building>();
   for (const child of children) {
     const school = schools.get(child.schoolBuildingId ?? -1);
-    if (!school || (reserved.get(school.id) ?? 0) >= SCHOOL_MAX_CHILDREN) continue;
+    if (!school || (reserved.get(school.id) ?? 0) >= schoolCapacity(school)) continue;
     assigned.set(child.id, school);
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
   }
@@ -206,6 +229,9 @@ export function buildSchoolRosters(
     reserved.set(school.id, (reserved.get(school.id) ?? 0) + 1);
   }
   const classHours = isSchoolTime(tick, hourOfDay);
+  const byId = new Map(humans.map((human) => [human.id, human]));
+  const teacherPresent = new Map<number, boolean>();
+  for (const [id, school] of schools) teacherPresent.set(id, hasTeacherPresent(school, byId));
   for (const child of children) {
     const school = assigned.get(child.id);
     if (!school) continue;
@@ -215,7 +241,10 @@ export function buildSchoolRosters(
       rosters.set(school.id, entry);
     }
     entry.pupils.push(child);
-    if (classHours && isChildAtSchool(child, school)) entry.inClassNow.push(child);
+    // A class needs its teacher there — the same presence the school-day credit requires.
+    if (classHours && teacherPresent.get(school.id) && isChildAtSchool(child, school)) {
+      entry.inClassNow.push(child);
+    }
   }
   return rosters;
 }
@@ -236,15 +265,16 @@ export function getSchoolRoster(
 export function describeSchoolRoster(
   entry: SchoolRosterEntry,
   hasTeacher: boolean,
+  capacity: number,
 ): { headline: string; emptyHint: string | null; classroomFull: boolean } {
   return {
-    headline: `Pupils ${entry.pupils.length}/${SCHOOL_MAX_CHILDREN}`,
+    headline: `Pupils ${entry.pupils.length}/${capacity}`,
     emptyHint: entry.pupils.length > 0
       ? null
       : hasTeacher
         ? 'No pupils yet — children enroll at an available staffed school.'
         : 'No teacher assigned — children only attend a staffed school.',
-    classroomFull: entry.pupils.length >= SCHOOL_MAX_CHILDREN,
+    classroomFull: capacity > 0 && entry.pupils.length >= capacity,
   };
 }
 
@@ -284,7 +314,8 @@ export function summarizeSchooling(
     (e) => e.alive && e.type === EntityType.Human && e.isJuvenile && isPlayerHuman(e),
   );
   const classHours = isSchoolTime(tick, hourOfDay);
-  const rosters = buildSchoolRosters(state.buildings, children, tick, hourOfDay);
+  // Pass every settler: the roster reads teacher presence from the same list it seats children in.
+  const rosters = buildSchoolRosters(state.buildings, state.entities, tick, hourOfDay);
   const enrolledIds = new Set<number>();
   const reserved = new Map<number, number>();
   let inClassNow = 0;
@@ -363,13 +394,14 @@ export function recordChildSchoolTick(
   child: Entity,
   school: Building | undefined,
   hourOfDay: number,
+  teacherPresent: boolean,
   tick?: number,
 ): void {
-  // Attendance counts only during the weekday 09:00–15:00 school shift.
+  // Attendance counts only during the weekday 09:00–15:00 shift, with the teacher there.
   const inSchoolHours = tick != null
     ? isSchoolTime(tick, hourOfDay)
     : hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
-  if (!school || !inSchoolHours || !isChildAtSchool(child, school)) return;
+  if (!school || !teacherPresent || !inSchoolHours || !isChildAtSchool(child, school)) return;
   child.schoolTicksToday = (child.schoolTicksToday ?? 0) + 1;
 }
 

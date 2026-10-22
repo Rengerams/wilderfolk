@@ -49,6 +49,8 @@ import { isEntityOnBuilding } from './buildingRotation';
 import {
   applyEducationGraduation,
   creditChildSchoolDay,
+  findStaffedSchools,
+  hasTeacherPresent,
   syncSchoolAssignments,
   recordChildSchoolTick,
   isSchoolTime,
@@ -341,6 +343,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
   const schoolAssignments = syncSchoolAssignments(allHumans, updatedBuildings, isNewCalendarDay, config.speed);
+
+  // A school day needs its teacher in the classroom too: sample that presence once for the tick.
+  const schoolsWithTeacherPresent = new Set<number>();
+  for (const school of findStaffedSchools(updatedBuildings)) {
+    if (hasTeacherPresent(school, entityById)) schoolsWithTeacherPresent.add(school.id);
+  }
 
   // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
   // looking, so the first barracks watch on shift builds the index and the rest reuse it.
@@ -949,7 +957,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;
-      recordChildSchoolTick(entity, schoolTarget, hourOfDay, state.tick);
+      recordChildSchoolTick(
+        entity,
+        schoolTarget,
+        hourOfDay,
+        schoolsWithTeacherPresent.has(schoolTarget.id),
+        state.tick,
+      );
     } else if (
       tickTavernService({
         entity,

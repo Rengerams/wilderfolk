@@ -14,9 +14,14 @@ import { createEntity } from '../src/game/entityFactory';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 import { pickCommuteRelocation, RELOCATION_MIN_SAVED_HOURS, RELOCATION_MIN_IMPROVEMENT_RATIO } from '../src/game/residencySelection';
 import { commuteLeadHoursFor } from '../src/game/commuteReach';
+import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
 
 /** Human walk speed the movement owner uses; kept in step with the pickers' default. */
 const WALK_SPEED = 6.4;
+
+/** The day's final assignment pulse — the only pulse whose sweep bucket runs the daily commute move. */
+const FINAL_DAILY_ASSIGN_PULSE = TICKS_PER_DAY - LAYER_ASSIGN_INTERVAL + LAYER_ASSIGN_PHASE_TICK;
 /** Far home: a ~10 h walk to the job placed beside the near home, whose own trip is the one-hour floor. */
 const FAR_X = 0;
 const NEAR_X = 600;
@@ -87,14 +92,14 @@ describe('pickCommuteRelocation', () => {
 
   it('ignores a trivial improvement so near-equal homes never trade the household', () => {
     const home = house(1, 0);
-    const barelyCloser = house(2, 28);
-    const job = workplace(3, 100);
+    const barelyCloser = house(2, 106);
+    const job = workplace(3, 402);
     const unit = [worker(20, home.id, job.id)];
 
-    // The 28 px gain saves less than the meaningful threshold while still clearing the ratio guard,
+    // The 106 px gain saves less than the meaningful threshold while still clearing the ratio guard,
     // so the absolute hours rule is the one that must hold the household in place.
-    const homeHours = commuteLeadHoursFor(100, WALK_SPEED);
-    const candidateHours = commuteLeadHoursFor(72, WALK_SPEED);
+    const homeHours = commuteLeadHoursFor(402, WALK_SPEED);
+    const candidateHours = commuteLeadHoursFor(296, WALK_SPEED);
     expect(homeHours - candidateHours).toBeLessThan(RELOCATION_MIN_SAVED_HOURS);
     expect(candidateHours).toBeLessThanOrEqual(homeHours * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO));
 
@@ -144,14 +149,14 @@ describe('assignMissingResidences — the daily commute move', () => {
     const humans = [father, mother];
     const buildings = [farHome, nearHome, job];
 
-    // Tick 63 is the day's final assignment pulse (bucket 3), the only pulse that relocates.
-    assignMissingResidences(humans, buildings, humans, 63);
+    // The day's final assignment pulse is the only pulse whose bucket relocates.
+    assignMissingResidences(humans, buildings, humans, FINAL_DAILY_ASSIGN_PULSE);
 
     expect(father.residenceBuildingId).toBe(nearHome.id);
     expect(mother.residenceBuildingId).toBe(nearHome.id);
 
     // A second daily sweep must not trade the household back to the empty far home.
-    assignMissingResidences(humans, buildings, humans, 63);
+    assignMissingResidences(humans, buildings, humans, FINAL_DAILY_ASSIGN_PULSE);
     expect(father.residenceBuildingId).toBe(nearHome.id);
     expect(mother.residenceBuildingId).toBe(nearHome.id);
   });

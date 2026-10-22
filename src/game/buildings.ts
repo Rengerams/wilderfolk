@@ -441,7 +441,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     maxOccupants: 2,
     emoji: '🏫',
     label: 'School',
-    description: 'Assign teachers (up to 2) — children attend by day for faster growth & graduation perks.',
+    description: 'Staff 1–2 teachers, 10 pupils each (20 per school) — children attend by day for faster growth & graduation perks.',
     sprite: '/sprites/school.png',
     backgroundColor: '#2563eb',
     padShape: 'round',
