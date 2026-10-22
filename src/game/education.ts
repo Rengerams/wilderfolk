@@ -11,6 +11,7 @@ import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { SPECIES_CONFIG } from './speciesConfig';
 
 /** School days before faster maturation kicks in. */
 export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
@@ -30,13 +31,7 @@ export function isSchoolTime(tick: number, hourOfDay: number): boolean {
   return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
 }
 
-/**
- * In-game school hours a child must attend to be credited one full school day — half a work day.
- * `schoolTicksToday` counts **ticks**, so the hour threshold must be converted before comparing:
- * it was compared against that tick counter directly, which credited a full school day after
- * ~1.7 in-game hours and made `schoolDays` accrue ~3.3× too fast
- * (`BUG_REPORTS/2026-09-16-school-day-credited-from-a-tick-counter.md`).
- */
+/** Attend at least half of the six-hour classroom day to earn one school day. */
 export const SCHOOL_DAY_MIN_HOURS = SCHOOL_HOURS_PER_DAY * 0.5;
 /** The same threshold expressed in ticks — the unit `schoolTicksToday` is actually counted in. */
 export const SCHOOL_DAY_MIN_TICKS = Math.floor(SCHOOL_DAY_MIN_HOURS * TICKS_PER_HOUR);
@@ -78,7 +73,7 @@ export function findSchoolForChild(
   buildings: readonly Building[],
   reserved?: ReadonlyMap<number, number>,
   reviewTransfer = false,
-  walkSpeed = child.speed,
+  walkSpeed = SPECIES_CONFIG[EntityType.Human].speed,
 ): Building | undefined {
   const schools = findStaffedSchools(buildings);
   const home = buildings.find((b) => b.id === child.residenceBuildingId);
@@ -321,7 +316,7 @@ export function describeSchoolingSummary(
     notes.push(`${summary.tooYoung} younger than ${SCHOOL_MIN_AGE} — not school age yet.`);
   }
   if (summary.schoolAge > 0 && !summary.classHours) {
-    notes.push('Outside school hours — classes run on weekday work hours only.');
+    notes.push('Outside school hours — classes run weekdays from 09:00 to 15:00.');
   } else if (summary.classHours && summary.enrolled > summary.inClassNow) {
     notes.push(`${summary.enrolled - summary.inClassNow} enrolled children not in class right now — still walking or busy.`);
   }
@@ -363,7 +358,7 @@ export function recordChildSchoolTick(
   hourOfDay: number,
   tick?: number,
 ): void {
-  // No school on weekends; weekday work hours only.
+  // Attendance counts only during the weekday 09:00–15:00 school shift.
   const inSchoolHours = tick != null
     ? isSchoolTime(tick, hourOfDay)
     : hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
