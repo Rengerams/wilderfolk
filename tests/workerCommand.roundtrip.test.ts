@@ -24,6 +24,7 @@ import {
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
@@ -230,16 +231,19 @@ describe('worker command round trips (shared worker + fallback implementation)',
     expect(next.resources.gold).toBe(450);
   });
 
-  it("upgradeBuilding raises the Leader's House, whose level adds beds", () => {
+  it("upgradeBuilding refuses the Leader's House, whose 12 beds are fixed", () => {
     const leaderHouse = building(2, BuildingType.LeaderHouse);
     const world = makeWorld([], [leaderHouse]);
     expect(getResidenceCapacity(leaderHouse)).toBe(12);
+    // The panel hides its button and the bot skips it on exactly this verdict.
+    expect(getBuildingUpgradeEligibility(world, 2).ok).toBe(false);
 
     const next = applyWorkerCommand(world, cmd({ op: 'upgradeBuilding', buildingId: 2 }));
 
-    const upgraded = next.buildings.find((b) => b.id === 2)!;
-    expect(upgraded.level).toBe(2);
-    expect(getResidenceCapacity(upgraded)).toBe(14);
+    const unchanged = next.buildings.find((b) => b.id === 2)!;
+    expect(unchanged.level).toBe(1);
+    expect(getResidenceCapacity(unchanged)).toBe(12);
+    expect(next.resources).toEqual(world.resources);
   });
 
   it('setMineMode switches the mine ore', () => {

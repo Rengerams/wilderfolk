@@ -1253,10 +1253,6 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;
     if (!buildingTypeHasLevelBenefit(building.type)) continue;
-    // The Leader's House is free and belongs to the office, not the colony's budget: raising its
-    // level would spend real resources on the one building nobody paid to raise. The UI hides the
-    // button for it (`upgradeBuilding` treats it as structural); the bot must skip it too.
-    if (building.type === BuildingType.LeaderHouse) continue;
     if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
     if (!canAffordUpgradeWithReserve(state, building)) continue;
     return {

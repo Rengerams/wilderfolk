@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** The Leader's House can no longer be upgraded: its beds stay at 12, as the original design has it, and the building inspector no longer offers the button. A level an older save already carries still counts.
+
 - **Added:** A household may trade its home for a vacant one that meaningfully shortens the family's commute and school trip, checked once a day with a margin that stops near-equal homes swapping them. The Leader's House stays exempt.
 
 - **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
