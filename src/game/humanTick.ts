@@ -50,7 +50,7 @@ import { isEntityOnBuilding } from './buildingRotation';
 import {
   applyEducationGraduation,
   creditChildSchoolDay,
-  findSchoolForChild,
+  syncSchoolAssignments,
   recordChildSchoolTick,
   isSchoolTime,
   SCHOOL_START_HOUR,
@@ -94,7 +94,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { applyHumanWalkStep, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
@@ -341,7 +341,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const ambientChatNeighbors = (self: Entity): Entity[] =>
     simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
-  const schoolReserved = new Map<number, number>();
+  const schoolAssignments = syncSchoolAssignments(allHumans, updatedBuildings, isNewCalendarDay, config.speed);
 
   // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
   // looking, so the first barracks watch on shift builds the index and the rest reuse it.
@@ -483,15 +483,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (isPlayerHuman(e)) applyEducationGraduation(state, e);
     });
 
-    const schoolTarget =
-      entity.isJuvenile
-      && entity.age >= SCHOOL_MIN_AGE
-      && isPlayerHuman(entity)
-        ? findSchoolForChild(entity, updatedBuildings, schoolReserved)
-        : undefined;
+    const schoolTarget = schoolAssignments.get(entity.id);
 
     if (schoolTarget) {
-      schoolReserved.set(schoolTarget.id, (schoolReserved.get(schoolTarget.id) ?? 0) + 1);
       // Schoolyard rumours and new bonds require an awake child at school hours.
       // Run once per day at noon, not at midnight while the children sleep.
       if (
@@ -524,10 +518,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed),
     ));
     const onSchoolShift = schoolTarget != null && isSchoolTime(state.tick, hourOfDay);
-    const schoolCommuteOrigin = buildingById.get(entity.residenceBuildingId!) ?? entity;
+    const schoolResidence = entity.residenceBuildingId == null
+      ? undefined : buildingById.get(entity.residenceBuildingId);
     const schoolLeadHours = schoolTarget
       ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS, Math.ceil(commuteLeadHoursFor(
-        Math.hypot(schoolTarget.x - schoolCommuteOrigin.x, schoolTarget.y - schoolCommuteOrigin.y),
+        commuteDistanceFromResidence(entity, schoolResidence, schoolTarget),
         config.speed,
       )))
       : 0;
