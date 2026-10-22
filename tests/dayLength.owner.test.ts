@@ -22,10 +22,10 @@ function readSrc(relative: string): string {
 }
 
 describe('A8 — the calendar day length has one owner (gameConstants.Time)', () => {
-  it('keeps the clock values derived from the owner, and unchanged', () => {
+  it('keeps the clock values derived from the owner, after the pacing retune', () => {
     expect(TICKS_PER_HOUR).toBe(Time.TICKS_PER_HOUR);
     expect(TICKS_PER_DAY).toBe(Time.HOURS_PER_DAY * Time.TICKS_PER_HOUR);
-    expect(TICKS_PER_DAY).toBe(72);
+    expect(TICKS_PER_DAY).toBe(288);
     expect(DAYS_PER_YEAR).toBe(Time.DAYS_PER_YEAR);
   });
 
