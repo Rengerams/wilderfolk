@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Education now awards all three tiers at 120, 135 and 150 credited school days; Tier 1 was previously unreachable.
+
 - **Fixed:** School runs 09:00–15:00 on weekdays, with a three-hour classroom attendance threshold independent of work shifts. Enrollment stays with each child and transfers to a substantially closer school on a daily review; school commutes start at the real home standing point. Changed the count days needed for graduation
 
 - **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
