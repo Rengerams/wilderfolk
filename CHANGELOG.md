@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Schools hold 20 pupils. Immigrant children arrive with 20 credited school days per completed school-age year; Tier 3 graduates gain +20 to skills and remain eligible for guaranteed grandmaster (80+ skill) apprenticeships when a training place opens.
+
 - **Fixed:** Education now awards all three tiers at 120, 135 and 150 credited school days; Tier 1 was previously unreachable.
 
 - **Fixed:** School runs 09:00–15:00 on weekdays, with a three-hour classroom attendance threshold independent of work shifts. Enrollment stays with each child and transfers to a substantially closer school on a daily review; school commutes start at the real home standing point. Changed the count days needed for graduation
