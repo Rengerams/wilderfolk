@@ -141,6 +141,9 @@ export function humanBuildingTarget(
   if (arrivingHome) {
     return homeStandPosition(building, entityId);
   }
+  if (building.type === BuildingType.School && !building.occupants.includes(entityId)) {
+    return walkableStandPoint(building.x, building.y);
+  }
   /**
    * A real slot per worker, in a row across the building's front.
    *
@@ -344,7 +347,8 @@ export function commuteHumanToBuilding(
   if (handled === 'path') return false;
   if (handled === 'arrived') return true;
 
-  if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST) {
+  if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
+    || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {
     const step = Math.min(dist, moveSpeed * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO);
     entity.vx = (dx / dist) * step;
     entity.vy = (dy / dist) * step;
