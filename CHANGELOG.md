@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Legacy rival camp buildings left over from an older save — a house, farm or well that no rival settlement still listed — are removed when that save loads, and the daily rival pulse now retires any of them it finds. They no longer linger on the map as a camp you cannot interact with.
+
 - **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
 
 - **Fixed:** Auto-play now sends a settler to a producer that stands unmanned — naming the building — when only a rebalance can crew it, instead of leaving the hour empty while the store it makes runs dry. An idle settler stays the workforce owner's own assignment.

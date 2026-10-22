@@ -55,6 +55,7 @@ import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint } from './pathfinding';
+import { retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
 
@@ -1491,6 +1492,30 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
+    const applySaveMigration = (id: string, message: string) => {
+      if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
+      if (world.appliedSaveMigrations.includes(id)) return;
+      world.appliedSaveMigrations.push(id);
+      logEvent(world, 'event', message);
+    };
+
+    // A save written while village camps existed can hold camp structures the day pulse never reached,
+    // because it retires only what a rival row still lists. Runs before the dangling references below,
+    // which then clear the homes those structures were.
+    const campMigrationDone = (world.appliedSaveMigrations ?? []).includes('legacy-village-camps');
+    if (!campMigrationDone) {
+      const retiredCampStructures = retireLegacyCampStructures(world.buildings);
+      if (retiredCampStructures.size > 0) {
+        applySaveMigration(
+          'legacy-village-camps',
+          `Save migrated — ${retiredCampStructures.size} legacy rival camp structure(s) removed from the map.`,
+        );
+      } else {
+        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
+        world.appliedSaveMigrations.push('legacy-village-camps');
+      }
+    }
+
     repairLoadedHumanGround(world);
     reconcileDanglingReferencesOnLoad(world);
 
@@ -1499,13 +1524,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
     assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
-
-    const applySaveMigration = (id: string, message: string) => {
-      if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
-      if (world.appliedSaveMigrations.includes(id)) return;
-      world.appliedSaveMigrations.push(id);
-      logEvent(world, 'event', message);
-    };
 
     const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
     const clearedChurchSeats = churchMigrationDone ? 0 : clearAutoFilledChurches(world);

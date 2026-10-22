@@ -169,6 +169,20 @@ describe('incoming raid cadence', () => {
     expect(state.nextBuildingId).toBe(nextBuildingId);
   });
 
+  it('retires legacy camp structures that no rival row still lists', () => {
+    const { state, allAlive } = makeState();
+    const rival = state.rivalSettlements[0];
+    // The hole: a row whose bookkeeping was already cleared (or that left the map) used to leave its
+    // camp house standing on the village map for good.
+    const orphaned = building(98, BuildingType.House, { faction: 'rival', groupId: rival.id, campLabel: rival.name });
+    state.buildings.push(orphaned);
+    const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
+    settler.residenceBuildingId = orphaned.id;
+    tickRivalSettlements(state, allAlive, callbacks);
+    expect(state.buildings.map((entry) => entry.id)).toEqual([1]);
+    expect(settler.residenceBuildingId).toBeUndefined();
+  });
+
   it('never expands strategic settlements onto the village map', () => {
     setSimSeed(12345);
     const { state } = makeState();
