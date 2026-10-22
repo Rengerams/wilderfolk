@@ -31,6 +31,7 @@ src-tauri/icons/*
 dependency-graph.dot
 dependency-graph.svg
 references.md
+deno/
 .git
 dist/
 pnpm-workspace.yaml
