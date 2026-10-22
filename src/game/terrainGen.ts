@@ -104,7 +104,7 @@ export function ensureCampClearing(
       const dist = Math.hypot(tx - cx, ty - cy);
       if (dist > radiusTiles) continue;
       const type = tileTypeAt(map, tx, ty);
-      if (type === null || type === TerrainType.River || type === TerrainType.RiverBank) continue;
+      if (type === null || type === TerrainType.RiverBank || isWaterTerrainType(type)) continue;
 
       const inner = dist < radiusTiles * 0.55;
       // A coastal preset keeps a beach ring so the camp still reads as a shore landing.
