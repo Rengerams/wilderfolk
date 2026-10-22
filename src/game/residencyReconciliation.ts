@@ -5,6 +5,7 @@ import { collectFamilyMembers, collectOwnHousehold, indexFamilyRelations, isMino
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 import { listPlayerResidences, ensureOrphanAdoption, rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
+import { beginCommuteRoutePass } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -351,6 +352,7 @@ export function assignMissingResidences(
       // §12: once a day, a settled household may trade its home for a vacant one that meaningfully
       // shortens its workers' commute and children's school trip — the whole household moves together.
       const commuteCache = new Map<string, number>();
+      beginCommuteRoutePass();
       const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
       for (const unit of housingUnitsBase) {
         const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, commuteCache, walkSpeed);

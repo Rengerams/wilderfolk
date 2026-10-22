@@ -1,7 +1,7 @@
 import type { Building, Entity } from './gameTypes';
 import { LEADER_OCCUPATION } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { estimatedCommuteHours } from './commuteReach';
+import { estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import {
   collectFamilyMembers,
   collectMinorHousehold,
@@ -677,6 +677,22 @@ function cachedCommuteHours(
   return hours;
 }
 
+/** Whether every pupil in the unit still reaches their school from `home` inside the reach rule. */
+function pupilsKeepSchoolReach(
+  unit: Entity[],
+  home: Building,
+  buildings: readonly Building[],
+  walkSpeed: number,
+  cache: Map<string, number>,
+): boolean {
+  for (const member of unit) {
+    if (member.schoolBuildingId == null) continue;
+    const hours = cachedCommuteHours(home, member.schoolBuildingId, buildings, walkSpeed, cache);
+    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
+  }
+  return true;
+}
+
 /** §12 commute move: the vacant home that most shortens the household's daily travel, and never back. */
 export function pickCommuteRelocation(
   unit: Entity[],
@@ -701,6 +717,7 @@ export function pickCommuteRelocation(
     if (residence.id === homeId || isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
     if (countResidentsInBuilding(alive, residence.id, occupancy) !== 0) continue;
     if (!familyFitsInResidence(unit, residence, alive, occupancy)) continue;
+    if (!pupilsKeepSchoolReach(unit, residence, buildings, walkSpeed, cache)) continue;
     const hours = householdCommuteHours(unit, residence, buildings, walkSpeed, cache);
     if (hours < bestHours || (best !== undefined && hours === bestHours && residence.id < best.id)) {
       bestHours = hours;

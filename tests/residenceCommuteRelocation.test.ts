@@ -13,7 +13,7 @@ import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 import { pickCommuteRelocation, RELOCATION_MIN_SAVED_HOURS, RELOCATION_MIN_IMPROVEMENT_RATIO } from '../src/game/residencySelection';
-import { commuteLeadHoursFor } from '../src/game/commuteReach';
+import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from '../src/game/commuteReach';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
 
@@ -51,6 +51,18 @@ function worker(id: number, homeId: number, workId: number): Entity {
   return human;
 }
 
+function pupil(id: number, homeId: number, schoolId: number): Entity {
+  const human = createEntity(EntityType.Human, 0, 200, id, 200);
+  human.alive = true;
+  human.isJuvenile = true;
+  human.age = 8;
+  human.faction = undefined;
+  human.childrenIds = [];
+  human.residenceBuildingId = homeId;
+  human.schoolBuildingId = schoolId;
+  return human;
+}
+
 describe('pickCommuteRelocation', () => {
   it('moves a household to a vacant home that shortens its commute', () => {
     const farHome = house(1, FAR_X);
@@ -69,6 +81,36 @@ describe('pickCommuteRelocation', () => {
     );
 
     expect(target).toBe(nearHome.id);
+  });
+
+  it('refuses a home that would leave a pupil beyond the school reach bound', () => {
+    const home = house(1, 0);
+    const vacant = house(2, 946);
+    const job = workplace(3, 946);
+    const school = createBuilding(BuildingType.School, 426, 200, 4);
+    school.completed = true;
+    const parent = worker(20, home.id, job.id);
+    const child = pupil(21, home.id, school.id);
+
+    // Every other guard favours the move: only the child's 520 px school trip holds the household,
+    // because it lands past the reach rule the school assignment itself uses.
+    const oldTotal = commuteLeadHoursFor(946, WALK_SPEED) + commuteLeadHoursFor(426, WALK_SPEED);
+    const newTotal = commuteLeadHoursFor(0, WALK_SPEED) + commuteLeadHoursFor(520, WALK_SPEED);
+    expect(commuteLeadHoursFor(520, WALK_SPEED)).toBeGreaterThan(MAX_ASSIGNABLE_COMMUTE_HOURS);
+    expect(oldTotal - newTotal).toBeGreaterThan(RELOCATION_MIN_SAVED_HOURS);
+    expect(newTotal).toBeLessThan(oldTotal * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO));
+
+    const target = pickCommuteRelocation(
+      [parent, child],
+      [parent, child],
+      [home, vacant],
+      [home, vacant, job, school],
+      undefined,
+      new Map(),
+      WALK_SPEED,
+    );
+
+    expect(target).toBeUndefined();
   });
 
   it('stays put when the only vacant home is farther from work', () => {

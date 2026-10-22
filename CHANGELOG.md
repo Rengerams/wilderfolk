@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A household no longer trades its home for one that shortens the parents' commute while leaving a child more than two hours from school; a move now checks every pupil's school reach first.
+
+- **Changed:** A household's trip to work and school is now measured along the route settlers really walk — around rivers, mountains and detours — instead of the straight line through them; each route is priced once and a daily sweep stops searching once its budget is spent.
+
 - **Fixed:** The auto-play status line names an unmanned producer before any other shortage, so an empty Quarry reads as a building waiting for a hand instead of its neighbour's low shelf.
 
 - **Added:** The daily council lists every village building in one table with its building type number and its unique building ID, sorted by type and number, so two buildings of the same kind are told apart at a glance.

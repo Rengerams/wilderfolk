@@ -390,15 +390,15 @@ function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: 
   return true;
 }
 
-/** A* over the grid — returns tile path (start..goal inclusive) or null. */
-export function findPath(
+/** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
+function searchRoute(
   grid: PathGrid,
   sx: number,
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
-): { x: number; y: number }[] | null {
+  maxNodes: number,
+): { path: { x: number; y: number }[]; cost: number } | null {
   const pathProfileStart = profileStart();
   try {
   const { cols, rows, blocked, elevation, road } = grid;
@@ -481,7 +481,7 @@ export function findPath(
 
       recordPathNodes(nodes);
       recordPathFound();
-      return simplified;
+      return { path: simplified, cost: scores[goal] };
     }
 
     const cx = cur % cols;
@@ -525,6 +525,30 @@ export function findPath(
   } finally {
     profileEnd('pathfinding.findPath', pathProfileStart);
   }
+}
+
+/** A* over the grid — returns tile path (start..goal inclusive) or null. */
+export function findPath(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): { x: number; y: number }[] | null {
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes)?.path ?? null;
+}
+
+/** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
+export function findRouteCost(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): number | null {
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes)?.cost ?? null;
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
@@ -624,6 +648,11 @@ export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]):
     currentGrid = next;
     pathCache.clear();
   }
+}
+
+/** The grid the sim last handed the path owner; null before the first tick or in a bare fixture. */
+export function getCurrentPathGrid(): PathGrid | null {
+  return currentGrid;
 }
 
 /** What the path owner has to say about one leg of a walk. */

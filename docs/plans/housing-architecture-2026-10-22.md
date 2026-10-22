@@ -33,6 +33,12 @@ Consolidate housing decisions and residence writes into the existing reconciliat
 3. Make reconciliation stable and bounded; add household commute evaluation without per-tick route searches.
 4. Audit permanent ID allocation and retirement history, preserve birthdates, reproduce the Day 121 save, and verify the complete acceptance matrix.
 
+Stage 3 is in progress on this branch: the household commute evaluation prices the walkable route on the
+simulation's own path grid, cached per grid generation with a per-sweep search budget and a
+straight-line fallback, so a home across water is judged by the detour it forces. Stages 2 and 4
+(family shortage/reunion and prisoner reservation rules, housing-write consolidation, the Day 121
+reproduction and the acceptance matrix) remain outstanding on this branch.
+
 Stage 1 does not implement stages 2–4. It does not change building IDs, building names or building-type encoding. Migration tests cover workplace ID zero, mixed legacy/current fields, nested saved forms, unchanged input payloads and repeated export/load. Use copies of saves for branch comparison; a save exported with the renamed field is not suitable for the old main build.
 
 ## Open gameplay detail
