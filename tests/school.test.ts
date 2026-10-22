@@ -10,6 +10,7 @@ import {
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   SCHOOL_MAX_CHILDREN,
+  syncSchoolAssignments,
   findSchoolForChild,
   findStaffedSchools,
   buildSchoolRosters,
@@ -190,6 +191,17 @@ describe('school.capacity.test.ts', () => {
       const school2: Building = { ...school, id: 8001, x: 190, y: 100 };
       const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN]]);
       expect(findSchoolForChild(child, [school, school2], reserved)?.id).toBe(8001);
+    });
+
+    it('keeps a school assignment until a meaningfully better school is available', () => {
+      const { child, school } = schoolFixture();
+      const farther = { ...school, id: 8004, x: 190, y: 100 };
+      child.schoolBuildingId = farther.id;
+      const keep = syncSchoolAssignments([child], [school, farther], false, 6.4);
+      expect(keep.get(child.id)?.id).toBe(farther.id);
+      const review = syncSchoolAssignments([child], [school, farther], true, 6.4);
+      expect(review.get(child.id)?.id).toBe(school.id);
+      expect(child.schoolBuildingId).toBe(school.id);
     });
 
     it('staffed schools are the only ones children consider', () => {
