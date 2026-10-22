@@ -20,7 +20,6 @@ import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
 import {
-  completedJobBuildings,
   countWorkersAtBuilding,
   isManualStaffingBuilding,
 } from './workforce';
