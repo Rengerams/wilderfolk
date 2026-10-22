@@ -12,7 +12,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
-| School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `isSchoolTime`, `recordChildSchoolTick` |
+| School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `commuteHumanToBuilding`, `humanBuildingTarget` (home, classroom and workplace destinations), `applyHumanWalkStep` (the one integration of a walk step) |
 | Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment, the housing commute move and the panel) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `estimatedCommuteHours`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_SPEED_MULTIPLIER`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
 | Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS` |
@@ -119,7 +119,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Ambient chat and dialogue sessions | `humanChat.ts` | realtime (`tickHumans`); `releaseDialogueSession` when an entity leaves that population | `tickHumanChat`, `sayHumanChatPhrase`, `isDialogueBusy`, `startDialogueTreeChat`, `releaseDialogueSession` |
 | Needs: colony meal and exhaustion | `simulation/humanNeeds.ts` | realtime (`tickHumans`, `applySettlerUpkeep`, hunting) | `tryEatColonyMeal`, `isMealCheckHour`, `humanEnergyLoss`, `killFromExhaustion` |
 | Skills and job skill effects | `skills.ts` | work (`dailyBuildingEconomy`, workforce transitions, apprenticeships, graduation) | `ensureEntitySkills`, `readSkill`, `gainSkill`, `getWorkerSkillMultiplier`, `rewardProductionSkills`, `rewardBuildingWork` |
-| School attendance, credit and graduation | `education.ts` | realtime (`humanTick`) + new-calendar-day credit | `recordChildSchoolTick`, `creditChildSchoolDay`, `applyEducationGraduation`, `buildSchoolRosters` |
+| School attendance, credit and graduation | `education.ts` | realtime (`humanTick`) + new-calendar-day credit | `hasTeacherPresent`, `recordChildSchoolTick`, `creditChildSchoolDay`, `applyEducationGraduation`, `buildSchoolRosters` |
 | Friendship and feud webs (with their daily energy effects) | `relationships.ts` | new-calendar-day (`tickLayerDaily`) | `advanceSocialRelationships`, `startFeud`, `friendshipScore`, `feudScore` |
 | Election promises | `electionPromises.ts` | new-calendar-day (three daily call sites) | `tickElectionPromises`, `recordElectionPromises`, `getPromiseDetail`, `electionPromisesForYear` |
 | Wedding diplomacy beat | `weddingDiplomacy.ts` | new-calendar-day (`tickDailyWorldEvents`) + story command | `maybeOfferWeddingDiplomacy`, `tickWeddingDiplomacy`, `resolveWeddingDiplomacy`, `getWeddingDiplomacyChoiceEligibility` |
