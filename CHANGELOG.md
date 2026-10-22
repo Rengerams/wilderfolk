@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Auto-play now sends a settler to a producer that stands unmanned — naming the building — when only a rebalance can crew it, instead of leaving the hour empty while the store it makes runs dry. An idle settler stays the workforce owner's own assignment.
+
 - **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 
 - **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.

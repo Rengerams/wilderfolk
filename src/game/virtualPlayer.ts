@@ -19,8 +19,11 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
+import { listAssignableWorkersForBuilding } from './buildingStaffingActions';
 import {
+  completedJobBuildings,
   countWorkersAtBuilding,
+  findOverstaffedDonorBuilding,
   isManualStaffingBuilding,
 } from './workforce';
 import { readSkill } from './skills';
@@ -588,6 +591,22 @@ const INDUSTRY_BUILD_ORDER: readonly {
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
 
+/**
+ * Whether the staffing owner would really put a hand on a producer nobody works, with no idle
+ * settler free: the over-crewed workplace the auto-staff command rebalances a hand out of.
+ */
+function canStaffUnmannedProducer(state: WorldState, building: Building): boolean {
+  // Manual is a deliberate player choice: never propose auto-staff for this building.
+  if (isManualStaffingBuilding(building)) return false;
+  // An idle hand is auto-fill's own job; only a rebalance is work the bot can add.
+  if (listAssignableWorkersForBuilding(state, building.id).length > 0) return false;
+  return findOverstaffedDonorBuilding(
+    completedJobBuildings(state.buildings),
+    state.entities,
+    building.id,
+  ) !== undefined;
+}
+
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
@@ -606,6 +625,15 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
       (building) => building.type === entry.type && building.faction !== 'rival',
     );
     if (owned.length > 0) {
+      const unmanned = owned.find(
+        (building) => building.completed && countWorkersAtBuilding(state.entities, building.id) === 0,
+      );
+      if (unmanned && canStaffUnmannedProducer(state, unmanned)) {
+        return {
+          command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
+          reason: `staff the ${BUILDING_CONFIGS[unmanned.type].label} — nobody works it, so no ${entry.stock} is made`,
+        };
+      }
       // A wanted extra copy falls through to the build; a stand-in for an existing producer does not.
       if (!scaling) continue;
     }
