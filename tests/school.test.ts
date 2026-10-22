@@ -187,7 +187,7 @@ describe('school.capacity.test.ts', () => {
 
     it('a second school still takes overflow children', () => {
       const { child, school } = schoolFixture();
-      const school2: Building = { ...school, id: 8001, x: 400, y: 100 };
+      const school2: Building = { ...school, id: 8001, x: 190, y: 100 };
       const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN]]);
       expect(findSchoolForChild(child, [school, school2], reserved)?.id).toBe(8001);
     });
@@ -363,7 +363,7 @@ describe('school.roster.test.ts', () => {
   describe('school rosters', () => {
     it('fills one school to capacity and sends the overflow to the next staffed school', () => {
       const near = school(8000, 100, 100);
-      const far = school(8001, 500, 100);
+      const far = school(8001, 200, 100);
       const children = Array.from({ length: 12 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
@@ -424,7 +424,7 @@ describe('school.roster.test.ts', () => {
     it('marks a pupil "in class" only inside the classroom during class hours', () => {
       const staffed = school(8000, 100, 100);
       const inside = child(9000, staffed.x, staffed.y); // building coordinates are its centre
-      const outside = child(9001, 600, 700);
+      const outside = child(9001, 600, 700, { schoolBuildingId: staffed.id });
       const tick = classTick();
 
       const during = getSchoolRoster(staffed, [staffed], [inside, outside], tick, 10);
