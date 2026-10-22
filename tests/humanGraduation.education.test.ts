@@ -19,7 +19,7 @@ import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, tryGraduateHumanChild } from '../src/game/dayCycle';
-import { SCHOOL_GRADUATION_DAYS, applyEducationGraduation, getEducationTier } from '../src/game/education';
+import { SCHOOL_GRADUATION_DAYS, SCHOOL_EDUCATED_DAYS, SCHOOL_FULL_EDUCATION_DAYS, applyEducationGraduation, getEducationTier } from '../src/game/education';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { grantRareBirthTalent } from '../src/game/simulation/humanLifecycle';
 import { createEntity } from '../src/game/entityFactory';
@@ -72,6 +72,17 @@ function syncThenGraduate(state: WorldState, child: Entity): boolean {
     applyEducationGraduation(state, entity);
   });
 }
+
+describe('education tiers', () => {
+  it('makes all three qualification tiers attainable', () => {
+    expect(getEducationTier(SCHOOL_GRADUATION_DAYS - 1)).toBe(0);
+    expect(getEducationTier(SCHOOL_GRADUATION_DAYS)).toBe(1);
+    expect(getEducationTier(SCHOOL_EDUCATED_DAYS - 1)).toBe(1);
+    expect(getEducationTier(SCHOOL_EDUCATED_DAYS)).toBe(2);
+    expect(getEducationTier(SCHOOL_FULL_EDUCATION_DAYS - 1)).toBe(2);
+    expect(getEducationTier(SCHOOL_FULL_EDUCATION_DAYS)).toBe(3);
+  });
+});
 
 describe('a child graduates once, with the education payoff', () => {
   it('keeps the transition reachable on the age-sync tick', () => {
