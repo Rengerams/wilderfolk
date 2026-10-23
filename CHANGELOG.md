@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Opening a save keeps each settler's own birth date instead of restamping it from a whole-year age, so a citizen's birthday no longer moves every time the colony is loaded.
+
 - **Fixed:** A search for the cheapest walk now scales its estimate by the cheaper road step, so a paved detour that is longer on the map but quicker to walk is priced as the better route instead of the plainer ground line.
 
 - **Fixed:** A settler who graduates releases the school seat they held as a pupil, so neither the school roster nor a housing move treats an adult as a daily walker to their old school.
