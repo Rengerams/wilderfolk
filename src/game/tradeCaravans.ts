@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { EVENT_INTERVAL, ticksForDays } from './dayCycle';
@@ -127,7 +128,7 @@ function applyImports(state: WorldState, route: TradeRoute, mult: number): numbe
 function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): void {
   entity.alive = false;
   unindexEntityFromState(state, entity.id);
-  entity.residenceBuildingId = undefined;
+  moveResident(entity, undefined, 'departure', { buildings: state.buildings });
   entity.workerBuildingId = undefined;
   // No manual splice: clearing `alive` is how every other despawn leaves the world, and the tick's
   // `state.entities = allAlive` rebuild is the single writer of membership.
@@ -278,7 +279,7 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   carrier.faction = 'trade_caravan';
   carrier.groupId = route.id;
   carrier.occupation = 'merchant';
-  carrier.residenceBuildingId = undefined;
+  moveResident(carrier, undefined, 'departure');
   carrier.workerBuildingId = undefined;
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;

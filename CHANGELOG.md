@@ -2,6 +2,18 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Housing changes now use one residence writer, keeping assignment counts, household traits and resident rosters consistent across marriage, divorce, births, deaths, demolition, leadership and Moon Howler transitions.
+
+- **Fixed:** Growing families first reclaim space from unrelated residents, then seek a larger home together. During shortages children stay with their guardian, a family warning remains visible, and the household reunites when space opens.
+
+- **Fixed:** Orphans consider grandparents on both sides, including grandfathers, and siblings receive a shared guardian and home whenever possible. Historical family records retain custody links after parents leave the living population.
+
+- **Fixed:** The Leader's House admits the leader's married children and their spouses while preserving existing grandchild eligibility and succession protection.
+
+- **Changed:** Saves missing identity counters are explicitly refused because retired identities cannot safely be inferred from surviving records. Intact saves retain their counters and existing identities.
+
+- **Changed:** Daily commute relocation skips work without vacant homes and indexes candidate homes, destinations and roads. Benchmarked work-and-school outcomes remain identical while large-colony sweep time falls substantially.
+
 - **Fixed:** Opening a save keeps each settler's own birth date instead of restamping it from a whole-year age, so a citizen's birthday no longer moves every time the colony is loaded.
 
 - **Fixed:** A search for the cheapest walk now scales its estimate by the cheaper road step, so a paved detour that is longer on the map but quicker to walk is priced as the better route instead of the plainer ground line.

@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 /**
  * Moon Howler **form state** — the human form snapshot, the restore that puts a cursed settler back
  * into it, and the predicates that keep a cursed settler counted as the settler they were.
@@ -95,7 +96,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.job = JobType.Settler;
   were.occupation = restoredOccupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   were.workerBuildingId = undefined;
-  were.residenceBuildingId = undefined;
+  moveResident(were, undefined, 'moon-form', { buildings });
   were.prisonBuildingId = undefined;
   were.prisonerUntilTick = undefined;
   were.prisonSentenceCrime = undefined;
@@ -116,7 +117,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
     were.job = saved.job ?? JobType.Settler;
     were.occupation = restoredOccupation;
     were.workerBuildingId = saved.workerBuildingId;
-    were.residenceBuildingId = saved.residenceBuildingId;
+    moveResident(were, saved.residenceBuildingId, 'moon-form');
     return;
   }
 
@@ -169,7 +170,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
       const residents = countResidentsInBuilding(humans, home.id);
       const isLeaderManor = home.type === BuildingType.LeaderHouse && were.id === opts?.villageLeaderId;
       if (isLeaderManor || residents < cap) {
-        were.residenceBuildingId = home.id;
+        moveResident(were, home.id, 'moon-form', { buildings });
         if (!home.occupants.includes(were.id)) home.occupants.push(were.id);
       }
     }

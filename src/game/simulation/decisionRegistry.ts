@@ -77,9 +77,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'residency/ — residencyReconciliation.ts (assignMissingResidences, syncResidenceOccupants), residencySelection.ts, residenceActions.ts; immediate player entry: residenceActions.assignResidentToBuilding',
+    owner: 'residencyReconciliation.ts — moveResident, assignMissingResidences, syncResidenceOccupants, reassignDivorcedResidences, ensureOrphanAdoption; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'tickLayerAssign pulses 4×/day for the assignment pass, BUT the residence mirror is re-synced every tick: gameTick calls syncResidenceOccupants(allAlive, buildings) at the tick boundary (72×/day) because residenceBuildingId has realtime writers, and tickLayerRealtime does the same on a howler night. Immediate on place/recruit/death; delegated writes on divorce/arrest (humanRelationships), demolish (buildingActions), birth (humanLifecycle), leader move (leaderHouse), moon transform/restore (moonHowler), worker authoritative apply (simBuffers/applyKinematics)',
+    cadenceNote: 'Scheduled housing sweeps run four times per day; events request immediate reconciliation or a reasoned residence transition. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
@@ -219,7 +219,6 @@ export const SIMULATION_DECISIONS = {
     cadence: 'daily',
     cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
     writes: [
-      'human.residenceBuildingId (household)',
       'human.occupation',
       'human.job',
       'human.workerBuildingId (stale-repair only)',

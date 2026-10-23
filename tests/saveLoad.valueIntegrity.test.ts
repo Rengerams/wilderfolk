@@ -63,15 +63,12 @@ describe('a refused load leaves the running session exactly as it was', () => {
 });
 
 describe('the id allocators are made safe to consume', () => {
-  it('repairs an absent allocator to one past the highest live id', () => {
+  it('refuses absent retirement history instead of inferring it from surviving ids', () => {
     const payload = realPayload();
     delete payload.nextEntityId;
-
-    const world = buildWorld(payload)!;
-
-    const highest = Math.max(...world.entities.map((entity) => entity.id));
-    expect(Number.isSafeInteger(world.nextEntityId)).toBe(true);
-    expect(world.nextEntityId).toBeGreaterThan(highest);
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.detail).toContain('identity counters');
   });
 
   it('repairs a rewound allocator that would collide with a live id', () => {
@@ -112,7 +109,7 @@ describe('the id allocators are made safe to consume', () => {
         },
       },
     };
-    delete payload.nextEntityId;
+    payload.nextEntityId = 1;
 
     const world = buildWorld(payload)!;
 
@@ -141,7 +138,7 @@ describe('the id allocators are made safe to consume', () => {
         },
       },
     };
-    delete payload.nextEntityId;
+    payload.nextEntityId = 1;
 
     const world = buildWorld(payload)!;
 
@@ -164,7 +161,7 @@ describe('the id allocators are made safe to consume', () => {
         },
       },
     };
-    delete payload.nextEntityId;
+    payload.nextEntityId = 1;
 
     const world = buildWorld(payload)!;
 
@@ -190,7 +187,7 @@ describe('the id allocators are made safe to consume', () => {
       raidCooldownDays: 0,
       peaceTreatyDays: 0,
     }];
-    delete payload.nextBuildingId;
+    payload.nextBuildingId = 1;
 
     const world = buildWorld(payload)!;
 

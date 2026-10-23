@@ -99,12 +99,12 @@ export {
   pickResidenceForHuman,
   pickResidenceForHumanExcluding,
   pickResidenceFromChildCustodian,
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
-  tryMoveOutOfFamilyHome,
 } from './residencySelection';
 
 export {
   assignMissingResidences,
+  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
+  tryMoveOutOfFamilyHome,
   isResidenceOccupantEntity,
   rebalanceOvercrowdedResidences,
   rebuildChildrenIds,

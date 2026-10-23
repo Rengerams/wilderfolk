@@ -1,3 +1,4 @@
+import { moveResident } from '../residencyReconciliation';
 import type { Entity, WorldState } from '../gameTypes';
 import { EntityType, JobType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
@@ -187,12 +188,13 @@ export function tickPregnancyAndBirth(
   const motherHome = entity.residenceBuildingId == null
     ? undefined
     : updatedBuildings.find((building) => building.id === entity.residenceBuildingId);
-  child.residenceBuildingId = motherHome
+  const birthResidence = motherHome
     && isResidenceBuilding(motherHome)
     && (isLeaderHouseResidence(motherHome)
       || residenceRoomFor(child, motherHome, allLivingHumans(state, newEntities, entityById)))
     ? motherHome.id
     : undefined;
+  moveResident(child, birthResidence, 'birth', { buildings: updatedBuildings });
   // Keep the residence mirror valid even for checks between birth and the end-of-tick sync.
   if (child.residenceBuildingId != null && motherHome && !motherHome.occupants.includes(child.id)) {
     motherHome.occupants.push(child.id);

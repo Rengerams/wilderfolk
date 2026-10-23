@@ -372,6 +372,15 @@ If two modules export the same function name with the same responsibility:
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
 `dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
 
+## Housing architecture completion (23 October 2026)
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `moveResident`, `reassignDivorcedResidences`, `ensureOrphanAdoption`, `placeOrphanInHouse`, `tryMoveOutOfFamilyHome`, `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `relocateHouseholdsForCommute` | `game/residencyReconciliation.ts` | Own residence mutations, their reasons and pass indexes; resolve event-driven placement and sibling guardianship. Mutation-bearing functions formerly in selection and relationships now live here, not behind aliases. |
+| `familyFitsInResidence`, `buildCommuteRelocationIndex`, `collectFamilyHousingShortages` | `game/residencySelection.ts` | Pure capacity, per-sweep commute indexes and derived family-shortage warnings. |
+| `benchmarkRelocation` | `scripts/perf-at-pop.ts` | Measure the real daily sweep against the unindexed reference on isolated, repeatable work-and-school fixtures. |
+| `family` | `tests/housingArchitecture.completion.test.ts` | Build related parents and dependents for shortage, guardianship and commute regressions. |
+
 ## CPU profiler integration lifecycle
 
 | Functions | Sole owner | Responsibility |

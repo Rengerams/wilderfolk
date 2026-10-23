@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
 import { addResource, updateStorageCaps } from './economy';
@@ -239,7 +240,7 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
   for (const entity of state.entities) {
     // Workforce cleanup through the owner's transition keeps work fields consistent.
     if (entity.workerBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
-    if (entity.residenceBuildingId === buildingId) entity.residenceBuildingId = undefined;
+    if (entity.residenceBuildingId === buildingId) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     if (entity.prisonBuildingId === buildingId) {
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;

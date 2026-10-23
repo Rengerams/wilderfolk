@@ -112,7 +112,7 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
   if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
-    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick);
+    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry);
     lastHousingSignature.set(world, housingSignature(world, allHumans));
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);

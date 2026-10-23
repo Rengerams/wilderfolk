@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { WorldState } from './gameTypes';
 import { assignMissingWorkers } from './workforce';
 import { allPlayerHumans } from './playerHuman';
@@ -40,7 +41,7 @@ export function removeResidentFromBuilding(
   const human = state.entities.find((entity) => entity.id === humanId);
   if (!building || !human || human.residenceBuildingId !== buildingId) return state;
 
-  human.residenceBuildingId = undefined;
+  moveResident(human, undefined, 'player', { buildings: state.buildings });
   syncResidenceOccupants(state.entities, state.buildings);
   reconcileAssignmentsAfterResidenceChange(state);
   return state;

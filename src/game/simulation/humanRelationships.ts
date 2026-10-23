@@ -1,3 +1,4 @@
+import { moveResident, reassignDivorcedResidences } from '../residencyReconciliation';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS, LEADER_OCCUPATION } from '../gameTypes';
@@ -33,10 +34,6 @@ import {
   isWeekend,
   isNearResidence,
   isResidenceBuilding,
-  pickResidenceForHuman,
-  pickResidenceForHumanExcluding,
-  pickResidenceFromChildCustodian,
-  syncResidenceOccupants,
   syncPartnerResidence,
   killHuman,
   shareResidence,
@@ -50,10 +47,8 @@ import {
 import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
-import { isMinorChild } from '../householdComposition';
 import { getLivingEntity, getHousemates } from '../simQueries';
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
-import { isImprisoned } from '../residencyOccupancy';
 import { startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
@@ -1022,91 +1017,6 @@ function setScandalCooldown(entity: Entity, tick: number): void {
   entity.scandalCooldownUntilTick = tick + getScandalCooldownTicks();
 }
 
-function reassignDivorcedResidences(
-  a: Entity,
-  b: Entity,
-  buildings: Building[],
-  villagers: Entity[],
-  preferredCustodian?: Entity,
-): void {
-  const residences = buildings.filter(isResidenceBuilding);
-
-  const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : null;
-  // A sitting leader keeps the manor on divorce, regardless of gender.
-  // Generic marital-home rules would otherwise evict the leader until the next
-  // leader-house reconciliation pulse and produce a residence bounce.
-  const sharedManor = a.residenceBuildingId != null
-    && a.residenceBuildingId === b.residenceBuildingId
-    && buildings.some((building) => building.id === a.residenceBuildingId
-      && building.type === BuildingType.LeaderHouse && building.completed);
-  const manorLeader = sharedManor
-    ? [a, b].find((person) => person.occupation === LEADER_OCCUPATION)
-    : undefined;
-  const custodian = manorLeader ?? preferredCustodian ?? wife ?? a;
-  const leaver = custodian === a ? b : a;
-
-  const formerHomes = new Set<number>();
-  for (const resident of [custodian, leaver]) {
-    if (resident.residenceBuildingId != null) {
-      formerHomes.add(resident.residenceBuildingId);
-    }
-  }
-
-  // Evict leaver from the shared home
-  if (leaver.residenceBuildingId != null) {
-    const oldHome = buildings.find((building) => building.id === leaver.residenceBuildingId);
-    if (oldHome) {
-      oldHome.occupants = oldHome.occupants.filter((id) => id !== leaver.id);
-    }
-  }
-
-  if (residences.length === 0) {
-    custodian.residenceBuildingId = undefined;
-    leaver.residenceBuildingId = undefined;
-    return;
-  }
-
-  const custodianImprisoned = isImprisoned(custodian);
-  if (custodianImprisoned) {
-    custodian.residenceBuildingId = undefined;
-  } else {
-    const custodianHome = custodian.residenceBuildingId != null ? buildings.find((building) => building.id === custodian.residenceBuildingId) : undefined;
-    if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
-      custodian.residenceBuildingId = pickResidenceForHuman(custodian, villagers, residences);
-    }
-  }
-
-  if (!isImprisoned(leaver)) {
-    const excludeHomes = new Set(formerHomes);
-    if (custodian.residenceBuildingId != null) {
-      excludeHomes.add(custodian.residenceBuildingId);
-    }
-    leaver.residenceBuildingId = pickResidenceForHumanExcluding(leaver, villagers, residences, excludeHomes);
-  } else {
-    leaver.residenceBuildingId = undefined;
-  }
-
-  if (!custodianImprisoned && custodian.residenceBuildingId != null) {
-    const children = villagers.filter(
-      (child) =>
-        child.alive &&
-        isMinorChild(child) &&
-        (child.motherId === custodian.id ||
-          child.adoptiveMotherId === custodian.id ||
-          child.fatherId === custodian.id ||
-          child.adoptiveFatherId === custodian.id),
-    );
-    for (const child of children) {
-      // A child follows the custodian only into a home with room for them; the assign layer
-      // places the rest, exactly as the death path does.
-      const custodianHome = pickResidenceFromChildCustodian(child, villagers, residences);
-      if (custodianHome !== undefined) child.residenceBuildingId = custodianHome;
-    }
-  }
-
-  syncResidenceOccupants(villagers, buildings);
-}
-
 function tryDivorceOnCaughtCheater(
   state: WorldState,
   cheater: Entity,
@@ -1361,7 +1271,7 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
       residence.occupants = residence.occupants.filter((id) => id !== offender.id);
     }
   }
-  offender.residenceBuildingId = undefined;
+  moveResident(offender, undefined, 'prison', { buildings: state.buildings });
   offender.prisonBuildingId = prison.id;
   offender.prisonSentenceCrime = 'scandal';
   offender.prisonerUntilTick = newReleaseTick;

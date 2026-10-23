@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
@@ -1250,7 +1251,7 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
       entity.workerBuildingId = undefined;
     }
     if (entity.residenceBuildingId != null && !buildingIds.has(entity.residenceBuildingId)) {
-      entity.residenceBuildingId = undefined;
+      moveResident(entity, undefined, 'load', { buildings: world.buildings });
     }
     if (entity.prisonBuildingId != null && !buildingIds.has(entity.prisonBuildingId)) {
       entity.prisonBuildingId = undefined;
@@ -1307,6 +1308,12 @@ function floorIdAllocators(world: WorldState): void {
  * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on.
  */
 export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
+  for (const field of ['nextEntityId', 'nextBuildingId']) {
+    if (parsed[field] === undefined) {
+      return { ok: false, reason: 'unrestorable',
+        detail: `${field} is missing: retired building identities or citizen identities cannot be recovered safely. Use an intact save with its original identity counters.` };
+    }
+  }
   const unrestorableField = findUnrestorableField(parsed);
   if (unrestorableField) {
     // One wording for two kinds of refusal: a container that is missing or not an object, and an
@@ -1554,7 +1561,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
     migrateLegacySecurityRoles(world);
-    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
+    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry);
     assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
 
     const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');

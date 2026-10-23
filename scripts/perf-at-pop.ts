@@ -14,6 +14,7 @@
  * relationship graph).
  *
  * Env:
+ *   PERF_RELOCATION=1   daily housing sweep only; PERF_RELOCATION_REFERENCE=1 compares the original loop
  *   PERF_TICKS=300        post-warmup ticks per tier
  *   PERF_POPS=250,750,1800,3000   tiers to measure
  *   PERF_PROFILE=1      include bounded stage timing summaries
@@ -23,12 +24,21 @@
  *   SIM_FULL_SIM=1        disable the viewport focus throttle (the game's worker ticks *with* it)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { beginCommuteRoutePass } from '../src/game/commuteReach';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { getPerformanceSnapshot, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../src/game/performanceProfiler';
 import { enableSeededGlobalRandom } from '../src/game/simRng';
 import { sampleDelta, collectInvariantErrors, summarizeLivingPopulation, countRelationships } from './colonyHealth';
 import { basename } from 'node:path';
 import { getHourOfDay, TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { gameTick, initGame } from '../src/game/gameEngine';
+import { createCompletedBuilding } from './colonyHealth';
+import { moveResident, relocateHouseholdsForCommute } from '../src/game/residencyReconciliation';
+import { buildHousingUnits, buildResidenceTraits, listPlayerResidences, pickCommuteRelocation } from '../src/game/residencySelection';
+import { buildResidenceOccupancy } from '../src/game/residencyOccupancy';
+import { setCurrentPathMap, resetPathGridCaches } from '../src/game/pathfinding';
+import { BuildingType } from '../src/game/gameTypes';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import { getSimFocus } from './simFocus';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -191,12 +201,91 @@ function loadSave(path: string): ReturnType<typeof initGame> {
   return loaded.world;
 }
 
+/** Repeat the real daily sweep with jobs, pupils, and either zero or spare vacant homes. */
+function benchmarkRelocation(population: number, spareHomes: number): void {
+  resetPathGridCaches();
+  const state = initGame({ size: MapSize.Large, seed: SEED });
+  seedCityScaleProfile(state, { ...DEFAULT_CITY_TARGETS, playerHumans: population });
+  const humans = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity));
+  state.buildings = [];
+  for (let i = 0; i < humans.length; i += 3) {
+    const x = 200 + (i % 30) * 32;
+    const y = 200 + Math.floor(i / 30) * 32;
+    const home = createCompletedBuilding(state, BuildingType.House, x, y);
+    const job = createCompletedBuilding(state, BuildingType.Farm, x + 300, y);
+    const school = createCompletedBuilding(state, BuildingType.School, x + 96, y);
+    const family = humans.slice(i, i + 3);
+    for (const member of family) {
+      member.age = 30;
+      member.isJuvenile = false;
+      member.partnerId = undefined;
+      member.motherId = undefined;
+      member.fatherId = undefined;
+      member.childrenIds = [];
+      member.residenceBuildingId = home.id;
+      member.workerBuildingId = job.id;
+    }
+    if (family.length === 3) {
+      family[0].gender = 'female';
+      family[1].gender = 'male';
+      family[0].partnerId = family[1].id;
+      family[1].partnerId = family[0].id;
+      family[2].age = 8;
+      family[2].isJuvenile = true;
+      family[2].motherId = family[0].id;
+      family[2].fatherId = family[1].id;
+      family[2].workerBuildingId = undefined;
+      family[2].schoolBuildingId = school.id;
+    }
+  }
+  for (let i = 0; i < spareHomes; i++) {
+    createCompletedBuilding(state, BuildingType.House, 500 + (i % 10) * 48, 200 + Math.floor(i / 10) * 48);
+  }
+  const residences = listPlayerResidences(state.buildings);
+  const assignments = humans.map((human) => human.residenceBuildingId);
+  const units = buildHousingUnits(humans);
+  const times: number[] = [];
+  let moved = 0;
+  for (let sample = 0; sample < 12; sample++) {
+    humans.forEach((human, i) => { human.residenceBuildingId = assignments[i]; });
+    setCurrentPathMap(state.worldMap!, state.buildings);
+    const occupancy = buildResidenceOccupancy(humans);
+    const traits = buildResidenceTraits(humans);
+    const start = performance.now();
+    if (process.env.PERF_RELOCATION_REFERENCE === '1') {
+      const cache = new Map<string, number>();
+      beginCommuteRoutePass();
+      for (const unit of units) {
+        const target = pickCommuteRelocation(unit, humans, residences, state.buildings, occupancy, cache,
+          SPECIES_CONFIG[EntityType.Human].speed);
+        if (target === undefined) continue;
+        for (const member of unit) moveResident(member, target, 'commute', { occupancy, traits });
+      }
+    } else {
+      relocateHouseholdsForCommute(units, humans, residences, state.buildings, occupancy, traits);
+    }
+    times.push(performance.now() - start);
+    moved = humans.filter((human, i) => human.residenceBuildingId !== assignments[i]).length;
+  }
+  console.log('RELOCATION_RESULT ' + JSON.stringify({ population, spareHomes, households: units.length,
+    reference: process.env.PERF_RELOCATION_REFERENCE === '1',
+    coldMs: times[0], warmMedianMs: percentile(times.slice(2), 0.5), p95Ms: percentile(times.slice(2), 0.95), moved,
+    assignmentHash: createHash('sha256').update(JSON.stringify(humans.map((human) => [human.id, human.residenceBuildingId]))).digest('hex') }));
+}
+
 async function main() {
   enableSeededGlobalRandom();
   await preloadDialogueBank();
   // The game loads the census name pool at boot. A bench that skips it pays for it inside the first
   // tick that needs a name — which is a day boundary — and reports that wait as tick cost.
   await loadNames().catch(() => {});
+  if (process.env.PERF_RELOCATION === '1') {
+    for (const population of TIERS) {
+      benchmarkRelocation(population, 0);
+      benchmarkRelocation(population, Math.ceil(population / 30));
+    }
+    return;
+  }
   const fullSim = process.env.SIM_FULL_SIM === '1';
   const savePath = process.env.PERF_SAVE;
 

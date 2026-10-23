@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
@@ -224,7 +225,7 @@ export function forceMoonHowlerOutside(
   detachEntityFromBuildingOccupants(buildings, prisonId, entity.id);
 
   if (entity.workerBuildingId != null) entity.workerBuildingId = undefined;
-  if (entity.residenceBuildingId != null) entity.residenceBuildingId = undefined;
+  if (entity.residenceBuildingId != null) moveResident(entity, undefined, 'moon-form');
 
   if (
     entity.prisonBuildingId != null
@@ -310,7 +311,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   human.size = cfg.size;
   human.flash = 12;
   human.workerBuildingId = undefined;
-  human.residenceBuildingId = undefined;
+  moveResident(human, undefined, 'moon-form');
   human.prisonBuildingId = undefined;
   human.prisonerUntilTick = undefined;
   human.prisonSentenceCrime = undefined;

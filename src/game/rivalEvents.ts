@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
@@ -68,7 +69,7 @@ export function tickRivalSettlements(
   const retiredStructures = retireLegacyCampStructures(state.buildings);
   for (const entity of allAlive) {
     if (entity.residenceBuildingId != null && retiredStructures.has(entity.residenceBuildingId)) {
-      entity.residenceBuildingId = undefined;
+      moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     }
     if (entity.workerBuildingId != null && retiredStructures.has(entity.workerBuildingId)) {
       entity.workerBuildingId = undefined;

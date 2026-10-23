@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import {
   BuildingType,
   EntityType,
@@ -96,7 +97,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
     const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
     for (const person of state.entities) {
       if (person.alive && isPlayerHuman(person) && !isImprisoned(person) && entitledIds.has(person.id)) {
-        person.residenceBuildingId = house.id;
+        moveResident(person, house.id, 'leader', { buildings: state.buildings });
       }
     }
     syncResidenceOccupants(state.entities, state.buildings);
@@ -124,7 +125,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   for (const e of state.entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
-      e.residenceBuildingId = undefined;
+      moveResident(e, undefined, 'leader', { buildings: state.buildings });
       displaced.push(e);
       evicted = true;
     }
@@ -136,13 +137,13 @@ export function syncLeaderHouseResidency(state: WorldState): void {
       // Release the old home's reserved slot before finding homes for displaced residents.
       const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);
       if (previous) previous.occupants = previous.occupants.filter((id) => id !== member.id);
-      member.residenceBuildingId = house.id;
+      moveResident(member, house.id, 'leader', { buildings: state.buildings });
       movedIn = true;
     }
   }
 
   // Update the building's occupants array!
-  house.occupants = Array.from(entitledIds);
+  syncResidenceOccupants(state.entities, state.buildings);
 
   if (!evicted && !movedIn) return;
 

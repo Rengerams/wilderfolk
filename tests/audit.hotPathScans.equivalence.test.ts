@@ -33,7 +33,7 @@ import {
   syncResidenceOccupants,
 } from '../src/game/residencyReconciliation';
 import { syncJobBuildingOccupants } from '../src/game/workforce';
-import { tryMoveOutOfFamilyHome } from '../src/game/residencySelection';
+import { tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
 
 const FIXTURE_SEED = 20_260_921;
 
