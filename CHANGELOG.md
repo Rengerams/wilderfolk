@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
+
+- **Fixed:** A household is no longer moved to a nearer home when the household total improves but one member's own daily trip lengthens, and a colony makes at most eight moves a day.
+
 - **Fixed:** A save carrying an identity at the very top of the range is refused, and an accepted save always floors its identity counters to values the next save still accepts, so one spawn can no longer make a colony unsavable.
 
 - **Fixed:** A settler born on January 1 keeps that birthday when a save is opened, instead of having the date rebuilt from a whole-year age because the day and month are both zero.

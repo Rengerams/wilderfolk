@@ -4,7 +4,7 @@ import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './residencyOccupancy';
-import { listPlayerResidences, familyFitsInResidence, pickResidenceForHumanExcluding, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex } from './residencySelection';
+import { listPlayerResidences, familyFitsInResidence, pickResidenceForHumanExcluding, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex, MAX_RELOCATIONS_PER_DAY } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { beginCommuteRoutePass } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
@@ -250,9 +250,9 @@ export function assignMissingResidences(
   }
 
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h) && !isImprisoned(h));
-  // Beds are counted from every resident, never from the settlers this call may move.
+  // A jailed settler keeps a reserved bed, counted here with the residents this call may not move.
   const residents = (allHumansForGenealogy ?? humans).filter(
-    (h) => h.alive && isResidenceOccupantEntity(h) && !isImprisoned(h),
+    (h) => h.alive && isResidenceOccupantEntity(h),
   );
   const genealogyPool = (allHumansForGenealogy ?? humans).filter(
     (h) => h.type === EntityType.Human || isResidenceOccupantEntity(h),
@@ -383,9 +383,12 @@ export function relocateHouseholdsForCommute(
   const cache = new Map<string, number>();
   beginCommuteRoutePass();
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+  let relocated = 0;
   for (const unit of units) {
+    if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
     const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, cache, walkSpeed, index);
     if (better === undefined) continue;
+    relocated += 1;
     const previousId = unit[0]?.residenceBuildingId;
     for (const member of unit) moveResident(member, better, 'commute', { occupancy, traits });
     index.vacant = index.vacant.filter((residence) => residence.id !== better);

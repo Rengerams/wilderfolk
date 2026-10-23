@@ -1,6 +1,12 @@
 # Housing and relocation — how I would build it
 
-Design date: 2026-10-23. Version 0.6.6.0[Unreleased]. Status: **proposal — nothing here is implemented.**
+Design date: 2026-10-23. Version 0.6.6.0[Unreleased]. Status: **§4 and §6 are implemented on this branch;
+§1–§3 and §5 are not.**
+
+Implemented so far: §4's per-member travel bound (`RELOCATION_MAX_MEMBER_REGRESSION_HOURS`) and the
+daily move cap (`MAX_RELOCATIONS_PER_DAY`), and §6 in full — a sentence now holds the settler's bed and
+their post. The remaining open item is §5: the mandate's confirmed model lets a free home take an adult
+child at 18, which is exactly what §5 argues it should not do.
 Companion to `docs/plans/housing-architecture-2026-10-22.md` (the mandate and its confirmed decisions) and
 to the 2026-10-22 audit of the original specification. Where the mandate already decided something, this
 document keeps it and says so; where it left a decision open (§9 adult children, prison reservation, the

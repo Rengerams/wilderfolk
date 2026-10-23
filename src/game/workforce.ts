@@ -825,10 +825,8 @@ export function releasePrisoners(state: WorldState): void {
   }
 
   if (releasedSettlers.length > 0) {
-    // A prisoner release must not run the 24-pass whole-village housing
-    // convergence. In particular that pass could move the elected leader out
-    // of the protected manor, and it caused multi-second real-time spikes.
-    // Rehouse only released people, with all entities available for genealogy.
+    // Only the released settlers, never the whole-village convergence: that pass can move the
+    // elected leader out of the protected manor. A held bed normally needs nothing here.
     assignMissingResidences(releasedSettlers, state.buildings, state.entities, state.tick);
     // Normal workforce pulses will fill newly available staff slots.
   }

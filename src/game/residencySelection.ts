@@ -410,6 +410,10 @@ export function sortHousingUnitsForAssignment(
 export const RELOCATION_MIN_SAVED_HOURS = 0.5;
 /** …and beat the current home by this fraction, so two near-equal homes never trade the household. */
 export const RELOCATION_MIN_IMPROVEMENT_RATIO = 0.25;
+/** No member's own daily travel may worsen by more than this, whatever the household total does. */
+export const RELOCATION_MAX_MEMBER_REGRESSION_HOURS = 0.25;
+/** Most household moves a colony makes in one day, so a new row of houses cannot reshuffle it at once. */
+export const MAX_RELOCATIONS_PER_DAY = 8;
 
 /** Per-sweep lookups and vacant candidates; the reconciliation owner updates vacancies after each move. */
 export interface CommuteRelocationIndex {
@@ -435,6 +439,25 @@ export function buildCommuteRelocationIndex(
   };
 }
 
+/** One member's daily travel: the trip to work plus the trip to school. */
+function memberCommuteHours(
+  member: Entity,
+  home: Building,
+  buildings: readonly Building[],
+  walkSpeed: number,
+  cache: Map<string, number>,
+  buildingsById?: ReadonlyMap<number, Building>,
+): number {
+  let total = 0;
+  if (member.workerBuildingId != null) {
+    total += cachedCommuteHours(home, member.workerBuildingId, buildings, walkSpeed, cache, buildingsById);
+  }
+  if (member.schoolBuildingId != null) {
+    total += cachedCommuteHours(home, member.schoolBuildingId, buildings, walkSpeed, cache, buildingsById);
+  }
+  return total;
+}
+
 /** One home's daily travel burden: every worker's trip to work plus every pupil's trip to school. */
 function householdCommuteHours(
   unit: Entity[],
@@ -446,12 +469,7 @@ function householdCommuteHours(
 ): number {
   let total = 0;
   for (const member of unit) {
-    if (member.workerBuildingId != null) {
-      total += cachedCommuteHours(home, member.workerBuildingId, buildings, walkSpeed, cache, buildingsById);
-    }
-    if (member.schoolBuildingId != null) {
-      total += cachedCommuteHours(home, member.schoolBuildingId, buildings, walkSpeed, cache, buildingsById);
-    }
+    total += memberCommuteHours(member, home, buildings, walkSpeed, cache, buildingsById);
   }
   return total;
 }
@@ -531,6 +549,10 @@ export function pickCommuteRelocation(
   if (!best) return undefined;
   if (current - bestHours < RELOCATION_MIN_SAVED_HOURS) return undefined;
   if (bestHours > current * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO)) return undefined;
+  // A household total can improve while one member's own day worsens; this move may not do that.
+  const before = unit.map((member) => memberCommuteHours(member, home, commuteBuildings, walkSpeed, cache, buildingsById));
+  const after = unit.map((member) => memberCommuteHours(member, best, commuteBuildings, walkSpeed, cache, buildingsById));
+  if (after.some((hours, index) => hours - before[index] > RELOCATION_MAX_MEMBER_REGRESSION_HOURS)) return undefined;
   return best.id;
 }
 

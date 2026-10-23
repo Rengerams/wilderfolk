@@ -1,4 +1,4 @@
-import { moveResident, reassignDivorcedResidences } from '../residencyReconciliation';
+import { reassignDivorcedResidences } from '../residencyReconciliation';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';
@@ -55,7 +55,7 @@ import { isPlayerHuman } from '../playerHuman';
 import { traitMultiplier } from '../settlerTraits';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
-import { clearWorkerAssignment, findHumanWorkplace } from '../workforce';
+import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
 import { Relationship } from '../gameConstants';
@@ -1256,14 +1256,7 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     return;
   }
 
-  if (offender.workerBuildingId != null) clearWorkerAssignment(offender, state.buildings);
-  if (offender.residenceBuildingId != null) {
-    const residence = state.buildings.find((b) => b.id === offender.residenceBuildingId);
-    if (residence) {
-      residence.occupants = residence.occupants.filter((id) => id !== offender.id);
-    }
-  }
-  moveResident(offender, undefined, 'prison', { buildings: state.buildings });
+  // The sentence holds the settler's bed and post; only attendance stops while they are jailed.
   offender.prisonBuildingId = prison.id;
   offender.prisonSentenceCrime = 'scandal';
   offender.prisonerUntilTick = newReleaseTick;
