@@ -1,0 +1,38 @@
+# Base44 sandbox environment for this repository.
+# The application lives entirely in ./pdf-editor and is independent of the game app in ./src.
+# It runs from the cloned source with Vite's dev server (live reload), never from a built image.
+services:
+  pdf-editor:
+    image: node:22
+    labels:
+      base44.project: "PDF Studio"
+      base44.kind: web
+      base44.port: "3000"
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./pdf-editor:/app
+      - pdf-editor-node-modules:/app/node_modules
+    environment:
+      - CI=true
+      # Passed through when the platform provides them; empty otherwise.
+      - BASE44_PREVIEW_MODE
+      - BASE44_PUBLIC_HOST_SUFFIX
+      - BASE44_SANDBOX_HOST_DOMAIN
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    # Dependencies are installed from the lockfile at startup, after the mounts exist,
+    # then the dev server takes over the process.
+    command: ["sh", "-ec", "npm ci --no-audit --no-fund && exec npm run dev -- --host 0.0.0.0 --port 3000"]
+    restart: on-failure
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 120s
+
+volumes:
+  pdf-editor-node-modules:

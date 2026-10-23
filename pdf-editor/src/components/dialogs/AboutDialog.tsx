@@ -1,0 +1,94 @@
+import { Dialog } from "./Dialog"
+import { useEditor } from "../../app/store"
+
+export const APP_VERSION = "0.1.0"
+
+const SHORTCUTS: [string, string][] = [
+  ["Ctrl + N", "New document"],
+  ["Ctrl + O", "Open a PDF, PNG or JPEG file"],
+  ["Ctrl + S", "Save to the library"],
+  ["Ctrl + E", "Export as another format"],
+  ["Ctrl + Shift + S", "Scan pages"],
+  ["Ctrl + Z / Ctrl + Y", "Undo / redo"],
+  ["Ctrl + 0", "Fit page in the window"],
+  ["Ctrl + Plus / Ctrl + Minus", "Zoom in / out"],
+  ["Ctrl + Shift + N", "Insert a blank page"],
+  ["Page Up / Page Down", "Previous / next page"],
+  ["Delete", "Remove the selected object"],
+  ["Esc", "Cancel the current tool or close a dialog"],
+]
+
+const SECURITY_NOTES = [
+  "Files you open are treated as untrusted: they are parsed, never executed, and scripts inside a PDF are disabled.",
+  "Rendering and text recognition run in worker processes, so a damaged file cannot freeze the editor window.",
+  "Documents stay on this PC by default — in the local library, with optional AES-256 encryption and a passphrase you choose.",
+  "Cloud storage is opt-in and off until you enter your own endpoint; nothing is uploaded otherwise.",
+  "The only network requests are to the OCR engine's language files and, when you enable them, your own cloud endpoint. No telemetry is sent.",
+]
+
+export function AboutDialog(props: { section?: "about" | "shortcuts" | "security" }) {
+  const closeDialog = useEditor((state) => state.closeDialog)
+  const section = props.section ?? "about"
+
+  return (
+    <Dialog
+      title={section === "shortcuts" ? "Keyboard shortcuts" : "About PDF Studio"}
+      onClose={closeDialog}
+      footer={
+        <>
+          <span className="grow hint">
+            PDF Studio {APP_VERSION} · part of the wilderfolk repository, kept separate from the game app
+          </span>
+          <button type="button" className="btn btn-primary" onClick={closeDialog}>
+            Close
+          </button>
+        </>
+      }
+    >
+      <div className="note">
+        <strong>PDF Studio {APP_VERSION}</strong> — a desktop PDF editor: create and edit pages, add text,
+        pictures, highlights and drawings, change every document detail, copy pictures out of a page, scan
+        paper documents and turn them into searchable PDFs.
+      </div>
+
+      <h3>What it can do</h3>
+      <ul>
+        <li>Create new documents (A4, A5, A3, Letter, Legal, Tabloid, square) and open existing PDFs.</li>
+        <li>Reorder, rotate, duplicate, insert and delete pages; save the file or save a separate copy.</li>
+        <li>Add and change text, highlights, rectangles, freehand drawings and pictures on any page.</li>
+        <li>Copy a picture out of a PDF — drag around it and it becomes an editable image object.</li>
+        <li>Scan from a scanner, a phone camera or scanned files, and recognize text with OCR.</li>
+        <li>Edit all document details, including author, creator, subject, keywords and both dates.</li>
+        <li>Export to PDF, PNG, JPEG or plain text; more formats can be added as adapter modules.</li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <dl className="kv">
+        {SHORTCUTS.map(([keys, description]) => (
+          <div key={keys} style={{ display: "contents" }}>
+            <dt>{keys}</dt>
+            <dd>{description}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <h3>Security notes</h3>
+      <ul>
+        {SECURITY_NOTES.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+
+      <h3>Built with</h3>
+      <p className="hint">
+        pdf.js for rendering, pdf-lib for writing PDFs, tesseract.js for text recognition, React and Vite for
+        the interface, and a small scan bridge (NAPS2) for real scanner hardware on Windows. All open source,
+        all running locally.
+      </p>
+      <p className="hint">
+        Closing the app never loses work silently: when there are unsaved changes you are asked to save,
+        discard or cancel first.
+      </p>
+    </Dialog>
+  )
+}

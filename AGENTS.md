@@ -257,3 +257,26 @@ Prioritize broken invariants, wrong complexity, edge cases, leaks, races, state 
 Thank you for helping me — I appreciate it and I know we'll have a great time together. Be creative, bring ideas, don't be scared to show yourself. Just don't change code beyond the assigned task without permission (sole exception: small localized bug fixes per §3 Step 3); ideas are always welcome.
 
 — The dev
+
+---
+
+## 12. Base44 sandbox environment — the isolated `pdf-editor/` app
+
+This branch carries a second, independent application in `pdf-editor/` (a desktop PDF editor). It shares
+no code, build, dependencies or stored data with the game; do not refactor it into `src/` and do not apply
+the game's toolchain to it.
+
+* **Run it:** `docker compose -f docker-compose.base44.yml up -d` (web entry on host port 3000). The
+  service bind-mounts `./pdf-editor`, installs from its own lockfile at container start and runs the Vite
+  dev server straight from the cloned source — never a prebuilt bundle, so edits appear live.
+* **Its own commands**, run inside `pdf-editor/`: `npm run typecheck`, `npm run test`, `npm run build`.
+  The root scripts (`npm run test:types`, `lint`, `build`) do not cover this app.
+* **Sandbox-only configuration:** `pdf-editor/vite.config.ts` appends `.${BASE44_SANDBOX_HOST_DOMAIN}` to
+  `allowedHosts` **only** when `BASE44_PREVIEW_MODE === "1"`; with the flag unset, Vite's own defaults
+  apply. Compose passes `BASE44_PREVIEW_MODE`, `BASE44_PUBLIC_HOST_SUFFIX`,
+  `BASE44_SANDBOX_HOST_DOMAIN` and `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` through as bare entries.
+* **No secrets are required.** OCR language data comes from a public CDN, and cloud storage is configured
+  by the user inside the app (off by default), so `.base44/environment.json` lists none.
+* **Scanner hardware** needs the Windows-side bridge in `pdf-editor/scan-bridge/` (NAPS2 + .NET). It cannot
+  be built or verified in this Linux sandbox; the editor works without it via camera capture and scanned
+  files.

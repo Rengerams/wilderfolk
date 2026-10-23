@@ -1,0 +1,331 @@
+import { useMemo } from "react"
+import { Library, ScanText, Settings2, ShieldCheck } from "lucide-react"
+import { formatFileSize, formatTimestamp, totalRotation } from "../pdf/pages"
+import { currentSettings } from "../storage/settings"
+import { useEditor } from "../app/store"
+
+const COLORS = ["#111111", "#c42b1c", "#0f6cbd", "#0f7b0f", "#9d5d00", "#ffd400", "#8a2be2", "#ffffff"]
+
+const TYPE_LABELS: Record<string, string> = {
+  text: "Text box",
+  highlight: "Highlight",
+  shape: "Rectangle",
+  ink: "Freehand drawing",
+  image: "Picture",
+}
+
+export function InspectorPanel() {
+  const doc = useEditor((state) => state.doc)
+  const pages = useEditor((state) => state.doc.pages)
+  const annotations = useEditor((state) => state.doc.annotations)
+  const ocr = useEditor((state) => state.doc.ocr)
+  const activePageId = useEditor((state) => state.activePageId)
+  const selectedId = useEditor((state) => state.selectedAnnotationId)
+  const setDocumentName = useEditor((state) => state.setDocumentName)
+  const updateAnnotation = useEditor((state) => state.updateAnnotation)
+  const removeAnnotation = useEditor((state) => state.removeAnnotation)
+  const setOcrApplied = useEditor((state) => state.setOcrApplied)
+  const removeOcrLayer = useEditor((state) => state.removeOcrLayer)
+  const openDialog = useEditor((state) => state.openDialog)
+
+  const page = useMemo(
+    () => pages.find((entry) => entry.id === activePageId) ?? pages[0] ?? null,
+    [pages, activePageId],
+  )
+  const annotation = useMemo(
+    () => annotations.find((entry) => entry.id === selectedId) ?? null,
+    [annotations, selectedId],
+  )
+  const layer = useMemo(
+    () => ocr.find((entry) => entry.pageId === page?.id) ?? null,
+    [ocr, page],
+  )
+  const settings = currentSettings()
+
+  const swatches = (current: string, apply: (color: string) => void) => (
+    <div className="swatches">
+      {COLORS.map((color) => (
+        <button
+          key={color}
+          type="button"
+          className="swatch"
+          style={{ background: color }}
+          aria-label={`Use ${color}`}
+          aria-pressed={current.toLowerCase() === color.toLowerCase()}
+          onClick={() => apply(color)}
+        />
+      ))}
+    </div>
+  )
+
+  return (
+    <aside className="inspector" aria-label="Properties">
+      <section>
+        <div className="panel-heading">Document</div>
+        <div className="body">
+          <div className="field">
+            <label>File name</label>
+            <input
+              type="text"
+              value={doc.name}
+              onChange={(event) => setDocumentName(event.target.value)}
+              aria-label="File name"
+            />
+          </div>
+          <dl className="kv">
+            <dt>Pages</dt>
+            <dd>{pages.length}</dd>
+            <dt>Objects</dt>
+            <dd>{annotations.length}</dd>
+            <dt>Source</dt>
+            <dd>{doc.source ? doc.source.name : "New document"}</dd>
+            <dt>File size</dt>
+            <dd>{doc.source ? formatFileSize(doc.source.bytes.byteLength) : "—"}</dd>
+            <dt>Last saved</dt>
+            <dd>{doc.savedAt ? formatTimestamp(doc.savedAt) : "Not saved yet"}</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section>
+        <div className="panel-heading">Details written in the file</div>
+        <div className="body">
+          <dl className="kv">
+            <dt>Title</dt>
+            <dd title={doc.metadata.title}>{doc.metadata.title || "—"}</dd>
+            <dt>Author</dt>
+            <dd title={doc.metadata.author}>{doc.metadata.author || "—"}</dd>
+            <dt>Created by</dt>
+            <dd title={doc.metadata.creator}>{doc.metadata.creator || "—"}</dd>
+            <dt>Created</dt>
+            <dd>{formatTimestamp(doc.metadata.creationDate)}</dd>
+            <dt>Modified</dt>
+            <dd>{formatTimestamp(doc.metadata.modificationDate)}</dd>
+          </dl>
+          <button type="button" className="btn" onClick={() => openDialog("metadata")}>
+            <Settings2 size={15} /> Edit all details
+          </button>
+        </div>
+      </section>
+
+      {page ? (
+        <section>
+          <div className="panel-heading">Page {pages.findIndex((entry) => entry.id === page.id) + 1}</div>
+          <div className="body">
+            <dl className="kv">
+              <dt>Size</dt>
+              <dd>
+                {Math.round(page.width)} × {Math.round(page.height)} pt
+              </dd>
+              <dt>Rotation</dt>
+              <dd>{totalRotation(page)}°</dd>
+              <dt>Objects on page</dt>
+              <dd>{annotations.filter((entry) => entry.pageId === page.id).length}</dd>
+            </dl>
+          </div>
+        </section>
+      ) : null}
+
+      <section>
+        <div className="panel-heading">Selected object</div>
+        <div className="body">
+          {annotation ? (
+            <>
+              <div className="field">
+                <label>Type</label>
+                <span className="chip chip-accent">{TYPE_LABELS[annotation.type] ?? annotation.type}</span>
+              </div>
+              {annotation.type === "text" ? (
+                <>
+                  <div className="field">
+                    <label>Text</label>
+                    <textarea
+                      value={annotation.text}
+                      onChange={(event) => updateAnnotation(annotation.id, { text: event.target.value })}
+                      aria-label="Annotation text"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Font size ({annotation.fontSize} pt)</label>
+                    <input
+                      type="number"
+                      min={6}
+                      max={72}
+                      value={annotation.fontSize}
+                      onChange={(event) =>
+                        updateAnnotation(annotation.id, {
+                          fontSize: Math.min(72, Math.max(6, Number(event.target.value) || 12)),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Colour</label>
+                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
+                  </div>
+                </>
+              ) : null}
+              {annotation.type === "text" || annotation.type === "highlight" || annotation.type === "shape" ? (
+                annotation.type === "highlight" ? (
+                  <div className="field">
+                    <label>Colour</label>
+                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
+                  </div>
+                ) : null
+              ) : null}
+              {annotation.type === "shape" ? (
+                <>
+                  <div className="field">
+                    <label>Outline</label>
+                    {swatches(annotation.stroke, (color) => updateAnnotation(annotation.id, { stroke: color }))}
+                  </div>
+                  <div className="field">
+                    <label>Line width ({annotation.lineWidth} pt)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={16}
+                      value={annotation.lineWidth}
+                      onChange={(event) =>
+                        updateAnnotation(annotation.id, {
+                          lineWidth: Math.min(16, Math.max(1, Number(event.target.value) || 1)),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Fill strength ({Math.round((annotation.fillOpacity ?? 0.22) * 100)}%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={Math.round((annotation.fillOpacity ?? 0.22) * 100)}
+                      onChange={(event) =>
+                        updateAnnotation(annotation.id, {
+                          fillOpacity: Math.min(1, Math.max(0, (Number(event.target.value) || 0) / 100)),
+                        })
+                      }
+                    />
+                  </div>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={annotation.fill !== null}
+                      onChange={(event) =>
+                        updateAnnotation(annotation.id, {
+                          fill: event.target.checked ? annotation.stroke : null,
+                        })
+                      }
+                    />
+                    Filled rectangle
+                  </label>
+                </>
+              ) : null}
+              {annotation.type === "ink" ? (
+                <>
+                  <div className="field">
+                    <label>Colour</label>
+                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
+                  </div>
+                  <div className="field">
+                    <label>Line width ({annotation.lineWidth} pt)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={16}
+                      value={annotation.lineWidth}
+                      onChange={(event) =>
+                        updateAnnotation(annotation.id, {
+                          lineWidth: Math.min(16, Math.max(1, Number(event.target.value) || 1)),
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              ) : null}
+              {annotation.type === "image" ? (
+                <p className="hint">
+                  Pictures can be moved and resized on the page; the picture data itself is kept as is.
+                </p>
+              ) : null}
+              <button type="button" className="btn btn-danger" onClick={() => removeAnnotation(annotation.id)}>
+                Remove object
+              </button>
+            </>
+          ) : (
+            <p className="hint">
+              Nothing selected. Pick the Select tool and click an object on the page to change its colour,
+              size or text.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="panel-heading">Recognized text</div>
+        <div className="body">
+          {layer ? (
+            <>
+              <dl className="kv">
+                <dt>Lines</dt>
+                <dd>{layer.lines.length}</dd>
+                <dt>Confidence</dt>
+                <dd>{layer.confidence}%</dd>
+                <dt>Languages</dt>
+                <dd>{layer.language}</dd>
+                <dt>Searchable</dt>
+                <dd>{layer.applied ? "Yes" : "Not yet"}</dd>
+              </dl>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.applied}
+                  onChange={(event) => setOcrApplied(layer.pageId, event.target.checked)}
+                />
+                Include as invisible searchable text
+              </label>
+              <button type="button" className="btn" onClick={() => openDialog("ocr")}>
+                <ScanText size={15} /> Review recognized text
+              </button>
+              <button type="button" className="btn btn-quiet" onClick={() => removeOcrLayer(layer.pageId)}>
+                Delete recognized text on this page
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="hint">
+                This page has no recognized text yet. Scanned and picture pages can be made searchable.
+              </p>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => openDialog("ocr")}
+                disabled={pages.length === 0}
+              >
+                <ScanText size={15} /> Recognize text
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="panel-heading">Storage &amp; security</div>
+        <div className="body">
+          <dl className="kv">
+            <dt>Documents are stored in</dt>
+            <dd>{settings.provider === "cloud" ? "Cloud storage" : "Local library"}</dd>
+            <dt>Encryption at rest</dt>
+            <dd>{settings.encryptLibrary ? "On (passphrase)" : "Off"}</dd>
+          </dl>
+          <button type="button" className="btn" onClick={() => openDialog("open")}>
+            <Library size={15} /> Open from library
+          </button>
+          <button type="button" className="btn" onClick={() => openDialog("settings")}>
+            <ShieldCheck size={15} /> Storage &amp; security…
+          </button>
+        </div>
+      </section>
+    </aside>
+  )
+}
