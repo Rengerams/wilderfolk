@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** PDF Studio keeps a page selected after undoing an added or duplicated page, so the pages rail no longer loses its selection.
+
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.

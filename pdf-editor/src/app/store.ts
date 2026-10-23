@@ -85,6 +85,24 @@ function snapshot(doc: DocState): DocSnapshot {
   }
 }
 
+/** A restored history entry may lack the selected page or object; the selection falls back to what it holds. */
+function validSelection(
+  doc: DocState,
+  activePageId: string,
+  selectedAnnotationId: string | null,
+): { activePageId: string; selectedAnnotationId: string | null } {
+  return {
+    activePageId: doc.pages.some((page) => page.id === activePageId)
+      ? activePageId
+      : doc.pages[0]?.id ?? "",
+    selectedAnnotationId:
+      selectedAnnotationId &&
+      doc.annotations.some((annotation) => annotation.id === selectedAnnotationId)
+        ? selectedAnnotationId
+        : null,
+  }
+}
+
 export type EditorState = {
   doc: DocState
   past: DocSnapshot[]
@@ -447,8 +465,10 @@ export const useEditor = create<EditorState>()((set, get) => {
       const state = get()
       const previous = state.past[state.past.length - 1]
       if (!previous) return
+      const doc = { ...state.doc, ...previous, dirty: true }
       set({
-        doc: { ...state.doc, ...previous, dirty: true },
+        doc,
+        ...validSelection(doc, state.activePageId, state.selectedAnnotationId),
         past: state.past.slice(0, -1),
         future: [snapshot(state.doc), ...state.future].slice(0, HISTORY_LIMIT),
       })
@@ -458,8 +478,10 @@ export const useEditor = create<EditorState>()((set, get) => {
       const state = get()
       const next = state.future[0]
       if (!next) return
+      const doc = { ...state.doc, ...next, dirty: true }
       set({
-        doc: { ...state.doc, ...next, dirty: true },
+        doc,
+        ...validSelection(doc, state.activePageId, state.selectedAnnotationId),
         past: [...state.past, snapshot(state.doc)].slice(-HISTORY_LIMIT),
         future: state.future.slice(1),
       })
