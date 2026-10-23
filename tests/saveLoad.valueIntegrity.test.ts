@@ -119,6 +119,36 @@ describe('the id allocators are made safe to consume', () => {
     expect(world.nextEntityId).toBeGreaterThan(deadSettlerId);
   });
 
+  it('refuses a stored allocator that has no usable successor left', () => {
+    const payload = realPayload();
+    payload.nextEntityId = Number.MAX_SAFE_INTEGER - 1;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('ignores a remembered id with no usable successor, so the floored allocator can still advance', () => {
+    const payload = realPayload();
+    payload.genealogyRegistry = {
+      people: {
+        [`${Number.MAX_SAFE_INTEGER - 1}`]: {
+          id: Number.MAX_SAFE_INTEGER - 1,
+          name: 'Forgotten',
+          birthSurname: '',
+          surname: '',
+          alive: false,
+          partners: [],
+          childrenIds: [],
+        },
+      },
+    };
+    delete payload.nextEntityId;
+
+    const world = buildWorld(payload)!;
+
+    expect(Number.isSafeInteger(world.nextEntityId + 1)).toBe(true);
+    expect(world.nextEntityId).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER - 2);
+  });
+
   it('ignores a retired id no allocator could advance past, instead of flooring onto it', () => {
     const payload = realPayload();
     payload.genealogyRegistry = {
@@ -203,6 +233,13 @@ describe('entity ids must be integers, non-negative and unique', () => {
   it('refuses an id with no successor, which would leave the allocator unable to advance', () => {
     const payload = realPayload();
     firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('refuses an id whose floored allocator could no longer hand out a usable successor', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 1;
 
     expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
   });

@@ -875,6 +875,15 @@ function isUsableId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_USABLE_ID;
 }
 
+/** The highest id a save may carry: the allocator floored from it and that allocator's next value stay usable. */
+const MAX_PERSISTED_ID = MAX_USABLE_ID - 2;
+
+/** The highest allocator value: the id it hands out and the value it becomes must both stay usable. */
+const MAX_ALLOCATOR_ID = MAX_USABLE_ID - 1;
+
+/** An id a payload may carry — above it, the allocator floored from the id has no usable successor. */
+const isPersistedId = (value: unknown): value is number => isUsableId(value) && value <= MAX_PERSISTED_ID;
+
 /** An id the engine keys on by string equality — every camp, event and route id is a string. */
 function isStringId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -887,7 +896,7 @@ function isAnyArray(value: unknown): value is unknown[] {
 
 /** An array of ids, for the nested lists an entity or building carries. */
 function isIdArray(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every(isUsableId);
+  return Array.isArray(value) && value.every((id: unknown) => isPersistedId(id));
 }
 
 /** One nested id array on an entity or building, checked only when the payload carries it. */
@@ -898,7 +907,7 @@ interface ElementIdRule {
 
 /** Any id an element carries: numeric for entities and buildings, string for camps and events. */
 function isEntityOrBuildingId(value: unknown): boolean {
-  return isUsableId(value) || isStringId(value);
+  return isPersistedId(value) || isStringId(value);
 }
 
 /** The nested id arrays an element carries, checked on a present value only. */
@@ -953,7 +962,7 @@ const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
  * A chronicle entry's id is **numeric**, unlike the string ids the other containers carry: the
  * allocator is `Math.max(…ids) + 1`, so one non-numeric string makes every later id `NaN`.
  */
-const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isUsableId }];
+const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isPersistedId }];
 
 /** The `kind` values `tickVisitorGroups` switches on — it is the same `as const` list as the type. */
 const VISITOR_KIND_VALUES: ReadonlySet<unknown> = new Set(['traders', 'pilgrims', 'scholars', 'hunters', 'nomads', 'refugees', 'performers']);
@@ -1064,7 +1073,7 @@ function isSafeIntegerWithin(limit: number): (value: unknown) => boolean {
  */
 function entityFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isUsableId },
+    { field: 'id', isValid: isPersistedId },
     { field: 'type', isValid: isMemberOf(ENTITY_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -1076,7 +1085,7 @@ function entityFieldRules(width: number, height: number): readonly ElementFieldR
 
 function buildingFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isUsableId },
+    { field: 'id', isValid: isPersistedId },
     { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -1099,8 +1108,8 @@ function worldScalarRules(): readonly ElementFieldRule[] {
     // exceeds its own maximum is refused by name instead of allocating a surface no map has.
     { field: 'width', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('width')) },
     { field: 'height', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('height')) },
-    { field: 'nextEntityId', isValid: isFiniteNumber },
-    { field: 'nextBuildingId', isValid: isFiniteNumber },
+    { field: 'nextEntityId', isValid: isSafeIntegerWithin(MAX_ALLOCATOR_ID) },
+    { field: 'nextBuildingId', isValid: isSafeIntegerWithin(MAX_ALLOCATOR_ID) },
     // The persisted leadership years. `1e999` parses to `Infinity`, and an infinite election date is
     // never reached — so a corrupt slot would leave the colony permanently headless.
     { field: 'leaderSinceYear', isValid: isFiniteNumber },
@@ -1269,20 +1278,20 @@ function floorIdAllocators(world: WorldState): void {
   };
   let highestEntity = 0;
   for (const entity of world.entities ?? []) {
-    if (isUsableId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+    if (isPersistedId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
   }
   // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
   for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
-    if (isUsableId(person.id) && person.id > highestEntity) highestEntity = person.id;
+    if (isPersistedId(person.id) && person.id > highestEntity) highestEntity = person.id;
   }
   let highestBuilding = 0;
   for (const building of world.buildings ?? []) {
-    if (isUsableId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+    if (isPersistedId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
   }
   // A rival row names camp structures that left the map, so those ids retire with the row's history.
   for (const rival of world.rivalSettlements ?? []) {
     for (const id of rival.buildingIds ?? []) {
-      if (isUsableId(id) && id > highestBuilding) highestBuilding = id;
+      if (isPersistedId(id) && id > highestBuilding) highestBuilding = id;
     }
   }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
