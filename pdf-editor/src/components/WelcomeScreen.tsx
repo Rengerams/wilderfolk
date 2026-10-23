@@ -6,8 +6,10 @@ import { listLibrary, openFromLibrary } from "../app/documentActions"
 import { formatFileSize, formatTimestamp } from "../pdf/pages"
 import { useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
+import { useT } from "../i18n"
 
 export function WelcomeScreen() {
+  const t = useT()
   const commands = useCommands()
   const setStatus = useEditor((state) => state.setStatus)
   const [recent, setRecent] = useState<StoredDocMeta[]>([])
@@ -28,11 +30,11 @@ export function WelcomeScreen() {
   }, [])
 
   const openRecent = async (meta: StoredDocMeta) => {
-    setStatus(`Opening ${meta.name}…`)
+    setStatus(t("Opening {name}…", { name: meta.name }))
     try {
       await openFromLibrary(meta)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "That document could not be opened."
+      const message = caught instanceof Error ? caught.message : t("That document could not be opened.")
       setError(message)
       setStatus(`⚠ ${message}`)
     }
@@ -47,35 +49,36 @@ export function WelcomeScreen() {
     <div className="welcome">
       <h1>PDF Studio</h1>
       <p className="lede">
-        Create, edit, copy and scan PDF documents. Everything stays on this PC unless you switch on
-        cloud storage.
+        {t(
+          "Create, edit, copy and scan PDF documents. Everything stays on this PC unless you switch on cloud storage.",
+        )}
       </p>
       <div className="welcome-actions">
         <button type="button" className="welcome-card" onClick={commands.newDocument}>
           <FilePlus2 size={18} />
-          <strong>New document</strong>
-          <small>Blank pages in A4, Letter or A3</small>
+          <strong>{t("New document")}</strong>
+          <small>{t("Blank pages in A4, Letter or A3")}</small>
         </button>
         <button type="button" className="welcome-card" onClick={() => void openFiles()}>
           <FolderOpen size={18} />
-          <strong>Open a file</strong>
-          <small>PDF, PNG or JPEG from this PC</small>
+          <strong>{t("Open a file")}</strong>
+          <small>{t("PDF, PNG or JPEG from this PC")}</small>
         </button>
         <button type="button" className="welcome-card" onClick={() => useEditor.getState().openDialog("scan")}>
           <Camera size={18} />
-          <strong>Scan pages</strong>
-          <small>Scanner or camera, with OCR</small>
+          <strong>{t("Scan pages")}</strong>
+          <small>{t("Scanner or camera, with OCR")}</small>
         </button>
         <button type="button" className="welcome-card" onClick={commands.openLibrary}>
           <Library size={18} />
-          <strong>Open from library</strong>
-          <small>Documents saved on this PC</small>
+          <strong>{t("Open from library")}</strong>
+          <small>{t("Documents saved on this PC")}</small>
         </button>
       </div>
       {error ? <p className="error-text">{error}</p> : null}
       {recent.length > 0 ? (
         <div className="welcome-section">
-          <h2>Recent documents</h2>
+          <h2>{t("Recent documents")}</h2>
           <div className="recent-list">
             {recent.map((meta) => (
               <button
@@ -86,9 +89,11 @@ export function WelcomeScreen() {
               >
                 <span>{meta.name}</span>
                 <small>
-                  {meta.pages} page{meta.pages === 1 ? "" : "s"} · {formatFileSize(meta.size)} ·{" "}
-                  {formatTimestamp(meta.updatedAt)}
-                  {meta.encrypted ? " · encrypted" : ""}
+                  {meta.pages === 1
+                    ? t("{count} page", { count: meta.pages })
+                    : t("{count} pages", { count: meta.pages })}{" "}
+                  · {formatFileSize(meta.size)} · {formatTimestamp(meta.updatedAt)}
+                  {meta.encrypted ? ` · ${t("encrypted")}` : ""}
                 </small>
               </button>
             ))}

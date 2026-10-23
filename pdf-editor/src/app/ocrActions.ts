@@ -1,6 +1,7 @@
 import type { PageRef } from "../types"
 import { recognizeImagePage, recognizePage, type OcrProgress } from "../pdf/ocr"
 import { totalRotation } from "../pdf/pages"
+import { t } from "../i18n/translate"
 import { getCurrentSource } from "./sourceRegistry"
 import { useEditor } from "./store"
 
@@ -44,7 +45,7 @@ async function recognizeOnePage(
   )
   if (!image || image.type !== "image") {
     throw new Error(
-      "This page has no picture to recognize. Scanned and imported pages can be recognized.",
+      t("This page has no picture to recognize. Scanned and imported pages can be recognized."),
     )
   }
   const result = await recognizeImagePage({

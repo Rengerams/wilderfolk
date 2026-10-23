@@ -3,8 +3,10 @@ import { Dialog } from "./Dialog"
 import { FORMAT_ADAPTERS, type ExportFormatId } from "../../formats/registry"
 import { useEditor } from "../../app/store"
 import { useCommands } from "../../app/useCommands"
+import { useT } from "../../i18n"
 
 export function ExportDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const pages = useEditor((state) => state.doc.pages.length)
   const annotations = useEditor((state) => state.doc.annotations.length)
@@ -18,17 +20,19 @@ export function ExportDialog() {
 
   return (
     <Dialog
-      title="Export as"
+      title={t("Export as")}
       onClose={closeDialog}
       footer={
         <>
           <span className="grow hint">
             {selected.status === "ready"
-              ? `${pages} page${pages === 1 ? "" : "s"} will be exported.`
-              : "This format is not installed in this build."}
+              ? pages === 1
+                ? t("{count} page will be exported.", { count: pages })
+                : t("{count} pages will be exported.", { count: pages })
+              : t("This format is not installed in this build.")}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -41,7 +45,9 @@ export function ExportDialog() {
               closeDialog()
             }}
           >
-            {busy ? "Exporting…" : `Export ${selected.extension.toUpperCase()}`}
+            {busy
+              ? t("Exporting…")
+              : t("Export {format}", { format: selected.extension.toUpperCase() })}
           </button>
         </>
       }
@@ -58,22 +64,31 @@ export function ExportDialog() {
             />
             <span className="grow">
               <strong>
-                {adapter.label} (.{adapter.extension})
-                {adapter.status !== "ready" ? " — extension slot" : ""}
+                {t(adapter.label)} (.{adapter.extension})
+                {adapter.status !== "ready" ? ` — ${t("extension slot")}` : ""}
               </strong>
-              <small className="hint">{adapter.note}</small>
+              <small className="hint">{t(adapter.note)}</small>
             </span>
           </label>
         ))}
       </div>
       <div className="note">
-        <strong>What goes into the export:</strong> every page in its saved order and rotation, all text,
-        highlights, drawings and pictures, {ocrLines > 0 ? `${ocrLines} lines of recognized searchable text, ` : ""}
-        and the document details. {annotations > 0 ? `${annotations} editable object${annotations === 1 ? "" : "s"} are printed into the page.` : ""}
+        <strong>{t("What goes into the export:")}</strong>{" "}
+        {t(
+          "every page in its saved order and rotation, all text, highlights, drawings and pictures,",
+        )}{" "}
+        {ocrLines > 0 ? t("{count} lines of recognized searchable text, ", { count: ocrLines }) : ""}
+        {t("and the document details.")}{" "}
+        {annotations > 0
+          ? annotations === 1
+            ? t("{count} editable object is printed into the page.", { count: annotations })
+            : t("{count} editable objects are printed into the page.", { count: annotations })
+          : ""}
       </div>
       <p className="hint">
-        Image formats write one file per page. Text export includes the file's own text plus everything OCR
-        recognized.
+        {t(
+          "Image formats write one file per page. Text export includes the file's own text plus everything OCR recognized.",
+        )}
       </p>
     </Dialog>
   )

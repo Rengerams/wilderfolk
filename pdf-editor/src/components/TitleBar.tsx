@@ -3,6 +3,7 @@ import { LogOut, Moon, Sun } from "lucide-react"
 import { IMPORT_ACCEPT, pickFiles } from "../app/files"
 import { selectActivePage, useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
+import { useT } from "../i18n"
 
 type MenuEntry =
   | { label: string; shortcut?: string; onSelect: () => void; disabled?: boolean }
@@ -60,6 +61,7 @@ function Menu(props: { label: string; entries: MenuEntry[] }) {
 }
 
 export function TitleBar() {
+  const t = useT()
   const commands = useCommands()
   const name = useEditor((state) => state.doc.name)
   const dirty = useEditor((state) => state.doc.dirty)
@@ -79,6 +81,8 @@ export function TitleBar() {
     if (page) clearPageAnnotations(page.id)
   }
 
+  const themeLabel = theme === "dark" ? t("Switch to light theme") : t("Switch to dark theme")
+
   return (
     <header className="titlebar">
       <div className="brand">
@@ -91,130 +95,131 @@ export function TitleBar() {
         {dirty ? <span className="dirty-dot" aria-hidden="true" /> : <span className="saved-dot" aria-hidden="true" />}
         <span>{name}</span>
       </div>
-      <nav className="menubar" aria-label="Main menu">
+      <nav className="menubar" aria-label={t("Main menu")}>
         <Menu
-          label="File"
+          label={t("File")}
           entries={[
-            { label: "New document…", shortcut: "Ctrl+N", onSelect: commands.newDocument },
-            { label: "Open PDF…", shortcut: "Ctrl+O", onSelect: () => void openFilePicker() },
-            { label: "Open from library…", onSelect: commands.openLibrary },
+            { label: t("New document…"), shortcut: "Ctrl+N", onSelect: commands.newDocument },
+            { label: t("Open PDF…"), shortcut: "Ctrl+O", onSelect: () => void openFilePicker() },
+            { label: t("Open from library…"), onSelect: commands.openLibrary },
             "separator",
-            { label: "Save", shortcut: "Ctrl+S", onSelect: () => void commands.save(), disabled: pageCount === 0 },
-            { label: "Save a copy…", onSelect: () => void commands.saveCopy(), disabled: pageCount === 0 },
+            { label: t("Save"), shortcut: "Ctrl+S", onSelect: () => void commands.save(), disabled: pageCount === 0 },
+            { label: t("Save a copy…"), onSelect: () => void commands.saveCopy(), disabled: pageCount === 0 },
             {
-              label: "Export as…",
+              label: t("Export as…"),
               shortcut: "Ctrl+E",
               onSelect: () => useEditor.getState().openDialog("export"),
               disabled: pageCount === 0,
             },
             "separator",
             {
-              label: "Scan pages…",
+              label: t("Scan pages…"),
               shortcut: "Ctrl+Shift+S",
               onSelect: () => useEditor.getState().openDialog("scan"),
             },
             "separator",
-            { label: "Exit", shortcut: "Alt+F4", onSelect: commands.exit },
+            { label: t("Exit"), shortcut: "Alt+F4", onSelect: commands.exit },
           ]}
         />
         <Menu
-          label="Edit"
+          label={t("Edit")}
           entries={[
-            { label: "Undo", shortcut: "Ctrl+Z", onSelect: commands.undo },
-            { label: "Redo", shortcut: "Ctrl+Y", onSelect: commands.redo },
+            { label: t("Undo"), shortcut: "Ctrl+Z", onSelect: commands.undo },
+            { label: t("Redo"), shortcut: "Ctrl+Y", onSelect: commands.redo },
             "separator",
             {
-              label: "Find and replace text…",
+              label: t("Find and replace text…"),
               shortcut: "Ctrl+H",
               onSelect: () => useEditor.getState().openDialog("find"),
             },
-            { label: "Select tool", shortcut: "Esc", onSelect: () => setTool("select") },
+            { label: t("Select tool"), shortcut: "Esc", onSelect: () => setTool("select") },
             "separator",
-            { label: "Duplicate page", onSelect: commands.duplicateActive, disabled: pageCount === 0 },
-            { label: "Delete page", onSelect: commands.deleteActive, disabled: pageCount === 0 },
-            { label: "Clear markings on page", onSelect: clearMarkings, disabled: pageCount === 0 },
+            { label: t("Duplicate page"), onSelect: commands.duplicateActive, disabled: pageCount === 0 },
+            { label: t("Delete page"), onSelect: commands.deleteActive, disabled: pageCount === 0 },
+            { label: t("Clear markings on page"), onSelect: clearMarkings, disabled: pageCount === 0 },
           ]}
         />
         <Menu
-          label="View"
+          label={t("View")}
           entries={[
-            { label: "Zoom in", shortcut: "Ctrl+Plus", onSelect: commands.zoomIn },
-            { label: "Zoom out", shortcut: "Ctrl+Minus", onSelect: commands.zoomOut },
-            { label: "Fit page", shortcut: "Ctrl+0", onSelect: commands.fitPage },
-            { label: "Fit width", onSelect: commands.fitWidth },
+            { label: t("Zoom in"), shortcut: "Ctrl+Plus", onSelect: commands.zoomIn },
+            { label: t("Zoom out"), shortcut: "Ctrl+Minus", onSelect: commands.zoomOut },
+            { label: t("Fit page"), shortcut: "Ctrl+0", onSelect: commands.fitPage },
+            { label: t("Fit width"), onSelect: commands.fitWidth },
             "separator",
-            { label: "Page thumbnails", onSelect: () => useEditor.getState().toggleThumbnails() },
-            { label: "Properties panel", onSelect: () => useEditor.getState().toggleInspector() },
+            { label: t("Page thumbnails"), onSelect: () => useEditor.getState().toggleThumbnails() },
+            { label: t("Properties panel"), onSelect: () => useEditor.getState().toggleInspector() },
             "separator",
+            { label: themeLabel, onSelect: commands.toggleTheme },
+          ]}
+        />
+        <Menu
+          label={t("Pages")}
+          entries={[
+            { label: t("Insert blank page"), shortcut: "Ctrl+Shift+N", onSelect: commands.insertBlank },
+            { label: t("Duplicate page"), onSelect: commands.duplicateActive, disabled: pageCount === 0 },
+            "separator",
+            { label: t("Rotate left"), onSelect: () => commands.rotateActive(-90), disabled: pageCount === 0 },
+            { label: t("Rotate right"), onSelect: () => commands.rotateActive(90), disabled: pageCount === 0 },
+            "separator",
+            { label: t("Move page up"), onSelect: () => commands.moveActive(-1), disabled: pageCount === 0 },
+            { label: t("Move page down"), onSelect: () => commands.moveActive(1), disabled: pageCount === 0 },
+            "separator",
+            { label: t("Delete page"), onSelect: commands.deleteActive, disabled: pageCount === 0 },
+          ]}
+        />
+        <Menu
+          label={t("Scan")}
+          entries={[
+            { label: t("Scan pages…"), onSelect: () => useEditor.getState().openDialog("scan") },
+            { label: t("Make scanned pages searchable…"), onSelect: () => useEditor.getState().openDialog("scan") },
+            "separator",
+            { label: t("Recognize text on pages…"), onSelect: commands.runOcr },
+          ]}
+        />
+        <Menu
+          label={t("Tools")}
+          entries={[
+            { label: t("Document properties…"), onSelect: commands.editProperties },
+            { label: t("Recognize text (OCR)…"), onSelect: commands.runOcr },
             {
-              label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
-              onSelect: commands.toggleTheme,
-            },
-          ]}
-        />
-        <Menu
-          label="Pages"
-          entries={[
-            { label: "Insert blank page", shortcut: "Ctrl+Shift+N", onSelect: commands.insertBlank },
-            { label: "Duplicate page", onSelect: commands.duplicateActive, disabled: pageCount === 0 },
-            "separator",
-            { label: "Rotate left", onSelect: () => commands.rotateActive(-90), disabled: pageCount === 0 },
-            { label: "Rotate right", onSelect: () => commands.rotateActive(90), disabled: pageCount === 0 },
-            "separator",
-            { label: "Move page up", onSelect: () => commands.moveActive(-1), disabled: pageCount === 0 },
-            { label: "Move page down", onSelect: () => commands.moveActive(1), disabled: pageCount === 0 },
-            "separator",
-            { label: "Delete page", onSelect: commands.deleteActive, disabled: pageCount === 0 },
-          ]}
-        />
-        <Menu
-          label="Scan"
-          entries={[
-            { label: "Scan pages…", onSelect: () => useEditor.getState().openDialog("scan") },
-            { label: "Make scanned pages searchable…", onSelect: () => useEditor.getState().openDialog("scan") },
-            "separator",
-            { label: "Recognize text on pages…", onSelect: commands.runOcr },
-          ]}
-        />
-        <Menu
-          label="Tools"
-          entries={[
-            { label: "Document properties…", onSelect: commands.editProperties },
-            { label: "Recognize text (OCR)…", onSelect: commands.runOcr },
-            {
-              label: "Fill form fields…",
+              label: t("Fill form fields…"),
               onSelect: () => useEditor.getState().openDialog("form"),
             },
             "separator",
-            { label: "Extract text to .txt", onSelect: () => void commands.exportAs("txt"), disabled: pageCount === 0 },
-            { label: "Copy picture from page…", onSelect: () => setTool("region"), disabled: pageCount === 0 },
+            { label: t("Extract text to .txt"), onSelect: () => void commands.exportAs("txt"), disabled: pageCount === 0 },
+            { label: t("Copy picture from page…"), onSelect: () => setTool("region"), disabled: pageCount === 0 },
             "separator",
-            { label: "Storage & security…", onSelect: commands.storageSettings },
+            { label: t("Storage & security…"), onSelect: commands.storageSettings },
           ]}
         />
         <Menu
-          label="Help"
+          label={t("Help")}
           entries={[
-            { label: "About PDF Studio", onSelect: commands.about },
-            { label: "Keyboard shortcuts", onSelect: commands.shortcuts },
-            { label: "Security notes", onSelect: () => useEditor.getState().openDialog("about") },
+            { label: t("About PDF Studio"), onSelect: commands.about },
+            { label: t("Keyboard shortcuts"), onSelect: commands.shortcuts },
+            { label: t("Security notes"), onSelect: () => useEditor.getState().openDialog("about") },
           ]}
         />
       </nav>
       <div className="titlebar-spacer" />
-      {savedAt ? <span className="chip" title={`Saved ${new Date(savedAt).toLocaleString()}`}>Saved</span> : null}
+      {savedAt ? (
+        <span className="chip" title={t("Saved {time}", { time: new Date(savedAt).toLocaleString() })}>
+          {t("Saved")}
+        </span>
+      ) : null}
       <button
         type="button"
         className="icon-btn"
         onClick={commands.toggleTheme}
-        aria-label="Switch theme"
-        title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-label={t("Switch theme")}
+        title={themeLabel}
       >
         {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
-      <button type="button" className="btn btn-quiet" onClick={commands.exit} title="Close PDF Studio">
+      <button type="button" className="btn btn-quiet" onClick={commands.exit} title={t("Close PDF Studio")}>
         <LogOut size={15} />
-        Exit
+        {t("Exit")}
       </button>
     </header>
   )

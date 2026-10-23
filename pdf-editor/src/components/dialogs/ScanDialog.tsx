@@ -9,10 +9,12 @@ import { finishCameraScan, runBridgeScan } from "../../app/scanActions"
 import { OCR_LANGUAGES } from "../../pdf/ocr"
 import { currentSettings } from "../../storage/settings"
 import { useEditor, type ImportedImage } from "../../app/store"
+import { useT } from "../../i18n"
 
 type Mode = "bridge" | "camera" | "files"
 
 export function ScanDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const pageCount = useEditor((state) => state.doc.pages.length)
@@ -42,7 +44,7 @@ export function ScanDialog() {
       setDeviceId((current) => current || (list[0]?.id ?? ""))
     } catch (caught) {
       setDevices([])
-      setError(caught instanceof Error ? caught.message : "The scan bridge could not be reached.")
+      setError(caught instanceof Error ? caught.message : t("The scan bridge could not be reached."))
     }
   }
 
@@ -54,7 +56,7 @@ export function ScanDialog() {
   const scanWithBridge = async () => {
     setError("")
     setOutcome(null)
-    setBusy({ label: "Contacting the scanner", progress: 0.02 })
+    setBusy({ label: t("Contacting the scanner"), progress: 0.02 })
     try {
       const result = await runBridgeScan(
         {
@@ -72,7 +74,7 @@ export function ScanDialog() {
       )
       setOutcome(result)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Scanning failed."
+      const message = caught instanceof Error ? caught.message : t("Scanning failed.")
       setError(message)
       setStatus(`⚠ ${message}`)
     } finally {
@@ -84,7 +86,7 @@ export function ScanDialog() {
     if (pending.length === 0) return
     setError("")
     setOutcome(null)
-    setBusy({ label: "Adding pages", progress: 0.3 })
+    setBusy({ label: t("Adding pages"), progress: 0.3 })
     try {
       const result = await finishCameraScan(
         pending,
@@ -94,7 +96,7 @@ export function ScanDialog() {
       setPending([])
       setOutcome(result)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "The pages could not be added."
+      const message = caught instanceof Error ? caught.message : t("The pages could not be added.")
       setError(message)
       setStatus(`⚠ ${message}`)
     } finally {
@@ -115,7 +117,7 @@ export function ScanDialog() {
       await startCamera(video)
       setCameraOn(true)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The camera could not be started.")
+      setError(caught instanceof Error ? caught.message : t("The camera could not be started."))
     }
   }
 
@@ -127,28 +129,30 @@ export function ScanDialog() {
       const images = await Promise.all(files.filter((file) => !file.type.includes("pdf")).map(readImageInput))
       setPending((current) => [...current, ...images])
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Those files could not be read.")
+      setError(caught instanceof Error ? caught.message : t("Those files could not be read."))
     }
   }
 
   return (
     <Dialog
-      title="Scan pages"
+      title={t("Scan pages")}
       onClose={closeDialog}
       wide
       footer={
         <>
           <span className="grow hint">
             {recognize
-              ? `Text will be recognized (${languages.join(", ")}) so the saved PDF is searchable.`
-              : "Scanned pages are added as pictures."}
+              ? t("Text will be recognized ({languages}) so the saved PDF is searchable.", {
+                  languages: languages.join(", "),
+                })
+              : t("Scanned pages are added as pictures.")}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Close
+            {t("Close")}
           </button>
           {mode === "bridge" ? (
             <button type="button" className="btn btn-primary" onClick={() => void scanWithBridge()} disabled={busy !== null}>
-              <ScanLine size={15} /> {busy ? "Scanning…" : "Start scan"}
+              <ScanLine size={15} /> {busy ? t("Scanning…") : t("Start scan")}
             </button>
           ) : (
             <button
@@ -157,39 +161,45 @@ export function ScanDialog() {
               onClick={() => void addPendingImages()}
               disabled={busy !== null || pending.length === 0}
             >
-              <ScanLine size={15} /> Add {pending.length || ""} page{pending.length === 1 ? "" : "s"}
+              <ScanLine size={15} />{" "}
+              {pending.length === 1
+                ? t("Add {count} page", { count: pending.length })
+                : t("Add {count} pages", { count: pending.length })}
             </button>
           )}
         </>
       }
     >
-      <div className="row" role="radiogroup" aria-label="Scan source">
+      <div className="row" role="radiogroup" aria-label={t("Scan source")}>
         <button
           type="button"
           className="btn"
           aria-pressed={mode === "bridge"}
           onClick={() => setMode("bridge")}
         >
-          <ScanLine size={15} /> Scanner
+          <ScanLine size={15} /> {t("Scanner")}
         </button>
         <button type="button" className="btn" aria-pressed={mode === "camera"} onClick={() => setMode("camera")}>
-          <Camera size={15} /> Camera
+          <Camera size={15} /> {t("Camera")}
         </button>
         <button type="button" className="btn" aria-pressed={mode === "files"} onClick={() => setMode("files")}>
-          <FolderOpen size={15} /> Scanned files
+          <FolderOpen size={15} /> {t("Scanned files")}
         </button>
       </div>
 
       {mode === "bridge" ? (
         <>
           <div className="note">
-            <strong>Scanner hardware</strong> is reached through a small local bridge that runs the scanner
-            driver on this PC (see <code>scan-bridge/README.md</code>). It answers on{" "}
-            <code>{bridgeUrl}</code> and supports flatbed and document feeder, A4/A5/Letter/Legal, and 150–600
-            DPI, including the option to show the scanner's own window.
+            <strong>{t("Scanner hardware")}</strong>{" "}
+            {t("is reached through a small local bridge that runs the scanner driver on this PC (see")}{" "}
+            <code>scan-bridge/README.md</code>
+            {t("). It answers on")} <code>{bridgeUrl}</code>{" "}
+            {t(
+              "and supports flatbed and document feeder, A4/A5/Letter/Legal, and 150–600 DPI, including the option to show the scanner's own window.",
+            )}
           </div>
           <div className="row">
-            <Field label="Bridge address">
+            <Field label={t("Bridge address")}>
               <input
                 type="text"
                 value={bridgeUrl}
@@ -198,14 +208,14 @@ export function ScanDialog() {
               />
             </Field>
             <button type="button" className="btn" onClick={() => void loadDevices()}>
-              <RefreshCw size={15} /> Find scanners
+              <RefreshCw size={15} /> {t("Find scanners")}
             </button>
           </div>
           <div className="grid-2">
-            <Field label="Scanner">
+            <Field label={t("Scanner")}>
               <select value={deviceId} onChange={(event) => setDeviceId(event.target.value)}>
                 <option value="">
-                  {devices.length === 0 ? "No scanner found" : "Choose a scanner"}
+                  {devices.length === 0 ? t("No scanner found") : t("Choose a scanner")}
                 </option>
                 {devices.map((device) => (
                   <option key={device.id} value={device.id}>
@@ -214,18 +224,18 @@ export function ScanDialog() {
                 ))}
               </select>
             </Field>
-            <Field label="Paper source">
+            <Field label={t("Paper source")}>
               <select
                 value={paperSource}
                 onChange={(event) => setPaperSource(event.target.value as "flatbed" | "feeder")}
               >
-                <option value="feeder">Document feeder (all pages)</option>
-                <option value="flatbed">Flatbed (one page)</option>
+                <option value="feeder">{t("Document feeder (all pages)")}</option>
+                <option value="flatbed">{t("Flatbed (one page)")}</option>
               </select>
             </Field>
           </div>
           <div className="grid-2">
-            <Field label="Page size">
+            <Field label={t("Page size")}>
               <select
                 value={pageSize}
                 onChange={(event) => setPageSize(event.target.value as "a4" | "a5" | "letter" | "legal")}
@@ -236,21 +246,21 @@ export function ScanDialog() {
                 <option value="legal">Legal</option>
               </select>
             </Field>
-            <Field label="Resolution">
+            <Field label={t("Resolution")}>
               <select
                 value={dpi}
                 onChange={(event) => setDpi(Number(event.target.value) as 150 | 200 | 300 | 600)}
               >
-                <option value={150}>150 dpi (fast)</option>
+                <option value={150}>{t("150 dpi (fast)")}</option>
                 <option value={200}>200 dpi</option>
-                <option value={300}>300 dpi (recommended for OCR)</option>
-                <option value={600}>600 dpi (slow, large files)</option>
+                <option value={300}>{t("300 dpi (recommended for OCR)")}</option>
+                <option value={600}>{t("600 dpi (slow, large files)")}</option>
               </select>
             </Field>
           </div>
           <label className="checkbox">
             <input type="checkbox" checked={nativeUi} onChange={(event) => setNativeUi(event.target.checked)} />
-            Show the scanner's own window while scanning
+            {t("Show the scanner's own window while scanning")}
           </label>
         </>
       ) : null}
@@ -259,8 +269,10 @@ export function ScanDialog() {
         <>
           <div className="note">
             {cameraSupported()
-              ? "Photograph the page: hold it flat and fill the frame. Each capture becomes one page."
-              : "This environment cannot reach a camera. Use the scanner bridge or add scanned files instead."}
+              ? t("Photograph the page: hold it flat and fill the frame. Each capture becomes one page.")
+              : t(
+                  "This environment cannot reach a camera. Use the scanner bridge or add scanned files instead.",
+                )}
           </div>
           <video
             ref={videoRef}
@@ -270,7 +282,7 @@ export function ScanDialog() {
           />
           <div className="row">
             <button type="button" className="btn" onClick={() => void toggleCamera()}>
-              <Play size={15} /> {cameraOn ? "Stop camera" : "Start camera"}
+              <Play size={15} /> {cameraOn ? t("Stop camera") : t("Start camera")}
             </button>
             <button
               type="button"
@@ -282,11 +294,11 @@ export function ScanDialog() {
                 try {
                   setPending((current) => [...current, captureFrame(video)])
                 } catch (caught) {
-                  setError(caught instanceof Error ? caught.message : "The picture could not be taken.")
+                  setError(caught instanceof Error ? caught.message : t("The picture could not be taken."))
                 }
               }}
             >
-              <Camera size={15} /> Capture page
+              <Camera size={15} /> {t("Capture page")}
             </button>
           </div>
         </>
@@ -295,11 +307,12 @@ export function ScanDialog() {
       {mode === "files" ? (
         <>
           <div className="note">
-            Scanned pages the scanner software already saved to this PC (PNG or JPEG) can be added straight to
-            the document and recognized.
+            {t(
+              "Scanned pages the scanner software already saved to this PC (PNG or JPEG) can be added straight to the document and recognized.",
+            )}
           </div>
           <button type="button" className="btn" onClick={() => void pickScannedFiles()}>
-            <FolderOpen size={15} /> Choose scanned files…
+            <FolderOpen size={15} /> {t("Choose scanned files…")}
           </button>
         </>
       ) : null}
@@ -307,21 +320,25 @@ export function ScanDialog() {
       {pending.length > 0 ? (
         <div className="list">
           <strong>
-            {pending.length} page{pending.length === 1 ? "" : "s"} ready
+            {pending.length === 1
+              ? t("{count} page ready", { count: pending.length })
+              : t("{count} pages ready", { count: pending.length })}
           </strong>
           <div className="row">
-            <span className="grow hint">They are added to the document when you press the button below.</span>
+            <span className="grow hint">
+              {t("They are added to the document when you press the button below.")}
+            </span>
             <button type="button" className="btn btn-quiet" onClick={() => setPending([])}>
-              <Trash2 size={15} /> Clear
+              <Trash2 size={15} /> {t("Clear")}
             </button>
           </div>
         </div>
       ) : null}
 
-      <h3>Text recognition</h3>
+      <h3>{t("Text recognition")}</h3>
       <label className="checkbox">
         <input type="checkbox" checked={recognize} onChange={(event) => setRecognize(event.target.checked)} />
-        Recognize text so the PDF becomes searchable
+        {t("Recognize text so the PDF becomes searchable")}
       </label>
       {recognize ? (
         <div className="checkbox-grid">
@@ -340,7 +357,7 @@ export function ScanDialog() {
                   )
                 }
               />
-              {language.label}
+              {t(language.label)}
             </label>
           ))}
         </div>
@@ -352,7 +369,7 @@ export function ScanDialog() {
           onChange={(event) => setStartNew(event.target.checked)}
           disabled={pageCount === 0}
         />
-        Start a new document instead of adding to the current one
+        {t("Start a new document instead of adding to the current one")}
       </label>
 
       {busy ? (
@@ -365,11 +382,13 @@ export function ScanDialog() {
       ) : null}
       {outcome ? (
         <p className="success-text">
-          Added {outcome.pages} page{outcome.pages === 1 ? "" : "s"}
+          {outcome.pages === 1
+            ? t("Added {count} page", { count: outcome.pages })
+            : t("Added {count} pages", { count: outcome.pages })}
           {outcome.recognizedLines > 0
-            ? ` and recognized ${outcome.recognizedLines} lines of text.`
+            ? ` ${t("and recognized {lines} lines of text.", { lines: outcome.recognizedLines })}`
             : recognize
-              ? " — no text was recognized, so the pages stay pictures."
+              ? ` ${t("— no text was recognized, so the pages stay pictures.")}`
               : "."}
         </p>
       ) : null}
@@ -383,12 +402,12 @@ export function ScanDialog() {
               await saveDocument()
               closeDialog()
             } catch (caught) {
-              const message = caught instanceof Error ? caught.message : "The document could not be saved."
+              const message = caught instanceof Error ? caught.message : t("The document could not be saved.")
               setError(message)
             }
           }}
         >
-          Save the scanned document now
+          {t("Save the scanned document now")}
         </button>
       ) : null}
     </Dialog>

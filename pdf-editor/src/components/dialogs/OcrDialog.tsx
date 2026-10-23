@@ -5,8 +5,10 @@ import { exportAs, saveDocument } from "../../app/documentActions"
 import { OCR_LANGUAGES } from "../../pdf/ocr"
 import { currentSettings } from "../../storage/settings"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 export function OcrDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const pages = useEditor((state) => state.doc.pages)
@@ -35,18 +37,27 @@ export function OcrDialog() {
   const recognize = async () => {
     setError("")
     setMessage("")
-    setBusy({ label: "Preparing recognition", progress: 0.05 })
+    setBusy({ label: t("Preparing recognition"), progress: 0.05 })
     try {
       const outcome = await recognizePagesToDraft(pageIds, languages, (progress) =>
         setBusy({ label: progress.status, progress: 0.1 + progress.progress * 0.85 }),
       )
       setMessage(
         outcome.lines > 0
-          ? `Recognized ${outcome.lines} lines on ${outcome.pages} page${outcome.pages === 1 ? "" : "s"}. Check the text below, then make it searchable.`
-          : "No text was found on those pages. Try a higher scan resolution or another language.",
+          ? t(
+              "Recognized {lines} lines on {pages}. Check the text below, then make it searchable.",
+              {
+                lines: outcome.lines,
+                pages:
+                  outcome.pages === 1
+                    ? t("{count} page", { count: outcome.pages })
+                    : t("{count} pages", { count: outcome.pages }),
+              },
+            )
+          : t("No text was found on those pages. Try a higher scan resolution or another language."),
       )
     } catch (caught) {
-      const text = caught instanceof Error ? caught.message : "Text recognition failed."
+      const text = caught instanceof Error ? caught.message : t("Text recognition failed.")
       setError(text)
       setStatus(`⚠ ${text}`)
     } finally {
@@ -56,28 +67,31 @@ export function OcrDialog() {
 
   const applyAndSave = async () => {
     applyOcrLayers(pageIds)
-    setMessage("Saving a searchable PDF…")
+    setMessage(t("Saving a searchable PDF…"))
     try {
       await saveDocument()
-      setMessage("Saved. The recognized text is now hidden inside the PDF and can be searched.")
+      setMessage(
+        t("Saved. The recognized text is now hidden inside the PDF and can be searched."),
+      )
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The document could not be saved.")
+      setError(caught instanceof Error ? caught.message : t("The document could not be saved."))
     }
   }
 
   return (
     <Dialog
-      title="Recognize text (OCR)"
+      title={t("Recognize text (OCR)")}
       onClose={closeDialog}
       wide
       footer={
         <>
           <span className="grow hint">
-            Recognized text is placed invisibly on the page, so searching and copying work while the page looks
-            unchanged.
+            {t(
+              "Recognized text is placed invisibly on the page, so searching and copying work while the page looks unchanged.",
+            )}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Close
+            {t("Close")}
           </button>
           <button
             type="button"
@@ -85,7 +99,7 @@ export function OcrDialog() {
             disabled={busy !== null || pageIds.length === 0}
             onClick={() => void recognize()}
           >
-            {busy ? "Working…" : "Recognize text"}
+            {busy ? t("Working…") : t("Recognize text")}
           </button>
           <button
             type="button"
@@ -93,25 +107,30 @@ export function OcrDialog() {
             disabled={layers.length === 0}
             onClick={() => {
               applyOcrLayers(pageIds)
-              setMessage("The pages are now searchable.")
+              setMessage(t("The pages are now searchable."))
             }}
           >
-            Make searchable
+            {t("Make searchable")}
           </button>
-          <button type="button" className="btn btn-primary" disabled={layers.length === 0} onClick={() => void applyAndSave()}>
-            Save searchable PDF
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={layers.length === 0}
+            onClick={() => void applyAndSave()}
+          >
+            {t("Save searchable PDF")}
           </button>
         </>
       }
     >
       <div className="grid-2">
-        <Field label="Pages">
+        <Field label={t("Pages")}>
           <select value={scope} onChange={(event) => setScope(event.target.value as "current" | "all")}>
-            <option value="current">This page only</option>
-            <option value="all">Every page ({pages.length})</option>
+            <option value="current">{t("This page only")}</option>
+            <option value="all">{t("Every page ({count})", { count: pages.length })}</option>
           </select>
         </Field>
-        <Field label="Recognition languages">
+        <Field label={t("Recognition languages")}>
           <div className="checkbox-grid">
             {OCR_LANGUAGES.map((language) => (
               <label key={language.code} className="checkbox">
@@ -128,7 +147,7 @@ export function OcrDialog() {
                     )
                   }
                 />
-                {language.label}
+                {t(language.label)}
               </label>
             ))}
           </div>
@@ -148,19 +167,25 @@ export function OcrDialog() {
 
       {layers.length > 0 ? (
         <>
-          <h3>Check the recognized text</h3>
+          <h3>{t("Check the recognized text")}</h3>
           <p className="hint">
-            Correct anything the recognizer misread. Your corrections are what end up in the searchable layer
-            and in any exported text.
+            {t(
+              "Correct anything the recognizer misread. Your corrections are what end up in the searchable layer and in any exported text.",
+            )}
           </p>
           {layers.map((layer) => (
             <div key={layer.pageId}>
               <div className="row">
                 <strong className="grow">
-                  Page {pages.findIndex((page) => page.id === layer.pageId) + 1} · {layer.lines.length} lines ·{" "}
-                  {layer.confidence}% confidence
+                  {t("Page {number} · {lines} lines · {confidence}% confidence", {
+                    number: pages.findIndex((page) => page.id === layer.pageId) + 1,
+                    lines: layer.lines.length,
+                    confidence: layer.confidence,
+                  })}
                 </strong>
-                <span className={layer.applied ? "chip chip-accent" : "chip"}>{layer.applied ? "searchable" : "draft"}</span>
+                <span className={layer.applied ? "chip chip-accent" : "chip"}>
+                  {layer.applied ? t("searchable") : t("draft")}
+                </span>
               </div>
               <div className="ocr-review">
                 {layer.lines.map((line) => (
@@ -179,7 +204,9 @@ export function OcrDialog() {
         </>
       ) : (
         <p className="hint">
-          Pages that came from a PDF file, and scanned or imported picture pages, can all be recognized here.
+          {t(
+            "Pages that came from a PDF file, and scanned or imported picture pages, can all be recognized here.",
+          )}
         </p>
       )}
 
@@ -189,7 +216,7 @@ export function OcrDialog() {
         disabled={layers.length === 0}
         onClick={() => void exportAs("txt")}
       >
-        Export the recognized text as a .txt file
+        {t("Export the recognized text as a .txt file")}
       </button>
     </Dialog>
   )

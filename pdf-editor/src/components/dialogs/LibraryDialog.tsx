@@ -13,8 +13,10 @@ import { formatFileSize, formatTimestamp } from "../../pdf/pages"
 import { currentSettings, setPassphrase } from "../../storage/settings"
 import { useEditor } from "../../app/store"
 import { useCommands } from "../../app/useCommands"
+import { useT } from "../../i18n"
 
 export function LibraryDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const commands = useCommands()
@@ -32,7 +34,7 @@ export function LibraryDialog() {
     try {
       setDocuments(await listLibrary())
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The library could not be read.")
+      setError(caught instanceof Error ? caught.message : t("The library could not be read."))
     } finally {
       setLoading(false)
     }
@@ -44,12 +46,12 @@ export function LibraryDialog() {
 
   const open = async (meta: StoredDocMeta) => {
     setError("")
-    setStatus(`Opening ${meta.name}…`)
+    setStatus(t("Opening {name}…", { name: meta.name }))
     try {
       await openFromLibrary(meta)
       closeDialog()
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "That document could not be opened."
+      const message = caught instanceof Error ? caught.message : t("That document could not be opened.")
       setError(message)
       setStatus(`⚠ ${message}`)
       if (meta.encrypted) setNeedsPassphrase(true)
@@ -61,9 +63,9 @@ export function LibraryDialog() {
     try {
       await removeFromLibrary(meta.id)
       await refresh()
-      setStatus(`Deleted ${meta.name} from the library`)
+      setStatus(t("Deleted {name} from the library", { name: meta.name }))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That document could not be deleted.")
+      setError(caught instanceof Error ? caught.message : t("That document could not be deleted."))
     }
   }
 
@@ -80,42 +82,45 @@ export function LibraryDialog() {
 
   return (
     <Dialog
-      title={`Open from ${provider.label.toLowerCase()}`}
+      title={t("Open from {source}", { source: t(provider.label).toLowerCase() })}
       onClose={closeDialog}
       wide
       footer={
         <>
           <span className="grow hint">
             {currentSettings().provider === "cloud"
-              ? "Documents come from your own cloud endpoint."
-              : "Documents are kept on this PC in the browser's local storage."}
+              ? t("Documents come from your own cloud endpoint.")
+              : t("Documents are kept on this PC in the browser's local storage.")}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => void importFiles()}>
-            Open a file from this PC…
+            {t("Open a file from this PC…")}
           </button>
         </>
       }
     >
       <div className="row">
-        <Field label="Search">
+        <Field label={t("Search")}>
           <input
             type="text"
             value={filter}
-            placeholder="Filter by name"
+            placeholder={t("Filter by name")}
             onChange={(event) => setFilter(event.target.value)}
           />
         </Field>
         <button type="button" className="btn" onClick={() => void refresh()} disabled={loading}>
-          <RefreshCw size={15} /> Refresh
+          <RefreshCw size={15} /> {t("Refresh")}
         </button>
       </div>
 
       {needsPassphrase ? (
         <div className="note">
-          <Field label="Library passphrase" hint="Used only to unlock encrypted documents; it is never stored.">
+          <Field
+            label={t("Library passphrase")}
+            hint={t("Used only to unlock encrypted documents; it is never stored.")}
+          >
             <input
               type="password"
               value={passphrase}
@@ -128,10 +133,10 @@ export function LibraryDialog() {
             onClick={() => {
               setPassphrase(passphrase)
               setNeedsPassphrase(false)
-              setStatus("Library unlocked for this session")
+              setStatus(t("Library unlocked for this session"))
             }}
           >
-            Unlock library
+            {t("Unlock library")}
           </button>
         </div>
       ) : null}
@@ -140,7 +145,9 @@ export function LibraryDialog() {
 
       {visible.length === 0 ? (
         <p className="hint">
-          {loading ? "Reading the library…" : "No documents here yet. Save a document to see it in this list."}
+          {loading
+            ? t("Reading the library…")
+            : t("No documents here yet. Save a document to see it in this list.")}
         </p>
       ) : (
         <div className="list">
@@ -149,19 +156,21 @@ export function LibraryDialog() {
               <span className="grow">
                 <strong>{meta.name}</strong>
                 <small className="hint">
-                  {meta.pages} page{meta.pages === 1 ? "" : "s"} · {formatFileSize(meta.size)} ·{" "}
-                  {formatTimestamp(meta.updatedAt)}
-                  {meta.encrypted ? " · encrypted" : ""}
+                  {meta.pages === 1
+                    ? t("{count} page", { count: meta.pages })
+                    : t("{count} pages", { count: meta.pages })}{" "}
+                  · {formatFileSize(meta.size)} · {formatTimestamp(meta.updatedAt)}
+                  {meta.encrypted ? ` · ${t("encrypted")}` : ""}
                 </small>
               </span>
               <button type="button" className="btn btn-primary" onClick={() => void open(meta)}>
-                Open
+                {t("Open")}
               </button>
               <button
                 type="button"
                 className="icon-btn"
-                title={`Delete ${meta.name}`}
-                aria-label={`Delete ${meta.name}`}
+                title={t("Delete {name}", { name: meta.name })}
+                aria-label={t("Delete {name}", { name: meta.name })}
                 onClick={() => void remove(meta)}
               >
                 <Trash2 size={15} />

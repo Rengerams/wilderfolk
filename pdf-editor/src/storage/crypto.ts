@@ -1,4 +1,5 @@
 /** AES-GCM encryption for documents at rest. The passphrase only ever lives in memory. */
+import { t } from "../i18n/translate"
 
 const PBKDF2_ITERATIONS = 150_000
 const KEY_LENGTH = 256
@@ -39,7 +40,7 @@ export async function encryptBytes(bytes: Uint8Array, passphrase: string): Promi
 
 export async function decryptBytes(payload: Uint8Array, passphrase: string): Promise<Uint8Array> {
   if (payload.length <= SALT_LENGTH + IV_LENGTH) {
-    throw new Error("This stored document cannot be read.")
+    throw new Error(t("This stored document cannot be read."))
   }
   const salt = payload.slice(0, SALT_LENGTH)
   const iv = payload.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
@@ -49,6 +50,6 @@ export async function decryptBytes(payload: Uint8Array, passphrase: string): Pro
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher as BufferSource)
     return new Uint8Array(plain)
   } catch {
-    throw new Error("That passphrase does not match this document.")
+    throw new Error(t("That passphrase does not match this document."))
   }
 }

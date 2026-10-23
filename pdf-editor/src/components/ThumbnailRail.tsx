@@ -5,10 +5,12 @@ import { totalRotation } from "../pdf/pages"
 import { renderPageCanvas } from "../pdf/render"
 import { getCurrentSource } from "../app/sourceRegistry"
 import { useEditor } from "../app/store"
+import { useT } from "../i18n"
 
 type ThumbEntry = { url: string; rotation: Rotation }
 
 export function ThumbnailRail() {
+  const t = useT()
   const pages = useEditor((state) => state.doc.pages)
   const annotations = useEditor((state) => state.doc.annotations)
   const activePageId = useEditor((state) => state.activePageId)
@@ -53,7 +55,7 @@ export function ThumbnailRail() {
             [page.id]: { url, rotation: totalRotation(page) },
           }))
         } catch {
-          // A missing thumbnail must never interrupt editing.
+          // A page that cannot be rendered keeps its previous thumbnail.
         }
       }
     })()
@@ -66,13 +68,13 @@ export function ThumbnailRail() {
     annotations.find((annotation) => annotation.pageId === pageId && annotation.type === "image")
 
   return (
-    <aside className="rail" aria-label="Pages">
+    <aside className="rail" aria-label={t("Pages")}>
       <div className="panel-heading">
-        <span>Pages</span>
+        <span>{t("Pages")}</span>
         <span>{pages.length}</span>
       </div>
       <div className="rail-list">
-        {pages.length === 0 ? <p className="rail-empty">No pages yet.</p> : null}
+        {pages.length === 0 ? <p className="rail-empty">{t("No pages yet.")}</p> : null}
         {pages.map((page, index) => {
           const image = pageImage(page.id)
           const thumb = thumbs[page.id]
@@ -106,20 +108,22 @@ export function ThumbnailRail() {
               }}
             >
               <div className={preview ? "thumb-frame" : "thumb-frame is-blank"}>
-                {preview ? <img src={preview} alt={`Page ${index + 1}`} /> : null}
+                {preview ? <img src={preview} alt={t("Page {number}", { number: index + 1 })} /> : null}
               </div>
               <div className="thumb-meta">
-                <span className="thumb-index">Page {index + 1}</span>
-                {page.kind === "blank" ? <span>New page</span> : null}
-                {totalRotation(page) !== 0 ? <span>{totalRotation(page)}° rotated</span> : null}
-                {image ? <span>Scanned picture</span> : null}
+                <span className="thumb-index">{t("Page {number}", { number: index + 1 })}</span>
+                {page.kind === "blank" ? <span>{t("New page")}</span> : null}
+                {totalRotation(page) !== 0 ? (
+                  <span>{t("{degrees}° rotated", { degrees: totalRotation(page) })}</span>
+                ) : null}
+                {image ? <span>{t("Scanned picture")}</span> : null}
               </div>
               <div className="thumb-actions">
                 <button
                   type="button"
                   className="icon-btn"
-                  title="Rotate left"
-                  aria-label={`Rotate page ${index + 1} left`}
+                  title={t("Rotate left")}
+                  aria-label={t("Rotate page {number} left", { number: index + 1 })}
                   onClick={(event) => {
                     event.stopPropagation()
                     rotatePage(page.id, -90)
@@ -130,8 +134,8 @@ export function ThumbnailRail() {
                 <button
                   type="button"
                   className="icon-btn"
-                  title="Rotate right"
-                  aria-label={`Rotate page ${index + 1} right`}
+                  title={t("Rotate right")}
+                  aria-label={t("Rotate page {number} right", { number: index + 1 })}
                   onClick={(event) => {
                     event.stopPropagation()
                     rotatePage(page.id, 90)
@@ -142,8 +146,8 @@ export function ThumbnailRail() {
                 <button
                   type="button"
                   className="icon-btn"
-                  title="Duplicate page"
-                  aria-label={`Duplicate page ${index + 1}`}
+                  title={t("Duplicate page")}
+                  aria-label={t("Duplicate page {number}", { number: index + 1 })}
                   onClick={(event) => {
                     event.stopPropagation()
                     duplicatePage(page.id)
@@ -154,8 +158,8 @@ export function ThumbnailRail() {
                 <button
                   type="button"
                   className="icon-btn"
-                  title="Delete page"
-                  aria-label={`Delete page ${index + 1}`}
+                  title={t("Delete page")}
+                  aria-label={t("Delete page {number}", { number: index + 1 })}
                   onClick={(event) => {
                     event.stopPropagation()
                     removePage(page.id)
@@ -168,7 +172,7 @@ export function ThumbnailRail() {
           )
         })}
         <button type="button" className="btn btn-quiet" onClick={() => insertBlankPage(activePageId || null)}>
-          + Add blank page
+          {t("+ Add blank page")}
         </button>
       </div>
     </aside>

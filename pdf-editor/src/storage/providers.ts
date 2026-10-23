@@ -1,4 +1,5 @@
 import type { StoredDocMeta } from "../types"
+import { t } from "../i18n/translate"
 import { decryptBytes, encryptBytes } from "./crypto"
 import { getPassphrase, type AppSettings } from "./settings"
 
@@ -52,7 +53,8 @@ function openDatabase(): Promise<IDBDatabase> {
       }
     }
     request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(new Error("The local library is unavailable in this browser."))
+    request.onerror = () =>
+      reject(new Error(t("The local library is unavailable in this browser.")))
   })
 }
 
@@ -65,7 +67,7 @@ async function runRequest<T>(
     const transaction = database.transaction(RECORD_STORE, mode)
     const request = build(transaction.objectStore(RECORD_STORE))
     request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(new Error("The local library could not be written."))
+    request.onerror = () => reject(new Error(t("The local library could not be written.")))
     transaction.oncomplete = () => database.close()
   })
 }
@@ -91,12 +93,12 @@ class LocalLibraryProvider implements StorageProvider {
 
   async read(id: string): Promise<Uint8Array> {
     const record = await runRequest<StoredRecord | undefined>("readonly", (store) => store.get(id))
-    if (!record) throw new Error("That document is no longer in the library.")
+    if (!record) throw new Error(t("That document is no longer in the library."))
     const bytes = new Uint8Array(record.bytes)
     if (!record.encrypted) return bytes
     const passphrase = getPassphrase()
     if (passphrase.length === 0) {
-      throw new LibraryLockedError("This document is encrypted. Enter your library passphrase.")
+      throw new LibraryLockedError(t("This document is encrypted. Enter your library passphrase."))
     }
     return decryptBytes(bytes, passphrase)
   }
@@ -105,7 +107,9 @@ class LocalLibraryProvider implements StorageProvider {
     const passphrase = getPassphrase()
     const encrypted = this.encryptEnabled
     if (encrypted && passphrase.length === 0) {
-      throw new LibraryLockedError("Set your library passphrase before saving encrypted documents.")
+      throw new LibraryLockedError(
+        t("Set your library passphrase before saving encrypted documents."),
+      )
     }
     const payload = encrypted ? await encryptBytes(request.bytes, passphrase) : request.bytes
     const record: StoredRecord = {
@@ -157,7 +161,9 @@ class HttpCloudProvider implements StorageProvider {
 
   async list(): Promise<StoredDocMeta[]> {
     const response = await fetch(this.url("/documents"), { headers: this.headers() })
-    if (!response.ok) throw new Error(`Cloud storage answered ${response.status}.`)
+    if (!response.ok) {
+      throw new Error(t("Cloud storage answered {status}.", { status: response.status }))
+    }
     const payload: unknown = await response.json()
     if (!Array.isArray(payload)) return []
     return (payload as StoredDocMeta[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -167,7 +173,9 @@ class HttpCloudProvider implements StorageProvider {
     const response = await fetch(this.url(`/documents/${encodeURIComponent(id)}`), {
       headers: this.headers(),
     })
-    if (!response.ok) throw new Error(`Cloud storage answered ${response.status}.`)
+    if (!response.ok) {
+      throw new Error(t("Cloud storage answered {status}.", { status: response.status }))
+    }
     return new Uint8Array(await response.arrayBuffer())
   }
 
@@ -187,10 +195,12 @@ class HttpCloudProvider implements StorageProvider {
     })
     if (response.status === 409) {
       throw new Error(
-        "The cloud copy is newer than this one. Open it before saving, or save a copy to keep both.",
+        t("The cloud copy is newer than this one. Open it before saving, or save a copy to keep both."),
       )
     }
-    if (!response.ok) throw new Error(`Cloud storage refused the upload (${response.status}).`)
+    if (!response.ok) {
+      throw new Error(t("Cloud storage refused the upload ({status}).", { status: response.status }))
+    }
     return {
       id: request.id,
       name: request.name,
@@ -206,12 +216,19 @@ class HttpCloudProvider implements StorageProvider {
       method: "DELETE",
       headers: this.headers(),
     })
-    if (!response.ok) throw new Error(`Cloud storage refused the delete (${response.status}).`)
+    if (!response.ok) {
+      throw new Error(t("Cloud storage refused the delete ({status}).", { status: response.status }))
+    }
   }
 
   async probe(): Promise<string> {
     const documents = await this.list()
-    return `Connected — ${documents.length} document${documents.length === 1 ? "" : "s"} available.`
+    return t(
+      documents.length === 1
+        ? "Connected — {count} document available."
+        : "Connected — {count} documents available.",
+      { count: documents.length },
+    )
   }
 }
 

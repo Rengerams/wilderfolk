@@ -49,7 +49,7 @@ export function pdfColor(hex: string) {
 
 export function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mime: string } {
   const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl)
-  if (!match) throw new Error("The image data could not be read.")
+  if (!match) throw new Error(t("The image data could not be read."))
   const binary = atob(match[2])
   const bytes = new Uint8Array(binary.length)
   for (let index = 0; index < binary.length; index += 1) {

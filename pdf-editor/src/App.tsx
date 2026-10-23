@@ -9,7 +9,7 @@ import { StatusBar } from "./components/StatusBar"
 import { ThumbnailRail } from "./components/ThumbnailRail"
 import { TitleBar } from "./components/TitleBar"
 import { Toolbar } from "./components/Toolbar"
-import { applyTheme, currentSettings } from "./storage/settings"
+import { applyLanguage, applyTheme, currentSettings } from "./storage/settings"
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
@@ -28,13 +28,16 @@ export function App() {
   const showThumbnails = useEditor((state) => state.showThumbnails)
   const showInspector = useEditor((state) => state.showInspector)
   const setTheme = useEditor((state) => state.setTheme)
+  const setLanguage = useEditor((state) => state.setLanguage)
   const setTool = useEditor((state) => state.setTool)
 
   useEffect(() => {
     const saved = currentSettings()
     applyTheme(saved.theme)
     setTheme(saved.theme)
-  }, [setTheme])
+    applyLanguage(saved.language)
+    setLanguage(saved.language)
+  }, [setTheme, setLanguage])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

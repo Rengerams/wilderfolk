@@ -1,4 +1,5 @@
 import type { OcrLine, Rect, Rotation } from "../types"
+import { t } from "../i18n/translate"
 import { clampRectToPage, unrotateRect } from "./geometry"
 import { createId } from "./pages"
 import { renderPageCanvas, type PdfSource } from "./render"
@@ -50,7 +51,7 @@ async function loadTesseract(): Promise<TesseractModule> {
     | (Partial<TesseractModule> & { default?: TesseractModule })
     | undefined
   const module = imported?.createWorker ? (imported as TesseractModule) : imported?.default
-  if (!module?.createWorker) throw new Error("The OCR engine could not be loaded.")
+  if (!module?.createWorker) throw new Error(t("The OCR engine could not be loaded."))
   return module
 }
 
@@ -158,7 +159,8 @@ export async function recognizeImagePage(input: {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const element = new Image()
     element.onload = () => resolve(element)
-    element.onerror = () => reject(new Error("The page picture could not be read for recognition."))
+    element.onerror = () =>
+      reject(new Error(t("The page picture could not be read for recognition.")))
     element.src = input.dataUrl
   })
   const maxWidth = 2400
@@ -167,7 +169,7 @@ export async function recognizeImagePage(input: {
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
   const context = canvas.getContext("2d")
-  if (!context) throw new Error("Canvas is not available in this browser.")
+  if (!context) throw new Error(t("Canvas is not available in this browser."))
   context.fillStyle = "#ffffff"
   context.fillRect(0, 0, canvas.width, canvas.height)
   context.drawImage(image, 0, 0, canvas.width, canvas.height)

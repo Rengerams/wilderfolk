@@ -1,5 +1,6 @@
 import { Dialog } from "./Dialog"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 export const APP_VERSION = "0.1.0"
 
@@ -26,68 +27,80 @@ const SECURITY_NOTES = [
   "The only network requests are to the OCR engine's language files and, when you enable them, your own cloud endpoint. No telemetry is sent.",
 ]
 
+const HIGHLIGHTS = [
+  "Create new documents (A4, A5, A3, Letter, Legal, Tabloid, square) and open existing PDFs.",
+  "Reorder, rotate, duplicate, insert and delete pages; save the file or save a separate copy.",
+  "Add and change text, highlights, rectangles, freehand drawings and pictures on any page.",
+  "Copy a picture out of a PDF — drag around it and it becomes an editable image object.",
+  "Scan from a scanner, a phone camera or scanned files, and recognize text with OCR.",
+  "Edit all document details, including author, creator, subject, keywords and both dates.",
+  "Export to PDF, PNG, JPEG or plain text; more formats can be added as adapter modules.",
+]
+
 export function AboutDialog(props: { section?: "about" | "shortcuts" | "security" }) {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const section = props.section ?? "about"
 
   return (
     <Dialog
-      title={section === "shortcuts" ? "Keyboard shortcuts" : "About PDF Studio"}
+      title={section === "shortcuts" ? t("Keyboard shortcuts") : t("About PDF Studio")}
       onClose={closeDialog}
       footer={
         <>
           <span className="grow hint">
-            PDF Studio {APP_VERSION} · part of the wilderfolk repository, kept separate from the game app
+            {t(
+              "PDF Studio {version} · part of the wilderfolk repository, kept separate from the game app",
+              { version: APP_VERSION },
+            )}
           </span>
           <button type="button" className="btn btn-primary" onClick={closeDialog}>
-            Close
+            {t("Close")}
           </button>
         </>
       }
     >
       <div className="note">
-        <strong>PDF Studio {APP_VERSION}</strong> — a desktop PDF editor: create and edit pages, add text,
-        pictures, highlights and drawings, change every document detail, copy pictures out of a page, scan
-        paper documents and turn them into searchable PDFs.
+        <strong>PDF Studio {APP_VERSION}</strong>{" "}
+        {t(
+          "— a desktop PDF editor: create and edit pages, add text, pictures, highlights and drawings, change every document detail, copy pictures out of a page, scan paper documents and turn them into searchable PDFs.",
+        )}
       </div>
 
-      <h3>What it can do</h3>
+      <h3>{t("What it can do")}</h3>
       <ul>
-        <li>Create new documents (A4, A5, A3, Letter, Legal, Tabloid, square) and open existing PDFs.</li>
-        <li>Reorder, rotate, duplicate, insert and delete pages; save the file or save a separate copy.</li>
-        <li>Add and change text, highlights, rectangles, freehand drawings and pictures on any page.</li>
-        <li>Copy a picture out of a PDF — drag around it and it becomes an editable image object.</li>
-        <li>Scan from a scanner, a phone camera or scanned files, and recognize text with OCR.</li>
-        <li>Edit all document details, including author, creator, subject, keywords and both dates.</li>
-        <li>Export to PDF, PNG, JPEG or plain text; more formats can be added as adapter modules.</li>
+        {HIGHLIGHTS.map((item) => (
+          <li key={item}>{t(item)}</li>
+        ))}
       </ul>
 
-      <h3>Keyboard shortcuts</h3>
+      <h3>{t("Keyboard shortcuts")}</h3>
       <dl className="kv">
         {SHORTCUTS.map(([keys, description]) => (
           <div key={keys} style={{ display: "contents" }}>
             <dt>{keys}</dt>
-            <dd>{description}</dd>
+            <dd>{t(description)}</dd>
           </div>
         ))}
       </dl>
 
-      <h3>Security notes</h3>
+      <h3>{t("Security notes")}</h3>
       <ul>
         {SECURITY_NOTES.map((note) => (
-          <li key={note}>{note}</li>
+          <li key={note}>{t(note)}</li>
         ))}
       </ul>
 
-      <h3>Built with</h3>
+      <h3>{t("Built with")}</h3>
       <p className="hint">
-        pdf.js for rendering, pdf-lib for writing PDFs, tesseract.js for text recognition, React and Vite for
-        the interface, and a small scan bridge (NAPS2) for real scanner hardware on Windows. All open source,
-        all running locally.
+        {t(
+          "pdf.js for rendering, pdf-lib for writing PDFs, tesseract.js for text recognition, React and Vite for the interface, and a small scan bridge (NAPS2) for real scanner hardware on Windows. All open source, all running locally.",
+        )}
       </p>
       <p className="hint">
-        Closing the app never loses work silently: when there are unsaved changes you are asked to save,
-        discard or cancel first.
+        {t(
+          "Closing the app never loses work silently: when there are unsaved changes you are asked to save, discard or cancel first.",
+        )}
       </p>
     </Dialog>
   )

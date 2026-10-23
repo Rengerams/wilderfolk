@@ -1,4 +1,7 @@
 import { create } from "zustand"
+import { currentLanguage, t } from "../i18n/translate"
+import type { LanguageCode } from "../i18n/languages"
+import { updateSettings } from "../storage/settings"
 import type {
   Annotation,
   DialogKind,
@@ -115,6 +118,7 @@ export type EditorState = {
   showThumbnails: boolean
   showInspector: boolean
   theme: ThemeName
+  language: LanguageCode
   dialog: DialogKind
   status: string
   busy: { label: string; progress: number } | null
@@ -127,6 +131,7 @@ export type EditorState = {
   toggleThumbnails: () => void
   toggleInspector: () => void
   setTheme: (theme: ThemeName) => void
+  setLanguage: (language: LanguageCode) => void
   openDialog: (dialog: DialogKind) => void
   closeDialog: () => void
   setStatus: (status: string) => void
@@ -229,8 +234,9 @@ export const useEditor = create<EditorState>()((set, get) => {
     showThumbnails: true,
     showInspector: true,
     theme: "light",
+    language: currentLanguage(),
     dialog: null,
-    status: "Ready",
+    status: t("Ready"),
     busy: null,
 
     setTool: (tool) => set({ tool, selectedAnnotationId: tool === "select" ? get().selectedAnnotationId : null }),
@@ -241,12 +247,16 @@ export const useEditor = create<EditorState>()((set, get) => {
     toggleThumbnails: () => set({ showThumbnails: !get().showThumbnails }),
     toggleInspector: () => set({ showInspector: !get().showInspector }),
     setTheme: (theme) => set({ theme }),
+    setLanguage: (language) => {
+      updateSettings({ language })
+      set({ language })
+    },
     openDialog: (dialog) => set({ dialog }),
     closeDialog: () => set({ dialog: null }),
     setStatus: (status) => set({ status }),
     startBusy: (label) => set({ busy: { label, progress: 0 } }),
     updateBusy: (progress, label) =>
-      set({ busy: { label: label ?? get().busy?.label ?? "Working", progress } }),
+      set({ busy: { label: label ?? get().busy?.label ?? t("Working"), progress } }),
     endBusy: () => set({ busy: null }),
 
     replaceDocument: (doc) =>
@@ -274,7 +284,9 @@ export const useEditor = create<EditorState>()((set, get) => {
         activePageId: pages[0].id,
         selectedAnnotationId: null,
         tool: "select",
-        status: `Created ${pages.length} page${pages.length === 1 ? "" : "s"}`,
+        status: t(pages.length === 1 ? "Created {count} page" : "Created {count} pages", {
+          count: pages.length,
+        }),
       })
     },
 
@@ -292,7 +304,9 @@ export const useEditor = create<EditorState>()((set, get) => {
         future: [],
         activePageId: pages[0]?.id ?? "",
         selectedAnnotationId: null,
-        status: `Imported ${pages.length} page${pages.length === 1 ? "" : "s"}`,
+        status: t(pages.length === 1 ? "Imported {count} page" : "Imported {count} pages", {
+          count: pages.length,
+        }),
       })
     },
 
@@ -307,7 +321,12 @@ export const useEditor = create<EditorState>()((set, get) => {
         },
         { activePageId: pages[0].id },
       )
-      set({ status: `Added ${pages.length} scanned page${pages.length === 1 ? "" : "s"}` })
+      set({
+        status: t(
+          pages.length === 1 ? "Added {count} scanned page" : "Added {count} scanned pages",
+          { count: pages.length },
+        ),
+      })
     },
 
     setDocumentName: (name) => patchDoc({ name }),
@@ -323,7 +342,7 @@ export const useEditor = create<EditorState>()((set, get) => {
           savedAt,
           metadata: { ...get().doc.metadata, modificationDate: savedAt },
         },
-        status: `Saved ${new Date(savedAt).toLocaleTimeString()}`,
+        status: t("Saved {time}", { time: new Date(savedAt).toLocaleTimeString() }),
       }),
 
     rotatePage: (pageId, delta) => {

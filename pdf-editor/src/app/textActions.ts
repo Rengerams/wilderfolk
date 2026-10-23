@@ -1,4 +1,5 @@
 import type { Annotation, PageRef, Rect } from "../types"
+import { t } from "../i18n/translate"
 import { createId, totalRotation } from "../pdf/pages"
 import { rotateRect } from "../pdf/geometry"
 import { readPageTextRuns, sampleRegionStyle } from "../pdf/render"
@@ -21,7 +22,9 @@ export async function searchDocumentText(needle: string, scope: SearchScope): Pr
   const source = getCurrentSource()
   if (!source) {
     throw new Error(
-      "Only text inside an opened PDF file can be found. Text added in the editor is edited directly on the page.",
+      t(
+        "Only text inside an opened PDF file can be found. Text added in the editor is edited directly on the page.",
+      ),
     )
   }
   if (needle.trim().length === 0) return []
@@ -53,7 +56,7 @@ export async function replaceTextHits(input: {
 }): Promise<number> {
   const state = useEditor.getState()
   const source = getCurrentSource()
-  if (!source) throw new Error("Open a PDF file first.")
+  if (!source) throw new Error(t("Open a PDF file first."))
   if (input.hits.length === 0) return 0
 
   const created: Annotation[] = []
@@ -113,7 +116,12 @@ export async function replaceTextHits(input: {
   useEditor
     .getState()
     .setStatus(
-      `Replaced ${input.hits.length} match${input.hits.length === 1 ? "" : "es"} — undo with Ctrl+Z`,
+      t(
+        input.hits.length === 1
+          ? "Replaced {count} match — undo with Ctrl+Z"
+          : "Replaced {count} matches — undo with Ctrl+Z",
+        { count: input.hits.length },
+      ),
     )
   return created.length
 }

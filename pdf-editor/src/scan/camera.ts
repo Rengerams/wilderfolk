@@ -1,4 +1,5 @@
 import type { ImportedImage } from "../app/store"
+import { t } from "../i18n/translate"
 
 /** Camera capture for PCs without a scanner driver: photograph the page instead. */
 
@@ -11,7 +12,7 @@ export function cameraSupported(): boolean {
 export async function startCamera(video: HTMLVideoElement): Promise<void> {
   if (!cameraSupported()) {
     throw new Error(
-      "This browser cannot reach a camera. Use the scan bridge or import scanned files.",
+      t("This browser cannot reach a camera. Use the scan bridge or import scanned files."),
     )
   }
   stopCamera()
@@ -25,7 +26,7 @@ export async function startCamera(video: HTMLVideoElement): Promise<void> {
       audio: false,
     })
   } catch {
-    throw new Error("The camera was refused. Allow camera access and try again.")
+    throw new Error(t("The camera was refused. Allow camera access and try again."))
   }
   video.srcObject = activeStream
   await video.play()
@@ -34,12 +35,12 @@ export async function startCamera(video: HTMLVideoElement): Promise<void> {
 export function captureFrame(video: HTMLVideoElement): ImportedImage {
   const width = video.videoWidth
   const height = video.videoHeight
-  if (width === 0 || height === 0) throw new Error("The camera has not produced a picture yet.")
+  if (width === 0 || height === 0) throw new Error(t("The camera has not produced a picture yet."))
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext("2d")
-  if (!context) throw new Error("Canvas is not available in this browser.")
+  if (!context) throw new Error(t("Canvas is not available in this browser."))
   context.drawImage(video, 0, 0, width, height)
   return {
     dataUrl: canvas.toDataURL("image/png"),

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { X } from "lucide-react"
+import { useT } from "../../i18n"
 
 export function Dialog(props: {
   title: string
@@ -8,6 +9,8 @@ export function Dialog(props: {
   footer?: ReactNode
   wide?: boolean
 }) {
+  const t = useT()
+
   return (
     <div
       className="dialog-backdrop"
@@ -24,7 +27,7 @@ export function Dialog(props: {
       >
         <div className="dialog-head">
           <h2>{props.title}</h2>
-          <button type="button" className="icon-btn" onClick={props.onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={props.onClose} aria-label={t("Close")}>
             <X size={16} />
           </button>
         </div>

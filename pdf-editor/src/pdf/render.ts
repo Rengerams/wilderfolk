@@ -2,6 +2,7 @@ import * as pdfjsLib from "pdfjs-dist"
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { DocMetadata, PageSize, Rect, Rotation } from "../types"
+import { t } from "../i18n/translate"
 import { normalizeRotation } from "./geometry"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
@@ -21,7 +22,7 @@ export type PdfSource = {
 /** Renders untrusted files with scripting and eval disabled. */
 export async function openPdfSource(bytes: Uint8Array, name: string): Promise<PdfSource> {
   if (bytes.byteLength > MAX_SOURCE_BYTES) {
-    throw new Error("This file is larger than 150 MB and cannot be opened.")
+    throw new Error(t("This file is larger than 150 MB and cannot be opened."))
   }
   // pdf.js transfers the buffer to its worker, so it must receive a copy. Document JavaScript is
   // never enabled, which is what keeps scripts inside a PDF from running here.
@@ -136,7 +137,7 @@ export async function cropRegionDataUrl(input: {
   crop.width = width
   crop.height = height
   const context = crop.getContext("2d")
-  if (!context) throw new Error("Canvas is not available in this browser.")
+  if (!context) throw new Error(t("Canvas is not available in this browser."))
   context.drawImage(rendered, x, y, width, height, 0, 0, width, height)
   // The crop comes from the displayed page, so undo the display rotation to get page space.
   const upright = input.totalRotation === 0 ? crop : rotateCanvas(crop, -input.totalRotation)

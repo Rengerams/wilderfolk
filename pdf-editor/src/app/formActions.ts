@@ -1,6 +1,7 @@
 import { fillFormFields, readFormFields, type FormFieldInfo, type FormValues } from "../pdf/formFields"
 import { closePdfSource, openPdfSource } from "../pdf/render"
 import { sourcePage } from "../pdf/pages"
+import { t } from "../i18n/translate"
 import { getCurrentSource, setCurrentSource } from "./sourceRegistry"
 import { useEditor } from "./store"
 
@@ -10,7 +11,7 @@ export async function readDocumentFormFields(): Promise<FormFieldInfo[]> {
   const state = useEditor.getState()
   if (!state.doc.source) {
     throw new Error(
-      "Form fields live inside PDF files. Open a PDF that contains a form, then fill it here.",
+      t("Form fields live inside PDF files. Open a PDF that contains a form, then fill it here."),
     )
   }
   return readFormFields(state.doc.source.bytes)
@@ -20,7 +21,7 @@ export async function readDocumentFormFields(): Promise<FormFieldInfo[]> {
 export async function fillDocumentForm(values: FormValues, flatten: boolean): Promise<number> {
   const state = useEditor.getState()
   const current = state.doc.source
-  if (!current) throw new Error("Open a PDF file that contains a form first.")
+  if (!current) throw new Error(t("Open a PDF file that contains a form first."))
 
   const filled = await fillFormFields(current.bytes, values, flatten)
   const source = await openPdfSource(filled, current.name)
@@ -46,8 +47,12 @@ export async function fillDocumentForm(values: FormValues, flatten: boolean): Pr
     pages,
     dirty: true,
   })
+  const filledLabel = t(
+    applied === 1 ? "Filled {count} form field" : "Filled {count} form fields",
+    { count: applied },
+  )
   useEditor
     .getState()
-    .setStatus(`Filled ${applied} form field${applied === 1 ? "" : "s"}${flatten ? " and flattened them" : ""}`)
+    .setStatus(flatten ? `${filledLabel} ${t("and flattened them")}` : filledLabel)
   return applied
 }

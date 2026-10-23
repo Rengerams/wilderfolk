@@ -2,8 +2,10 @@ import { useState } from "react"
 import { Field, Dialog } from "./Dialog"
 import { PAGE_PRESETS, presetById } from "../../pdf/pages"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 export function NewDocumentDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const newDocument = useEditor((state) => state.newDocument)
   const [name, setName] = useState("Untitled")
@@ -13,13 +15,15 @@ export function NewDocumentDialog() {
 
   return (
     <Dialog
-      title="New document"
+      title={t("New document")}
       onClose={closeDialog}
       footer={
         <>
-          <span className="grow hint">The document is created in the editor; save it to the library or as a file.</span>
+          <span className="grow hint">
+            {t("The document is created in the editor; save it to the library or as a file.")}
+          </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -34,24 +38,24 @@ export function NewDocumentDialog() {
               closeDialog()
             }}
           >
-            Create document
+            {t("Create document")}
           </button>
         </>
       }
     >
-      <Field label="File name">
+      <Field label={t("File name")}>
         <input
           type="text"
-          aria-label="File name"
+          aria-label={t("File name")}
           value={name}
           onChange={(event) => setName(event.target.value)}
           autoFocus
         />
       </Field>
       <div className="grid-2">
-        <Field label="Page size">
+        <Field label={t("Page size")}>
           <select
-            aria-label="Page size"
+            aria-label={t("Page size")}
             value={preset}
             onChange={(event) => setPreset(event.target.value)}
           >
@@ -62,21 +66,21 @@ export function NewDocumentDialog() {
             ))}
           </select>
         </Field>
-        <Field label="Orientation">
+        <Field label={t("Orientation")}>
           <select
-            aria-label="Orientation"
+            aria-label={t("Orientation")}
             value={orientation}
             onChange={(event) => setOrientation(event.target.value as "portrait" | "landscape")}
           >
-            <option value="portrait">Portrait</option>
-            <option value="landscape">Landscape</option>
+            <option value="portrait">{t("Portrait")}</option>
+            <option value="landscape">{t("Landscape")}</option>
           </select>
         </Field>
       </div>
-      <Field label="Pages" hint="Between 1 and 200 blank pages.">
+      <Field label={t("Pages")} hint={t("Between 1 and 200 blank pages.")}>
         <input
           type="number"
-          aria-label="Pages"
+          aria-label={t("Pages")}
           min={1}
           max={200}
           value={count}

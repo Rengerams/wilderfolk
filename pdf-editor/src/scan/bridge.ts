@@ -1,5 +1,6 @@
 import type { ImportedImage } from "../app/store"
 import { loadImageElement } from "../app/files"
+import { t } from "../i18n/translate"
 
 /** Small HTTP contract implemented by the Windows-side scan bridge (see scan-bridge/). */
 
@@ -19,13 +20,16 @@ export function normalizeBridgeUrl(url: string): string {
   return url.trim().replace(/\/+$/, "")
 }
 
+/** Marks failures created here so they are never re-wrapped in the generic message. */
+class BridgeFailure extends Error {}
+
 function failureMessage(error: unknown): Error {
   if (error instanceof DOMException && error.name === "AbortError") {
-    return new Error("The scanner did not answer in time.")
+    return new BridgeFailure(t("The scanner did not answer in time."))
   }
-  if (error instanceof Error && error.message.startsWith("The scanner")) return error
-  return new Error(
-    "No scan bridge answered. Start the PDF Studio scan bridge on this PC, then try again.",
+  if (error instanceof BridgeFailure) return error
+  return new BridgeFailure(
+    t("No scan bridge answered. Start the PDF Studio scan bridge on this PC, then try again."),
   )
 }
 
@@ -34,7 +38,9 @@ async function request<T>(url: string, init: RequestInit, timeoutMs: number): Pr
   const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(url, { ...init, signal: controller.signal })
-    if (!response.ok) throw new Error(`The scan bridge answered ${response.status}.`)
+    if (!response.ok) {
+      throw new Error(t("The scan bridge answered {status}.", { status: response.status }))
+    }
     return (await response.json()) as T
   } catch (error) {
     throw failureMessage(error)
@@ -67,7 +73,7 @@ export async function scanViaBridge(
     10 * 60_000,
   )
   const pages = payload.pages ?? []
-  if (pages.length === 0) throw new Error("The scanner returned no pages.")
+  if (pages.length === 0) throw new Error(t("The scanner returned no pages."))
   const images: ImportedImage[] = []
   for (const page of pages) {
     if (!page.dataUrl) continue
@@ -79,6 +85,6 @@ export async function scanViaBridge(
       height: element.naturalHeight,
     })
   }
-  if (images.length === 0) throw new Error("The scanner returned no readable pages.")
+  if (images.length === 0) throw new Error(t("The scanner returned no readable pages."))
   return images
 }

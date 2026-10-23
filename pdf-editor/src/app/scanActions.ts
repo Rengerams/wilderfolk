@@ -1,6 +1,7 @@
 import type { ImportedImage } from "./store"
 import { scanViaBridge, type BridgeScanRequest } from "../scan/bridge"
 import { applyOcrLayers, recognizePagesToDraft } from "./ocrActions"
+import { t } from "../i18n/translate"
 import { useEditor } from "./store"
 
 export type ScanRequest = BridgeScanRequest & {
@@ -17,7 +18,7 @@ export async function runBridgeScan(
   request: ScanRequest,
   onProgress: (message: string, progress: number) => void,
 ): Promise<ScanOutcome> {
-  onProgress("Asking the scanner to start", 0.05)
+  onProgress(t("Asking the scanner to start"), 0.05)
   const images = await scanViaBridge(request.bridgeUrl, {
     deviceId: request.deviceId,
     paperSource: request.paperSource,
@@ -25,7 +26,12 @@ export async function runBridgeScan(
     dpi: request.dpi,
     showNativeUI: request.showNativeUI,
   })
-  onProgress(`Received ${images.length} page${images.length === 1 ? "" : "s"}`, 0.4)
+  onProgress(
+    images.length === 1
+      ? t("Received {count} page", { count: images.length })
+      : t("Received {count} pages", { count: images.length }),
+    0.4,
+  )
   return finishScan(images, request, onProgress)
 }
 
@@ -34,7 +40,12 @@ export function finishCameraScan(
   request: Pick<ScanRequest, "recognize" | "languages" | "startNewDocument" | "documentName">,
   onProgress: (message: string, progress: number) => void,
 ): Promise<ScanOutcome> {
-  onProgress(`Captured ${images.length} page${images.length === 1 ? "" : "s"}`, 0.4)
+  onProgress(
+    images.length === 1
+      ? t("Captured {count} page", { count: images.length })
+      : t("Captured {count} pages", { count: images.length }),
+    0.4,
+  )
   return finishScan(images, request, onProgress)
 }
 
@@ -66,26 +77,33 @@ async function finishScan(
 
   let recognizedLines = 0
   if (request.recognize && newPageIds.length > 0) {
-    onProgress("Recognizing text", 0.55)
+    onProgress(t("Recognizing text"), 0.55)
     const outcome = await recognizePagesToDraft(newPageIds, request.languages, (progress) =>
-      onProgress(`Recognizing: ${progress.status}`, 0.55 + progress.progress * 0.4),
+      onProgress(
+        t("Recognizing: {status}", { status: progress.status }),
+        0.55 + progress.progress * 0.4,
+      ),
     )
     recognizedLines = outcome.lines
     applyOcrLayers(newPageIds)
     onProgress(
       recognizedLines > 0
-        ? `Recognized ${recognizedLines} lines`
-        : "No text was recognized on these pages",
+        ? t("Recognized {count} lines", { count: recognizedLines })
+        : t("No text was recognized on these pages"),
       0.97,
     )
   }
 
+  const scanned =
+    images.length === 1
+      ? t("Scanned {count} page", { count: images.length })
+      : t("Scanned {count} pages", { count: images.length })
   useEditor
     .getState()
     .setStatus(
-      `Scanned ${images.length} page${images.length === 1 ? "" : "s"}${
-        recognizedLines > 0 ? `, recognized ${recognizedLines} lines` : ""
-      }`,
+      recognizedLines > 0
+        ? `${scanned}, ${t("recognized {count} lines", { count: recognizedLines })}`
+        : scanned,
     )
   return { pages: images.length, recognizedLines }
 }

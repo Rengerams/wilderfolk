@@ -4,8 +4,10 @@ import { Dialog, Field } from "./Dialog"
 import type { TextHit } from "../../pdf/textReplace"
 import { replaceTextHits, searchDocumentText, type SearchScope } from "../../app/textActions"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 export function FindReplaceDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const pages = useEditor((state) => state.doc.pages)
@@ -34,11 +36,16 @@ export function FindReplaceDialog() {
       setExcluded([])
       setMessage(
         found.length === 0
-          ? `No text like “${needle}” was found. Text added inside the editor is edited directly on the page.`
-          : `${found.length} match${found.length === 1 ? "" : "es"} found.`,
+          ? t(
+              "No text like “{needle}” was found. Text added inside the editor is edited directly on the page.",
+              { needle },
+            )
+          : found.length === 1
+            ? t("{count} match found.", { count: found.length })
+            : t("{count} matches found.", { count: found.length }),
       )
     } catch (caught) {
-      const text = caught instanceof Error ? caught.message : "Searching failed."
+      const text = caught instanceof Error ? caught.message : t("Searching failed.")
       setError(text)
       setStatus(`⚠ ${text}`)
     } finally {
@@ -54,9 +61,13 @@ export function FindReplaceDialog() {
     try {
       await replaceTextHits({ hits: selected, replacement, matchPageStyle: matchStyle })
       setHits(null)
-      setMessage(`${selected.length} match${selected.length === 1 ? "" : "es"} replaced.`)
+      setMessage(
+        selected.length === 1
+          ? t("{count} match replaced.", { count: selected.length })
+          : t("{count} matches replaced.", { count: selected.length }),
+      )
     } catch (caught) {
-      const text = caught instanceof Error ? caught.message : "The text could not be replaced."
+      const text = caught instanceof Error ? caught.message : t("The text could not be replaced.")
       setError(text)
       setStatus(`⚠ ${text}`)
     } finally {
@@ -66,20 +77,21 @@ export function FindReplaceDialog() {
 
   return (
     <Dialog
-      title="Find and replace text"
+      title={t("Find and replace text")}
       onClose={closeDialog}
       wide
       footer={
         <>
           <span className="grow hint">
-            Each match is covered with the page's own colour and retyped in place — the same result as a PDF
-            editor doing it properly, without touching the file's compressed structure.
+            {t(
+              "Each match is covered with the page's own colour and retyped in place — the same result as a PDF editor doing it properly, without touching the file's compressed structure.",
+            )}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Close
+            {t("Close")}
           </button>
           <button type="button" className="btn" disabled={busy} onClick={() => void search()}>
-            <Search size={15} /> {busy ? "Working…" : "Find"}
+            <Search size={15} /> {busy ? t("Working…") : t("Find")}
           </button>
           <button
             type="button"
@@ -87,30 +99,32 @@ export function FindReplaceDialog() {
             disabled={busy || selected.length === 0}
             onClick={() => void apply()}
           >
-            Replace {selected.length || ""} match{selected.length === 1 ? "" : "es"}
+            {selected.length === 1
+              ? t("Replace {count} match", { count: selected.length })
+              : t("Replace {count} matches", { count: selected.length })}
           </button>
         </>
       }
     >
       <div className="grid-2">
-        <Field label="Find">
+        <Field label={t("Find")}>
           <input
             type="text"
             value={needle}
             autoFocus
-            placeholder="Text that is inside the PDF file"
+            placeholder={t("Text that is inside the PDF file")}
             onChange={(event) => setNeedle(event.target.value)}
           />
         </Field>
-        <Field label="Replace with" hint="Leave empty to delete the text.">
+        <Field label={t("Replace with")} hint={t("Leave empty to delete the text.")}>
           <input type="text" value={replacement} onChange={(event) => setReplacement(event.target.value)} />
         </Field>
       </div>
       <div className="row">
-        <Field label="Search in">
+        <Field label={t("Search in")}>
           <select value={scope} onChange={(event) => setScope(event.target.value as SearchScope)}>
-            <option value="current">This page</option>
-            <option value="all">Every page</option>
+            <option value="current">{t("This page")}</option>
+            <option value="all">{t("Every page")}</option>
           </select>
         </Field>
         <label className="checkbox" style={{ paddingBottom: 8 }}>
@@ -119,7 +133,7 @@ export function FindReplaceDialog() {
             checked={matchStyle}
             onChange={(event) => setMatchStyle(event.target.checked)}
           />
-          Match the page's paper and ink colours
+          {t("Match the page's paper and ink colours")}
         </label>
       </div>
 
@@ -129,16 +143,16 @@ export function FindReplaceDialog() {
       {hits && hits.length > 0 ? (
         <>
           <div className="row">
-            <strong className="grow">Matches</strong>
+            <strong className="grow">{t("Matches")}</strong>
             <button type="button" className="btn btn-quiet" onClick={() => setExcluded([])}>
-              Select all
+              {t("Select all")}
             </button>
             <button
               type="button"
               className="btn btn-quiet"
               onClick={() => setExcluded(hits.map((hit) => hit.id))}
             >
-              Select none
+              {t("Select none")}
             </button>
           </div>
           <div className="list">
@@ -158,23 +172,29 @@ export function FindReplaceDialog() {
                 <span className="grow">
                   <strong>“{hit.text}”</strong>
                   <small className="hint">
-                    Page {pageLabel(hit.srcIndex)} · {Math.round(hit.rect.x * 100)}% across ·{" "}
-                    {Math.round(hit.fontSize)} pt
+                    {t("Page {number} · {across}% across · {size} pt", {
+                      number: pageLabel(hit.srcIndex),
+                      across: Math.round(hit.rect.x * 100),
+                      size: Math.round(hit.fontSize),
+                    })}
                   </small>
                 </span>
               </label>
             ))}
           </div>
           <p className="hint">
-            Replaced text is added as an editable object, so you can move it, restyle it or undo it afterwards.
+            {t(
+              "Replaced text is added as an editable object, so you can move it, restyle it or undo it afterwards.",
+            )}
           </p>
         </>
       ) : null}
 
       <div className="note">
-        <strong>Fixed template?</strong> If your PDF has fillable form fields (a recurring invoice or contract),
-        use <em>Fill form fields</em> instead — that writes into the file's own fields and never disturbs the
-        layout.
+        <strong>{t("Fixed template?")}</strong>{" "}
+        {t("If your PDF has fillable form fields (a recurring invoice or contract), use")}{" "}
+        <em>{t("Fill form fields")}</em>{" "}
+        {t("instead — that writes into the file's own fields and never disturbs the layout.")}
       </div>
     </Dialog>
   )

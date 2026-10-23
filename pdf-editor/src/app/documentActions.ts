@@ -1,4 +1,5 @@
 import type { DocMetadata, Rect, StoredDocMeta } from "../types"
+import { t } from "../i18n/translate"
 import { buildPdfBytes } from "../pdf/buildPdf"
 import { clampRectToPage, unrotateRect } from "../pdf/geometry"
 import {
@@ -57,7 +58,7 @@ export async function buildCurrentPdf(): Promise<Uint8Array> {
 
 export async function saveDocument(options: { force?: boolean } = {}): Promise<StoredDocMeta> {
   const state = useEditor.getState()
-  if (state.doc.pages.length === 0) throw new Error("Add at least one page before saving.")
+  if (state.doc.pages.length === 0) throw new Error(t("Add at least one page before saving."))
   const bytes = await buildCurrentPdf()
   const provider = activeProvider()
   const meta = await provider.write({
@@ -76,7 +77,7 @@ export async function saveDocumentCopy(): Promise<string> {
   const bytes = await buildCurrentPdf()
   const filename = `${baseNameOf(state.doc.name)} copy.pdf`
   downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), filename)
-  state.setStatus(`Saved a copy as ${filename}`)
+  state.setStatus(t("Saved a copy as {filename}", { filename }))
   return filename
 }
 
@@ -129,7 +130,7 @@ async function renderPagesAsImages(
 
 export async function exportAs(format: ExportFormatId): Promise<ExportArtifact[]> {
   const state = useEditor.getState()
-  if (state.doc.pages.length === 0) throw new Error("There is nothing to export yet.")
+  if (state.doc.pages.length === 0) throw new Error(t("There is nothing to export yet."))
   const artifacts = await runExport(format, {
     baseName: baseNameOf(state.doc.name),
     buildPdf: buildCurrentPdf,
@@ -139,8 +140,8 @@ export async function exportAs(format: ExportFormatId): Promise<ExportArtifact[]
   for (const artifact of artifacts) downloadBlob(artifact.blob, artifact.filename)
   state.setStatus(
     artifacts.length === 1
-      ? `Exported ${artifacts[0].filename}`
-      : `Exported ${artifacts.length} files`,
+      ? t("Exported {filename}", { filename: artifacts[0].filename })
+      : t("Exported {count} files", { count: artifacts.length }),
   )
   return artifacts
 }
@@ -186,11 +187,11 @@ export async function openDocumentFile(file: File): Promise<void> {
     await closePdfSource(source)
     throw error
   }
-  useEditor.getState().setStatus(`Opened ${file.name}`)
+  useEditor.getState().setStatus(t("Opened {name}", { name: file.name }))
 }
 
 export async function readImageInput(file: File): Promise<ImportedImage> {
-  if (!isImageFile(file)) throw new Error(`${file.name} is not a PNG or JPEG image.`)
+  if (!isImageFile(file)) throw new Error(t("{name} is not a PNG or JPEG image.", { name: file.name }))
   const dataUrl = await readFileAsDataUrl(file)
   const image = await loadImageElement(dataUrl)
   return {
@@ -209,7 +210,7 @@ export async function insertImageOnPage(
 ): Promise<void> {
   const state = useEditor.getState()
   const page = state.doc.pages.find((entry) => entry.id === pageId)
-  if (!page) throw new Error("Select a page before adding an image.")
+  if (!page) throw new Error(t("Select a page before adding an image."))
   const image = await readImageInput(file)
   const width = Math.min(0.42, 0.42 * (image.width / image.height) * (page.height / page.width) + 0.1)
   const height = width * (page.width / page.height) * (image.height / image.width)
@@ -232,7 +233,7 @@ export async function copyRegionAsImage(pageId: string, displayRect: Rect): Prom
   const page = state.doc.pages.find((entry) => entry.id === pageId)
   const source = getCurrentSource()
   if (!page || page.kind !== "source" || !source) {
-    throw new Error("Only pages that came from a PDF file can be captured this way.")
+    throw new Error(t("Only pages that came from a PDF file can be captured this way."))
   }
   const rotation = totalRotation(page)
   const dataUrl = await cropRegionDataUrl({
@@ -282,7 +283,12 @@ export async function testStorageProvider(): Promise<string> {
   const provider = activeProvider()
   if (provider.probe) return provider.probe()
   const documents = await provider.list()
-  return `Connected — ${documents.length} document${documents.length === 1 ? "" : "s"} stored locally.`
+  return t(
+    documents.length === 1
+      ? "Connected — {count} document stored locally."
+      : "Connected — {count} documents stored locally.",
+    { count: documents.length },
+  )
 }
 
 export function documentIsPdf(file: File): boolean {

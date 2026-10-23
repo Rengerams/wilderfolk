@@ -4,8 +4,10 @@ import { saveDocument } from "../../app/documentActions"
 import { emptyDocument, useEditor } from "../../app/store"
 import { terminateOcrWorker } from "../../pdf/ocr"
 import { stopCamera } from "../../scan/camera"
+import { useT } from "../../i18n"
 
 export function ExitDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const openDialog = useEditor((state) => state.openDialog)
   const setStatus = useEditor((state) => state.setStatus)
@@ -21,16 +23,18 @@ export function ExitDialog() {
 
   return (
     <Dialog
-      title="Close PDF Studio?"
+      title={t("Close PDF Studio?")}
       onClose={closeDialog}
       footer={
         <>
-          <span className="grow hint">Nothing is uploaded anywhere; saving keeps the document in your library.</span>
+          <span className="grow hint">
+            {t("Nothing is uploaded anywhere; saving keeps the document in your library.")}
+          </span>
           <button type="button" className="btn" onClick={closeDialog} disabled={busy}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="button" className="btn btn-danger" onClick={close} disabled={busy}>
-            Exit without saving
+            {t("Exit without saving")}
           </button>
           <button
             type="button"
@@ -41,10 +45,10 @@ export function ExitDialog() {
               setError("")
               try {
                 await saveDocument()
-                setStatus("Saved and closed")
+                setStatus(t("Saved and closed"))
                 close()
               } catch (caught) {
-                const message = caught instanceof Error ? caught.message : "The document could not be saved."
+                const message = caught instanceof Error ? caught.message : t("The document could not be saved.")
                 setError(message)
                 setStatus(`⚠ ${message}`)
               } finally {
@@ -52,15 +56,17 @@ export function ExitDialog() {
               }
             }}
           >
-            {busy ? "Saving…" : dirty ? "Save and exit" : "Exit"}
+            {busy ? t("Saving…") : dirty ? t("Save and exit") : t("Exit")}
           </button>
         </>
       }
     >
       <div className="note">
         {dirty
-          ? "This document has changes that are not saved yet. You can save it into the library, leave without saving, or go back."
-          : "Everything is saved. You can close the app whenever you like."}
+          ? t(
+              "This document has changes that are not saved yet. You can save it into the library, leave without saving, or go back.",
+            )
+          : t("Everything is saved. You can close the app whenever you like.")}
       </div>
       {error ? <p className="error-text">{error}</p> : null}
     </Dialog>
@@ -68,12 +74,13 @@ export function ExitDialog() {
 }
 
 export function ClosedDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const replaceDocument = useEditor((state) => state.replaceDocument)
 
   return (
     <Dialog
-      title="PDF Studio is closed"
+      title={t("PDF Studio is closed")}
       onClose={closeDialog}
       footer={
         <button
@@ -84,16 +91,18 @@ export function ClosedDialog() {
             closeDialog()
           }}
         >
-          Reopen PDF Studio
+          {t("Reopen PDF Studio")}
         </button>
       }
     >
       <div className="note">
-        Your work is finished and the editor has been shut down cleanly. You can now close this window, or
-        reopen the app to start another document.
+        {t(
+          "Your work is finished and the editor has been shut down cleanly. You can now close this window, or reopen the app to start another document.",
+        )}
       </div>
       <p className="hint">
-        Opening a document again later: use <strong>Open from library</strong> for documents saved on this PC.
+        {t("Opening a document again later: use")} <strong>{t("Open from library")}</strong>{" "}
+        {t("for documents saved on this PC.")}
       </p>
     </Dialog>
   )

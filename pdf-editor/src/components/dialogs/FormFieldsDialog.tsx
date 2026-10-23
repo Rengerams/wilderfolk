@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Dialog } from "./Dialog"
 import { fillDocumentForm, readDocumentFormFields, type FormFieldInfo, type FormValues } from "../../app/formActions"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 const TYPE_LABELS: Record<FormFieldInfo["type"], string> = {
   text: "Text field",
@@ -13,6 +14,7 @@ const TYPE_LABELS: Record<FormFieldInfo["type"], string> = {
 }
 
 export function FormFieldsDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const documentName = useEditor((state) => state.doc.source?.name ?? null)
@@ -38,11 +40,11 @@ export function FormFieldsDialog() {
           ),
         )
         if (found.length === 0) {
-          setError("This PDF has no fillable form fields. Use Find and replace text instead.")
+          setError(t("This PDF has no fillable form fields. Use Find and replace text instead."))
         }
       } catch (caught) {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "The form fields could not be read.")
+          setError(caught instanceof Error ? caught.message : t("The form fields could not be read."))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -62,7 +64,7 @@ export function FormFieldsDialog() {
       await fillDocumentForm(values, flatten)
       closeDialog()
     } catch (caught) {
-      const text = caught instanceof Error ? caught.message : "The form could not be filled."
+      const text = caught instanceof Error ? caught.message : t("The form could not be filled.")
       setError(text)
       setStatus(`⚠ ${text}`)
     } finally {
@@ -72,16 +74,18 @@ export function FormFieldsDialog() {
 
   return (
     <Dialog
-      title="Fill form fields"
+      title={t("Fill form fields")}
       onClose={closeDialog}
       wide
       footer={
         <>
           <span className="grow hint">
-            {documentName ? `Fields from ${documentName}.` : "Open a PDF with a form first."}
+            {documentName
+              ? t("Fields from {name}.", { name: documentName })
+              : t("Open a PDF with a form first.")}
           </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -89,18 +93,19 @@ export function FormFieldsDialog() {
             disabled={busy || usable.length === 0}
             onClick={() => void apply()}
           >
-            {busy ? "Applying…" : "Fill the form"}
+            {busy ? t("Applying…") : t("Fill the form")}
           </button>
         </>
       }
     >
       <div className="note">
-        <strong>Why this is the reliable way:</strong> a fixed template (invoice, contract, certificate) carries
-        its layout in form fields. Writing into those fields keeps every line, font and position exactly as the
-        designer made it — no reflow, no damaged page content.
+        <strong>{t("Why this is the reliable way:")}</strong>{" "}
+        {t(
+          "a fixed template (invoice, contract, certificate) carries its layout in form fields. Writing into those fields keeps every line, font and position exactly as the designer made it — no reflow, no damaged page content.",
+        )}
       </div>
 
-      {loading ? <p className="hint">Reading the form fields…</p> : null}
+      {loading ? <p className="hint">{t("Reading the form fields…")}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
 
       {usable.length > 0 ? (
@@ -109,7 +114,7 @@ export function FormFieldsDialog() {
             <div key={field.name} className="list-row">
               <span className="grow">
                 <strong>{field.name}</strong>
-                <small className="hint">{TYPE_LABELS[field.type]}</small>
+                <small className="hint">{t(TYPE_LABELS[field.type])}</small>
               </span>
               {field.type === "checkbox" ? (
                 <input
@@ -152,19 +157,24 @@ export function FormFieldsDialog() {
 
       {fields.some((field) => field.type === "unsupported") ? (
         <p className="hint">
-          Some fields in this file are of a kind the editor cannot write to (signature or button fields); they
-          are left untouched.
+          {t(
+            "Some fields in this file are of a kind the editor cannot write to (signature or button fields); they are left untouched.",
+          )}
         </p>
       ) : null}
 
       <label className="checkbox">
         <input type="checkbox" checked={flatten} onChange={(event) => setFlatten(event.target.checked)} />
-        Make the values permanent (flatten the form)
+        {t("Make the values permanent (flatten the form)")}
       </label>
       <p className="hint">
         {flatten
-          ? "Recommended: the filled text becomes part of the page, so it prints and reads back identically everywhere."
-          : "The fields stay editable in the saved PDF; some readers may then show the old values until the form is refreshed."}
+          ? t(
+              "Recommended: the filled text becomes part of the page, so it prints and reads back identically everywhere.",
+            )
+          : t(
+              "The fields stay editable in the saved PDF; some readers may then show the old values until the form is refreshed.",
+            )}
       </p>
     </Dialog>
   )

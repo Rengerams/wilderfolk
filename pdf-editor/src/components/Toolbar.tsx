@@ -29,6 +29,7 @@ import type { Tool } from "../types"
 import { IMPORT_ACCEPT, pickFiles } from "../app/files"
 import { useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
+import { useT } from "../i18n"
 
 const TOOLS: { id: Tool; label: string; hint: string; Icon: typeof MousePointer2 }[] = [
   { id: "select", label: "Select", hint: "Select and move objects", Icon: MousePointer2 },
@@ -41,6 +42,7 @@ const TOOLS: { id: Tool; label: string; hint: string; Icon: typeof MousePointer2
 ]
 
 export function Toolbar() {
+  const t = useT()
   const commands = useCommands()
   const tool = useEditor((state) => state.tool)
   const setTool = useEditor((state) => state.setTool)
@@ -65,39 +67,49 @@ export function Toolbar() {
   }
 
   return (
-    <div className="toolbar" role="toolbar" aria-label="Editor tools">
-      <button type="button" className="btn btn-quiet" onClick={commands.newDocument} title="New document">
-        <FilePlus2 size={16} /> New
+    <div className="toolbar" role="toolbar" aria-label={t("Editor tools")}>
+      <button
+        type="button"
+        className="btn btn-quiet"
+        onClick={commands.newDocument}
+        title={t("New document")}
+      >
+        <FilePlus2 size={16} /> {t("New")}
       </button>
-      <button type="button" className="btn btn-quiet" onClick={() => void openFilePicker()} title="Open a PDF file">
-        <FolderOpen size={16} /> Open
+      <button
+        type="button"
+        className="btn btn-quiet"
+        onClick={() => void openFilePicker()}
+        title={t("Open a PDF file")}
+      >
+        <FolderOpen size={16} /> {t("Open")}
       </button>
       <button
         type="button"
         className="btn btn-quiet"
         onClick={() => void commands.save()}
         disabled={pageCount === 0}
-        title="Save to the library"
+        title={t("Save to the library")}
       >
-        <Save size={16} /> Save
+        <Save size={16} /> {t("Save")}
       </button>
       <button
         type="button"
         className="btn btn-quiet"
         onClick={() => void commands.saveCopy()}
         disabled={pageCount === 0}
-        title="Save a separate copy of the PDF"
+        title={t("Save a separate copy of the PDF")}
       >
-        <Copy size={16} /> Save a copy
+        <Copy size={16} /> {t("Save a copy")}
       </button>
       <button
         type="button"
         className="btn btn-quiet"
         onClick={() => useEditor.getState().openDialog("export")}
         disabled={pageCount === 0}
-        title="Export to another format"
+        title={t("Export to another format")}
       >
-        <FileDown size={16} /> Export
+        <FileDown size={16} /> {t("Export")}
       </button>
 
       <span className="toolbar-separator" />
@@ -108,8 +120,8 @@ export function Toolbar() {
           type="button"
           className="icon-btn"
           aria-pressed={tool === id}
-          aria-label={label}
-          title={hint}
+          aria-label={t(label)}
+          title={t(hint)}
           onClick={() => {
             if (id === "image") {
               void addImage()
@@ -129,8 +141,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={commands.undo}
         disabled={!canUndo}
-        aria-label="Undo"
-        title="Undo (Ctrl+Z)"
+        aria-label={t("Undo")}
+        title={t("Undo (Ctrl+Z)")}
       >
         <Undo2 size={16} />
       </button>
@@ -139,8 +151,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={commands.redo}
         disabled={!canRedo}
-        aria-label="Redo"
-        title="Redo (Ctrl+Y)"
+        aria-label={t("Redo")}
+        title={t("Redo (Ctrl+Y)")}
       >
         <Redo2 size={16} />
       </button>
@@ -152,8 +164,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={() => commands.rotateActive(-90)}
         disabled={pageCount === 0}
-        aria-label="Rotate page left"
-        title="Rotate page left"
+        aria-label={t("Rotate page left")}
+        title={t("Rotate page left")}
       >
         <RotateCcw size={16} />
       </button>
@@ -162,8 +174,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={() => commands.rotateActive(90)}
         disabled={pageCount === 0}
-        aria-label="Rotate page right"
-        title="Rotate page right"
+        aria-label={t("Rotate page right")}
+        title={t("Rotate page right")}
       >
         <RotateCw size={16} />
       </button>
@@ -172,8 +184,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={commands.duplicateActive}
         disabled={pageCount === 0}
-        aria-label="Duplicate page"
-        title="Duplicate page"
+        aria-label={t("Duplicate page")}
+        title={t("Duplicate page")}
       >
         <CopyPlus size={16} />
       </button>
@@ -181,8 +193,8 @@ export function Toolbar() {
         type="button"
         className="icon-btn"
         onClick={commands.insertBlank}
-        aria-label="Insert blank page"
-        title="Insert blank page"
+        aria-label={t("Insert blank page")}
+        title={t("Insert blank page")}
       >
         <Plus size={16} />
       </button>
@@ -191,8 +203,8 @@ export function Toolbar() {
         className="icon-btn"
         onClick={commands.deleteActive}
         disabled={pageCount === 0}
-        aria-label="Delete page"
-        title="Delete page"
+        aria-label={t("Delete page")}
+        title={t("Delete page")}
       >
         <Trash2 size={16} />
       </button>
@@ -203,16 +215,16 @@ export function Toolbar() {
         type="button"
         className="btn btn-quiet"
         onClick={() => useEditor.getState().openDialog("scan")}
-        title="Scan pages from a scanner or camera"
+        title={t("Scan pages from a scanner or camera")}
       >
-        <Camera size={16} /> Scan
+        <Camera size={16} /> {t("Scan")}
       </button>
       <button
         type="button"
         className="btn btn-quiet"
         onClick={commands.runOcr}
         disabled={pageCount === 0}
-        title="Recognize text on this document"
+        title={t("Recognize text on this document")}
       >
         <ScanText size={16} /> OCR
       </button>
@@ -220,20 +232,46 @@ export function Toolbar() {
       <span className="toolbar-separator" />
 
       <div className="toolbar-zoom">
-        <button type="button" className="icon-btn" onClick={commands.zoomOut} aria-label="Zoom out" title="Zoom out">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={commands.zoomOut}
+          aria-label={t("Zoom out")}
+          title={t("Zoom out")}
+        >
           <ZoomOut size={16} />
         </button>
         <span className="zoom-label">
-          {fitMode === "custom" ? `${Math.round(zoom * 100)}%` : fitMode === "page" ? "Fit page" : "Fit width"}
+          {fitMode === "custom"
+            ? `${Math.round(zoom * 100)}%`
+            : fitMode === "page"
+              ? t("Fit page")
+              : t("Fit width")}
         </span>
-        <button type="button" className="icon-btn" onClick={commands.zoomIn} aria-label="Zoom in" title="Zoom in">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={commands.zoomIn}
+          aria-label={t("Zoom in")}
+          title={t("Zoom in")}
+        >
           <ZoomIn size={16} />
         </button>
-        <button type="button" className="btn btn-quiet" onClick={commands.fitPage} title="Fit the page in the window">
-          Fit page
+        <button
+          type="button"
+          className="btn btn-quiet"
+          onClick={commands.fitPage}
+          title={t("Fit the page in the window")}
+        >
+          {t("Fit page")}
         </button>
-        <button type="button" className="btn btn-quiet" onClick={commands.fitWidth} title="Fit the page width">
-          Fit width
+        <button
+          type="button"
+          className="btn btn-quiet"
+          onClick={commands.fitWidth}
+          title={t("Fit the page width")}
+        >
+          {t("Fit width")}
         </button>
       </div>
 
@@ -244,8 +282,8 @@ export function Toolbar() {
         className="icon-btn"
         aria-pressed={showThumbnails}
         onClick={toggleThumbnails}
-        aria-label="Show page thumbnails"
-        title="Show page thumbnails"
+        aria-label={t("Show page thumbnails")}
+        title={t("Show page thumbnails")}
       >
         <PanelLeft size={16} />
       </button>
@@ -254,8 +292,8 @@ export function Toolbar() {
         className="icon-btn"
         aria-pressed={showInspector}
         onClick={toggleInspector}
-        aria-label="Show properties panel"
-        title="Show properties panel"
+        aria-label={t("Show properties panel")}
+        title={t("Show properties panel")}
       >
         <PanelRight size={16} />
       </button>

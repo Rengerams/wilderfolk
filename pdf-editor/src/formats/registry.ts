@@ -1,3 +1,5 @@
+import { t } from "../i18n/translate"
+
 export type ExportFormatId = "pdf" | "png" | "jpeg" | "txt" | "docx" | "html" | "odt" | "svg"
 
 export type FormatAdapter = {
@@ -98,7 +100,11 @@ export async function runExport(
 ): Promise<ExportArtifact[]> {
   const adapter = adapterById(format)
   if (adapter.status !== "ready") {
-    throw new Error(`${adapter.label} is an extension slot and is not installed in this build.`)
+    throw new Error(
+      t("{format} is an extension slot and is not installed in this build.", {
+        format: t(adapter.label),
+      }),
+    )
   }
   switch (format) {
     case "pdf": {
@@ -123,6 +129,8 @@ export async function runExport(
     case "jpeg":
       return request.renderPages(format === "png" ? "image/png" : "image/jpeg")
     default:
-      throw new Error(`${adapter.label} is not installed in this build.`)
+      throw new Error(
+        t("{format} is not installed in this build.", { format: t(adapter.label) }),
+      )
   }
 }

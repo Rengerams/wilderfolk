@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE, normalizeLanguage, type LanguageCode } from "../i18n/languages"
 import type { ThemeName } from "../types"
 
 const STORAGE_KEY = "pdf-studio.settings.v1"
@@ -9,6 +10,7 @@ export type AppSettings = {
   encryptLibrary: boolean
   defaultOcrLanguages: string[]
   theme: ThemeName
+  language: LanguageCode
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -18,6 +20,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   encryptLibrary: false,
   defaultOcrLanguages: ["eng"],
   theme: "light",
+  language: DEFAULT_LANGUAGE,
 }
 
 /** The library passphrase is never written to disk; it is kept for this session only. */
@@ -39,6 +42,7 @@ export function loadSettings(): AppSettings {
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      language: normalizeLanguage(parsed.language),
       defaultOcrLanguages:
         Array.isArray(parsed.defaultOcrLanguages) && parsed.defaultOcrLanguages.length > 0
           ? parsed.defaultOcrLanguages
@@ -60,10 +64,15 @@ export function saveSettings(settings: AppSettings): void {
     // Storage can be unavailable in private windows; settings then apply to this session only.
   }
   applyTheme(settings.theme)
+  applyLanguage(settings.language)
 }
 
 export function applyTheme(theme: ThemeName): void {
   document.documentElement.dataset.theme = theme
+}
+
+export function applyLanguage(language: LanguageCode): void {
+  document.documentElement.lang = language
 }
 
 export function isCloudConfigured(settings: AppSettings): boolean {

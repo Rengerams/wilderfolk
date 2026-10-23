@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Dialog, Field } from "./Dialog"
 import type { DocMetadata } from "../../types"
 import { useEditor } from "../../app/store"
+import { useT } from "../../i18n"
 
 function toInputValue(iso: string): string {
   const date = new Date(iso)
@@ -18,6 +19,7 @@ function fromInputValue(value: string): string {
 }
 
 export function MetadataDialog() {
+  const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setMetadata = useEditor((state) => state.setMetadata)
   const metadata = useEditor((state) => state.doc.metadata)
@@ -27,14 +29,16 @@ export function MetadataDialog() {
 
   return (
     <Dialog
-      title="Document details"
+      title={t("Document details")}
       onClose={closeDialog}
       wide
       footer={
         <>
-          <span className="grow hint">These values are written into the PDF file, and everyone who opens it sees them.</span>
+          <span className="grow hint">
+            {t("These values are written into the PDF file, and everyone who opens it sees them.")}
+          </span>
           <button type="button" className="btn" onClick={closeDialog}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -44,74 +48,74 @@ export function MetadataDialog() {
               closeDialog()
             }}
           >
-            Save details
+            {t("Save details")}
           </button>
         </>
       }
     >
       <div className="grid-2">
-        <Field label="Title">
+        <Field label={t("Title")}>
           <input
             type="text"
-            aria-label="Title"
+            aria-label={t("Title")}
             value={draft.title}
             onChange={(event) => update({ title: event.target.value })}
-            placeholder="Document title"
+            placeholder={t("Document title")}
           />
         </Field>
-        <Field label="Author (created by)">
+        <Field label={t("Author (created by)")}>
           <input
             type="text"
-            aria-label="Author (created by)"
+            aria-label={t("Author (created by)")}
             value={draft.author}
             onChange={(event) => update({ author: event.target.value })}
-            placeholder="Your name or organisation"
+            placeholder={t("Your name or organisation")}
           />
         </Field>
       </div>
-      <Field label="Subject">
+      <Field label={t("Subject")}>
         <input
           type="text"
-          aria-label="Subject"
+          aria-label={t("Subject")}
           value={draft.subject}
           onChange={(event) => update({ subject: event.target.value })}
-          placeholder="What the document is about"
+          placeholder={t("What the document is about")}
         />
       </Field>
-      <Field label="Keywords" hint="Separate several keywords with commas.">
+      <Field label={t("Keywords")} hint={t("Separate several keywords with commas.")}>
         <input
           type="text"
-          aria-label="Keywords"
+          aria-label={t("Keywords")}
           value={draft.keywords}
           onChange={(event) => update({ keywords: event.target.value })}
-          placeholder="invoice, 2026, scan"
+          placeholder={t("invoice, 2026, scan")}
         />
       </Field>
       <div className="grid-2">
-        <Field label="Created with (creator)">
+        <Field label={t("Created with (creator)")}>
           <input
             type="text"
-            aria-label="Creator"
+            aria-label={t("Creator")}
             value={draft.creator}
             onChange={(event) => update({ creator: event.target.value })}
           />
         </Field>
-        <Field label="Produced by (producer)">
+        <Field label={t("Produced by (producer)")}>
           <input
             type="text"
-            aria-label="Producer"
+            aria-label={t("Producer")}
             value={draft.producer}
             onChange={(event) => update({ producer: event.target.value })}
           />
         </Field>
-        <Field label="Creation date">
+        <Field label={t("Creation date")}>
           <input
             type="datetime-local"
             value={toInputValue(draft.creationDate)}
             onChange={(event) => update({ creationDate: fromInputValue(event.target.value) })}
           />
         </Field>
-        <Field label="Modification date">
+        <Field label={t("Modification date")}>
           <input
             type="datetime-local"
             value={toInputValue(draft.modificationDate)}
@@ -120,8 +124,10 @@ export function MetadataDialog() {
         </Field>
       </div>
       <div className="note">
-        <strong>Tip:</strong> clearing a field and saving removes that value from the file, so you can also
-        strip details you do not want to share.
+        <strong>{t("Tip:")}</strong>{" "}
+        {t(
+          "clearing a field and saving removes that value from the file, so you can also strip details you do not want to share.",
+        )}
       </div>
     </Dialog>
   )

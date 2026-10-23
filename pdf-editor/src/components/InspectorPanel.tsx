@@ -3,6 +3,7 @@ import { Library, ScanText, Settings2, ShieldCheck } from "lucide-react"
 import { formatFileSize, formatTimestamp, totalRotation } from "../pdf/pages"
 import { currentSettings } from "../storage/settings"
 import { useEditor } from "../app/store"
+import { useT } from "../i18n"
 
 const COLORS = ["#111111", "#c42b1c", "#0f6cbd", "#0f7b0f", "#9d5d00", "#ffd400", "#8a2be2", "#ffffff"]
 
@@ -15,6 +16,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 export function InspectorPanel() {
+  const t = useT()
   const doc = useEditor((state) => state.doc)
   const pages = useEditor((state) => state.doc.pages)
   const annotations = useEditor((state) => state.doc.annotations)
@@ -50,7 +52,7 @@ export function InspectorPanel() {
           type="button"
           className="swatch"
           style={{ background: color }}
-          aria-label={`Use ${color}`}
+          aria-label={t("Use {color}", { color })}
           aria-pressed={current.toLowerCase() === color.toLowerCase()}
           onClick={() => apply(color)}
         />
@@ -59,67 +61,69 @@ export function InspectorPanel() {
   )
 
   return (
-    <aside className="inspector" aria-label="Properties">
+    <aside className="inspector" aria-label={t("Properties")}>
       <section>
-        <div className="panel-heading">Document</div>
+        <div className="panel-heading">{t("Document")}</div>
         <div className="body">
           <div className="field">
-            <label>File name</label>
+            <label>{t("File name")}</label>
             <input
               type="text"
               value={doc.name}
               onChange={(event) => setDocumentName(event.target.value)}
-              aria-label="File name"
+              aria-label={t("File name")}
             />
           </div>
           <dl className="kv">
-            <dt>Pages</dt>
+            <dt>{t("Pages")}</dt>
             <dd>{pages.length}</dd>
-            <dt>Objects</dt>
+            <dt>{t("Objects")}</dt>
             <dd>{annotations.length}</dd>
-            <dt>Source</dt>
-            <dd>{doc.source ? doc.source.name : "New document"}</dd>
-            <dt>File size</dt>
+            <dt>{t("Source")}</dt>
+            <dd>{doc.source ? doc.source.name : t("New document")}</dd>
+            <dt>{t("File size")}</dt>
             <dd>{doc.source ? formatFileSize(doc.source.bytes.byteLength) : "—"}</dd>
-            <dt>Last saved</dt>
-            <dd>{doc.savedAt ? formatTimestamp(doc.savedAt) : "Not saved yet"}</dd>
+            <dt>{t("Last saved")}</dt>
+            <dd>{doc.savedAt ? formatTimestamp(doc.savedAt) : t("Not saved yet")}</dd>
           </dl>
         </div>
       </section>
 
       <section>
-        <div className="panel-heading">Details written in the file</div>
+        <div className="panel-heading">{t("Details written in the file")}</div>
         <div className="body">
           <dl className="kv">
-            <dt>Title</dt>
+            <dt>{t("Title")}</dt>
             <dd title={doc.metadata.title}>{doc.metadata.title || "—"}</dd>
-            <dt>Author</dt>
+            <dt>{t("Author")}</dt>
             <dd title={doc.metadata.author}>{doc.metadata.author || "—"}</dd>
-            <dt>Created by</dt>
+            <dt>{t("Created by")}</dt>
             <dd title={doc.metadata.creator}>{doc.metadata.creator || "—"}</dd>
-            <dt>Created</dt>
+            <dt>{t("Created")}</dt>
             <dd>{formatTimestamp(doc.metadata.creationDate)}</dd>
-            <dt>Modified</dt>
+            <dt>{t("Modified")}</dt>
             <dd>{formatTimestamp(doc.metadata.modificationDate)}</dd>
           </dl>
           <button type="button" className="btn" onClick={() => openDialog("metadata")}>
-            <Settings2 size={15} /> Edit all details
+            <Settings2 size={15} /> {t("Edit all details")}
           </button>
         </div>
       </section>
 
       {page ? (
         <section>
-          <div className="panel-heading">Page {pages.findIndex((entry) => entry.id === page.id) + 1}</div>
+          <div className="panel-heading">
+            {t("Page {number}", { number: pages.findIndex((entry) => entry.id === page.id) + 1 })}
+          </div>
           <div className="body">
             <dl className="kv">
-              <dt>Size</dt>
+              <dt>{t("Size")}</dt>
               <dd>
                 {Math.round(page.width)} × {Math.round(page.height)} pt
               </dd>
-              <dt>Rotation</dt>
+              <dt>{t("Rotation")}</dt>
               <dd>{totalRotation(page)}°</dd>
-              <dt>Objects on page</dt>
+              <dt>{t("Objects on page")}</dt>
               <dd>{annotations.filter((entry) => entry.pageId === page.id).length}</dd>
             </dl>
           </div>
@@ -127,26 +131,26 @@ export function InspectorPanel() {
       ) : null}
 
       <section>
-        <div className="panel-heading">Selected object</div>
+        <div className="panel-heading">{t("Selected object")}</div>
         <div className="body">
           {annotation ? (
             <>
               <div className="field">
-                <label>Type</label>
-                <span className="chip chip-accent">{TYPE_LABELS[annotation.type] ?? annotation.type}</span>
+                <label>{t("Type")}</label>
+                <span className="chip chip-accent">{t(TYPE_LABELS[annotation.type] ?? annotation.type)}</span>
               </div>
               {annotation.type === "text" ? (
                 <>
                   <div className="field">
-                    <label>Text</label>
+                    <label>{t("Text")}</label>
                     <textarea
                       value={annotation.text}
                       onChange={(event) => updateAnnotation(annotation.id, { text: event.target.value })}
-                      aria-label="Annotation text"
+                      aria-label={t("Annotation text")}
                     />
                   </div>
                   <div className="field">
-                    <label>Font size ({annotation.fontSize} pt)</label>
+                    <label>{t("Font size ({size} pt)", { size: annotation.fontSize })}</label>
                     <input
                       type="number"
                       min={6}
@@ -160,7 +164,7 @@ export function InspectorPanel() {
                     />
                   </div>
                   <div className="field">
-                    <label>Colour</label>
+                    <label>{t("Colour")}</label>
                     {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
                   </div>
                 </>
@@ -168,7 +172,7 @@ export function InspectorPanel() {
               {annotation.type === "text" || annotation.type === "highlight" || annotation.type === "shape" ? (
                 annotation.type === "highlight" ? (
                   <div className="field">
-                    <label>Colour</label>
+                    <label>{t("Colour")}</label>
                     {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
                   </div>
                 ) : null
@@ -176,11 +180,11 @@ export function InspectorPanel() {
               {annotation.type === "shape" ? (
                 <>
                   <div className="field">
-                    <label>Outline</label>
+                    <label>{t("Outline")}</label>
                     {swatches(annotation.stroke, (color) => updateAnnotation(annotation.id, { stroke: color }))}
                   </div>
                   <div className="field">
-                    <label>Line width ({annotation.lineWidth} pt)</label>
+                    <label>{t("Line width ({width} pt)", { width: annotation.lineWidth })}</label>
                     <input
                       type="number"
                       min={1}
@@ -194,7 +198,11 @@ export function InspectorPanel() {
                     />
                   </div>
                   <div className="field">
-                    <label>Fill strength ({Math.round((annotation.fillOpacity ?? 0.22) * 100)}%)</label>
+                    <label>
+                      {t("Fill strength ({percent}%)", {
+                        percent: Math.round((annotation.fillOpacity ?? 0.22) * 100),
+                      })}
+                    </label>
                     <input
                       type="number"
                       min={0}
@@ -217,18 +225,18 @@ export function InspectorPanel() {
                         })
                       }
                     />
-                    Filled rectangle
+                    {t("Filled rectangle")}
                   </label>
                 </>
               ) : null}
               {annotation.type === "ink" ? (
                 <>
                   <div className="field">
-                    <label>Colour</label>
+                    <label>{t("Colour")}</label>
                     {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
                   </div>
                   <div className="field">
-                    <label>Line width ({annotation.lineWidth} pt)</label>
+                    <label>{t("Line width ({width} pt)", { width: annotation.lineWidth })}</label>
                     <input
                       type="number"
                       min={1}
@@ -245,36 +253,39 @@ export function InspectorPanel() {
               ) : null}
               {annotation.type === "image" ? (
                 <p className="hint">
-                  Pictures can be moved and resized on the page; the picture data itself is kept as is.
+                  {t(
+                    "Pictures can be moved and resized on the page; the picture data itself is kept as is.",
+                  )}
                 </p>
               ) : null}
               <button type="button" className="btn btn-danger" onClick={() => removeAnnotation(annotation.id)}>
-                Remove object
+                {t("Remove object")}
               </button>
             </>
           ) : (
             <p className="hint">
-              Nothing selected. Pick the Select tool and click an object on the page to change its colour,
-              size or text.
+              {t(
+                "Nothing selected. Pick the Select tool and click an object on the page to change its colour, size or text.",
+              )}
             </p>
           )}
         </div>
       </section>
 
       <section>
-        <div className="panel-heading">Recognized text</div>
+        <div className="panel-heading">{t("Recognized text")}</div>
         <div className="body">
           {layer ? (
             <>
               <dl className="kv">
-                <dt>Lines</dt>
+                <dt>{t("Lines")}</dt>
                 <dd>{layer.lines.length}</dd>
-                <dt>Confidence</dt>
+                <dt>{t("Confidence")}</dt>
                 <dd>{layer.confidence}%</dd>
-                <dt>Languages</dt>
+                <dt>{t("Languages")}</dt>
                 <dd>{layer.language}</dd>
-                <dt>Searchable</dt>
-                <dd>{layer.applied ? "Yes" : "Not yet"}</dd>
+                <dt>{t("Searchable")}</dt>
+                <dd>{layer.applied ? t("Yes") : t("Not yet")}</dd>
               </dl>
               <label className="checkbox">
                 <input
@@ -282,19 +293,21 @@ export function InspectorPanel() {
                   checked={layer.applied}
                   onChange={(event) => setOcrApplied(layer.pageId, event.target.checked)}
                 />
-                Include as invisible searchable text
+                {t("Include as invisible searchable text")}
               </label>
               <button type="button" className="btn" onClick={() => openDialog("ocr")}>
-                <ScanText size={15} /> Review recognized text
+                <ScanText size={15} /> {t("Review recognized text")}
               </button>
               <button type="button" className="btn btn-quiet" onClick={() => removeOcrLayer(layer.pageId)}>
-                Delete recognized text on this page
+                {t("Delete recognized text on this page")}
               </button>
             </>
           ) : (
             <>
               <p className="hint">
-                This page has no recognized text yet. Scanned and picture pages can be made searchable.
+                {t(
+                  "This page has no recognized text yet. Scanned and picture pages can be made searchable.",
+                )}
               </p>
               <button
                 type="button"
@@ -302,7 +315,7 @@ export function InspectorPanel() {
                 onClick={() => openDialog("ocr")}
                 disabled={pages.length === 0}
               >
-                <ScanText size={15} /> Recognize text
+                <ScanText size={15} /> {t("Recognize text")}
               </button>
             </>
           )}
@@ -310,19 +323,19 @@ export function InspectorPanel() {
       </section>
 
       <section>
-        <div className="panel-heading">Storage &amp; security</div>
+        <div className="panel-heading">{t("Storage & security")}</div>
         <div className="body">
           <dl className="kv">
-            <dt>Documents are stored in</dt>
-            <dd>{settings.provider === "cloud" ? "Cloud storage" : "Local library"}</dd>
-            <dt>Encryption at rest</dt>
-            <dd>{settings.encryptLibrary ? "On (passphrase)" : "Off"}</dd>
+            <dt>{t("Documents are stored in")}</dt>
+            <dd>{settings.provider === "cloud" ? t("Cloud storage") : t("Local library")}</dd>
+            <dt>{t("Encryption at rest")}</dt>
+            <dd>{settings.encryptLibrary ? t("On (passphrase)") : t("Off")}</dd>
           </dl>
           <button type="button" className="btn" onClick={() => openDialog("open")}>
-            <Library size={15} /> Open from library
+            <Library size={15} /> {t("Open from library")}
           </button>
           <button type="button" className="btn" onClick={() => openDialog("settings")}>
-            <ShieldCheck size={15} /> Storage &amp; security…
+            <ShieldCheck size={15} /> {t("Storage & security…")}
           </button>
         </div>
       </section>
