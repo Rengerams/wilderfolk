@@ -256,6 +256,7 @@ describe('the health verdict at the owner numbers', () => {
     const applied = applyWorkerCommand(unmanned, decision!.command);
     const quarry = applied.buildings.find((candidate) => candidate.type === BuildingType.Quarry)!;
     expect(quarry.occupants.length).toBeGreaterThan(0);
+    expect(decideVirtualPlayerAction(applied)?.command.op).not.toBe('autoStaffWorkers');
   });
 
   it('says which producer is short when no settler can be spared for it', () => {

@@ -1,13 +1,57 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingType, JobType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { LEADER_OCCUPATION, applyLeaderOccupation, syncLeaderHouseResidency } from '../src/game/leaderHouse';
 import { isManualStaffingBuilding } from '../src/game/workforce';
 import { housingUnitNeedsReassignment } from '../src/game/residencySelection';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { tickLayerAssign, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
+import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { building, human } from '../src/test/factories';
 import { killHuman } from '../src/game/humanLifecycleCleanup';
+
+describe('leader housing without a completed manor', () => {
+  it('counts the leader and spouse as occupants before assigning additional beds', () => {
+    const leader = human(1096, { residenceBuildingId: 1, partnerId: 1097 });
+    const spouse = human(1097, { residenceBuildingId: 1, partnerId: 1096 });
+    const original = [leader, spouse, human(1816, { residenceBuildingId: 1 }),
+      human(1856, { residenceBuildingId: 1 }), human(2104, { residenceBuildingId: 1 })];
+    const arrivals = [human(2693), human(2846)];
+    const settlers = [...original, ...arrivals];
+    const home = building(1, BuildingType.House, { occupants: original.map((h) => h.id) });
+    const state = {
+      entities: settlers, buildings: [home], villageLeaderId: leader.id,
+      tick: LAYER_ASSIGN_PHASE_TICK, eventLog: [],
+    } as unknown as WorldState;
+    const context = {
+      playerHumans: settlers, updatedBuildings: state.buildings,
+      byType: { [EntityType.Human]: settlers }, newEntities: [],
+    } as unknown as TickContext;
+
+    tickLayerAssign(state, context);
+
+    expect(home.occupants).toHaveLength(getResidenceCapacity(home));
+    expect(leader.residenceBuildingId).toBe(home.id);
+    expect(spouse.residenceBuildingId).toBe(home.id);
+    expect(arrivals.filter((h) => h.residenceBuildingId === home.id)).toHaveLength(1);
+  });
+
+  it('counts protected residents even when the allocator must not move them', () => {
+    const leader = human(1, { residenceBuildingId: 10 });
+    const spouse = human(2, { residenceBuildingId: 10 });
+    const settled = [leader, spouse, human(3, { residenceBuildingId: 10 }),
+      human(4, { residenceBuildingId: 10 }), human(5, { residenceBuildingId: 10 })];
+    const arrivals = [human(6), human(7)];
+    const humans = [...settled, ...arrivals];
+    const house = building(10, BuildingType.House);
+    assignMissingResidences(humans, [house], humans, LAYER_ASSIGN_PHASE_TICK, new Set([1, 2]));
+
+    expect(house.occupants.length).toBeLessThanOrEqual(getResidenceCapacity(house));
+    expect(leader.residenceBuildingId).toBe(house.id);
+    expect(spouse.residenceBuildingId).toBe(house.id);
+  });
+});
 
 describe("Leader's House", () => {
   it('keeps an oversized leader household in manor zero during general housing convergence', () => {

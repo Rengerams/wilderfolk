@@ -230,6 +230,7 @@ export function assignMissingResidences(
   buildings: Building[],
   allHumansForGenealogy?: Entity[],
   sweepTick?: number,
+  protectedResidentIds?: ReadonlySet<number>,
 ): void {
   const residences = listPlayerResidences(buildings);
   if (residences.length === 0) return;
@@ -239,6 +240,9 @@ export function assignMissingResidences(
   }
 
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h) && !isImprisoned(h));
+  const movable = protectedResidentIds?.size
+    ? alive.filter((h) => !protectedResidentIds.has(h.id))
+    : alive;
   const genealogyPool = (allHumansForGenealogy ?? humans).filter(
     (h) => h.alive && h.type === EntityType.Human,
   );
@@ -268,7 +272,7 @@ export function assignMissingResidences(
   // Family structure is static while we converge on residence slots — build the
   // housing units ONCE instead of every pass (was 24× full rebuilds per call).
   const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((residence) => residence.id));
-  const housingUnitsBase = buildHousingUnits(alive).filter((unit) => !unit.some((member) =>
+  const housingUnitsBase = buildHousingUnits(movable).filter((unit) => !unit.some((member) =>
     member.residenceBuildingId != null && leaderHouseIds.has(member.residenceBuildingId),
   ));
 
@@ -353,7 +357,7 @@ export function assignMissingResidences(
   {
     const occupancy = buildResidenceOccupancy(alive);
     const traits = buildResidenceTraits(alive);
-    for (const human of alive) {
+    for (const human of movable) {
       if (!hasResidenceAssignment(human)) {
         const house = pickResidenceForHuman(human, alive, residences, occupancy, traits);
         if (house !== undefined) moveResident(occupancy, traits, human, house);

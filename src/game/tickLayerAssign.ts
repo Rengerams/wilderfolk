@@ -10,7 +10,7 @@ import {
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
-import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
+import { collectLeaderHousehold, findLeaderHouse, syncLeaderHouseResidency } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
@@ -96,23 +96,19 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
   const startedassignMissingResidences = profileStart();
-  // The elected leader's household has a protected manor assignment. Generic housing
-  // convergence can otherwise move the entire family to an ordinary house, only
-  // for syncLeaderHouseResidency to undo it later in this same tick.
-  // Keep everyone in allHumans for genealogy; only remove protected members
-  // from the set of people eligible to be reassigned.
-  const protectedIds = new Set([
-    ...collectLeaderHousehold(world).map((person) => person.id),
-    ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
-  ]);
-  const eligibleForHousing = protectedIds.size === 0
-    ? playerHumans
-    : playerHumans.filter((person) => !protectedIds.has(person.id));
+  // A household is protected from relocation only when a completed manor exists.
+  // Protection never removes its residents from bed counts or family lookups.
+  const protectedIds = findLeaderHouse(updatedBuildings)
+    ? new Set([
+      ...collectLeaderHousehold(world).map((person) => person.id),
+      ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
+    ])
+    : undefined;
   const signatureBefore = housingSignature(world, allHumans);
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
   if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
-    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick);
+    assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick, protectedIds);
     lastHousingSignature.set(world, housingSignature(world, allHumans));
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
