@@ -12,6 +12,7 @@ import { collectLeaderDescendants, isMinorChild } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
+import { clearWorkerAssignment } from './workforce';
 
 export { LEADER_OCCUPATION };
 
@@ -73,13 +74,7 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
       workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type];
 
-    if (stale) {
-      if (workplace) {
-        workplace.occupants = workplace.occupants.filter((id) => id !== leader.id);
-      }
-      leader.workerBuildingId = undefined;
-      leader.job = JobType.Settler;
-    }
+    if (stale) clearWorkerAssignment(leader, state.buildings);
   }
 
   leader.occupation = LEADER_OCCUPATION;

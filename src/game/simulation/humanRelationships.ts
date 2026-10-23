@@ -1,7 +1,7 @@
 import { moveResident, reassignDivorcedResidences } from '../residencyReconciliation';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
-import { EntityType, BuildingType, JobType, BUILDING_CONFIGS, LEADER_OCCUPATION } from '../gameTypes';
+import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
 import type { EntitySpatialGrid } from '../spatialGrid';
 import { SPECIES_CONFIG } from '../speciesConfig';
@@ -55,7 +55,7 @@ import { isPlayerHuman } from '../playerHuman';
 import { traitMultiplier } from '../settlerTraits';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
-import { findHumanWorkplace } from '../workforce';
+import { clearWorkerAssignment, findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
 import { sayHumanChatPhrase } from '../humanChat';
 import { Relationship } from '../gameConstants';
@@ -1256,15 +1256,7 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     return;
   }
 
-  if (offender.workerBuildingId != null) {
-    const jobBuilding = state.buildings.find((b) => b.id === offender.workerBuildingId);
-    if (jobBuilding) {
-      jobBuilding.occupants = jobBuilding.occupants.filter((id) => id !== offender.id);
-    }
-    offender.workerBuildingId = undefined;
-    offender.occupation = offender.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
-    offender.job = JobType.Settler;
-  }
+  if (offender.workerBuildingId != null) clearWorkerAssignment(offender, state.buildings);
   if (offender.residenceBuildingId != null) {
     const residence = state.buildings.find((b) => b.id === offender.residenceBuildingId);
     if (residence) {

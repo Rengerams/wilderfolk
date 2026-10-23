@@ -3,6 +3,7 @@ import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
 import { hasWorkAssignment } from './residencyOccupancy';
+import { clearWorkerAssignment } from './workforce';
 import {
   DAYS_PER_YEAR,
   getAbsoluteCalendarDay,
@@ -290,13 +291,7 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
     if (entity.id === world.villageLeaderId) continue;
     if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
-    const workplace = (world.buildings ?? []).find((building) => building.id === entity.workerBuildingId);
-    if (workplace) {
-      workplace.occupants = workplace.occupants.filter((id) => id !== entity.id);
-    }
-    entity.workerBuildingId = undefined;
-    entity.job = JobType.Settler;
-    entity.occupation = 'settler';
+    clearWorkerAssignment(entity, world.buildings ?? []);
   }
 }
 

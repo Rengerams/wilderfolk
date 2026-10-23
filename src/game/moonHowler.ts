@@ -32,7 +32,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
-import { assignMissingWorkers } from './workforce';
+import { assignMissingWorkers, detachWorkplaceReference } from './workforce';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
@@ -224,7 +224,7 @@ export function forceMoonHowlerOutside(
   detachEntityFromBuildingOccupants(buildings, residenceId, entity.id);
   detachEntityFromBuildingOccupants(buildings, prisonId, entity.id);
 
-  if (entity.workerBuildingId != null) entity.workerBuildingId = undefined;
+  if (entity.workerBuildingId != null) detachWorkplaceReference(entity);
   if (entity.residenceBuildingId != null) moveResident(entity, undefined, 'moon-form');
 
   if (
@@ -310,7 +310,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   human.speed = cfg.speed;
   human.size = cfg.size;
   human.flash = 12;
-  human.workerBuildingId = undefined;
+  detachWorkplaceReference(human);
   moveResident(human, undefined, 'moon-form');
   human.prisonBuildingId = undefined;
   human.prisonerUntilTick = undefined;
@@ -449,7 +449,7 @@ export function tryMoonHowlerChurchCures(
 
   church.occupants = church.occupants.filter((id) => id !== priest.id);
   if (priest.workerBuildingId === church.id) {
-    priest.workerBuildingId = undefined;
+    detachWorkplaceReference(priest);
   }
   const approachAngle = Math.atan2(howler.y - priest.y, howler.x - priest.x);
   priest.vx = 0;

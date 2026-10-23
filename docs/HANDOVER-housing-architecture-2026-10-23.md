@@ -29,7 +29,7 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 2 | Permanent citizen ids | **DONE** | Identity is `entity.id`; an id is neither index, age nor household. The id-retirement policy is implemented (`saveLoad.ts` `floorIdAllocators`) and covered by `tests/saveLoad.valueIntegrity.test.ts`. |
 | 3 | Permanent building ids | **DONE** | One numeric id per building; type and name may repeat. Legacy rival-camp buildings that no settlement still lists are retired on load and by the daily rival pulse. Building-type numbers feed the dashboard table and the inspector. Persistence relies on the save carrying its counter — a legacy payload that does not is §19. |
 | 4 | `workerBuildingId` rename | **DONE** | Rename complete across simulation, UI, diagnostics and worker transport; the save boundary translates the old field once — including nested Moon Howler forms — and removes it from live state. Migration, worker-transport and rollback tests pass. |
-| 5 | One authoritative reference; derived rosters | **DONE** | `syncResidenceOccupants` (`residencyReconciliation.ts:135`) is the single roster writer, called from 17 sites and never re-implemented. Occupant order pinned by `tests/residencyReconciliation.occupantOrder.test.ts`. |
+| 5 | One authoritative reference; derived rosters | **DONE** | `syncResidenceOccupants` (`residencyReconciliation.ts:135`) is the single roster writer, called from 17 sites and never re-implemented. Occupant order pinned by `tests/residencyReconciliation.occupantOrder.test.ts`. The workplace reference has the same shape since 2026-10-23: the doors are in `workforce.ts` and the pointer writers are down to four stated modules — see the workplace section below. |
 | 6 | Find the Leader's House by type | **DONE** | `findLeaderHouse` (`leaderHouse.ts:18`) matches `BuildingType.LeaderHouse`, completed, player faction. No id or index assumption in the residency path. |
 | 7 | Manor exclusivity and succession | **DONE** | The confirmed plan's leader, spouse, children and children's spouses are entitled. Existing unmarried-grandchild eligibility is retained, not broadened. Vacancy protection and arbitrary-id succession remain in place, and an adult child or spouse settled in their own home is not relocated into the manor. Regressions cover married children, their spouses, unrelated settlers, vacancy and one-time handover. |
 | 8 | Families stay together | **DONE** | Shortage order is explicit: move unrelated residents first, then try a whole-family move, then keep dependents with their guardian and temporarily place the father elsewhere. A derived family-specific warning remains until reunion. If even the dependent group fits nowhere, it stays together unhoused rather than violating capacity. Reconciliation reunites the household when space appears. |
@@ -98,6 +98,25 @@ namespace is allocated, and the rejected input remains untouched. This is delibe
 refusal, not a claim that missing history was recovered.
 
 ---
+
+## Workplace reference consolidation (spec §5, second half)
+
+The residence reference gained its single door (§14). The workplace one had the same problem: the pointer,
+its roster entry and the `job`/`occupation` labels were restated at every site that changed a settler's
+work — arrest for scandal, death, demolition and legacy-camp retirement, a stale leader post, a caravan
+departure, the legacy invalid-job pass, the stale-workplace repair in `prepareWorkforce`, and the
+moon-form revert. `workforce.ts` now holds both doors: `clearWorkerAssignment` (leaves work — pointer,
+roster entry, labels; an office title survives) and `detachWorkplaceReference` (the moon forms drop the
+pointer and keep their saved trade). Those sites call a door instead of writing the field.
+
+Four modules may still write the pointer directly, each for a stated reason: the owner itself, the save
+boundary (`saveLoad.ts`, the nested Moon Howler form included), and the moon-form owner (`moonHowler.ts`,
+`moonHowlerForm.ts`), where a form transform or the Church rite restores or displaces a post outside the
+staffing transition. `tests/workplaceReference.singleOwner.test.ts` fails if a fifth module appears.
+
+Scope note: this consolidates the *reference*, not the staffing policy. Roster capacity, eligibility and
+the manual/auto decision still belong to the staffing entry points, and the priest re-attach during the
+rite keeps its own forced path. No player-visible behavior changes, so no changelog entry.
 
 ## Working in this environment (so the next person does not rediscover it)
 

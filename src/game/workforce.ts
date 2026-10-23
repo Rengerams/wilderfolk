@@ -284,19 +284,25 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
 }
 
 /**
- * Named removal transition — release a settler from all workplaces/crews and clear job fields.
- * Preserves `LEADER_OCCUPATION`.
+ * The one door for a settler leaving work: the pointer, the roster entry it pointed at and the job
+ * labels. A leader keeps the office title, which is an office rather than a post.
  */
-/**
- * Ends a settler's work assignment. The pointer is the truth and the job and occupation labels
- * follow it; a leader keeps the office title, which is an office rather than a post.
- */
-function clearWorkAssignment(human: Entity): void {
+export function clearWorkerAssignment(human: Entity, buildings?: readonly Building[]): void {
+  if (buildings && human.workerBuildingId != null) {
+    const workplace = buildings.find((building) => building.id === human.workerBuildingId);
+    if (workplace) workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
+  }
   human.workerBuildingId = undefined;
   human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   human.job = JobType.Settler;
 }
 
+/** Drops the workplace pointer alone; the moon forms keep their saved trade and re-attach it. */
+export function detachWorkplaceReference(human: Entity): void {
+  human.workerBuildingId = undefined;
+}
+
+/** Named removal transition — release a settler from all workplaces/crews and clear the job fields. */
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
@@ -305,7 +311,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
       building.occupants = building.occupants.filter((id) => id !== human.id);
     }
   }
-  clearWorkAssignment(human);
+  clearWorkerAssignment(human);
 }
 
 /**
@@ -582,7 +588,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
           if (workplace) {
             workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
           }
-          clearWorkAssignment(human);
+          clearWorkerAssignment(human);
         }
       }
       continue;
@@ -602,7 +608,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type]
     ) {
-      clearWorkAssignment(human);
+      clearWorkerAssignment(human);
     }
   }
 

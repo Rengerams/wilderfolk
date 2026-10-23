@@ -15,7 +15,7 @@ import { moveResident } from './residencyReconciliation';
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import { prisonPrisonerCapacity } from './prisonShifts';
 import type { Building, Entity } from './gameTypes';
-import { countWorkersAtBuilding } from './workforce';
+import { countWorkersAtBuilding, detachWorkplaceReference } from './workforce';
 import { countResidentsInBuilding, getResidenceCapacity } from './residencyOccupancy';
 import { getSimRng } from './simRng';
 
@@ -95,7 +95,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
 
   were.job = JobType.Settler;
   were.occupation = restoredOccupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
-  were.workerBuildingId = undefined;
+  detachWorkplaceReference(were);
   moveResident(were, undefined, 'moon-form', { buildings });
   were.prisonBuildingId = undefined;
   were.prisonerUntilTick = undefined;

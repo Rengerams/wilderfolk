@@ -38,7 +38,9 @@ Stages 2–4 follow-up: residence writes are consolidated in reconciliation; fam
 married-child/spouse manor entitlement and grandparent/sibling custody are implemented. Stage 3 retains
 both work and school scoring and now has isolated before/after relocation benchmarks and indexed sweeps.
 Stage 4 explicitly refuses saves missing identity counters instead of guessing retirement history.
-Prison reservation, the original Day 121 reproduction and the final full acceptance matrix remain open.
+The workplace reference is single-door too (`clearWorkerAssignment` / `detachWorkplaceReference` in
+`workforce.ts`), mirroring the residence door.
+Prison reservation, the original Day 121 reproduction and the full acceptance matrix remain open.
 
 The existing unmarried-grandchild entitlement is preserved. The confirmed child/spouse rule is applied
 without extending eligibility to collateral relatives or married grandchildren. Eligibility is a right

@@ -15,7 +15,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `commuteHumanToBuilding`, `humanBuildingTarget` (home, classroom and workplace destinations), `applyHumanWalkStep` (the one integration of a walk step) |
 | Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (rule; read by the movement path, work assignment, the housing commute move and the panel; prices routes on the sim's current grid) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `estimatedCommuteHours`, `beginCommuteRoutePass`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
-| Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS` |
+| Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS`, `assignWorkerTransition`, `transferWorkerBetweenBuildings`, `clearWorkerAssignment`, `detachWorkplaceReference` (the only writers of `human.workerBuildingId`) |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
 | Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), `assignMissingResidences` (with a `sweepTick` it sweeps that pulse's bucket of the day's reassignment work; without one it converges the whole colony immediately), `pickCommuteRelocation` (the §12 commute move: a settled household trades its home for a nearer vacant one; helpers `householdCommuteHours`/`cachedCommuteHours`, gates `RELOCATION_MIN_SAVED_HOURS`/`RELOCATION_MIN_IMPROVEMENT_RATIO`/`pupilsKeepSchoolReach` (a move must leave every pupil inside the school reach rule)), … |
@@ -382,6 +382,14 @@ If two modules export the same function name with the same responsibility:
 | `residenceHostsUnrelatedCouple`, `residenceHostsKin` | `game/residencySelection.ts` | Score a candidate home by the family a couple would live with and the couple it refuses to share with. |
 | `benchmarkRelocation` | `scripts/perf-at-pop.ts` | Measure the real daily sweep against the unindexed reference on isolated, repeatable work-and-school fixtures. |
 | `family` | `tests/housingArchitecture.completion.test.ts` | Build related parents and dependents for shortage, guardianship and commute regressions. |
+
+## Workplace reference consolidation (23 October 2026)
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `clearWorkerAssignment` | `game/workforce.ts` | The one door for leaving work: drop the workplace pointer, the roster entry it pointed at and the job labels, keeping an office title. Every clear site (arrest, death, demolition/legacy retirement, stale leader post, caravan departure, legacy invalid-job cleanup) calls it. |
+| `detachWorkplaceReference` | `game/workforce.ts` | Drop the workplace pointer alone, for the moon forms, which keep their saved trade labels and re-attach the reference themselves. |
+| `workerBuildingId` writers | `game/workforce.ts` (owner) | The only modules writing the pointer directly are the owner, the save boundary (`saveLoad.ts`, including the nested moon-form migration), and the moon-form owner (`moonHowler.ts`, `moonHowlerForm.ts`) where a form transform or the Church rite restores or displaces a post. `tests/workplaceReference.singleOwner.test.ts` pins that set. |
 
 ## CPU profiler integration lifecycle
 

@@ -10,6 +10,7 @@ import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isMinorChild } from './householdComposition';
 import { hasResidenceAssignment } from './residencyOccupancy';
+import { clearWorkerAssignment } from './workforce';
 import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
 import {
   listPlayerResidences,
@@ -59,7 +60,7 @@ export function finalizeHumanDeath(
     : undefined;
 
   removeHumanFromBuildingOccupants(entity, buildings);
-  entity.workerBuildingId = undefined;
+  clearWorkerAssignment(entity);
   moveResident(entity, undefined, 'death', { buildings });
   entity.prisonBuildingId = undefined;
   entity.prisonerUntilTick = undefined;

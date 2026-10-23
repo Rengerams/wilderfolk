@@ -11,6 +11,7 @@ import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
 import { createEntity } from './entityFactory';
 import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
+import { clearWorkerAssignment } from './workforce';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 
@@ -129,7 +130,7 @@ function removeCarrier(state: WorldState, route: TradeRoute, entity: Entity): vo
   entity.alive = false;
   unindexEntityFromState(state, entity.id);
   moveResident(entity, undefined, 'departure', { buildings: state.buildings });
-  entity.workerBuildingId = undefined;
+  clearWorkerAssignment(entity);
   // No manual splice: clearing `alive` is how every other despawn leaves the world, and the tick's
   // `state.entities = allAlive` rebuild is the single writer of membership.
   route.caravanCarrierId = undefined;
@@ -280,7 +281,6 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
   carrier.groupId = route.id;
   carrier.occupation = 'merchant';
   moveResident(carrier, undefined, 'departure');
-  carrier.workerBuildingId = undefined;
   carrier.relationshipStatus = 'single';
   carrier.reproductionCooldown = 9999;
   // The carrier must go through the tick's canonical spawn path. Pushing it into

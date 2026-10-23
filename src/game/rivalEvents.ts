@@ -6,6 +6,7 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
+import { clearWorkerAssignment } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -72,7 +73,7 @@ export function tickRivalSettlements(
       moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     }
     if (entity.workerBuildingId != null && retiredStructures.has(entity.workerBuildingId)) {
-      entity.workerBuildingId = undefined;
+      clearWorkerAssignment(entity);
     }
   }
   for (const rival of state.rivalSettlements) {
