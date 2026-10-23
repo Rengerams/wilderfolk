@@ -125,6 +125,13 @@ export function syncSchoolAssignments(
   const children = humans.filter((e) =>
     e.alive && isPlayerHuman(e) && e.isJuvenile && e.age >= SCHOOL_MIN_AGE,
   );
+  // A settler who is no longer a pupil holds no seat: released here, where it is assigned, so no
+  // later reader (school rosters, housing commute scoring) walks a graduate to school.
+  const pupilIds = new Set(children.map((child) => child.id));
+  for (const human of humans) {
+    if (!human.alive || !isPlayerHuman(human) || pupilIds.has(human.id)) continue;
+    if (human.schoolBuildingId != null) human.schoolBuildingId = undefined;
+  }
   for (const child of children) {
     const current = staffed.get(child.schoolBuildingId ?? -1);
     if (!current || (reserved.get(current.id) ?? 0) >= schoolCapacity(current)) {

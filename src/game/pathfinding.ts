@@ -435,11 +435,13 @@ function searchRoute(
 
   const { scores, parents, stamps, generation } = beginPathSearch(cols * rows);
 
-  // Octile distance heuristic for 8-direction grids
+  // Octile distance heuristic for 8-direction grids, scaled by the cheapest step: a road costs
+  // `ROAD_STEP_COST`, so an unscaled octile would overestimate and return a slower route's cost.
+  const cheapestStep = road ? ROAD_STEP_COST : 1;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);
-    return Math.max(adx, ady) + 0.4142 * Math.min(adx, ady);
+    return (Math.max(adx, ady) + 0.4142 * Math.min(adx, ady)) * cheapestStep;
   };
 
   const open = new OpenSetMinHeap();

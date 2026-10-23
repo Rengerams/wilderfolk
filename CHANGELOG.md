@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A search for the cheapest walk now scales its estimate by the cheaper road step, so a paved detour that is longer on the map but quicker to walk is priced as the better route instead of the plainer ground line.
+
+- **Fixed:** A settler who graduates releases the school seat they held as a pupil, so neither the school roster nor a housing move treats an adult as a daily walker to their old school.
+
 - **Fixed:** A household no longer trades its home for one that shortens the parents' commute while leaving a child more than two hours from school; a move now checks every pupil's school reach first.
 
 - **Changed:** A household's trip to work and school is now measured along the route settlers really walk — around rivers, mountains and detours — instead of the straight line through them; each route is priced once and a daily sweep stops searching once its budget is spent.

@@ -10,7 +10,7 @@ import {
   estimatedCommuteHours,
   MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS,
 } from '../src/game/commuteReach';
-import { resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
+import { findRouteCost, getCurrentPathGrid, resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import {
   flushPathfinderTickToSession,
   getPathfinderReport,
@@ -81,6 +81,29 @@ describe('estimatedCommuteHours route pricing', () => {
     const routed = estimatedCommuteHours(home, sameSide, [], WALK_SPEED);
     expect(routed).toBeGreaterThanOrEqual(straightHours(home, sameSide));
     expect(routed).toBeLessThan(straightHours(home, sameSide) * 1.2);
+  });
+
+  it('prices a paved route that is longer on the map but cheaper to walk', () => {
+    // A 21-tile paved strip one row below the straight line: 22 steps against the line's 20, but a
+    // road step costs a fraction of an open-ground step, so the detour is the cheaper route.
+    const map = testWorldMap({ tilesX: 40, tilesY: 40, seed: 7 });
+    const road = building(3, BuildingType.Road, {
+      x: 20.5 * PATH_CELL,
+      y: 11.5 * PATH_CELL,
+      width: 21 * PATH_CELL,
+      height: PATH_CELL,
+      completed: true,
+    });
+    setCurrentPathMap(map, [road]);
+
+    const grid = getCurrentPathGrid();
+    expect(grid).toBeTruthy();
+    const paved = findRouteCost(grid!, 10, 10, 30, 10, 4000);
+
+    // The straight ground route costs one per step, so twenty: a cost search that returns twenty
+    // has priced the slower route and would misjudge a household's commute.
+    expect(paved).not.toBeNull();
+    expect(paved!).toBeLessThan(20);
   });
 
   it('falls back to the straight line when no grid is current', () => {
