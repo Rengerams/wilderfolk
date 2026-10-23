@@ -36,12 +36,12 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  *
  * The worker-authored presentation slices — `bigNews`, `floatingTexts`, `activeEvent`,
  * `nextFloatingTextId` — are **compared**, not excluded. Watch the fixture length when reading a
- * pass: `TICKS = 240` is 5 colony days and the first-week visitor event needs tick ≥ 504, so
+ * pass: `TICKS = 3 * TICKS_PER_DAY` is three colony days (216 ticks), while the first-week visitor event needs tick ≥ 504, so
  * `activeEvent` is `undefined` on both sides here. That vacuous comparison is exactly why the
  * missing `activeEvent` entry in the prep rollback payload could hide from this suite
  * (`BUG_REPORTS/2026-09-16-prep-rollback-misses-the-active-event-and-the-scent-field.md`).
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
@@ -197,19 +197,120 @@ function tickThroughDelta(ticks: number): { authority: WorldState; display: Worl
 }
 
 describe('worker boundary closure', () => {
-  // Three colony days are 864 ticks at the retuned 288-tick day, so these two fixtures need room.
-  it('ships every simulation-written world field to the display world through tick deltas', () => {
-    const { authority, display } = tickThroughDelta(TICKS);
+  describe('shared three-day worker delta fixture', () => {
+    let deltaWorlds: ReturnType<typeof tickThroughDelta>;
+    beforeAll(() => {
+      deltaWorlds = tickThroughDelta(TICKS);
+    }, 60_000);
 
-    // Guard the fixture: the run must actually have changed the world and moved
-    // entities through births/deaths, or the comparison below proves little.
-    expect(authority.tick).toBeGreaterThan(TICKS);
-    expect(authority.entities.length).toBeGreaterThan(2);
-    expect(authority.humanPopulation).toBeGreaterThan(0);
+    it('ships every simulation-written world field to the display world through tick deltas', () => {
+      const { authority, display } = deltaWorlds;
 
-    const keys = comparableKeys(display, authority);
-    expect(worldProjection(display, keys)).toEqual(worldProjection(authority, keys));
-  }, FIXTURE_TIMEOUT_MS);
+      // Guard the fixture: the run must actually have changed the world and moved
+      // entities through births/deaths, or the comparison below proves little.
+      expect(authority.tick).toBeGreaterThan(TICKS);
+      expect(authority.entities.length).toBeGreaterThan(2);
+      expect(authority.humanPopulation).toBeGreaterThan(0);
+
+      const keys = comparableKeys(display, authority);
+      expect(worldProjection(display, keys)).toEqual(worldProjection(authority, keys));
+    });
+
+    it('reloads a worker-authored colony with every saved field intact', () => {
+      const { display } = deltaWorlds;
+
+      // gameWorker 'exportSave': invalidate, clone across the wire, hydrate.
+      invalidateWorldRuntimeCaches(display);
+      const exported = hydrateWorldRuntimeCaches(structuredClone(display));
+      hydrateWorldRuntimeCaches(display);
+
+      // `migrateHumanAges` backfills a zeroed calendar birth date; this fixture's own spawns all carry a
+      // real one, so a legacy payload's state is built here (an adult recomputes to the same age).
+      const legacy = exported.entities.find(
+        (entity) => entity.type === EntityType.Human && entity.alive && entity.age >= HUMAN_CHILDHOOD_YEARS,
+      );
+      expect(legacy, 'the fixture has an adult to carry a legacy birth date').toBeDefined();
+      if (!legacy) return;
+      legacy.birthDay = 0;
+      legacy.birthMonth = 0;
+
+      const save = buildSaveData(exported, createInitialView(exported.width, exported.height));
+      const parsed = parseSaveJson(JSON.stringify(save));
+      expect(parsed.valid).toBe(true);
+      if (!parsed.valid) return;
+      const loaded = loadGameFromParsed(parsed.parsed);
+      expect(loaded).not.toBeNull();
+      if (!loaded) return;
+      const reloaded = loaded.world;
+
+      // Documented load-time normalizations, asserted rather than skipped.
+      expect(reloaded.paused).toBe(false); // a loaded colony resumes immediately
+      expect(reloaded.tradeRoutes.length).toBeGreaterThanOrEqual(exported.tradeRoutes.length); // ensureFullTradeRoutes merges
+      // `tutorialSeen` is host-owned (see HOST_OR_CACHE_KEYS), so the worker-authored `exported`
+      // world may legitimately omit it entirely — only the reloaded world is guaranteed to hold an
+      // array, because `loadGameFromParsed` seeds it via `seedTutorialSeenForExistingState`.
+      expect(reloaded.tutorialSeen, 'a reloaded colony always carries a tutorialSeen list').toBeTruthy();
+      expect(exported.tutorialSeen, 'the worker-authored world under test carries one too').toBeTruthy();
+      expect(reloaded.tutorialSeen!.length).toBeGreaterThanOrEqual(exported.tutorialSeen!.length); // seeded for existing colonies
+      expect(reloaded.eventLog.map((entry) => entry.id)).toEqual(exported.eventLog.map((entry) => entry.id));
+
+      // Every other save key keeps its effective value.
+      //
+      // The id allocators are normalized by the load, on purpose: `floorIdAllocators` raises each one to
+      // at least one past the highest id the world holds, because a payload can carry none (a later
+      // spawn then gets `NaN`) or a rewound one (the next spawn collides with a live id and
+      // `entityById` silently drops one of the two). A world whose allocator is already above every id
+      // round-trips unchanged, which the value-integrity suite pins.
+      const normalizedByLoad = new Set([
+        'paused',
+        'tradeRoutes',
+        'tutorialSeen',
+        'entities',
+        'nextEntityId',
+        'nextBuildingId',
+        'nextFloatingTextId',
+      ]);
+      for (const key of WORLD_STATE_SAVE_KEYS) {
+        if (normalizedByLoad.has(key)) continue;
+        if (!(key in (exported as unknown as Record<string, unknown>))) continue;
+        expect(compact(effective(reloaded, key)), key).toEqual(compact(effective(exported, key)));
+      }
+
+      // `worldMap` is not in WORLD_STATE_SAVE_KEYS (it is stored compactly and regenerated
+      // on load), so it needs its own assertion: a scale error there is invisible to the
+      // key loop above and silently leaves every entity outside the restored valley.
+      expect(reloaded.width).toBe(exported.width);
+      expect(reloaded.height).toBe(exported.height);
+      expect(reloaded.worldMap?.width).toBe(exported.worldMap?.width);
+      expect(reloaded.worldMap?.height).toBe(exported.worldMap?.height);
+      // The old assertion was `worldMap.tiles.length` / `tiles[0].length`, which was the tile
+      // rectangle. Teraforge keeps no per-tile grid: the same shape claim is made on the regenerated
+      // L0 path grid (one cell per tile) and the tile dimensions asserted just above.
+      expect(reloaded.worldMap?.pathGrid?.length).toBe(exported.worldMap?.pathGrid?.length);
+      expect(reloaded.worldMap?.pCols).toBe(exported.worldMap?.pCols);
+      expect(reloaded.worldMap?.pRows).toBe(exported.worldMap?.pRows);
+
+      // Entities: identity, order, ages and every persisted field survive; only the
+      // calendar birth dates are backfilled by migrateHumanAges where the worker left 0.
+      expect(reloaded.entities.map((e) => e.id)).toEqual(exported.entities.map((e) => e.id));
+      expect(entitiesWithoutBirthDates(reloaded)).toEqual(entitiesWithoutBirthDates(exported));
+      const reloadedById = new Map(reloaded.entities.map((entity) => [entity.id, entity]));
+      let backfilled = 0;
+      for (const entity of exported.entities) {
+        const again = reloadedById.get(entity.id);
+        expect(again, `entity ${entity.id} is missing after reload`).toBeDefined();
+        if (!again) continue;
+        expect(again.age, `entity ${entity.id} age`).toBe(entity.age);
+        for (const field of ENTITY_PERSISTED_FIELDS) {
+          expect(again[field], `entity ${entity.id}.${field}`).toEqual(entity[field]);
+        }
+        if (entity.type === EntityType.Human && entity.birthDay === 0 && entity.birthMonth === 0) {
+          expect(again.birthDay, `entity ${entity.id} birth date`).toBeGreaterThan(0);
+          backfilled++;
+        }
+      }
+      expect(backfilled).toBeGreaterThan(0); // the round trip really did exercise the migration
+    });  });
 
   it('carries the whole world into the worker and rebuilds the worker-side indices', () => {
     resetSimRng();
@@ -318,99 +419,5 @@ describe('worker boundary closure', () => {
     expect(entitiesWithoutBirthDates(world)).toEqual(entitiesBefore);
   });
 
-  it('reloads a worker-authored colony with every saved field intact', () => {
-    const { display } = tickThroughDelta(TICKS);
 
-    // gameWorker 'exportSave': invalidate, clone across the wire, hydrate.
-    invalidateWorldRuntimeCaches(display);
-    const exported = hydrateWorldRuntimeCaches(structuredClone(display));
-    hydrateWorldRuntimeCaches(display);
-
-    // `migrateHumanAges` backfills a zeroed calendar birth date; this fixture's own spawns all carry a
-    // real one, so a legacy payload's state is built here (an adult recomputes to the same age).
-    const legacy = exported.entities.find(
-      (entity) => entity.type === EntityType.Human && entity.alive && entity.age >= HUMAN_CHILDHOOD_YEARS,
-    );
-    expect(legacy, 'the fixture has an adult to carry a legacy birth date').toBeDefined();
-    if (!legacy) return;
-    legacy.birthDay = 0;
-    legacy.birthMonth = 0;
-
-    const save = buildSaveData(exported, createInitialView(exported.width, exported.height));
-    const parsed = parseSaveJson(JSON.stringify(save));
-    expect(parsed.valid).toBe(true);
-    if (!parsed.valid) return;
-    const loaded = loadGameFromParsed(parsed.parsed);
-    expect(loaded).not.toBeNull();
-    if (!loaded) return;
-    const reloaded = loaded.world;
-
-    // Documented load-time normalizations, asserted rather than skipped.
-    expect(reloaded.paused).toBe(false); // a loaded colony resumes immediately
-    expect(reloaded.tradeRoutes.length).toBeGreaterThanOrEqual(exported.tradeRoutes.length); // ensureFullTradeRoutes merges
-    // `tutorialSeen` is host-owned (see HOST_OR_CACHE_KEYS), so the worker-authored `exported`
-    // world may legitimately omit it entirely — only the reloaded world is guaranteed to hold an
-    // array, because `loadGameFromParsed` seeds it via `seedTutorialSeenForExistingState`.
-    expect(reloaded.tutorialSeen, 'a reloaded colony always carries a tutorialSeen list').toBeTruthy();
-    expect(exported.tutorialSeen, 'the worker-authored world under test carries one too').toBeTruthy();
-    expect(reloaded.tutorialSeen!.length).toBeGreaterThanOrEqual(exported.tutorialSeen!.length); // seeded for existing colonies
-    expect(reloaded.eventLog.map((entry) => entry.id)).toEqual(exported.eventLog.map((entry) => entry.id));
-
-    // Every other save key keeps its effective value.
-    //
-    // The id allocators are normalized by the load, on purpose: `floorIdAllocators` raises each one to
-    // at least one past the highest id the world holds, because a payload can carry none (a later
-    // spawn then gets `NaN`) or a rewound one (the next spawn collides with a live id and
-    // `entityById` silently drops one of the two). A world whose allocator is already above every id
-    // round-trips unchanged, which the value-integrity suite pins.
-    const normalizedByLoad = new Set([
-      'paused',
-      'tradeRoutes',
-      'tutorialSeen',
-      'entities',
-      'nextEntityId',
-      'nextBuildingId',
-      'nextFloatingTextId',
-    ]);
-    for (const key of WORLD_STATE_SAVE_KEYS) {
-      if (normalizedByLoad.has(key)) continue;
-      if (!(key in (exported as unknown as Record<string, unknown>))) continue;
-      expect(compact(effective(reloaded, key)), key).toEqual(compact(effective(exported, key)));
-    }
-
-    // `worldMap` is not in WORLD_STATE_SAVE_KEYS (it is stored compactly and regenerated
-    // on load), so it needs its own assertion: a scale error there is invisible to the
-    // key loop above and silently leaves every entity outside the restored valley.
-    expect(reloaded.width).toBe(exported.width);
-    expect(reloaded.height).toBe(exported.height);
-    expect(reloaded.worldMap?.width).toBe(exported.worldMap?.width);
-    expect(reloaded.worldMap?.height).toBe(exported.worldMap?.height);
-    // The old assertion was `worldMap.tiles.length` / `tiles[0].length`, which was the tile
-    // rectangle. Teraforge keeps no per-tile grid: the same shape claim is made on the regenerated
-    // L0 path grid (one cell per tile) and the tile dimensions asserted just above.
-    expect(reloaded.worldMap?.pathGrid?.length).toBe(exported.worldMap?.pathGrid?.length);
-    expect(reloaded.worldMap?.pCols).toBe(exported.worldMap?.pCols);
-    expect(reloaded.worldMap?.pRows).toBe(exported.worldMap?.pRows);
-
-    // Entities: identity, order, ages and every persisted field survive; only the
-    // calendar birth dates are backfilled by migrateHumanAges where the worker left 0.
-    expect(reloaded.entities.map((e) => e.id)).toEqual(exported.entities.map((e) => e.id));
-    expect(entitiesWithoutBirthDates(reloaded)).toEqual(entitiesWithoutBirthDates(exported));
-    const reloadedById = new Map(reloaded.entities.map((entity) => [entity.id, entity]));
-    let backfilled = 0;
-    for (const entity of exported.entities) {
-      const again = reloadedById.get(entity.id);
-      expect(again, `entity ${entity.id} is missing after reload`).toBeDefined();
-      if (!again) continue;
-      expect(again.age, `entity ${entity.id} age`).toBe(entity.age);
-      for (const field of ENTITY_PERSISTED_FIELDS) {
-        expect(again[field], `entity ${entity.id}.${field}`).toEqual(entity[field]);
-      }
-      if (entity.type === EntityType.Human && entity.birthDay === 0 && entity.birthMonth === 0) {
-        expect(again.birthDay, `entity ${entity.id} birth date`).toBeGreaterThan(0);
-        backfilled++;
-      }
-    }
-    expect(backfilled).toBeGreaterThan(0); // the round trip really did exercise the migration
-  }, FIXTURE_TIMEOUT_MS);
 });
