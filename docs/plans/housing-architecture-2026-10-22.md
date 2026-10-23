@@ -13,6 +13,7 @@ Keep main and original saves unchanged. Merge requires the owner's explicit appr
 ## Confirmed gameplay decisions
 
 - For an overcrowded family home, first try to rehouse unrelated residents. If that cannot resolve the shortage, try a suitable whole-family move.
+- A couple never shares a house with another, unrelated couple. Until a home of its own frees up it stays with its own family, and a lone settler belongs in a singles' house.
 - If no whole-family solution exists, temporarily place the father elsewhere, or leave him homeless when no bed exists, and show a warning message. Keep dependent children with their guardian. Reunite the family when a suitable home becomes available.
 - Ordinary adult children start looking for a suitable independent or shared home at 18. They stay with their parents until housing is available; adulthood does not cause eviction.
 - The leader, spouse, children and those children's spouses are eligible for the Leader's House. The manor has enough space for the eligible household. Adult children may establish their own home.

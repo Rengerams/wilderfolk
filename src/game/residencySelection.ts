@@ -3,6 +3,7 @@ import { BuildingType } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import {
+  areCloseKin,
   collectFamilyMembers,
   collectMinorHousehold,
   collectOwnHousehold,
@@ -31,6 +32,8 @@ const HOUSING_SCORES = {
   OUTSIDER_MULTIPLIER_SHORTAGE: 10,
   MINOR_IN_SINGLES_PENALTY: 10_000,
   SINGLES_ALTERNATIVE_PENALTY: 10_000,
+  /** Between two otherwise equal homes, a couple never picks the one holding another couple. */
+  OTHER_COUPLE_PENALTY: 20,
 } as const;
 
 interface PickResidenceOptions {
@@ -318,6 +321,16 @@ export function housingUnitNeedsReassignment(
     return false;
   }
 
+  // A couple sharing with an unrelated couple moves in with its own family, empty house or not.
+  if (residenceHostsUnrelatedCouple(unit, homeId, alive, traits)) {
+    const kinHome = pickResidenceForFamily(unit, alive, residences, occupancy, traits);
+    if (kinHome !== undefined && kinHome !== homeId
+      && residenceHostsKin(unit, kinHome, alive, traits)
+      && !residenceHostsUnrelatedCouple(unit, kinHome, alive, traits)) {
+      return true;
+    }
+  }
+
   if (!hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return false;
   if (countResidentsInBuilding(alive, homeId, occupancy) === unit.length) return false;
   return unitSharesResidenceWithOutsiders(unit, alive, homeId);
@@ -354,6 +367,7 @@ export function auditHousingSharingIssues(humans: Entity[], buildings: Building[
   const emptyCount = residences.filter((r) => countResidentsInBuilding(alive, r.id) === 0).length;
 
   const issues: string[] = [];
+  const traits = buildResidenceTraits(alive);
   for (const unit of buildHousingUnits(alive)) {
     if (!isUnnecessarilySharingHousing(unit, alive, residences)) continue;
     const homeId = unitResidenceId(unit);
@@ -363,6 +377,10 @@ export function auditHousingSharingIssues(humans: Entity[], buildings: Building[
       issues.push(
         `${label} share house #${homeId} while ${emptyCount} empty house(s) are available`,
       );
+      continue;
+    }
+    if (residenceHostsUnrelatedCouple(unit, homeId, alive, traits)) {
+      issues.push(`${label} share house #${homeId} with an unrelated couple`);
       continue;
     }
     issues.push(
@@ -608,6 +626,64 @@ function residenceHostsOnlySingles(
   return entry.adults > 0;
 }
 
+function unitIdSet(unit: Entity[]): Set<number> {
+  return new Set(unit.map((member) => member.id));
+}
+
+/** A couple in the residence that no member of the unit is related to. */
+function residenceHostsUnrelatedCouple(
+  unit: Entity[],
+  residenceId: number,
+  humans: Entity[],
+  traits?: ResidenceTraitsById,
+): boolean {
+  const entry = traitsFor(humans, traits).get(residenceId);
+  if (!entry) return false;
+  const unitIds = unitIdSet(unit);
+  for (const occupant of entry.occupants.values()) {
+    if (unitIds.has(occupant.id)) continue;
+    const partnerId = occupant.partnerId;
+    if (partnerId == null || unitIds.has(partnerId)) continue;
+    const partner = entry.occupants.get(partnerId);
+    if (!partner) continue;
+    const related = unit.some((member) => areCloseKin(member, occupant) || areCloseKin(member, partner));
+    if (!related) return true;
+  }
+  return false;
+}
+
+/** A residence holding the unit's own family — the household it would rather move back in with. */
+function residenceHostsKin(
+  unit: Entity[],
+  residenceId: number,
+  humans: Entity[],
+  traits?: ResidenceTraitsById,
+): boolean {
+  const entry = traitsFor(humans, traits).get(residenceId);
+  if (!entry) return false;
+  const unitIds = unitIdSet(unit);
+  for (const occupant of entry.occupants.values()) {
+    if (unitIds.has(occupant.id)) continue;
+    if (unit.some((member) => areCloseKin(member, occupant))) return true;
+  }
+  return false;
+}
+
+/** A household's own home first, then its own family, then whoever else will take it in. */
+function residencePreferenceTier(
+  unit: Entity[],
+  residenceId: number,
+  outsiders: number,
+  hasMinor: boolean,
+  humans: Entity[],
+  traits?: ResidenceTraitsById,
+): number {
+  if (outsiders === 0) return 0;
+  if (!residenceHostsKin(unit, residenceId, humans, traits)) return 2;
+  if (hasMinor && residenceHostsOnlySingles(residenceId, humans, traits)) return 2;
+  return 1;
+}
+
 function anyOpenBeds(
   humans: Entity[],
   residences: Building[],
@@ -655,6 +731,7 @@ export function pickResidenceForFamily(
 
   let best: Building | undefined;
   let bestScore = Infinity;
+  let bestTier = Infinity;
 
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
@@ -698,7 +775,17 @@ export function pickResidenceForFamily(
       score += HOUSING_SCORES.MINOR_IN_SINGLES_PENALTY;
     }
 
-    if (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))) {
+    // Between two otherwise equal homes, a couple never picks the one holding another couple.
+    if (!loneSingle && outsiders > 0
+      && residenceHostsUnrelatedCouple(family, residence.id, humans, traits)) {
+      score += HOUSING_SCORES.OTHER_COUPLE_PENALTY;
+    }
+
+    const tier = loneSingle ? 0
+      : residencePreferenceTier(family, residence.id, outsiders, hasMinor, humans, traits);
+    if (tier < bestTier || (tier === bestTier
+      && (score < bestScore || (score === bestScore && residence.id < (best?.id ?? Infinity))))) {
+      bestTier = tier;
       bestScore = score;
       best = residence;
     }

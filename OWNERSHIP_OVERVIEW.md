@@ -378,6 +378,8 @@ If two modules export the same function name with the same responsibility:
 |---|---|---|
 | `moveResident`, `reassignDivorcedResidences`, `ensureOrphanAdoption`, `placeOrphanInHouse`, `tryMoveOutOfFamilyHome`, `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `relocateHouseholdsForCommute` | `game/residencyReconciliation.ts` | Own residence mutations, their reasons and pass indexes; resolve event-driven placement and sibling guardianship. Mutation-bearing functions formerly in selection and relationships now live here, not behind aliases. |
 | `familyFitsInResidence`, `buildCommuteRelocationIndex`, `collectFamilyHousingShortages` | `game/residencySelection.ts` | Pure capacity, per-sweep commute indexes and derived family-shortage warnings. |
+| `areCloseKin` | `game/householdComposition.ts` | Close family living apart: a parent/child link or a shared parent. |
+| `residenceHostsUnrelatedCouple`, `residenceHostsKin` | `game/residencySelection.ts` | Score a candidate home by the family a couple would live with and the couple it refuses to share with. |
 | `benchmarkRelocation` | `scripts/perf-at-pop.ts` | Measure the real daily sweep against the unindexed reference on isolated, repeatable work-and-school fixtures. |
 | `family` | `tests/housingArchitecture.completion.test.ts` | Build related parents and dependents for shortage, guardianship and commute regressions. |
 
@@ -398,4 +400,4 @@ If two modules export the same function name with the same responsibility:
 | `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
-| `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible. |
+| `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |

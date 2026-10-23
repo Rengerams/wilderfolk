@@ -237,3 +237,16 @@ export function isAdultChildAtHome(
   ].filter((parent): parent is Entity => !!parent && hasResidenceAssignment(parent));
   return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
 }
+
+/** Parent ids of a settler, biological and adoptive. */
+function parentIdsOf(human: Entity): (number | undefined)[] {
+  return [human.motherId, human.fatherId, human.adoptiveMotherId, human.adoptiveFatherId];
+}
+
+/** Close family living apart: a parent/child link or a shared parent (siblings). */
+export function areCloseKin(a: Entity, b: Entity): boolean {
+  const aParents = parentIdsOf(a);
+  const bParents = parentIdsOf(b);
+  if (aParents.includes(b.id) || bParents.includes(a.id)) return true;
+  return aParents.some((parentId) => parentId != null && bParents.includes(parentId));
+}
