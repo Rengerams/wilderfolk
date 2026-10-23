@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Two settlers who pair up are no longer left without a bed when no home has room for both of them, and a child with no bed left stays with the parent who still has one.
+
 - **Fixed:** Housing changes now use one residence writer, keeping assignment counts, household traits and resident rosters consistent across marriage, divorce, births, deaths, demolition, leadership and Moon Howler transitions.
 
 - **Fixed:** Growing families first reclaim space from unrelated residents, then seek a larger home together. During shortages children stay with their guardian, a family warning remains visible, and the household reunites when space opens.
