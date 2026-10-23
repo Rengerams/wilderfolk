@@ -3,9 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Isolated PDF creation and editing application. Independent of the Wilderfolk game app.",
+  "description": "PDF Studio — PDF editing without unnecessary complexity. Independent of the Wilderfolk game app.",
   "scripts": {
     "dev": "vite",
+    "desktop": "npx --yes @tauri-apps/cli@^2 dev",
+    "installer": "npx --yes @tauri-apps/cli@^2 build",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

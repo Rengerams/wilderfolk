@@ -386,3 +386,13 @@ If two modules export the same function name with the same responsibility:
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
 | `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible. |
+
+## Isolated PDF Studio app (`pdf-editor/`) — desktop packaging (23 October 2026)
+
+The editor is a separate application in this repository; these rows record the desktop shell that
+packages it for Windows. Its modules are otherwise outside the game's register.
+
+| Function | Owner | Responsibility |
+|---|---|---|
+| `run` | `pdf-editor/src-tauri/src/lib.rs` | Build the desktop window and load the bundled editor. |
+| `main` | `pdf-editor/src-tauri/src/main.rs` | Forward to `run` without opening a console window on Windows. |

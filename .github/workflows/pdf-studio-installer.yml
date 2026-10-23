@@ -1,0 +1,45 @@
+# Builds the Windows installer (NSIS setup program and WiX MSI) for the isolated PDF Studio app.
+# The editor is its own application: a tag or a manual run here only touches pdf-editor/.
+name: PDF Studio installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "pdf-studio-v*"
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: pdf-editor
+
+    steps:
+      - uses: actions/checkout@v4.4.0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: pdf-editor/package-lock.json
+
+      - name: Use Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Build the installer
+        run: npm run installer
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-studio-windows-installer
+          if-no-files-found: error
+          path: |
+            pdf-editor/src-tauri/target/release/bundle/nsis/*.exe
+            pdf-editor/src-tauri/target/release/bundle/msi/*.msi

@@ -1,9 +1,60 @@
-# PDF Studio — desktop PDF editor
+# PDF Studio 0.1.0
+**A Modern, Powerful, and Accessible PDF Editing Solution**
 
-PDF Studio is a PDF creation and editing application: create documents, edit pages and their content,
-copy pictures out of a PDF, change every document detail, scan paper documents, make them searchable
-with OCR, and export to other formats. It is fully self-contained in this folder and shares no code with
-the Wilderfolk game app in the repository root.
+*An independent software project developed by Renger Vegting.*
+
+## Project Introduction
+
+PDF documents are used everywhere, yet working with them is often more complicated than it should be. Simple tasks such as modifying text, rearranging pages, extracting images, or converting scanned documents frequently require multiple applications, expensive software subscriptions, or unnecessarily complex workflows.
+
+**PDF Studio was developed to address these challenges.**
+
+The project focuses on building a comprehensive desktop PDF editor that combines essential and advanced document editing capabilities into one streamlined application. Rather than forcing users to adapt to complicated software, PDF Studio aims to make document editing straightforward, efficient, and accessible.
+
+The objective is not simply to provide another PDF viewer, but to create a practical editing environment where users can take full control of their documents.
+
+## About the Developer
+
+**Renger Vegting — Independent Software Developer**
+
+PDF Studio is an independently developed software project driven by an interest in building functional applications that solve real-world problems.
+
+The development approach prioritizes clean architecture, reliable functionality, efficient performance, and intuitive user experiences. The emphasis is on creating software that works the way users expect, without unnecessary restrictions or complexity.
+
+## Core Functionality
+
+PDF Studio brings essential document management and editing tools together in a single desktop application:
+
+- **PDF Creation & Editing:** Create documents, modify existing pages, and manage page layouts.
+- **Content Editing:** Add and edit text, images, and other document elements.
+- **Annotations & Drawing:** Highlight content, add notes, and create custom drawings.
+- **Document Management:** Modify document properties and reorganize pages.
+- **Image Extraction:** Extract embedded images directly from PDF documents.
+- **Scanning & OCR:** Digitize paper documents and convert scanned content into searchable PDFs.
+
+## Project Vision
+
+The long-term vision is to develop PDF Studio into a reliable, feature-rich alternative to conventional PDF editing solutions, without sacrificing simplicity or performance.
+
+Development is guided by four principles: **functionality, efficiency, accessibility, and user control.**
+
+Every feature should have a clear purpose, improve productivity, and contribute to a consistent editing experience.
+
+## Development Status
+
+**Version 0.1.0 — Initial Development Release**
+
+PDF Studio is currently in its early development stage. This first version establishes the foundation for future improvements, additional editing capabilities, performance optimizations, and interface refinements.
+
+The project will continue to evolve toward a complete, practical, and accessible desktop PDF editing solution.
+
+**PDF Studio — PDF editing without unnecessary complexity.**
+
+---
+
+The application lives in this folder and shares no code, build or stored data with the Wilderfolk game app
+in the repository root. The rest of this readme documents what it does today, how to run it, and how the
+Windows installer is built.
 
 ## What it does
 
@@ -39,22 +90,35 @@ npm run dev        # dev server on port 3000
 npm run typecheck  # TypeScript, no emit
 npm run test       # unit tests (vitest)
 npm run build      # typecheck + production bundle
+npm run desktop    # the same editor in the Windows desktop shell (needs Rust + WebView2)
 ```
 
-## Windows desktop packaging
+## Install on Windows
 
-The app is the UI layer of a desktop application: it is written to run in a native Windows shell and to
-use local files, with no server component of its own. Package it with Tauri (the repository already uses
-Tauri for its other app) or any WebView2 host:
+The desktop shell is in [`src-tauri/`](src-tauri), a Tauri 2 application that loads the built editor and
+packages it as a normal Windows program — own window, own icon, Start-menu entry and uninstaller:
 
 ```bash
 cd pdf-editor
-npm run build
-# then wrap ./dist with a Tauri/WebView2 shell that serves it and provides native file dialogs
+npm ci
+npm run installer   # npx @tauri-apps/cli build
 ```
 
-**Not built here:** this Linux sandbox cannot produce or verify a signed `.msi`/`.exe`. The browser build
-is what runs and is verified here; creating the installer is a Windows-side step.
+Rust (`rustup`) and the WebView2 runtime must be installed; the Tauri CLI, NSIS and WiX are fetched by the
+build itself. The two installers appear in:
+
+```
+src-tauri/target/release/bundle/nsis/PDF Studio_0.1.0_x64-setup.exe
+src-tauri/target/release/bundle/msi/PDF Studio_0.1.0_x64_en-US.msi
+```
+
+The same build runs on a Windows runner when the `PDF Studio installer` workflow is started by hand or a
+`pdf-studio-v*` tag is pushed, and attaches both installers to the run as a downloadable artifact.
+`npm run desktop` runs the editor inside that shell during development, against the Vite dev server.
+
+**Not built here:** this Linux sandbox has no Rust toolchain and cannot produce or verify a signed
+`.msi`/`.exe`. The browser build is what runs and is verified here; producing and signing the installer is
+a Windows-side step.
 
 ## Scanner hardware (`scan-bridge/`)
 
@@ -81,7 +145,8 @@ scanning still works through the camera and through files your scanner software 
 * File size and page limits, and clear errors for damaged or password-protected files.
 * Local-first storage; cloud is opt-in; no telemetry of any kind.
 * Network access happens only for OCR language files (from the OCR engine's public server, once per
-  language) and, when you enable it, your own cloud endpoint.
+  language) and, when you enable it, your own cloud endpoint. The desktop shell sets no content-security
+  policy of its own for the same reason: the editor loads its workers and OCR data itself.
 
 ## Known limitations (deliberate, documented)
 
@@ -111,5 +176,6 @@ pdf-editor/
   src/formats/      format adapter registry (one place to add a new import/export format)
   src/components/   title bar and menus, toolbar, thumbnails, page viewer, properties, status bar, dialogs
   scan-bridge/      Windows-side NAPS2 scanner bridge (reference implementation)
+  src-tauri/        Tauri desktop shell and app icons that build the Windows installer
   tests/            unit tests for geometry, PDF writing, text replacement and form filling
 ```
