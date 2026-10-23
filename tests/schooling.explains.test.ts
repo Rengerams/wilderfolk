@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
+  SCHOOL_CHILDREN_PER_TEACHER,
   SCHOOL_MAX_CHILDREN,
   describeSchoolingSummary,
   getSchoolingBlockReason,
@@ -93,12 +94,25 @@ describe('the schooling owner explains an empty classroom', () => {
   it('names the full classroom and leaves no child unaccounted for', () => {
     const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 5 }, (_, i) =>
       child(i + 1, 7, 100, 100));
-    const summary = summarizeSchooling(village(children, [school(50, [900])]), CLASS_TICK, CLASS_HOUR);
+    const summary = summarizeSchooling(village(children, [school(50, [900, 901])]), CLASS_TICK, CLASS_HOUR);
 
     expect(summary.schoolAge).toBe(SCHOOL_MAX_CHILDREN + 5);
     expect(summary.enrolled).toBe(SCHOOL_MAX_CHILDREN);
     expect(summary.outOfSchool).toEqual([{ reason: 'Every classroom is full', count: 5 }]);
     expect(reasonCount(summary, 'Every classroom is full') + summary.enrolled).toBe(summary.schoolAge);
+  });
+
+  it('sizes the classroom by its teachers: one teacher seats ten, two seat twenty', () => {
+    const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 3 }, (_, i) =>
+      child(i + 1, 7, 100, 100));
+
+    const oneTeacher = summarizeSchooling(village(children, [school(50, [900])]), CLASS_TICK, CLASS_HOUR);
+    expect(oneTeacher.enrolled).toBe(SCHOOL_CHILDREN_PER_TEACHER);
+    expect(oneTeacher.outOfSchool).toEqual([{ reason: 'Every classroom is full', count: 3 }]);
+
+    const twoTeachers = summarizeSchooling(village(children, [school(50, [900, 901])]), CLASS_TICK, CLASS_HOUR);
+    expect(twoTeachers.enrolled).toBe(children.length);
+    expect(twoTeachers.outOfSchool).toEqual([]);
   });
 
   it('a child under the school age is counted apart from the school-age cohort', () => {
@@ -116,7 +130,9 @@ describe('the schooling owner explains an empty classroom', () => {
   it('separates a child at the classroom from one still walking, only during class hours', () => {
     const farChild = child(2, 7, 900, 900);
     farChild.schoolBuildingId = 50;
-    const state = village([child(1, 7, 100, 100), farChild], [school(50, [900])]);
+    // The teacher on the school's worker row: a class counts only while they are there.
+    const tutor = { ...child(900, 30, 100, 120), isJuvenile: false } as Entity;
+    const state = village([child(1, 7, 100, 100), farChild, tutor], [school(50, [900])]);
     const summary = summarizeSchooling(state, CLASS_TICK, CLASS_HOUR);
 
     expect(summary.classHours).toBe(isOnWorkShift(CLASS_TICK, CLASS_HOUR));

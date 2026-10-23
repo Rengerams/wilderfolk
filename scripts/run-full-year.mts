@@ -244,8 +244,8 @@ function assertWorldReferences(world: WorldState): void {
     assertFiniteNonNegative(entity.x, `entity ${entity.id} x`);
     assertFiniteNonNegative(entity.y, `entity ${entity.id} y`);
     assertFiniteNonNegative(entity.energy, `entity ${entity.id} energy`);
-    if (entity.homeBuildingId != null) {
-      assert(buildingIds.has(entity.homeBuildingId), `entity ${entity.id} references a missing workplace`);
+    if (entity.workerBuildingId != null) {
+      assert(buildingIds.has(entity.workerBuildingId), `entity ${entity.id} references a missing workplace`);
     }
     if (entity.residenceBuildingId != null) {
       assert(buildingIds.has(entity.residenceBuildingId), `entity ${entity.id} references a missing residence`);

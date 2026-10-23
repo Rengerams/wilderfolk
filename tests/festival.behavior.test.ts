@@ -75,8 +75,8 @@ function building(
 }
 
 function makeState(festivalActive: boolean): { state: WorldState; worker: Entity; idler: Entity } {
-  const worker = human(1, { job: JobType.Farmer, homeBuildingId: 10 });
-  const official = human(2, { x: 330, y: 210, job: JobType.Official, homeBuildingId: 20 });
+  const worker = human(1, { job: JobType.Farmer, workerBuildingId: 10 });
+  const official = human(2, { x: 330, y: 210, job: JobType.Official, workerBuildingId: 20 });
   const idler = human(3);
   const farm = building(10, BuildingType.Farm, 30, 40, [worker.id]);
   const hall = building(20, BuildingType.TownHall, 320, 190, [official.id]);
@@ -165,7 +165,7 @@ describe('festival participant behavior', () => {
     expect(ordinaryAfter.vx).toBeLessThan(0);
     expect(festivalAfter.vx).toBeLessThan(0);
     expect(festivalAfter.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
-    expect(festivalAfter.homeBuildingId).toBe(10);
+    expect(festivalAfter.workerBuildingId).toBe(10);
     expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toEqual([1]);
 
     // The festival still gathers the settler with no shift: the staffed Town Hall is right/down.

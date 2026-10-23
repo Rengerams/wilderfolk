@@ -32,7 +32,7 @@ function settled(stores: Partial<WorldState['resources']> = {}): WorldState {
   for (const entity of world.entities) {
     if (!isPlayerHuman(entity)) continue;
     entity.residenceBuildingId = 1;
-    entity.homeBuildingId = 2;
+    entity.workerBuildingId = 2;
   }
   Object.assign(world.resources, stores);
   return world;

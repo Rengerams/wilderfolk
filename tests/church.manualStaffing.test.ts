@@ -49,7 +49,7 @@ describe('Church manual staffing', () => {
   });
 
   it('never moves workers into a manual Church via rebalance', () => {
-    const farmWorker = human(1, { homeBuildingId: 2 });
+    const farmWorker = human(1, { workerBuildingId: 2 });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const church = building(4, BuildingType.Church, { staffingMode: 'manual' });
 
@@ -69,33 +69,33 @@ describe('Church manual staffing', () => {
     const assigned = next.entities.find((e) => e.id === 1)!;
 
     expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
-    expect(assigned.homeBuildingId).toBe(4);
+    expect(assigned.workerBuildingId).toBe(4);
     expect(assigned.job).toBe(JobType.Priest);
     expect(assigned.occupation).toBe(JOB_LABELS[JobType.Priest]);
     expect(collectSimulationInvariantErrors(next)).toEqual([]);
   });
 
   it('daily reconciliation keeps the assigned priest and adds no extras', () => {
-    const priest = human(1, { homeBuildingId: 4, job: JobType.Priest });
+    const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
     const idle = [human(2), human(3), human(4)];
     const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
 
     assignMissingWorkers([priest, ...idle], [church]);
 
     expect(church.occupants).toEqual([1]);
-    expect(priest.homeBuildingId).toBe(4);
+    expect(priest.workerBuildingId).toBe(4);
   });
 });
 
 describe('Church legacy-save migration', () => {
   it('clears auto-filled Church seats and resets the workers', () => {
     const priestA = human(1, {
-      homeBuildingId: 4,
+      workerBuildingId: 4,
       occupation: JOB_LABELS[JobType.Priest],
       job: JobType.Priest,
     });
     const priestB = human(2, {
-      homeBuildingId: 4,
+      workerBuildingId: 4,
       occupation: JOB_LABELS[JobType.Priest],
       job: JobType.Priest,
     });
@@ -106,15 +106,15 @@ describe('Church legacy-save migration', () => {
 
     expect(cleared).toBe(2);
     expect(church.occupants).toEqual([]);
-    expect(priestA.homeBuildingId).toBeUndefined();
+    expect(priestA.workerBuildingId).toBeUndefined();
     expect(priestA.occupation).toBe('settler');
     expect(priestA.job).toBe(JobType.Settler);
-    expect(priestB.homeBuildingId).toBeUndefined();
+    expect(priestB.workerBuildingId).toBeUndefined();
     expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
   it('is idempotent — a second run clears nothing', () => {
-    const priest = human(1, { homeBuildingId: 4 });
+    const priest = human(1, { workerBuildingId: 4 });
     const church = building(4, BuildingType.Church, { occupants: [1] });
     const world = makeWorld([priest], [church]);
 
@@ -125,7 +125,7 @@ describe('Church legacy-save migration', () => {
 
   it('never touches a rival settlement Church', () => {
     const rivalPriest = human(1, {
-      homeBuildingId: 7,
+      workerBuildingId: 7,
       occupation: JOB_LABELS[JobType.Priest],
       job: JobType.Priest,
       faction: 'rival',
@@ -138,6 +138,6 @@ describe('Church legacy-save migration', () => {
 
     expect(clearAutoFilledChurches(world)).toBe(0);
     expect(rivalChurch.occupants).toEqual([1]);
-    expect(rivalPriest.homeBuildingId).toBe(7);
+    expect(rivalPriest.workerBuildingId).toBe(7);
   });
 });

@@ -319,7 +319,7 @@ export default function SelectedEntityPanel({
                 </p>
               );
             })() : hasWorkAssignment(entity) ? (() => {
-              const jobSite = state.buildings.find((b) => b.id === entity.homeBuildingId);
+              const jobSite = state.buildings.find((b) => b.id === entity.workerBuildingId);
               const label = jobSite ? getBuildingConfig(jobSite.type).label : 'Workplace';
               return <p className="text-emerald-300">🔨 Works at: {label}</p>;
             })() : !entity.isJuvenile && !entity.pregnant && (

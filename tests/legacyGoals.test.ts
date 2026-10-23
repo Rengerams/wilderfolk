@@ -79,7 +79,7 @@ function exorcismWorld(): { state: WorldState; entities: Entity[]; buildings: Bu
     alive: true,
     x: 100,
     y: 100,
-    homeBuildingId: 8000,
+    workerBuildingId: 8000,
   };
   const howler: Entity = {
     ...settler,

@@ -25,7 +25,7 @@ function addHuman(
     surname?: string;
     generation?: number;
     isJuvenile?: boolean;
-    homeBuildingId?: number;
+    workerBuildingId?: number;
     job?: JobType;
     x?: number;
     y?: number;
@@ -45,7 +45,7 @@ function addHuman(
       ageYears: opts.isJuvenile ? 8 : 18,
     },
   );
-  if (opts.homeBuildingId != null) e.homeBuildingId = opts.homeBuildingId;
+  if (opts.workerBuildingId != null) e.workerBuildingId = opts.workerBuildingId;
   if (opts.job) e.job = opts.job;
   e.alive = true;
   e.maxEnergy = 100;
@@ -56,8 +56,8 @@ function addHuman(
 describe('relationship webs — friendships', () => {
   it('shared home grows a friendship each day', () => {
     const w = makeWorld();
-    const a = addHuman(w, { id: 1, homeBuildingId: 10 });
-    const b = addHuman(w, { id: 2, homeBuildingId: 10 });
+    const a = addHuman(w, { id: 1, workerBuildingId: 10 });
+    const b = addHuman(w, { id: 2, workerBuildingId: 10 });
     expect(friendshipScore(a, b.id)).toBe(0);
     advanceSocialRelationships(w, w.entities);
     expect(friendshipScore(a, b.id)).toBeGreaterThanOrEqual(0.5);
@@ -66,8 +66,8 @@ describe('relationship webs — friendships', () => {
 
   it('strong friendships count for the UI badge', () => {
     const w = makeWorld();
-    const a = addHuman(w, { id: 1, homeBuildingId: 10 });
-    const b = addHuman(w, { id: 2, homeBuildingId: 10 });
+    const a = addHuman(w, { id: 1, workerBuildingId: 10 });
+    const b = addHuman(w, { id: 2, workerBuildingId: 10 });
     a.friendships = { [`friend_${b.id}`]: 70 };
     b.friendships = { [`friend_${a.id}`]: 70 };
     expect(friendCount(a)).toBe(1);

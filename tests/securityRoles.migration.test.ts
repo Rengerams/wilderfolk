@@ -5,7 +5,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { migrateLegacySecurityRoles } from '../src/game/saveLoad';
 import { repairJuvenileAssignmentsOnLoad } from '../src/game/dayCycle';
 
-function legacyHuman(id: number, homeBuildingId?: number): Entity {
+function legacyHuman(id: number, workerBuildingId?: number): Entity {
   return {
     id,
     type: EntityType.Human,
@@ -31,7 +31,7 @@ function legacyHuman(id: number, homeBuildingId?: number): Entity {
     generation: 0,
     isJuvenile: false,
     job: JobType.Guard,
-    homeBuildingId,
+    workerBuildingId,
   };
 }
 
@@ -93,7 +93,7 @@ describe('juvenile assignment load repair', () => {
     expect(child.isJuvenile).toBe(true);
     expect(child.job).toBe(JobType.Settler);
     expect(child.occupation).toBe('settler');
-    expect(child.homeBuildingId).toBeUndefined();
+    expect(child.workerBuildingId).toBeUndefined();
     expect(barracks10.occupants).not.toContain(1);
   });
 
@@ -107,10 +107,10 @@ describe('juvenile assignment load repair', () => {
     repairJuvenileAssignmentsOnLoad(world);
 
     expect(adult.job).toBe(JobType.Soldier);
-    expect(adult.homeBuildingId).toBe(10);
+    expect(adult.workerBuildingId).toBe(10);
     expect(graduate.isJuvenile).toBe(true);
     expect(graduate.job).toBe(JobType.Soldier);
-    expect(graduate.homeBuildingId).toBe(10);
+    expect(graduate.workerBuildingId).toBe(10);
   });
 
   it('demotes a 12–17 year old holding a posting, since childhood now ends at the adult floor', () => {
@@ -129,7 +129,7 @@ describe('juvenile assignment load repair', () => {
     expect(youth.isJuvenile).toBe(true);
     expect(youth.job).toBe(JobType.Settler);
     expect(youth.occupation).toBe('settler');
-    expect(youth.homeBuildingId).toBeUndefined();
+    expect(youth.workerBuildingId).toBeUndefined();
     expect(barracks10.occupants).not.toContain(5);
   });
 
@@ -140,6 +140,6 @@ describe('juvenile assignment load repair', () => {
     repairJuvenileAssignmentsOnLoad(world);
 
     expect(leader.job).toBe(JobType.Soldier);
-    expect(leader.homeBuildingId).toBe(10);
+    expect(leader.workerBuildingId).toBe(10);
   });
 });

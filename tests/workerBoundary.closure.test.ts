@@ -67,6 +67,9 @@ import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes
 const SEED = 4242;
 const TICKS = 3 * TICKS_PER_DAY; // Advance three colony days across each daily phase.
 
+/** Room for the two fixtures that carry whole colony days of state across the wire. */
+const FIXTURE_TIMEOUT_MS = 120_000;
+
 /** Host-owned or runtime-cache keys — excluded for the reasons in the file header. */
 const HOST_OR_CACHE_KEYS: readonly string[] = [
   'speed',
@@ -221,15 +224,16 @@ describe('worker boundary closure', () => {
       const exported = hydrateWorldRuntimeCaches(structuredClone(display));
       hydrateWorldRuntimeCaches(display);
 
-      // `migrateHumanAges` backfills a zeroed calendar birth date; this fixture's own spawns all carry a
-      // real one, so a legacy payload's state is built here (an adult recomputes to the same age).
-      const legacy = exported.entities.find(
+      // A settler born on January 1 carries day 0 of month 0, which a load must tell apart from a save
+      // that never carried a date (both zeroed) by the year. This fixture's own spawns all carry a real
+      // date, so a New Year settler is made here (an adult whose whole-year age recomputes unchanged).
+      const newYearSettler = exported.entities.find(
         (entity) => entity.type === EntityType.Human && entity.alive && entity.age >= HUMAN_CHILDHOOD_YEARS,
       );
-      expect(legacy, 'the fixture has an adult to carry a legacy birth date').toBeDefined();
-      if (!legacy) return;
-      legacy.birthDay = 0;
-      legacy.birthMonth = 0;
+      expect(newYearSettler, 'the fixture has an adult to carry a January 1 birth date').toBeDefined();
+      if (!newYearSettler) return;
+      newYearSettler.birthDay = 0;
+      newYearSettler.birthMonth = 0;
 
       const save = buildSaveData(exported, createInitialView(exported.width, exported.height));
       const parsed = parseSaveJson(JSON.stringify(save));
@@ -287,12 +291,12 @@ describe('worker boundary closure', () => {
       expect(reloaded.worldMap?.pCols).toBe(exported.worldMap?.pCols);
       expect(reloaded.worldMap?.pRows).toBe(exported.worldMap?.pRows);
 
-      // Entities: identity, order, ages and every persisted field survive; only the
-      // calendar birth dates are backfilled by migrateHumanAges where the worker left 0.
+      // Entities: identity, order, ages and every persisted field survive; `migrateHumanAges` rebuilds
+      // only a calendar the payload never carried, so a saved date is left exactly as it was.
       expect(reloaded.entities.map((e) => e.id)).toEqual(exported.entities.map((e) => e.id));
       expect(entitiesWithoutBirthDates(reloaded)).toEqual(entitiesWithoutBirthDates(exported));
       const reloadedById = new Map(reloaded.entities.map((entity) => [entity.id, entity]));
-      let backfilled = 0;
+      let newYearSettlers = 0;
       for (const entity of exported.entities) {
         const again = reloadedById.get(entity.id);
         expect(again, `entity ${entity.id} is missing after reload`).toBeDefined();
@@ -302,11 +306,14 @@ describe('worker boundary closure', () => {
           expect(again[field], `entity ${entity.id}.${field}`).toEqual(entity[field]);
         }
         if (entity.type === EntityType.Human && entity.birthDay === 0 && entity.birthMonth === 0) {
-          expect(again.birthDay, `entity ${entity.id} birth date`).toBeGreaterThan(0);
-          backfilled++;
+          // The saved year marks the date as present, so January 1 is kept rather than rebuilt from age.
+          expect(again.birthDay, `entity ${entity.id} birth date`).toBe(entity.birthDay);
+          expect(again.birthMonth, `entity ${entity.id} birth month`).toBe(entity.birthMonth);
+          expect(again.birthYear, `entity ${entity.id} birth year`).toBe(entity.birthYear);
+          newYearSettlers++;
         }
       }
-      expect(backfilled).toBeGreaterThan(0); // the round trip really did exercise the migration
+      expect(newYearSettlers).toBeGreaterThan(0); // the round trip really did carry a January 1 settler
     });  });
 
   it('carries the whole world into the worker and rebuilds the worker-side indices', () => {

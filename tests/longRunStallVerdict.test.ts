@@ -32,7 +32,8 @@ import {
 
 const SEED = 12345;
 const CHECKPOINT_DAYS = 30;
-const HEALTHY_DAYS = CHECKPOINT_DAYS * 2;
+/** Three checkpoints: the retuned 288-tick day pushed the first delivery past the old 60-day window. */
+const HEALTHY_DAYS = CHECKPOINT_DAYS * 3;
 
 interface ObservedRun {
   world: WorldState;

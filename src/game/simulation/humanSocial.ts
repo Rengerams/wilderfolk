@@ -94,8 +94,8 @@ export function simAmbientChatNeighbors(
           (self.childrenIds?.includes(other.id) ?? false) ||
           (other.childrenIds?.includes(self.id) ?? false);
         const isCoworker =
-          self.homeBuildingId != null &&
-          other.homeBuildingId === self.homeBuildingId;
+          self.workerBuildingId != null &&
+          other.workerBuildingId === self.workerBuildingId;
 
         if (isPartner || isKin || isCoworker) {
           preferred.push(other);

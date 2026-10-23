@@ -36,7 +36,7 @@ function adult(id: number, traits: SettlerTrait[] = [], overrides: Partial<Entit
 
 /** The state an arrest leaves behind: both links cleared, `prisonBuildingId` stamped. */
 function imprison(entity: Entity, prisonId: number): void {
-  entity.homeBuildingId = undefined;
+  entity.workerBuildingId = undefined;
   entity.residenceBuildingId = undefined;
   entity.prisonBuildingId = prisonId;
 }

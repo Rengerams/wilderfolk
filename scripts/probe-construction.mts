@@ -34,7 +34,7 @@ function report(state: WorldState, site: Building, label: string): void {
   const settlers = state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
   console.log(
     `${label}: progress=${site.constructionProgress.toFixed(1)}% completed=${site.completed} crew=[${crew.join(',')}] | ` +
-    settlers.map((s) => `#${s.id} job=${s.job} work=${s.homeBuildingId ?? '-'}`).join(' '),
+    settlers.map((s) => `#${s.id} job=${s.job} work=${s.workerBuildingId ?? '-'}`).join(' '),
   );
 }
 
@@ -48,7 +48,7 @@ for (const scenario of ['idle settler available', 'everyone already employed'] a
     const farm = building(state, BuildingType.Farm, 300, 620, true);
     for (const [i, e] of state.entities.filter((x) => x.alive && isPlayerHuman(x)).entries()) {
       const target = i === 0 ? jobs : farm;
-      e.homeBuildingId = target.id;
+      e.workerBuildingId = target.id;
       target.occupants.push(e.id);
     }
   }

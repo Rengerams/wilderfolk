@@ -1,4 +1,7 @@
+import { ensureOrphanAdoption, placeOrphanInHouse } from './residencyReconciliation';
+import { moveResident } from './residencyReconciliation';
 import type { Building, Entity, WorldState } from './gameTypes';
+import type { GenealogyRegistry } from './genealogyTypes';
 import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { recordGenealogyDeath } from './genealogyRegistry';
@@ -7,12 +10,11 @@ import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isMinorChild } from './householdComposition';
 import { hasResidenceAssignment } from './residencyOccupancy';
+import { clearWorkerAssignment } from './workforce';
 import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
 import {
-  ensureOrphanAdoption,
   listPlayerResidences,
   pickResidenceFromChildCustodian,
-  placeOrphanInHouse,
 } from './residencySelection';
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
@@ -58,8 +60,8 @@ export function finalizeHumanDeath(
     : undefined;
 
   removeHumanFromBuildingOccupants(entity, buildings);
-  entity.homeBuildingId = undefined;
-  entity.residenceBuildingId = undefined;
+  clearWorkerAssignment(entity);
+  moveResident(entity, undefined, 'death', { buildings });
   entity.prisonBuildingId = undefined;
   entity.prisonerUntilTick = undefined;
   entity.prisonSentenceCrime = undefined;
@@ -134,15 +136,16 @@ function reassignOrphansAfterDeath(
   dead: Entity,
   buildings: Building[],
   entityById: ReadonlyMap<number, Entity>,
+  genealogy?: GenealogyRegistry,
 ): void {
   const residences = listPlayerResidences(buildings);
   if (residences.length === 0) return;
 
-  const humans = [...entityById.values()].filter(
+  const humans = [...entityById.values(), dead].filter(
     // The residence-mirror owner's predicate, not a local rule: a cursed settler temporarily in
     // Moon Howler form is still a residence occupant, and filtering them out here would wipe the
     // residence they hold when this sync rebuilds the lists.
-    (h) => isResidenceOccupantEntity(h),
+    (h) => h === dead || isResidenceOccupantEntity(h),
   );
   const deadId = dead.id;
   let touched = false;
@@ -163,11 +166,11 @@ function reassignOrphansAfterDeath(
     const livesInLeaderHouse = residences.some(
       (residence) => residence.id === child.residenceBuildingId && residence.type === 'leaderHouse',
     );
-    ensureOrphanAdoption(child, humans, residences);
+    ensureOrphanAdoption(child, humans, residences, undefined, undefined, genealogy);
     if (livesInLeaderHouse) continue;
     const home = pickResidenceFromChildCustodian(child, humans, residences);
     if (home !== undefined) {
-      child.residenceBuildingId = home;
+      moveResident(child, home, 'guardian', { buildings });
       touched = true;
     } else if (!hasResidenceAssignment(child)) {
       if (placeOrphanInHouse(child, humans, residences)) touched = true;
@@ -244,7 +247,7 @@ export function killHuman(
   finalizeHumanDeath(entity, buildings, entityById, tick);
   if (entityById) reconcileFamilyReferencesAfterRemoval(entity.id, entityById, state);
   // entityById is required so we can walk living settlers for adoption/housing.
-  if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById);
+  if (entityById) reassignOrphansAfterDeath(entity, buildings, entityById, state?.genealogyRegistry);
 }
 
 /**

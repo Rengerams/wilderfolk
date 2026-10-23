@@ -41,7 +41,7 @@ import { formatCitizenName } from './game/citizenId';
 import { computeVillageStats, type VillageStatsSummary } from './game/uiSimSummary';
 import { isFoodAlert } from './game/resourceUtils';
 import {
-  createInitialView,
+  createInitialViewForWorld,
   createBuildGhost,
   zoomCameraViewAt,
   focusCameraOn,
@@ -187,7 +187,7 @@ export default function App() {
   // The dialog follows authoritative combat events rather than a fake countdown.
   const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; incoming?: boolean } | null>(null);
   const [razeConfirmationId, setRazeConfirmationId] = useState<string | null>(null);
-  const [view, setView] = useState<ViewState>(() => createInitialView(world.width, world.height));
+  const [view, setView] = useState<ViewState>(() => createInitialViewForWorld(world));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
   );
@@ -1032,7 +1032,7 @@ export default function App() {
       const showQuickStart = tutorialsEnabled && !tutorialDone;
       s.paused = showQuickStart;
       s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
-      const nextView = createInitialView(s.width, s.height);
+      const nextView = createInitialViewForWorld(s);
       resetTransientFeedbackForNewSession();
       replaceSession(s, nextView);
       setSelectedBuildingType(null);

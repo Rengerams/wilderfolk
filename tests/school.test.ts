@@ -9,7 +9,9 @@ import {
 } from '../src/game/simulation/humanRelationships';
 import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
+  SCHOOL_CHILDREN_PER_TEACHER,
   SCHOOL_MAX_CHILDREN,
+  schoolCapacity,
   syncSchoolAssignments,
   findSchoolForChild,
   findStaffedSchools,
@@ -17,6 +19,7 @@ import {
   describeSchoolRoster,
   getSchoolRoster,
 } from '../src/game/education';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { assignMissingWorkers } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 import { isOnWorkShift } from '../src/game/humanSchedule';
@@ -128,8 +131,9 @@ describe('school.bonds.test.ts', () => {
 });
 
 /**
- * Regression: each school caps attendance at SCHOOL_MAX_CHILDREN — the 11th
- * child finds no seat, so class sizes stay sane and a second school becomes a
+ * Regression: each school seats ten pupils per assigned teacher, up to the
+ * two-teacher building's twenty — the 11th child at a one-teacher school finds
+ * no seat, so class sizes stay sane and a second teacher or school becomes a
  * real decision. A School auto-fills a teacher by default and can be set manual.
  */
 describe('school.capacity.test.ts', () => {
@@ -176,20 +180,29 @@ describe('school.capacity.test.ts', () => {
 
     it('a child finds the school while seats remain', () => {
       const { child, school } = schoolFixture();
-      const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN - 1]]);
+      const reserved = new Map<number, number>([[school.id, SCHOOL_CHILDREN_PER_TEACHER - 1]]);
       expect(findSchoolForChild(child, [school], reserved)?.id).toBe(school.id);
     });
 
-    it('the 11th child finds no seat — school capacity is 10', () => {
+    it('one teacher seats ten pupils — the 11th child finds no seat', () => {
       const { child, school } = schoolFixture();
-      const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN]]);
+      const reserved = new Map<number, number>([[school.id, SCHOOL_CHILDREN_PER_TEACHER]]);
       expect(findSchoolForChild(child, [school], reserved)).toBeUndefined();
+    });
+
+    it('a second teacher doubles the seats to the building ceiling of twenty', () => {
+      const { child, school } = schoolFixture();
+      const twoTeachers: Building = { ...school, occupants: [9001, 9002] };
+      expect(schoolCapacity(school)).toBe(SCHOOL_CHILDREN_PER_TEACHER);
+      expect(schoolCapacity(twoTeachers)).toBe(SCHOOL_MAX_CHILDREN);
+      const reserved = new Map<number, number>([[twoTeachers.id, SCHOOL_CHILDREN_PER_TEACHER]]);
+      expect(findSchoolForChild(child, [twoTeachers], reserved)?.id).toBe(twoTeachers.id);
     });
 
     it('a second school still takes overflow children', () => {
       const { child, school } = schoolFixture();
       const school2: Building = { ...school, id: 8001, x: 190, y: 100 };
-      const reserved = new Map<number, number>([[school.id, SCHOOL_MAX_CHILDREN]]);
+      const reserved = new Map<number, number>([[school.id, SCHOOL_CHILDREN_PER_TEACHER]]);
       expect(findSchoolForChild(child, [school, school2], reserved)?.id).toBe(8001);
     });
 
@@ -372,22 +385,28 @@ describe('school.roster.test.ts', () => {
     };
   }
 
+  /** A teacher on the school's staff, standing on the school's own worker row. */
+  function teacherAt(school: Building, id: number): Entity {
+    const spot = humanBuildingTarget(school, id, false);
+    return { ...child(id, spot.x, spot.y), isJuvenile: false, workerBuildingId: school.id };
+  }
+
   describe('school rosters', () => {
     it('fills one school to capacity and sends the overflow to the next staffed school', () => {
       const near = school(8000, 100, 100);
       const far = school(8001, 200, 100);
-      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
+      const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([near, far], children, tick, 10);
       const nearPupils = rosters.get(near.id)?.pupils ?? [];
       const farPupils = rosters.get(far.id)?.pupils ?? [];
 
-      expect(nearPupils).toHaveLength(SCHOOL_MAX_CHILDREN);
+      expect(nearPupils).toHaveLength(SCHOOL_CHILDREN_PER_TEACHER);
       expect(farPupils).toHaveLength(2);
       // World order, first come first served.
-      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, SCHOOL_MAX_CHILDREN).map((c) => c.id));
-      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(SCHOOL_MAX_CHILDREN).map((c) => c.id));
+      expect(nearPupils.map((pupil) => pupil.id)).toEqual(children.slice(0, SCHOOL_CHILDREN_PER_TEACHER).map((c) => c.id));
+      expect(farPupils.map((pupil) => pupil.id)).toEqual(children.slice(SCHOOL_CHILDREN_PER_TEACHER).map((c) => c.id));
       // Nobody is counted twice, and nobody is lost.
       const all = [...nearPupils, ...farPupils].map((pupil) => pupil.id);
       expect(new Set(all).size).toBe(children.length);
@@ -395,14 +414,24 @@ describe('school.roster.test.ts', () => {
 
     it('enrols no more than the school capacity when one school is the only one', () => {
       const only = school(8000, 100, 100);
-      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
+      const children = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER + 2 }, (_, index) => child(9000 + index, 110, 100));
       const tick = classTick();
 
       const rosters = buildSchoolRosters([only], children, tick, 10);
       const total = [...rosters.values()].reduce((sum, entry) => sum + entry.pupils.length, 0);
-      expect(rosters.get(only.id)?.pupils).toHaveLength(SCHOOL_MAX_CHILDREN);
-      expect(total).toBe(SCHOOL_MAX_CHILDREN);
-      expect(getSchoolRoster(only, [only], children, tick, 10).pupils).toHaveLength(SCHOOL_MAX_CHILDREN);
+      expect(rosters.get(only.id)?.pupils).toHaveLength(SCHOOL_CHILDREN_PER_TEACHER);
+      expect(total).toBe(SCHOOL_CHILDREN_PER_TEACHER);
+      expect(getSchoolRoster(only, [only], children, tick, 10).pupils).toHaveLength(SCHOOL_CHILDREN_PER_TEACHER);
+    });
+
+    it('a second teacher raises one school to the ceiling of twenty pupils', () => {
+      const doubled = school(8000, 100, 100, [9001, 9002]);
+      const children = Array.from({ length: SCHOOL_MAX_CHILDREN + 2 }, (_, index) => child(9000 + index, 110, 100));
+      const tick = classTick();
+
+      const rosters = buildSchoolRosters([doubled], children, tick, 10);
+      expect(rosters.get(doubled.id)?.pupils).toHaveLength(SCHOOL_MAX_CHILDREN);
+      expect([...rosters.values()].reduce((sum, entry) => sum + entry.pupils.length, 0)).toBe(SCHOOL_MAX_CHILDREN);
     });
 
     it('lists nobody for an unstaffed school, and nobody at all without a school', () => {
@@ -435,17 +464,23 @@ describe('school.roster.test.ts', () => {
 
     it('marks a pupil "in class" only inside the classroom during class hours', () => {
       const staffed = school(8000, 100, 100);
+      const tutor = teacherAt(staffed, 9001);
       const inside = child(9000, staffed.x, staffed.y); // building coordinates are its centre
-      const outside = child(9001, 600, 700, { schoolBuildingId: staffed.id });
+      const outside = child(9002, 600, 700, { schoolBuildingId: staffed.id });
       const tick = classTick();
 
-      const during = getSchoolRoster(staffed, [staffed], [inside, outside], tick, 10);
+      const during = getSchoolRoster(staffed, [staffed], [tutor, inside, outside], tick, 10);
       expect(during.pupils.map((pupil) => pupil.id)).toEqual([inside.id, outside.id]);
       expect(during.inClassNow.map((pupil) => pupil.id)).toEqual([inside.id]);
 
+      // The same class hours without the teacher at the school: enrolled, but nobody "in class".
+      const absent = getSchoolRoster(staffed, [staffed], [inside, outside], tick, 10);
+      expect(absent.pupils).toHaveLength(2);
+      expect(absent.inClassNow).toEqual([]);
+
       // Same world after dark: still enrolled, but nobody is "in class".
       const night = dayTickAt(22);
-      const after = getSchoolRoster(staffed, [staffed], [inside, outside], night, 22);
+      const after = getSchoolRoster(staffed, [staffed], [tutor, inside, outside], night, 22);
       expect(after.pupils).toHaveLength(2);
       expect(after.inClassNow).toEqual([]);
     });
@@ -455,17 +490,27 @@ describe('school.roster.test.ts', () => {
       const empty = describeSchoolRoster(
         { schoolId: staffed.id, pupils: [], inClassNow: [] },
         false,
+        0,
       );
-      expect(empty.headline).toBe(`Pupils 0/${SCHOOL_MAX_CHILDREN}`);
+      expect(empty.headline).toBe('Pupils 0/0');
       expect(empty.emptyHint).toContain('No teacher assigned');
       expect(empty.classroomFull).toBe(false);
 
-      const staffedButEmpty = describeSchoolRoster({ schoolId: staffed.id, pupils: [], inClassNow: [] }, true);
+      const staffedButEmpty = describeSchoolRoster(
+        { schoolId: staffed.id, pupils: [], inClassNow: [] },
+        true,
+        schoolCapacity(staffed),
+      );
+      expect(staffedButEmpty.headline).toBe(`Pupils 0/${SCHOOL_CHILDREN_PER_TEACHER}`);
       expect(staffedButEmpty.emptyHint).toContain('No pupils yet');
 
-      const full = Array.from({ length: SCHOOL_MAX_CHILDREN }, (_, index) => child(9100 + index, 110, 100));
-      const occupied = describeSchoolRoster({ schoolId: staffed.id, pupils: full, inClassNow: [] }, true);
-      expect(occupied.headline).toBe(`Pupils ${SCHOOL_MAX_CHILDREN}/${SCHOOL_MAX_CHILDREN}`);
+      const full = Array.from({ length: SCHOOL_CHILDREN_PER_TEACHER }, (_, index) => child(9100 + index, 110, 100));
+      const occupied = describeSchoolRoster(
+        { schoolId: staffed.id, pupils: full, inClassNow: [] },
+        true,
+        schoolCapacity(staffed),
+      );
+      expect(occupied.headline).toBe(`Pupils ${SCHOOL_CHILDREN_PER_TEACHER}/${SCHOOL_CHILDREN_PER_TEACHER}`);
       expect(occupied.emptyHint).toBeNull();
       expect(occupied.classroomFull).toBe(true);
     });

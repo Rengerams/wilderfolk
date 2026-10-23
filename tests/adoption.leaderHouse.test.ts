@@ -16,7 +16,7 @@ import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
  * not be possible". See `BUG_REPORTS/2026-09-20-orphans-adopted-into-the-leaders-house.md`.
  */
 import { describe, expect, it } from 'vitest';
-import { ensureOrphanAdoption } from '../src/game/residencySelection';
+import { ensureOrphanAdoption } from '../src/game/residencyReconciliation';
 import { syncLeaderHouseResidency } from '../src/game/leaderHouse';
 
 import { BuildingType, EntityType, LEADER_OCCUPATION } from '../src/game/gameTypes';

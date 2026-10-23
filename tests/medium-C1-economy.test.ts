@@ -56,7 +56,7 @@ function loneProducerVillage(
   // completed workplace during the preceding shift.
   worker.x = building.x + building.width / 2;
   worker.y = building.y + building.height / 2;
-  worker.homeBuildingId = building.id;
+  worker.workerBuildingId = building.id;
   worker.job = JobType.Farmer;
   worker.occupation = 'farmer';
   // Production now depends on actual attendance from the previous settled shift.

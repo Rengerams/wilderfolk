@@ -49,6 +49,8 @@ import { isEntityOnBuilding } from './buildingRotation';
 import {
   applyEducationGraduation,
   creditChildSchoolDay,
+  findStaffedSchools,
+  hasTeacherPresent,
   syncSchoolAssignments,
   recordChildSchoolTick,
   isSchoolTime,
@@ -216,7 +218,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const workerIndexById = new Map<number, number>();
   for (const h of allHumans) {
     if (!h.alive || !isPlayerHuman(h) || h.isJuvenile) continue;
-    const siteId = h.homeBuildingId;
+    const siteId = h.workerBuildingId;
     if (siteId == null) continue;
     const bucket = workersByWorkplace.get(siteId);
     if (bucket) {
@@ -341,6 +343,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     simAmbientChatNeighbors(self, state.tick, humanSocialGrid, allHumans, width, height);
 
   const schoolAssignments = syncSchoolAssignments(allHumans, updatedBuildings, isNewCalendarDay, config.speed);
+
+  // A school day needs its teacher in the classroom too: sample that presence once for the tick.
+  const schoolsWithTeacherPresent = new Set<number>();
+  for (const school of findStaffedSchools(updatedBuildings)) {
+    if (hasTeacherPresent(school, entityById)) schoolsWithTeacherPresent.add(school.id);
+  }
 
   // Marching-raider groups for patrol reveal depend on the tick's raid state, not on the guard
   // looking, so the first barracks watch on shift builds the index and the rest reuse it.
@@ -532,7 +540,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         !isInnkeeper &&
         (ordinaryWorkplace ||
           (entity.job === JobType.Soldier &&
-            isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)))) ||
+            isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)))) ||
       onSchoolShift;
     const onOfficialShift =
       entity.job === JobType.Official &&
@@ -922,7 +930,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       goWorkTime &&
       workplace &&
       entity.job === JobType.Soldier &&
-      isBarracksGuard(entity.id, entity.homeBuildingId, updatedBuildings)
+      isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)
     ) {
       const anchor = getCampAnchor();
       if (anchor) {
@@ -949,7 +957,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;
-      recordChildSchoolTick(entity, schoolTarget, hourOfDay, state.tick);
+      recordChildSchoolTick(
+        entity,
+        schoolTarget,
+        hourOfDay,
+        schoolsWithTeacherPresent.has(schoolTarget.id),
+        state.tick,
+      );
     } else if (
       tickTavernService({
         entity,
@@ -1359,7 +1373,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Midday coworker banter
     if (onDayJobShift && workplace && isPlayerHuman(entity) && !entity.isJuvenile && entity.job !== JobType.Innkeeper) {
-      const workplaceWorkers = workersByWorkplace.get(entity.homeBuildingId ?? -1) ?? [];
+      const workplaceWorkers = workersByWorkplace.get(entity.workerBuildingId ?? -1) ?? [];
       tryWorkplaceBanter(entity, workplaceWorkers, state.tick, hourOfDay, true);
     }
 
@@ -1487,8 +1501,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           .map((id) => livingHumanAt(id))
           .filter((k): k is Entity => !!k?.alive && !!k.isJuvenile);
         const workplaceWorkers =
-          entity.homeBuildingId != null
-            ? workersByWorkplace.get(entity.homeBuildingId) ?? []
+          entity.workerBuildingId != null
+            ? workersByWorkplace.get(entity.workerBuildingId) ?? []
             : [];
         const selfIndex = workerIndexById.get(entity.id);
         const coworkerCount = workplaceWorkers.length - (selfIndex == null ? 0 : 1);

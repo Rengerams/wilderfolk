@@ -40,7 +40,7 @@ state.buildings.push(workplace);
 assignMissingWorkers(state.entities.filter((e) => e.alive && isPlayerHuman(e)), state.buildings);
 
 const worker = state.entities.find(
-  (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e) && e.homeBuildingId === workplace.id,
+  (e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e) && e.workerBuildingId === workplace.id,
 );
 if (!worker) {
   console.log('no worker assigned to the probe workplace — job map:', state.entities.map((e) => e.job));

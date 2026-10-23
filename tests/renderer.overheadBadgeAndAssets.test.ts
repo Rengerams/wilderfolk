@@ -70,7 +70,7 @@ describe('status badge draws a shape, not a font glyph', () => {
 
   it('translates every token the combat owner can publish', () => {
     const guard = getHumanStatusCombatIconFromFlags(
-      { id: 1, job: 'soldier', homeBuildingId: 1 } as never,
+      { id: 1, job: 'soldier', workerBuildingId: 1 } as never,
       { barracksGuardKeys: new Set(['1:1']), hasShields: false, hasSpears: false },
     );
     const hunting = getHumanStatusCombatIconFromFlags(

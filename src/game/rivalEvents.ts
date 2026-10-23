@@ -1,10 +1,12 @@
-import type { Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
+import { moveResident } from './residencyReconciliation';
+import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
+import { clearWorkerAssignment } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -36,6 +38,22 @@ function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
   };
 }
 
+/**
+ * Legacy village camp structures, removed in place; returns the ids that left the map.
+ *
+ * The deleted camp producer was the only writer of `faction: 'rival'`, so every such building is one.
+ */
+export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
+  const retired = new Set<number>();
+  for (let index = buildings.length - 1; index >= 0; index--) {
+    const building = buildings[index];
+    if (building.faction !== 'rival') continue;
+    retired.add(building.id);
+    buildings.splice(index, 1);
+  }
+  return retired;
+}
+
 export function tickRivalSettlements(
   state: WorldState,
   allAlive: Entity[],
@@ -47,27 +65,22 @@ export function tickRivalSettlements(
 
 
   callbacks.tickPendingDiplomacyEvents(state);
-  // Retire legacy village camp objects; strategic population and raid records stay authoritative.
-  for (const rival of state.rivalSettlements) {
-    if (rival.buildingIds.length === 0 && rival.entityIds.length === 0) continue;
-    const buildingIds = new Set(rival.buildingIds);
-    const removedBuildings = new Set<number>();
-    for (let index = state.buildings.length - 1; index >= 0; index--) {
-      const building = state.buildings[index];
-      if (!buildingIds.has(building.id) || building.faction !== 'rival' || building.groupId !== rival.id) continue;
-      removedBuildings.add(building.id);
-      state.buildings.splice(index, 1);
+  // Retire legacy village camp structures wherever they sit, not only where a rival row still lists
+  // them; strategic population and raid records stay authoritative.
+  const retiredStructures = retireLegacyCampStructures(state.buildings);
+  for (const entity of allAlive) {
+    if (entity.residenceBuildingId != null && retiredStructures.has(entity.residenceBuildingId)) {
+      moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     }
+    if (entity.workerBuildingId != null && retiredStructures.has(entity.workerBuildingId)) {
+      clearWorkerAssignment(entity);
+    }
+  }
+  for (const rival of state.rivalSettlements) {
     const entityIds = new Set(rival.entityIds);
     for (const entity of allAlive) {
       if (entityIds.has(entity.id) && entity.faction === 'rival' && entity.groupId === rival.id) {
         entity.alive = false;
-      }
-      if (entity.residenceBuildingId != null && removedBuildings.has(entity.residenceBuildingId)) {
-        entity.residenceBuildingId = undefined;
-      }
-      if (entity.homeBuildingId != null && removedBuildings.has(entity.homeBuildingId)) {
-        entity.homeBuildingId = undefined;
       }
     }
     rival.buildingIds = [];

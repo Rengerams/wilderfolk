@@ -105,7 +105,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
     // The post stands east of him and the wife stands west, so the two walks point opposite ways.
     const guard = human(GUARD_ID, {
       job: JobType.PrisonGuard,
-      homeBuildingId: PRISON_ID,
+      workerBuildingId: PRISON_ID,
       residenceBuildingId: PRISON_ID,
       x: PRISON_X - 90,
       y: PRISON_Y + 20,
@@ -159,7 +159,7 @@ describe('an on-duty prison guard is not walked off his post by his marriage', (
     const tick = 5 * TICKS_PER_DAY + 5 * (TICKS_PER_DAY / 24);
     const guard = human(GUARD_ID, {
       job: JobType.PrisonGuard,
-      homeBuildingId: PRISON_ID,
+      workerBuildingId: PRISON_ID,
       residenceBuildingId: 21,
       x: 80,
       y: PRISON_Y + 20,
@@ -182,11 +182,11 @@ describe('legacy prison crews are reduced to the closest stable watch crew', () 
   it('keeps the closest three guards when a save exceeds the current four-post cap', () => {
     const prison = building(PRISON_ID, BuildingType.Prison, PRISON_X, PRISON_Y, [1, 2, 3, 4, 5]);
     const guards = [
-      human(1, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: 800, y: 800 }),
-      human(2, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 26, y: PRISON_Y + 25 }),
-      human(3, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 36, y: PRISON_Y + 25 }),
-      human(4, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 46, y: PRISON_Y + 25 }),
-      human(5, { job: JobType.PrisonGuard, homeBuildingId: PRISON_ID, x: PRISON_X + 56, y: PRISON_Y + 25 }),
+      human(1, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: 800, y: 800 }),
+      human(2, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: PRISON_X + 26, y: PRISON_Y + 25 }),
+      human(3, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: PRISON_X + 36, y: PRISON_Y + 25 }),
+      human(4, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: PRISON_X + 46, y: PRISON_Y + 25 }),
+      human(5, { job: JobType.PrisonGuard, workerBuildingId: PRISON_ID, x: PRISON_X + 56, y: PRISON_Y + 25 }),
     ];
     const state = worldState(guards, [prison], 0);
 

@@ -2,6 +2,75 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
+
+- **Fixed:** A household is no longer moved to a nearer home when the household total improves but one member's own daily trip lengthens, and a colony makes at most eight moves a day.
+
+- **Fixed:** A save carrying an identity at the very top of the range is refused, and an accepted save always floors its identity counters to values the next save still accepts, so one spawn can no longer make a colony unsavable.
+
+- **Fixed:** A settler born on January 1 keeps that birthday when a save is opened, instead of having the date rebuilt from a whole-year age because the day and month are both zero.
+
+- **Fixed:** The Leader's House keeps its fixed beds in a save written while it still carried an upgrade level, rather than reporting two extra beds for every stored level.
+
+- **Fixed:** The auto-play ladder staffs an empty Quarry by moving a hand from an over-crewed producer instead of only naming the shortage, so a colony short of stone recovers on its own.
+
+- **Fixed:** Housing capacity now counts every resident, including settlers the pass may not move, and the Leader's House protects its household only while a manor stands, so a house can no longer be filled past its beds.
+
+- **Changed:** A couple no longer shares a house with another, unrelated couple: with no home of its own free it moves in with its own family, and single settlers keep to singles' houses.
+
+- **Fixed:** Two settlers who pair up are no longer left without a bed when no home has room for both of them, and a child with no bed left stays with the parent who still has one.
+
+- **Fixed:** Housing changes now use one residence writer, keeping assignment counts, household traits and resident rosters consistent across marriage, divorce, births, deaths, demolition, leadership and Moon Howler transitions.
+
+- **Fixed:** Growing families first reclaim space from unrelated residents, then seek a larger home together. During shortages children stay with their guardian, a family warning remains visible, and the household reunites when space opens.
+
+- **Fixed:** Orphans consider grandparents on both sides, including grandfathers, and siblings receive a shared guardian and home whenever possible. Historical family records retain custody links after parents leave the living population.
+
+- **Fixed:** The Leader's House admits the leader's married children and their spouses, but an adult child settled in a home of their own is no longer moved out of it into the manor. Grandchild eligibility and succession protection are unchanged.
+
+- **Fixed:** An orphan's guardian is never taken from the Leader's House, so placing a child can no longer move the leader's family out of the manor.
+
+- **Changed:** Saves missing identity counters are explicitly refused because retired identities cannot safely be inferred from surviving records. Intact saves retain their counters and existing identities.
+
+- **Changed:** Daily commute relocation skips work without vacant homes and indexes candidate homes, destinations and roads. Benchmarked work-and-school outcomes remain identical while large-colony sweep time falls substantially.
+
+- **Fixed:** Opening a save keeps each settler's own birth date instead of restamping it from a whole-year age, so a citizen's birthday no longer moves every time the colony is loaded.
+
+- **Fixed:** A search for the cheapest walk now scales its estimate by the cheaper road step, so a paved detour that is longer on the map but quicker to walk is priced as the better route instead of the plainer ground line.
+
+- **Fixed:** A settler who graduates releases the school seat they held as a pupil, so neither the school roster nor a housing move treats an adult as a daily walker to their old school.
+
+- **Fixed:** A household no longer trades its home for one that shortens the parents' commute while leaving a child more than two hours from school; a move now checks every pupil's school reach first.
+
+- **Changed:** A household's trip to work and school is now measured along the route settlers really walk — around rivers, mountains and detours — instead of the straight line through them; each route is priced once and a daily sweep stops searching once its budget is spent.
+
+- **Fixed:** The auto-play status line names an unmanned producer before any other shortage, so an empty Quarry reads as a building waiting for a hand instead of its neighbour's low shelf.
+
+- **Added:** The daily council lists every village building in one table with its building type number and its unique building ID, sorted by type and number, so two buildings of the same kind are told apart at a glance.
+
+- **Changed:** A school day is now earned in the classroom: a pupil credits school days only while a teacher stands at the school, and each teacher seats ten pupils, so a fully staffed school holds twenty.
+
+- **Fixed:** The Leader's House can no longer be upgraded: its beds stay at 12, as the original design has it, and the building inspector no longer offers the button. A level an older save already carries still counts.
+
+- **Added:** A household may trade its home for a vacant one that meaningfully shortens the family's commute and school trip, checked once a day with a margin that stops near-equal homes swapping them. The Leader's House stays exempt.
+
+- **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
+
+- **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names. An id so high that no next number exists is refused rather than loaded.
+
+- **Fixed:** The identity numbers a save may carry now leave two numbers of headroom below the ceiling, so the allocator a saved id floors to can always hand out one more usable number; an allocator saved that high is refused.
+
+- **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
+
+- **Changed:** Workplace assignments use workerBuildingId throughout simulation, UI, diagnostics and worker transfers. Older saves translate the previous field once on load, including saved Moon Howler forms, without changing building IDs.
+
+- **Fixed:** Legacy rival camp buildings left over from an older save — a house, farm or well that no rival settlement still listed — are removed when that save loads, and the daily rival pulse now retires any of them it finds. They no longer linger on the map as a camp you cannot interact with.
+
+- **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
+
+- **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
+
+- **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.

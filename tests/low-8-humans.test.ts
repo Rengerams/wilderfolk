@@ -67,7 +67,7 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     faction: undefined,
     occupation: 'settler',
     job: JobType.Settler,
-    homeBuildingId: undefined,
+    workerBuildingId: undefined,
     residenceBuildingId: undefined,
     prisonBuildingId: undefined,
     relationshipStatus: 'single',
@@ -146,7 +146,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
     const church = building(1, BuildingType.Church);
     const school = building(2, BuildingType.School);
     state.buildings = [church, school];
-    const worker = settler(10, { homeBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+    const worker = settler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
     church.occupants = [worker.id];
     state.entities = [worker];
 
@@ -155,7 +155,7 @@ describe('L8 — removal targets the settler\'s own building', () => {
     // Pre-fix `removeWorkerTransition` released the priest from the church even though
     // the command named the school; the settler must still hold the church job.
     const nextWorker = next.entities.find((e) => e.id === worker.id)!;
-    expect(nextWorker.homeBuildingId).toBe(church.id);
+    expect(nextWorker.workerBuildingId).toBe(church.id);
     expect(next.buildings.find((b) => b.id === church.id)!.occupants).toContain(worker.id);
   });
 
@@ -163,14 +163,14 @@ describe('L8 — removal targets the settler\'s own building', () => {
     const state = newWorld();
     const church = building(1, BuildingType.Church, { staffingMode: 'manual' });
     state.buildings = [church];
-    const worker = settler(10, { homeBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
+    const worker = settler(10, { workerBuildingId: church.id, job: JobType.Priest, occupation: 'priest' });
     church.occupants = [worker.id];
     state.entities = [worker];
 
     const next = removeStaffWorkerFromBuilding(state, church.id, worker.id);
 
     const nextWorker = next.entities.find((e) => e.id === worker.id)!;
-    expect(nextWorker.homeBuildingId).toBeUndefined();
+    expect(nextWorker.workerBuildingId).toBeUndefined();
     expect(next.buildings.find((b) => b.id === church.id)!.occupants).not.toContain(worker.id);
   });
 });
@@ -284,7 +284,7 @@ describe('L41 — realtime affair gate honours the colony work schedule', () => 
       gender: 'male',
       relationshipStatus: 'married',
       partnerId: 999, // absent spouse: the gate only depends on the schedule
-      homeBuildingId: farm.id,
+      workerBuildingId: farm.id,
       job: JobType.Farmer,
       occupation: 'farmer',
     });
@@ -605,7 +605,7 @@ describe('L78 — imprisoned settlers leave construction crews', () => {
     const state = newWorld();
     const site = building(1, BuildingType.House, { completed: false, occupants: [10] });
     const prison = building(9, BuildingType.Prison, { x: 300, y: 300 });
-    const prisoner = settler(10, { prisonBuildingId: prison.id, homeBuildingId: undefined });
+    const prisoner = settler(10, { prisonBuildingId: prison.id, workerBuildingId: undefined });
     prison.occupants = [prisoner.id];
     state.buildings = [site, prison];
     state.entities = [prisoner];

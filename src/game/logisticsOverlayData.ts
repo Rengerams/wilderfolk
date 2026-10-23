@@ -122,7 +122,7 @@ export type LogisticsCommuteSeverity = 'blocked' | 'over_budget' | 'extreme';
 /** A settler's home↔work leg and the reason it counts as pressure. */
 export interface LogisticsCommute {
   readonly entityId: number;
-  readonly homeBuildingId: number;
+  readonly residenceBuildingId: number;
   readonly workBuildingId: number;
   readonly homeX: number;
   readonly homeY: number;
@@ -532,8 +532,6 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
  * than A\*: this runs on every render snapshot, so a search per leg would be a frame-time
  * regression. Step count scales with span (4–128 samples), so cheap short legs stay cheap.
  *
- * Field-name trap: on an `Entity`, `homeBuildingId` is the **workplace** and
- * `residenceBuildingId` is the home (`relationships.ts`, `residencyOccupancy.hasWorkAssignment`).
  */
 /**
  * Memoised front for {@link computeLogisticsOverlay}.
@@ -579,9 +577,9 @@ function classifyCommute(
   grid: PathGrid | null,
 ): LogisticsCommute | null {
   if (!entity.alive || !isPlayerHuman(entity)) return null;
-  if (entity.homeBuildingId == null || entity.residenceBuildingId == null) return null;
+  if (entity.workerBuildingId == null || entity.residenceBuildingId == null) return null;
 
-  const work = byId.get(entity.homeBuildingId);
+  const work = byId.get(entity.workerBuildingId);
   const home = byId.get(entity.residenceBuildingId);
   if (!work || !home) return null;
 
@@ -600,7 +598,7 @@ function classifyCommute(
 
   return {
     entityId: entity.id,
-    homeBuildingId: home.id,
+    residenceBuildingId: home.id,
     workBuildingId: work.id,
     homeX: homeCenter.x,
     homeY: homeCenter.y,

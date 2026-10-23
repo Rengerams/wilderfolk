@@ -119,7 +119,7 @@ function makeWorld(seed = FIXTURE_SEED): {
   const spouse = human(SPOUSE_ID, { x: 3000, y: 3000, relationshipStatus: 'married', partnerId: CHEATER_ID });
   const guard = human(GUARD_ID, {
     job: JobType.PrisonGuard,
-    homeBuildingId: 900,
+    workerBuildingId: 900,
     x: PRISON_X,
     y: PRISON_Y,
   });
@@ -179,7 +179,7 @@ describe('a jailing raises a card the player cannot miss', () => {
     const world = makeWorld(seed);
     // `initGame` builds a real world; this fixture keeps only the pair, the spouse and the prison.
     world.state.entities = withGuard
-      ? [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 }), human(GUARD_ID, { job: JobType.PrisonGuard, homeBuildingId: 900 })]
+      ? [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 }), human(GUARD_ID, { job: JobType.PrisonGuard, workerBuildingId: 900 })]
       : [world.cheater, world.paramour, human(SPOUSE_ID, { x: 3000, y: 3000 })];
     world.state.buildings = [makePrison()];
     world.state.tick = gossipDay() * TICKS_PER_DAY + 30;

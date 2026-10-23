@@ -1,6 +1,6 @@
 import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS, TerrainType, type WorldMap } from './gameTypes';
 import { getSimRng } from './simRng';
-import { isUnbuildableTerrainType } from './terrain/terrainTraits';
+import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
 import { generateRawTerrain } from './terrain/terragen';
 import {
   rebakeTerrainGrids,
@@ -82,8 +82,8 @@ function rectAroundTile(map: WorldMap, cx: number, cy: number, radiusTiles: numb
 }
 
 /**
- * Flatten the ground around the camp into a buildable clearing. River and riverbank
- * tiles are left alone — the pioneers clear a camp, they do not fill a river.
+ * Flatten the ground around the camp into a buildable clearing. Water stays water — a filled tile
+ * is walkable land the ground bake still paints as sea, so settlers wade across open water.
  */
 export function ensureCampClearing(
   map: WorldMap,
@@ -104,7 +104,7 @@ export function ensureCampClearing(
       const dist = Math.hypot(tx - cx, ty - cy);
       if (dist > radiusTiles) continue;
       const type = tileTypeAt(map, tx, ty);
-      if (type === null || type === TerrainType.River || type === TerrainType.RiverBank) continue;
+      if (type === null || type === TerrainType.RiverBank || isWaterTerrainType(type)) continue;
 
       const inner = dist < radiusTiles * 0.55;
       // A coastal preset keeps a beach ring so the camp still reads as a shore landing.
@@ -255,11 +255,22 @@ export function generateWorldMap(
   // Teraforge engine: 64px cells → 10px tiles + continuous fields + L0/L1 grids.
   const map = generateRawTerrain(width, height, seed, size, preset, terrainSeedArg);
 
-  // Carve a buildable camp clearing and strip the start-area forest so the founding
-  // pioneers and first buildings have usable ground near the centre.
+  // Carve a buildable camp clearing and strip the start-area forest so the founding pioneers and
+  // first buildings have usable ground. The camp follows buildable ground, not the map centre —
+  // on a coastal map the centre can be open sea. `initGame` reads the site back off the map.
   const houseFootprint = { w: 46, h: 40 };
-  const campX = width / 2;
-  const campY = height / 2;
+  const camp = findCampSite(
+    map,
+    width,
+    height,
+    houseFootprint.w,
+    houseFootprint.h,
+    width / 2,
+    height / 2,
+  );
+  map.campSite = camp;
+  const campX = camp.x;
+  const campY = camp.y;
 
   if (
     isCoastalPreset(preset)

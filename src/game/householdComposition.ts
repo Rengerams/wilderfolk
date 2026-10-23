@@ -1,6 +1,7 @@
 import type { Entity } from './gameTypes';
+import type { GenealogyRegistry } from './genealogyTypes';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
-import { hasResidenceAssignment } from './residencyOccupancy';
+import { hasResidenceAssignment, isResidenceOccupantEntity, isImprisoned } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 /** Married or partnered settlers are emancipated for housing. */
 export function isMinorChild(child: Entity): boolean {
@@ -24,11 +25,7 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   return household;
 }
 
-/**
- * Leader, their spouse and their children/grandchildren of any age.
- * Excludes collateral relatives and descendants' partners, so a large village's
- * connected family tree cannot fill the manor indiscriminately.
- */
+/** Leader, spouse, children and children's spouses; retain unmarried-grandchild eligibility. */
 export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Entity[] {
   const byId = new Map(humans.map((human) => [human.id, human]));
   const childrenByParent = new Map<number, Entity[]>();
@@ -44,8 +41,10 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   }
   const family: Entity[] = [];
   const included = new Set<number>();
+  // A cursed Moon Howler is still the leader's descendant; their wolf form must not orphan the
+  // children who keep their manor beds through them.
   const add = (human?: Entity): Entity | undefined => {
-    if (!human?.alive || !isPlayerHuman(human)) return undefined;
+    if (!human?.alive || !isResidenceOccupantEntity(human)) return undefined;
     if (!included.has(human.id)) {
       included.add(human.id);
       family.push(human);
@@ -66,10 +65,11 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
   const firstGeneration = new Map<number, Entity>();
   for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
     for (const child of childrenOf(root)) {
-      // Married adult descendants form a separate household with their partner.
-      if (child.partnerId != null && !child.isJuvenile && child.age >= HUMAN_ADULT_MIN_AGE) continue;
       const added = add(child);
-      if (added) firstGeneration.set(added.id, added);
+      if (added) {
+        firstGeneration.set(added.id, added);
+        add(byId.get(added.partnerId ?? -1));
+      }
     }
   }
   for (const child of firstGeneration.values()) {
@@ -116,9 +116,9 @@ function livingHuman(
   if (id == null) return undefined;
   if (entityById) {
     const indexed = entityById.get(id);
-    return indexed?.alive ? indexed : undefined;
+    return indexed && isResidenceOccupantEntity(indexed) && !isImprisoned(indexed) ? indexed : undefined;
   }
-  return humans.find((human) => human.id === id && human.alive);
+  return humans.find((human) => human.id === id && isResidenceOccupantEntity(human) && !isImprisoned(human));
 }
 
 function humanById(
@@ -136,21 +136,18 @@ export function getChildCustodian(
   child: Entity,
   humans: Entity[],
   entityById?: ReadonlyMap<number, Entity>,
+  genealogy?: GenealogyRegistry,
 ): Entity | undefined {
   const mother = livingHuman(humans, child.motherId, entityById);
   if (mother) return mother;
   const father = livingHuman(humans, child.fatherId, entityById);
   if (father) return father;
-  if (child.isBastard) {
-    const motherRecord = humanById(humans, child.motherId, entityById);
-    if (motherRecord?.motherId != null) {
-      const grandmother = livingHuman(humans, motherRecord.motherId, entityById);
-      if (grandmother) return grandmother;
-    }
-    const fatherRecord = humanById(humans, child.fatherId, entityById);
-    if (fatherRecord?.motherId != null) {
-      const grandmother = livingHuman(humans, fatherRecord.motherId, entityById);
-      if (grandmother) return grandmother;
+  for (const parentId of [child.motherId, child.fatherId]) {
+    const parent = humanById(humans, parentId, entityById)
+      ?? (parentId == null ? undefined : genealogy?.people[String(parentId)]);
+    for (const grandparentId of [parent?.motherId, parent?.fatherId]) {
+      const grandparent = livingHuman(humans, grandparentId, entityById);
+      if (grandparent) return grandparent;
     }
   }
   const adoptiveMother = livingHuman(humans, child.adoptiveMotherId, entityById);
@@ -239,4 +236,17 @@ export function isAdultChildAtHome(
     findLivingParent(human.adoptiveFatherId),
   ].filter((parent): parent is Entity => !!parent && hasResidenceAssignment(parent));
   return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
+}
+
+/** Parent ids of a settler, biological and adoptive. */
+function parentIdsOf(human: Entity): (number | undefined)[] {
+  return [human.motherId, human.fatherId, human.adoptiveMotherId, human.adoptiveFatherId];
+}
+
+/** Close family living apart: a parent/child link or a shared parent (siblings). */
+export function areCloseKin(a: Entity, b: Entity): boolean {
+  const aParents = parentIdsOf(a);
+  const bParents = parentIdsOf(b);
+  if (aParents.includes(b.id) || bParents.includes(a.id)) return true;
+  return aParents.some((parentId) => parentId != null && bParents.includes(parentId));
 }

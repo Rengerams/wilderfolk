@@ -431,7 +431,7 @@ function tickBuildingProduction(
     // was a second definition of the rule (and it disagreed with the owner on the `'player'`
     // marker the fixtures use). `LIVE-FINDINGS-STATUS.md`, duplication A3.
     if (!h.alive) continue;
-    const siteId = h.homeBuildingId;
+    const siteId = h.workerBuildingId;
     if (siteId == null) continue;
 
     const current = buildingWorkerStats.get(siteId)

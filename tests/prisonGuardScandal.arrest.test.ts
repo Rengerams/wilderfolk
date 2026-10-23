@@ -22,7 +22,7 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
   human.job = JobType.Settler;
   human.relationshipStatus = 'married';
   human.partnerId = undefined;
-  human.homeBuildingId = undefined;
+  human.workerBuildingId = undefined;
   human.residenceBuildingId = undefined;
   human.prisonBuildingId = undefined;
   return Object.assign(human, overrides);
@@ -33,7 +33,7 @@ function scandalWorld(): { state: WorldState; guard: Entity; paramour: Entity; p
   const state = initGame({ seed: FIXTURE_SEED });
   const prison = createBuilding(BuildingType.Prison, 400, 400, 900);
   prison.completed = true;
-  const guard = settler(7001, { job: JobType.PrisonGuard, homeBuildingId: prison.id, partnerId: 7002 });
+  const guard = settler(7001, { job: JobType.PrisonGuard, workerBuildingId: prison.id, partnerId: 7002 });
   const guardSpouse = settler(7002, { partnerId: guard.id });
   const paramour = settler(8001, { partnerId: 8002 });
   const paramourSpouse = settler(8002, { partnerId: paramour.id });
@@ -64,7 +64,7 @@ describe('a caught scandal does not jail the prison’s own crew', () => {
 
       expect(guard.prisonBuildingId, `seed ${seed} jailed the guard`).toBeUndefined();
       expect(guard.job).toBe(JobType.PrisonGuard);
-      expect(guard.homeBuildingId).toBe(prison.id);
+      expect(guard.workerBuildingId).toBe(prison.id);
       if (paramour.prisonBuildingId === prison.id) jailedOrdinaryOffender = true;
     }
 

@@ -75,7 +75,7 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
   let count = 0;
   for (let i = 0; i < humans.length; i++) {
     const h = humans[i];
-    if (h.alive && isPlayerHuman(h) && h.homeBuildingId === buildingId) {
+    if (h.alive && isPlayerHuman(h) && h.workerBuildingId === buildingId) {
       count++;
     }
   }
@@ -87,7 +87,7 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
  *
  * A Prison's `occupants` is guards ∪ prisoners, so measuring that list against its cap would let a
  * prisoner consume a guard post and a guard consume a cell. The split is five posts beside four cells,
- * so the posts are counted on their own: `homeBuildingId` is a guard's post and an arrest clears it,
+ * so the posts are counted on their own: `workerBuildingId` is a guard's post and an arrest clears it,
  * which is the distinction `countWorkersAtBuilding` already draws.
  */
 export function staffingCapFor(building: Building, humans: Entity[]): { cap: number; staffed: number } {
@@ -183,7 +183,7 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): 
   const movable = new Map<number, number>();
   for (const human of humans) {
     if (!human.alive || !isPlayerHuman(human)) continue;
-    const id = human.homeBuildingId;
+    const id = human.workerBuildingId;
     if (id == null) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
     if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick)) {
@@ -236,7 +236,7 @@ export function pickWorkerToTransfer(
       isPlayerHuman(h) &&
       h.alive &&
       !h.isJuvenile &&
-      h.homeBuildingId === fromBuilding.id &&
+      h.workerBuildingId === fromBuilding.id &&
       canAutoChangeWorkplace(h, currentTick),
   );
   if (workers.length === 0) return undefined;
@@ -263,19 +263,19 @@ export function pickWorkerToTransfer(
 
 /**
  * Named assignment transition — assign ONE living adult settler to a completed workplace.
- * Single write path for `homeBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
+ * Single write path for `workerBuildingId`, workplace `occupants`, and `job`/`occupation` properties.
  */
 export function assignWorkerTransition(human: Entity, building: Building, currentTick?: number): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
   if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
-  if (human.homeBuildingId != null && human.homeBuildingId !== building.id) return false;
+  if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
   if (building.occupants.includes(human.id)) return true; // Idempotent
 
   const keepOffice = human.occupation === LEADER_OCCUPATION;
   building.occupants.push(human.id);
-  human.homeBuildingId = building.id;
+  human.workerBuildingId = building.id;
   if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
   human.job = job;
@@ -284,19 +284,25 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
 }
 
 /**
- * Named removal transition — release a settler from all workplaces/crews and clear job fields.
- * Preserves `LEADER_OCCUPATION`.
+ * The one door for a settler leaving work: the pointer, the roster entry it pointed at and the job
+ * labels. A leader keeps the office title, which is an office rather than a post.
  */
-/**
- * Ends a settler's work assignment. The pointer is the truth and the job and occupation labels
- * follow it; a leader keeps the office title, which is an office rather than a post.
- */
-function clearWorkAssignment(human: Entity): void {
-  human.homeBuildingId = undefined;
+export function clearWorkerAssignment(human: Entity, buildings?: readonly Building[]): void {
+  if (buildings && human.workerBuildingId != null) {
+    const workplace = buildings.find((building) => building.id === human.workerBuildingId);
+    if (workplace) workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
+  }
+  human.workerBuildingId = undefined;
   human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   human.job = JobType.Settler;
 }
 
+/** Drops the workplace pointer alone; the moon forms keep their saved trade and re-attach it. */
+export function detachWorkplaceReference(human: Entity): void {
+  human.workerBuildingId = undefined;
+}
+
+/** Named removal transition — release a settler from all workplaces/crews and clear the job fields. */
 export function removeWorkerTransition(human: Entity, buildings: Building[]): void {
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
@@ -305,7 +311,7 @@ export function removeWorkerTransition(human: Entity, buildings: Building[]): vo
       building.occupants = building.occupants.filter((id) => id !== human.id);
     }
   }
-  clearWorkAssignment(human);
+  clearWorkerAssignment(human);
 }
 
 /**
@@ -315,7 +321,7 @@ export function addToConstructionCrew(human: Entity, building: Building): boolea
   if (building.completed || building.faction === 'rival') return false;
   if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
-  if (human.homeBuildingId != null) return false; // Must be unassigned from regular jobs first
+  if (human.workerBuildingId != null) return false; // Must be unassigned from regular jobs first
   if (building.occupants.includes(human.id)) return true;
   building.occupants.push(human.id);
   return true;
@@ -339,7 +345,7 @@ export function transferWorkerBetweenBuildings(
   }
 
   const keepOffice = worker.occupation === LEADER_OCCUPATION;
-  worker.homeBuildingId = toBuilding.id;
+  worker.workerBuildingId = toBuilding.id;
   if (currentTick != null) worker.lastAutoJobTransferTick = currentTick;
   worker.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(toBuilding.type);
   worker.job = job;
@@ -396,7 +402,7 @@ export function rebalanceJobWorkers(
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
   // Two bucketing passes replace a full settler-list filter per building — the single-pass
   // shape `residencyReconciliation.syncResidenceOccupants` documents). The building loop below
-  // writes only `building.occupants`; it reads `h.alive`, `isPlayerHuman(h)`, `h.homeBuildingId`
+  // writes only `building.occupants`; it reads `h.alive`, `isPlayerHuman(h)`, `h.workerBuildingId`
   // and `h.prisonBuildingId`, none of which is written inside it, so one pass per predicate answers
   // every building. Each bucket preserves the `humans` order the previous `.filter().map()` emitted:
   // a settler is appended during its own iteration, in visit order.
@@ -405,13 +411,13 @@ export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]
     if (bucket) bucket.push(id);
     else index.set(key, [id]);
   };
-  /** Jobs: `homeBuildingId === id && prisonBuildingId == null`. */
+  /** Jobs: `workerBuildingId === id && prisonBuildingId == null`. */
   const jobOccupantIds = new Map<number, number[]>();
-  /** Prison: `homeBuildingId === id || prisonBuildingId === id` (the original union, deduped). */
+  /** Prison: `workerBuildingId === id || prisonBuildingId === id` (the original union, deduped). */
   const prisonOccupantIds = new Map<number, number[]>();
   for (const h of humans) {
     if (!h.alive || !isPlayerHuman(h)) continue;
-    const homeId = h.homeBuildingId;
+    const homeId = h.workerBuildingId;
     const prisonId = h.prisonBuildingId;
     if (homeId != null) {
       if (prisonId == null) pushId(jobOccupantIds, homeId, h.id);
@@ -534,17 +540,17 @@ export function assignBuilderInPlace(
     )
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === a.homeBuildingId)?.type ?? BuildingType.Farm,
+        allBuildings.find((x) => x.id === a.workerBuildingId)?.type ?? BuildingType.Farm,
         policy,
       );
       const bPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === b.homeBuildingId)?.type ?? BuildingType.Farm,
+        allBuildings.find((x) => x.id === b.workerBuildingId)?.type ?? BuildingType.Farm,
         policy,
       );
       return bPri - aPri;
     })
     .find((h) => {
-      const site = allBuildings.find((b) => b.id === h.homeBuildingId);
+      const site = allBuildings.find((b) => b.id === h.workerBuildingId);
       if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       if ((site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse) && staffed <= 1) {
@@ -571,8 +577,8 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     const human = alive[i];
 
     if (human.occupation === LEADER_OCCUPATION) {
-      if (human.homeBuildingId != null) {
-        const workplace = buildingById.get(human.homeBuildingId);
+      if (human.workerBuildingId != null) {
+        const workplace = buildingById.get(human.workerBuildingId);
         if (
           !workplace ||
           !workplace.completed ||
@@ -582,7 +588,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
           if (workplace) {
             workplace.occupants = workplace.occupants.filter((id) => id !== human.id);
           }
-          clearWorkAssignment(human);
+          clearWorkerAssignment(human);
         }
       }
       continue;
@@ -594,15 +600,15 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     }
 
     // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
-    if (!hasWorkAssignment(human) || human.homeBuildingId == null) continue;
-    const workplace = buildingById.get(human.homeBuildingId);
+    if (!hasWorkAssignment(human) || human.workerBuildingId == null) continue;
+    const workplace = buildingById.get(human.workerBuildingId);
     if (
       !workplace ||
       !workplace.completed ||
       workplace.faction === 'rival' ||
       !BUILDING_JOB_TYPES[workplace.type]
     ) {
-      clearWorkAssignment(human);
+      clearWorkerAssignment(human);
     }
   }
 
@@ -753,8 +759,8 @@ export function findHumanWorkplace(
   },
 ): Building | undefined {
   const byId = opts?.buildingById;
-  if (hasWorkAssignment(entity) && entity.homeBuildingId != null) {
-    const jobSite = byId?.get(entity.homeBuildingId) ?? buildings.find((b) => b.id === entity.homeBuildingId);
+  if (hasWorkAssignment(entity) && entity.workerBuildingId != null) {
+    const jobSite = byId?.get(entity.workerBuildingId) ?? buildings.find((b) => b.id === entity.workerBuildingId);
     if (jobSite?.completed && jobSite.faction !== 'rival' && BUILDING_JOB_TYPES[jobSite.type]) {
       return jobSite;
     }
@@ -819,10 +825,8 @@ export function releasePrisoners(state: WorldState): void {
   }
 
   if (releasedSettlers.length > 0) {
-    // A prisoner release must not run the 24-pass whole-village housing
-    // convergence. In particular that pass could move the elected leader out
-    // of the protected manor, and it caused multi-second real-time spikes.
-    // Rehouse only released people, with all entities available for genealogy.
+    // Only the released settlers, never the whole-village convergence: that pass can move the
+    // elected leader out of the protected manor. A held bed normally needs nothing here.
     assignMissingResidences(releasedSettlers, state.buildings, state.entities, state.tick);
     // Normal workforce pulses will fill newly available staff slots.
   }

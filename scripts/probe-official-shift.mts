@@ -27,7 +27,7 @@ building(state, BuildingType.House, 460, 470);
 const leader = state.entities.find((e) => e.id === state.villageLeaderId);
 if (!leader) throw new Error('no leader');
 // Staff the head of the village at the Town Hall, exactly as the assign layer would.
-leader.homeBuildingId = hall.id;
+leader.workerBuildingId = hall.id;
 leader.job = JobType.Official;
 hall.occupants.push(leader.id);
 

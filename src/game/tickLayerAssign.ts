@@ -96,19 +96,22 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
   const startedassignMissingResidences = profileStart();
-  // A household is protected from relocation only when a completed manor exists.
-  // Protection never removes its residents from bed counts or family lookups.
-  const protectedIds = findLeaderHouse(updatedBuildings)
+  // Only a standing manor protects the leader's household from reassignment. Without one they are
+  // ordinary residents: the housing pass must count their beds and stay free to move them.
+  const protectedIds = findLeaderHouse(world.buildings)
     ? new Set([
       ...collectLeaderHousehold(world).map((person) => person.id),
       ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
     ])
-    : undefined;
+    : new Set<number>();
+  const eligibleForHousing = protectedIds.size === 0
+    ? playerHumans
+    : playerHumans.filter((person) => !protectedIds.has(person.id));
   const signatureBefore = housingSignature(world, allHumans);
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
   if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
-    assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick, protectedIds);
+    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry);
     lastHousingSignature.set(world, housingSignature(world, allHumans));
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);

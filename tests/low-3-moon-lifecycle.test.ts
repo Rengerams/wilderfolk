@@ -75,7 +75,7 @@ function sevenAdults(): Entity[] {
 
 describe('debug Moon Howler curse (L48 + one-Howler ownership)', () => {
   it('detaches the cursed settler from every occupants list it clears ids from', () => {
-    const settler = human(1, { homeBuildingId: FARM_ID, residenceBuildingId: HOUSE_ID });
+    const settler = human(1, { workerBuildingId: FARM_ID, residenceBuildingId: HOUSE_ID });
     const farm = finishedBuilding(FARM_ID, BuildingType.Farm, { occupants: [1] });
     const house = finishedBuilding(HOUSE_ID, BuildingType.House, { occupants: [1] });
     const state = moonState([settler], [farm, house], FULL_MOON_NIGHTFALL_TICK);
@@ -85,7 +85,7 @@ describe('debug Moon Howler curse (L48 + one-Howler ownership)', () => {
     const howler = cursed.entities.find((entity) => entity.moonHowlerCursed);
     expect(howler).toBeDefined();
     expect(howler?.type).toBe(EntityType.Werewolf);
-    expect(howler?.homeBuildingId).toBeUndefined();
+    expect(howler?.workerBuildingId).toBeUndefined();
     expect(howler?.residenceBuildingId).toBeUndefined();
     // The command clones the world, so inspect the buildings it returned.
     const farmAfter = cursed.buildings.find((b) => b.id === FARM_ID);
@@ -126,7 +126,7 @@ describe('Moon Howler cadence + injected RNG', () => {
       gender: 'female',
       job: JobType.Priest,
       occupation: 'priest',
-      homeBuildingId: CHURCH_ID,
+      workerBuildingId: CHURCH_ID,
       x: 320,
       y: 320,
     });

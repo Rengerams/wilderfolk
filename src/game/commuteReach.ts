@@ -1,8 +1,10 @@
 import { BuildingType } from './buildings';
 import type { Building, Entity } from './gameTypes';
+import { PATH_CELL } from './gameTypes';
 import { isEntityOnBuilding } from './buildingRotation';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
+import { findRouteCost, getCurrentPathGrid, type PathGrid } from './pathfinding';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -29,6 +31,15 @@ const ROAD_ROUTE_SAMPLE_PX = 24;
 
 /** Owner rule: a settler who cannot reach a post inside two hours is not a candidate for it. */
 export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
+
+/** Route searches one housing sweep may run before legs fall back to the straight line. */
+export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
+
+/** Node cap per search: a detour the search cannot resolve inside it is priced as no route. */
+const MAX_COMMUTE_ROUTE_SEARCH_NODES = 4000;
+
+/** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
+const COMMUTE_ROUTE_CACHE_LIMIT = 4096;
 
 /** Applies the bounded urgency multiplier shared by movement and commute estimates. */
 export function commuteWalkSpeed(walkSpeed: number, rush = 1): number {
@@ -77,6 +88,60 @@ function routePassesRoad(
   return false;
 }
 
+/** Searches left in the housing sweep's budget; a cached leg costs nothing. */
+let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
+
+/** Opens a housing sweep's route-search budget. */
+export function beginCommuteRoutePass(): void {
+  routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+}
+
+/** Route hours home → destination over the sim's current grid, or null when no route is priced. */
+function routeCommuteHours(home: Building, destination: Building, walkSpeed: number): number | null {
+  const grid = getCurrentPathGrid();
+  if (!grid) return null;
+  const fromX = Math.floor(home.x / PATH_CELL);
+  const fromY = Math.floor(home.y / PATH_CELL);
+  const toX = Math.floor(destination.x / PATH_CELL);
+  const toY = Math.floor(destination.y / PATH_CELL);
+  const key = `${walkSpeed}|${fromX},${fromY}>${toX},${toY}`;
+  let cache = routeCostCache.get(grid);
+  if (!cache) {
+    cache = new Map<string, number>();
+    routeCostCache.set(grid, cache);
+  }
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
+  if (routeSearchesLeft <= 0) return null;
+  routeSearchesLeft--;
+  const steps = findRouteCost(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+  if (steps === null) return null;
+  // A* steps are tile units, so the walk distance is the route's step cost in world px.
+  const hours = commuteLeadHoursFor(steps * PATH_CELL, walkSpeed);
+  if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
+  cache.set(key, hours);
+  return hours;
+}
+
+/**
+ * Estimated hours from a home to a building over the walkable route, falling back to the straight
+ * line when no route is priced. The household commute score compares whole homes with this.
+ */
+export function estimatedCommuteHours(
+  home: Building,
+  destination: Building,
+  buildings: readonly Building[],
+  walkSpeed: number,
+): number {
+  const routed = routeCommuteHours(home, destination, walkSpeed);
+  if (routed !== null) return routed;
+  const distance = Math.hypot(destination.x - home.x, destination.y - home.y);
+  const plain = commuteLeadHoursFor(distance, walkSpeed);
+  if (!routePassesRoad(home.x, home.y, destination.x, destination.y, buildings)) return plain;
+  return Math.min(plain, commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT));
+}
+
 /**
  * Whether this settler can be assigned a post here: the lead hours the scheduler would really hand out
  * must fit `MAX_ASSIGNABLE_COMMUTE_HOURS`, measured from home, with a road route counting in their favour.
@@ -87,7 +152,7 @@ export function isWithinAssignableCommute(
   buildings: readonly Building[],
   walkSpeed: number,
 ): boolean {
-  // homeBuildingId stores the JOB, not the residence. Commute always starts
+  // workerBuildingId stores the JOB, not the residence. Commute always starts
   // from the resident's home; fall back to their position if not housed.
   const home = entity.residenceBuildingId == null
     ? undefined

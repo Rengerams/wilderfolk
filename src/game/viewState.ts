@@ -75,6 +75,16 @@ function getBuildingTypeValues(): Set<string> {
   return buildingTypeValuesSet;
 }
 
+/** A new session's opening view: the standard camera, placed on the camp the map cleared. */
+export function createInitialViewForWorld(world: WorldState): ViewState {
+  const view = createInitialView(world.width, world.height);
+  const camp = world.worldMap?.campSite;
+  if (!camp) return view;
+  // Move the camera itself, not just its target: the first frame shows the camp, not the map centre.
+  const aimed = focusCameraOn(view, camp.x, camp.y);
+  return { ...aimed, camera: { ...aimed.camera, x: camp.x, y: camp.y } };
+}
+
 export function createInitialView(width: number, height: number, zoom = CAMERA_ZOOM_DEFAULT): ViewState {
   const cx = width / 2;
   const cy = height / 2;

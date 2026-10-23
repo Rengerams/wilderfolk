@@ -99,7 +99,7 @@ function settler(world: WorldState, id: number, x: number, y: number, overrides:
     alive: true,
     isJuvenile: false,
     job: JobType.Settler,
-    homeBuildingId: undefined,
+    workerBuildingId: undefined,
     residenceBuildingId: undefined,
     prisonBuildingId: undefined,
     partnerId: undefined,
@@ -170,7 +170,7 @@ function anchorFixture(withHall: boolean): Fixture {
 
   const guard = settler(world, 4, 215, 215, {
     job: JobType.Soldier,
-    homeBuildingId: BARRACKS_ID,
+    workerBuildingId: BARRACKS_ID,
     energy: 90,
   });
   const raider = settler(world, 3, 640, 320, {
@@ -186,9 +186,9 @@ function anchorFixture(withHall: boolean): Fixture {
   // Free-roaming settlers, far from the village and on a long commute to the farm: their walk is
   // what shifts the settler average during the tick.
   const roamers = [
-    settler(world, 5, 100, 700, { homeBuildingId: FARM_ID }),
-    settler(world, 6, 150, 750, { homeBuildingId: FARM_ID }),
-    settler(world, 7, 200, 800, { homeBuildingId: FARM_ID }),
+    settler(world, 5, 100, 700, { workerBuildingId: FARM_ID }),
+    settler(world, 6, 150, 750, { workerBuildingId: FARM_ID }),
+    settler(world, 7, 200, 800, { workerBuildingId: FARM_ID }),
   ];
 
   // Order matters: the raider takes an anchor sample first, the guard last.

@@ -230,7 +230,7 @@ function meatAmount(text: string): number {
 
 describe('Town Hall civic pulse (no tax mechanic)', () => {
   it('does not create tax income or tax notifications', () => {
-    const official = human(1, { homeBuildingId: 10, x: 100, y: 100 });
+    const official = human(1, { workerBuildingId: 10, x: 100, y: 100 });
     const state = baseState();
     state.tick = tickAtDailyPhase(3, 'production') - 1;
     state.entities = [official];
@@ -247,7 +247,7 @@ describe('Town Hall civic pulse (no tax mechanic)', () => {
 
 describe('Hunting Spot research multiplier (L29)', () => {
   function huntWorld(day: number, withStoneSpears: boolean): WorldState {
-    const hunter = human(1, { homeBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0 });
+    const hunter = human(1, { workerBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0 });
     const prey = deer(2);
     // Keep the target touching the hunter until the production phase.
     // An animal that wanders away turns this research test into a chase test.

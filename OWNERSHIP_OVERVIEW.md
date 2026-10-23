@@ -12,20 +12,21 @@ Purpose: one decision → one owner module → one definition of each function.
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
-| School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `isSchoolTime`, `recordChildSchoolTick` |
+| School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `commuteHumanToBuilding`, `humanBuildingTarget` (home, classroom and workplace destinations), `applyHumanWalkStep` (the one integration of a walk step) |
-| Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (pure rule; read by the movement path, work assignment and the panel) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_SPEED_MULTIPLIER`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
-| Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS` |
+| Commute reach: lead hours and assignable distance | `commuteReach.ts` | — (rule; read by the movement path, work assignment, the housing commute move and the panel; prices routes on the sim's current grid) | `commuteWalkSpeed`, `commuteLeadHoursFor`, `routePassesRoad`, `estimatedCommuteHours`, `beginCommuteRoutePass`, `isWithinAssignableCommute`, `MAX_ASSIGNABLE_COMMUTE_HOURS`, `MAX_COMMUTE_LEAD_HOURS`, `MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS`, `WORK_COMMUTE_RUSH`, `COMMUTE_CONFIG` |
+| Workforce / jobs, manual overrides and automatic transfer cooldown | `workforce.ts` + `buildingStaffingActions.ts` | assignment / command | `assignStaffWorkerToBuilding`, `assignMissingWorkers`, `canAutoChangeWorkplace`, `AUTO_JOB_TRANSFER_COOLDOWN_TICKS`, `assignWorkerTransition`, `transferWorkerBetweenBuildings`, `clearWorkerAssignment`, `detachWorkplaceReference` (the only writers of `human.workerBuildingId`) |
 | Workforce policy preset | `workforcePolicy.ts` | player-command + assignment | `getWorkforcePolicy`, `setWorkforcePolicy`, `jobBuildingPriorityForPolicy` |
 | Generic assign/remove command route | `buildingActionRouting.ts` | player-command | `assignIdleWorkerToBuilding`, `removeWorkerFromBuilding` (routes to staffing or residency) |
-| Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), `assignMissingResidences` (with a `sweepTick` it sweeps that pulse's bucket of the day's reassignment work; without one it converges the whole colony immediately), … |
+| Housing / residence | `residencyOccupancy.ts` / `residencySelection.ts` / `residencyReconciliation.ts` / `buildingResidencyActions.ts` | assignment / command | `countResidentsInBuilding`, `syncPartnerResidence`, `isResidenceOccupantEntity` (the rule the inspector reads too), `assignMissingResidences` (with a `sweepTick` it sweeps that pulse's bucket of the day's reassignment work; without one it converges the whole colony immediately), `pickCommuteRelocation` (the §12 commute move: a settled household trades its home for a nearer vacant one; helpers `householdCommuteHours`/`cachedCommuteHours`, gates `RELOCATION_MIN_SAVED_HOURS`/`RELOCATION_MIN_IMPROVEMENT_RATIO`/`RELOCATION_MAX_MEMBER_REGRESSION_HOURS`/`MAX_RELOCATIONS_PER_DAY`/`pupilsKeepSchoolReach` (a move must leave every pupil inside the school reach rule and cost no member more than the regression bound)), … |
 | Construction progress | `dailyBuildingEconomy.ts` | daily | `tickBuildingProgress` (construction progress in daily economy), `logCompletedBuildings` (one completion line per label per day, counted) |
 | Economy / resources | `resourceUtils.ts` (add), `economy.ts` (caps/spoilage), `dailyBuildingEconomy.ts` (production) | daily / command | `addResource`, `updateStorageCaps`, `tickWinterHeating` |
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
+| Building type identity: the name shown and persisted, and its stable number | `buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
-| Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
+| Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day + save load | `tickRivalSettlements` — advances strategic records and retires legacy camp structures; `retireLegacyCampStructures` — removes the last rival-faction camp buildings, wherever they sit; never builds a village camp. |
 | Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
@@ -42,6 +43,8 @@ Purpose: one decision → one owner module → one definition of each function.
 | Pregnancy progress / birth | `humanLifecycle.ts` | pregnancy-progress | `tickPregnancyAndBirth` |
 | Moon Howler | `moonHowler.ts` | full-moon-event | `tickMoonHowlerCycle`, … |
 | Leader residency | `leaderHouse.ts` | daily | `syncLeaderHouseResidency` |
+| Leader household membership | `leaderHouse.ts` | daily / query | `collectLeaderHousehold` — who is entitled to the manor |
+| Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
 | Blueberry foraging | `blueberryForaging.ts` + `worldGen.ts` (spawn ≤3) | staggered / daily | pick / regrowth / spawn |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
 | Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |
@@ -60,6 +63,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`, `recordResourcesGathered`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
 | Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind`, `resolveCombatLogStage`, `summarizeCombatEvents` |
 | Big news, notifications, floating text | `simEffects.ts` | event-driven | `addBigNews`, `syncBigNewsIdFromState`, `addNotification`, `addFloatingText` |
+| Save / load and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `migrateEntityPersistedFields`, `clearAutoFilledChurches`, `floorIdAllocators` |
 | Save / load and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `loadGameFromParsedOutcome`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `clearAutoFilledChurches` |
 | Worker transport (prep + tick delta) | `simWorker/simPrep.ts` + `simBuffers/simDelta.ts` | per-tick / per-command | `extractSimPrep`, `applySimPrep`, `extractSimTickDelta`, `applySimTickDelta` |
 | Session clock, command queue, worker fallback | `gameLoop.ts` | animation-frame / command | `frame`, `applyCommand`, `flushDeferredWorkerCommands`, `fallbackFromWorker` |
@@ -78,7 +82,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Authored one-time stories (flags, cards, cooldown) | `storyHelpers.ts` (shared contract) + each story owner (`travelingTheatre.ts`, `inventionFair.ts`, `famineDesperation.ts`) | daily / story-card answer | `storyFlag`, `setStoryFlags`, `pushStoryCard`; `maybeOfferTravelingTheatre`, `resolveTravelingTheatre`, `tickTravelingTheatre` |
 | Leadership elections, candidacy merit and incumbent record | `villageLeadership.ts` | daily due-date check, year rollover, ceremony ticks | `tryStartVacancyElectionCeremony`, `tryStartTermElectionCeremony`, `tickElectionCeremony`, `tickLeaderVacancy`, `getLeadershipScoreBreakdown`, `getIncumbentRecordAssessment` |
 | Tutorial / guided campaign | `guidedCampaign.ts` + `tutorialCampaign.ts` | daily | `tickGuidedCampaign`, `recordGuidedCampaignChoice`, `currentCampaignStep` |
-| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `beginPathSearch`, `resetPathGridCaches`, `getPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment`, `isWalkStepAllowed` (the grid's verdict on one walk step) |
+| Pathfinding and the path cache | `pathfinding.ts` | realtime movement | `findPath`, `findRouteCost` (the same search's step cost), `beginPathSearch`, `resetPathGridCaches`, `getPathGrid`, `getCurrentPathGrid`, `pathWaypoints`, `steerWithPath`, `setCurrentPathMap`, `distanceToSegment`, `isWalkStepAllowed` (the grid's verdict on one walk step) |
 | Sprite preload and lookup (presentation) | `spriteLoader.ts` | boot / render | `preloadAllSprites`, `loadSprite`, `getSprite`, `isSpriteLoaded` |
 | Terrain decor stamps (presentation) | `terrainLayer.ts` | render / bake | `stampPropSprite`, `stampMountainPeaks`, `mountainSpritesReady` |
 | Staffing eligibility and assignment | `buildingStaffingActions.ts` (eligibility rules in `residencyOccupancy.ts`) | player-command + assignment | `autoStaffAllWorkers` (enable Auto-fill colony-wide and staff), `canAssignWorkerToBuilding`, `assignStaffWorkerToBuilding`, `removeStaffWorkerFromBuilding`, `hasWorkAssignment`, `isImprisoned` |
@@ -115,7 +119,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Ambient chat and dialogue sessions | `humanChat.ts` | realtime (`tickHumans`); `releaseDialogueSession` when an entity leaves that population | `tickHumanChat`, `sayHumanChatPhrase`, `isDialogueBusy`, `startDialogueTreeChat`, `releaseDialogueSession` |
 | Needs: colony meal and exhaustion | `simulation/humanNeeds.ts` | realtime (`tickHumans`, `applySettlerUpkeep`, hunting) | `tryEatColonyMeal`, `isMealCheckHour`, `humanEnergyLoss`, `killFromExhaustion` |
 | Skills and job skill effects | `skills.ts` | work (`dailyBuildingEconomy`, workforce transitions, apprenticeships, graduation) | `ensureEntitySkills`, `readSkill`, `gainSkill`, `getWorkerSkillMultiplier`, `rewardProductionSkills`, `rewardBuildingWork` |
-| School attendance, credit and graduation | `education.ts` | realtime (`humanTick`) + new-calendar-day credit | `recordChildSchoolTick`, `creditChildSchoolDay`, `applyEducationGraduation`, `buildSchoolRosters` |
+| School attendance, credit and graduation | `education.ts` | realtime (`humanTick`) + new-calendar-day credit | `hasTeacherPresent`, `recordChildSchoolTick`, `creditChildSchoolDay`, `applyEducationGraduation`, `buildSchoolRosters` |
 | Friendship and feud webs (with their daily energy effects) | `relationships.ts` | new-calendar-day (`tickLayerDaily`) | `advanceSocialRelationships`, `startFeud`, `friendshipScore`, `feudScore` |
 | Election promises | `electionPromises.ts` | new-calendar-day (three daily call sites) | `tickElectionPromises`, `recordElectionPromises`, `getPromiseDetail`, `electionPromisesForYear` |
 | Wedding diplomacy beat | `weddingDiplomacy.ts` | new-calendar-day (`tickDailyWorldEvents`) + story command | `maybeOfferWeddingDiplomacy`, `tickWeddingDiplomacy`, `resolveWeddingDiplomacy`, `getWeddingDiplomacyChoiceEligibility` |
@@ -133,7 +137,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount` |
 | Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
 | Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
-| Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
+| Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `createInitialViewForWorld`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
 | Building rotation rules | `buildingRotation.ts` | player-command (placement) | `isRotatableBuildingType`, `toggleBuildingRotation` |
 | Sprite metrics and class-ladder variants | `humanSprites.ts` | spawn (variant pick) + render pass | `pickHumanVariant`, `getHumanSpritePath`, `getHumanSpriteMetrics`, `getHumanSelectionBounds` |
 | Terrain atlas bake and tile picks | `terrainAtlas.ts` | render pass (cached; rebuild on readiness) | `terrainAtlasReady`, `pickAtlasTile`, `pickSandWaterOverlay`, `atlasFamily` |
@@ -164,7 +168,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Entity draw cache (viewport) | `renderer/entityCache.ts` | render pass | `updateCachedEntities`, `updateCachedEntitiesFromSoA`, `resetEntityCaches` |
 | Weather, season particles and terrain draw caches | `renderer/weather.ts` + `renderer/terrain.ts` | render pass | `drawWeather`, `drawSeasonParticles`, `drawWaterShimmer`, `drawGround`, `resetWeatherCaches`, `planGroundChunks` |
 | Ambient beds and track playback | `audio/ambient.ts` + `audio/trackPlayer.ts` + `audio/backgroundMusic.ts` + `audio/introMusic.ts` | UI events + time of day (intro vs gameplay) | `playLoopBed`, `rescheduleOneShot`, `playLoop`, `crossfadeLoop`, `start`, `ensureIntroAudio` |
-| Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler` |
+| Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler`, `deriveDashboardBuildings` (the village building table's rows) |
 | Chronicle export and download | `eventLogExport.ts` | UI + autosave | `downloadChronicleLog`, `formatChronicleText`, `formatChronicleJSON`, `buildChronicleFilename` |
 | Population and wildlife counts | `entityCounts.ts` | per-tick bookkeeping (`gameTick`, `tickLayerRealtime`) + daily point-of-use snapshot (`tickLayerDaily`) | `computePopulationCounts`, `countLivingPopulation`, `computeWildlifeCounts`, `wildlifeCountsFromPopulation` |
 | Rival presence summary | `rivalPresence.ts` | UI projection | `getRivalPresenceSummary`, `getRivalActivityLabel` |
@@ -368,6 +372,25 @@ If two modules export the same function name with the same responsibility:
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
 `dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
 
+## Housing architecture completion (23 October 2026)
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `moveResident`, `reassignDivorcedResidences`, `ensureOrphanAdoption`, `placeOrphanInHouse`, `tryMoveOutOfFamilyHome`, `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `relocateHouseholdsForCommute` | `game/residencyReconciliation.ts` | Own residence mutations, their reasons and pass indexes; resolve event-driven placement and sibling guardianship. Mutation-bearing functions formerly in selection and relationships now live here, not behind aliases. |
+| `familyFitsInResidence`, `buildCommuteRelocationIndex`, `collectFamilyHousingShortages` | `game/residencySelection.ts` | Pure capacity, per-sweep commute indexes and derived family-shortage warnings. |
+| `areCloseKin` | `game/householdComposition.ts` | Close family living apart: a parent/child link or a shared parent. |
+| `residenceHostsUnrelatedCouple`, `residenceHostsKin` | `game/residencySelection.ts` | Score a candidate home by the family a couple would live with and the couple it refuses to share with. |
+| `benchmarkRelocation` | `scripts/perf-at-pop.ts` | Measure the real daily sweep against the unindexed reference on isolated, repeatable work-and-school fixtures. |
+| `family` | `tests/housingArchitecture.completion.test.ts` | Build related parents and dependents for shortage, guardianship and commute regressions. |
+
+## Workplace reference consolidation (23 October 2026)
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `clearWorkerAssignment` | `game/workforce.ts` | The one door for leaving work: drop the workplace pointer, the roster entry it pointed at and the job labels, keeping an office title. Every clear site (arrest, death, demolition/legacy retirement, stale leader post, caravan departure, legacy invalid-job cleanup) calls it. |
+| `detachWorkplaceReference` | `game/workforce.ts` | Drop the workplace pointer alone, for the moon forms, which keep their saved trade labels and re-attach the reference themselves. |
+| `workerBuildingId` writers | `game/workforce.ts` (owner) | The only modules writing the pointer directly are the owner, the save boundary (`saveLoad.ts`, including the nested moon-form migration), and the moon-form owner (`moonHowler.ts`, `moonHowlerForm.ts`) where a form transform or the Church rite restores or displaces a post. `tests/workplaceReference.singleOwner.test.ts` pins that set. |
+
 ## CPU profiler integration lifecycle
 
 | Functions | Sole owner | Responsibility |
@@ -385,4 +408,4 @@ If two modules export the same function name with the same responsibility:
 | `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
-| `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible. |
+| `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |

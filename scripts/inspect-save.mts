@@ -428,7 +428,7 @@ function imprisonForWatch(world: WorldState, prison: Building, settler: Entity):
       building.occupants = building.occupants.filter((id) => id !== settler.id);
     }
   });
-  settler.homeBuildingId = undefined;
+  settler.workerBuildingId = undefined;
   settler.residenceBuildingId = undefined;
   settler.job = JobType.Settler;
   settler.occupation = 'settler';
@@ -488,7 +488,7 @@ function reportPrisonEscapeWatch(world: WorldState, days: number): void {
       if (world.entities.some((e) => e.alive && e.prisonBuildingId === prison.id)) continue;
       const settler = world.entities.find(
         (e) => e.alive && isPlayerHuman(e) && !e.isJuvenile && e.job !== JobType.PrisonGuard
-          && e.prisonBuildingId == null && e.homeBuildingId == null && !used.has(e.id),
+          && e.prisonBuildingId == null && e.workerBuildingId == null && !used.has(e.id),
       );
       if (!settler) continue;
       used.add(settler.id);

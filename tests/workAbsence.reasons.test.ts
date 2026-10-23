@@ -95,7 +95,7 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
 /** A settler on a completed Farm's roster, posted far from the building unless placed. */
 function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
   return settler(1, {
-    homeBuildingId: farm.id,
+    workerBuildingId: farm.id,
     job: JobType.Farmer,
     x: 3_000,
     y: 3_000,
@@ -153,7 +153,7 @@ describe('the reason a settler is not at their post', () => {
     const nightDoctorId = hospitalDoctorRoster(hospital, 1)[0].doctorId;
     const doctor = settler(nightDoctorId, {
       job: JobType.Doctor,
-      homeBuildingId: hospital.id,
+      workerBuildingId: hospital.id,
       residenceBuildingId: house.id,
       x: house.x + house.width / 2,
       y: house.y + house.height / 2,
@@ -176,7 +176,7 @@ describe('the reason a settler is not at their post', () => {
     const house = building(11, BuildingType.House, { x: 320, y: 320 });
     const doctor = settler(2, {
       job: JobType.Doctor,
-      homeBuildingId: hospital.id,
+      workerBuildingId: hospital.id,
       residenceBuildingId: house.id,
       x: house.x + house.width / 2,
       y: house.y + house.height / 2,
@@ -301,7 +301,7 @@ describe('the reason a settler is not at their post', () => {
 
   it('says off duty today for a prison guard resting between roster shifts', () => {
     const prison = building(3, BuildingType.Prison, { occupants: [1] });
-    const worker = settler(1, { homeBuildingId: prison.id, job: JobType.PrisonGuard });
+    const worker = settler(1, { workerBuildingId: prison.id, job: JobType.PrisonGuard });
     // A guard the roster gives no shift today is free, not merely between shifts.
     const state = world(workdayTick(10), { entities: [worker], buildings: [prison] });
 
@@ -378,7 +378,7 @@ describe('24-hour hospital workplace reasons', () => {
     // On day 0 the first doctor covers 00:00–08:00.
     const doctor = settler(1, {
       job: JobType.Doctor,
-      homeBuildingId: hospital.id,
+      workerBuildingId: hospital.id,
       residenceBuildingId: home.id,
       x: home.x + home.width / 2,
       y: home.y + home.height / 2,
@@ -393,7 +393,7 @@ describe('24-hour hospital workplace reasons', () => {
 
   it('keeps the two other doctors off duty during the midnight shift', () => {
     const hospital = building(7, BuildingType.Hospital, { occupants: [1, 2, 3, 4, 5] });
-    const doctor = settler(4, { job: JobType.Doctor, homeBuildingId: hospital.id });
+    const doctor = settler(4, { job: JobType.Doctor, workerBuildingId: hospital.id });
     const atFour = world(4 * TICKS_PER_HOUR, { entities: [doctor], buildings: [hospital] });
     expect(getSettlerWorkReason(atFour, doctor)).toEqual({
       code: 'off-shift',

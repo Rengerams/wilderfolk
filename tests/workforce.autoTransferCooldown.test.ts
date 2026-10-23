@@ -16,23 +16,23 @@ describe('two-month automatic job stability', () => {
   it('updates donor counts and cooldown eligibility after every transfer in one pass', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3, 4] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [] });
-    const workers = [1, 2, 3, 4].map((id) => human(id, { homeBuildingId: 10 }));
+    const workers = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: 10 }));
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 100);
     expect(farm.occupants).toHaveLength(1);
     expect(barracks.occupants).toHaveLength(3);
-    expect(workers.filter((worker) => worker.homeBuildingId === 11)).toHaveLength(3);
+    expect(workers.filter((worker) => worker.workerBuildingId === 11)).toHaveLength(3);
     expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(3);
-    const assignments = workers.map((worker) => worker.homeBuildingId);
+    const assignments = workers.map((worker) => worker.workerBuildingId);
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
-    expect(workers.map((worker) => worker.homeBuildingId)).toEqual(assignments);
+    expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 
   it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });
     const workers = [
-      human(1, { homeBuildingId: 10, lastAutoJobTransferTick: 100 }),
-      human(2, { homeBuildingId: 10, lastAutoJobTransferTick: 100 }),
+      human(1, { workerBuildingId: 10, lastAutoJobTransferTick: 100 }),
+      human(2, { workerBuildingId: 10, lastAutoJobTransferTick: 100 }),
     ];
     const jobs = [farm, quarry];
 
@@ -47,7 +47,7 @@ describe('two-month automatic job stability', () => {
     const eligible = pickWorkerToTransfer(workers, farm, quarry, eligibleTick);
     expect(eligible).toBeDefined();
     transferWorkerBetweenBuildings(eligible!, farm, quarry, eligibleTick);
-    expect(eligible?.homeBuildingId).toBe(11);
+    expect(eligible?.workerBuildingId).toBe(11);
     expect(eligible?.lastAutoJobTransferTick).toBe(eligibleTick);
     expect(pickWorkerToTransfer(workers, quarry, farm, eligibleTick + 1)).toBeUndefined();
   });
@@ -60,10 +60,10 @@ describe('two-month automatic job stability', () => {
       building(13, BuildingType.Hotel, { staffingMode: 'manual', occupants: [8, 9] }),
     ];
     const workers = [
-      ...[1, 2, 3].map((id) => human(id, { homeBuildingId: 10 })),
-      ...[4, 5].map((id) => human(id, { homeBuildingId: 11 })),
-      ...[6, 7].map((id) => human(id, { homeBuildingId: 12 })),
-      ...[8, 9].map((id) => human(id, { homeBuildingId: 13 })),
+      ...[1, 2, 3].map((id) => human(id, { workerBuildingId: 10 })),
+      ...[4, 5].map((id) => human(id, { workerBuildingId: 11 })),
+      ...[6, 7].map((id) => human(id, { workerBuildingId: 12 })),
+      ...[8, 9].map((id) => human(id, { workerBuildingId: 13 })),
     ];
     expect(findOverstaffedDonorBuilding(jobs, workers, 99)?.id).toBe(11);
     expect(findOverstaffedDonorBuilding(jobs, workers, 11)?.id).toBe(12);
@@ -79,7 +79,7 @@ describe('two-month automatic job stability', () => {
       building(1000 + i, BuildingType.Farm),
     );
     const workers = Array.from({ length: 8000 }, (_, i) =>
-      human(10000 + i, { homeBuildingId: 1000 + Math.floor(i / 40) }),
+      human(10000 + i, { workerBuildingId: 1000 + Math.floor(i / 40) }),
     );
     expect(findOverstaffedDonorBuilding(jobs, workers, -1)?.id).toBe(1000);
     expect(findOverstaffedDonorBuilding(jobs, workers, 1000)?.id).toBe(1001);
@@ -98,7 +98,7 @@ describe('two-month automatic job stability', () => {
       hotelSchedule: undefined,
       workforcePolicy: undefined,
     });
-    expect(adults[0].homeBuildingId).toBe(3);
+    expect(adults[0].workerBuildingId).toBe(3);
     expect(adults[0].lastAutoJobTransferTick).toBe(2000);
   });
 });

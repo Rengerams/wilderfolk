@@ -157,7 +157,7 @@ describe('M3 — construction-builder picker matches addToConstructionCrew', () 
 
 describe('M4 — canAssignWorkerToBuilding matches the assignment it gates', () => {
   it('is false for an unfinished building when every adult already holds a job', () => {
-    const employed = human(1, { homeBuildingId: 2 });
+    const employed = human(1, { workerBuildingId: 2 });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     const site = building(5, BuildingType.House, { completed: false });
     const world = makeWorld([employed], [farm, site]);
@@ -233,7 +233,7 @@ describe('M16 — on-duty official reaches officialHandlePetitioners', () => {
     const official = human(officialId, {
       x: hx,
       y: hy,
-      homeBuildingId: 900,
+      workerBuildingId: 900,
       job: JobType.Official,
       occupation: 'official',
       energy: 500,

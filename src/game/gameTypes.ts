@@ -200,12 +200,11 @@ export const HOTEL_GUEST_CAPACITY = 8;
 
 
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
-  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`), which
-  // includes the Leader's House (base 12) — its level is read even though it is unique.
+  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
+  // The unique Leader's House is out: its 12 beds are fixed and it can never gain a level.
   BuildingType.House,
   BuildingType.Mansion,
   BuildingType.Villa,
-  BuildingType.LeaderHouse,
   // Workshop output (`workshopEconomy`) and the Blacksmith's own workshop.
   BuildingType.Blacksmith,
   BuildingType.Workshop,
@@ -234,7 +233,7 @@ export interface MoonHowlerSavedState {
   size: number;
   job?: JobType;
   occupation?: string;
-  homeBuildingId?: number;
+  workerBuildingId?: number;
   /** Last automated workplace transfer tick; keeps jobs stable across saves. */
   lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
@@ -295,7 +294,7 @@ export interface Entity {
   pregnancyDueProgress?: number;
   /** In-game days left before this settler may court again after a courtship or marriage ended. */
   courtshipCooldownDays?: number;
-  homeBuildingId?: number;
+  workerBuildingId?: number;
   /** Tick of the last automatic workplace assignment or transfer; optional for older saves. */
   lastAutoJobTransferTick?: number;
   residenceBuildingId?: number;
@@ -1118,6 +1117,11 @@ export interface WorldMap {
   size: MapSize;
   /** Sparse per-tile overrides (camp/forest clearing) — key = y*width+x. */
   overrides?: Map<number, TerrainTile>;
+  /**
+   * The world-pixel site the camp clearing was carved around: the founders' own ground, which is
+   * the nearest buildable land to the map centre rather than the centre itself.
+   */
+  campSite?: { x: number; y: number };
   /** Teraforge continuous fields (L2). */
   cols?: number;
   rows?: number;

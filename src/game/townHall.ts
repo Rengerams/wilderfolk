@@ -144,8 +144,8 @@ export function isOfficialAtHall(
   entity: Entity,
   buildings: readonly Building[],
 ): Building | undefined {
-  if (entity.job !== JobType.Official || entity.homeBuildingId == null) return undefined;
-  const hall = buildings.find((b) => b.id === entity.homeBuildingId);
+  if (entity.job !== JobType.Official || entity.workerBuildingId == null) return undefined;
+  const hall = buildings.find((b) => b.id === entity.workerBuildingId);
   if (!hall || hall.type !== BuildingType.TownHall || !hall.completed) return undefined;
   return hall;
 }

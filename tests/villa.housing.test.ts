@@ -45,4 +45,10 @@ describe('Villa housing and upgrade regression', () => {
     expect(getResidenceCapacity(finishedBuilding(1, BuildingType.House, { level: 3 }))).toBe(BUILDING_CONFIGS[BuildingType.House].maxOccupants + 4);
     expect(getResidenceCapacity(finishedBuilding(2, BuildingType.Mansion, { level: 2 }))).toBe(BUILDING_CONFIGS[BuildingType.Mansion].maxOccupants + 2);
   });
+
+  it('keeps the fixed beds of a manor holding a level no upgrade can grant it any more', () => {
+    const legacyManor = finishedBuilding(7, BuildingType.LeaderHouse, { level: 3 });
+
+    expect(getResidenceCapacity(legacyManor)).toBe(BUILDING_CONFIGS[BuildingType.LeaderHouse].maxOccupants);
+  });
 });

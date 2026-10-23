@@ -133,7 +133,7 @@ export function createEntity(
     pregnant: undefined,
     // Settler-only: the isHuman branch below assigns 0, so no blade of grass materialises it.
     pregnancyProgress: undefined,
-    homeBuildingId: undefined,
+    workerBuildingId: undefined,
     residenceBuildingId: undefined,
     occupation: isHuman ? 'settler' : undefined,
     job: isHuman ? JobType.Settler : undefined,

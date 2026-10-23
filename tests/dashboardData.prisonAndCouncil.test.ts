@@ -1,7 +1,7 @@
 /**
  * The dashboard's two 2026-09-17 owner rulings, pinned.
  *
- * **F9 — a prisoner is neither homeless nor idle.** An arrest deliberately clears `homeBuildingId`
+ * **F9 — a prisoner is neither homeless nor idle.** An arrest deliberately clears `workerBuildingId`
  * and `residenceBuildingId` (`humanRelationships`), so the projection must not read that absence as a
  * player-actionable gap in any of its three surfaces: the council concerns, the settler table's
  * `noHome`/`noWork` flags, and the per-settler explanation's suggestion.
@@ -36,7 +36,7 @@ function firstAdultSettler(state: WorldState): Entity {
 
 /** The state an arrest leaves behind — exactly what the imprisonment path writes. */
 function imprison(state: WorldState, settler: Entity): void {
-  settler.homeBuildingId = undefined;
+  settler.workerBuildingId = undefined;
   settler.residenceBuildingId = undefined;
   settler.prisonBuildingId = state.buildings[0]?.id ?? 1;
 }
@@ -84,7 +84,7 @@ describe('a prisoner is neither homeless nor idle', () => {
     const settler = firstAdultSettler(state);
     // Make them count as both *before* the arrest, so the assertions are about the jail, not housing.
     settler.residenceBuildingId = undefined;
-    settler.homeBuildingId = undefined;
+    settler.workerBuildingId = undefined;
 
     const homelessBefore = concernCount(state, 'homeless');
     const idleBefore = concernCount(state, 'idle');

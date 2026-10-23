@@ -70,7 +70,7 @@ describe('the inspector claims automatic staffing only where the workforce owner
 
 describe("the inspector measures a Prison by the owner's guard posts", () => {
   it('counts guards, not guards and prisoners, against the posts', () => {
-    const guards = [1, 2, 3].map((id) => human(id, { homeBuildingId: 9 }));
+    const guards = [1, 2, 3].map((id) => human(id, { workerBuildingId: 9 }));
     const inmates = [4, 5, 6, 7].map((id) =>
       human(id, { prisonBuildingId: 9, prisonerUntilTick: 500 }),
     );
@@ -85,7 +85,7 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
   });
 
   it('does not offer the empty-picker notice once every post is filled', () => {
-    const guards = [1, 2, 3, 4].map((id) => human(id, { homeBuildingId: 9 }));
+    const guards = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: 9 }));
     const prison = building(9, BuildingType.Prison, { occupants: [1, 2, 3, 4] });
     const state = makeWorld(guards, [prison]);
 
@@ -97,7 +97,7 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
     expect(renderPanel(prison, state)).not.toContain('No idle settlers');
   });
   it('lists prison guards as workers without duplicating prisoners in the duty roster', () => {
-    const guard = human(1, { name: 'GuardUnique', homeBuildingId: 9, job: JobType.PrisonGuard });
+    const guard = human(1, { name: 'GuardUnique', workerBuildingId: 9, job: JobType.PrisonGuard });
     const inmate = human(2, { name: 'InmateUnique', prisonBuildingId: 9, prisonerUntilTick: 500 });
     const prison = building(9, BuildingType.Prison, { occupants: [1, 2] });
     const html = renderPanel(prison, makeWorld([guard, inmate], [prison]));
@@ -126,8 +126,8 @@ describe('building worker roster shows work duty, not private activities', () =>
   it('distinguishes working and walking to work on the same barracks roster', () => {
     const barracks = building(20, BuildingType.Barracks, { occupants: [1, 2] });
     const atPost = humanBuildingTarget(barracks, 1, false);
-    const present = human(1, { homeBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
-    const commuter = human(2, { homeBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
+    const present = human(1, { workerBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
+    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
     const state = makeWorld([present, commuter], [barracks]);
     state.tick = 10 * TICKS_PER_HOUR;
     const html = renderPanel(barracks, state);
@@ -142,7 +142,7 @@ describe('building worker roster shows work duty, not private activities', () =>
     const barracks = building(20, BuildingType.Barracks, { occupants: [1] });
     const house = building(21, BuildingType.House, { x: 500, y: 500 });
     const sleeper = human(1, {
-      homeBuildingId: barracks.id,
+      workerBuildingId: barracks.id,
       residenceBuildingId: house.id,
       job: JobType.Soldier,
       x: house.x + house.width / 2,
@@ -163,8 +163,8 @@ describe('assigned workers vs actual presence', () => {
     });
     const home = building(11, BuildingType.House, { x: 0, y: 0, occupants: [1, 2] });
     const soldiers = [
-      human(1, { homeBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
-      human(2, { homeBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
+      human(1, { workerBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
+      human(2, { workerBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
     ];
     const html = renderPanel(barracks, makeWorld(soldiers, [home, barracks]));
     expect(html).toContain('Assigned workers: 2 / 4');
