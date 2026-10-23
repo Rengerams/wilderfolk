@@ -1,3 +1,4 @@
+
 name: Node.js CI
 
 on:
@@ -8,28 +9,23 @@ on:
 
 jobs:
   build:
-    # Veranderd naar ubuntu-latest voor snellere builds (tenzij Windows vereist is)
+
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [24.22.1]
+        node-version: [26.12.0]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v4
-
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-
-    # Volgorde gecorrigeerd en npm install vervangen door npm ci
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build source code
-      run: npm run build --if-present
-
-    - name: Run tests
-      run: npm test
+    - run: npm ci
+    - run: npm test -- unit
+    - run: npm test
+    - run: npm run build 
+    

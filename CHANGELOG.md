@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** The auto-play ladder staffs an empty Quarry by moving a hand from an over-crewed producer instead of only naming the shortage, so a colony short of stone recovers on its own.
+
 - **Fixed:** Housing capacity now counts every resident, including settlers the pass may not move, and the Leader's House protects its household only while a manor stands, so a house can no longer be filled past its beds.
 
 - **Changed:** A couple no longer shares a house with another, unrelated couple: with no home of its own free it moves in with its own family, and single settlers keep to singles' houses.

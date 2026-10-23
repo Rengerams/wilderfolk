@@ -19,7 +19,12 @@ import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
-import { countWorkersAtBuilding, isManualStaffingBuilding } from './workforce';
+import {
+  countWorkersAtBuilding,
+  findOverstaffedDonorBuilding,
+  isManualStaffingBuilding,
+  pickWorkerToTransfer,
+} from './workforce';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
@@ -584,6 +589,28 @@ const INDUSTRY_BUILD_ORDER: readonly {
   { type: BuildingType.Mine, stock: 'iron', minimumStock: LOW_IRON_STOCK },
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
+
+/** Staff an empty essential Quarry only when the real auto-staff pass can transfer a worker. */
+function decideUnstaffedQuarry(state: WorldState): VirtualPlayerDecision | null {
+  if ((state.resources.stone ?? 0) >= LOW_STONE_STOCK) return null;
+  const quarry = state.buildings.find((building) =>
+    building.completed && building.type === BuildingType.Quarry
+    && building.faction !== 'rival' && !isManualStaffingBuilding(building)
+    && countWorkersAtBuilding(state.entities, building.id) === 0,
+  );
+  if (!quarry) return null;
+  const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
+  const workplaces = state.buildings.filter((building) =>
+    building.completed && building.faction !== 'rival'
+    && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
+  );
+  const donor = findOverstaffedDonorBuilding(workplaces, humans, quarry.id, state.tick);
+  if (!donor || !pickWorkerToTransfer(humans, donor, quarry, state.tick)) return null;
+  return {
+    command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
+    reason: `staff the Quarry — only ${Math.floor(state.resources.stone ?? 0)} stone left`,
+  };
+}
 
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
@@ -1673,6 +1700,7 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideResearch(state)
     ?? decideFestival(state)
     ?? decideRepairs(state)
+    ?? decideUnstaffedQuarry(state)
     ?? decideIndustry(state)
     ?? decideForgeOrders(state)
     ?? decideBuildingTuning(state)
