@@ -19,7 +19,7 @@ const WALK_SPEED = 2;
 function fixtures(): { staff: Entity; graduate: Entity; pupil: Entity; school: Building } {
   return {
     staff: human(1, { x: 40, y: 40 }),
-    school: building(50, BuildingType.School, { x: 40, y: 40, occupants: [1], faction: 'player' }),
+    school: building(50, BuildingType.School, { x: 40, y: 40, occupants: [1] }),
     // The adult still carries the seat the school-day rule left behind at graduation.
     graduate: human(2, { x: 44, y: 44, age: 30, isJuvenile: false, schoolBuildingId: 50, schoolDays: 400 }),
     pupil: human(3, { x: 44, y: 44, age: SCHOOL_MIN_AGE + 2, isJuvenile: true }),
