@@ -10,7 +10,7 @@ import {
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
-import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
+import { collectLeaderHousehold, findLeaderHouse, syncLeaderHouseResidency } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
@@ -96,15 +96,14 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
   const startedassignMissingResidences = profileStart();
-  // The elected leader's household has a protected manor assignment. Generic housing
-  // convergence can otherwise move the entire family to an ordinary house, only
-  // for syncLeaderHouseResidency to undo it later in this same tick.
-  // Keep everyone in allHumans for genealogy; only remove protected members
-  // from the set of people eligible to be reassigned.
-  const protectedIds = new Set([
-    ...collectLeaderHousehold(world).map((person) => person.id),
-    ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
-  ]);
+  // Only a standing manor protects the leader's household from reassignment. Without one they are
+  // ordinary residents: the housing pass must count their beds and stay free to move them.
+  const protectedIds = findLeaderHouse(world.buildings)
+    ? new Set([
+      ...collectLeaderHousehold(world).map((person) => person.id),
+      ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
+    ])
+    : new Set<number>();
   const eligibleForHousing = protectedIds.size === 0
     ? playerHumans
     : playerHumans.filter((person) => !protectedIds.has(person.id));

@@ -228,7 +228,8 @@ function activeSweepBucket(tick: number): number {
 /**
  * Seat every settler who has no residence, repair every housing unit that is wrongly placed.
  *
- * `allHumansForGenealogy` widens the family pool beyond the settlers being seated. With no `sweepTick`
+ * `allHumansForGenealogy` widens the family pool and the bed count beyond the settlers being seated:
+ * a settler who may not move still occupies a bed. With no `sweepTick`
  * the whole colony converges at once — a load, a player command or an event must not wait for a
  * bucket to come round. With one, only that pulse's bucket of already-housed units is swept; the
  * eviction rebalance and the homeless fill below stay global on every call, so a settler who loses a
@@ -249,6 +250,10 @@ export function assignMissingResidences(
   }
 
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h) && !isImprisoned(h));
+  // Beds are counted from every resident, never from the settlers this call may move.
+  const residents = (allHumansForGenealogy ?? humans).filter(
+    (h) => h.alive && isResidenceOccupantEntity(h) && !isImprisoned(h),
+  );
   const genealogyPool = (allHumansForGenealogy ?? humans).filter(
     (h) => h.type === EntityType.Human || isResidenceOccupantEntity(h),
   );
@@ -272,7 +277,7 @@ export function assignMissingResidences(
     }
   }
 
-  rebalanceOvercrowdedResidences(alive, residences);
+  rebalanceOvercrowdedResidences(residents, residences);
   rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences);
 
   // Family structure is static while we converge on residence slots — build the
@@ -287,8 +292,8 @@ export function assignMissingResidences(
       let reassigned = 0;
       // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
       // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
-      const occupancy = buildResidenceOccupancy(alive);
-      const traits = buildResidenceTraits(alive);
+      const occupancy = buildResidenceOccupancy(residents);
+      const traits = buildResidenceTraits(residents);
       const housingUnits = sortHousingUnitsForAssignment(
         housingUnitsBase,
         alive,
@@ -302,11 +307,11 @@ export function assignMissingResidences(
         assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
         reassigned++;
       }
-      const evicted = rebalanceOvercrowdedResidences(alive, residences);
+      const evicted = rebalanceOvercrowdedResidences(residents, residences);
       if (evicted) {
         // Rebalance clears residences without the maps — rebuild both before fill.
-        const afterEvict = buildResidenceOccupancy(alive);
-        const traitsAfterEvict = buildResidenceTraits(alive);
+        const afterEvict = buildResidenceOccupancy(residents);
+        const traitsAfterEvict = buildResidenceTraits(residents);
         fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
       }
       if (reassigned === 0 && !evicted) break;
@@ -320,8 +325,8 @@ export function assignMissingResidences(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
     );
     for (let pass = 0; pass < 3; pass++) {
-      const occupancy = buildResidenceOccupancy(alive);
-      const traits = buildResidenceTraits(alive);
+      const occupancy = buildResidenceOccupancy(residents);
+      const traits = buildResidenceTraits(residents);
       const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
       let moved = false;
       for (const unit of orderedUnits) {
@@ -332,9 +337,9 @@ export function assignMissingResidences(
       }
       if (!moved) break;
     }
-    if (rebalanceOvercrowdedResidences(alive, residences)) {
-      const afterEvict = buildResidenceOccupancy(alive);
-      const traitsAfterEvict = buildResidenceTraits(alive);
+    if (rebalanceOvercrowdedResidences(residents, residences)) {
+      const afterEvict = buildResidenceOccupancy(residents);
+      const traitsAfterEvict = buildResidenceTraits(residents);
       fillHomelessAfterEviction(alive, residences, afterEvict, traitsAfterEvict);
     }
 
@@ -343,8 +348,8 @@ export function assignMissingResidences(
     // against the now-current occupancy. This removes the one-day delay without
     // re-running the expensive 24-pass unsplit allocator every tick.
     if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
-      const occupancy = buildResidenceOccupancy(alive);
-      const traits = buildResidenceTraits(alive);
+      const occupancy = buildResidenceOccupancy(residents);
+      const traits = buildResidenceTraits(residents);
       const ordered = sortHousingUnitsForAssignment(housingUnitsBase, alive, residences, occupancy, traits);
       for (const unit of ordered) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
@@ -356,7 +361,7 @@ export function assignMissingResidences(
     }
   }
 
-  fillHomelessAfterEviction(alive, residences, buildResidenceOccupancy(alive), buildResidenceTraits(alive));
+  fillHomelessAfterEviction(alive, residences, buildResidenceOccupancy(residents), buildResidenceTraits(residents));
 
   syncResidenceOccupants(
     (allHumansForGenealogy ?? humans).filter(isResidenceOccupantEntity),

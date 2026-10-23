@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Housing capacity now counts every resident, including settlers the pass may not move, and the Leader's House protects its household only while a manor stands, so a house can no longer be filled past its beds.
+
 - **Changed:** A couple no longer shares a house with another, unrelated couple: with no home of its own free it moves in with its own family, and single settlers keep to singles' houses.
 
 - **Fixed:** Two settlers who pair up are no longer left without a bed when no home has room for both of them, and a child with no bed left stays with the parent who still has one.
