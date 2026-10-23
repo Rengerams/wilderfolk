@@ -65,4 +65,24 @@ describe('saved birthdates survive a load', () => {
       expect(Math.abs(computeHumanAgeYears(human, colonyDay) - stored)).toBeLessThan(1);
     }
   });
+
+  it('keeps a January 1 birthday, whose day and month are both zero', () => {
+    const state = initGame({ villageName: 'NewYear', size: 'medium' });
+    state.tick = 400 * TICKS_PER_DAY;
+    const settlers = players(state);
+    expect(settlers.length).toBeGreaterThan(0);
+    for (const human of settlers) {
+      // Day 0 of month 0 is January 1: the year is what tells that date from an absent one.
+      human.birthYear = 1;
+      human.birthMonth = 0;
+      human.birthDay = 0;
+    }
+
+    const loaded = roundTrip(state);
+
+    expect(players(loaded).length).toBeGreaterThan(0);
+    for (const human of players(loaded)) {
+      expect(birthday(human), `settler ${human.id}`).toBe('1-0-0');
+    }
+  });
 });

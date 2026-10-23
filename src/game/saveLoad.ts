@@ -876,14 +876,17 @@ function isUsableId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_USABLE_ID;
 }
 
-/** The highest id a save may carry: the allocator floored from it and that allocator's next value stay usable. */
-const MAX_PERSISTED_ID = MAX_USABLE_ID - 2;
+/** The highest id an allocator may hand out: the value it leaves behind (`id + 1`) stays usable. */
+const MAX_EMITTED_ID = MAX_USABLE_ID - 2;
 
-/** The highest allocator value: the id it hands out and the value it becomes must both stay usable. */
-const MAX_ALLOCATOR_ID = MAX_USABLE_ID - 1;
+/** The highest allocator value: the id it hands out stays usable in the range, and so does the value it becomes. */
+const MAX_ALLOCATOR_ID = MAX_EMITTED_ID;
 
-/** An id a payload may carry — above it, the allocator floored from the id has no usable successor. */
-const isPersistedId = (value: unknown): value is number => isUsableId(value) && value <= MAX_PERSISTED_ID;
+/** The highest id a save may carry: the allocator floored from it (`id + 1`) stays within the allocator ceiling. */
+const MAX_SAVED_ID = MAX_ALLOCATOR_ID - 1;
+
+/** An id a payload may carry — above it, the allocator floored from the id would pass the allocator ceiling. */
+const isPersistedId = (value: unknown): value is number => isUsableId(value) && value <= MAX_SAVED_ID;
 
 /** An id the engine keys on by string equality — every camp, event and route id is a string. */
 function isStringId(value: unknown): value is string {

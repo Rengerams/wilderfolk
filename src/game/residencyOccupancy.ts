@@ -27,7 +27,9 @@ export function isLeaderHouseResidence(b: Building): boolean {
 /** Base occupants + bonus from house/mansion upgrades (+2 slots per level above 1). */
 export function getResidenceCapacity(residence: Building): number {
   const base = BUILDING_CONFIGS[residence.type].maxOccupants;
-  if (!isResidenceBuildingType(residence.type)) return base;
+  // The Leader's House is out of the level rule: its beds are fixed, and a save made before that
+  // rule can still carry a level it can no longer use.
+  if (!isResidenceBuildingType(residence.type) || isLeaderHouseResidence(residence)) return base;
   const level = residence.level || 1;
   return base + (level - 1) * 2;
 }

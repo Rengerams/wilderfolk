@@ -241,6 +241,25 @@ describe('entity ids must be integers, non-negative and unique', () => {
     expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
   });
 
+  it('refuses the top id an allocator could hand out, which leaves the allocator nothing to hand out', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 3;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('loads the highest id a save keeps, leaving an allocator the next save still accepts', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 4;
+    payload.nextEntityId = 1;
+
+    const world = buildWorld(payload)!;
+
+    // The floor is the highest allocator value a save may carry, so the state the load produced is savable.
+    expect(world.nextEntityId).toBe(Number.MAX_SAFE_INTEGER - 3);
+    expect(loadGameFromParsedOutcome(buildSaveData(world, createInitialView(world.width, world.height))).ok).toBe(true);
+  });
+
   it('still loads the uncorrupted payload, so those refusals are about the corruption', () => {
     expect(loadGameFromParsedOutcome(realPayload()).ok).toBe(true);
   });

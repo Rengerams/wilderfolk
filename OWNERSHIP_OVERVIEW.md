@@ -168,7 +168,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Entity draw cache (viewport) | `renderer/entityCache.ts` | render pass | `updateCachedEntities`, `updateCachedEntitiesFromSoA`, `resetEntityCaches` |
 | Weather, season particles and terrain draw caches | `renderer/weather.ts` + `renderer/terrain.ts` | render pass | `drawWeather`, `drawSeasonParticles`, `drawWaterShimmer`, `drawGround`, `resetWeatherCaches`, `planGroundChunks` |
 | Ambient beds and track playback | `audio/ambient.ts` + `audio/trackPlayer.ts` + `audio/backgroundMusic.ts` + `audio/introMusic.ts` | UI events + time of day (intro vs gameplay) | `playLoopBed`, `rescheduleOneShot`, `playLoop`, `crossfadeLoop`, `start`, `ensureIntroAudio` |
-| Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler` |
+| Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler`, `deriveDashboardBuildings` (the village building table's rows) |
 | Chronicle export and download | `eventLogExport.ts` | UI + autosave | `downloadChronicleLog`, `formatChronicleText`, `formatChronicleJSON`, `buildChronicleFilename` |
 | Population and wildlife counts | `entityCounts.ts` | per-tick bookkeeping (`gameTick`, `tickLayerRealtime`) + daily point-of-use snapshot (`tickLayerDaily`) | `computePopulationCounts`, `countLivingPopulation`, `computeWildlifeCounts`, `wildlifeCountsFromPopulation` |
 | Rival presence summary | `rivalPresence.ts` | UI projection | `getRivalPresenceSummary`, `getRivalActivityLabel` |

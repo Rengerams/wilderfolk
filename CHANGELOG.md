@@ -2,6 +2,12 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A save carrying an identity at the very top of the range is refused, and an accepted save always floors its identity counters to values the next save still accepts, so one spawn can no longer make a colony unsavable.
+
+- **Fixed:** A settler born on January 1 keeps that birthday when a save is opened, instead of having the date rebuilt from a whole-year age because the day and month are both zero.
+
+- **Fixed:** The Leader's House keeps its fixed beds in a save written while it still carried an upgrade level, rather than reporting two extra beds for every stored level.
+
 - **Fixed:** The auto-play ladder staffs an empty Quarry by moving a hand from an over-crewed producer instead of only naming the shortage, so a colony short of stone recovers on its own.
 
 - **Fixed:** Housing capacity now counts every resident, including settlers the pass may not move, and the Leader's House protects its household only while a manor stands, so a house can no longer be filled past its beds.

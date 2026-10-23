@@ -393,8 +393,9 @@ export function migrateHumanAges(
     if (human.type !== EntityType.Human || human.faction) continue;
     const stored = Math.max(0, human.age);
     const computed = state ? computeHumanAgeYears(human, colonyDay) : stored;
-    // Both date fields zeroed means no date was saved: one is rebuilt from the stored age below.
-    const hasBirthDate = human.birthDay !== 0 || human.birthMonth !== 0;
+    // All three zeroed means no date was saved: one is rebuilt from the stored age below. January 1
+    // is day 0 of month 0, so the year is what tells a saved date from an absent one.
+    const hasBirthDate = human.birthDay !== 0 || human.birthMonth !== 0 || human.birthYear !== 0;
     const looksLikeLegacyFastAge = stored > HUMAN_MAX_LIFESPAN_YEARS + 5;
     const looksLikeLegacyPerDayAging =
       colonyDay > 0
