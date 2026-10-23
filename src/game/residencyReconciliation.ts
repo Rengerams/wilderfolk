@@ -529,16 +529,22 @@ export function ensureOrphanAdoption(
     return false;
   }
   if (livingAdoptiveCustodian(child, humans)) return false;
-  const siblings = humans.filter((sibling) => sibling.alive && !sibling.faction && isMinorChild(sibling)
+  const siblings = humans.filter((sibling) => sibling.alive && isPlayerHuman(sibling) && isMinorChild(sibling)
     && (sibling.id === child.id || (child.motherId != null && sibling.motherId === child.motherId)
       || (child.fatherId != null && sibling.fatherId === child.fatherId))
     && ![sibling.motherId, sibling.fatherId].some((id) => findLivingHuman(humans, id)))
     .sort((a, b) => a.id - b.id);
-  const relative = getChildCustodian(child, humans, undefined, genealogy);
-  const existing = siblings.map((sibling) => livingAdoptiveCustodian(sibling, humans)).find((guardian) => !!guardian);
   const alive = humans.filter((human) => isResidenceOccupantEntity(human) && !isImprisoned(human));
-  const couples = listVillageCouples(humans);
-  const singles = listVillageSingleAdults(humans).sort((a, b) => a.id - b.id);
+  // The Leader's House is not an orphan home, so a manor resident is never a guardian here:
+  // naming one would relocate the leader's household out of the manor to seat the child.
+  const guardianPool = humans.filter((human) => {
+    const homeId = human.residenceBuildingId;
+    return homeId == null || !residences.some((home) => home.id === homeId && isLeaderHouseResidence(home));
+  });
+  const relative = getChildCustodian(child, guardianPool, undefined, genealogy);
+  const existing = siblings.map((sibling) => livingAdoptiveCustodian(sibling, guardianPool)).find((guardian) => !!guardian);
+  const couples = listVillageCouples(guardianPool);
+  const singles = listVillageSingleAdults(guardianPool).sort((a, b) => a.id - b.id);
   const canHouse = (guardian: Entity, currentOnly = false): boolean => {
     const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
       .map((member) => [member.id, member])).values()];

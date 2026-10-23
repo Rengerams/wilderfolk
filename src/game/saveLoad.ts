@@ -1308,12 +1308,6 @@ function floorIdAllocators(world: WorldState): void {
  * `describeSaveLoadOutcome` can name the field and `loadGameOutcome` can pass it on.
  */
 export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): SaveLoadOutcome {
-  for (const field of ['nextEntityId', 'nextBuildingId']) {
-    if (parsed[field] === undefined) {
-      return { ok: false, reason: 'unrestorable',
-        detail: `${field} is missing: retired building identities or citizen identities cannot be recovered safely. Use an intact save with its original identity counters.` };
-    }
-  }
   const unrestorableField = findUnrestorableField(parsed);
   if (unrestorableField) {
     // One wording for two kinds of refusal: a container that is missing or not an object, and an
@@ -1322,6 +1316,14 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const detail = `${unrestorableField} is missing or unusable`;
     console.error('Save load refused:', detail);
     return { ok: false, reason: 'unrestorable', detail };
+  }
+  // Absent identity counters are refused rather than inferred: no surviving id says which retired
+  // ones the allocator must still avoid.
+  for (const field of ['nextEntityId', 'nextBuildingId']) {
+    if (parsed[field] === undefined) {
+      return { ok: false, reason: 'unrestorable',
+        detail: `${field} is missing: retired building identities or citizen identities cannot be recovered safely. Use an intact save with its original identity counters.` };
+    }
   }
   // Work on a copy, so this reads as the pure function its signature promises.
   //

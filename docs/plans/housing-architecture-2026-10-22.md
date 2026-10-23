@@ -40,7 +40,9 @@ Stage 4 explicitly refuses saves missing identity counters instead of guessing r
 Prison reservation, the original Day 121 reproduction and the final full acceptance matrix remain open.
 
 The existing unmarried-grandchild entitlement is preserved. The confirmed child/spouse rule is applied
-without extending eligibility to collateral relatives or married grandchildren.
+without extending eligibility to collateral relatives or married grandchildren. Eligibility is a right
+to the manor, not a move order: an adult child or spouse already settled in a home of their own stays
+there, so the September audit rule keeping grown children out of the manor still holds.
 
 ## Stage 1 verification
 

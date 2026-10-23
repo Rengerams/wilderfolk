@@ -8,7 +8,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderDescendants } from './householdComposition';
+import { collectLeaderDescendants, isMinorChild } from './householdComposition';
 import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
@@ -133,6 +133,11 @@ export function syncLeaderHouseResidency(state: WorldState): void {
 
   //Move in all members of the current leader's household
   for (const member of atHome) {
+    // The manor seats the leader, their spouse, dependents and anyone without a bed of their own; an
+    // adult child settled in a home of their own keeps it rather than being uprooted into the manor.
+    const hasOwnHome = member.residenceBuildingId != null && member.residenceBuildingId !== house.id;
+    if (hasOwnHome && member.id !== state.villageLeaderId && member.partnerId !== state.villageLeaderId
+      && !isMinorChild(member)) continue;
     if (member.residenceBuildingId !== house.id) {
       // Release the old home's reserved slot before finding homes for displaced residents.
       const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);

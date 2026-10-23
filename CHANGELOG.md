@@ -10,7 +10,9 @@
 
 - **Fixed:** Orphans consider grandparents on both sides, including grandfathers, and siblings receive a shared guardian and home whenever possible. Historical family records retain custody links after parents leave the living population.
 
-- **Fixed:** The Leader's House admits the leader's married children and their spouses while preserving existing grandchild eligibility and succession protection.
+- **Fixed:** The Leader's House admits the leader's married children and their spouses, but an adult child settled in a home of their own is no longer moved out of it into the manor. Grandchild eligibility and succession protection are unchanged.
+
+- **Fixed:** An orphan's guardian is never taken from the Leader's House, so placing a child can no longer move the leader's family out of the manor.
 
 - **Changed:** Saves missing identity counters are explicitly refused because retired identities cannot safely be inferred from surviving records. Intact saves retain their counters and existing identities.
 
