@@ -272,11 +272,10 @@ function registerSpawnedEntity(
   indexLivingEntity(state, entity);
 }
 
-function createFactionHuman(
+function createVisitorHuman(
   state: WorldState,
   x: number,
   y: number,
-  faction: 'visitor' | 'rival',
   groupId: string,
   surname: string
 ): Entity {
@@ -290,10 +289,10 @@ function createFactionHuman(
     false,
     { surname, ageYears: age, colonyDay: getColonyDay(state) },
   );
-  ent.faction = faction;
+  ent.faction = 'visitor';
   ent.hiddenFromPlayer = false;
   ent.groupId = groupId;
-  ent.occupation = faction === 'visitor' ? 'visitor' : 'settler';
+  ent.occupation = 'visitor';
   ent.job = JobType.Settler;
   ent.relationshipStatus = 'single';
   ent.reproductionCooldown = 9999;
@@ -343,7 +342,7 @@ export function spawnVisitorGroup(
   const entityIds: number[] = [];
 
   for (let i = 0; i < memberCount; i++) {
-    const ent = createFactionHuman(state, site.x, site.y, 'visitor', groupId, surname);
+    const ent = createVisitorHuman(state, site.x, site.y, groupId, surname);
     entityIds.push(ent.id);
     registerSpawnedEntity(state, allAlive, ent, ctx);
   }
@@ -566,8 +565,6 @@ function shiftRelationship(rel: RivalRelationship, steps: number): RivalRelation
 function relationshipLabel(rel: RivalRelationship): string {
   return { friendly: 'Friendly', neutral: 'Neutral', competitive: 'Competitive', tense: 'Tense' }[rel];
 }
-
-export { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
@@ -1503,9 +1500,7 @@ function admitRefugees(
   return joined;
 }
 
-export type CampHit =
-  | { kind: 'rival'; id: string; x: number; y: number; buildingId: number | null }
-  | { kind: 'visitor'; id: string; x: number; y: number };
+export type CampHit = { kind: 'visitor'; id: string; x: number; y: number };
 
 export function hitTestCamp(
   state: WorldState,
