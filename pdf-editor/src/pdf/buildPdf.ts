@@ -9,6 +9,7 @@ import {
   type PDFImage,
   type PDFPage,
 } from "pdf-lib"
+import { t } from "../i18n/translate"
 import type { Annotation, DocMetadata, OcrLayer, PageRef, Point, Rect } from "../types"
 import { pdfRect } from "./geometry"
 import { totalRotation } from "./pages"

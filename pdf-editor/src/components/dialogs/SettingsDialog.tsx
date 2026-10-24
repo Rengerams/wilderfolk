@@ -13,7 +13,8 @@ import {
   updateSettings,
 } from "../../storage/settings"
 import { useEditor } from "../../app/store"
-import { LANGUAGES, normalizeLanguage, useT } from "../../i18n"
+import { useT } from "../../i18n"
+import { LANGUAGES, normalizeLanguage } from "../../i18n/languages"
 
 export function SettingsDialog() {
   const t = useT()

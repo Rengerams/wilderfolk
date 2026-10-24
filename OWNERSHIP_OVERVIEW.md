@@ -396,3 +396,4 @@ packages it for Windows. Its modules are otherwise outside the game's register.
 |---|---|---|
 | `run` | `pdf-editor/src-tauri/src/lib.rs` | Build the desktop window and load the bundled editor. |
 | `main` | `pdf-editor/src-tauri/src/main.rs` | Forward to `run` without opening a console window on Windows. |
+| `sourceMessages`, `placeholders` | `pdf-editor/tests/i18n.test.ts` | test tier only — collect the interface messages and their placeholders so the Dutch catalog stays complete. |

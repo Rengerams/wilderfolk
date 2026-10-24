@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio's whole interface can now be read in Dutch — every label, dialog, hint and error message is translated, and the language is chosen in the settings.
+
 - **Added:** PDF Studio now carries its own project introduction and a Windows desktop shell that packages the editor into a downloadable installer with its own icon.
 
 - **Fixed:** PDF Studio keeps a page selected after undoing an added or duplicated page, so the pages rail no longer loses its selection.
