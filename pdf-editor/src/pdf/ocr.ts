@@ -86,6 +86,15 @@ export async function terminateOcrWorker(): Promise<void> {
   activeWorker = null
 }
 
+/** Downloads and caches the language data now, so recognition later runs without fetching it again. */
+export async function prepareOcrLanguages(
+  languages: string[],
+  onProgress: (progress: OcrProgress) => void,
+): Promise<void> {
+  await getWorker(languages, onProgress)
+  await terminateOcrWorker()
+}
+
 /** Recognizes one rendered raster; `mapRect` turns raster coordinates into page coordinates. */
 export async function recognizeCanvas(input: {
   canvas: HTMLCanvasElement

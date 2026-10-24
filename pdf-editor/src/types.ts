@@ -119,6 +119,7 @@ export type DialogKind =
   | "metadata"
   | "ocr"
   | "settings"
+  | "setup"
   | "export"
   | "shortcuts"
   | "exit"

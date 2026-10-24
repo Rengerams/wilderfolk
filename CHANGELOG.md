@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio opens a first-run setup program that presents and records the license acceptance, asks for the interface language and the recognition languages to install, then verifies and installs the components the editor needs. Run it again from Help.
+
 - **Changed:** PDF Studio keeps the pages you just viewed and the two beside them ready, and abandons a page render the moment you page away, so a two-hundred-page file flips without stalling.
 
 - **Fixed:** PDF Studio drew every opened page into a tiny default canvas that showed only its top-left corner; pages now render at the full size of the view.

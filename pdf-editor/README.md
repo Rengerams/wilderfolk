@@ -93,6 +93,27 @@ npm run build      # typecheck + production bundle
 npm run desktop    # the same editor in the Windows desktop shell (needs Rust + WebView2)
 ```
 
+## First-run setup
+
+The editor ships its own setup program and opens it the first time it starts, before any document is
+created. It runs in five steps:
+
+1. **Welcome** — what the setup does.
+2. **License** — the repository's license terms, shown in full; setup continues only after they are
+   accepted, and the acceptance is stored in the settings.
+3. **Language** — the interface language (applied straight away) and the recognition languages that
+   should be installed.
+4. **Dependencies** — each component the editor needs is verified one by one and reported as ready or
+   failed: the pdf.js rendering worker, the PDF writer, page drawing, the local document library, the
+   text-recognition engine, and the recognition language data. Language data is downloaded once and
+   cached in the browser, so later OCR runs work without fetching it again. Only the language data is
+   optional, and failed steps can be retried before continuing.
+5. **Finish** — a summary of what was accepted and installed.
+
+The setup can be run again at any time from **Help → Setup & dependencies…**; it then remembers the
+earlier acceptance and re-checks the components. A failed setup never blocks the editor — closing the
+dialog leaves every existing tool usable, and the setup opens again on the next start.
+
 ## Install on Windows
 
 The desktop shell is in [`src-tauri/`](src-tauri), a Tauri 2 application that loads the built editor and

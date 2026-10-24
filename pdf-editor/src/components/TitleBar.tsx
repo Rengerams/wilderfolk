@@ -199,6 +199,8 @@ export function TitleBar() {
             { label: t("About PDF Studio"), onSelect: commands.about },
             { label: t("Keyboard shortcuts"), onSelect: commands.shortcuts },
             { label: t("Security notes"), onSelect: () => useEditor.getState().openDialog("about") },
+            "separator",
+            { label: t("Setup & dependencies…"), onSelect: commands.setup },
           ]}
         />
       </nav>

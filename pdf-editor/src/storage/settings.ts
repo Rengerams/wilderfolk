@@ -3,6 +3,15 @@ import type { ThemeName } from "../types"
 
 const STORAGE_KEY = "pdf-studio.settings.v1"
 
+/** The first-run setup program's record; `null` means it has not been completed on this device. */
+export type SetupRecord = {
+  completedAt: string
+  licenseVersion: number
+  licenseAcceptedAt: string
+  interfaceLanguage: LanguageCode
+  ocrLanguages: string[]
+}
+
 export type AppSettings = {
   provider: "local" | "cloud"
   cloudEndpoint: string
@@ -11,6 +20,7 @@ export type AppSettings = {
   defaultOcrLanguages: string[]
   theme: ThemeName
   language: LanguageCode
+  setup: SetupRecord | null
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -21,6 +31,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultOcrLanguages: ["eng"],
   theme: "light",
   language: DEFAULT_LANGUAGE,
+  setup: null,
 }
 
 /** The library passphrase is never written to disk; it is kept for this session only. */
@@ -47,9 +58,27 @@ export function loadSettings(): AppSettings {
         Array.isArray(parsed.defaultOcrLanguages) && parsed.defaultOcrLanguages.length > 0
           ? parsed.defaultOcrLanguages
           : DEFAULT_SETTINGS.defaultOcrLanguages,
+      setup: normalizeSetup(parsed.setup),
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
+  }
+}
+
+function normalizeSetup(value: unknown): SetupRecord | null {
+  if (!value || typeof value !== "object") return null
+  const record = value as Partial<SetupRecord>
+  if (typeof record.completedAt !== "string") return null
+  return {
+    completedAt: record.completedAt,
+    licenseVersion: typeof record.licenseVersion === "number" ? record.licenseVersion : 0,
+    licenseAcceptedAt:
+      typeof record.licenseAcceptedAt === "string" ? record.licenseAcceptedAt : record.completedAt,
+    interfaceLanguage: normalizeLanguage(record.interfaceLanguage),
+    ocrLanguages:
+      Array.isArray(record.ocrLanguages) && record.ocrLanguages.length > 0
+        ? record.ocrLanguages.map(String)
+        : DEFAULT_SETTINGS.defaultOcrLanguages,
   }
 }
 
