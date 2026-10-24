@@ -21,10 +21,10 @@ import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import {
-  cancelPendingOutgoingRaidsForRival,
-  cancelPendingRaidsForRival,
+  applyTruceToRival,
   getPlayerCampCenter,
   hasMilitiaWeapons,
+  rollFoundingRaidCooldownDays,
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
@@ -433,7 +433,7 @@ export function spawnRivalSettlement(
     relationship,
     foundedYear: state.year,
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
-    raidCooldownDays: 45 + Math.floor(getSimRng('groupEvents')() * 30),
+    raidCooldownDays: rollFoundingRaidCooldownDays(getSimRng('groupEvents')()),
     peaceTreatyDays: 0,
     giftsGiven: 0,
     profile: createRivalProfile(groupId.length + state.year + pop, relationship),
@@ -571,6 +571,8 @@ export { isRivalAtPeace } from './rivalPeace';
 
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
+/** Truce the tribute answer buys — shorter than a signed treaty. */
+const PEACE_TREATY_TRIBUTE_DAYS = 21;
 /** Rival diplomacy prices — exported so the panel's button labels quote the owner's figures. */
 export const RIVAL_GIFT_FOOD_COST = 25;
 export const RIVAL_TRADE_PACT_GOLD_COST = 40;
@@ -744,15 +746,9 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   state.resources.gold -= PEACE_TREATY_GOLD_COST;
   spendFood(state, 'treaty', PEACE_TREATY_FOOD_COST);
   rival.peaceTreatyDays = PEACE_TREATY_PLAYER_DAYS;
-  rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_PLAYER_DAYS);
   if (rival.relationship === 'competitive') rival.relationship = 'neutral';
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 30);
-  if (cancelPendingRaidsForRival(state, rivalId)) {
-    logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-  }
-  if (cancelPendingOutgoingRaidsForRival(state, rivalId)) {
-    logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-  }
+  applyTruceToRival(state, rivalId, PEACE_TREATY_PLAYER_DAYS);
 
   addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
   addBigNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
@@ -1044,26 +1040,14 @@ export function respondToDiplomacyEvent(
         state.resources.gold -= DIPLOMACY_PEACE_SIGN_GOLD;
         spendFood(state, 'treaty', DIPLOMACY_PEACE_SIGN_FOOD);
         rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
-        rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
         if (rival.relationship === 'competitive') rival.relationship = 'neutral';
-        if (cancelPendingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-        }
-        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-        }
+        applyTruceToRival(state, rival.id, PEACE_TREATY_EVENT_DAYS);
         addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
         logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
         resolved = true;
       } else if (choiceId === 'tribute') {
-        rival.peaceTreatyDays = 21;
-        rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
-        if (cancelPendingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-        }
-        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-        }
+        rival.peaceTreatyDays = PEACE_TREATY_TRIBUTE_DAYS;
+        applyTruceToRival(state, rival.id, PEACE_TREATY_TRIBUTE_DAYS);
         const tributeFood = addCappedResource(state, 'food', DIPLOMACY_PEACE_TRIBUTE_FOOD);
         if (tributeFood < DIPLOMACY_PEACE_TRIBUTE_FOOD) {
           addFloatingText(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');

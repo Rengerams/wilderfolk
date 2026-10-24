@@ -169,6 +169,21 @@ describe('incoming raid cadence', () => {
     expect(state.nextBuildingId).toBe(nextBuildingId);
   });
 
+  it('sweeps camp buildings no rival record still lists', () => {
+    const { state, allAlive } = makeState();
+    const rival = state.rivalSettlements[0];
+    const orphan = building(98, BuildingType.Farm, { faction: 'rival', groupId: rival.id });
+    state.buildings.push(orphan);
+    rival.buildingIds = [];
+    const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
+    settler.homeBuildingId = orphan.id;
+
+    tickRivalSettlements(state, allAlive, callbacks);
+
+    expect(state.buildings.map((entry) => entry.id)).toEqual([1]);
+    expect(settler.homeBuildingId).toBeUndefined();
+  });
+
   it('never expands strategic settlements onto the village map', () => {
     setSimSeed(12345);
     const { state } = makeState();

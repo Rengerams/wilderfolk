@@ -26,6 +26,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
+| Rival camp structure retirement | `rivalEvents.ts` | new-calendar-day | `retireLegacyCampStructures` — removes every rival-owned structure still standing on the player's map. |
 | Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
@@ -34,6 +35,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Village camp hit testing | `groupEvents.ts` | UI query | `hitTestCamp` — visitor camps only; rival settlements belong to the strategic map. |
 | Village camp highlights | `renderer/markers.ts` | render pass | `drawCampHighlightRings` — visitor camp selection only. |
 | Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
+| Raid truce and founding cooldown | `frontierCombat.ts` | command (treaty) / rival founding | `applyTruceToRival`, `rollFoundingRaidCooldownDays`, `cancelPendingRaidsForRival`, `cancelPendingOutgoingRaidsForRival` |
 | Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers |
 | Youth love | `humanRelationships.ts` | new-calendar-day | `advanceYouthLove`, `reconcileYouthLove` |
 | Courtship / marriage | `humanRelationships.ts` | staggered-social (approach) + new-calendar-day (reconciliation) | `findCourtshipPartner`, `bindCourtship`, `reconcileCourtships`, `tryCompleteCourtshipMarriage` |

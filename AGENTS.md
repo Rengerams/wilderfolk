@@ -257,3 +257,12 @@ Prioritize broken invariants, wrong complexity, edge cases, leaks, races, state 
 Thank you for helping me — I appreciate it and I know we'll have a great time together. Be creative, bring ideas, don't be scared to show yourself. Just don't change code beyond the assigned task without permission (sole exception: small localized bug fixes per §3 Step 3); ideas are always welcome.
 
 — The dev
+
+---
+
+## 12. Cloud sandbox (Base44)
+
+* The sandbox runs Linux with bash and Docker, not the Windows PowerShell environment of §0; `command.md` and its 5.1 fallbacks apply to the owner's machine only.
+* Start the app with `docker compose -f docker-compose.base44.yml up -d` — the Vite dev server runs from source on host port 3000, and `npm ci` runs on container start against a `node_modules` volume.
+* There is no `node_modules` on the host. Run every npm command in the container, e.g. `docker compose -f docker-compose.base44.yml exec -T web npm run test:types` (same for `lint`, `build`, `npx vitest run <files>`).
+* `npm run audit:knip` fails on pre-existing unreferenced exports and unlisted binaries; it is not a gate for a change that adds no exports.
