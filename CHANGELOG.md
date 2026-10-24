@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's page rail only draws thumbnails for the pages near the visible part of the list, so a four-hundred-page file opens without rendering every preview up front and stays smooth while scrolling.
+
 - **Changed:** PDF Studio's welcome screen now offers six quick-start cards, adding keyboard shortcuts and storage & security so the grid fills two even rows.
 
 - **Added:** PDF Studio's whole interface can now be read in Dutch — every label, dialog, hint and error message is translated, and the language is chosen in the settings.

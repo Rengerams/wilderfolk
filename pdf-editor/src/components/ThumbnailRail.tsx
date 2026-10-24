@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { CopyPlus, RotateCcw, RotateCw, Trash2 } from "lucide-react"
 import type { Annotation, Rotation } from "../types"
 import { totalRotation } from "../pdf/pages"
@@ -24,16 +24,44 @@ export function ThumbnailRail() {
 
   const [thumbs, setThumbs] = useState<Record<string, ThumbEntry>>({})
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
+  const railListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setThumbs({})
   }, [documentId])
 
+  // Only pages near the visible part of the rail get a thumbnail, so a long file stays responsive.
+  useEffect(() => {
+    const root = railListRef.current
+    if (!root) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisibleIds((current) => {
+          const next = new Set(current)
+          for (const entry of entries) {
+            const id = (entry.target as HTMLElement).dataset.pageId
+            if (!id) continue
+            if (entry.isIntersecting) next.add(id)
+            else next.delete(id)
+          }
+          return next
+        })
+      },
+      { root, rootMargin: "600px 0px" },
+    )
+    root.querySelectorAll<HTMLElement>("[data-page-id]").forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [pages])
+
   useEffect(() => {
     const source = getCurrentSource()
     if (!source) return
     const pending = pages.filter(
-      (page) => page.kind === "source" && thumbs[page.id]?.rotation !== totalRotation(page),
+      (page) =>
+        page.kind === "source" &&
+        (page.id === activePageId || visibleIds.has(page.id)) &&
+        thumbs[page.id]?.rotation !== totalRotation(page),
     )
     if (pending.length === 0) return
     let cancelled = false
@@ -62,7 +90,7 @@ export function ThumbnailRail() {
     return () => {
       cancelled = true
     }
-  }, [pages, thumbs])
+  }, [activePageId, pages, thumbs, visibleIds])
 
   const pageImage = (pageId: string): Annotation | undefined =>
     annotations.find((annotation) => annotation.pageId === pageId && annotation.type === "image")
@@ -73,7 +101,7 @@ export function ThumbnailRail() {
         <span>{t("Pages")}</span>
         <span>{pages.length}</span>
       </div>
-      <div className="rail-list">
+      <div className="rail-list" ref={railListRef}>
         {pages.length === 0 ? <p className="rail-empty">{t("No pages yet.")}</p> : null}
         {pages.map((page, index) => {
           const image = pageImage(page.id)
@@ -82,6 +110,7 @@ export function ThumbnailRail() {
           return (
             <div
               key={page.id}
+              data-page-id={page.id}
               className={`thumb${dragOverId === page.id ? " drag-over" : ""}`}
               role="button"
               tabIndex={0}
