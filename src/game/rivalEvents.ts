@@ -5,6 +5,7 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
+import { removeWorkerTransition } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -65,11 +66,17 @@ export function tickRivalSettlements(
   // Camp structures never stand on the player's map; older saves may still carry them.
   const retiredStructures = retireLegacyCampStructures(state.buildings);
   for (const entity of allAlive) {
+    // `homeBuildingId` is the workplace pointer; releasing it is the workforce owner's transition.
+    if (entity.homeBuildingId != null && retiredStructures.has(entity.homeBuildingId)) {
+      removeWorkerTransition(entity, state.buildings);
+    }
     if (entity.residenceBuildingId != null && retiredStructures.has(entity.residenceBuildingId)) {
       entity.residenceBuildingId = undefined;
     }
-    if (entity.homeBuildingId != null && retiredStructures.has(entity.homeBuildingId)) {
-      entity.homeBuildingId = undefined;
+    if (entity.prisonBuildingId != null && retiredStructures.has(entity.prisonBuildingId)) {
+      entity.prisonBuildingId = undefined;
+      entity.prisonerUntilTick = undefined;
+      entity.prisonSentenceCrime = undefined;
     }
   }
   for (const rival of state.rivalSettlements) {

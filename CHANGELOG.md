@@ -17,7 +17,7 @@
 - **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
 - **Fixed:** Removed an unused staffing import left behind by the virtual-player auto-fill repair, restoring compilation.
 - **Fixed:** Rival founding and growth no longer create enemy houses, farms or resident settlers inside the village. Legacy camp objects retire on the next rival update; strategic population, diplomacy and raids remain. Village camp markers and hit tests now cover visitors only.
-- **Fixed:** Camp structures left on the map by older saves are swept on the next rival update, even when no rival record still lists them, so enemy buildings never stand in the village.
+- **Fixed:** Camp structures left on the map by older saves are swept on the next rival update, even when no rival record still lists them; no enemy building stands in the village and whoever lived or worked there is released.
 - **Added:** Full-year diagnostics report the first invariant failure, watched settlers' moves, confirmed deaths and unconfirmed removals, actual versus assigned residents, and recent combat events. Checkpoint details print before assertions; debug output can be disabled.
 - **Fixed:** Company-following movement regression clones one isolated terrain-free world across all eight comparisons, avoiding repeated world generation and load-sensitive timeouts without changing its assertions.
 - **Fixed:** Ground Reinforcement catalogue artwork and its asset registration now match the shipped filename casing, restoring the preview on case-sensitive hosts.
