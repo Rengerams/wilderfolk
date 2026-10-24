@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's welcome screen now offers six quick-start cards, adding keyboard shortcuts and storage & security so the grid fills two even rows.
+
 - **Added:** PDF Studio's whole interface can now be read in Dutch — every label, dialog, hint and error message is translated, and the language is chosen in the settings.
 
 - **Added:** PDF Studio now carries its own project introduction and a Windows desktop shell that packages the editor into a downloadable installer with its own icon.

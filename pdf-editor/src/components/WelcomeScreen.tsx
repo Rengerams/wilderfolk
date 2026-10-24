@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Camera, FilePlus2, FolderOpen, Library } from "lucide-react"
+import { Camera, FilePlus2, FolderOpen, Keyboard, Library, Settings } from "lucide-react"
 import type { StoredDocMeta } from "../types"
 import { IMPORT_ACCEPT, pickFiles } from "../app/files"
 import { listLibrary, openFromLibrary } from "../app/documentActions"
@@ -73,6 +73,16 @@ export function WelcomeScreen() {
           <Library size={18} />
           <strong>{t("Open from library")}</strong>
           <small>{t("Documents saved on this PC")}</small>
+        </button>
+        <button type="button" className="welcome-card" onClick={() => useEditor.getState().openDialog("shortcuts")}>
+          <Keyboard size={18} />
+          <strong>{t("Keyboard shortcuts")}</strong>
+          <small>{t("Every tool and key at a glance")}</small>
+        </button>
+        <button type="button" className="welcome-card" onClick={commands.storageSettings}>
+          <Settings size={18} />
+          <strong>{t("Storage & security")}</strong>
+          <small>{t("Theme, language and where documents are saved")}</small>
         </button>
       </div>
       {error ? <p className="error-text">{error}</p> : null}

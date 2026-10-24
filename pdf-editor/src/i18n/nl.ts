@@ -87,6 +87,7 @@ export const nl: Record<string, string> = {
   "Encryption at rest": "Versleuteling in opslag",
   "Every page": "Elke pagina",
   "Every page ({count})": "Elke pagina ({count})",
+  "Every tool and key at a glance": "Elk gereedschap en elke toets in één oogopslag",
   "Everything is saved. You can close the app whenever you like.":
     "Alles is opgeslagen. Je kunt de app sluiten wanneer je wilt.",
   Exit: "Afsluiten",
@@ -370,6 +371,8 @@ export const nl: Record<string, string> = {
   "The storage could not be reached.": "De opslag was niet bereikbaar.",
   "The text could not be replaced.": "De tekst kon niet worden vervangen.",
   Theme: "Thema",
+  "Theme, language and where documents are saved":
+    "Thema, taal en waar documenten worden opgeslagen",
   "There is nothing to export yet.": "Er is nog niets om te exporteren.",
   "These values are written into the PDF file, and everyone who opens it sees them.":
     "Deze waarden worden in het PDF-bestand geschreven en iedereen die het opent ziet ze.",
