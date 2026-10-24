@@ -26,8 +26,10 @@ export function ThumbnailRail() {
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
   const railListRef = useRef<HTMLDivElement>(null)
+  const renderedThumbsRef = useRef<Record<string, Rotation>>({})
 
   useEffect(() => {
+    renderedThumbsRef.current = {}
     setThumbs({})
   }, [documentId])
 
@@ -61,7 +63,7 @@ export function ThumbnailRail() {
       (page) =>
         page.kind === "source" &&
         (page.id === activePageId || visibleIds.has(page.id)) &&
-        thumbs[page.id]?.rotation !== totalRotation(page),
+        renderedThumbsRef.current[page.id] !== totalRotation(page),
     )
     if (pending.length === 0) return
     let cancelled = false
@@ -69,18 +71,23 @@ export function ThumbnailRail() {
       for (const page of pending) {
         if (cancelled) return
         if (page.kind !== "source") continue
+        const rotation = totalRotation(page)
+        // Hand the main thread back between previews so a page flip never waits for the rail.
+        await new Promise((resolve) => window.setTimeout(resolve, 0))
+        if (cancelled) return
         try {
           const canvas = await renderPageCanvas({
             source,
             srcIndex: page.srcIndex,
-            totalRotation: totalRotation(page),
+            totalRotation: rotation,
             scale: 0.32,
           })
           if (cancelled) return
           const url = canvas.toDataURL("image/jpeg", 0.72)
+          renderedThumbsRef.current[page.id] = rotation
           setThumbs((current) => ({
             ...current,
-            [page.id]: { url, rotation: totalRotation(page) },
+            [page.id]: { url, rotation },
           }))
         } catch {
           // A page that cannot be rendered keeps its previous thumbnail.
@@ -90,7 +97,7 @@ export function ThumbnailRail() {
     return () => {
       cancelled = true
     }
-  }, [activePageId, pages, thumbs, visibleIds])
+  }, [activePageId, pages, visibleIds])
 
   const pageImage = (pageId: string): Annotation | undefined =>
     annotations.find((annotation) => annotation.pageId === pageId && annotation.type === "image")

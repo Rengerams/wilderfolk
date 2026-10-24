@@ -59,7 +59,7 @@ function clampScale(width: number, height: number, scale: number): number {
   return Math.max(0.1, scale * Math.sqrt(MAX_RENDER_PIXELS / pixels))
 }
 
-/** Renders one page into an existing canvas, in CSS pixels sized to the viewport. */
+/** Renders one page into an existing canvas; `signal` cancels the page when the view moves on. */
 export async function renderPageInto(input: {
   source: PdfSource
   srcIndex: number
@@ -67,18 +67,26 @@ export async function renderPageInto(input: {
   scale: number
   canvas: HTMLCanvasElement
   dpr: number
+  signal?: AbortSignal
 }): Promise<void> {
-  const { source, srcIndex, totalRotation, scale, canvas, dpr } = input
+  const { source, srcIndex, totalRotation, scale, canvas, dpr, signal } = input
+  if (signal?.aborted) return
   const page = await source.doc.getPage(srcIndex + 1)
   try {
     const base = page.getViewport({ scale: 1, rotation: totalRotation })
     const effective = clampScale(base.width, base.height, scale * dpr)
     const viewport = page.getViewport({ scale: effective, rotation: totalRotation })
-    await page.render({
-      canvas,
-      viewport,
-      background: "#ffffff",
-    }).promise
+    // pdf.js paints into the canvas' current back buffer, so the target must be sized first.
+    canvas.width = Math.max(1, Math.floor(viewport.width))
+    canvas.height = Math.max(1, Math.floor(viewport.height))
+    const task = page.render({ canvas, viewport, background: "#ffffff" })
+    const cancel = () => task.cancel()
+    signal?.addEventListener("abort", cancel, { once: true })
+    try {
+      await task.promise
+    } finally {
+      signal?.removeEventListener("abort", cancel)
+    }
     const context = canvas.getContext("2d")
     if (context && Math.abs(effective - scale * dpr) > 0.001) {
       // Oversized pages render at a reduced scale; report the factor on the element for layout.
@@ -96,9 +104,10 @@ export async function renderPageCanvas(input: {
   srcIndex: number
   totalRotation: Rotation
   scale: number
+  dpr?: number
 }): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas")
-  await renderPageInto({ ...input, canvas, dpr: 1 })
+  await renderPageInto({ ...input, canvas, dpr: input.dpr ?? 1 })
   return canvas
 }
 

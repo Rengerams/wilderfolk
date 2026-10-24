@@ -11,6 +11,7 @@ import {
 } from "../pdf/geometry"
 import { createId, totalRotation } from "../pdf/pages"
 import { renderPageInto } from "../pdf/render"
+import { pageRenderKey, recallPageBitmap, rememberPageBitmap, syncPageCache } from "../pdf/pageCache"
 import { hexToRgb } from "../pdf/buildPdf"
 import { insertImageOnPage } from "../app/documentActions"
 import { pickFiles } from "../app/files"
@@ -21,6 +22,7 @@ import { WelcomeScreen } from "./WelcomeScreen"
 
 const MIN_MARQUEE = 0.005
 const VIEWER_PADDING = 48
+const PREFETCH_DELAY_MS = 350
 const DEFAULT_INK_COLOR = "#c42b1c"
 const DEFAULT_TEXT_COLOR = "#111111"
 
@@ -110,30 +112,123 @@ export function PageViewer() {
     const canvas = canvasRef.current
     if (!canvas || !page) return
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    if (page.kind === "source") {
-      const source = getCurrentSource()
-      if (!source) return
-      void renderPageInto({
-        source,
-        srcIndex: page.srcIndex,
-        totalRotation: rotation,
-        scale,
-        canvas,
-        dpr,
-      }).catch(() => {
-        const context = canvas.getContext("2d")
-        context?.clearRect(0, 0, canvas.width, canvas.height)
-      })
-      return
-    }
-    canvas.width = Math.max(1, Math.round(stageWidth * dpr))
-    canvas.height = Math.max(1, Math.round(stageHeight * dpr))
-    const context = canvas.getContext("2d")
-    if (context) {
+    const sheetWidth = Math.max(1, Math.round(stageWidth * dpr))
+    const sheetHeight = Math.max(1, Math.round(stageHeight * dpr))
+    // A blank sheet is painted first, so the previous page never lingers under the new one.
+    const paintSheet = () => {
+      if (canvas.width !== sheetWidth) canvas.width = sheetWidth
+      if (canvas.height !== sheetHeight) canvas.height = sheetHeight
+      const context = canvas.getContext("2d")
+      if (!context) return
       context.fillStyle = "#ffffff"
       context.fillRect(0, 0, canvas.width, canvas.height)
     }
+    const paintBitmap = (bitmap: ImageBitmap) => {
+      if (canvas.width !== bitmap.width) canvas.width = bitmap.width
+      if (canvas.height !== bitmap.height) canvas.height = bitmap.height
+      canvas.getContext("2d")?.drawImage(bitmap, 0, 0)
+    }
+
+    paintSheet()
+    const source = getCurrentSource()
+    syncPageCache(source)
+    if (page.kind !== "source" || !source) return
+    const key = pageRenderKey({
+      pageId: page.id,
+      srcIndex: page.srcIndex,
+      rotation,
+      scale,
+      dpr,
+    })
+    const remembered = recallPageBitmap(key)
+    if (remembered) {
+      paintBitmap(remembered)
+      return
+    }
+
+    const controller = new AbortController()
+    const buffer = document.createElement("canvas")
+    void renderPageInto({
+      source,
+      srcIndex: page.srcIndex,
+      totalRotation: rotation,
+      scale,
+      canvas: buffer,
+      dpr,
+      signal: controller.signal,
+    })
+      .then(async () => {
+        if (controller.signal.aborted) return
+        if (canvas.width !== buffer.width) canvas.width = buffer.width
+        if (canvas.height !== buffer.height) canvas.height = buffer.height
+        canvas.getContext("2d")?.drawImage(buffer, 0, 0)
+        try {
+          const bitmap = await createImageBitmap(buffer)
+          if (controller.signal.aborted) {
+            bitmap.close()
+            return
+          }
+          rememberPageBitmap(key, bitmap)
+        } catch {
+          // Caching is an optimisation; the page itself is already on screen.
+        }
+      })
+      .catch(() => {
+        // A cancelled render leaves the blank sheet in place.
+      })
+    return () => controller.abort()
   }, [page, rotation, scale, stageWidth, stageHeight])
+
+  // The neighbouring pages render while the view is idle, so paging through a long file stays instant.
+  useEffect(() => {
+    const source = getCurrentSource()
+    if (!source || !page || page.kind !== "source") return
+    const index = pages.findIndex((entry) => entry.id === page.id)
+    if (index < 0) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const neighbour of [pages[index + 1], pages[index - 1]]) {
+          if (!neighbour || neighbour.kind !== "source" || controller.signal.aborted) continue
+          const neighbourRotation = totalRotation(neighbour)
+          const key = pageRenderKey({
+            pageId: neighbour.id,
+            srcIndex: neighbour.srcIndex,
+            rotation: neighbourRotation,
+            scale,
+            dpr,
+          })
+          if (recallPageBitmap(key)) continue
+          const buffer = document.createElement("canvas")
+          try {
+            await renderPageInto({
+              source,
+              srcIndex: neighbour.srcIndex,
+              totalRotation: neighbourRotation,
+              scale,
+              canvas: buffer,
+              dpr,
+              signal: controller.signal,
+            })
+            if (controller.signal.aborted) return
+            const bitmap = await createImageBitmap(buffer)
+            if (controller.signal.aborted) {
+              bitmap.close()
+              return
+            }
+            rememberPageBitmap(key, bitmap)
+          } catch {
+            return
+          }
+        }
+      })()
+    }, PREFETCH_DELAY_MS)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [page, pages, scale])
 
   const beginTextEdit = (annotationId: string, text: string) => {
     textDraftRef.current = text

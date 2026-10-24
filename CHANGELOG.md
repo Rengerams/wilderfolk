@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio keeps the pages you just viewed and the two beside them ready, and abandons a page render the moment you page away, so a two-hundred-page file flips without stalling.
+
+- **Fixed:** PDF Studio drew every opened page into a tiny default canvas that showed only its top-left corner; pages now render at the full size of the view.
+
 - **Changed:** PDF Studio's page rail only draws thumbnails for the pages near the visible part of the list, so a four-hundred-page file opens without rendering every preview up front and stays smooth while scrolling.
 
 - **Changed:** PDF Studio's welcome screen now offers six quick-start cards, adding keyboard shortcuts and storage & security so the grid fills two even rows.
