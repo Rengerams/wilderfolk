@@ -282,7 +282,7 @@ export function useCanvasInteractions({
             ...nextView,
             selectedEntityId: null,
             selectedEntityIds: [],
-            selectedBuildingId: campHit.kind === 'rival' ? campHit.buildingId : null,
+            selectedBuildingId: null,
             highlightedCampKey: campKey,
             selectedCampKey: campKey,
           });
