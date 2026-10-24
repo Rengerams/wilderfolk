@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** The strategic map is drawn as an antique survey sheet — parchment, engraved relief, compass rose and scale rule — and the raid, war and recall controls now sit once, in the rival roster beneath it.
+
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
