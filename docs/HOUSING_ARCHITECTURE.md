@@ -1,9 +1,8 @@
-# Housing decision architecture — one authority, one order
+# Housing architecture — one authority, one order
 
-Reference for how the colony decides **who sleeps where**. Owner module: `src/game/residencyReconciliation.ts`.
-Companions: the mandate (`docs/plans/housing-architecture-2026-10-22.md`), the design argument
-(`docs/plans/housing-and-relocation-design-2026-10-23.md`), and the per-section status
-(`docs/HANDOVER-housing-architecture-2026-10-23.md`).
+The single reference for how the colony decides **who sleeps where**: the model, the pipeline, the
+relocation rules, the decisions the owner confirmed, and what is still open.
+Owner module: `src/game/residencyReconciliation.ts`.
 
 This document describes the code as it stands after the 2026-10-25 consolidation. If the two disagree, the
 code is right and this file is a bug.
@@ -144,6 +143,11 @@ than `RELOCATION_MAX_MEMBER_REGRESSION_HOURS` (0.25 h/day), and every pupil must
 `MAX_RELOCATIONS_PER_DAY` (8) households move per colony per day. Both the vacant list and the household's
 previous home are updated after every move, so the next household prices the colony as it now is.
 
+The score is the household's whole daily travel — every worker's route hours to their workplace plus every
+pupil's route hours to their school, priced through `estimatedCommuteHours` so roads matter. The per-member
+bound exists because a household total can improve while one person's day gets much worse; that member
+would otherwise be moved for the household's benefit.
+
 ### Closing steps
 
 After the six sweep phases: one final `fillHomelessAfterEviction`, one `syncResidenceOccupants` (the roster is
@@ -279,10 +283,95 @@ A sentence is not a housing decision. `prisonBuildingId` is set; `residenceBuild
   nothing while jailed.
 * A prisoner is not on a construction crew, so a building site never counts them as a builder.
 * Release is uneventful: the settler walks home to the house that never changed.
+* An imprisonment alone never relocates the household, and an imprisoned leader keeps the manor.
 
 ---
 
-## 9. What this pipeline does not own
+## 9. The confirmed model
+
+Decisions the owner confirmed; the pipeline above is built to them, not the other way round.
+
+* **One permanent numeric id per building.** Type and name may repeat; the id cannot. A settler's
+  `residenceBuildingId` and `workerBuildingId` reference that same id system — they are two relationships,
+  not two kinds of id.
+* **The bed is the currency, not the house.** One derived capacity per residence, one authoritative link per
+  settler, everything else derived.
+* **Entitlement is not a move.** A right to a bed (the leader's household in the manor) and a request to
+  move are different things.
+* **Couples.** A couple never shares a house with another, unrelated couple; until a home of its own frees up
+  it stays with its own family, and a lone settler belongs in a singles' house.
+* **Overcrowding.** Rehouse unrelated residents first; if the shortage remains, try a whole-family move; if
+  that is impossible, keep the dependent group together and unhoused rather than overfill or split it, and
+  reunite the family when a suitable home appears.
+* **Manor eligibility.** The leader, spouse, children and those children's spouses are entitled, including
+  the existing unmarried-grandchild rule (not broadened to collateral relatives or married grandchildren).
+  Eligibility is a right to the manor, not a move order: an adult child or spouse already settled in their
+  own home stays there. The deceased leader's household stays until the successor takes office; after a
+  succession or election defeat the outgoing household returns to ordinary housing.
+* **A prison stay retains home and workplace**, and physical presence in prison never counts as work
+  attendance.
+* **Identities survive.** Citizen ids and original birthdates persist across housing, work, family and
+  leadership changes; age progression is untouched. A save missing its identity counters is refused rather
+  than renumbered, because lost retirement history cannot be reconstructed.
+
+---
+
+## 10. Coverage of the owner's 21-section specification
+
+Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKED**.
+
+| § | Topic | Status |
+| :-- | :--- | :--- |
+| 0 | Branch and worktree workflow | **BLOCKED (environment)** — one checked-out branch in this sandbox; `main` stays protected behind the PR |
+| 1 | Refactoring freedom | **DONE (guidance)** — rules live in their owners, views only render |
+| 2 | Permanent citizen ids | **DONE** — `entity.id`; id retirement policy in `saveLoad.ts` (`floorIdAllocators`) |
+| 3 | Permanent building ids | **DONE** — one numeric id per building; stale rival-camp buildings retired on load and by the rival pulse |
+| 4 | `workerBuildingId` rename | **DONE** — save boundary translates the old field once, nested Moon Howler forms included |
+| 5 | One authoritative reference, derived rosters | **DONE** — `syncResidenceOccupants` is the only roster writer; `workforce.ts` holds both workplace doors (`clearWorkerAssignment`, `detachWorkplaceReference`), with four stated modules allowed to write the pointer |
+| 6 | Find the Leader's House by type | **DONE** — `findLeaderHouse` matches type, completed, player faction |
+| 7 | Manor exclusivity and succession | **DONE** — see §9 |
+| 8 | Families stay together | **DONE** — the exact shortage order in §2 phase 4 |
+| 9 | Adult children at 18 | **OPEN** — one word needed from the owner; see §13 |
+| 10 | Singles, capacity, no homeless while beds exist | **DONE** — `getResidenceCapacity`, `fillHomelessAfterEviction`, `tests/housingUnits.composition.test.ts` |
+| 11 | Children without parents | **DONE** — §2 phase 3 |
+| 12 | Meaningful commute moves | **DONE — measured and optimized** — identical assignment hashes, warm median at 2,400 settlers 684.6 → 66.1 ms (table below) |
+| 13 | Event triggers | **DONE** — §6, §7 |
+| 14 | One housing decision owner | **DONE** — §1, §4 |
+| 15 | Stable, bounded reconciliation | **DONE** — `RESIDENCE_SWEEP_BUCKETS = 4`, bounded passes with early exit, per-sweep route-search budget with a straight-line fallback |
+| 16 | Permanent birthdates | **DONE** — saved birthdates win over age-derived ones on load |
+| 17 | Remove redundant functions | **NO GAP FOUND** — the suspected duplication is already collapsed; an ongoing style rule |
+| 18 | Comments, changelog, docs | **DONE (enforced)** — `scripts/check-comments.mjs`, `scripts/check-docs.mjs` |
+| 19 | Save format, migrations, id safety | **DONE** — explicit refusal policy in §9 |
+| 20 | Tests and acceptance criteria | **PARTIAL** — per-rule invariants are covered; the full acceptance matrix has not been run as a final pass, and the Day 121 reproduction stays blocked (only a Day 69 save exists) |
+| 21 | Execution plan | **PARTIAL** — stages 1–3 landed; the acceptance pass and Day 121 remain |
+
+### Daily relocation benchmark (spec §12)
+
+`scripts/perf-at-pop.ts` has an isolated relocation mode: each tier contains three-person households with
+workers and pupils on a real seeded path grid, twelve sweeps per tier, cold sample plus warm median/p95, and
+the initial assignments restored between samples. The reference uses the original ordered picker loop; the
+optimized run uses the production sweep.
+
+| Settlers | Spare homes | Warm median before → after | Warm p95 before → after | Assignment hash |
+|---|---|---|---|---|
+| 600 | 0 | 8.12 → 0.11 ms | 10.10 → 0.15 ms | identical |
+| 600 | 20 | 22.20 → 4.40 ms | 30.32 → 5.62 ms | identical |
+| 1,200 | 0 | 10.65 → 0.10 ms | 12.46 → 0.13 ms | identical |
+| 1,200 | 40 | 102.23 → 14.91 ms | 120.60 → 22.97 ms | identical |
+| 2,400 | 0 | 23.85 → 0.25 ms | 26.31 → 1.63 ms | identical |
+| 2,400 | 80 | 684.59 → 66.15 ms | 772.79 → 96.21 ms | identical |
+
+Sweep timings, not frame rates or a colony-balance verdict. Both runs keep school-reach checking, the
+route-search budget, candidate order, tie-breaking and the improvement margins.
+
+```sh
+docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF_RELOCATION_REFERENCE=1 -e PERF_POPS=600,1200,2400 web npx tsx scripts/perf-at-pop.ts
+docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF_POPS=600,1200,2400 web npx tsx scripts/perf-at-pop.ts
+```
+
+---
+
+## 11. What this pipeline does not own
 
 * **Staffing and job posts** — `workforce.ts` (`clearWorkerAssignment`, `detachWorkplaceReference`).
 * **Leader entitlement** (who the manor admits) — `leaderHouse.ts`, which applies it through the `leader`
@@ -295,7 +384,7 @@ A rule belongs in exactly one of these. If a housing rule appears in a caller, i
 
 ---
 
-## 10. Adding or changing a rule
+## 12. Adding or changing a rule
 
 1. **Choose the phase.** A correction of a wrong state is a mandatory phase; an improvement is optional.
    Adding a phase means adding it to `HOUSING_PHASE_ORDER` and deciding its class in `MANDATORY_PHASES`.
@@ -311,7 +400,7 @@ A rule belongs in exactly one of these. If a housing rule appears in a caller, i
 
 ---
 
-## 11. How to verify
+## 13. How to verify
 
 ```sh
 npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRelocation.test.ts \
@@ -333,10 +422,18 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
 
 ---
 
-## 12. Still open, and owned by the owner
+## 14. Still open, and owned by the owner
 
-* **Adult children at 18.** The pipeline treats the move as an option that needs a genuinely empty home that
-  fits the whole household; whether a settled family's 18-year-old should move at all is still the owner's
-  decision.
+* **Adult children at 18 (spec §9).** The phase treats the move as an option that needs a genuinely empty
+  home fitting the whole household. Decide: (a) an automatic move into a genuinely free home is fine — then
+  the section is done as-is; or (b) the move must be the settler's or player's choice — then the empty-home
+  sweep goes and the "looking for a home" path stays. The alternative argued in the design review is a
+  *leaver* rule: a preference, binding only once the family's home is over capacity, preferring a singles'
+  house with another leaver.
+* **Churn numbers.** A per-household relocation cooldown (`RELOCATION_COOLDOWN_DAYS`, 4) and pricing only
+  vacant homes within the household's corridor are proposed but **not implemented**; the quota and the
+  margins above are what ship today. Pick these by watching a full year, not by argument.
 * **The Day 121 churn report** cannot be reproduced from this repository: only the Day 69 save is present.
   The churn guard is a guard, not a reproduction.
+* **The final acceptance matrix** (`npm test -- accept`: build plus the real-browser gate) has not been run
+  as a closing pass for this area.
