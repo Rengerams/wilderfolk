@@ -29,16 +29,17 @@ jobs:
           set -euo pipefail
           git checkout --detach ae3532c5062c7b6b57629c9d5ab52c801dd23145
           npm ci --no-audit --no-fund
-          PERF_RELOCATION=1 PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/perf-at-pop.ts | tee /tmp/baseline.log
-          grep '^RELOCATION_RESULT ' /tmp/baseline.log | sed 's/^RELOCATION_RESULT //' > /tmp/baseline.jsonl
+          git show "$GITHUB_SHA:scripts/benchmark-housing-pipeline.mts" > scripts/benchmark-housing-pipeline.mts
+          PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/baseline.log
+          grep '^HOUSING_PIPELINE_RESULT ' /tmp/baseline.log | sed 's/^HOUSING_PIPELINE_RESULT //' > /tmp/baseline.jsonl
       - name: Benchmark optimized
         shell: bash
         run: |
           set -euo pipefail
           git checkout --detach "$GITHUB_SHA"
           npm ci --no-audit --no-fund
-          PERF_RELOCATION=1 PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/perf-at-pop.ts | tee /tmp/optimized.log
-          grep '^RELOCATION_RESULT ' /tmp/optimized.log | sed 's/^RELOCATION_RESULT //' > /tmp/optimized.jsonl
+          PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/optimized.log
+          grep '^HOUSING_PIPELINE_RESULT ' /tmp/optimized.log | sed 's/^HOUSING_PIPELINE_RESULT //' > /tmp/optimized.jsonl
       - name: Compare results and assignments
         shell: bash
         run: |
@@ -47,10 +48,10 @@ jobs:
           const parse = path => fs.readFileSync(path,'utf8').trim().split('\n').map(JSON.parse);
           const old = parse('/tmp/baseline.jsonl'), fresh = parse('/tmp/optimized.jsonl');
           for (const x of fresh) {
-            const y = old.find(a => a.population===x.population && a.spareHomes===x.spareHomes && a.reference===x.reference);
+            const y = old.find(a => a.population===x.population && a.spareHomes===x.spareHomes && a.scenario===x.scenario);
             if (!y) throw new Error('Missing baseline for '+JSON.stringify(x));
             const delta = ((x.warmMedianMs/y.warmMedianMs)-1)*100;
-            console.log(JSON.stringify({population:x.population,spareHomes:x.spareHomes,baselineMs:y.warmMedianMs,optimizedMs:x.warmMedianMs,deltaPct:+delta.toFixed(2),sameAssignments:x.assignmentHash===y.assignmentHash,baselineMoved:y.moved,optimizedMoved:x.moved}));
-            if(x.assignmentHash !== y.assignmentHash) process.exitCode=1;
+            console.log(JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineMs:y.warmMedianMs,optimizedMs:x.warmMedianMs,deltaPct:+delta.toFixed(2),sameAssignments:x.assignmentHash===y.assignmentHash,baselineMoves:y.relocations,optimizedMoves:x.relocations,baselineViolations:y.violations,optimizedViolations:x.violations}}));
+            if(x.assignmentHash !== y.assignmentHash || x.violations !== y.violations) process.exitCode=1;
           }
           JS
