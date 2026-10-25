@@ -162,7 +162,7 @@ scanning still works through the camera and through files your scanner software 
 ## Security
 
 * Opened files are treated as untrusted: parsed only, never executed. Document JavaScript is never enabled.
-* Rendering and OCR run in worker processes, so a damaged file cannot lock the editor.
+* Rendering, OCR and PDF building run in worker processes, so a damaged file cannot lock the editor.
 * File size and page limits, and clear errors for damaged or password-protected files.
 * Local-first storage; cloud is opt-in; no telemetry of any kind.
 * The OCR engine and its language data are installed with the app, so recognition never needs the network.

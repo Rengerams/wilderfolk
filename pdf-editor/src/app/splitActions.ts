@@ -1,5 +1,5 @@
 import { t } from "../i18n/translate"
-import { buildPdfBytes } from "../pdf/buildPdf"
+import { buildPdfOffThread } from "../pdf/writeBridge"
 import {
   buildParts,
   buildSizeParts,
@@ -36,7 +36,7 @@ export async function splitDocument(
   const build = async (part: SplitPart): Promise<Uint8Array> => {
     const pages = doc.pages.slice(part.from - 1, part.to)
     const pageIds = new Set(pages.map((page) => page.id))
-    return buildPdfBytes({
+    return buildPdfOffThread({
       sourceBytes: doc.source?.bytes ?? null,
       pages,
       annotations: doc.annotations.filter((annotation) => pageIds.has(annotation.pageId)),

@@ -1,6 +1,6 @@
 import type { DocMetadata, Rect, StoredDocMeta } from "../types"
 import { t } from "../i18n/translate"
-import { buildPdfBytes } from "../pdf/buildPdf"
+import { buildPdfOffThread } from "../pdf/writeBridge"
 import { clampRectToPage, unrotateRect } from "../pdf/geometry"
 import {
   createId,
@@ -57,7 +57,7 @@ export function activeProvider(): StorageProvider {
 
 export async function buildCurrentPdf(): Promise<Uint8Array> {
   const { doc } = useEditor.getState()
-  return buildPdfBytes({
+  return buildPdfOffThread({
     sourceBytes: doc.source?.bytes ?? null,
     pages: doc.pages,
     annotations: doc.annotations,

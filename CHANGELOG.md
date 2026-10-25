@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Saving, exporting and splitting now build the PDF on a background thread, so the interface stays responsive while long documents are written.
+
 - **Added:** PDF Studio's Windows build now bundles the file-system and dialog plugins, so the editor can open save dialogs and touch files through Tauri's permission system.
 
 - **Fixed:** PDF Studio's scan bridge now only answers the editor itself, so a hostile website a user visits can no longer start a scan or read the scanned pages, and extreme scan resolutions are clamped.

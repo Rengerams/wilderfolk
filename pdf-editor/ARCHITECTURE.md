@@ -94,6 +94,13 @@ The single most important file. Everything that is saved, undone or rendered der
 Saving is a **flattening write**: the store's document model is replayed onto a new pdf-lib
 document. One module, `buildPdf.ts`, is the single writer; helpers feed it:
 
+The build runs **on its own thread**: `writeBridge.ts` sends a `BuildInput` (plain data — pages,
+annotations with their data URLs, source bytes) to `writeWorker.ts`, a dedicated Web Worker that
+answers one `buildPdfBytes` call per message. Save, export and split therefore never block the
+interface, and a crashed worker fails its waiting calls and is rebuilt on the next request.
+`buildPdfBytes` stays worker-agnostic — its Vitest tests run it on the plain test thread — and the
+bridge holds no logic beyond request/response bookkeeping.
+
 * `markImages.ts` renders signatures and stamps to bitmaps; `pageStamps.ts` bakes page numbers
   and watermarks as ordinary text.
 * `textReplace.ts` covers found text with the page's own paper/ink colour and retypes it —
@@ -101,7 +108,8 @@ document. One module, `buildPdf.ts`, is the single writer; helpers feed it:
 * `formFields.ts` reads and fills AcroForm fields, optionally flattening values.
 * `metadataTags.ts` reads and writes every Info-dictionary tag (including arbitrary custom tags)
   and keeps the raw XMP packet for reference.
-* `splitPdf.ts` splits by page count, maximum file size or ranges, reporting per-part progress.
+* `splitPdf.ts` splits by page count, maximum file size or ranges, reporting per-part progress; each
+  part is one off-thread build.
 
 Because a save rewrites the file, a filled form starts a fresh undo history — the model treats
 "the file changed underneath us" as a new document.
