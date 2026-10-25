@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio's Windows build now bundles the file-system and dialog plugins, so the editor can open save dialogs and touch files through Tauri's permission system.
+
 - **Fixed:** PDF Studio's scan bridge now only answers the editor itself, so a hostile website a user visits can no longer start a scan or read the scanned pages, and extreme scan resolutions are clamped.
 
 - **Fixed:** Links inside a PDF are now only followed for web and mail addresses, so dangerous schemes hidden in a crafted file are ignored.
