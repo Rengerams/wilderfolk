@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio splits a document by page count, maximum file size or chosen page ranges, shows progress while it works, and names every part after the original document.
+
 - **Added:** PDF Studio signs documents with a drawn or typed signature, and places professional stamps like approved, draft, confidential or paid as pictures you can move, resize or remove.
 
 - **Added:** PDF Studio numbers pages where you want them — six edges, four number styles, a starting number and a page range — and the numbers are ordinary text you can move or delete afterwards.

@@ -32,6 +32,7 @@ PDF Studio brings essential document management and editing tools together in a 
 - **Image Extraction:** Extract embedded images directly from PDF documents.
 - **Scanning & OCR:** Digitize paper documents and convert scanned content into searchable PDFs.
 - **Signing & Stamps:** Draw or type a signature and place professional document stamps.
+- **Splitting:** Break a document into smaller files by page count, maximum size or chosen page ranges.
 
 ## Project Vision
 
@@ -63,6 +64,7 @@ Windows installer is built.
 | :--- | :--- |
 | Documents | New documents (A4, A5, A3, Letter, Legal, Tabloid, square; portrait/landscape, 1–200 pages), open PDF/PNG/JPEG, save, save a copy, export |
 | Pages | Reorder by dragging, rotate, duplicate, insert blank pages, delete, page thumbnails |
+| Splitting | By page count, maximum file size or page ranges — progress while it works, each part named after the original |
 | Reading | Select and copy the text of an opened PDF, follow its links and cross-references |
 | Printing | The whole document from the File menu or Ctrl+P, one sheet per page, exactly as it saves |
 | Editing | Text boxes, highlights, rectangles, freehand drawing, placed pictures — move, resize, restyle, undo/redo |

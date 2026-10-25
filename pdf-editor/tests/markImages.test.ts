@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { markRect } from "../src/pdf/markImages"
+import { markRect, smoothInkPoints } from "../src/pdf/markImages"
 
 const PAGE = { width: 595, height: 842 }
 
@@ -21,5 +21,27 @@ describe("signature and stamp placement", () => {
   it("clamps an oversized width request to the page", () => {
     const rect = markRect({ width: 1000, height: 500 }, PAGE, 2)
     expect(rect.w).toBeCloseTo(0.9, 5)
+  })
+})
+
+describe("signature smoothing", () => {
+  it("keeps the ends of a stroke and softens a spike in the middle", () => {
+    const smoothed = smoothInkPoints([
+      { x: 0, y: 0 },
+      { x: 0.5, y: 0.3 },
+      { x: 1, y: 0 },
+    ], 1)
+    expect(smoothed[0]).toMatchObject({ x: 0, y: 0 })
+    expect(smoothed[smoothed.length - 1]).toMatchObject({ x: 1, y: 0 })
+    expect(smoothed[1].y).toBeCloseTo(0.15, 5)
+  })
+
+  it("carries the stroke pressure along with the smoothed points", () => {
+    const smoothed = smoothInkPoints([
+      { x: 0, y: 0, strength: 1 },
+      { x: 0.5, y: 0.1, strength: 0.5 },
+      { x: 1, y: 0, strength: 1 },
+    ], 1)
+    expect(smoothed[1].strength).toBeCloseTo(0.75, 5)
   })
 })

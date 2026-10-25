@@ -6,12 +6,15 @@ import { useEditor } from "../../app/store"
 import { downloadBlob } from "../../app/files"
 import {
   chunkPageRanges,
+  pagesPerFileValue,
   parsePageRanges,
   splitFileName,
+  splitSizeLimit,
   type SplitMode,
-  type SplitPart,
 } from "../../pdf/splitPdf"
 import { useT } from "../../i18n"
+
+const MB = 1024 * 1024
 
 export function SplitDialog() {
   const t = useT()
@@ -20,31 +23,41 @@ export function SplitDialog() {
   const pageCount = useEditor((state) => state.doc.pages.length)
   const documentName = useEditor((state) => state.doc.name)
   const [mode, setMode] = useState<SplitMode>("pages")
-  const [pagesPerFile, setPagesPerFile] = useState(10)
-  const [maxSizeMb, setMaxSizeMb] = useState(5)
+  const [pagesPerFile, setPagesPerFile] = useState("10")
+  const [maxSizeMb, setMaxSizeMb] = useState("5")
   const [rangeInput, setRangeInput] = useState(`1-${Math.min(pageCount, 10)}`)
   const [busy, setBusy] = useState<{ label: string; progress: number } | null>(null)
   const [error, setError] = useState("")
 
   const baseName = baseNameOf(documentName)
+  const pages = Number.parseInt(pagesPerFile, 10)
+  const sizeMb = Number(maxSizeMb.replace(",", "."))
 
-  const preview = useMemo((): { parts: SplitPart[]; error: string | null } => {
+  const preview = useMemo(() => {
     try {
-      if (mode === "pages") return { parts: chunkPageRanges(pageCount, pagesPerFile), error: null }
-      if (mode === "ranges") return { parts: parsePageRanges(rangeInput, pageCount), error: null }
-      return { parts: [], error: null }
-    } catch (parseError) {
+      if (mode === "pages") {
+        return { count: chunkPageRanges(pageCount, pages).length, error: null }
+      }
+      if (mode === "ranges") {
+        return { count: parsePageRanges(rangeInput, pageCount).length, error: null }
+      }
+      splitSizeLimit(sizeMb * MB)
+      return { count: 0, error: null }
+    } catch (previewError) {
       return {
-        parts: [],
-        error: parseError instanceof Error ? parseError.message : t("The page ranges could not be read."),
+        count: 0,
+        error: previewError instanceof Error ? previewError.message : t("The split settings could not be read."),
       }
     }
-  }, [mode, pageCount, pagesPerFile, rangeInput, t])
+  }, [mode, pageCount, pages, sizeMb, rangeInput, t])
 
-  const exampleName =
-    preview.parts.length > 0
-      ? splitFileName(baseName, 1, preview.parts[0])
-      : splitFileName(baseName, 1, { from: 1, to: Math.min(pageCount, pagesPerFile) })
+  const examplePart =
+    mode === "pages" && preview.error === null
+      ? chunkPageRanges(pageCount, pages)[0]
+      : mode === "ranges" && preview.error === null
+        ? parsePageRanges(rangeInput, pageCount)[0]
+        : { from: 1, to: Math.min(pageCount, 10) }
+  const exampleName = splitFileName(baseName, 1, examplePart ?? { from: 1, to: 1 })
 
   const run = async () => {
     setError("")
@@ -52,9 +65,9 @@ export function SplitDialog() {
     try {
       const request: SplitRequest =
         mode === "pages"
-          ? { mode: "pages", pagesPerFile }
+          ? { mode: "pages", pagesPerFile: pagesPerFileValue(pages) }
           : mode === "size"
-            ? { mode: "size", maxBytes: Math.round(maxSizeMb * 1024 * 1024) }
+            ? { mode: "size", maxBytes: splitSizeLimit(sizeMb * MB) }
             : { mode: "ranges", input: rangeInput }
       const outputs = await splitDocument(request, (progress, label) => setBusy({ label, progress }))
       for (const output of outputs) {
@@ -113,7 +126,7 @@ export function SplitDialog() {
             max={200}
             aria-label={t("Pages per file")}
             value={pagesPerFile}
-            onChange={(event) => setPagesPerFile(Math.min(200, Math.max(1, Number(event.target.value) || 1)))}
+            onChange={(event) => setPagesPerFile(event.target.value)}
           />
         </Field>
       ) : null}
@@ -130,9 +143,7 @@ export function SplitDialog() {
             step={0.5}
             aria-label={t("Maximum size per file (MB)")}
             value={maxSizeMb}
-            onChange={(event) =>
-              setMaxSizeMb(Math.min(150, Math.max(0.1, Number(event.target.value) || 5)))
-            }
+            onChange={(event) => setMaxSizeMb(event.target.value)}
           />
         </Field>
       ) : null}
@@ -153,13 +164,13 @@ export function SplitDialog() {
       ) : null}
 
       <div className="note">
-        {mode === "size"
-          ? t("Each file stays under {size} MB.", { size: maxSizeMb })
-          : preview.parts.length === 0
-            ? t("No files to create yet.")
-            : preview.parts.length === 1
-              ? t("{count} file will be created.", { count: preview.parts.length })
-              : t("{count} files will be created.", { count: preview.parts.length })}
+        {preview.error !== null
+          ? t("Check the settings above.")
+          : mode === "size"
+            ? t("Each file stays under {size} MB.", { size: sizeMb })
+            : preview.count === 1
+              ? t("{count} file will be created.", { count: preview.count })
+              : t("{count} files will be created.", { count: preview.count })}
         <br />
         <span className="hint">{t("Files are named like {name}", { name: exampleName })}</span>
       </div>
