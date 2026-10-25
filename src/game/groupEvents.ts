@@ -21,15 +21,15 @@ import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
 import {
-  cancelPendingOutgoingRaidsForRival,
-  cancelPendingRaidsForRival,
+  applyTruceToRival,
   getPlayerCampCenter,
   hasMilitiaWeapons,
+  rollFoundingRaidCooldownDays,
 } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
+import { makeNextAliveDeer, tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
@@ -205,14 +205,6 @@ function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   return index;
 }
 
-function buildAliveDeerList(allAlive: Entity[]): Entity[] {
-  const deer: Entity[] = [];
-  for (const e of allAlive) {
-    if (e.alive && e.type === EntityType.Deer && e.tamedBy == null) deer.push(e);
-  }
-  return deer;
-}
-
 function killWildGameForPoach(state: WorldState, animal: Entity): void {
   if (!animal.alive) return;
   animal.alive = false;
@@ -220,18 +212,6 @@ function killWildGameForPoach(state: WorldState, animal: Entity): void {
   for (const e of state.entities) {
     if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
   }
-}
-
-function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
-  let idx = 0;
-  return () => {
-    while (idx < deerList.length) {
-      const deer = deerList[idx];
-      if (deer?.alive) return deer;
-      idx++;
-    }
-    return undefined;
-  };
 }
 
 function pickSite(
@@ -272,11 +252,10 @@ function registerSpawnedEntity(
   indexLivingEntity(state, entity);
 }
 
-function createFactionHuman(
+function createVisitorHuman(
   state: WorldState,
   x: number,
   y: number,
-  faction: 'visitor' | 'rival',
   groupId: string,
   surname: string
 ): Entity {
@@ -290,10 +269,10 @@ function createFactionHuman(
     false,
     { surname, ageYears: age, colonyDay: getColonyDay(state) },
   );
-  ent.faction = faction;
+  ent.faction = 'visitor';
   ent.hiddenFromPlayer = false;
   ent.groupId = groupId;
-  ent.occupation = faction === 'visitor' ? 'visitor' : 'settler';
+  ent.occupation = 'visitor';
   ent.job = JobType.Settler;
   ent.relationshipStatus = 'single';
   ent.reproductionCooldown = 9999;
@@ -343,7 +322,7 @@ export function spawnVisitorGroup(
   const entityIds: number[] = [];
 
   for (let i = 0; i < memberCount; i++) {
-    const ent = createFactionHuman(state, site.x, site.y, 'visitor', groupId, surname);
+    const ent = createVisitorHuman(state, site.x, site.y, groupId, surname);
     entityIds.push(ent.id);
     registerSpawnedEntity(state, allAlive, ent, ctx);
   }
@@ -433,7 +412,7 @@ export function spawnRivalSettlement(
     relationship,
     foundedYear: state.year,
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
-    raidCooldownDays: 45 + Math.floor(getSimRng('groupEvents')() * 30),
+    raidCooldownDays: rollFoundingRaidCooldownDays(getSimRng('groupEvents')()),
     peaceTreatyDays: 0,
     giftsGiven: 0,
     profile: createRivalProfile(groupId.length + state.year + pop, relationship),
@@ -469,7 +448,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
 
   const remaining: VisitorGroup[] = [];
   const aliveById = buildAliveEntityIndex(allAlive);
-  const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
+  const nextDeer = makeNextAliveDeer(allAlive);
 
   const newCalendarDay = isNewCalendarDayTick(state);
   const calendarDay = getAbsoluteCalendarDay(state.tick);
@@ -567,10 +546,10 @@ function relationshipLabel(rel: RivalRelationship): string {
   return { friendly: 'Friendly', neutral: 'Neutral', competitive: 'Competitive', tense: 'Tense' }[rel];
 }
 
-export { isRivalAtPeace } from './rivalPeace';
-
 const PEACE_TREATY_PLAYER_DAYS = 60;
 const PEACE_TREATY_EVENT_DAYS = 45;
+/** Truce the tribute answer buys — shorter than a signed treaty. */
+const PEACE_TREATY_TRIBUTE_DAYS = 21;
 /** Rival diplomacy prices — exported so the panel's button labels quote the owner's figures. */
 export const RIVAL_GIFT_FOOD_COST = 25;
 export const RIVAL_TRADE_PACT_GOLD_COST = 40;
@@ -744,15 +723,9 @@ export function signPeaceTreaty(originalState: WorldState, rivalId: string): Wor
   state.resources.gold -= PEACE_TREATY_GOLD_COST;
   spendFood(state, 'treaty', PEACE_TREATY_FOOD_COST);
   rival.peaceTreatyDays = PEACE_TREATY_PLAYER_DAYS;
-  rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_PLAYER_DAYS);
   if (rival.relationship === 'competitive') rival.relationship = 'neutral';
   rival.daysUntilAction = Math.max(rival.daysUntilAction, 30);
-  if (cancelPendingRaidsForRival(state, rivalId)) {
-    logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-  }
-  if (cancelPendingOutgoingRaidsForRival(state, rivalId)) {
-    logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-  }
+  applyTruceToRival(state, rivalId, PEACE_TREATY_PLAYER_DAYS);
 
   addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Peace', '#22d3ee');
   addBigNews(state, '🕊️ Peace signed', `${rival.name} and ${state.villageName} agreed to 60 days without raids.`, 'positive');
@@ -1044,26 +1017,14 @@ export function respondToDiplomacyEvent(
         state.resources.gold -= DIPLOMACY_PEACE_SIGN_GOLD;
         spendFood(state, 'treaty', DIPLOMACY_PEACE_SIGN_FOOD);
         rival.peaceTreatyDays = PEACE_TREATY_EVENT_DAYS;
-        rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PEACE_TREATY_EVENT_DAYS);
         if (rival.relationship === 'competitive') rival.relationship = 'neutral';
-        if (cancelPendingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-        }
-        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-        }
+        applyTruceToRival(state, rival.id, PEACE_TREATY_EVENT_DAYS);
         addFloatingText(state, rival.campX, rival.campY - 20, '🕊️ Truce', '#22d3ee');
         logEvent(state, 'event', `Peace treaty with ${rival.name} — 45 days`, rival.name);
         resolved = true;
       } else if (choiceId === 'tribute') {
-        rival.peaceTreatyDays = 21;
-        rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
-        if (cancelPendingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
-        }
-        if (cancelPendingOutgoingRaidsForRival(state, rival.id)) {
-          logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
-        }
+        rival.peaceTreatyDays = PEACE_TREATY_TRIBUTE_DAYS;
+        applyTruceToRival(state, rival.id, PEACE_TREATY_TRIBUTE_DAYS);
         const tributeFood = addCappedResource(state, 'food', DIPLOMACY_PEACE_TRIBUTE_FOOD);
         if (tributeFood < DIPLOMACY_PEACE_TRIBUTE_FOOD) {
           addFloatingText(state, rival.campX, rival.campY - 20, `+${tributeFood}🍖 (storage full)`, '#f97316');
@@ -1519,9 +1480,7 @@ function admitRefugees(
   return joined;
 }
 
-export type CampHit =
-  | { kind: 'rival'; id: string; x: number; y: number; buildingId: number | null }
-  | { kind: 'visitor'; id: string; x: number; y: number };
+export type CampHit = { kind: 'visitor'; id: string; x: number; y: number };
 
 export function hitTestCamp(
   state: WorldState,

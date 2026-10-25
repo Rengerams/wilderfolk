@@ -1,13 +1,17 @@
-import type { Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
+import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
 import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueRaid } from './frontierCombat';
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
+import { removeWorkerTransition } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
+
+/** Reputation all tense camps together may drain per day, however many roll. */
+const MAX_TENSE_REP_DRAIN_PER_DAY = 2;
 
 export interface RivalEventCallbacks {
   pushNews: (state: WorldState, title: string, message: string, type: 'positive' | 'negative' | 'neutral') => void;
@@ -18,22 +22,51 @@ export interface RivalEventCallbacks {
   killWildGameForPoach: (state: WorldState, animal: Entity) => void;
 }
 
-function buildAliveDeerList(allAlive: Entity[]): Entity[] {
-  return allAlive.filter((entity) => (
+/** Hands out the deer alive at pulse start, stepping past any a poach killed meanwhile. */
+export function makeNextAliveDeer(allAlive: Entity[]): () => Entity | undefined {
+  const deer = allAlive.filter((entity) => (
     entity.alive && entity.type === EntityType.Deer && entity.tamedBy == null
   ));
-}
-
-function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
   let index = 0;
   return () => {
-    while (index < deerList.length) {
-      const deer = deerList[index];
-      if (deer?.alive) return deer;
+    while (index < deer.length) {
+      const next = deer[index];
+      if (next?.alive) return next;
       index++;
     }
     return undefined;
   };
+}
+
+/** Rival camps are simulated off-map, so any `faction: 'rival'` building is an older save's leftover. */
+function retireLegacyCampStructures(buildings: Building[]): Set<number> {
+  const retired = new Set<number>();
+  for (let index = buildings.length - 1; index >= 0; index--) {
+    const building = buildings[index];
+    if (building.faction !== 'rival') continue;
+    retired.add(building.id);
+    buildings.splice(index, 1);
+  }
+  return retired;
+}
+
+/** Drops residence, workplace and prison pointers into structures the retirement removed. */
+function releaseRetiredStructureReferences(
+  entity: Entity,
+  retired: Set<number>,
+  buildings: Building[],
+): void {
+  if (entity.homeBuildingId != null && retired.has(entity.homeBuildingId)) {
+    removeWorkerTransition(entity, buildings);
+  }
+  if (entity.residenceBuildingId != null && retired.has(entity.residenceBuildingId)) {
+    entity.residenceBuildingId = undefined;
+  }
+  if (entity.prisonBuildingId != null && retired.has(entity.prisonBuildingId)) {
+    entity.prisonBuildingId = undefined;
+    entity.prisonerUntilTick = undefined;
+    entity.prisonSentenceCrime = undefined;
+  }
 }
 
 export function tickRivalSettlements(
@@ -41,44 +74,29 @@ export function tickRivalSettlements(
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
 ): void {
-  // Called once per day by tickDailyWorldEvents at 18:00. The former midnight-only
-  // isNewCalendarDayTick guard prevented peace treaties, raid cooldowns and rival
-  // growth from advancing at all during normal gameplay.
-
-
+  // Runs once a day from tickDailyWorldEvents at 18:00, not only at the calendar boundary —
+  // a midnight-only guard stalled peace treaties, raid cooldowns and growth.
   callbacks.tickPendingDiplomacyEvents(state);
-  // Retire legacy village camp objects; strategic population and raid records stay authoritative.
+
+  // Camp structures never stand on the player's map; older saves may still carry them.
+  const retiredStructures = retireLegacyCampStructures(state.buildings);
+  const campMembers = new Map<string, Set<number>>();
+  for (const rival of state.rivalSettlements) campMembers.set(rival.id, new Set(rival.entityIds));
+  for (const entity of allAlive) {
+    releaseRetiredStructureReferences(entity, retiredStructures, state.buildings);
+    if (entity.faction !== 'rival') continue;
+    const camp = entity.groupId == null ? undefined : campMembers.get(entity.groupId);
+    if (camp?.has(entity.id)) entity.alive = false;
+  }
   for (const rival of state.rivalSettlements) {
-    if (rival.buildingIds.length === 0 && rival.entityIds.length === 0) continue;
-    const buildingIds = new Set(rival.buildingIds);
-    const removedBuildings = new Set<number>();
-    for (let index = state.buildings.length - 1; index >= 0; index--) {
-      const building = state.buildings[index];
-      if (!buildingIds.has(building.id) || building.faction !== 'rival' || building.groupId !== rival.id) continue;
-      removedBuildings.add(building.id);
-      state.buildings.splice(index, 1);
-    }
-    const entityIds = new Set(rival.entityIds);
-    for (const entity of allAlive) {
-      if (entityIds.has(entity.id) && entity.faction === 'rival' && entity.groupId === rival.id) {
-        entity.alive = false;
-      }
-      if (entity.residenceBuildingId != null && removedBuildings.has(entity.residenceBuildingId)) {
-        entity.residenceBuildingId = undefined;
-      }
-      if (entity.homeBuildingId != null && removedBuildings.has(entity.homeBuildingId)) {
-        entity.homeBuildingId = undefined;
-      }
-    }
     rival.buildingIds = [];
     rival.entityIds = [];
   }
-  const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
+  const nextDeer = makeNextAliveDeer(allAlive);
   let tenseRepDrainToday = 0;
-  const maxTenseRepDrainPerDay = 2;
 
-  for (const rival of state.rivalSettlements) {
-    ensureRivalProfile(rival);
+  for (const [index, rival] of state.rivalSettlements.entries()) {
+    const profile = ensureRivalProfile(rival);
     if (rival.raidCooldownDays > 0) rival.raidCooldownDays--;
     if (rival.peaceTreatyDays > 0) {
       rival.peaceTreatyDays--;
@@ -95,11 +113,10 @@ export function tickRivalSettlements(
     // so a camp that only grew there stayed at its founding size for years.
     if (
       state.year > rival.foundedYear + 1
-      && isRivalGrowthDay(state.rivalSettlements.indexOf(rival), getColonyDay(state))
+      && isRivalGrowthDay(index, getColonyDay(state))
       && canRivalCampGrow(rival)
       && getSimRng('rivalEvents')() < 0.45
     ) {
-      const profile = ensureRivalProfile(rival);
       profile.ledger.food = Math.max(0, profile.ledger.food - getRivalGrowthFoodCost());
       rival.population++;
       callbacks.logEvent(state, 'event', `${rival.name} grew — ${rival.population} souls at the camp`, rival.name);
@@ -109,7 +126,6 @@ export function tickRivalSettlements(
     if (rival.daysUntilAction > 0) continue;
     rival.daysUntilAction = 45 + Math.floor(getSimRng('rivalEvents')() * 45);
 
-    const profile = ensureRivalProfile(rival);
     const action = selectRivalDailyAction(profile, rival.relationship);
     const outcome = applyRivalDailyAction(profile, action);
     profile.lastAction = outcome.changed ? action : 'none';
@@ -139,7 +155,7 @@ export function tickRivalSettlements(
       adjustPollutionLevel(state, 0.5);
     } else if (
       rival.relationship === 'tense'
-      && tenseRepDrainToday < maxTenseRepDrainPerDay
+      && tenseRepDrainToday < MAX_TENSE_REP_DRAIN_PER_DAY
       && getSimRng('rivalEvents')() < 0.4
     ) {
       addReputation(state, -2);
