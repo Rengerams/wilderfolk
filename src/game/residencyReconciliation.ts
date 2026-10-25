@@ -383,7 +383,7 @@ export function rebalanceOvercrowdedResidences(
     const relations = indexFamilyRelations(occupants);
     const groups = occupants.sort((a, b) => a.id - b.id).flatMap((occupant) => visited.has(occupant.id)
       ? [] : [collectFamilyMembers(occupant, occupants, visited, relations)]).sort((a, b) => b.length - a.length);
-    let kept = 0;
+    let kept = (occupancy.get(residence.id) ?? 0) - occupants.length;
     for (const group of groups) {
       if (kept + group.length <= cap) { kept += group.length; continue; }
       if (relocateHousehold(group, undefined, 'capacity', 'family', context)) moved = true;
