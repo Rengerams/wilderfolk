@@ -9,10 +9,10 @@ import { customTagsFromInfo } from "./metadataTags"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
-export const MAX_SOURCE_BYTES = 150 * 1024 * 1024
-export const MAX_RENDER_PIXELS = 14_000_000
+const MAX_SOURCE_BYTES = 150 * 1024 * 1024
+const MAX_RENDER_PIXELS = 14_000_000
 
-export type SourcePageMeta = { size: PageSize; authoredRotation: Rotation }
+type SourcePageMeta = { size: PageSize; authoredRotation: Rotation }
 
 export type PdfSource = {
   name: string

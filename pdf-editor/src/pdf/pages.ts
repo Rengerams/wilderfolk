@@ -66,10 +66,6 @@ export function totalRotation(page: PageRef): Rotation {
   return normalizeRotation(authored + page.rotation)
 }
 
-export function pageIndexById(pages: PageRef[], pageId: string): number {
-  return pages.findIndex((page) => page.id === pageId)
-}
-
 export function sanitizeFileName(name: string): string {
   const cleaned = name.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim()
   return cleaned.length > 0 ? cleaned : "document"

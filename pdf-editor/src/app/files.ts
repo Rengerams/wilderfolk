@@ -3,7 +3,7 @@ import { t } from "../i18n/translate"
 
 export const IMPORT_ACCEPT = "application/pdf,.pdf,image/png,image/jpeg,.png,.jpg,.jpeg"
 
-export const MAX_IMPORT_BYTES = 150 * 1024 * 1024
+const MAX_IMPORT_BYTES = 150 * 1024 * 1024
 
 export async function readFileBytes(file: File): Promise<Uint8Array> {
   if (file.size > MAX_IMPORT_BYTES) {
@@ -63,17 +63,6 @@ export function downloadBlob(blob: Blob, filename: string): void {
   anchor.click()
   anchor.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000)
-}
-
-export function dataUrlToFile(dataUrl: string, filename: string): File {
-  const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl)
-  if (!match) throw new Error(t("The generated file could not be assembled."))
-  const binary = atob(match[2])
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-  return new File([bytes], filename, { type: match[1] })
 }
 
 export function loadImageElement(dataUrl: string): Promise<HTMLImageElement> {

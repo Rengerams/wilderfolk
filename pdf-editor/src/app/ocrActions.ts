@@ -7,12 +7,6 @@ import { useEditor } from "./store"
 
 export type OcrOutcome = { pages: number; lines: number }
 
-/** A page is recognizable when it came from a PDF file or holds one picture (scanned/imported). */
-export function pageCanBeRecognized(page: PageRef, imageCount: number): boolean {
-  if (page.kind === "source" && getCurrentSource()) return true
-  return imageCount === 1
-}
-
 async function recognizeOnePage(
   page: PageRef,
   languages: string[],

@@ -2,7 +2,7 @@ import { Dialog } from "./Dialog"
 import { useEditor } from "../../app/store"
 import { useT } from "../../i18n"
 
-export const APP_VERSION = "0.2.0"
+const APP_VERSION = "0.2.0"
 
 const SHORTCUTS: [string, string][] = [
   ["Ctrl + N", "New document"],

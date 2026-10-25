@@ -94,7 +94,7 @@ export async function saveDocumentCopy(): Promise<string> {
   return filename
 }
 
-export async function extractCurrentText(): Promise<string> {
+async function extractCurrentText(): Promise<string> {
   const { doc } = useEditor.getState()
   const parts: string[] = []
   const source = getCurrentSource()

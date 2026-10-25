@@ -3,13 +3,9 @@ import { t } from "../i18n/translate"
 import { decryptBytes, encryptBytes } from "./crypto"
 import { getPassphrase, type AppSettings } from "./settings"
 
-export class LibraryLockedError extends Error {}
+class LibraryLockedError extends Error {}
 
-export function isLibraryLocked(error: unknown): boolean {
-  return error instanceof LibraryLockedError
-}
-
-export type WriteRequest = {
+type WriteRequest = {
   id: string
   name: string
   pages: number

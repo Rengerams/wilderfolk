@@ -11,8 +11,8 @@ export type InkStroke = { color: string; points: InkPoint[] }
 
 export type SignatureFontId = "script" | "elegant" | "casual"
 
-export type TypedSignature = { mode: "type"; text: string; font: SignatureFontId; color: string }
-export type DrawnSignature = { mode: "draw"; strokes: InkStroke[] }
+type TypedSignature = { mode: "type"; text: string; font: SignatureFontId; color: string }
+type DrawnSignature = { mode: "draw"; strokes: InkStroke[] }
 export type SignatureInput = TypedSignature | DrawnSignature
 
 export type StampDesign = {

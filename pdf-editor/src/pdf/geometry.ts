@@ -2,8 +2,6 @@ import type { Point, Rect, Rotation } from "../types"
 
 /** Display rotation is clockwise; normalized page space has its origin at the top-left. */
 
-export const ROTATIONS: Rotation[] = [0, 90, 180, 270]
-
 export function normalizeRotation(degrees: number): Rotation {
   const snapped = Math.round(degrees / 90) * 90
   return (((snapped % 360) + 360) % 360) as Rotation
@@ -82,29 +80,6 @@ export function clampRectToPage(rect: Rect): Rect {
     w: Math.min(clamp01(rect.w), 1 - x),
     h: Math.min(clamp01(rect.h), 1 - y),
   }
-}
-
-export function pointInRect(point: Point, rect: Rect, padding = 0): boolean {
-  return (
-    point.x >= rect.x - padding &&
-    point.x <= rect.x + rect.w + padding &&
-    point.y >= rect.y - padding &&
-    point.y <= rect.y + rect.h + padding
-  )
-}
-
-export function rectsOverlap(a: Rect, b: Rect): boolean {
-  return !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y)
-}
-
-export function expandRect(rect: Rect, factor: number): Rect {
-  const dw = (rect.w * (factor - 1)) / 2
-  const dh = (rect.h * (factor - 1)) / 2
-  return { x: rect.x - dw, y: rect.y - dh, w: rect.w + dw * 2, h: rect.h + dh * 2 }
-}
-
-export function distance(a: Point, b: Point): number {
-  return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
 /** Converts a normalized top-left rect into PDF user-space coordinates (origin bottom-left). */

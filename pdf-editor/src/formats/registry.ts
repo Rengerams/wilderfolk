@@ -79,7 +79,7 @@ export const FORMAT_ADAPTERS: FormatAdapter[] = [
   },
 ]
 
-export function adapterById(id: ExportFormatId): FormatAdapter {
+function adapterById(id: ExportFormatId): FormatAdapter {
   const adapter = FORMAT_ADAPTERS.find((entry) => entry.id === id)
   if (!adapter) throw new Error(`Unknown format: ${id}`)
   return adapter

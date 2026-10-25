@@ -9,7 +9,7 @@ import { useEditor } from "./store"
 
 export type SearchScope = "current" | "all"
 
-export const MAX_TEXT_HITS = 300
+const MAX_TEXT_HITS = 300
 
 function activePage(): PageRef | null {
   const state = useEditor.getState()

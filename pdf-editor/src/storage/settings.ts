@@ -34,7 +34,7 @@ export function setPassphrase(value: string): void {
   sessionPassphrase = value
 }
 
-export function loadSettings(): AppSettings {
+function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...DEFAULT_SETTINGS }
@@ -53,7 +53,7 @@ export function loadSettings(): AppSettings {
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
+function saveSettings(settings: AppSettings): void {
   const { cloudToken: _token, ...persisted } = settings
   try {
     localStorage.setItem(

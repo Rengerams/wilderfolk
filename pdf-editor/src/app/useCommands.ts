@@ -14,7 +14,6 @@ import {
 import { readImageInput } from "./documentActions"
 import { printDocument } from "./printActions"
 import { selectActivePage, useEditor } from "./store"
-import { getCurrentSource } from "./sourceRegistry"
 
 export type Commands = {
   newDocument: () => void
@@ -175,6 +174,3 @@ function state_status(setStatus: (value: string) => void, message: string): void
   setStatus(`⚠ ${message}`)
 }
 
-export function hasSource(): boolean {
-  return getCurrentSource() !== null
-}

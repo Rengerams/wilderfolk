@@ -49,12 +49,12 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 /** pdf-lib's `rgb()` takes numbers; colours in the document are hex strings. */
-export function pdfColor(hex: string) {
+function pdfColor(hex: string) {
   const { r, g, b } = hexToRgb(hex)
   return rgb(r, g, b)
 }
 
-export function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mime: string } {
+function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mime: string } {
   const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl)
   if (!match) throw new Error(t("The image data could not be read."))
   const binary = atob(match[2])
@@ -197,7 +197,7 @@ function drawOcrLayer(page: PDFPage, font: PDFFont, layer: OcrLayer, ref: PageRe
   }
 }
 
-export function applyMetadata(
+function applyMetadata(
   document: PDFDocument,
   metadata: DocMetadata,
   customTags: Record<string, string> = {},

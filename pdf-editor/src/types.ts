@@ -21,7 +21,7 @@ export type TextAnnotation = {
   color: string
 }
 
-export type HighlightAnnotation = {
+type HighlightAnnotation = {
   id: string
   pageId: string
   type: "highlight"
@@ -30,7 +30,7 @@ export type HighlightAnnotation = {
 }
 
 /** `fillOpacity` 1 makes an opaque patch, which is how replaced text is covered up. */
-export type ShapeAnnotation = {
+type ShapeAnnotation = {
   id: string
   pageId: string
   type: "shape"
@@ -41,7 +41,7 @@ export type ShapeAnnotation = {
   lineWidth: number
 }
 
-export type InkAnnotation = {
+type InkAnnotation = {
   id: string
   pageId: string
   type: "ink"
@@ -50,7 +50,7 @@ export type InkAnnotation = {
   lineWidth: number
 }
 
-export type ImageAnnotation = {
+type ImageAnnotation = {
   id: string
   pageId: string
   type: "image"
@@ -65,8 +65,6 @@ export type Annotation =
   | ShapeAnnotation
   | InkAnnotation
   | ImageAnnotation
-
-export type AnnotationType = Annotation["type"]
 
 /** One recognized text line. `rect` keeps its position so the searchable layer can be placed on save. */
 export type OcrLine = { id: string; text: string; rect: Rect; confidence: number }
@@ -101,7 +99,7 @@ export type DocMetadata = {
 }
 
 /** Bytes of an opened PDF file. Kept out of undo history. */
-export type DocumentSource = { name: string; bytes: Uint8Array } | null
+type DocumentSource = { name: string; bytes: Uint8Array } | null
 
 export type DocState = {
   id: string

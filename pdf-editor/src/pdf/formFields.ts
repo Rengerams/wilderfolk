@@ -2,7 +2,7 @@ import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PD
 
 /** Reading and filling PDF form fields (AcroForms), the reliable way to change fixed templates. */
 
-export type FormFieldType = "text" | "checkbox" | "dropdown" | "radio" | "optionList" | "unsupported"
+type FormFieldType = "text" | "checkbox" | "dropdown" | "radio" | "optionList" | "unsupported"
 
 export type FormFieldInfo = {
   name: string

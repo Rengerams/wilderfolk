@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-export type PasswordRequest = { incorrect: boolean }
+type PasswordRequest = { incorrect: boolean }
 
 type PasswordPromptState = {
   request: PasswordRequest | null

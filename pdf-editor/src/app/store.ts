@@ -30,7 +30,7 @@ import {
   withPdfExtension,
 } from "../pdf/pages"
 
-export const HISTORY_LIMIT = 40
+const HISTORY_LIMIT = 40
 
 export type ImportedImage = {
   dataUrl: string
@@ -39,7 +39,7 @@ export type ImportedImage = {
   height: number
 }
 
-export type AnnotationPatch = {
+type AnnotationPatch = {
   rect?: Rect
   text?: string
   fontSize?: number
@@ -182,7 +182,7 @@ export type EditorState = {
 }
 
 /** Lays each captured or imported image on its own page, scaled to fit with a small margin. */
-export function buildImagePages(images: ImportedImage[]): {
+function buildImagePages(images: ImportedImage[]): {
   pages: PageRef[]
   annotations: Annotation[]
 } {
@@ -524,13 +524,4 @@ export function selectActivePage(state: EditorState): PageRef | null {
   )
 }
 
-export function selectPageAnnotations(state: EditorState, pageId: string): Annotation[] {
-  return state.doc.annotations.filter((annotation) => annotation.pageId === pageId)
-}
 
-export function selectSelectedAnnotation(state: EditorState): Annotation | null {
-  if (!state.selectedAnnotationId) return null
-  return (
-    state.doc.annotations.find((annotation) => annotation.id === state.selectedAnnotationId) ?? null
-  )
-}

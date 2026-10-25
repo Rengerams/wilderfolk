@@ -16,7 +16,7 @@ export type BridgeScanRequest = {
 
 export const DEFAULT_BRIDGE_URL = "http://127.0.0.1:8765"
 
-export function normalizeBridgeUrl(url: string): string {
+function normalizeBridgeUrl(url: string): string {
   return url.trim().replace(/\/+$/, "")
 }
 

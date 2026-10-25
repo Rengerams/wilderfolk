@@ -17,8 +17,7 @@ export const OCR_LANGUAGES = [
   { code: "pol", label: "Polish" },
 ]
 
-export const DEFAULT_OCR_LANGUAGES = ["eng"]
-export const OCR_RENDER_SCALE = 2
+const OCR_RENDER_SCALE = 2
 
 /** The worker, core and language data ship with the app, so recognition needs no network. */
 const OCR_ASSETS = `${import.meta.env.BASE_URL}ocr`
@@ -102,7 +101,7 @@ export async function prepareOcrLanguages(
 }
 
 /** Recognizes one rendered raster; `mapRect` turns raster coordinates into page coordinates. */
-export async function recognizeCanvas(input: {
+async function recognizeCanvas(input: {
   canvas: HTMLCanvasElement
   languages: string[]
   onProgress: (progress: OcrProgress) => void
