@@ -30,7 +30,7 @@ jobs:
           git checkout --detach ae3532c5062c7b6b57629c9d5ab52c801dd23145
           npm ci --no-audit --no-fund
           git show "$GITHUB_SHA:scripts/benchmark-housing-pipeline.mts" > scripts/benchmark-housing-pipeline.mts
-          PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/baseline.log
+          PERF_ASSIGNMENT_DETAIL=1 PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/baseline.log
           grep '^HOUSING_PIPELINE_RESULT ' /tmp/baseline.log | sed 's/^HOUSING_PIPELINE_RESULT //' > /tmp/baseline.jsonl
       - name: Benchmark optimized
         shell: bash
@@ -39,7 +39,7 @@ jobs:
           rm scripts/benchmark-housing-pipeline.mts
           git checkout --detach "$GITHUB_SHA"
           npm ci --no-audit --no-fund
-          PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/optimized.log
+          PERF_ASSIGNMENT_DETAIL=1 PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/optimized.log
           grep '^HOUSING_PIPELINE_RESULT ' /tmp/optimized.log | sed 's/^HOUSING_PIPELINE_RESULT //' > /tmp/optimized.jsonl
       - name: Compare results and assignments
         shell: bash
@@ -53,6 +53,11 @@ jobs:
             if (!y) throw new Error('Missing baseline for '+JSON.stringify(x));
             const delta = ((x.warmMedianMs/y.warmMedianMs)-1)*100;
             console.log(JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineMs:y.warmMedianMs,optimizedMs:x.warmMedianMs,deltaPct:+delta.toFixed(2),sameAssignments:x.assignmentHash===y.assignmentHash,baselineMoves:y.relocations,optimizedMoves:x.relocations,baselineViolations:y.violations,optimizedViolations:x.violations}));
+            if(x.assignmentHash !== y.assignmentHash) {
+              const byId = new Map(y.assignments);
+              const differences = x.assignments.filter(([id,home]) => byId.get(id)!==home).slice(0,20);
+              console.log('HOUSING_DIFFERENCES '+JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,count:x.assignments.filter(([id,home]) => byId.get(id)!==home).length,examples:differences}));
+            }
             if(x.assignmentHash !== y.assignmentHash || x.violations !== y.violations) process.exitCode=1;
           }
           JS
