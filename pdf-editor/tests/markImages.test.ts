@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { markRect, smoothInkPoints } from "../src/pdf/markImages"
+import { inkCurves, markRect, smoothInkPoints } from "../src/pdf/markImages"
 
 const PAGE = { width: 595, height: 842 }
 
@@ -43,5 +43,35 @@ describe("signature smoothing", () => {
       { x: 1, y: 0, strength: 1 },
     ], 1)
     expect(smoothed[1].strength).toBeCloseTo(0.75, 5)
+  })
+
+  it("curves between samples through their midpoints and keeps the ends", () => {
+    const curves = inkCurves([
+      { x: 0, y: 0 },
+      { x: 0.25, y: 0.4 },
+      { x: 0.75, y: 0.2 },
+      { x: 1, y: 0 },
+    ])
+    expect(curves).toHaveLength(3)
+    expect(curves[0].start).toMatchObject({ x: 0, y: 0 })
+    expect(curves[0].control).toMatchObject({ x: 0.25, y: 0.4 })
+    expect(curves[0].end.x).toBeCloseTo(0.5, 5)
+    expect(curves[0].end.y).toBeCloseTo(0.3, 5)
+    expect(curves[1].start.x).toBeCloseTo(0.5, 5)
+    expect(curves[1].start.y).toBeCloseTo(0.3, 5)
+    expect(curves[2].end).toMatchObject({ x: 1, y: 0 })
+  })
+
+  it("draws a two-point stroke as a single curve that ends where the pointer is", () => {
+    const curves = inkCurves([
+      { x: 0, y: 0 },
+      { x: 1, y: 0.5 },
+    ])
+    expect(curves).toHaveLength(1)
+    expect(curves[0]).toMatchObject({
+      start: { x: 0, y: 0 },
+      control: { x: 1, y: 0.5 },
+      end: { x: 1, y: 0.5 },
+    })
   })
 })

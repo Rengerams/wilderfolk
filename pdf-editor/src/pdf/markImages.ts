@@ -63,6 +63,26 @@ export function smoothInkPoints(points: InkPoint[], passes = 2): InkPoint[] {
   return smoothed
 }
 
+export type InkCurve = { start: InkPoint; control: InkPoint; end: InkPoint; strength: number }
+
+/** Quadratic segments anchored on midpoints, so consecutive joins share a tangent instead of kinking. */
+export function inkCurves(points: InkPoint[]): InkCurve[] {
+  const first = points[0]
+  if (!first || points.length < 2) return []
+  const curves: InkCurve[] = []
+  let start = first
+  let strength = inkStrength(first)
+  for (let index = 1; index < points.length; index += 1) {
+    const control = points[index]
+    const next = points[index + 1]
+    const end = next ? { x: (control.x + next.x) / 2, y: (control.y + next.y) / 2 } : control
+    curves.push({ start, control, end, strength: (strength + inkStrength(control)) / 2 })
+    start = end
+    strength = next ? (inkStrength(control) + inkStrength(next)) / 2 : inkStrength(control)
+  }
+  return curves
+}
+
 /** Segments carry their own width, so a slow stroke inks heavier than a fast flick. */
 export function drawInkStrokes(
   context: CanvasRenderingContext2D,
@@ -87,13 +107,16 @@ export function drawInkStrokes(
       context.fill()
       continue
     }
-    for (let index = 1; index < points.length; index += 1) {
-      const from = points[index - 1]
-      const to = points[index]
-      context.lineWidth = Math.max(0.4, (lineWidth * (inkStrength(from) + inkStrength(to))) / 2)
+    for (const curve of inkCurves(points)) {
+      context.lineWidth = Math.max(0.4, lineWidth * curve.strength)
       context.beginPath()
-      context.moveTo(from.x * width, from.y * height)
-      context.lineTo(to.x * width, to.y * height)
+      context.moveTo(curve.start.x * width, curve.start.y * height)
+      context.quadraticCurveTo(
+        curve.control.x * width,
+        curve.control.y * height,
+        curve.end.x * width,
+        curve.end.y * height,
+      )
       context.stroke()
     }
   }

@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's signature pad now smooths every drawn line into a natural curve, so a mouse, a pen or a finger no longer leaves jagged or wobbly strokes.
+
 - **Added:** PDF Studio splits a document by page count, maximum file size or chosen page ranges, shows progress while it works, and names every part after the original document.
 
 - **Added:** PDF Studio signs documents with a drawn or typed signature, and places professional stamps like approved, draft, confidential or paid as pictures you can move, resize or remove.

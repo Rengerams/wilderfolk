@@ -20,7 +20,6 @@ const PEN_WIDTH = 0.014
 /** Pointer samples closer than this are the same bit of ink. */
 const MIN_POINT_DISTANCE = 0.0015
 const TIME_FLOOR_MS = 8
-const FOLLOW = 0.7
 const INK_COLORS = ["#111111", "#1a3b8b", "#0f6cbd"]
 const FONT_IDS: SignatureFontId[] = ["script", "elegant", "casual"]
 const FONT_LABELS: Record<SignatureFontId, string> = {
@@ -65,18 +64,21 @@ export function SignatureDialog() {
 
   useEffect(() => () => window.cancelAnimationFrame(frameRef.current), [])
 
-  const pointAt = (event: PointerEvent<HTMLCanvasElement>): InkPoint => {
-    const bounds = event.currentTarget.getBoundingClientRect()
-    return {
-      x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / Math.max(1, bounds.width))),
-      y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / Math.max(1, bounds.height))),
-    }
+  const pointAt = (sample: { clientX: number; clientY: number }, bounds: DOMRect): InkPoint => ({
+    x: Math.min(1, Math.max(0, (sample.clientX - bounds.left) / Math.max(1, bounds.width))),
+    y: Math.min(1, Math.max(0, (sample.clientY - bounds.top) / Math.max(1, bounds.height))),
+  })
+
+  /** Browsers can report several samples per frame; using them keeps fast strokes round. */
+  const pointerSamples = (event: PointerEvent<HTMLCanvasElement>): globalThis.PointerEvent[] => {
+    const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? []
+    return coalesced.length > 0 ? coalesced : [event.nativeEvent]
   }
 
   /** Pen pressure when the device reports it; otherwise a fast flick inks lighter than a slow one. */
-  const strokeInk = (event: PointerEvent<HTMLCanvasElement>, speed: number): number => {
-    if (event.pointerType === "pen" && event.pressure > 0) {
-      return Math.min(1.2, 0.35 + event.pressure * 0.95)
+  const strokeInk = (sample: { pointerType: string; pressure: number }, speed: number): number => {
+    if (sample.pointerType === "pen" && sample.pressure > 0) {
+      return Math.min(1.2, 0.35 + sample.pressure * 0.95)
     }
     return Math.min(1.15, Math.max(0.42, 1.12 - speed * 140))
   }
@@ -88,8 +90,8 @@ export function SignatureDialog() {
     } catch {
       // Capture only helps when the pointer leaves the pad; drawing works without it.
     }
-    const point = pointAt(event)
-    currentRef.current = { color, points: [{ ...point, strength: strokeInk(event, 0) }] }
+    const point = pointAt(event.nativeEvent, event.currentTarget.getBoundingClientRect())
+    currentRef.current = { color, points: [{ ...point, strength: strokeInk(event.nativeEvent, 0) }] }
     lastTimeRef.current = event.timeStamp
     redrawPad()
   }
@@ -97,20 +99,21 @@ export function SignatureDialog() {
   const extendStroke = (event: PointerEvent<HTMLCanvasElement>) => {
     const stroke = currentRef.current
     if (!stroke) return
-    const target = pointAt(event)
-    const last = stroke.points[stroke.points.length - 1]
-    if (!last) return
-    const distance = Math.hypot(target.x - last.x, target.y - last.y)
-    if (distance < MIN_POINT_DISTANCE) return
-    const elapsed = Math.max(TIME_FLOOR_MS, event.timeStamp - lastTimeRef.current)
-    lastTimeRef.current = event.timeStamp
-    const ink = strokeInk(event, distance / elapsed)
-    // The point follows the pointer at a fixed share, which irons out sensor jitter.
-    stroke.points.push({
-      x: last.x + (target.x - last.x) * FOLLOW,
-      y: last.y + (target.y - last.y) * FOLLOW,
-      strength: inkStrength(last) + (ink - inkStrength(last)) * 0.4,
-    })
+    const bounds = event.currentTarget.getBoundingClientRect()
+    for (const sample of pointerSamples(event)) {
+      const last = stroke.points[stroke.points.length - 1]
+      if (!last) break
+      const target = pointAt(sample, bounds)
+      const distance = Math.hypot(target.x - last.x, target.y - last.y)
+      if (distance < MIN_POINT_DISTANCE) continue
+      const elapsed = Math.max(TIME_FLOOR_MS, sample.timeStamp - lastTimeRef.current)
+      lastTimeRef.current = sample.timeStamp
+      const ink = strokeInk(sample, distance / elapsed)
+      stroke.points.push({
+        ...target,
+        strength: inkStrength(last) + (ink - inkStrength(last)) * 0.4,
+      })
+    }
     redrawPad()
   }
 
@@ -119,7 +122,7 @@ export function SignatureDialog() {
     currentRef.current = null
     if (!stroke) return
     const last = stroke.points[stroke.points.length - 1]
-    const target = pointAt(event)
+    const target = pointAt(event.nativeEvent, event.currentTarget.getBoundingClientRect())
     if (last && Math.hypot(target.x - last.x, target.y - last.y) > MIN_POINT_DISTANCE) {
       stroke.points.push({ ...target, strength: inkStrength(last) })
     }
