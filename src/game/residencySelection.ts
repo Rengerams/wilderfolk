@@ -8,7 +8,6 @@ import {
   collectMinorHousehold,
   collectOwnHousehold,
   getChildCustodian,
-  isAdultChildAtHome,
   isMinorChild,
 } from './householdComposition';
 import {
@@ -49,10 +48,7 @@ function findLivingHuman(humans: Entity[], id: number | undefined): Entity | und
   return humans.find((h) => h.id === id && h.alive);
 }
 
-/**
- * The one least-crowded-residence rule. Exported because `residencyReconciliation.pickSharedResidence`
- * asks this owner for its verdict instead of re-implementing the loop (duplication A2).
- */
+/** The one least-crowded-residence rule; every couple pick asks this owner for its verdict. */
 export function pickLeastCrowdedResidence(
   humans: Entity[],
   residences: Building[],
@@ -60,10 +56,8 @@ export function pickLeastCrowdedResidence(
   options: PickResidenceOptions = {},
   occupancy?: ResidenceOccupancy,
   /**
-   * Movers who are already counted as residents of a candidate. When they move *together* to the home
-   * one of them already lives in, that home counts them once, not twice — this is the eligibility
-   * accounting `residencyReconciliation.pickSharedResidence` needs, and the reason that rule is no
-   * longer re-implemented there (`LIVE-FINDINGS-STATUS.md`, duplication A2).
+   * Movers already counted as residents: moving together into a home one of them lives in counts
+   * them once, not twice.
    */
   movingTogether: readonly Entity[] = [],
   traits?: ResidenceTraitsById,
@@ -166,21 +160,6 @@ export function buildHousingUnits(humans: Entity[]): Entity[][] {
   }
 
   return units;
-}
-
-export function canMoveOutOfFamilyHome(
-  human: Entity,
-  humans: Entity[],
-  residences: Building[],
-  occupancy?: ResidenceOccupancy,
-): boolean {
-  if (!isAdultChildAtHome(human, humans)) return false;
-  const household = collectOwnHousehold(human, humans);
-  return residences.some(
-    (r) =>
-      countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
-      familyFitsInResidence(household, r, humans, occupancy),
-  );
 }
 
 export function buildFamilyGroups(humans: Entity[]): Entity[][] {
@@ -346,7 +325,7 @@ export function collectFamilyHousingShortages(humans: Entity[], buildings: Build
     && !isFamilyHousingValid(unit, residences, alive, occupancy));
 }
 
-export function isUnnecessarilySharingHousing(
+function isUnnecessarilySharingHousing(
   unit: Entity[],
   humans: Entity[],
   residences: Building[],
@@ -831,20 +810,6 @@ function isFamilyHousingValid(
   if (!residence) return false;
 
   return familyFitsInResidence(family, residence, humans, occupancy);
-}
-
-export function pickResidenceForHumanExcluding(
-  human: Entity,
-  humans: Entity[],
-  residences: Building[],
-  excludeResidenceIds: Iterable<number> = [],
-  occupancy?: ResidenceOccupancy,
-  traits?: ResidenceTraitsById,
-): number | undefined {
-  const exclude = new Set(excludeResidenceIds);
-  const filtered = residences.filter((r) => !exclude.has(r.id));
-  if (filtered.length === 0) return undefined;
-  return pickResidenceForHuman(human, humans, filtered, occupancy, traits);
 }
 
 export function pickResidenceForHuman(

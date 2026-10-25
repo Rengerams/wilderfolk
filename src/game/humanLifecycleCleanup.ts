@@ -1,4 +1,4 @@
-import { ensureOrphanAdoption, placeOrphanInHouse } from './residencyReconciliation';
+import { ensureOrphanAdoption, placeOrphanInHouse, relocateChildToCustodian } from './residencyReconciliation';
 import { moveResident } from './residencyReconciliation';
 import type { Building, Entity, WorldState } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
@@ -12,10 +12,7 @@ import { isMinorChild } from './householdComposition';
 import { hasResidenceAssignment } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
 import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
-import {
-  listPlayerResidences,
-  pickResidenceFromChildCustodian,
-} from './residencySelection';
+import { listPlayerResidences } from './residencySelection';
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
 export function isKillableSettlerEntity(entity: Entity): boolean {
@@ -168,9 +165,7 @@ function reassignOrphansAfterDeath(
     );
     ensureOrphanAdoption(child, humans, residences, undefined, undefined, genealogy);
     if (livesInLeaderHouse) continue;
-    const home = pickResidenceFromChildCustodian(child, humans, residences);
-    if (home !== undefined) {
-      moveResident(child, home, 'guardian', { buildings });
+    if (relocateChildToCustodian(child, humans, residences)) {
       touched = true;
     } else if (!hasResidenceAssignment(child)) {
       if (placeOrphanInHouse(child, humans, residences)) touched = true;

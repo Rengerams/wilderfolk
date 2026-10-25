@@ -169,6 +169,8 @@ export function completedJobBuildings(
 export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
 
 export function canAutoChangeWorkplace(human: Entity, currentTick?: number): boolean {
+  // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
+  if (isImprisoned(human)) return false;
   if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
 }

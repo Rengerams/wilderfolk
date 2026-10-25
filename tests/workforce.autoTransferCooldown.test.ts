@@ -102,3 +102,35 @@ describe('two-month automatic job stability', () => {
     expect(adults[0].lastAutoJobTransferTick).toBe(2000);
   });
 });
+
+describe('a prisoner keeps the reserved post', () => {
+  it('is never the worker a rebalance moves, though the post still counts as crew', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
+    const quarry = building(11, BuildingType.Quarry, { occupants: [] });
+    const free = human(1, { workerBuildingId: 10 });
+    const jailed = human(2, { workerBuildingId: 10, prisonBuildingId: 90, prisonerUntilTick: 10_000 });
+    const workers = [free, jailed];
+    const tick = 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS * 2;
+
+    expect(canAutoChangeWorkplace(jailed, tick)).toBe(false);
+    // Two assigned settlers make the farm a donor; only the settler who can attend may leave it.
+    expect(findOverstaffedDonorBuilding([farm, quarry], workers, 11, tick)?.id).toBe(10);
+    expect(pickWorkerToTransfer(workers, farm, quarry, tick)).toBe(free);
+
+    rebalanceJobWorkers(workers, [farm, quarry], undefined, tick);
+    expect(quarry.occupants).toEqual([1]);
+    expect(jailed.workerBuildingId).toBe(10);
+  });
+
+  it('leaves a crew of prisoners with no one to donate', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
+    const quarry = building(11, BuildingType.Quarry, { occupants: [] });
+    const prisoners = [1, 2].map((id) =>
+      human(id, { workerBuildingId: 10, prisonBuildingId: 90, prisonerUntilTick: 10_000 }),
+    );
+
+    expect(findOverstaffedDonorBuilding([farm, quarry], prisoners, 11, 100)).toBeUndefined();
+    rebalanceJobWorkers(prisoners, [farm, quarry], undefined, 100);
+    expect(quarry.occupants).toEqual([]);
+  });
+});

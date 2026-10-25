@@ -4,7 +4,7 @@ import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './residencyOccupancy';
-import { listPlayerResidences, familyFitsInResidence, pickResidenceForHumanExcluding, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex, MAX_RELOCATIONS_PER_DAY } from './residencySelection';
+import { listPlayerResidences, familyFitsInResidence, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex, MAX_RELOCATIONS_PER_DAY } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { beginCommuteRoutePass } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
@@ -139,10 +139,7 @@ function applyHouseholdMove(
   }
 }
 
-/**
- * The only place a housing decision becomes a residence write. The whole household is checked
- * against the destination first, so a refused move leaves every member exactly where they were.
- */
+/** The only place a housing decision becomes a residence write; a refused move leaves everyone put. */
 export function relocateHousehold(
   unit: readonly Entity[],
   toId: number | undefined,
@@ -154,9 +151,10 @@ export function relocateHousehold(
   if (isHousingUnitProtected(context.ledger, unit, phase)) return false;
   if (!householdMayMove(unit, toId, reason, context)) return false;
   const fromId = unit.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
+  const homes = unit.map((member) => member.residenceBuildingId);
   applyHouseholdMove(unit, toId, reason, context);
-  // A writer that refuses the move must not be reported as a decision.
-  if (!unit.some((member) => member.residenceBuildingId !== fromId)) return false;
+  // A writer that refuses every member must not be reported as a decision.
+  if (unit.every((member, index) => member.residenceBuildingId === homes[index])) return false;
   for (const member of unit) {
     const visited = context.ledger.visited.get(member.id) ?? new Set<number>();
     if (fromId !== undefined) visited.add(fromId);
@@ -397,7 +395,7 @@ function assignFamilyToResidence(
     const otherAdults = family.filter((member) => !core.includes(member));
     for (const adult of otherAdults) {
       if (adult.residenceBuildingId != null && adult.residenceBuildingId === guardian.residenceBuildingId) {
-        moveResident(adult, undefined, 'family', { occupancy, traits });
+        relocateHousehold([adult], undefined, phase, 'family', context);
       }
     }
     const existing = residences.find((home) => home.id === guardian.residenceBuildingId && !isLeaderHouseResidence(home));
@@ -407,14 +405,14 @@ function assignFamilyToResidence(
     relocateHousehold(core, coreHome, phase, 'family', context);
     for (const adult of otherAdults) {
       if (hasResidenceAssignment(adult)) continue;
-      const target = pickResidenceForHuman(adult, alive, residences, occupancy, traits);
-      moveResident(adult, target, 'family', { occupancy, traits });
+      relocateHousehold([adult], pickResidenceForHuman(adult, alive, residences, occupancy, traits),
+        phase, 'family', context);
     }
     return;
   }
   for (const member of family) {
-    const target = pickResidenceForHuman(member, alive, residences, occupancy, traits);
-    moveResident(member, target, 'family', { occupancy, traits });
+    relocateHousehold([member], pickResidenceForHuman(member, alive, residences, occupancy, traits),
+      phase, 'family', context);
   }
 }
 
@@ -704,30 +702,17 @@ export function syncPartnerResidence(
   const familyHome = pickResidenceForFamily(household, humans, residences);
   if (familyHome !== undefined && relocateHousehold(household, familyHome, 'homeless', 'family', context)) return;
 
-  // No home fits the whole family, so only the couple moves: a minor child follows into a home
-  // that has room for them, by the child-custodian rule the assign layer also uses.
-  const coupleHome = pickSharedResidence(human, partner, humans, residences);
+  // No home fits the whole family, so only the couple moves — one mover may already live there.
+  const coupleHome = pickLeastCrowdedResidence(humans, residences, 2, {}, undefined, [human, partner]);
   if (coupleHome === undefined) return;
+  if (!relocateHousehold([human, partner], coupleHome, 'homeless', 'family', context)) return;
 
+  // A minor child then follows into a home that has room for them, by the child-custodian rule.
   for (const member of household) {
     if (member.residenceBuildingId === coupleHome) continue;
-    if (member.id === human.id || member.id === partner.id) {
-      moveResident(member, coupleHome, 'family', { buildings: residences });
-      continue;
-    }
     if (pickResidenceFromChildCustodian(member, humans, residences) !== coupleHome) continue;
-    moveResident(member, coupleHome, 'family', { buildings: residences });
+    relocateHousehold([member], coupleHome, 'guardianship', 'guardian', context);
   }
-}
-
-/** The couple-only fallback: two movers, one of whom may already live in the chosen home. */
-function pickSharedResidence(
-  human: Entity,
-  partner: Entity,
-  humans: Entity[],
-  residences: Building[],
-): number | undefined {
-  return pickLeastCrowdedResidence(humans, residences, 2, {}, undefined, [human, partner]);
 }
 
 function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
@@ -794,8 +779,21 @@ export function placeOrphanInHouse(
     pickLeastCrowdedResidence(alive, residences, 1, { forbidSinglesOnly: true }, occupancy, [], traits);
   if (picked === undefined) return false;
 
-  moveResident(child, picked, 'guardian', { occupancy, traits, buildings: residences });
-  return true;
+  return relocateHousehold([child], picked, 'guardianship', 'guardian',
+    standaloneMoveContext(alive, residences, occupancy, traits));
+}
+
+/** After a death, a minor follows the custodian that now holds a bed for them. */
+export function relocateChildToCustodian(
+  child: Entity,
+  humans: Entity[],
+  residences: Building[],
+): boolean {
+  const home = pickResidenceFromChildCustodian(child, humans, residences);
+  if (home === undefined) return false;
+  const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
+  return relocateHousehold([child], home, 'guardianship', 'guardian',
+    standaloneMoveContext(alive, residences));
 }
 
 /** Resolve custody once for a sibling set; the housing owner places its complete guardian household. */
@@ -945,6 +943,8 @@ export function reassignDivorcedResidences(
   preferredCustodian?: Entity,
 ): void {
   const residences = buildings.filter(isResidenceBuilding);
+  // Every write below is one settler's household decision, so it passes the pipeline's checks.
+  const context = standaloneMoveContext(villagers, residences);
 
   const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : null;
   // A sitting leader keeps the manor on divorce, regardless of gender.
@@ -967,38 +967,29 @@ export function reassignDivorcedResidences(
     }
   }
 
-  // Evict leaver from the shared home
-  if (leaver.residenceBuildingId != null) {
-    const oldHome = buildings.find((building) => building.id === leaver.residenceBuildingId);
-    if (oldHome) {
-      oldHome.occupants = oldHome.occupants.filter((id) => id !== leaver.id);
-    }
-  }
-
-  if (residences.length === 0) {
-    moveResident(custodian, undefined, 'divorce', { buildings });
-    moveResident(leaver, undefined, 'divorce', { buildings });
-    return;
-  }
-
   const custodianImprisoned = isImprisoned(custodian);
   if (custodianImprisoned) {
-    moveResident(custodian, undefined, 'divorce', { buildings });
+    relocateHousehold([custodian], undefined, 'homeless', 'divorce', context);
   } else {
-    const custodianHome = custodian.residenceBuildingId != null ? buildings.find((building) => building.id === custodian.residenceBuildingId) : undefined;
-    if (!custodianHome || !isResidenceBuilding(custodianHome) || !custodianHome.completed) {
-      moveResident(custodian, pickResidenceForHuman(custodian, villagers, residences), 'divorce', { buildings });
+    const custodianHome = custodian.residenceBuildingId != null
+      ? residences.find((building) => building.id === custodian.residenceBuildingId)
+      : undefined;
+    if (!custodianHome) {
+      relocateHousehold([custodian], pickResidenceForHuman(custodian, villagers, residences),
+        'homeless', 'divorce', context);
     }
   }
 
-  if (!isImprisoned(leaver)) {
+  if (isImprisoned(leaver)) {
+    relocateHousehold([leaver], undefined, 'homeless', 'divorce', context);
+  } else {
     const excludeHomes = new Set(formerHomes);
     if (custodian.residenceBuildingId != null) {
       excludeHomes.add(custodian.residenceBuildingId);
     }
-    moveResident(leaver, pickResidenceForHumanExcluding(leaver, villagers, residences, excludeHomes), 'divorce', { buildings });
-  } else {
-    moveResident(leaver, undefined, 'divorce', { buildings });
+    const available = residences.filter((home) => !excludeHomes.has(home.id));
+    relocateHousehold([leaver], pickResidenceForHuman(leaver, villagers, available),
+      'homeless', 'divorce', context);
   }
 
   if (!custodianImprisoned && custodian.residenceBuildingId != null) {
@@ -1011,12 +1002,9 @@ export function reassignDivorcedResidences(
           child.fatherId === custodian.id ||
           child.adoptiveFatherId === custodian.id),
     );
-    for (const child of children) {
-      // A child follows the custodian only into a home with room for them; the assign layer
-      // places the rest, exactly as the death path does.
-      const custodianHome = pickResidenceFromChildCustodian(child, villagers, residences);
-      if (custodianHome !== undefined) moveResident(child, custodianHome, 'guardian', { buildings });
-    }
+    // A child follows the custodian only into a home with room for them; the assign layer
+    // places the rest, exactly as the death path does.
+    for (const child of children) relocateChildToCustodian(child, villagers, residences);
   }
 
   syncResidenceOccupants(villagers, buildings);

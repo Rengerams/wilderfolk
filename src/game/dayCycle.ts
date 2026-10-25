@@ -93,12 +93,9 @@ export {
   auditHousingSharingIssues,
   buildFamilyGroups,
   buildHousingUnits,
-  canMoveOutOfFamilyHome,
   housingUnitNeedsReassignment,
-  isUnnecessarilySharingHousing,
   pickResidenceForFamily,
   pickResidenceForHuman,
-  pickResidenceForHumanExcluding,
   pickResidenceFromChildCustodian,
 } from './residencySelection';
 

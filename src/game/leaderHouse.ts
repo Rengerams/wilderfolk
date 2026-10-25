@@ -126,13 +126,22 @@ export function syncLeaderHouseResidency(state: WorldState): void {
     }
   }
 
+  // A settled adult child's home keeps its whole household: partner and dependent children stay put.
+  const settledHomeIds = new Set<number>();
+  for (const member of atHome) {
+    const ownHome = member.residenceBuildingId;
+    if (ownHome == null || ownHome === house.id || isMinorChild(member)) continue;
+    if (member.id === state.villageLeaderId || member.partnerId === state.villageLeaderId) continue;
+    settledHomeIds.add(ownHome);
+  }
+
   //Move in all members of the current leader's household
   for (const member of atHome) {
-    // The manor seats the leader, their spouse, dependents and anyone without a bed of their own; an
-    // adult child settled in a home of their own keeps it rather than being uprooted into the manor.
-    const hasOwnHome = member.residenceBuildingId != null && member.residenceBuildingId !== house.id;
-    if (hasOwnHome && member.id !== state.villageLeaderId && member.partnerId !== state.villageLeaderId
-      && !isMinorChild(member)) continue;
+    // The manor seats the leader, their spouse and anyone without a bed; a household already settled
+    // in a home of its own keeps it rather than being uprooted into the manor.
+    const ownHome = member.residenceBuildingId;
+    if (ownHome != null && ownHome !== house.id && settledHomeIds.has(ownHome)
+      && member.id !== state.villageLeaderId && member.partnerId !== state.villageLeaderId) continue;
     if (member.residenceBuildingId !== house.id) {
       // Release the old home's reserved slot before finding homes for displaced residents.
       const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);

@@ -12,6 +12,10 @@
 
 - **Fixed:** A jailed settler leaves the construction crew they were on, so a building site no longer counts a prisoner as a builder, while their home and job post stay reserved.
 
+- **Fixed:** A jailed settler is no longer moved to another workplace or credited with worked hours and output while serving their sentence, so a reserved post stays theirs and pays nothing.
+
+- **Fixed:** A married adult child of the leader who already holds a home keeps their partner and dependent children with them, instead of the manor taking the children from their parents.
+
 - **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
 
 - **Fixed:** A household is no longer moved to a nearer home when the household total improves but one member's own daily trip lengthens, and a colony makes at most eight moves a day.
