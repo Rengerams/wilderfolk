@@ -36,6 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm scripts/benchmark-housing-pipeline.mts
           git checkout --detach "$GITHUB_SHA"
           npm ci --no-audit --no-fund
           PERF_POPS=600,1200,2400 PERF_SEED=12345 npx tsx scripts/benchmark-housing-pipeline.mts | tee /tmp/optimized.log
