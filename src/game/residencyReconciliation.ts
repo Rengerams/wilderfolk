@@ -59,12 +59,14 @@ export function createHousingLedger(): HousingLedger {
   };
 }
 
-/** True when an optional phase must leave this household alone: a mandatory phase already moved it. */
+/** Optional decisions cannot override mandatory repairs or an earlier optional phase in this run. */
 export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Entity[], phase: HousingPhase): boolean {
   if (MANDATORY_PHASES.has(phase)) return false;
+  const phaseIndex = HOUSING_PHASE_ORDER.indexOf(phase);
   for (const member of unit) {
     const settledBy = ledger.settled.get(member.id);
-    if (settledBy !== undefined && MANDATORY_PHASES.has(settledBy)) {
+    if (settledBy !== undefined
+      && (MANDATORY_PHASES.has(settledBy) || HOUSING_PHASE_ORDER.indexOf(settledBy) < phaseIndex)) {
       ledger.report.protectedUnits += 1;
       return true;
     }
@@ -718,6 +720,8 @@ export function relocateHouseholdsForCommute(
   let relocated = 0;
   for (const unit of units) {
     if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
+    // Phase 5 may have just placed this household; do not immediately trade that decision away.
+    if (isHousingUnitProtected(decisions, unit, 'commute')) continue;
     const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, cache, walkSpeed, index);
     if (better === undefined) continue;
     const previousId = unit[0]?.residenceBuildingId;
