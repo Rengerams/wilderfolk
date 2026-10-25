@@ -38,11 +38,7 @@ function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
   };
 }
 
-/**
- * Legacy village camp structures, removed in place; returns the ids that left the map.
- *
- * The deleted camp producer was the only writer of `faction: 'rival'`, so every such building is one.
- */
+/** Retires every rival-faction camp building in place; returns the ids that left the map. */
 export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
   const retired = new Set<number>();
   for (let index = buildings.length - 1; index >= 0; index--) {
@@ -59,9 +55,7 @@ export function tickRivalSettlements(
   allAlive: Entity[],
   callbacks: RivalEventCallbacks,
 ): void {
-  // Called once per day by tickDailyWorldEvents at 18:00. The former midnight-only
-  // isNewCalendarDayTick guard prevented peace treaties, raid cooldowns and rival
-  // growth from advancing at all during normal gameplay.
+  // Called once a day by tickDailyWorldEvents at 18:00, not only at the calendar boundary.
 
 
   callbacks.tickPendingDiplomacyEvents(state);

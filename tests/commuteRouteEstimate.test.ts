@@ -35,6 +35,17 @@ function riverMap(): WorldMap {
   });
 }
 
+/** A 40×40 map whose tile (30, 30) sits on an island ringed by river. */
+function islandMap(): WorldMap {
+  return testWorldMap({
+    tilesX: 40,
+    tilesY: 40,
+    seed: 7,
+    tileType: (x, y) =>
+      (x >= 29 && x <= 31 && y >= 29 && y <= 31 && !(x === 30 && y === 30) ? TerrainType.River : undefined),
+  });
+}
+
 /** A completed building centred on one tile — the estimate reads a position, not a footprint. */
 function onTile(id: number, type: BuildingType, tileX: number, tileY: number): Building {
   return building(id, type, {
@@ -71,6 +82,14 @@ describe('estimatedCommuteHours route pricing', () => {
 
     expect(estimatedCommuteHours(home, across, [], WALK_SPEED))
       .toBeGreaterThan(straightHours(home, across) * 1.5);
+  });
+
+  it('prices a home across an uncrossable barrier as unreachable, never by the straight line', () => {
+    setCurrentPathMap(islandMap(), []);
+    const home = onTile(1, BuildingType.House, 10, 20);
+    const island = onTile(2, BuildingType.Quarry, 30, 30);
+
+    expect(estimatedCommuteHours(home, island, [], WALK_SPEED)).toBe(Infinity);
   });
 
   it('agrees with the straight line when the route is unobstructed', () => {

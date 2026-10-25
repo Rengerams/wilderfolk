@@ -96,9 +96,11 @@ export function rebalanceOvercrowdedResidences(humans: Entity[], residences: Bui
         continue;
       }
       for (const outsider of occupants.filter((member) => !familyIds.has(member.id))) {
+        if (outsider.residenceBuildingId !== residence.id) continue;
         const unit = units.find((candidate) => candidate.includes(outsider)) ?? [outsider];
         for (const member of unit) moveResident(member, undefined, 'family', { occupancy, traits });
         moved = true;
+        if ((occupancy.get(residence.id) ?? 0) <= cap) break;
       }
       const before = dependentUnit.map((member) => member.residenceBuildingId);
       assignFamilyToResidence(dependentUnit, humans, residences, humans, occupancy, traits);
@@ -598,6 +600,7 @@ export function tryMoveOutOfFamilyHome(
   // Select an empty home that fits the complete departing household.
   const target = residences.find(
     (r) =>
+      !isLeaderHouseResidence(r) &&
       countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
       familyFitsInResidence(household, r, humans, occupancy),
   );

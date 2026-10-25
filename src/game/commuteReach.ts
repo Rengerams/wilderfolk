@@ -4,7 +4,7 @@ import { PATH_CELL } from './gameTypes';
 import { isEntityOnBuilding } from './buildingRotation';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
-import { findRouteCost, getCurrentPathGrid, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getCurrentPathGrid, type PathGrid } from './pathfinding';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -35,7 +35,7 @@ export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
 /** Route searches one housing sweep may run before legs fall back to the straight line. */
 export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
 
-/** Node cap per search: a detour the search cannot resolve inside it is priced as no route. */
+/** Node cap per search: past it the leg keeps the straight-line estimate. */
 const MAX_COMMUTE_ROUTE_SEARCH_NODES = 4000;
 
 /** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
@@ -105,6 +105,8 @@ function routeCommuteHours(home: Building, destination: Building, walkSpeed: num
   const fromY = Math.floor(home.y / PATH_CELL);
   const toX = Math.floor(destination.x / PATH_CELL);
   const toY = Math.floor(destination.y / PATH_CELL);
+  // Co-located buildings are the straight line's case, not the search's.
+  if (fromX === toX && fromY === toY) return null;
   const key = `${walkSpeed}|${fromX},${fromY}>${toX},${toY}`;
   let cache = routeCostCache.get(grid);
   if (!cache) {
@@ -115,18 +117,24 @@ function routeCommuteHours(home: Building, destination: Building, walkSpeed: num
   if (cached !== undefined) return cached;
   if (routeSearchesLeft <= 0) return null;
   routeSearchesLeft--;
-  const steps = findRouteCost(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
-  if (steps === null) return null;
+  const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+  if (search.cost === null) {
+    // A spent budget leaves the leg unpriced; a finished search with no route proves the walk away.
+    if (search.budgetExhausted) return null;
+    if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
+    cache.set(key, Infinity);
+    return Infinity;
+  }
   // A* steps are tile units, so the walk distance is the route's step cost in world px.
-  const hours = commuteLeadHoursFor(steps * PATH_CELL, walkSpeed);
+  const hours = commuteLeadHoursFor(search.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
   cache.set(key, hours);
   return hours;
 }
 
 /**
- * Estimated hours from a home to a building over the walkable route, falling back to the straight
- * line when no route is priced. The household commute score compares whole homes with this.
+ * Hours from a home over the walkable route: the straight line when no route is priced, and
+ * `Infinity` when a finished search proves the destination unreachable.
  */
 export function estimatedCommuteHours(
   home: Building,
@@ -135,6 +143,7 @@ export function estimatedCommuteHours(
   walkSpeed: number,
 ): number {
   const routed = routeCommuteHours(home, destination, walkSpeed);
+  if (routed === Infinity) return Infinity;
   if (routed !== null) return routed;
   const distance = Math.hypot(destination.x - home.x, destination.y - home.y);
   const plain = commuteLeadHoursFor(distance, walkSpeed);

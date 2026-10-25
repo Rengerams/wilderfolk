@@ -594,11 +594,7 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
-    if (isImprisoned(human)) {
-      removeWorkerTransition(human, buildings);
-      continue;
-    }
-
+    // A sentence keeps the post: only attendance stops, so the pointer and job are left in place.
     // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
     if (!hasWorkAssignment(human) || human.workerBuildingId == null) continue;
     const workplace = buildingById.get(human.workerBuildingId);

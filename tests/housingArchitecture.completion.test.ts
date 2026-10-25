@@ -34,6 +34,29 @@ describe('family shortage, reunion and a single residence writer', () => {
     expect(outsider.residenceBuildingId).toBe(spare.id);
   });
 
+  it('leaves an outsider it has just rehoused in their new home', () => {
+    const home = building(0, BuildingType.House);
+    const spare = building(25, BuildingType.House);
+    const household = family(2, home.id);
+    const spareFamily = [
+      human(200, { gender: 'female', partnerId: 201, residenceBuildingId: spare.id }),
+      human(201, { gender: 'male', partnerId: 200, residenceBuildingId: spare.id }),
+      ...Array.from({ length: 3 }, (_, index) => human(210 + index, {
+        motherId: 200, fatherId: 201, isJuvenile: true, age: 4, residenceBuildingId: spare.id,
+      })),
+    ];
+    const outsiders = Array.from({ length: 4 }, (_, index) => human(90 + index, { residenceBuildingId: home.id }));
+
+    rebalanceOvercrowdedResidences([...household, ...spareFamily, ...outsiders], [home, spare]);
+
+    // The fallback unhouses the outsiders still sleeping here until the home fits its family; the one
+    // it already rehoused keeps the spare bed instead of losing it.
+    expect(outsiders.filter((outsider) => outsider.residenceBuildingId === spare.id)).toHaveLength(1);
+    expect(buildResidenceOccupancy([...household, ...spareFamily, ...outsiders]).get(home.id))
+      .toBeLessThanOrEqual(getResidenceCapacity(home));
+    expect(household.every((member) => member.residenceBuildingId === home.id)).toBe(true);
+  });
+
   it('moves the entire growing family before considering separation', () => {
     const home = building(0, BuildingType.House);
     const larger = building(99, BuildingType.Mansion, { level: 3 });

@@ -3,8 +3,8 @@
  *
  * The pointer, its roster entry and the `job`/`occupation` labels go through the workforce doors
  * (`clearWorkerAssignment`, `detachWorkplaceReference`, `assignWorkerTransition`,
- * `transferWorkerBetweenBuildings`), so an arrest, a death, a demolition, a stale leader post, a
- * caravan departure and the moon forms all reach the same code.
+ * `transferWorkerBetweenBuildings`), so a death, a demolition, a stale leader post, a caravan
+ * departure and the moon forms all reach the same code. A prison sentence clears nothing.
  *
  * This guard pins the modules allowed to write the pointer directly: the owner, the save boundary
  * (the nested Moon Howler form included) and the moon-form owner, where a form transform or the
@@ -44,7 +44,6 @@ const DOOR_CALLERS = [
   'src/game/humanLifecycleCleanup.ts',
   'src/game/rivalEvents.ts',
   'src/game/tradeCaravans.ts',
-  'src/game/simulation/humanRelationships.ts',
 ];
 
 describe('the workplace reference has one owner (workforce.ts)', () => {
