@@ -6,7 +6,7 @@ import { BUILDING_CONFIGS } from './buildings';
 export function leaderHouseBuildings(buildings: readonly Building[]): Building[] {
   const houses = buildings.filter((building) => building.type === BuildingType.LeaderHouse
     && building.faction !== 'rival').sort((a, b) => a.id - b.id);
-  const main = houses[0];
+  const main = houses.find((house) => !house.groupId?.startsWith('leader-house:'));
   if (!main) return [];
   const annexId = `leader-house:${main.id}`;
   return [main, ...houses.filter((building) => building.id !== main.id && building.groupId === annexId)];
