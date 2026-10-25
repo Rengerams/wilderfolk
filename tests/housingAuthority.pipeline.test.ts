@@ -11,6 +11,7 @@ import {
   createHousingLedger,
   isHousingUnitProtected,
   relocateHousehold,
+  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
 } from '../src/game/residencyReconciliation';
 import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { buildResidenceTraits } from '../src/game/residencySelection';
@@ -47,6 +48,22 @@ describe('the housing decision pipeline', () => {
     expect(isHousingUnitProtected(ledger, [adult, partner], 'commute')).toBe(true);
     expect(isHousingUnitProtected(ledger, [adult], 'adult-child')).toBe(false);
     expect(isHousingUnitProtected(ledger, [adult, partner], 'capacity')).toBe(false);
+  });
+
+  it('skips an adult-child candidate already settled by an earlier phase', () => {
+    const parent = human(1, { age: 50, residenceBuildingId: 10 });
+    const adult = human(2, { age: 20, motherId: 1, residenceBuildingId: 10 });
+    const home = building(10, BuildingType.House);
+    const spare = building(11, BuildingType.House);
+    const ledger = createHousingLedger();
+    ledger.settled.set(adult.id, 'guardianship');
+
+    rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
+      [parent, adult], [home, spare], buildResidenceOccupancy([parent, adult]), ledger,
+    );
+
+    expect(adult.residenceBuildingId).toBe(home.id);
+    expect(ledger.report.relocations).toHaveLength(0);
   });
 
   it('refuses the whole household move when the destination cannot hold everyone', () => {
