@@ -10,7 +10,7 @@ import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
-import { releasePrisoners } from '../src/game/workforce';
+import { prepareWorkforce, releasePrisoners } from '../src/game/workforce';
 import { exposeAffair } from '../src/game/simulation/humanRelationships';
 import { setSimSeed } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -107,6 +107,34 @@ describe('an arrest leaves both links alone', () => {
 
     expect(jailed).toBeGreaterThan(0);
   }, 45_000);
+});
+
+describe('a workforce pulse during the sentence', () => {
+  it('leaves the jailed settler holding the post and the job', () => {
+    const state = initGame({ seed: FIXTURE_SEED });
+    const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
+    const house = completed(BuildingType.House, 100, 100, HOUSE_ID);
+    const farm = completed(BuildingType.Farm, 120, 100, FARM_ID);
+    const settler = human(7001, {
+      job: JobType.Farmer,
+      residenceBuildingId: house.id,
+      workerBuildingId: farm.id,
+    });
+    settler.prisonBuildingId = prison.id;
+    settler.prisonerUntilTick = state.tick + 100;
+    house.occupants = [settler.id];
+    prison.occupants = [settler.id];
+    farm.occupants = [settler.id];
+    state.entities = [settler];
+    state.buildings = [prison, house, farm];
+
+    prepareWorkforce(state.entities, state.buildings);
+
+    expect(settler.workerBuildingId).toBe(FARM_ID);
+    expect(settler.job).toBe(JobType.Farmer);
+    expect(settler.residenceBuildingId).toBe(HOUSE_ID);
+    expect(prison.occupants).toContain(settler.id);
+  });
 });
 
 describe('a release is uneventful', () => {

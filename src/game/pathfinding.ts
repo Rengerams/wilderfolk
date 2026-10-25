@@ -391,6 +391,13 @@ function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: 
 }
 
 /** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
+/** A route search's verdict; `hitNodeCap` separates a spent node budget from a finished no-route search. */
+interface RouteSearchResult {
+  path: { x: number; y: number }[] | null;
+  cost: number | null;
+  hitNodeCap: boolean;
+}
+
 function searchRoute(
   grid: PathGrid,
   sx: number,
@@ -398,18 +405,19 @@ function searchRoute(
   tx: number,
   ty: number,
   maxNodes: number,
-): { path: { x: number; y: number }[]; cost: number } | null {
+): RouteSearchResult {
   const pathProfileStart = profileStart();
   try {
   const { cols, rows, blocked, elevation, road } = grid;
   recordFindPathCall();
+  const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
   if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   // Resolve walkable neighbors if either endpoint falls on an obstacle
@@ -417,7 +425,7 @@ function searchRoute(
   const goalPt = findNearestWalkable(grid, tx, ty);
   if (!startPt || !goalPt) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   const actualSx = startPt.x;
@@ -427,7 +435,7 @@ function searchRoute(
 
   if (actualSx === actualTx && actualSy === actualTy) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   const start = actualSy * cols + actualSx;
@@ -483,7 +491,7 @@ function searchRoute(
 
       recordPathNodes(nodes);
       recordPathFound();
-      return { path: simplified, cost: scores[goal] };
+      return { path: simplified, cost: scores[goal], hitNodeCap: false };
     }
 
     const cx = cur % cols;
@@ -523,7 +531,7 @@ function searchRoute(
   recordPathNodes(nodes);
   recordPathFailed();
   if (hitNodeCap) recordPathMaxNodesExceeded();
-  return null;
+  return { path: null, cost: null, hitNodeCap };
   } finally {
     profileEnd('pathfinding.findPath', pathProfileStart);
   }
@@ -538,7 +546,7 @@ export function findPath(
   ty: number,
   maxNodes = 6000,
 ): { x: number; y: number }[] | null {
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes)?.path ?? null;
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
 
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
@@ -550,7 +558,20 @@ export function findRouteCost(
   ty: number,
   maxNodes = 6000,
 ): number | null {
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes)?.cost ?? null;
+  return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
+}
+
+/** The same cost search with its budget verdict, so a caller can tell no-route from a spent budget. */
+export function findRouteCostOutcome(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): { cost: number | null; budgetExhausted: boolean } {
+  const result = searchRoute(grid, sx, sy, tx, ty, maxNodes);
+  return { cost: result.cost, budgetExhausted: result.hitNodeCap };
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
