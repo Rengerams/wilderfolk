@@ -2,8 +2,8 @@ import { useState } from "react"
 import { Dialog, Field } from "./Dialog"
 import { applyPageNumbers } from "../../app/pageTools"
 import type { PageNumberFormat, PageNumberPosition } from "../../pdf/pageStamps"
-import { useEditor } from "../../app/store"
-import { useT } from "../../i18n"
+import { PageRangeFields } from "./PageRangeFields"
+import { useDialogBase } from "./useDialogBase"
 
 const POSITIONS: { id: PageNumberPosition; label: string }[] = [
   { id: "top-left", label: "Top left" },
@@ -15,10 +15,7 @@ const POSITIONS: { id: PageNumberPosition; label: string }[] = [
 ]
 
 export function PageNumbersDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
-  const pageCount = useEditor((state) => state.doc.pages.length)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const [position, setPosition] = useState<PageNumberPosition>("bottom-center")
   const [format, setFormat] = useState<PageNumberFormat>("page-of")
   const [startAt, setStartAt] = useState(1)
@@ -98,28 +95,7 @@ export function PageNumbersDialog() {
           />
         </Field>
       </div>
-      <div className="grid-2">
-        <Field label={t("From page")}>
-          <input
-            type="number"
-            min={1}
-            max={pageCount}
-            aria-label={t("From page")}
-            value={from}
-            onChange={(event) => setFrom(Math.max(1, Number(event.target.value) || 1))}
-          />
-        </Field>
-        <Field label={t("To page")}>
-          <input
-            type="number"
-            min={1}
-            max={pageCount}
-            aria-label={t("To page")}
-            value={to}
-            onChange={(event) => setTo(Math.max(1, Number(event.target.value) || 1))}
-          />
-        </Field>
-      </div>
+      <PageRangeFields from={from} to={to} pageCount={pageCount} setFrom={setFrom} setTo={setTo} />
     </Dialog>
   )
 }

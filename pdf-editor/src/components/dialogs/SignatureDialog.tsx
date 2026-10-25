@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react"
 import { Dialog, Field } from "./Dialog"
 import { insertMarkImage } from "../../app/pageTools"
-import { useEditor } from "../../app/store"
+import { Swatches } from "../Swatches"
+import { useDialogBase } from "./useDialogBase"
 import {
   SIGNATURE_FONTS,
   drawInkStrokes,
@@ -11,7 +12,6 @@ import {
   type InkStroke,
   type SignatureFontId,
 } from "../../pdf/markImages"
-import { useT } from "../../i18n"
 
 const PAD_WIDTH = 1200
 const PAD_HEIGHT = 420
@@ -29,10 +29,7 @@ const FONT_LABELS: Record<SignatureFontId, string> = {
 }
 
 export function SignatureDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
-  const pageCount = useEditor((state) => state.doc.pages.length)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const strokesRef = useRef<InkStroke[]>([])
   const currentRef = useRef<InkStroke | null>(null)
@@ -265,19 +262,7 @@ export function SignatureDialog() {
       </div>
 
       <Field label={t("Ink colour")}>
-        <div className="swatches">
-          {INK_COLORS.map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              className="swatch"
-              style={{ background: entry }}
-              aria-label={t("Use {color}", { color: entry })}
-              aria-pressed={color.toLowerCase() === entry.toLowerCase()}
-              onClick={() => pickColor(entry)}
-            />
-          ))}
-        </div>
+        <Swatches colors={INK_COLORS} current={color} onPick={pickColor} />
       </Field>
     </Dialog>
   )

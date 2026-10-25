@@ -6,18 +6,16 @@ import { cameraSupported, captureFrame, startCamera, stopCamera } from "../../sc
 import { IMPORT_ACCEPT, pickFiles } from "../../app/files"
 import { readImageInput, saveDocument } from "../../app/documentActions"
 import { finishCameraScan, runBridgeScan } from "../../app/scanActions"
-import { OCR_LANGUAGES } from "../../pdf/ocr"
 import { currentSettings } from "../../storage/settings"
-import { useEditor, type ImportedImage } from "../../app/store"
-import { useT } from "../../i18n"
+import type { ImportedImage } from "../../app/store"
+import { BusyProgress } from "./BusyProgress"
+import { LanguagePicker } from "./LanguagePicker"
+import { useDialogBase } from "./useDialogBase"
 
 type Mode = "bridge" | "camera" | "files"
 
 export function ScanDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
-  const pageCount = useEditor((state) => state.doc.pages.length)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const [mode, setMode] = useState<Mode>("bridge")
   const [bridgeUrl, setBridgeUrl] = useState(DEFAULT_BRIDGE_URL)
   const [devices, setDevices] = useState<BridgeDevice[]>([])
@@ -356,26 +354,7 @@ export function ScanDialog() {
         {t("Recognize text so the PDF becomes searchable")}
       </label>
       {recognize ? (
-        <div className="checkbox-grid">
-          {OCR_LANGUAGES.map((language) => (
-            <label key={language.code} className="checkbox">
-              <input
-                type="checkbox"
-                checked={languages.includes(language.code)}
-                onChange={(event) =>
-                  setLanguages((current) =>
-                    event.target.checked
-                      ? [...current, language.code]
-                      : current.length > 1
-                        ? current.filter((code) => code !== language.code)
-                        : current,
-                  )
-                }
-              />
-              {t(language.label)}
-            </label>
-          ))}
-        </div>
+        <LanguagePicker value={languages} onChange={setLanguages} />
       ) : null}
       <label className="checkbox">
         <input
@@ -387,14 +366,7 @@ export function ScanDialog() {
         {t("Start a new document instead of adding to the current one")}
       </label>
 
-      {busy ? (
-        <div>
-          <p className="hint">{busy.label}</p>
-          <div className="progress">
-            <span style={{ width: `${Math.round(busy.progress * 100)}%` }} />
-          </div>
-        </div>
-      ) : null}
+      {busy ? <BusyProgress busy={busy} /> : null}
       {outcome ? (
         <p className="success-text">
           {outcome.pages === 1

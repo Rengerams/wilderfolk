@@ -9,7 +9,7 @@ import {
   removeFromLibrary,
 } from "../../app/documentActions"
 import { IMPORT_ACCEPT, pickFiles } from "../../app/files"
-import { formatFileSize, formatTimestamp } from "../../pdf/pages"
+import { StoredDocSummary } from "../StoredDocSummary"
 import { currentSettings, setPassphrase } from "../../storage/settings"
 import { useEditor } from "../../app/store"
 import { useCommands } from "../../app/useCommands"
@@ -171,11 +171,7 @@ export function LibraryDialog() {
               <span className="grow">
                 <strong>{meta.name}</strong>
                 <small className="hint">
-                  {meta.pages === 1
-                    ? t("{count} page", { count: meta.pages })
-                    : t("{count} pages", { count: meta.pages })}{" "}
-                  · {formatFileSize(meta.size)} · {formatTimestamp(meta.updatedAt)}
-                  {meta.encrypted ? ` · ${t("encrypted")}` : ""}
+                  <StoredDocSummary meta={meta} />
                 </small>
               </span>
               <button type="button" className="btn btn-primary" onClick={() => void open(meta)}>

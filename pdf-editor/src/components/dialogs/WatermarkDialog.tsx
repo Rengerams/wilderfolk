@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Dialog, Field } from "./Dialog"
 import { useEditor } from "../../app/store"
-import { useT } from "../../i18n"
+import { useDialogBase } from "./useDialogBase"
 
 const ANGLES = [
   { value: 0, label: "Horizontal" },
@@ -10,12 +10,9 @@ const ANGLES = [
 ] as const
 
 export function WatermarkDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const setWatermark = useEditor((state) => state.setWatermark)
   const watermark = useEditor((state) => state.doc.watermark)
-  const pageCount = useEditor((state) => state.doc.pages.length)
   const [text, setText] = useState(watermark?.text ?? "Draft")
   const [fontSize, setFontSize] = useState(watermark?.fontSize ?? 48)
   const [color, setColor] = useState(watermark?.color ?? "#9aa0a6")

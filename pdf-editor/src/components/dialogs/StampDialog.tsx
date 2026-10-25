@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react"
 import { Dialog, Field } from "./Dialog"
 import { insertMarkImage } from "../../app/pageTools"
-import { useEditor } from "../../app/store"
 import { renderStampPng } from "../../pdf/markImages"
-import { useT } from "../../i18n"
+import { useDialogBase } from "./useDialogBase"
 
 const PRESETS = [
   { text: "APPROVED", color: "#0f7b0f" },
@@ -17,10 +16,7 @@ const PRESETS = [
 ] as const
 
 export function StampDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
-  const pageCount = useEditor((state) => state.doc.pages.length)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const [text, setText] = useState<string>(PRESETS[0].text)
   const [color, setColor] = useState<string>(PRESETS[0].color)
   const [includeDate, setIncludeDate] = useState(true)

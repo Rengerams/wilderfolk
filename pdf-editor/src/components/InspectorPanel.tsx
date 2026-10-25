@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { Library, ScanText, Settings2, ShieldCheck } from "lucide-react"
 import { formatFileSize, formatTimestamp, totalRotation } from "../pdf/pages"
 import { currentSettings } from "../storage/settings"
+import { Swatches } from "./Swatches"
 import { useEditor } from "../app/store"
 import { useT } from "../i18n"
 
@@ -44,19 +45,23 @@ export function InspectorPanel() {
   )
   const settings = currentSettings()
 
-  const swatches = (current: string, apply: (color: string) => void) => (
-    <div className="swatches">
-      {COLORS.map((color) => (
-        <button
-          key={color}
-          type="button"
-          className="swatch"
-          style={{ background: color }}
-          aria-label={t("Use {color}", { color })}
-          aria-pressed={current.toLowerCase() === color.toLowerCase()}
-          onClick={() => apply(color)}
-        />
-      ))}
+  const colourField = (current: string, apply: (color: string) => void) => (
+    <div className="field">
+      <label>{t("Colour")}</label>
+      <Swatches colors={COLORS} current={current} onPick={apply} />
+    </div>
+  )
+
+  const lineWidthField = (width: number, apply: (width: number) => void) => (
+    <div className="field">
+      <label>{t("Line width ({width} pt)", { width })}</label>
+      <input
+        type="number"
+        min={1}
+        max={16}
+        value={width}
+        onChange={(event) => apply(Math.min(16, Math.max(1, Number(event.target.value) || 1)))}
+      />
     </div>
   )
 
@@ -163,40 +168,25 @@ export function InspectorPanel() {
                       }
                     />
                   </div>
-                  <div className="field">
-                    <label>{t("Colour")}</label>
-                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
-                  </div>
+                  {colourField(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
                 </>
               ) : null}
-              {annotation.type === "text" || annotation.type === "highlight" || annotation.type === "shape" ? (
-                annotation.type === "highlight" ? (
-                  <div className="field">
-                    <label>{t("Colour")}</label>
-                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
-                  </div>
-                ) : null
-              ) : null}
+              {annotation.type === "highlight"
+                ? colourField(annotation.color, (color) => updateAnnotation(annotation.id, { color }))
+                : null}
               {annotation.type === "shape" ? (
                 <>
                   <div className="field">
                     <label>{t("Outline")}</label>
-                    {swatches(annotation.stroke, (color) => updateAnnotation(annotation.id, { stroke: color }))}
-                  </div>
-                  <div className="field">
-                    <label>{t("Line width ({width} pt)", { width: annotation.lineWidth })}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={16}
-                      value={annotation.lineWidth}
-                      onChange={(event) =>
-                        updateAnnotation(annotation.id, {
-                          lineWidth: Math.min(16, Math.max(1, Number(event.target.value) || 1)),
-                        })
-                      }
+                    <Swatches
+                      colors={COLORS}
+                      current={annotation.stroke}
+                      onPick={(stroke) => updateAnnotation(annotation.id, { stroke })}
                     />
                   </div>
+                  {lineWidthField(annotation.lineWidth, (lineWidth) =>
+                    updateAnnotation(annotation.id, { lineWidth }),
+                  )}
                   <div className="field">
                     <label>
                       {t("Fill strength ({percent}%)", {
@@ -231,24 +221,10 @@ export function InspectorPanel() {
               ) : null}
               {annotation.type === "ink" ? (
                 <>
-                  <div className="field">
-                    <label>{t("Colour")}</label>
-                    {swatches(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
-                  </div>
-                  <div className="field">
-                    <label>{t("Line width ({width} pt)", { width: annotation.lineWidth })}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={16}
-                      value={annotation.lineWidth}
-                      onChange={(event) =>
-                        updateAnnotation(annotation.id, {
-                          lineWidth: Math.min(16, Math.max(1, Number(event.target.value) || 1)),
-                        })
-                      }
-                    />
-                  </div>
+                  {colourField(annotation.color, (color) => updateAnnotation(annotation.id, { color }))}
+                  {lineWidthField(annotation.lineWidth, (lineWidth) =>
+                    updateAnnotation(annotation.id, { lineWidth }),
+                  )}
                 </>
               ) : null}
               {annotation.type === "image" ? (

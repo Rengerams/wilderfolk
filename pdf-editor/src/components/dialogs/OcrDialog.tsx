@@ -2,7 +2,8 @@ import { useMemo, useState } from "react"
 import { Dialog, Field } from "./Dialog"
 import { applyOcrLayers, recognizePagesToDraft } from "../../app/ocrActions"
 import { exportAs, saveDocument } from "../../app/documentActions"
-import { OCR_LANGUAGES } from "../../pdf/ocr"
+import { BusyProgress } from "./BusyProgress"
+import { LanguagePicker } from "./LanguagePicker"
 import { currentSettings } from "../../storage/settings"
 import { useEditor } from "../../app/store"
 import { useT } from "../../i18n"
@@ -131,37 +132,11 @@ export function OcrDialog() {
           </select>
         </Field>
         <Field label={t("Recognition languages")}>
-          <div className="checkbox-grid">
-            {OCR_LANGUAGES.map((language) => (
-              <label key={language.code} className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={languages.includes(language.code)}
-                  onChange={(event) =>
-                    setLanguages((current) =>
-                      event.target.checked
-                        ? [...current, language.code]
-                        : current.length > 1
-                          ? current.filter((code) => code !== language.code)
-                          : current,
-                    )
-                  }
-                />
-                {t(language.label)}
-              </label>
-            ))}
-          </div>
+          <LanguagePicker value={languages} onChange={setLanguages} />
         </Field>
       </div>
 
-      {busy ? (
-        <div>
-          <p className="hint">{busy.label}</p>
-          <div className="progress">
-            <span style={{ width: `${Math.round(busy.progress * 100)}%` }} />
-          </div>
-        </div>
-      ) : null}
+      {busy ? <BusyProgress busy={busy} /> : null}
       {message ? <p className="success-text">{message}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
 

@@ -11,12 +11,14 @@ export function FindReplaceDialog() {
   const closeDialog = useEditor((state) => state.closeDialog)
   const setStatus = useEditor((state) => state.setStatus)
   const pages = useEditor((state) => state.doc.pages)
+  const setActivePage = useEditor((state) => state.setActivePage)
   const [needle, setNeedle] = useState("")
   const [replacement, setReplacement] = useState("")
   const [scope, setScope] = useState<SearchScope>("current")
   const [matchStyle, setMatchStyle] = useState(true)
   const [hits, setHits] = useState<TextHit[] | null>(null)
   const [excluded, setExcluded] = useState<string[]>([])
+  const [currentHitId, setCurrentHitId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
@@ -26,14 +28,21 @@ export function FindReplaceDialog() {
     return index < 0 ? "?" : String(index + 1)
   }
 
-  const search = async () => {
+  const jumpToHit = (hit: TextHit) => {
+    setCurrentHitId(hit.id)
+    const page = pages.find((entry) => entry.kind === "source" && entry.srcIndex === hit.srcIndex)
+    if (page) setActivePage(page.id)
+  }
+
+  const search = async (everyPage: boolean) => {
     setBusy(true)
     setError("")
     setMessage("")
     try {
-      const found = await searchDocumentText(needle, scope)
+      const found = await searchDocumentText(needle, everyPage ? "all" : scope)
       setHits(found)
       setExcluded([])
+      if (found[0]) jumpToHit(found[0])
       setMessage(
         found.length === 0
           ? t(
@@ -54,6 +63,26 @@ export function FindReplaceDialog() {
   }
 
   const selected = (hits ?? []).filter((hit) => !excluded.includes(hit.id))
+
+  const replaceOne = async () => {
+    const current = (hits ?? []).find((hit) => hit.id === currentHitId) ?? selected[0]
+    if (!current) return
+    setBusy(true)
+    setError("")
+    try {
+      await replaceTextHits({ hits: [current], replacement, matchPageStyle: matchStyle })
+      const remaining = (hits ?? []).filter((hit) => hit.id !== current.id)
+      setHits(remaining)
+      setCurrentHitId(remaining[0]?.id ?? null)
+      setMessage(t("{count} match replaced.", { count: 1 }))
+    } catch (caught) {
+      const text = caught instanceof Error ? caught.message : t("The text could not be replaced.")
+      setError(text)
+      setStatus(`⚠ ${text}`)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const apply = async () => {
     setBusy(true)
@@ -90,18 +119,11 @@ export function FindReplaceDialog() {
           <button type="button" className="btn" onClick={closeDialog}>
             {t("Close")}
           </button>
-          <button type="button" className="btn" disabled={busy} onClick={() => void search()}>
+          <button type="button" className="btn" disabled={busy} onClick={() => void search(false)}>
             <Search size={15} /> {busy ? t("Working…") : t("Find")}
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || selected.length === 0}
-            onClick={() => void apply()}
-          >
-            {selected.length === 1
-              ? t("Replace {count} match", { count: selected.length })
-              : t("Replace {count} matches", { count: selected.length })}
+          <button type="button" className="btn" disabled={busy} onClick={() => void search(true)}>
+            {busy ? t("Working…") : t("Find all")}
           </button>
         </>
       }
@@ -144,6 +166,17 @@ export function FindReplaceDialog() {
         <>
           <div className="row">
             <strong className="grow">{t("Matches")}</strong>
+            <button type="button" className="btn" disabled={busy} onClick={() => void replaceOne()}>
+              {t("Replace")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || selected.length === 0}
+              onClick={() => void apply()}
+            >
+              {t("Replace all")}
+            </button>
             <button type="button" className="btn btn-quiet" onClick={() => setExcluded([])}>
               {t("Select all")}
             </button>
@@ -155,6 +188,7 @@ export function FindReplaceDialog() {
               {t("Select none")}
             </button>
           </div>
+          <p className="hint">{t("Click a match to jump to its page.")}</p>
           <div className="list">
             {hits.map((hit) => (
               <label key={hit.id} className="list-row">
@@ -169,7 +203,14 @@ export function FindReplaceDialog() {
                     )
                   }
                 />
-                <span className="grow">
+                <span
+                  className="grow"
+                  style={{ cursor: "pointer" }}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    jumpToHit(hit)
+                  }}
+                >
                   <strong>“{hit.text}”</strong>
                   <small className="hint">
                     {t("Page {number} · {across}% across · {size} pt", {

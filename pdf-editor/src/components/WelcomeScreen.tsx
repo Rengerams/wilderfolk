@@ -3,7 +3,7 @@ import { Camera, FilePlus2, FolderOpen, Keyboard, Library, Settings } from "luci
 import type { StoredDocMeta } from "../types"
 import { IMPORT_ACCEPT, pickFiles } from "../app/files"
 import { listLibrary, openFromLibrary } from "../app/documentActions"
-import { formatFileSize, formatTimestamp } from "../pdf/pages"
+import { StoredDocSummary } from "./StoredDocSummary"
 import { useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
 import { useT } from "../i18n"
@@ -99,11 +99,7 @@ export function WelcomeScreen() {
               >
                 <span>{meta.name}</span>
                 <small>
-                  {meta.pages === 1
-                    ? t("{count} page", { count: meta.pages })
-                    : t("{count} pages", { count: meta.pages })}{" "}
-                  · {formatFileSize(meta.size)} · {formatTimestamp(meta.updatedAt)}
-                  {meta.encrypted ? ` · ${t("encrypted")}` : ""}
+                  <StoredDocSummary meta={meta} />
                 </small>
               </button>
             ))}

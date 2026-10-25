@@ -4,6 +4,8 @@ import { baseNameOf } from "../../app/documentActions"
 import { splitDocument, type SplitRequest } from "../../app/splitActions"
 import { useEditor } from "../../app/store"
 import { downloadBlob } from "../../app/files"
+import { BusyProgress } from "./BusyProgress"
+import { useDialogBase } from "./useDialogBase"
 import {
   chunkPageRanges,
   pagesPerFileValue,
@@ -12,15 +14,11 @@ import {
   splitSizeLimit,
   type SplitMode,
 } from "../../pdf/splitPdf"
-import { useT } from "../../i18n"
 
 const MB = 1024 * 1024
 
 export function SplitDialog() {
-  const t = useT()
-  const closeDialog = useEditor((state) => state.closeDialog)
-  const setStatus = useEditor((state) => state.setStatus)
-  const pageCount = useEditor((state) => state.doc.pages.length)
+  const { t, closeDialog, setStatus, pageCount } = useDialogBase()
   const documentName = useEditor((state) => state.doc.name)
   const [mode, setMode] = useState<SplitMode>("pages")
   const [pagesPerFile, setPagesPerFile] = useState("10")
@@ -177,14 +175,7 @@ export function SplitDialog() {
 
       {preview.error ? <p className="error-text">{preview.error}</p> : null}
 
-      {busy ? (
-        <div>
-          <p className="hint">{busy.label}</p>
-          <div className="progress">
-            <span style={{ width: `${Math.round(busy.progress * 100)}%` }} />
-          </div>
-        </div>
-      ) : null}
+      {busy ? <BusyProgress busy={busy} /> : null}
 
       {error ? <p className="error-text">{error}</p> : null}
     </Dialog>
