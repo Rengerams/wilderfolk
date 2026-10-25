@@ -48,7 +48,7 @@ describe("Leader's House beyond its bed cap", () => {
   it('preserves 21 leader-house residents through real save/load and housing reconciliation', () => {
     const world = initGame({ seed: 4242 });
     const leader = human(900001, { partnerId: 900002, childrenIds: CHILD_IDS.map((id) => id + 900000) });
-    const spouse = human(900002, { partnerId: leader.id, childrenIds: [...leader.childrenIds] });
+    const spouse = human(900002, { partnerId: leader.id, childrenIds: [...(leader.childrenIds ?? [])] });
     const children = CHILD_IDS.map((id) => human(id + 900000, { motherId: spouse.id, fatherId: leader.id, age: 22 }));
     const manor = building(900000, BuildingType.LeaderHouse, { occupants: [] });
     world.entities = [leader, spouse, ...children];
