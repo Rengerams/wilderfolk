@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Changed:** The Leader's House now has 20 fixed resident slots instead of 12; it remains non-upgradeable. Once the original manor exceeds 20 residents, one explicitly linked second Leader's House may be built as an overflow annex (40 normal slots across both buildings). The leader remains in the original; an orphan annex cannot become the primary manor.
+- **Changed:** Leader's House has 20 fixed beds (was 12), no upgrades, and one linked annex unlocked above 20 occupants (40 beds combined). The leader stays in the original; an orphan annex cannot replace it.
 
 - **Changed:** Load, immigration and player residence actions now supply the mandatory leader-house phase to the shared housing ledger, while immediate leadership events still reconcile through the same housing move rules.
 
