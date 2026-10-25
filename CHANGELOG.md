@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** A housing architecture note explains the single ordered decision pipeline: which phase owns which question, how a run's ledger protects a household a mandatory phase settled, and how to add a rule without a second scheduler.
+
 - **Changed:** Housing decisions now run as one ordered process — repairs, guardianship, seating and capacity before the optional adult-child and commute moves — so a household a mandatory step settled is no longer moved again by a later pass, and the whole household moves or none of it does.
 
 - **Fixed:** An overcrowded home only rehouses a settler into a home the household can actually occupy, and unhouses the surplus instead of staying over its beds when the only free homes are a manor or unfinished site.

@@ -16,7 +16,7 @@ export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commut
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
 
 /** The decision order: a mandatory correction always runs before an optional improvement. */
-export const HOUSING_PHASE_ORDER = ['integrity', 'guardianship', 'homeless', 'capacity', 'adult-child', 'commute'] as const;
+export const HOUSING_PHASE_ORDER = ['integrity', 'guardianship', 'capacity', 'homeless', 'adult-child', 'commute'] as const;
 export type HousingPhase = (typeof HOUSING_PHASE_ORDER)[number];
 
 const MANDATORY_PHASES: ReadonlySet<HousingPhase> = new Set<HousingPhase>([
