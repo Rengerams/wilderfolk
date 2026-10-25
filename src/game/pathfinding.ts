@@ -398,6 +398,7 @@ function searchRoute(
   tx: number,
   ty: number,
   maxNodes: number,
+  outcome?: { hitNodeCap: boolean },
 ): { path: { x: number; y: number }[]; cost: number } | null {
   const pathProfileStart = profileStart();
   try {
@@ -523,6 +524,7 @@ function searchRoute(
   recordPathNodes(nodes);
   recordPathFailed();
   if (hitNodeCap) recordPathMaxNodesExceeded();
+  if (outcome) outcome.hitNodeCap = hitNodeCap;
   return null;
   } finally {
     profileEnd('pathfinding.findPath', pathProfileStart);
@@ -551,6 +553,21 @@ export function findRouteCost(
   maxNodes = 6000,
 ): number | null {
   return searchRoute(grid, sx, sy, tx, ty, maxNodes)?.cost ?? null;
+}
+
+/** `findRouteCost` that says whether a null cost means "no path" or "node cap reached". */
+export function findRouteCostOutcome(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): { cost: number } | { unreachable: true } | { budgetExhausted: true } {
+  const outcome = { hitNodeCap: false };
+  const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, outcome);
+  if (result) return { cost: result.cost };
+  return outcome.hitNodeCap ? { budgetExhausted: true } : { unreachable: true };
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */

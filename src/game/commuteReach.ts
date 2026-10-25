@@ -4,7 +4,7 @@ import { PATH_CELL } from './gameTypes';
 import { isEntityOnBuilding } from './buildingRotation';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
-import { findRouteCost, getCurrentPathGrid, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getCurrentPathGrid, type PathGrid } from './pathfinding';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
 export const COMMUTE_CONFIG = {
@@ -35,8 +35,11 @@ export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
 /** Route searches one housing sweep may run before legs fall back to the straight line. */
 export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
 
-/** Node cap per search: a detour the search cannot resolve inside it is priced as no route. */
+/** Node cap per search: a search cut short by it is inconclusive, so the leg prices straight-line. */
 const MAX_COMMUTE_ROUTE_SEARCH_NODES = 4000;
+
+/** Hours for a home the walkable grid cannot reach at all — never a relocation candidate. */
+export const UNREACHABLE_COMMUTE_HOURS = Number.POSITIVE_INFINITY;
 
 /** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
 const COMMUTE_ROUTE_CACHE_LIMIT = 4096;
@@ -115,10 +118,13 @@ function routeCommuteHours(home: Building, destination: Building, walkSpeed: num
   if (cached !== undefined) return cached;
   if (routeSearchesLeft <= 0) return null;
   routeSearchesLeft--;
-  const steps = findRouteCost(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
-  if (steps === null) return null;
+  const outcome = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+  // A search cut short by its node cap is inconclusive; a completed search that found no path is not.
+  if ('budgetExhausted' in outcome) return null;
   // A* steps are tile units, so the walk distance is the route's step cost in world px.
-  const hours = commuteLeadHoursFor(steps * PATH_CELL, walkSpeed);
+  const hours = 'unreachable' in outcome
+    ? UNREACHABLE_COMMUTE_HOURS
+    : commuteLeadHoursFor(outcome.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
   cache.set(key, hours);
   return hours;
@@ -126,7 +132,7 @@ function routeCommuteHours(home: Building, destination: Building, walkSpeed: num
 
 /**
  * Estimated hours from a home to a building over the walkable route, falling back to the straight
- * line when no route is priced. The household commute score compares whole homes with this.
+ * line when no route is priced. A completed search with no path returns `UNREACHABLE_COMMUTE_HOURS`.
  */
 export function estimatedCommuteHours(
   home: Building,

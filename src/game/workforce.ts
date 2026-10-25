@@ -237,6 +237,7 @@ export function pickWorkerToTransfer(
       h.alive &&
       !h.isJuvenile &&
       h.workerBuildingId === fromBuilding.id &&
+      !isImprisoned(h) &&
       canAutoChangeWorkplace(h, currentTick),
   );
   if (workers.length === 0) return undefined;
@@ -595,7 +596,12 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     }
 
     if (isImprisoned(human)) {
-      removeWorkerTransition(human, buildings);
+      // A sentence holds the post (§6); a construction-crew seat is not a post, so it is released.
+      for (let b = 0; b < buildings.length; b++) {
+        const site = buildings[b];
+        if (site.completed || !site.occupants.includes(human.id)) continue;
+        site.occupants = site.occupants.filter((id) => id !== human.id);
+      }
       continue;
     }
 

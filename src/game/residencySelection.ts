@@ -535,6 +535,7 @@ export function pickCommuteRelocation(
   const current = householdCommuteHours(unit, home, commuteBuildings, walkSpeed, cache, buildingsById);
   if (current <= 0) return undefined;
 
+  const before = unit.map((member) => memberCommuteHours(member, home, commuteBuildings, walkSpeed, cache, buildingsById));
   let best: Building | undefined;
   let bestHours = current;
   for (const residence of candidates) {
@@ -543,18 +544,16 @@ export function pickCommuteRelocation(
     if (!familyFitsInResidence(unit, residence, alive, occupancy)) continue;
     if (!pupilsKeepSchoolReach(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById)) continue;
     const hours = householdCommuteHours(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById);
-    if (hours < bestHours || (best !== undefined && hours === bestHours && residence.id < best.id)) {
-      bestHours = hours;
-      best = residence;
-    }
+    if (!(hours < bestHours || (best !== undefined && hours === bestHours && residence.id < best.id))) continue;
+    // A household total can improve while one member's own day worsens; such a home is inadmissible.
+    const after = unit.map((member) => memberCommuteHours(member, residence, commuteBuildings, walkSpeed, cache, buildingsById));
+    if (after.some((memberHours, i) => memberHours - before[i] > RELOCATION_MAX_MEMBER_REGRESSION_HOURS)) continue;
+    bestHours = hours;
+    best = residence;
   }
   if (!best) return undefined;
   if (current - bestHours < RELOCATION_MIN_SAVED_HOURS) return undefined;
   if (bestHours > current * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO)) return undefined;
-  // A household total can improve while one member's own day worsens; this move may not do that.
-  const before = unit.map((member) => memberCommuteHours(member, home, commuteBuildings, walkSpeed, cache, buildingsById));
-  const after = unit.map((member) => memberCommuteHours(member, best, commuteBuildings, walkSpeed, cache, buildingsById));
-  if (after.some((hours, index) => hours - before[index] > RELOCATION_MAX_MEMBER_REGRESSION_HOURS)) return undefined;
   return best.id;
 }
 

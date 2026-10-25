@@ -39,6 +39,7 @@ const ALLOWED_WRITERS = [
 
 /** Sites that clear a post rather than writing one: they must call a door, never the field. */
 const DOOR_CALLERS = [
+  // humanRelationships.ts stays out: a prison sentence holds the post (housing design §6).
   'src/game/dayCycle.ts',
   'src/game/leaderHouse.ts',
   'src/game/humanLifecycleCleanup.ts',
