@@ -1,6 +1,9 @@
 name: Housing performance comparison
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - base44/setup-4bdf1c9f
