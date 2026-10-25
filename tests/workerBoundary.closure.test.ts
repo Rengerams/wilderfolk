@@ -43,6 +43,8 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initGame, createBuilding } from '../src/game/worldGen';
+import { syncLeaderHouseResidency } from '../src/game/leaderHouse';
+import { human, building } from '../src/test/factories';
 import { gameTick } from '../src/game/gameTick';
 import { applySimTickDelta, extractSimTickDelta } from '../src/game/simBuffers/simDelta';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
@@ -315,6 +317,50 @@ describe('worker boundary closure', () => {
       }
       expect(newYearSettlers).toBeGreaterThan(0); // the round trip really did carry a January 1 settler
     });  });
+
+  it('keeps 21 leader-house residents across worker transport, tick delta, and real save/load', () => {
+    resetSimRng();
+    const authority = initGame({ seed: SEED });
+    const leader = authority.entities.find((e) => e.type === EntityType.Human && e.alive);
+    expect(leader).toBeDefined();
+    if (!leader) throw new Error('No leader fixture');
+    const spouseId = 900002;
+    const childIds = Array.from({ length: 19 }, (_, i) => 900003 + i);
+    const family = [
+      human(leader.id, { partnerId: spouseId, childrenIds: childIds }),
+      human(spouseId, { partnerId: leader.id, childrenIds: childIds }),
+      ...childIds.map((id) => human(id, { motherId: spouseId, fatherId: leader.id, age: 22 })),
+    ];
+    const manor = building(900000, BuildingType.LeaderHouse);
+    authority.entities = family;
+    authority.buildings = [manor];
+    authority.villageLeaderId = leader.id;
+    syncLeaderHouseResidency(authority);
+    const ids = family.map((e) => e.id).sort((a, b) => a - b);
+    const assertHouse = (world: WorldState) => {
+      const home = world.buildings.find((b) => b.id === manor.id);
+      expect(home).toBeDefined();
+      expect([...home!.occupants].sort((a, b) => a - b)).toEqual(ids);
+      expect(world.entities.filter((e) => ids.includes(e.id)).every((e) => e.residenceBuildingId === manor.id)).toBe(true);
+    };
+    assertHouse(authority);
+    invalidateWorldRuntimeCaches(authority);
+    const worker = hydrateWorldRuntimeCaches(structuredClone(authority));
+    hydrateWorldRuntimeCaches(authority);
+    assertHouse(worker);
+    const display = hydrateWorldRuntimeCaches(structuredClone(worker));
+    const delta = extractSimTickDelta(worker, worker.entities.filter((e) => e.alive), { headless: true, cloneMode: 'transfer' });
+    applySimTickDelta(display, structuredClone(delta), { cloneMode: 'transfer' });
+    assertHouse(display);
+    const save = buildSaveData(worker, createInitialView(worker.width, worker.height));
+    const parsed = parseSaveJson(JSON.stringify(save));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) throw new Error('Invalid serialized save');
+    const restored = loadGameFromParsed(parsed.parsed);
+    expect(restored).not.toBeNull();
+    if (!restored) throw new Error('Save failed to restore');
+    assertHouse(restored.world);
+  });
 
   it('carries the whole world into the worker and rebuilds the worker-side indices', () => {
     resetSimRng();
