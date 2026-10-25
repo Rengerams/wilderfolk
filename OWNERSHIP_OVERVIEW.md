@@ -345,6 +345,8 @@ reported as stalled — never softened until it passes.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
+| Simulation residence-move diagnostics | `scripts/run-full-year.mts` | full-year checkpoint and movement measurement | `countResidenceMoves` |
+| Housing benchmark statistics | `scripts/benchmark-housing-pipeline.mts` | housing performance comparison | `median` |
 | Naming the residence behind a failed housing verdict | `scripts/run-full-year.mts` | both the per-checkpoint and the final housing assertion | `describeHousingFailure` |
 | Housing consistency verdict (over-capacity, orphaned references, occupant-list mismatches) | `housingDiagnostics.ts` | read-only, sampled per checkpoint | `collectHousingDiagnostics`, `isHousingDiagnosticsHealthy` |
 | A home's beds, and whether one is free | `residencyOccupancy.ts` | every residence write | `getResidenceCapacity`, `residenceRoomFor` |
