@@ -51,6 +51,7 @@ import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
+import { isPlayerHuman } from '../src/game/playerHuman';
 import {
   collectHousingDiagnostics,
   isHousingDiagnosticsHealthy,
@@ -173,6 +174,9 @@ interface RunCounters {
   botActs: number;
   botIdleHours: number;
   botByOp: Record<string, number>;
+  /** Housing stability: settlers who changed home, and those moved again in the next window. */
+  housingRelocations: number;
+  housingRepeatMoves: number;
 }
 
 const counters: RunCounters = {
@@ -183,6 +187,8 @@ const counters: RunCounters = {
   botActs: 0,
   botIdleHours: 0,
   botByOp: {},
+  housingRelocations: 0,
+  housingRepeatMoves: 0,
 };
 
 /** The world the running attempt owns, so a failure still leaves its event-log trace on disk. */
@@ -291,6 +297,8 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall:
     `consumedToday=${health.food.consumedToday}`,
     `beds=${health.housing.occupiedBeds}/${health.housing.totalBeds}`,
     `homeless=${health.housing.homelessPlayerHumans}`,
+    `relocations=${counters.housingRelocations}`,
+    `repeatMoves=${counters.housingRepeatMoves}`,
     `working=${health.workforce.working}`,
     `idle=${health.workforce.idle}`,
     `unstaffed=${health.workforce.unstaffedJobBuildings}`,
@@ -310,6 +318,36 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall:
 
 function livingSettlers(world: WorldState): number {
   return world.entities.filter((entity) => entity.alive && entity.type === EntityType.Human).length;
+}
+
+/** One checkpoint window's housing churn: homes changed now, and movers who had just moved. */
+interface ResidenceMoveTally {
+  relocations: number;
+  repeated: number;
+  residences: Map<number, number | undefined>;
+  movers: Set<number>;
+}
+
+function countResidenceMoves(
+  previous: ReadonlyMap<number, number | undefined>,
+  previousMovers: ReadonlySet<number>,
+  world: WorldState,
+): ResidenceMoveTally {
+  const residences = new Map<number, number | undefined>();
+  const movers = new Set<number>();
+  let relocations = 0;
+  let repeated = 0;
+  for (const entity of world.entities) {
+    if (!entity.alive || !isPlayerHuman(entity)) continue;
+    const before = previous.get(entity.id);
+    const now = entity.residenceBuildingId;
+    residences.set(entity.id, now);
+    if (before === now) continue;
+    relocations += 1;
+    movers.add(entity.id);
+    if (previousMovers.has(entity.id)) repeated += 1;
+  }
+  return { relocations, repeated, residences, movers };
 }
 
 function writeCheckpoint(
@@ -411,6 +449,10 @@ function run(): void {
   const initialBuildingIds = new Set(world.buildings.map((building) => building.id));
   const healthObserved: ColonyHealthReport[] = [];
   let lastBotActedTick: number | null = null;
+  let previousResidences = new Map<number, number | undefined>(
+    world.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).map((entity) => [entity.id, entity.residenceBuildingId]),
+  );
+  let previousMovers = new Set<number>();
   const checkpoints = new Set(
     Array.from(
       { length: Math.ceil(TOTAL_DAYS / CHECKPOINT_INTERVAL_DAYS) },
@@ -472,6 +514,11 @@ function run(): void {
       isHousingDiagnosticsHealthy(housingSnapshot),
       `Housing is inconsistent at day ${day}: ${describeHousingFailure(world, housingSnapshot)}`,
     );
+    const housingMoves = countResidenceMoves(previousResidences, previousMovers, world);
+    counters.housingRelocations += housingMoves.relocations;
+    counters.housingRepeatMoves += housingMoves.repeated;
+    previousResidences = housingMoves.residences;
+    previousMovers = housingMoves.movers;
 
     const deltas = sampleDelta(world);
     if (deltas.serializeMs > SERIALIZATION_SPIKE_MS) counters.serializationSpikes += 1;

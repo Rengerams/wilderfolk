@@ -104,10 +104,7 @@ export {
 
 export {
   assignMissingResidences,
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
-  tryMoveOutOfFamilyHome,
   isResidenceOccupantEntity,
-  rebalanceOvercrowdedResidences,
   rebuildChildrenIds,
   syncPartnerResidence,
   syncResidenceOccupants,

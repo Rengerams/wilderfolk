@@ -15,6 +15,177 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
 
+/** The decision order: a mandatory correction always runs before an optional improvement. */
+export const HOUSING_PHASE_ORDER = ['integrity', 'guardianship', 'homeless', 'capacity', 'adult-child', 'commute'] as const;
+export type HousingPhase = (typeof HOUSING_PHASE_ORDER)[number];
+
+const MANDATORY_PHASES: ReadonlySet<HousingPhase> = new Set<HousingPhase>([
+  'integrity', 'guardianship', 'homeless', 'capacity',
+]);
+
+export interface HousingRelocation {
+  phase: HousingPhase;
+  reason: ResidenceMoveReason;
+  members: number[];
+  from?: number;
+  to?: number;
+}
+
+export interface HousingReport {
+  relocations: HousingRelocation[];
+  /** Optional moves withheld because a mandatory phase already decided that household. */
+  protectedUnits: number;
+  violations: string[];
+}
+
+/** One run's decisions: which phase settled a household, the homes it already held, and the log. */
+export interface HousingLedger {
+  settled: Map<number, HousingPhase>;
+  visited: Map<number, Set<number>>;
+  report: HousingReport;
+  /** Residence per settler when the running phase began, so its moves can be logged. */
+  before: Map<number, number | undefined>;
+}
+
+export function createHousingLedger(): HousingLedger {
+  return {
+    settled: new Map(),
+    visited: new Map(),
+    report: { relocations: [], protectedUnits: 0, violations: [] },
+    before: new Map(),
+  };
+}
+
+function householdKey(unit: readonly Entity[]): number {
+  let key = Infinity;
+  for (const member of unit) if (member.id < key) key = member.id;
+  return Number.isFinite(key) ? key : 0;
+}
+
+/** True when an optional phase must leave this household alone: a mandatory phase already moved it. */
+export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Entity[], phase: HousingPhase): boolean {
+  if (MANDATORY_PHASES.has(phase)) return false;
+  for (const member of unit) {
+    const settledBy = ledger.settled.get(member.id);
+    if (settledBy !== undefined && MANDATORY_PHASES.has(settledBy)) {
+      ledger.report.protectedUnits += 1;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Whole-household guard: a minor never lands anywhere their living custodian is not. */
+function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined, humans: Entity[]): boolean {
+  for (const member of unit) {
+    if (!isMinorChild(member)) continue;
+    const custodian = getChildCustodian(member, humans);
+    if (!custodian || unit.some((other) => other.id === custodian.id)) continue;
+    if (custodian.residenceBuildingId == null || custodian.residenceBuildingId !== toId) return false;
+  }
+  return true;
+}
+
+export interface HousingMoveContext {
+  alive: Entity[];
+  residences: Building[];
+  buildings: Building[];
+  occupancy: ResidenceOccupancy;
+  traits: ResidenceTraitsById;
+  ledger: HousingLedger;
+}
+
+/**
+ * The only place a housing decision becomes a residence write. The whole household is checked
+ * against the destination first, so a refused move leaves every member exactly where they were.
+ */
+export function relocateHousehold(
+  unit: readonly Entity[],
+  toId: number | undefined,
+  phase: HousingPhase,
+  reason: ResidenceMoveReason,
+  context: HousingMoveContext,
+): boolean {
+  if (unit.length === 0) return false;
+  if (isHousingUnitProtected(context.ledger, unit, phase)) return false;
+  const key = householdKey(unit);
+  const target = toId === undefined ? undefined : context.residences.find((residence) => residence.id === toId);
+  if (toId !== undefined) {
+    if (!target || !target.completed || target.faction === 'rival') return false;
+    if (context.ledger.visited.get(key)?.has(toId)) return false;
+    if (isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return false;
+    if (!familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
+  }
+  if (!custodianTravelsAlong(unit, toId, context.alive)) return false;
+
+  const fromId = unit.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
+  for (const member of unit) {
+    moveResident(member, toId, reason, { occupancy: context.occupancy, traits: context.traits, buildings: context.buildings });
+  }
+  // A writer that refuses the move must not be reported as a decision.
+  if (!unit.some((member) => member.residenceBuildingId !== fromId)) return false;
+  const visited = context.ledger.visited.get(key) ?? new Set<number>();
+  if (fromId !== undefined) visited.add(fromId);
+  if (toId !== undefined) visited.add(toId);
+  context.ledger.visited.set(key, visited);
+  for (const member of unit) context.ledger.settled.set(member.id, phase);
+  const relocation: HousingRelocation = { phase, reason, members: unit.map((member) => member.id) };
+  if (fromId !== undefined) relocation.from = fromId;
+  if (toId !== undefined) relocation.to = toId;
+  context.ledger.report.relocations.push(relocation);
+  return true;
+}
+
+function snapshotResidences(alive: readonly Entity[], into: Map<number, number | undefined>): void {
+  into.clear();
+  for (const settler of alive) into.set(settler.id, settler.residenceBuildingId);
+}
+
+/** Opens one phase of the housing pipeline; `endHousingPhase` logs whatever it moved. */
+function beginHousingPhase(ledger: HousingLedger, alive: readonly Entity[]): void {
+  snapshotResidences(alive, ledger.before);
+}
+
+function runHousingPhase(
+  ledger: HousingLedger,
+  phase: HousingPhase,
+  alive: readonly Entity[],
+  run: () => void,
+): void {
+  beginHousingPhase(ledger, alive);
+  run();
+  endHousingPhase(ledger, phase, alive);
+}
+
+/**
+ * Closes a phase: every settler it moved is logged once and marked settled, so a later optional
+ * phase cannot undo the decision that placed them.
+ */
+function endHousingPhase(ledger: HousingLedger, phase: HousingPhase, alive: readonly Entity[]): void {
+  const movedByPhase = new Map<string, { from?: number; to?: number; members: number[] }>();
+  for (const settler of alive) {
+    const from = ledger.before.get(settler.id);
+    const to = settler.residenceBuildingId;
+    if (from === to) continue;
+    const entry = movedByPhase.get(`${from}->${to}`) ?? { members: [] };
+    if (from !== undefined) entry.from = from;
+    if (to !== undefined) entry.to = to;
+    entry.members.push(settler.id);
+    movedByPhase.set(`${from}->${to}`, entry);
+    const visited = ledger.visited.get(settler.id) ?? new Set<number>();
+    if (from !== undefined) visited.add(from);
+    if (to !== undefined) visited.add(to);
+    ledger.visited.set(settler.id, visited);
+    ledger.settled.set(settler.id, phase);
+  }
+  for (const entry of movedByPhase.values()) {
+    const relocation: HousingRelocation = { phase, reason: phase === 'commute' ? 'commute' : 'assignment', members: entry.members };
+    if (entry.from !== undefined) relocation.from = entry.from;
+    if (entry.to !== undefined) relocation.to = entry.to;
+    ledger.report.relocations.push(relocation);
+  }
+}
+
 /** The sole residence write; keep pass indexes and any supplied residence rosters consistent. */
 export function moveResident(
   human: Entity,
@@ -253,9 +424,10 @@ export function assignMissingResidences(
   allHumansForGenealogy?: Entity[],
   sweepTick?: number,
   genealogy?: GenealogyRegistry,
-): void {
+): HousingReport {
   const residences = listPlayerResidences(buildings);
-  if (residences.length === 0) return;
+  const ledger = createHousingLedger();
+  if (residences.length === 0) return ledger.report;
 
   for (const h of humans) {
     if (!h.alive) moveResident(h, undefined, 'death');
@@ -272,25 +444,29 @@ export function assignMissingResidences(
 
   rebuildChildrenIds(genealogyPool);
 
-  for (const human of alive) {
-    if (isMinorChild(human)) ensureOrphanAdoption(human, genealogyPool, residences, undefined, undefined, genealogy);
-  }
-
-  // `residences` is built above and never mutated in this loop, and the body only writes the same
-  // settler it just tested, so the membership test is answered by one id set instead of a scan per
-  // settler.
-  const residenceIds = new Set<number>();
-  for (const residence of residences) residenceIds.add(residence.id);
-
-  for (const human of alive) {
-    const residenceId = human.residenceBuildingId;
-    if (residenceId != null && !residenceIds.has(residenceId)) {
-      moveResident(human, undefined, 'assignment');
+  // Phase 1 — integrity: a reference to a home that is gone or was never a home is not an assignment.
+  runHousingPhase(ledger, 'integrity', alive, () => {
+    const residenceIds = new Set<number>();
+    for (const residence of residences) residenceIds.add(residence.id);
+    for (const human of alive) {
+      const residenceId = human.residenceBuildingId;
+      if (residenceId != null && !residenceIds.has(residenceId)) {
+        moveResident(human, undefined, 'assignment');
+      }
     }
-  }
+  });
 
-  rebalanceOvercrowdedResidences(residents, residences);
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences);
+  // Phase 2 — guardianship: a dependent child is placed with a custodian before any optimisation.
+  runHousingPhase(ledger, 'guardianship', alive, () => {
+    for (const human of alive) {
+      if (isMinorChild(human)) ensureOrphanAdoption(human, genealogyPool, residences, undefined, undefined, genealogy);
+    }
+  });
+
+  // Phase 3 — capacity: relieve an over-full home before anyone new is seated in the colony.
+  runHousingPhase(ledger, 'capacity', alive, () => {
+    rebalanceOvercrowdedResidences(residents, residences);
+  });
 
   // Family structure is static while we converge on residence slots — build the
   // housing units ONCE instead of every pass (was 24× full rebuilds per call).
@@ -299,6 +475,8 @@ export function assignMissingResidences(
     member.residenceBuildingId != null && leaderHouseIds.has(member.residenceBuildingId),
   ));
 
+  // Phase 4 — homeless: seat every household the colony has beds for, relieving capacity as it goes.
+  beginHousingPhase(ledger, alive);
   if (sweepTick === undefined) {
     for (let pass = 0; pass < 24; pass++) {
       let reassigned = 0;
@@ -367,10 +545,23 @@ export function assignMissingResidences(
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
         assignFamilyToResidence(unit, alive, residences, genealogyPool, occupancy, traits);
       }
-      // §12: once a day, a settled household may trade its home for a vacant one that meaningfully
-      // shortens its workers' commute and children's school trip — the whole household moves together.
-      relocateHouseholdsForCommute(housingUnitsBase, alive, residences, buildings, occupancy, traits);
     }
+  }
+  endHousingPhase(ledger, 'homeless', alive);
+
+  // Phase 5 — adult-child: an option, never a duty; withheld for a household a mandatory phase settled.
+  runHousingPhase(ledger, 'adult-child', alive, () => {
+    rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences, undefined, ledger);
+  });
+
+  // Phase 6 — commute: the daily optional improvement, last, thresholded and capped.
+  if (sweepTick !== undefined && activeSweepBucket(sweepTick) === RESIDENCE_SWEEP_BUCKETS - 1) {
+    runHousingPhase(ledger, 'commute', alive, () => {
+      relocateHouseholdsForCommute(
+        housingUnitsBase, alive, residences, buildings,
+        buildResidenceOccupancy(residents), buildResidenceTraits(residents), ledger,
+      );
+    });
   }
 
   fillHomelessAfterEviction(alive, residences, buildResidenceOccupancy(residents), buildResidenceTraits(residents));
@@ -379,6 +570,38 @@ export function assignMissingResidences(
     (allHumansForGenealogy ?? humans).filter(isResidenceOccupantEntity),
     buildings,
   );
+
+  ledger.report.violations = collectHousingInvariantViolations(alive, residents, residences);
+  return ledger.report;
+}
+
+/** Post-pass invariant audit: what the authoritative boundary promises, checked on its own output. */
+function collectHousingInvariantViolations(
+  alive: Entity[],
+  residents: Entity[],
+  residences: Building[],
+): string[] {
+  const violations: string[] = [];
+  const residenceById = new Map(residences.map((residence) => [residence.id, residence]));
+  const occupancy = buildResidenceOccupancy(residents);
+  for (const settler of residents) {
+    const homeId = settler.residenceBuildingId;
+    if (homeId != null && !residenceById.has(homeId)) violations.push(`settler #${settler.id} references missing home #${homeId}`);
+  }
+  for (const residence of residences) {
+    if (isLeaderHouseResidence(residence)) continue;
+    const count = occupancy.get(residence.id) ?? 0;
+    if (count > getResidenceCapacity(residence)) violations.push(`home #${residence.id} holds ${count} over ${getResidenceCapacity(residence)} beds`);
+  }
+  for (const child of residents) {
+    if (!isMinorChild(child)) continue;
+    const custodian = getChildCustodian(child, alive);
+    if (!custodian || child.residenceBuildingId == null) continue;
+    if (custodian.residenceBuildingId !== child.residenceBuildingId) {
+      violations.push(`child #${child.id} lives apart from custodian #${custodian.id}`);
+    }
+  }
+  return violations;
 }
 
 /** The daily commute sweep; exposed to the existing population benchmark. */
@@ -389,20 +612,23 @@ export function relocateHouseholdsForCommute(
   buildings: Building[],
   occupancy: ResidenceOccupancy,
   traits: ResidenceTraitsById,
+  ledger?: HousingLedger,
 ): void {
   const index = buildCommuteRelocationIndex(residences, buildings, occupancy);
   if (index.vacant.length === 0) return;
   const cache = new Map<string, number>();
   beginCommuteRoutePass();
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
+  const decisions = ledger ?? createHousingLedger();
+  const context: HousingMoveContext = { alive, residences, buildings, occupancy, traits, ledger: decisions };
   let relocated = 0;
   for (const unit of units) {
     if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
     const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, cache, walkSpeed, index);
     if (better === undefined) continue;
-    relocated += 1;
     const previousId = unit[0]?.residenceBuildingId;
-    for (const member of unit) moveResident(member, better, 'commute', { occupancy, traits });
+    if (!relocateHousehold(unit, better, 'commute', 'commute', context)) continue;
+    relocated += 1;
     index.vacant = index.vacant.filter((residence) => residence.id !== better);
     const previous = previousId == null ? undefined : index.residencesById.get(previousId);
     if (previous && (occupancy.get(previous.id) ?? 0) === 0) {
@@ -603,6 +829,7 @@ export function tryMoveOutOfFamilyHome(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  ledger?: HousingLedger,
 ): boolean {
   if (!isAdultChildAtHome(human, humans)) return false;
 
@@ -616,14 +843,21 @@ export function tryMoveOutOfFamilyHome(
   );
   if (!target) return false;
 
-  for (const member of household) moveResident(member, target.id, 'family', { occupancy, buildings: residences });
-  return true;
+  return relocateHousehold(household, target.id, 'adult-child', 'family', {
+    alive: humans,
+    residences,
+    buildings: residences,
+    occupancy: occupancy ?? buildResidenceOccupancy(humans),
+    traits: buildResidenceTraits(humans),
+    ledger: ledger ?? createHousingLedger(),
+  });
 }
 
 export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  ledger?: HousingLedger,
 ): void {
   let emptyHomeIds = residences
     .filter(
@@ -654,7 +888,8 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
 
     const household = collectOwnHousehold(adult, humans);
     if (household.some((m) => moved.has(m.id))) continue;
-    if (!tryMoveOutOfFamilyHome(adult, humans, residences, occupancy)) continue;
+    if (ledger && isHousingUnitProtected(ledger, household, 'adult-child')) continue;
+    if (!tryMoveOutOfFamilyHome(adult, humans, residences, occupancy, ledger)) continue;
 
     const newHomeId = adult.residenceBuildingId;
     if (newHomeId != null) {

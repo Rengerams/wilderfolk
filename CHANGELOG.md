@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Housing decisions now run as one ordered process — repairs, guardianship, seating and capacity before the optional adult-child and commute moves — so a household a mandatory step settled is no longer moved again by a later pass, and the whole household moves or none of it does.
+
 - **Fixed:** An overcrowded home only rehouses a settler into a home the household can actually occupy, and unhouses the surplus instead of staying over its beds when the only free homes are a manor or unfinished site.
 
 - **Fixed:** A jailed settler leaves the construction crew they were on, so a building site no longer counts a prisoner as a builder, while their home and job post stay reserved.
