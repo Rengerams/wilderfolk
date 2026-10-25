@@ -34,6 +34,23 @@ describe('family shortage, reunion and a single residence writer', () => {
     expect(outsider.residenceBuildingId).toBe(spare.id);
   });
 
+  it('never moves anyone into a home the household cannot occupy', () => {
+    const home = building(0, BuildingType.House);
+    const manor = building(25, BuildingType.LeaderHouse);
+    const unfinished = building(30, BuildingType.House, { completed: false });
+    const household = family(getResidenceCapacity(home) - 2, home.id);
+    const outsider = human(99, { residenceBuildingId: home.id });
+
+    rebalanceOvercrowdedResidences([...household, outsider], [home, manor, unfinished]);
+
+    // Neither unreachable target may take the household, so the surplus sleeps rough rather than
+    // the house staying over its beds or a settler landing in a home they cannot occupy.
+    const people = [...household, outsider];
+    expect(people.every((member) => [home.id, undefined].includes(member.residenceBuildingId)))
+      .toBe(true);
+    expect(buildResidenceOccupancy(people).get(home.id)).toBeLessThanOrEqual(getResidenceCapacity(home));
+  });
+
   it('leaves an outsider it has just rehoused in their new home', () => {
     const home = building(0, BuildingType.House);
     const spare = building(25, BuildingType.House);

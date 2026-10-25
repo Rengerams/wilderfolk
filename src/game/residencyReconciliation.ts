@@ -64,23 +64,30 @@ export function rebuildChildrenIds(humans: Entity[]): void {
     if (ids && ids.size > 0) human.childrenIds = [...ids];
   }
 }
+/** Homes an eviction may rehouse a household into — never the manor, a rival camp or an unfinished site. */
+function evictionTargets(residences: Building[]): Building[] {
+  return listPlayerResidences(residences).filter((home) => !isLeaderHouseResidence(home));
+}
+
 /** Repair a shortage in order: unrelated residents, whole household, then the father elsewhere. */
 export function rebalanceOvercrowdedResidences(humans: Entity[], residences: Building[]): boolean {
   const occupancy = buildResidenceOccupancy(humans);
   const traits = buildResidenceTraits(humans);
   const units = buildHousingUnits(humans);
+  const targets = evictionTargets(residences);
   let moved = false;
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence)) continue;
     const cap = getResidenceCapacity(residence);
     if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
+    const alternatives = targets.filter((home) => home.id !== residence.id);
     const occupants = [...(traits.get(residence.id)?.occupants.values() ?? [])];
     const dependentUnit = units.filter((unit) => unit.some((member) => isMinorChild(member)
       && member.residenceBuildingId === residence.id)).sort((a, b) => b.length - a.length)[0];
     if (dependentUnit) {
       const familyIds = new Set(dependentUnit.map((member) => member.id));
-      const alternatives = residences.filter((home) => home.id !== residence.id);
       for (const outsider of occupants.filter((member) => !familyIds.has(member.id))) {
+        if (outsider.residenceBuildingId !== residence.id) continue;
         const unit = units.find((candidate) => candidate.includes(outsider)) ?? [outsider];
         const target = pickResidenceForFamily(unit, humans, alternatives, occupancy, traits);
         if (target === undefined) continue;
@@ -98,12 +105,15 @@ export function rebalanceOvercrowdedResidences(humans: Entity[], residences: Bui
       for (const outsider of occupants.filter((member) => !familyIds.has(member.id))) {
         if (outsider.residenceBuildingId !== residence.id) continue;
         const unit = units.find((candidate) => candidate.includes(outsider)) ?? [outsider];
-        for (const member of unit) moveResident(member, undefined, 'family', { occupancy, traits });
-        moved = true;
+        for (const member of unit) {
+          if (member.residenceBuildingId !== residence.id) continue;
+          moveResident(member, undefined, 'family', { occupancy, traits });
+          moved = true;
+        }
         if ((occupancy.get(residence.id) ?? 0) <= cap) break;
       }
       const before = dependentUnit.map((member) => member.residenceBuildingId);
-      assignFamilyToResidence(dependentUnit, humans, residences, humans, occupancy, traits);
+      assignFamilyToResidence(dependentUnit, humans, targets, humans, occupancy, traits);
       moved ||= dependentUnit.some((member, index) => member.residenceBuildingId !== before[index]);
       continue;
     }

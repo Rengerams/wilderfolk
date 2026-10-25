@@ -376,7 +376,7 @@ If two modules export the same function name with the same responsibility:
 
 | Functions | Sole owner | Responsibility |
 |---|---|---|
-| `moveResident`, `reassignDivorcedResidences`, `ensureOrphanAdoption`, `placeOrphanInHouse`, `tryMoveOutOfFamilyHome`, `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `relocateHouseholdsForCommute` | `game/residencyReconciliation.ts` | Own residence mutations, their reasons and pass indexes; resolve event-driven placement and sibling guardianship. Mutation-bearing functions formerly in selection and relationships now live here, not behind aliases. |
+| `moveResident`, `reassignDivorcedResidences`, `ensureOrphanAdoption`, `placeOrphanInHouse`, `tryMoveOutOfFamilyHome`, `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `relocateHouseholdsForCommute`, `rebalanceOvercrowdedResidences` (targets from `evictionTargets`: completed player homes only, never the manor) | `game/residencyReconciliation.ts` | Own residence mutations, their reasons and pass indexes; resolve event-driven placement and sibling guardianship. Mutation-bearing functions formerly in selection and relationships now live here, not behind aliases. |
 | `familyFitsInResidence`, `buildCommuteRelocationIndex`, `collectFamilyHousingShortages` | `game/residencySelection.ts` | Pure capacity, per-sweep commute indexes and derived family-shortage warnings. |
 | `areCloseKin` | `game/householdComposition.ts` | Close family living apart: a parent/child link or a shared parent. |
 | `residenceHostsUnrelatedCouple`, `residenceHostsKin` | `game/residencySelection.ts` | Score a candidate home by the family a couple would live with and the couple it refuses to share with. |

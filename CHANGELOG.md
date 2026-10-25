@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** An overcrowded home only rehouses a settler into a home the household can actually occupy, and unhouses the surplus instead of staying over its beds when the only free homes are a manor or unfinished site.
+
 - **Fixed:** A jailed settler leaves the construction crew they were on, so a building site no longer counts a prisoner as a builder, while their home and job post stay reserved.
 
 - **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
