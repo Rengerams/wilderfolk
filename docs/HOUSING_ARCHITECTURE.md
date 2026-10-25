@@ -180,10 +180,11 @@ Every run allocates its own `HousingLedger`, so no state leaks between pulses:
 | `reported` | settler id → the home a recorded household move already logged in this phase. |
 | `report` | `relocations[]`, `protectedUnits`, `violations[]` — returned to the caller. |
 
-**Protection.** `isHousingUnitProtected(ledger, unit, phase)` is consulted by every optional move. If any
-member of the household was settled by a mandatory phase in this run, the optional phase leaves the whole
-household alone and counts it once in `protectedUnits`. A mandatory phase is never protected: a correction
-always outranks an earlier decision.
+**Protection.** `isHousingUnitProtected(ledger, unit, phase)` is consulted by every optional move.
+Mandatory corrections always take precedence. An optional move must also respect an earlier optional phase
+on the same ledger: when phase `adult-child` settles a household, phase `commute` cannot relocate it again
+during that run. The commute pass checks protection before pricing routes. This only protects one run:
+future days can still optimize an eligible home, subject to the commute thresholds and quota.
 
 **No re-entry.** `relocateHousehold` refuses a destination the household has already lived in during this
 run. Together with protection this makes the pipeline idempotent: running it twice on the same state
