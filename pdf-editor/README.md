@@ -93,53 +93,37 @@ npm run build      # typecheck + production bundle
 npm run desktop    # the same editor in the Windows desktop shell (needs Rust + WebView2)
 ```
 
-## First-run setup
-
-The editor ships its own setup program and opens it the first time it starts, before any document is
-created. It runs in five steps:
-
-1. **Welcome** — what the setup does.
-2. **License** — the repository's license terms, shown in full; setup continues only after they are
-   accepted, and the acceptance is stored in the settings.
-3. **Language** — the interface language (applied straight away) and the recognition languages that
-   should be installed.
-4. **Dependencies** — each component the editor needs is verified one by one and reported as ready or
-   failed: the pdf.js rendering worker, the PDF writer, page drawing, the local document library, the
-   text-recognition engine, and the recognition language data. Language data is downloaded once and
-   cached in the browser, so later OCR runs work without fetching it again. Only the language data is
-   optional, and failed steps can be retried before continuing.
-5. **Finish** — a summary of what was accepted and installed.
-
-The setup can be run again at any time from **Help → Setup & dependencies…**; it then remembers the
-earlier acceptance and re-checks the components. A failed setup never blocks the editor — closing the
-dialog leaves every existing tool usable, and the setup opens again on the next start.
-
 ## Install on Windows
 
 The desktop shell is in [`src-tauri/`](src-tauri), a Tauri 2 application that loads the built editor and
-packages it as a normal Windows program — own window, own icon, Start-menu entry and uninstaller:
+packages it as a normal Windows program. `npm run installer` produces two real installers:
+
+| File | What it is |
+| :--- | :--- |
+| `src-tauri/target/release/bundle/nsis/PDF Studio_0.1.0_x64-setup.exe` | Setup program (NSIS) — recommended download |
+| `src-tauri/target/release/bundle/msi/PDF Studio_0.1.0_x64_en-US.msi` | MSI for managed machines |
+
+The setup program installs for the current user only, so it needs no administrator rights. It offers an
+installer language (English or Dutch), creates a Start-menu entry and an optional desktop shortcut, adds
+an uninstaller in *Apps & features*, and installs the Microsoft Edge WebView2 runtime when the machine does
+not have it yet.
+
+To build it, on Windows with Rust (`rustup`) installed:
 
 ```bash
 cd pdf-editor
 npm ci
-npm run installer   # npx @tauri-apps/cli build
+npm run installer   # tauri build; fetches NSIS and WiX itself
 ```
 
-Rust (`rustup`) and the WebView2 runtime must be installed; the Tauri CLI, NSIS and WiX are fetched by the
-build itself. The two installers appear in:
+The `PDF Studio installer` workflow builds the same files on a Windows runner:
 
-```
-src-tauri/target/release/bundle/nsis/PDF Studio_0.1.0_x64-setup.exe
-src-tauri/target/release/bundle/msi/PDF Studio_0.1.0_x64_en-US.msi
-```
+* **Download a release** — push a `pdf-studio-v*` tag and the workflow publishes the `.exe` and `.msi` on
+  the repository's Releases page, where Windows users can download them directly.
+* **Build without a tag** — start the workflow by hand and download `pdf-studio-windows-installer` from
+  the run's artifacts.
 
-The same build runs on a Windows runner when the `PDF Studio installer` workflow is started by hand or a
-`pdf-studio-v*` tag is pushed, and attaches both installers to the run as a downloadable artifact.
 `npm run desktop` runs the editor inside that shell during development, against the Vite dev server.
-
-**Not built here:** this Linux sandbox has no Rust toolchain and cannot produce or verify a signed
-`.msi`/`.exe`. The browser build is what runs and is verified here; producing and signing the installer is
-a Windows-side step.
 
 ## Scanner hardware (`scan-bridge/`)
 

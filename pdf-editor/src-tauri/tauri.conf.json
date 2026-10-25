@@ -28,6 +28,21 @@
     "targets": ["nsis", "msi"],
     "publisher": "Renger Vegting",
     "copyright": "© Renger Vegting",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"]
+    "category": "Productivity",
+    "shortDescription": "PDF editing without unnecessary complexity.",
+    "longDescription": "PDF Studio is a desktop PDF editor for creating, editing, annotating, scanning and recognising text in PDF documents.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English", "Dutch"],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "startMenuFolder": "PDF Studio",
+        "compression": "lzma"
+      }
+    }
   }
 }

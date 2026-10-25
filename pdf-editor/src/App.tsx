@@ -37,8 +37,6 @@ export function App() {
     setTheme(saved.theme)
     applyLanguage(saved.language)
     setLanguage(saved.language)
-    // First run: the setup program opens by itself; closing it leaves the editor usable.
-    if (!saved.setup) useEditor.getState().openDialog("setup")
   }, [setTheme, setLanguage])
 
   useEffect(() => {

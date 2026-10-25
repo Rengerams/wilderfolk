@@ -79,6 +79,9 @@ agents/
 docs/private/
 docs/superpowers/
 
+# Built Windows installers staged for download in the sandbox preview
+pdf-editor/public/downloads/
+
 # Large or local-only sprite source tree; already-tracked sprites remain tracked
 
 

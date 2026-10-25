@@ -10,7 +10,6 @@ import { NewDocumentDialog } from "./NewDocumentDialog"
 import { OcrDialog } from "./OcrDialog"
 import { ScanDialog } from "./ScanDialog"
 import { SettingsDialog } from "./SettingsDialog"
-import { SetupDialog } from "./SetupDialog"
 
 export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
   switch (kind) {
@@ -30,8 +29,6 @@ export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
       return <ScanDialog />
     case "settings":
       return <SettingsDialog />
-    case "setup":
-      return <SetupDialog />
     case "export":
       return <ExportDialog />
     case "find":

@@ -6,8 +6,8 @@
   "description": "PDF Studio — PDF editing without unnecessary complexity. Independent of the Wilderfolk game app.",
   "scripts": {
     "dev": "vite",
-    "desktop": "npx --yes @tauri-apps/cli@^2 dev",
-    "installer": "npx --yes @tauri-apps/cli@^2 build",
+    "desktop": "tauri dev",
+    "installer": "tauri build",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -23,6 +23,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.9.4",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

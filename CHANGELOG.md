@@ -2,7 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Added:** PDF Studio opens a first-run setup program that presents and records the license acceptance, asks for the interface language and the recognition languages to install, then verifies and installs the components the editor needs. Run it again from Help.
+- **Changed:** PDF Studio starts straight into the editor: the in-app first-run setup program is gone, and accepting the license and choosing the language now belong to the Windows setup program.
+
+- **Changed:** PDF Studio's Windows setup program installs for the current user without administrator rights, offers English or Dutch, and adds the WebView2 runtime when a machine is missing it.
 
 - **Changed:** PDF Studio keeps the pages you just viewed and the two beside them ready, and abandons a page render the moment you page away, so a two-hundred-page file flips without stalling.
 

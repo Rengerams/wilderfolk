@@ -26,7 +26,6 @@ export type Commands = {
   editProperties: () => void
   runOcr: () => void
   storageSettings: () => void
-  setup: () => void
   about: () => void
   shortcuts: () => void
   exit: () => void
@@ -96,7 +95,6 @@ export function useCommands(): Commands {
       editProperties: () => openDialog("metadata"),
       runOcr: () => openDialog("ocr"),
       storageSettings: () => openDialog("settings"),
-      setup: () => openDialog("setup"),
       about: () => openDialog("about"),
       shortcuts: () => openDialog("shortcuts"),
       exit: () => {
