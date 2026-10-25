@@ -33,7 +33,7 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 6 | Find the Leader's House by type | **DONE** | `findLeaderHouse` (`leaderHouse.ts:18`) matches `BuildingType.LeaderHouse`, completed, player faction. No id or index assumption in the residency path. |
 | 7 | Manor exclusivity and succession | **DONE** | The confirmed plan's leader, spouse, children and children's spouses are entitled. Existing unmarried-grandchild eligibility is retained, not broadened. Vacancy protection and arbitrary-id succession remain in place, and an adult child or spouse settled in their own home is not relocated into the manor. Regressions cover married children, their spouses, unrelated settlers, vacancy and one-time handover. |
 | 8 | Families stay together | **DONE** | Shortage order is explicit: move unrelated residents first, then try a whole-family move, then keep dependents with their guardian and temporarily place the father elsewhere. A derived family-specific warning remains until reunion. If even the dependent group fits nowhere, it stays together unhoused rather than violating capacity. Reconciliation reunites the household when space appears. |
-| 9 | Adult children at 18 | **OPEN — one word needed** | Spec rule: at 18 an adult child looks for an own or shared home, stays with the parents while no housing is available, and adulthood alone never evicts. Today `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable` (`residencySelection.ts:402`, called from `residencyReconciliation.ts:268` and `dayCycle.ts:102`) moves them out **automatically as soon as an empty home exists**. Decide: (a) an automatic move into a genuinely free home is fine — then this section is done as-is; or (b) the move must be the settler's/player's choice — then the empty-home sweep is removed and the "looking for a home" path is kept. |
+| 9 | Adult children at 18 | **DONE — never evicted** | Decided for the strict rule: at 18 a settler may leave, nobody leaves for them. The empty-home sweep is deleted, so no housing pass moves a grown child out of a family home, and a lone settler who shares the home with close kin is no longer counted as unnecessarily housed. Moving out remains available through `tryMoveOutOfFamilyHome` for a caller that asks. `tests/adultChild.staysHome.test.ts` pins the stay, the silent diagnostics and the zero-move second pass; an unrelated settler still moves into the free house. |
 | 10 | Singles, capacity, no homeless while beds exist | **DONE** | Capacity via `getResidenceCapacity`; singles-only homes respected; `fillHomelessAfterEviction` refills beds after an eviction; `tests/housingUnits.composition.test.ts`. |
 | 11 | Children without parents | **DONE** | Eligible parent, then maternal/paternal grandparents of either gender, then a suitable adoptive couple, then the existing single-guardian fallback. Genealogy supplies parent links after pruning; sibling sets share custody and placement, and a fitting current guardian home is preferred. Leader adoption remains excluded. |
 | 12 | Meaningful commute moves | **DONE — measured and optimized** | Work and school route costs, pupil reach and anti-flap thresholds are retained. The daily sweep skips route pricing with no vacancy, indexes homes/destinations, and scans only roads in the straight-line fallback. Isolated benchmarks at 600/1,200/2,400 settlers produce identical assignment hashes to the unindexed reference; warm median with 80 spare homes at 2,400 falls from 684.6 ms to 66.1 ms. See the benchmark report below. |
@@ -51,14 +51,16 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 
 ## Remaining acceptance work (not reopened gameplay decisions)
 
-- Prison reservation is unchanged in this follow-up. Arrest still releases work and residence references;
-  the existing prisoner-housing regression continues to pin that separate behaviour.
+- The prison reservation is implemented: a sentence now holds the settler's home and post, attendance stops
+  while they are jailed, and an imprisoned leader keeps the manor. `tests/prisonStay.holdsHomeAndPost.test.ts`
+  and the leader case in `tests/medium-B2-leadership.test.ts` pin it.
 - The original Day 121 save is still absent. Only the Day 69 save is available, so no claim is made to
   reproduce that original session. Synthetic succession and Moon Howler anti-churn regressions cover the
   implemented rules, not that unavailable fixture.
 - The final full acceptance matrix and full unit suite are left to the broader acceptance/CI pass. The
   targeted housing, migration, worker-transport and command suites cover this follow-up.
-- §9's ordinary adult-child automatic move into a free home is not changed by this follow-up.
+- §9's ordinary adult-child move into a free home was removed by the strict rule above; the acceptance suite
+  for the rest of the housing area is still the outstanding item.
 
 ## Daily relocation benchmark (spec §12, not a review finding number)
 

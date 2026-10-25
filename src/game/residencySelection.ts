@@ -311,6 +311,8 @@ export function housingUnitNeedsReassignment(
 
   if (isLoneSettler(unit, alive)) {
     if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
+    // A grown child living with their own family stays: leaving home is an option, not a rule (§9).
+    if (residenceHostsKin(unit, homeId, alive, traits)) return false;
     if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
     if (
       residenceHostsCouple(homeId, alive, traits) &&

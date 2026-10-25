@@ -278,7 +278,6 @@ export function assignMissingResidences(
   }
 
   rebalanceOvercrowdedResidences(residents, residences);
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences);
 
   // Family structure is static while we converge on residence slots — build the
   // housing units ONCE instead of every pass (was 24× full rebuilds per call).
@@ -605,50 +604,6 @@ export function tryMoveOutOfFamilyHome(
 
   for (const member of household) moveResident(member, target.id, 'family', { occupancy, buildings: residences });
   return true;
-}
-
-export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
-  humans: Entity[],
-  residences: Building[],
-  occupancy?: ResidenceOccupancy,
-): void {
-  let emptyHomeIds = residences
-    .filter(
-      (r) =>
-        !isLeaderHouseResidence(r) &&
-        r.faction !== 'rival' &&
-        countResidentsInBuilding(humans, r.id, occupancy) === 0,
-    )
-    .map((r) => r.id);
-  if (emptyHomeIds.length === 0) return;
-
-  const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((r) => r.id));
-  // Reuse parent lookups across the adult-child candidate filter.
-  const humansById = new Map<number, Entity>();
-  for (let i = 0; i < humans.length; i++) humansById.set(humans[i].id, humans[i]);
-  const candidates = humans
-    .filter(
-      (h) =>
-        isAdultChildAtHome(h, humans, humansById) &&
-        (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
-    )
-    .sort((a, b) => b.age - a.age || a.id - b.id);
-
-  const moved = new Set<number>();
-  for (const adult of candidates) {
-    if (moved.has(adult.id)) continue;
-    if (emptyHomeIds.length === 0) return;
-
-    const household = collectOwnHousehold(adult, humans);
-    if (household.some((m) => moved.has(m.id))) continue;
-    if (!tryMoveOutOfFamilyHome(adult, humans, residences, occupancy)) continue;
-
-    const newHomeId = adult.residenceBuildingId;
-    if (newHomeId != null) {
-      emptyHomeIds = emptyHomeIds.filter((id) => id !== newHomeId);
-    }
-    for (const member of household) moved.add(member.id);
-  }
 }
 
 

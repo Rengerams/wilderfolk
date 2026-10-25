@@ -100,11 +100,15 @@ Leader's House exempt. What I would add or change:
   (before → after hours) into the chronicle, and have `housingDiagnostics.ts` total relocations per day so
   the long-run gate can assert a ceiling on churn instead of only on consistency.
 
-## 5. Adult children at 18 — my answer to §9
+## 5. Adult children at 18 — decided: never evicted
+
+**Decision (owner, 2026-10-25):** the strict rule ships. The empty-home sweep is deleted and a grown child
+keeps the family home until they or the player choose otherwise, so no housing pass moves them out. The
+leaver rule below is the rejected alternative, kept as the reasoning behind that choice.
 
 The mandate asks for "an option, not a requirement" and the specification for "never automatically
-evicted"; the code does the opposite — an adult child is moved into any empty home as soon as one exists,
-whether the family is cramped or not. I would ship neither extreme:
+evicted"; the code did the opposite — an adult child was moved into any empty home as soon as one existed,
+whether the family is cramped or not. I would have shipped neither extreme:
 
 * At 18 a settler becomes a **leaver**: a preference for a home of their own, not a move order.
 * Leaving becomes **binding only when the family's home is over capacity** — and only after step 2 has
@@ -186,7 +190,7 @@ without unpicking the others.
 
 ## 10. What I need from the owner
 
-* **§9**: the leaver rule above, or the stricter "a settled adult is never moved out"?
+* **§9 — answered**: the stricter "a settled adult is never moved out" rule is implemented.
 * **The reserved bed**: is a prisoner's bed theirs while they are jailed (my rule), or is it released to
   the family and re-taken on release?
 * **Taste numbers**: quota (8/day) and cooldown (4 days) are guesses that should be picked by watching a

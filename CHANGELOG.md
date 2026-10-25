@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A grown child is no longer moved out of the family home just because a house stands empty: leaving is the settler's own choice, so a settled family stays put and a second housing pass moves nobody.
+
 - **Fixed:** An imprisoned leader keeps the manor: the daily household sweep no longer unseats a settler serving a sentence, so the bed their arrest reserved stays theirs.
 
 - **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
