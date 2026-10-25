@@ -1,4 +1,5 @@
 import type { Building, WorldState } from './gameTypes';
+import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -72,6 +73,7 @@ export function canPlaceBuilding(
  * `buildingPlacementLabels.PLACEMENT_FAILURE_LABELS.unique`.
  */
 export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
+  if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(state.buildings);
   const config = BUILDING_CONFIGS[type];
   return !!config.unique && state.buildings.some((building) => building.type === type);
 }
