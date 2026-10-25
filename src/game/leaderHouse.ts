@@ -94,6 +94,22 @@ function leaderHousingContext(state: WorldState, ledger: HousingLedger): Housing
   return standaloneMoveContext(residents, listPlayerResidences(state.buildings), undefined, undefined, ledger);
 }
 
+/** The manor's departing residents as households: a minor leaves with their custodian, never alone. */
+function evictionHouseholds(departing: Entity[]): Entity[][] {
+  const unitOf = new Map<number, Entity[]>(departing.map((member) => [member.id, [member]]));
+  for (const member of departing) {
+    if (!isMinorChild(member)) continue;
+    const custodian = getChildCustodian(member, departing);
+    const target = custodian ? unitOf.get(custodian.id) : undefined;
+    const own = unitOf.get(member.id);
+    if (!target || !own || target === own) continue;
+    own.splice(own.indexOf(member), 1);
+    target.push(member);
+    unitOf.set(member.id, target);
+  }
+  return [...new Set(unitOf.values())].filter((unit) => unit.length > 0);
+}
+
 /** The manor hold's decision; returns the settlers it evicted so a caller can seat them. */
 export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger): Entity[] {
   const house = findLeaderHouse(state.buildings);
@@ -134,15 +150,14 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   const context = leaderHousingContext(state, ledger);
 
   //Evict settlers who are no longer part of the official leader's household
-  for (const e of state.entities) {
-    if (!e.alive || !isPlayerHuman(e)) continue;
-    // A sentence holds the bed: the manor never rehouses a settler who is away in prison.
-    if (isImprisoned(e)) continue;
-    if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
-      if (!relocateHousehold([e], undefined, 'leader', 'leader', context)) continue;
-      displaced.push(e);
-      evicted = true;
-    }
+  const departing = state.entities.filter(
+    (e) => e.alive && isPlayerHuman(e) && !isImprisoned(e)
+      && e.residenceBuildingId === house.id && !entitledIds.has(e.id),
+  );
+  for (const unit of evictionHouseholds(departing)) {
+    if (!relocateHousehold(unit, undefined, 'leader', 'leader', context)) continue;
+    displaced.push(...unit);
+    evicted = true;
   }
 
   // A settled descendant's household keeps its own home: the adult, their co-resident partner and

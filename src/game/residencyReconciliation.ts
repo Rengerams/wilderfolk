@@ -767,6 +767,28 @@ function findLivingHuman(humans: Entity[], id: number | undefined): Entity | und
   return id == null ? undefined : humans.find((human) => human.id === id && human.alive);
 }
 
+/** A jailed parent is away, not gone: custody is borrowed until the sentence ends. */
+function freeParent(humans: Entity[], id: number | undefined): Entity | undefined {
+  const parent = findLivingHuman(humans, id);
+  return parent && !isImprisoned(parent) ? parent : undefined;
+}
+
+/** A jail sentence borrows custody: on release the parent takes their minors back. */
+export function restoreCustodyAfterRelease(parent: Entity, humans: Entity[]): Entity[] {
+  if (parent.prisonBuildingId != null) return [];
+  const returned: Entity[] = [];
+  for (const child of humans) {
+    if (!child.alive || !isMinorChild(child)) continue;
+    if (child.motherId !== parent.id && child.fatherId !== parent.id) continue;
+    // Only a stand-in taken because of the sentence ends here; an adoption after a death stays.
+    if (![child.motherId, child.fatherId].every((id) => id == null || findLivingHuman(humans, id))) continue;
+    child.adoptiveMotherId = undefined;
+    child.adoptiveFatherId = undefined;
+    returned.push(child);
+  }
+  return returned;
+}
+
 function livingAdoptiveCustodian(child: Entity, humans: Entity[]): Entity | undefined {
   return [child.adoptiveMotherId, child.adoptiveFatherId].map((id) => findLivingHuman(humans, id))
     .find((guardian) => guardian && isResidenceOccupantEntity(guardian) && !isImprisoned(guardian));
@@ -855,8 +877,7 @@ export function ensureOrphanAdoption(
   ledger?: HousingLedger,
 ): boolean {
   if (!child.alive || child.faction || !isMinorChild(child)) return false;
-  const parent = [child.motherId, child.fatherId].map((id) => findLivingHuman(humans, id))
-    .find((human) => human && !isImprisoned(human));
+  const parent = [child.motherId, child.fatherId].map((id) => freeParent(humans, id)).find(Boolean);
   if (parent) {
     child.adoptiveMotherId = undefined;
     child.adoptiveFatherId = undefined;
@@ -866,7 +887,7 @@ export function ensureOrphanAdoption(
   const siblings = humans.filter((sibling) => sibling.alive && isPlayerHuman(sibling) && isMinorChild(sibling)
     && (sibling.id === child.id || (child.motherId != null && sibling.motherId === child.motherId)
       || (child.fatherId != null && sibling.fatherId === child.fatherId))
-    && ![sibling.motherId, sibling.fatherId].some((id) => findLivingHuman(humans, id)))
+    && ![sibling.motherId, sibling.fatherId].some((id) => freeParent(humans, id)))
     .sort((a, b) => a.id - b.id);
   const alive = humans.filter((human) => isResidenceOccupantEntity(human) && !isImprisoned(human));
   // The Leader's House is not an orphan home, so a manor resident is never a guardian here:

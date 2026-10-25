@@ -2,6 +2,12 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A new leader's household takes the manor as one unit, so the outgoing household leaves together and a minor child is never left behind while their parents are moved out.
+
+- **Fixed:** A child whose parents are both serving a sentence is now placed with a guardian instead of being left unplaced, and custody returns to the parent once the sentence ends.
+
+- **Fixed:** The simulation check no longer reports a jailed settler's reserved job post as a missing worker while the workplace roster omits them.
+
 - **Fixed:** A jail sentence no longer costs a member of the leader's household their manor bed: the house they are away from is theirs until release, exactly as for any other home.
 
 - **Fixed:** An adult child no longer trades the family home for a house whose beds a jailed settler still reserves, so the custody move cannot fill a home past the beds a prison sentence already holds.

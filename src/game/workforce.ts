@@ -12,7 +12,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { isWithinAssignableCommute } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
-import { assignMissingResidences } from './residencyReconciliation';
+import { assignMissingResidences, restoreCustodyAfterRelease } from './residencyReconciliation';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
 import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
@@ -833,7 +833,9 @@ export function releasePrisoners(state: WorldState): void {
   if (releasedSettlers.length > 0) {
     // Only the released settlers, never the whole-village convergence: that pass can move the
     // elected leader out of the protected manor. A held bed normally needs nothing here.
-    assignMissingResidences(releasedSettlers, state.buildings, state.entities, state.tick);
+    const homecoming = releasedSettlers.flatMap((parent) =>
+      restoreCustodyAfterRelease(parent, state.entities));
+    assignMissingResidences([...releasedSettlers, ...homecoming], state.buildings, state.entities, state.tick);
     // Normal workforce pulses will fill newly available staff slots.
   }
 }

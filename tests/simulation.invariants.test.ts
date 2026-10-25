@@ -99,6 +99,13 @@ describe('workforce invariants', () => {
     expect(errors.some((e) => e.includes('missing from that workplace'))).toBe(true);
   });
 
+  it("accepts a prisoner's reserved post while the workplace roster omits them", () => {
+    const prisoner = human(1, { workerBuildingId: 2, prisonBuildingId: 3, prisonerUntilTick: 100 });
+    const farm = building(2, BuildingType.Farm, { occupants: [] });
+    const prison = building(3, BuildingType.Prison, { occupants: [1] });
+    expect(collectSimulationInvariantErrors(state([prisoner], [farm, prison]))).toEqual([]);
+  });
+
   it('reports a human listed in workplace occupants without the matching workerBuildingId', () => {
     const worker = human(1, { workerBuildingId: 3 });
     const farmA = building(2, BuildingType.Farm, { occupants: [1] });

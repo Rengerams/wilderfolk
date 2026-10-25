@@ -6,7 +6,8 @@
  * orphaned bonds), this module checks the *ownership* invariants:
  *
  *   - a living human appears in at most one workplace/crew occupants list
- *   - `workerBuildingId` ↔ workplace occupants agree in both directions
+ *   - `workerBuildingId` ↔ workplace occupants agree in both directions, except
+ *     a prisoner's post, which is reserved while the workplace roster omits them
  *   - `residenceBuildingId` ↔ residence occupants agree in both directions
  *   - no stale references to demolished/missing buildings or entities
  *   - pregnancy state has a valid `pregnancyDueProgress` (and non-pregnant
@@ -167,7 +168,8 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
         errors.push(
           `human ${id} workerBuildingId ${entity.workerBuildingId} is not a completed workplace (${site.type})`,
         );
-      } else if (!site.occupants.includes(id)) {
+      } else if (!site.occupants.includes(id) && entity.prisonBuildingId == null) {
+        // A prisoner's post is reserved, not staffed, so the workplace roster omits them.
         errors.push(
           `human ${id} workerBuildingId ${entity.workerBuildingId} missing from that workplace's occupants`,
         );

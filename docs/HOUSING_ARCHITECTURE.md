@@ -83,6 +83,11 @@ Every move is a `relocateHousehold` decision with phase and reason `leader`: an 
 office no longer entitles, and a move-in of an entitled member without a bed there. A jailed settler is
 never evicted — the sentence holds their bed, so the manor decides about them again on release.
 
+An eviction moves **households**, not settlers one at a time (`evictionHouseholds`): a minor leaves with the
+custodian who is also leaving, so a succession never strands a child in the manor after their family is
+moved out. The custodian check would refuse that lone move anyway; grouping it is what makes the eviction
+succeed for the whole household instead of leaving the child behind.
+
 The manor never counts its bed cap: it seats the whole entitled household, exactly as the capacity phase
 never evicts from it. Every other check applies — a refused move leaves the settler where they are, and the
 decision is logged in the run's report.
@@ -95,10 +100,15 @@ Nothing is placed here — repair and placement are different decisions.
 
 ### 3. Guardianship
 
-Every minor without a living parent gets custody resolved once for the whole sibling set
+Every minor without a **free** parent gets custody resolved once for the whole sibling set
 (`ensureOrphanAdoption`: living relative, then grandparent of either gender, then a suitable couple, then a
 single guardian), and the guardian's household is placed as one. A child is never seated alone before this
 runs, and the Leader's House is never a guardianship destination.
+
+A jailed parent is away, not gone (`freeParent`): while both parents serve a sentence the minor is part of
+this phase like an orphan, and the adoption is a stand-in. On release the parent takes their minors back —
+`restoreCustodyAfterRelease` clears the stand-in links and the housing pass seats the child with them again.
+An adoption that replaced a **dead** parent is permanent and is never cleared this way.
 
 ### 4. Capacity
 
@@ -282,6 +292,10 @@ A sentence is not a housing decision. `prisonBuildingId` is set; `residenceBuild
 * The post is held: the colony does not refill a job that still has an owner, and the prisoner produces
   nothing while jailed.
 * A prisoner is not on a construction crew, so a building site never counts them as a builder.
+* The reserved post is not a staffing gap: the workplace roster omits a prisoner, and the simulation
+  invariant exempts that settler instead of reporting a missing worker.
+* Minor children are the exception to "no housing event": while both parents serve, custody is a stand-in
+  (§2 phase 3) and release returns it.
 * Release is uneventful: the settler walks home to the house that never changed.
 * An imprisonment alone never relocates the household, and an imprisoned leader keeps the manor.
 
