@@ -186,6 +186,12 @@ on the same ledger: when phase `adult-child` settles a household, phase `commute
 during that run. The commute pass checks protection before pricing routes. This only protects one run:
 future days can still optimize an eligible home, subject to the commute thresholds and quota.
 
+**No redundant optional evaluations.** The leader household is excluded from ordinary assignment once
+the manor phase has settled it. The adult-child pass skips settlers already recorded by an earlier phase
+before collecting their households. The commute pass filters settled households before preparing its
+route index or pricing travel; an adult-child move cannot trigger a second commute move in that run.
+Mandatory corrections remain eligible when a real invariant needs repairing.
+
 **No re-entry.** `relocateHousehold` refuses a destination the household has already lived in during this
 run. Together with protection this makes the pipeline idempotent: running it twice on the same state
 produces zero relocations the second time, which is exactly what `tests/housingAuthority.pipeline.test.ts`
