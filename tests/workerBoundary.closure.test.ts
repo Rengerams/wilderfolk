@@ -349,6 +349,9 @@ describe('worker boundary closure', () => {
     hydrateWorldRuntimeCaches(authority);
     assertHouse(worker);
     const display = hydrateWorldRuntimeCaches(structuredClone(worker));
+    adoptSimSeedFromWorld(worker);
+    gameTick(worker);
+    assertHouse(worker);
     const delta = extractSimTickDelta(worker, worker.entities.filter((e) => e.alive), { headless: true, cloneMode: 'transfer' });
     applySimTickDelta(display, structuredClone(delta), { cloneMode: 'transfer' });
     assertHouse(display);
@@ -359,6 +362,8 @@ describe('worker boundary closure', () => {
     const restored = loadGameFromParsed(parsed.parsed);
     expect(restored).not.toBeNull();
     if (!restored) throw new Error('Save failed to restore');
+    assertHouse(restored.world);
+    gameTick(restored.world);
     assertHouse(restored.world);
   });
 
