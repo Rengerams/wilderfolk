@@ -4,6 +4,7 @@ import type { ResidenceOccupancy } from './residencyOccupancy';
 import { estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import {
   areCloseKin,
+  findLivingHuman,
   collectFamilyMembers,
   collectMinorHousehold,
   collectOwnHousehold,
@@ -41,11 +42,6 @@ interface PickResidenceOptions {
 
 export function listPlayerResidences(buildings: Building[]): Building[] {
   return buildings.filter((b) => isResidenceBuilding(b) && b.faction !== 'rival');
-}
-
-function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
-  if (id === undefined) return undefined;
-  return humans.find((h) => h.id === id && h.alive);
 }
 
 /** The one least-crowded-residence rule; every couple pick asks this owner for its verdict. */
