@@ -55,8 +55,9 @@ The project will continue to evolve toward a complete, practical, and accessible
 ---
 
 The application lives in this folder and shares no code, build or stored data with the Wilderfolk game app
-in the repository root. The rest of this readme documents what it does today, how to run it, and how the
-Windows installer is built.
+in the repository root. [`ARCHITECTURE.md`](ARCHITECTURE.md) documents in depth how the program is put
+together — layers, document model, rendering and writing pipelines, storage and the desktop shell. The
+rest of this readme documents what it does today, how to run it, and how the Windows installer is built.
 
 ## What it does
 
@@ -69,7 +70,7 @@ Windows installer is built.
 | Printing | The whole document from the File menu or Ctrl+P, one sheet per page, exactly as it saves |
 | Editing | Text boxes, highlights, rectangles, freehand drawing, placed pictures — move, resize, restyle, undo/redo |
 | Pictures | Copy the picture inside any region of a PDF out into an editable image object |
-| Details | Title, author, subject, keywords, creator, producer, creation date, modification date — all editable, cleared when you empty a field |
+| Details | Title, author, subject, keywords, creator, producer, creation date, modification date — all editable, cleared when you empty a field; every extra Info-dictionary tag (custom tags included) is listed and editable too, with the raw XMP packet shown for reference |
 | Text in a file | Find and replace text that is already inside a PDF, matching the page's paper and ink colours |
 | Forms | Read and fill the AcroForm fields of a fixed template, optionally flattening the values |
 | Signing | Draw a signature with pen, mouse or finger or type one in a handwriting style, then place it on the page |
@@ -103,7 +104,10 @@ npm run desktop    # the same editor in the Windows desktop shell (needs Rust + 
 ## Install on Windows
 
 The desktop shell is in [`src-tauri/`](src-tauri), a Tauri 2 application that loads the built editor and
-packages it as a normal Windows program. `npm run installer` produces two real installers:
+packages it as a normal Windows program. Its permission setup lives in
+[`src-tauri/capabilities/default.json`](src-tauri/capabilities/default.json) (core defaults plus the
+dialog and file-system plugins, which are registered in the shell's Rust side). `npm run installer`
+produces two real installers:
 
 | File | What it is |
 | :--- | :--- |
@@ -195,3 +199,6 @@ pdf-editor/
   src-tauri/        Tauri desktop shell and app icons that build the Windows installer
   tests/            unit tests for geometry, PDF writing, text replacement and form filling
 ```
+
+For a deeper walkthrough of the design — the document model, undo/redo, the render and save
+pipelines, OCR, storage and the Tauri shell — see [`ARCHITECTURE.md`](ARCHITECTURE.md).
