@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Saving to the local library now reports success only once the record is truly stored; a failed write surfaces an error instead of a silent save.
+
 - **Fixed:** PDF Studio now includes its metadata-tag reader and regression tests in source control, so fresh checkouts can build the Windows installer without a missing-module error.
 
 - **Changed:** The editor's type-aware lint scan now completes with zero warnings and zero errors; menu triggers register in an effect and page link state is keyed to its page.

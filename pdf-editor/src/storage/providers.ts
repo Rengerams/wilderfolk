@@ -66,9 +66,16 @@ async function runRequest<T>(
   return new Promise<T>((resolve, reject) => {
     const transaction = database.transaction(RECORD_STORE, mode)
     const request = build(transaction.objectStore(RECORD_STORE))
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(new Error(t("The local library could not be written.")))
-    transaction.oncomplete = () => database.close()
+    // Success is signalled only when the transaction commits; an abort must surface as an error.
+    transaction.oncomplete = () => {
+      database.close()
+      resolve(request.result)
+    }
+    transaction.onabort = () => {
+      database.close()
+      reject(request.error ?? new Error(t("The local library could not be written.")))
+    }
+    request.onerror = () => reject(request.error ?? new Error(t("The local library could not be written.")))
   })
 }
 
