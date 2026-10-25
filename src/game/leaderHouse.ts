@@ -19,16 +19,15 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { collectLeaderDescendants, getChildCustodian, isMinorChild } from './householdComposition';
 import { isPlayerHuman } from './playerHuman';
-import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
+import { getResidenceCapacity, isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
+import { leaderHouseBuildings } from './leaderHouseExpansion';
 
 export { LEADER_OCCUPATION };
 
 /** The one completed player-owned Leader's House, if built. */
 export function findLeaderHouse(buildings: Building[]): Building | undefined {
-  return buildings.find(
-    (b) => b.type === BuildingType.LeaderHouse && b.completed && b.faction !== 'rival',
-  );
+  return leaderHouseBuildings(buildings).find((building) => building.completed);
 }
 
 function leaderDisplayName(leader: Entity): string {
@@ -114,13 +113,16 @@ function evictionHouseholds(departing: Entity[]): Entity[][] {
 export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger): Entity[] {
   const house = findLeaderHouse(state.buildings);
   if (!house) return [];
+  const manorBuildings = leaderHouseBuildings(state.buildings).filter((building) => building.completed);
+  const manorIds = new Set(manorBuildings.map((building) => building.id));
+  const annex = manorBuildings.find((building) => building.id !== house.id);
 
   // Keep the late leader's surviving family in the manor throughout the vacancy.
   // The succession election owns the handover: until a living successor is elected,
   // do not replace the residents with an empty entitlement set.
   const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
   if (!incumbent?.alive) {
-    const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
+    const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? manorBuildings.flatMap((building) => building.occupants));
     const context = leaderHousingContext(state, ledger);
     for (const person of state.entities) {
       if (person.alive && isPlayerHuman(person) && !isImprisoned(person) && entitledIds.has(person.id)) {
@@ -152,7 +154,7 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   //Evict settlers who are no longer part of the official leader's household
   const departing = state.entities.filter(
     (e) => e.alive && isPlayerHuman(e) && !isImprisoned(e)
-      && e.residenceBuildingId === house.id && !entitledIds.has(e.id),
+      && e.residenceBuildingId != null && manorIds.has(e.residenceBuildingId) && !entitledIds.has(e.id),
   );
   for (const unit of evictionHouseholds(departing)) {
     if (!relocateHousehold(unit, undefined, 'leader', 'leader', context)) continue;
@@ -165,7 +167,7 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   const settledIds = new Set<number>();
   for (const member of atHome) {
     const ownHome = member.residenceBuildingId;
-    if (ownHome == null || ownHome === house.id || isMinorChild(member)) continue;
+    if (ownHome == null || manorIds.has(ownHome) || isMinorChild(member)) continue;
     if (member.id === state.villageLeaderId || member.partnerId === state.villageLeaderId) continue;
     settledIds.add(member.id);
     const partner = member.partnerId == null ? undefined : atHome.find((m) => m.id === member.partnerId);
@@ -179,13 +181,18 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
       && custodian.residenceBuildingId === member.residenceBuildingId) settledIds.add(member.id);
   }
 
-  //Move in all members of the current leader's household
-  for (const member of atHome) {
-    // The manor seats the leader, their spouse and anyone without a bed of their own.
-    if (settledIds.has(member.id)) continue;
-    if (member.residenceBuildingId !== house.id) {
-      // The write releases the old home's reserved slot before displaced residents are rehoused.
-      if (relocateHousehold([member], house.id, 'leader', 'leader', context)) movedIn = true;
+  // Keep the leader in the original manor; seat overflow in its linked annex when completed.
+  const toSeat = atHome.filter((member) => !settledIds.has(member.id))
+    .sort((a, b) => {
+      const rank = (person: Entity) => person.id === state.villageLeaderId ? 0
+        : person.partnerId === state.villageLeaderId ? 1 : 2;
+      return rank(a) - rank(b) || a.id - b.id;
+    });
+  const mainCapacity = getResidenceCapacity(house);
+  for (const [index, member] of toSeat.entries()) {
+    const destination = annex && index >= mainCapacity ? annex : house;
+    if (member.residenceBuildingId !== destination.id) {
+      if (relocateHousehold([member], destination.id, 'leader', 'leader', context)) movedIn = true;
     }
   }
 
