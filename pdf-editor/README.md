@@ -132,6 +132,15 @@ npm ci
 npm run installer   # tauri build; fetches NSIS and WiX itself
 ```
 
+The build signs the installers and executables automatically when signing details are present in the
+environment; without them it produces unsigned files exactly as before. Provide either a certificate
+file and its export password (`PDF_STUDIO_SIGN_PFX` plus `PDF_STUDIO_SIGN_PFX_PASSWORD`) or the
+thumbprint of a code-signing certificate already imported into the Windows user store
+(`PDF_STUDIO_SIGN_THUMBPRINT`, visible under *Personal/Certificates* in `certmgr.msc`). Optionally set
+`PDF_STUDIO_SIGN_TIMESTAMP_URL` (defaults to Comodo's timestamp service). An EV-certificate token or
+another custom signing method can be wired in by replacing the signing command in
+`src-tauri/tauri.conf.json`.
+
 The `PDF Studio installer` workflow builds the same files on a Windows runner:
 
 * **Download a release** — push a `pdf-studio-v*` tag and the workflow publishes the `.exe` and `.msi` on
