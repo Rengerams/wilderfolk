@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** PDF Studio now includes its metadata-tag reader and regression tests in source control, so fresh checkouts can build the Windows installer without a missing-module error.
+
 - **Changed:** The editor's type-aware lint scan now completes with zero warnings and zero errors; menu triggers register in an effect and page link state is keyed to its page.
 
 - **Changed:** The dev server config is now machine-local without sandbox logic; the sandbox preview runs its own config file instead.
