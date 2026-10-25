@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio signs documents with a drawn or typed signature, and places professional stamps like approved, draft, confidential or paid as pictures you can move, resize or remove.
+
 - **Added:** PDF Studio numbers pages where you want them — six edges, four number styles, a starting number and a page range — and the numbers are ordinary text you can move or delete afterwards.
 
 - **Added:** PDF Studio stamps a watermark on every page in your own wording, with its size, colour, angle and opacity, and takes it away again on request.

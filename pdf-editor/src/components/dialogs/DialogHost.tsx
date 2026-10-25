@@ -12,6 +12,9 @@ import { OcrDialog } from "./OcrDialog"
 import { PageNumbersDialog } from "./PageNumbersDialog"
 import { ScanDialog } from "./ScanDialog"
 import { SettingsDialog } from "./SettingsDialog"
+import { SignatureDialog } from "./SignatureDialog"
+import { SplitDialog } from "./SplitDialog"
+import { StampDialog } from "./StampDialog"
 import { WatermarkDialog } from "./WatermarkDialog"
 
 export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
@@ -44,6 +47,12 @@ export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
       return <WatermarkDialog />
     case "extract":
       return <ExtractPagesDialog />
+    case "signature":
+      return <SignatureDialog />
+    case "stamp":
+      return <StampDialog />
+    case "split":
+      return <SplitDialog />
     case "exit":
       return <ExitDialog />
     case "closed":

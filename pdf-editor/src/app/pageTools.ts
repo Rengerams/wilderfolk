@@ -1,7 +1,8 @@
 import { t } from "../i18n/translate"
+import { markRect, type RasterMark } from "../pdf/markImages"
 import { createId, sanitizeFileName } from "../pdf/pages"
 import { pageNumberStamps, type PageNumberOptions } from "../pdf/pageStamps"
-import { useEditor } from "./store"
+import { selectActivePage, useEditor } from "./store"
 
 /** Stamps page numbers on the chosen range; returns how many pages were stamped. */
 export function applyPageNumbers(options: PageNumberOptions): number {
@@ -9,6 +10,22 @@ export function applyPageNumbers(options: PageNumberOptions): number {
   const stamps = pageNumberStamps(state.doc.pages, options)
   state.addAnnotations(stamps)
   return stamps.length
+}
+
+/** Places a signature or stamp picture on the current page, selected and ready to move. */
+export function insertMarkImage(mark: RasterMark, widthFraction: number): boolean {
+  const state = useEditor.getState()
+  const page = selectActivePage(state)
+  if (!page) return false
+  state.addAnnotation({
+    id: createId("ann"),
+    pageId: page.id,
+    type: "image",
+    rect: markRect(mark, page, widthFraction),
+    dataUrl: mark.dataUrl,
+    mime: "image/png",
+  })
+  return true
 }
 
 /** Opens the chosen range as its own document; returns how many pages it holds. */

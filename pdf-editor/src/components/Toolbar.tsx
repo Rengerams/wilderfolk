@@ -18,7 +18,9 @@ import {
   RotateCw,
   Save,
   ScanText,
+  Signature,
   Square,
+  Stamp,
   Trash2,
   Type,
   Undo2,
@@ -227,6 +229,27 @@ export function Toolbar() {
         title={t("Recognize text on this document")}
       >
         <ScanText size={16} /> OCR
+      </button>
+
+      <span className="toolbar-separator" />
+
+      <button
+        type="button"
+        className="btn btn-quiet"
+        onClick={() => useEditor.getState().openDialog("signature")}
+        disabled={pageCount === 0}
+        title={t("Add your signature")}
+      >
+        <Signature size={16} /> {t("Sign")}
+      </button>
+      <button
+        type="button"
+        className="btn btn-quiet"
+        onClick={() => useEditor.getState().openDialog("stamp")}
+        disabled={pageCount === 0}
+        title={t("Add a stamp")}
+      >
+        <Stamp size={16} /> {t("Stamp")}
       </button>
 
       <span className="toolbar-separator" />

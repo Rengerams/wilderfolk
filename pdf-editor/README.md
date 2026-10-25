@@ -31,6 +31,7 @@ PDF Studio brings essential document management and editing tools together in a 
 - **Document Management:** Modify document properties and reorganize pages.
 - **Image Extraction:** Extract embedded images directly from PDF documents.
 - **Scanning & OCR:** Digitize paper documents and convert scanned content into searchable PDFs.
+- **Signing & Stamps:** Draw or type a signature and place professional document stamps.
 
 ## Project Vision
 
@@ -69,6 +70,8 @@ Windows installer is built.
 | Details | Title, author, subject, keywords, creator, producer, creation date, modification date — all editable, cleared when you empty a field |
 | Text in a file | Find and replace text that is already inside a PDF, matching the page's paper and ink colours |
 | Forms | Read and fill the AcroForm fields of a fixed template, optionally flattening the values |
+| Signing | Draw a signature with pen, mouse or finger or type one in a handwriting style, then place it on the page |
+| Stamps | Professional stamps (approved, rejected, draft, confidential, paid, void, reviewed, received) with your own wording, colour, date and tilt |
 | Scanning | Scanner bridge (flatbed/feeder, A4–Legal, 150–600 dpi, native scanner window), camera capture, or scanned files |
 | OCR | Recognize text per page or for the whole document, review and correct it line by line, then keep it as an invisible searchable layer |
 | Storage | Local library on this PC by default; optional own cloud endpoint; optional AES-256 encryption with a passphrase |

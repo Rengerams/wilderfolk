@@ -140,6 +140,9 @@ export type DialogKind =
   | "pageNumbers"
   | "watermark"
   | "extract"
+  | "signature"
+  | "stamp"
+  | "split"
   | null
 
 export type ThemeName = "light" | "dark"

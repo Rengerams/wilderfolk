@@ -191,6 +191,11 @@ export function MenuBar() {
         { label: t("Save"), shortcut: "Ctrl+S", onSelect: () => void commands.save(), disabled: pageCount === 0 },
         { label: t("Save a copy…"), onSelect: () => void commands.saveCopy(), disabled: pageCount === 0 },
         {
+          label: t("Split document…"),
+          onSelect: () => useEditor.getState().openDialog("split"),
+          disabled: pageCount === 0,
+        },
+        {
           label: t("Export as…"),
           shortcut: "Ctrl+E",
           onSelect: () => useEditor.getState().openDialog("export"),
@@ -290,6 +295,17 @@ export function MenuBar() {
         { label: t("Document properties…"), onSelect: commands.editProperties },
         { label: t("Recognize text (OCR)…"), onSelect: commands.runOcr },
         { label: t("Fill form fields…"), onSelect: () => useEditor.getState().openDialog("form") },
+        "separator",
+        {
+          label: t("Signature…"),
+          onSelect: () => useEditor.getState().openDialog("signature"),
+          disabled: pageCount === 0,
+        },
+        {
+          label: t("Stamp…"),
+          onSelect: () => useEditor.getState().openDialog("stamp"),
+          disabled: pageCount === 0,
+        },
         "separator",
         { label: t("Extract text to .txt"), onSelect: () => void commands.exportAs("txt"), disabled: pageCount === 0 },
         { label: t("Copy picture from page…"), onSelect: () => setTool("region"), disabled: pageCount === 0 },
