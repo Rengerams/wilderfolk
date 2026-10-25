@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's menus now sit in a menu bar of their own below the window title, so File, Edit, View and the rest no longer crowd the document name, and they can be walked with the arrow keys.
+
 - **Added:** PDF Studio prints the whole document from the File menu or Ctrl+P, one sheet per page, exactly as it will be saved with every mark in place.
 
 - **Added:** Text in an opened PDF can now be selected and copied, and the links a PDF carries — web addresses and cross-references to other pages — can be clicked.

@@ -25,6 +25,7 @@
   --radius: 6px;
   --radius-lg: 10px;
   --titlebar-h: 42px;
+  --menubar-h: 30px;
   --toolbar-h: 46px;
   --statusbar-h: 26px;
   --rail-w: 176px;
@@ -168,9 +169,14 @@ textarea {
 /* ---------- menus ---------- */
 
 .menubar {
+  min-height: var(--menubar-h);
   display: flex;
   align-items: center;
   gap: 2px;
+  padding: 0 8px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
 }
 
 .menu {
@@ -180,9 +186,11 @@ textarea {
 .menu-trigger {
   background: transparent;
   border: 0;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .menu-trigger:hover {

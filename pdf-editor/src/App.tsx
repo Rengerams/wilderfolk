@@ -4,6 +4,7 @@ import { useEditor } from "./app/store"
 import { useCommands } from "./app/useCommands"
 import { DialogHost } from "./components/dialogs/DialogHost"
 import { InspectorPanel } from "./components/InspectorPanel"
+import { MenuBar } from "./components/MenuBar"
 import { PageViewer } from "./components/PageViewer"
 import { StatusBar } from "./components/StatusBar"
 import { ThumbnailRail } from "./components/ThumbnailRail"
@@ -157,6 +158,7 @@ export function App() {
   return (
     <div className="app">
       <TitleBar />
+      <MenuBar />
       <Toolbar />
       <div className="app-body">
         {showThumbnails ? <ThumbnailRail /> : null}
