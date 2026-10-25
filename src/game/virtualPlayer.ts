@@ -1,5 +1,6 @@
 
 import type { Building, HuntingSpotPrey, Resources, VisitorGroup, WorldState } from './gameTypes';
+import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
@@ -399,18 +400,14 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
 
 function decideLeaderHouse(state: WorldState): VirtualPlayerDecision | null {
   const type = BuildingType.LeaderHouse;
-  // One may already stand, or be on the way: `unique` means only ever one, so a
-  // second proposal would be refused every hour. Rival-owned copies do not count.
-  if (state.buildings.some((building) => building.type === type && building.faction !== 'rival')) {
-    return null;
-  }
+  if (!canBuildLeaderHouse(state.buildings)) return null;
   if (!canAfford(state, BUILDING_CONFIGS[type].cost)) return null;
   const spot = findPlacementSpot(state, type, 0);
   if (!spot) return null;
 
   return {
     command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
-    reason: "build the Leader's House — free, and the office has no residence yet",
+    reason: state.buildings.some((b) => b.type === type) ? "build the Leader's House extension — the leader's household exceeds 20" : "build the Leader's House — free, and the office has no residence yet",
   };
 }
 
