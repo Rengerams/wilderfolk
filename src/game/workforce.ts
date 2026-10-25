@@ -594,7 +594,15 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
-    // A sentence keeps the post: only attendance stops, so the pointer and job are left in place.
+    // A sentence keeps the post, but a construction crew has no post to hold: free the crew slot.
+    if (isImprisoned(human)) {
+      for (const building of buildings) {
+        if (!building.completed && building.occupants.includes(human.id)) {
+          building.occupants = building.occupants.filter((id) => id !== human.id);
+        }
+      }
+      continue;
+    }
     // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
     if (!hasWorkAssignment(human) || human.workerBuildingId == null) continue;
     const workplace = buildingById.get(human.workerBuildingId);
