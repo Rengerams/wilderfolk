@@ -5,8 +5,8 @@
   "identifier": "com.rengervegting.pdfstudio",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://127.0.0.1:3000",
-    "beforeDevCommand": "npm run dev -- --host 127.0.0.1 --port 3000",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's Windows build now pins its Tauri engine to exact released versions and uses the current Rust edition, so installer builds are reproducible.
+
 - **Changed:** Saving, exporting and splitting now build the PDF on a background thread, so the interface stays responsive while long documents are written.
 
 - **Added:** PDF Studio's Windows build now bundles the file-system and dialog plugins, so the editor can open save dialogs and touch files through Tauri's permission system.
