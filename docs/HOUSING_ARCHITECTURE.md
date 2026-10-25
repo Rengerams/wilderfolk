@@ -31,14 +31,15 @@ Today there is exactly one of each thing that matters:
 No phase function is exported as a scheduler. `tryMoveOutOfFamilyHome`,
 `rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`, `rebalanceOvercrowdedResidences` and
 `relocateHouseholdsForCommute` are exported only so tests and the benchmark can call them directly; inside
-the simulation they run only from `assignMissingResidences`.
+the simulation they run only from `assignMissingResidences`. The manor hold is the one decision a run needs
+supplied from outside — `applyLeaderHousePhase` — because its rule lives in `leaderHouse.ts`; the sweep owns
+when it runs and hands it the run's ledger.
 
 ```mermaid
 flowchart TD
   E[Event / command / load / daily pulse] --> S[assignMissingResidences]
-  E --> P0[1 leader — syncLeaderHouseResidency]
-  P0 --> S
-  S --> P1[2 integrity]
+  S --> P0[1 leader — applyLeaderHousePhase]
+  P0 --> P1[2 integrity]
   P1 --> P2[3 guardianship]
   P2 --> P3[4 capacity]
   P3 --> P4[5 homeless]
@@ -47,14 +48,16 @@ flowchart TD
   P0 & P1 & P2 & P3 & P4 & P5 & P6 --> L[(HousingLedger: settled · visited · report)]
   L --> W[relocateHousehold → moveResident]
   W --> R[syncResidenceOccupants · invariant audit]
+  E --> X[election · succession · Moon Howler reversion · manor completed]
+  X --> Y[syncLeaderHouseResidency — phase 1 alone, same runner]
 ```
 
 ---
 
 ## 2. The phases, in order
 
-`HOUSING_PHASE_ORDER` is the declaration; `assignMissingResidences` runs every phase in it except
-`leader`, which `syncLeaderHouseResidency` runs just ahead of the sweep. A phase sees the previous phase's
+`HOUSING_PHASE_ORDER` is the declaration, and `assignMissingResidences` runs every phase in it — `leader`
+first, through the `leaderPhase` decision the assignment layer supplies. A phase sees the previous phase's
 result and nothing else's intent.
 
 Class matters: **mandatory** phases fix something that is wrong. **Optional** phases only improve something
@@ -73,11 +76,12 @@ that is already acceptable, and they are the ones that can be withheld (§3).
 ### 1. Leader
 
 The manor is a hold, not a placement: the leader's household occupies it and nobody else does.
-`syncLeaderHouseResidency` is the phase's driver — it runs from the assignment layer just before the sweep,
-and from an election, a succession or a Moon Howler reversion, which cannot wait for a pulse. Every move it
-makes is a `relocateHousehold` decision with phase and reason `leader`: an eviction of a settler the office
-no longer entitles, and a move-in of an entitled member without a bed there. Evicted settlers are then
-seated by `assignMissingResidences` like anyone else.
+`applyLeaderHousePhase` holds the rule; the assignment sweep runs it as phase 1 on its own ledger, so a
+sweep is one decision process from the manor to the commute. `syncLeaderHouseResidency` runs that same
+phase alone — through the same `runHousingPhase` and `relocateHousehold` — for an election, a succession, a
+Moon Howler reversion or a completed manor, which cannot wait for a pulse; it then seats whoever it evicted.
+Every move is a `relocateHousehold` decision with phase and reason `leader`: an eviction of a settler the
+office no longer entitles, and a move-in of an entitled member without a bed there.
 
 The manor never counts its bed cap: it seats the whole entitled household, exactly as the capacity phase
 never evicts from it. Every other check applies — a refused move leaves the settler where they are, and the
@@ -188,13 +192,14 @@ becomes writes. Before a single member moves it verifies:
   into the manor skips this, as the capacity phase already never evicts from it);
 * `custodianTravelsAlong` — no minor in the household would land where their living custodian is not.
 
-If any check fails, **nobody** moves. Only then does each member go through `moveResident`. If the writer
-refuses every member (a stale guard, a leader-house rule), the decision is rolled out of the report rather
-than reported as done: a refused write is not a decision.
+If any check fails, **nobody** moves. The same holds per member: `residenceMoveRefused` is the writer's own
+guard, so a household with one member the write would refuse (for example a member still living in the
+Leader's House under an ordinary reason) is cancelled before anyone leaves, not after. The writes then go
+through `writeResidence`, and if any member is left behind the move is rolled back for the others and stays
+out of the report: a partial result is never reported as a decision.
 
-`moveResident` stays the single residence write. It keeps the occupancy index, the household traits and the
-building's `occupants` roster consistent, carries the reason, and refuses ordinary moves out of or into the
-Leader's House.
+`moveResident` stays the single residence write for one settler: it applies the guard above, then writes
+through `writeResidence` (occupancy index, household traits, `occupants` roster, and the reason).
 
 ### Who calls it
 
@@ -236,7 +241,10 @@ surfaces as a named failure with the settler or home id in it, not as a househol
 | Building placed, upgraded, demolished | `buildingPlacementActions.ts` / `buildingMaintenanceActions.ts` | full convergence |
 | Births, arrivals | `dailyPopulation.ts` (with tick) | newcomers are homeless, so the global fill seats them now |
 | Divorce, marriage, leadership, arrest, release, moon-form | their owner modules | full convergence after the event's own write |
-| Leader elected, dies, or reverts from Moon Howler form | `leaderHouse.syncLeaderHouseResidency` | the `leader` phase moves the entitled household, then the sweep seats the evicted |
+| Leader elected, dies, or reverts from Moon Howler form | `leaderHouse.syncLeaderHouseResidency` | the `leader` phase alone moves the entitled household, then a convergence seats the evicted |
+
+The four-daily assignment pulse runs the manor hold as the sweep's first phase, so an ordinary day needs no
+second leader call at all.
 
 The pulse short-circuits when the housing signature (residences plus each settler's home, partner, parents,
 age class and prison) is unchanged since the last sweep, so a quiet colony costs nothing.
@@ -295,7 +303,8 @@ A rule belongs in exactly one of these. If a housing rule appears in a caller, i
    move part of a household through it.
 4. **Take the ledger.** Every optional move asks `isHousingUnitProtected` first; every phase is wrapped so
    its moves land in the report.
-5. **Do not export a scheduler.** Phase functions stay reachable only from `assignMissingResidences`.
+5. **Do not export a scheduler.** Phase functions stay reachable only from `assignMissingResidences`; the
+   manor hold is passed in as the sweep's `leaderPhase` decision instead of running on its own schedule.
 6. **Register the function** in `OWNERSHIP_OVERVIEW.md` (one owner, always) and pin the boundary in
    `tests/housingAuthority.pipeline.test.ts` — protection, whole-household refusal, or idempotency.
 

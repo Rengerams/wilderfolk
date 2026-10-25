@@ -10,7 +10,7 @@ import {
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
-import { collectLeaderHousehold, findLeaderHouse, syncLeaderHouseResidency } from './leaderHouse';
+import { applyLeaderHousePhase, collectLeaderHousehold, findLeaderHouse } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
@@ -111,17 +111,15 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
   if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
-    assignMissingResidences(eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry);
+    // The manor hold is the sweep's first phase: one run, one ledger, one write path.
+    assignMissingResidences(
+      eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry,
+      (ledger) => applyLeaderHousePhase(world, ledger),
+    );
     lastHousingSignature.set(world, housingSignature(world, allHumans));
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');
-  // Housing sweeps run four times per day, after the daily leader-house repair.
-  // Restore the leader's protected residence after each sweep, not a day later.
-  const startedsyncLeaderHouseResidency = profileStart();
-  syncLeaderHouseResidency(world);
-  profileEnd('assign.syncLeaderHouseResidency', startedsyncLeaderHouseResidency);
-  checkLeader('syncLeaderHouseResidency');
   // Assigning or relocating residents changes residenceBuildingId after the opening
   // occupant sync. Rebuild the authoritative occupancy lists once more at the end
   // of the housing pass so snapshots and invariants cannot see stale beds.

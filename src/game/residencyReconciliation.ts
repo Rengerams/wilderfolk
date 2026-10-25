@@ -110,6 +110,26 @@ export function standaloneMoveContext(
   };
 }
 
+const ORDINARY_MOVE_REASONS: ReadonlySet<ResidenceMoveReason> = new Set<ResidenceMoveReason>([
+  'assignment', 'family', 'guardian', 'commute', 'player',
+]);
+
+/** The residence write's own guard, exposed so a household can be checked member by member. */
+function residenceMoveRefused(
+  human: Entity,
+  toId: number | undefined,
+  reason: ResidenceMoveReason,
+  buildings?: Building[],
+): boolean {
+  if (human.residenceBuildingId === toId) return false;
+  const previous = buildings?.find((building) => building.id === human.residenceBuildingId);
+  const target = buildings?.find((building) => building.id === toId);
+  if (previous && isLeaderHouseResidence(previous) && ORDINARY_MOVE_REASONS.has(reason)) return true;
+  if (target && (!isResidenceBuilding(target) || target.faction === 'rival')) return true;
+  if (target && isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return true;
+  return false;
+}
+
 /** The joint checks every whole-household relocation passes before any member's residence moves. */
 function householdMayMove(
   unit: readonly Entity[],
@@ -133,11 +153,10 @@ function householdMayMove(
 function applyHouseholdMove(
   unit: readonly Entity[],
   toId: number | undefined,
-  reason: ResidenceMoveReason,
   context: HousingMoveContext,
 ): void {
   for (const member of unit) {
-    moveResident(member, toId, reason, { occupancy: context.occupancy, traits: context.traits, buildings: context.buildings });
+    writeResidence(member, toId, { occupancy: context.occupancy, traits: context.traits, buildings: context.buildings });
   }
 }
 
@@ -152,11 +171,18 @@ export function relocateHousehold(
   if (unit.length === 0) return false;
   if (isHousingUnitProtected(context.ledger, unit, phase)) return false;
   if (!householdMayMove(unit, toId, reason, context)) return false;
+  // All-or-nothing: one member the write would refuse cancels the move before anyone leaves.
+  if (unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings))) return false;
   const fromId = unit.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
   const homes = unit.map((member) => member.residenceBuildingId);
-  applyHouseholdMove(unit, toId, reason, context);
-  // A writer that refuses every member must not be reported as a decision.
-  if (unit.every((member, index) => member.residenceBuildingId === homes[index])) return false;
+  applyHouseholdMove(unit, toId, context);
+  // A member left behind means a partial write: restore the others instead of reporting a split home.
+  if (unit.some((member) => member.residenceBuildingId !== toId)) {
+    for (let index = 0; index < unit.length; index += 1) {
+      if (unit[index].residenceBuildingId !== homes[index]) writeResidence(unit[index], homes[index], context);
+    }
+    return false;
+  }
   for (const member of unit) {
     const visited = context.ledger.visited.get(member.id) ?? new Set<number>();
     if (fromId !== undefined) visited.add(fromId);
@@ -183,7 +209,8 @@ function beginHousingPhase(ledger: HousingLedger, alive: readonly Entity[]): voi
   ledger.reported.clear();
 }
 
-function runHousingPhase(
+/** Runs one phase through the run's ledger, whether the sweep calls it or an event needs it alone. */
+export function runHousingPhase(
   ledger: HousingLedger,
   phase: HousingPhase,
   alive: readonly Entity[],
@@ -225,21 +252,16 @@ function endHousingPhase(ledger: HousingLedger, phase: HousingPhase, alive: read
   }
 }
 
-/** The sole residence write; keep pass indexes and any supplied residence rosters consistent. */
-export function moveResident(
+/** Unchecked residence write: keeps the occupancy index, traits and occupant rosters consistent. */
+function writeResidence(
   human: Entity,
   toId: number | undefined,
-  reason: ResidenceMoveReason,
   context: { occupancy?: ResidenceOccupancy; traits?: ResidenceTraitsById; buildings?: Building[] } = {},
 ): void {
   const fromId = human.residenceBuildingId;
   if (fromId === toId) return;
   const previous = context.buildings?.find((building) => building.id === fromId);
   const target = context.buildings?.find((building) => building.id === toId);
-  const ordinaryMove = ['assignment', 'family', 'guardian', 'commute', 'player'].includes(reason);
-  if (previous && isLeaderHouseResidence(previous) && ordinaryMove) return;
-  if (target && (!isResidenceBuilding(target) || target.faction === 'rival')) return;
-  if (target && isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return;
   if (context.occupancy) occupancyMove(context.occupancy, fromId, toId);
   if (context.traits) residenceTraitMove(context.traits, human, fromId, toId);
   human.residenceBuildingId = toId;
@@ -249,6 +271,18 @@ export function moveResident(
       target.occupants.push(human.id);
     }
   }
+}
+
+/** The sole residence write for one settler; refuses what the leader-house and rival rules forbid. */
+export function moveResident(
+  human: Entity,
+  toId: number | undefined,
+  reason: ResidenceMoveReason,
+  context: { occupancy?: ResidenceOccupancy; traits?: ResidenceTraitsById; buildings?: Building[] } = {},
+): void {
+  if (human.residenceBuildingId === toId) return;
+  if (residenceMoveRefused(human, toId, reason, context.buildings)) return;
+  writeResidence(human, toId, context);
 }
 
 export function rebuildChildrenIds(humans: Entity[]): void {
@@ -456,7 +490,8 @@ function activeSweepBucket(tick: number): number {
  * the whole colony converges at once — a load, a player command or an event must not wait for a
  * bucket to come round. With one, only that pulse's bucket of already-housed units is swept; the
  * eviction rebalance and the homeless fill below stay global on every call, so a settler who loses a
- * bed is never left outside until the next cycle.
+ * bed is never left outside until the next cycle. `leaderPhase` supplies the manor hold's decision, run
+ * as the first phase on this run's ledger so housing stays one ordered process.
  */
 export function assignMissingResidences(
   humans: Entity[],
@@ -464,6 +499,7 @@ export function assignMissingResidences(
   allHumansForGenealogy?: Entity[],
   sweepTick?: number,
   genealogy?: GenealogyRegistry,
+  leaderPhase?: (ledger: HousingLedger) => void,
 ): HousingReport {
   const residences = listPlayerResidences(buildings);
   const ledger = createHousingLedger();
@@ -484,7 +520,10 @@ export function assignMissingResidences(
 
   rebuildChildrenIds(genealogyPool);
 
-  // Phase 1 — integrity: a reference to a home that is gone or was never a home is not an assignment.
+  // Phase 1 — leader: the manor hold decides on this sweep's own ledger, before any other phase.
+  if (leaderPhase) runHousingPhase(ledger, 'leader', alive, () => leaderPhase(ledger));
+
+  // Phase 2 — integrity: a reference to a home that is gone or was never a home is not an assignment.
   runHousingPhase(ledger, 'integrity', alive, () => {
     const residenceIds = new Set<number>();
     for (const residence of residences) residenceIds.add(residence.id);
@@ -496,14 +535,14 @@ export function assignMissingResidences(
     }
   });
 
-  // Phase 2 — guardianship: a dependent child is placed with a custodian before any optimisation.
+  // Phase 3 — guardianship: a dependent child is placed with a custodian before any optimisation.
   runHousingPhase(ledger, 'guardianship', alive, () => {
     for (const human of alive) {
       if (isMinorChild(human)) ensureOrphanAdoption(human, genealogyPool, residences, undefined, undefined, genealogy, ledger);
     }
   });
 
-  // Phase 3 — capacity: relieve an over-full home before anyone new is seated in the colony.
+  // Phase 4 — capacity: relieve an over-full home before anyone new is seated in the colony.
   runHousingPhase(ledger, 'capacity', alive, () => {
     rebalanceOvercrowdedResidences(residents, residences, ledger);
   });
@@ -515,7 +554,7 @@ export function assignMissingResidences(
     member.residenceBuildingId != null && leaderHouseIds.has(member.residenceBuildingId),
   ));
 
-  // Phase 4 — homeless: seat every household the colony has beds for, relieving capacity as it goes.
+  // Phase 5 — homeless: seat every household the colony has beds for, relieving capacity as it goes.
   beginHousingPhase(ledger, alive);
   if (sweepTick === undefined) {
     for (let pass = 0; pass < 24; pass++) {
@@ -592,7 +631,7 @@ export function assignMissingResidences(
   }
   endHousingPhase(ledger, 'homeless', alive);
 
-  // Phase 5 — adult-child: an option, never a duty; withheld for a household a mandatory phase settled.
+  // Phase 6 — adult-child: an option, never a duty; withheld for a household a mandatory phase settled.
   runHousingPhase(ledger, 'adult-child', alive, () => {
     // Reserved beds count here too: a home a prisoner still holds is not a vacant target.
     rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
@@ -600,7 +639,7 @@ export function assignMissingResidences(
     );
   });
 
-  // Phase 6 — commute: the daily optional improvement, last, thresholded and capped.
+  // Phase 7 — commute: the daily optional improvement, last, thresholded and capped.
   if (sweepTick !== undefined && activeSweepBucket(sweepTick) === RESIDENCE_SWEEP_BUCKETS - 1) {
     runHousingPhase(ledger, 'commute', alive, () => {
       relocateHouseholdsForCommute(

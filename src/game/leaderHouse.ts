@@ -1,10 +1,12 @@
 import {
   assignMissingResidences,
+  createHousingLedger,
+  runHousingPhase,
   standaloneMoveContext,
   relocateHousehold,
   syncResidenceOccupants,
 } from './residencyReconciliation';
-import type { HousingMoveContext } from './residencyReconciliation';
+import type { HousingLedger, HousingMoveContext } from './residencyReconciliation';
 import { listPlayerResidences } from './residencySelection';
 import {
   BuildingType,
@@ -87,14 +89,15 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
 }
 
 /** The `leader` phase's decision context: the manor sets the policy, never the bed cap. */
-function leaderHousingContext(state: WorldState): HousingMoveContext {
+function leaderHousingContext(state: WorldState, ledger: HousingLedger): HousingMoveContext {
   const residents = state.entities.filter((e) => e.alive && isResidenceOccupantEntity(e));
-  return standaloneMoveContext(residents, listPlayerResidences(state.buildings));
+  return standaloneMoveContext(residents, listPlayerResidences(state.buildings), undefined, undefined, ledger);
 }
 
-export function syncLeaderHouseResidency(state: WorldState): void {
+/** The manor hold's decision; returns the settlers it evicted so a caller can seat them. */
+export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger): Entity[] {
   const house = findLeaderHouse(state.buildings);
-  if (!house) return;
+  if (!house) return [];
 
   // Keep the late leader's surviving family in the manor throughout the vacancy.
   // The succession election owns the handover: until a living successor is elected,
@@ -102,14 +105,14 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
   if (!incumbent?.alive) {
     const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
-    const context = leaderHousingContext(state);
+    const context = leaderHousingContext(state, ledger);
     for (const person of state.entities) {
       if (person.alive && isPlayerHuman(person) && !isImprisoned(person) && entitledIds.has(person.id)) {
         relocateHousehold([person], house.id, 'leader', 'leader', context);
       }
     }
     syncResidenceOccupants(state.entities, state.buildings);
-    return;
+    return [];
   }
   state.pendingLeaderHouseResidentIds = undefined;
 
@@ -119,7 +122,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const officeHeld =
     state.villageLeaderId != null
     && state.entities.some((e) => e.id === state.villageLeaderId && e.alive);
-  if (household.length === 0 && officeHeld) return;
+  if (household.length === 0 && officeHeld) return [];
 
   // A cursed member's own bed belongs to the Moon Howler form switch (cleared on transform, restored
   // on reversion), so the manor reads them as away without unseating the family who stay home.
@@ -128,7 +131,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   let evicted = false;
   let movedIn = false;
   const displaced: Entity[] = [];
-  const context = leaderHousingContext(state);
+  const context = leaderHousingContext(state, ledger);
 
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
@@ -172,18 +175,7 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   // Update the building's occupants array!
   syncResidenceOccupants(state.entities, state.buildings);
 
-  if (!evicted && !movedIn) return;
-
-  // Only the people actually evicted from the manor need emergency housing.
-  // Running a whole-village convergence here used to trigger up to 24 passes
-  // over thousands of settlers whenever the leader household changed.
-  // The periodic assignment layer remains responsible for all other housing.
-  // Rebuild occupancy from authoritative residence IDs before vacancy selection, even
-  // when the previous leader's household needs emergency rehousing.
-  syncResidenceOccupants(state.entities, state.buildings);
-  if (displaced.length > 0) {
-    assignMissingResidences(displaced, state.buildings, state.entities, state.tick);
-  }
+  if (!evicted && !movedIn) return displaced;
 
   //Chronicle events
   if (evicted) {
@@ -199,5 +191,19 @@ export function syncLeaderHouseResidency(state: WorldState): void {
       `👑 ${name}'s household moved into the Leader's House`,
       name,
     );
+  }
+  return displaced;
+}
+
+/** The `leader` phase alone, for an election, succession or Moon Howler reversion. */
+export function syncLeaderHouseResidency(state: WorldState): void {
+  const ledger = createHousingLedger();
+  const residents = state.entities.filter((e) => e.alive && isResidenceOccupantEntity(e));
+  let displaced: Entity[] = [];
+  runHousingPhase(ledger, 'leader', residents, () => {
+    displaced = applyLeaderHousePhase(state, ledger);
+  });
+  if (displaced.length > 0) {
+    assignMissingResidences(displaced, state.buildings, state.entities, state.tick);
   }
 }
