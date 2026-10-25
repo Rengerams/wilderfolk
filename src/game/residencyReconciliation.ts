@@ -2,7 +2,7 @@ import { EntityType, LEADER_OCCUPATION, BuildingType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
-import { collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian } from './householdComposition';
+import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian } from './householdComposition';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './residencyOccupancy';
 import { listPlayerResidences, familyFitsInResidence, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex, MAX_RELOCATIONS_PER_DAY } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
@@ -774,10 +774,6 @@ export function syncPartnerResidence(
     if (pickResidenceFromChildCustodian(member, humans, residences) !== coupleHome) continue;
     relocateHousehold([member], coupleHome, 'guardianship', 'guardian', context);
   }
-}
-
-function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
-  return id == null ? undefined : humans.find((human) => human.id === id && human.alive);
 }
 
 /** A jailed parent is away, not gone: custody is borrowed until the sentence ends. */
