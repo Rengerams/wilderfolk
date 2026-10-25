@@ -22,6 +22,16 @@ type Props = {
   onFollowPage: (srcIndex: number) => void
 }
 
+/** Only web and mail links from a PDF are opened; unknown schemes are ignored. */
+function openableHref(href: string): boolean {
+  try {
+    const scheme = new URL(href).protocol
+    return scheme === "http:" || scheme === "https:" || scheme === "mailto:"
+  } catch {
+    return false
+  }
+}
+
 /** Clickable regions for the links a PDF carries, so URLs and cross-references work in the editor. */
 export function PageLinkLayer({ source, srcIndex, rotation, scale, interactive, onFollowPage }: Props) {
   const [links, setLinks] = useState<LinkBox[]>([])
@@ -75,7 +85,7 @@ export function PageLinkLayer({ source, srcIndex, rotation, scale, interactive, 
             style={{ left: link.left, top: link.top, width: link.width, height: link.height }}
             title={href ?? t("Go to page {number}", { number: pageIndex! + 1 })}
             onClick={() => {
-              if (href) window.open(href, "_blank", "noopener,noreferrer")
+              if (href && openableHref(href)) window.open(href, "_blank", "noopener,noreferrer")
               else if (pageIndex !== undefined) onFollowPage(pageIndex)
             }}
           />

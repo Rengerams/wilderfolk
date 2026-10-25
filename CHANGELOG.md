@@ -2,6 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** PDF Studio's scan bridge now only answers the editor itself, so a hostile website a user visits can no longer start a scan or read the scanned pages, and extreme scan resolutions are clamped.
+
+- **Fixed:** Links inside a PDF are now only followed for web and mail addresses, so dangerous schemes hidden in a crafted file are ignored.
+
+
 - **Added:** PDF Studio's About dialog now shows the MIT license text with the copyright holder and contact address, so the open source status is visible to users.
 
 - **Added:** PDF Studio reads every metadata tag a document carries — all extra tags beyond the standard details are listed and editable in the document details dialog, and the XMP packet is shown for reference.

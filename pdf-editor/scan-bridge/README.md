@@ -10,9 +10,11 @@ can be built and run without guessing.
 
 ## Contract
 
-The service listens on `http://127.0.0.1:8765` and must allow requests from the editor's origin
-(`Access-Control-Allow-Origin`), including a `OPTIONS` preflight, because the editor sends
-`Content-Type: application/json`.
+The service listens on `http://127.0.0.1:8765` and only answers browser requests whose `Origin` is
+the editor's own (the Tauri origins, plus any comma-separated extra origins in the
+`PDFSTUDIO_ALLOWED_ORIGINS` environment variable). Other origins get `403`, so a hostile website
+cannot start a scan or read scanned pages. Non-browser clients on the same PC send no `Origin`
+header and are allowed.
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |

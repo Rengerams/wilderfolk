@@ -1,12 +1,13 @@
 /** AES-GCM encryption for documents at rest. The passphrase only ever lives in memory. */
 import { t } from "../i18n/translate"
 
-const PBKDF2_ITERATIONS = 150_000
+const PBKDF2_ITERATIONS = 600_000
+const LEGACY_PBKDF2_ITERATIONS = 150_000
 const KEY_LENGTH = 256
 const SALT_LENGTH = 16
 const IV_LENGTH = 12
 
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase).buffer as ArrayBuffer,
@@ -15,7 +16,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
     ["deriveKey"],
   )
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: KEY_LENGTH },
     false,
@@ -27,7 +28,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 export async function encryptBytes(bytes: Uint8Array, passphrase: string): Promise<Uint8Array> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-  const key = await deriveKey(passphrase, salt)
+  const key = await deriveKey(passphrase, salt, PBKDF2_ITERATIONS)
   const cipher = new Uint8Array(
     await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, bytes as BufferSource),
   )
@@ -45,11 +46,14 @@ export async function decryptBytes(payload: Uint8Array, passphrase: string): Pro
   const salt = payload.slice(0, SALT_LENGTH)
   const iv = payload.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
   const cipher = payload.slice(SALT_LENGTH + IV_LENGTH)
-  const key = await deriveKey(passphrase, salt)
-  try {
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher as BufferSource)
-    return new Uint8Array(plain)
-  } catch {
-    throw new Error(t("That passphrase does not match this document."))
+  for (const iterations of [PBKDF2_ITERATIONS, LEGACY_PBKDF2_ITERATIONS]) {
+    try {
+      const key = await deriveKey(passphrase, salt, iterations)
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher as BufferSource)
+      return new Uint8Array(plain)
+    } catch {
+      // The second pass still opens documents saved with the older, weaker derivation.
+    }
   }
+  throw new Error(t("That passphrase does not match this document."))
 }

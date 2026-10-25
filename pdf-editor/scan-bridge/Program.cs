@@ -2,7 +2,6 @@
 // Reference implementation for the contract in README.md. Requires the .NET SDK, Windows and a scanner.
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using NAPS2.Images.Gdi;
 using NAPS2.Ocr;
 using NAPS2.Pdf;
@@ -11,13 +10,33 @@ using System.Text;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddCors(options =>
+
+// Browsers always send Origin; only the editor's own origins may start a scan, so a hostile
+// website cannot drive the scanner. Non-browser local clients send no Origin and stay allowed.
+var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    // The editor runs in a browser tab, so the bridge must accept that origin.
-    options.AddDefaultPolicy(policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
-});
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+};
+foreach (var origin in (builder.Configuration["PDFSTUDIO_ALLOWED_ORIGINS"] ?? "").Split(
+             ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+{
+    allowedOrigins.Add(origin.TrimEnd('/'));
+}
+
 var app = builder.Build();
-app.UseCors();
+app.Use(async (HttpContext context, Func<Task> next) =>
+{
+    var origin = context.Request.Headers.Origin.ToString().TrimEnd('/');
+    if (origin.Length > 0 && !allowedOrigins.Contains(origin))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsync("Origin not allowed.");
+        return;
+    }
+    await next();
+});
 
 var scanningContext = new ScanningContext(new GdiImageContext());
 var controller = new ScanController(scanningContext);
@@ -55,7 +74,7 @@ app.MapPost("/scan", async (HttpRequest request) =>
         Device = device,
         PaperSource = options.PaperSource == "flatbed" ? PaperSource.Flatbed : PaperSource.Feeder,
         PageSize = MapPageSize(options.PageSize),
-        Dpi = options.Dpi,
+        Dpi = Math.Clamp(options.Dpi, 50, 600),
         // true shows the scanner's own window and gives the user control over that run.
         ShowNativeUI = options.ShowNativeUI,
     };
@@ -95,7 +114,7 @@ app.MapPost("/scan-pdf", async (HttpRequest request) =>
         Device = devices[0],
         PaperSource = options.PaperSource == "flatbed" ? PaperSource.Flatbed : PaperSource.Feeder,
         PageSize = MapPageSize(options.PageSize),
-        Dpi = options.Dpi,
+        Dpi = Math.Clamp(options.Dpi, 50, 600),
         ShowNativeUI = options.ShowNativeUI,
     };
     var images = new List<NAPS2.Images.ProcessedImage>();
