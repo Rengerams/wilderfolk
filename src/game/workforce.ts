@@ -95,7 +95,7 @@ export function staffingCapFor(building: Building, humans: Entity[]): { cap: num
   if (building.type === BuildingType.Prison) {
     return { cap: prisonGuardCapacity(configured), staffed: countWorkersAtBuilding(humans, building.id) };
   }
-  return { cap: configured, staffed: building.occupants.length };
+  return { cap: configured, staffed: Math.max(building.occupants.length, countWorkersAtBuilding(humans, building.id)) };
 }
 
 export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[], type: BuildingType): number {
