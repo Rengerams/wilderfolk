@@ -9,7 +9,7 @@ import { createBuilding, initGame } from '../src/game/worldGen';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
+import { assignMissingResidences, restoreCustodyAfterRelease } from '../src/game/residencyReconciliation';
 import { prepareWorkforce, releasePrisoners } from '../src/game/workforce';
 import { exposeAffair } from '../src/game/simulation/humanRelationships';
 import { setSimSeed } from '../src/game/simRng';
@@ -162,5 +162,47 @@ describe('a release is uneventful', () => {
     expect(settler.workerBuildingId).toBe(FARM_ID);
     expect(house.occupants).toContain(settler.id);
     expect(prison.occupants).not.toContain(settler.id);
+  });
+});
+
+describe('custody restoration when a prisoner is released', () => {
+  it('does not move children already living with their available mother', () => {
+    const state = initGame({ seed: FIXTURE_SEED });
+    const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
+    const motherHome = completed(BuildingType.House, 100, 100, HOUSE_ID);
+    const fatherHome = completed(BuildingType.House, 200, 100, 903);
+    const mother = human(7101, { gender: 'female', residenceBuildingId: motherHome.id });
+    const father = human(7102, { gender: 'male', residenceBuildingId: fatherHome.id });
+    const child = human(7103, {
+      age: 8, isJuvenile: true, motherId: mother.id, fatherId: father.id,
+      residenceBuildingId: motherHome.id,
+    });
+    father.prisonBuildingId = prison.id;
+    father.prisonerUntilTick = state.tick - 1;
+    prison.occupants = [father.id];
+    motherHome.occupants = [mother.id, child.id];
+    fatherHome.occupants = [father.id];
+    state.entities = [mother, father, child];
+    state.buildings = [prison, motherHome, fatherHome];
+
+    releasePrisoners(state);
+
+    expect(father.prisonBuildingId).toBeUndefined();
+    expect(child.residenceBuildingId).toBe(motherHome.id);
+    expect(motherHome.occupants).toContain(child.id);
+    expect(fatherHome.occupants).not.toContain(child.id);
+    expect(restoreCustodyAfterRelease(father, state.entities)).toEqual([]);
+  });
+
+  it('clears temporary guardians but leaves the child with an available natural custodian', () => {
+    const mother = human(7201, { gender: 'female', residenceBuildingId: HOUSE_ID });
+    const father = human(7202, { gender: 'male', residenceBuildingId: 903 });
+    const child = human(7203, {
+      age: 8, isJuvenile: true, motherId: mother.id, fatherId: father.id,
+      adoptiveFatherId: 7299, residenceBuildingId: HOUSE_ID,
+    });
+    expect(restoreCustodyAfterRelease(father, [mother, father, child])).toEqual([]);
+    expect(child.adoptiveFatherId).toBeUndefined();
+    expect(child.residenceBuildingId).toBe(HOUSE_ID);
   });
 });
