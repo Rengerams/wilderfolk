@@ -75,12 +75,17 @@ export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Ent
 }
 
 /** Whole-household guard: a minor never lands anywhere their living custodian is not. */
-function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined, humans: Entity[]): boolean {
+function custodianTravelsAlong(unit: readonly Entity[], toId: number | undefined, humans: Entity[], residences: Building[]): boolean {
   for (const member of unit) {
     if (!isMinorChild(member)) continue;
     const custodian = getChildCustodian(member, humans);
     if (!custodian || unit.some((other) => other.id === custodian.id)) continue;
-    if (custodian.residenceBuildingId == null || custodian.residenceBuildingId !== toId) return false;
+    if (custodian.residenceBuildingId === toId) continue;
+    const destination = residences.find((building) => building.id === toId);
+    const custodianHome = residences.find((building) => building.id === custodian.residenceBuildingId);
+    if (destination && custodianHome && isLeaderHouseResidence(destination)
+      && isLeaderHouseResidence(custodianHome)) continue;
+    return false;
   }
   return true;
 }
@@ -148,7 +153,7 @@ function householdMayMove(
     const manorHold = reason === 'leader' && isLeaderHouseResidence(target);
     if (!manorHold && !familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
   }
-  return custodianTravelsAlong(unit, toId, context.alive);
+  return custodianTravelsAlong(unit, toId, context.alive, context.residences);
 }
 
 /** Applies one validated household move through the sole residence write. */
@@ -698,7 +703,9 @@ function collectHousingInvariantViolations(
     if (!isMinorChild(child)) continue;
     const custodian = getChildCustodian(child, alive);
     if (!custodian || child.residenceBuildingId == null) continue;
-    if (custodian.residenceBuildingId !== child.residenceBuildingId) {
+    if (custodian.residenceBuildingId !== child.residenceBuildingId
+      && !(residences.some((building) => building.id === custodian.residenceBuildingId && isLeaderHouseResidence(building))
+        && residences.some((building) => building.id === child.residenceBuildingId && isLeaderHouseResidence(building)))) {
       violations.push(`child #${child.id} lives apart from custodian #${custodian.id}`);
     }
   }
