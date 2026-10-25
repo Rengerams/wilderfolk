@@ -326,6 +326,9 @@ export function rebalanceOvercrowdedResidences(
   ledger: HousingLedger = createHousingLedger(),
 ): boolean {
   const occupancy = buildResidenceOccupancy(humans);
+  // Classify capacity work before building costly household groups and traits.
+  if (!residences.some((home) => !isLeaderHouseResidence(home)
+    && (occupancy.get(home.id) ?? 0) > getResidenceCapacity(home))) return false;
   const traits = buildResidenceTraits(humans);
   const context = standaloneMoveContext(humans, residences, occupancy, traits, ledger);
   // A prisoner's bed stays reserved: they count for capacity but never move in the rebalance.
@@ -468,6 +471,8 @@ function fillHomelessAfterEviction(
   traits: ResidenceTraitsById,
   ledger: HousingLedger,
 ): void {
+  // Avoid rebuilding household relations when there is nobody left to house.
+  if (!alive.some((human) => !hasResidenceAssignment(human))) return;
   const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
   for (const unit of buildHousingUnits(alive)) {
     if (unit.every(hasResidenceAssignment)) continue;
