@@ -88,8 +88,10 @@ custodian who is also leaving, so a succession never strands a child in the mano
 moved out. The custodian check would refuse that lone move anyway; grouping it is what makes the eviction
 succeed for the whole household instead of leaving the child behind.
 
-The manor never counts its bed cap: it seats the whole entitled household, exactly as the capacity phase
-never evicts from it. Every other check applies — a refused move leaves the settler where they are, and the
+The original manor seats the leader even when the household exceeds its fixed 20 beds. Once over 20,
+exactly one linked annex can be built; the annex stores its original-manor reference in `groupId`,
+and leader-phase housing allocates overflow there. Both residences form one custody complex.
+The capacity phase never evicts members of that complex. Every other check applies — a refused move leaves the settler where they are, and the
 decision is logged in the run's report.
 
 ### 2. Integrity
