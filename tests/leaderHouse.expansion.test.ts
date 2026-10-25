@@ -18,10 +18,25 @@ describe('Leader\'s House overflow annex', () => {
     expect(leaderHouseBuildings([unlinked, annex, main]).map((home) => home.id)).toEqual([10, 11]);
     expect(canBuildLeaderHouse([unlinked, main])).toBe(false);
     expect(leaderHouseBuildings([annex])).toEqual([]);
-    expect(canBuildLeaderHouse([annex])).toBe(false);
+    expect(canBuildLeaderHouse([annex])).toBe(true);
     const restored = JSON.parse(JSON.stringify([annex, main])) as typeof annex[];
     expect(leaderHouseBuildings(restored).map((home) => home.id)).toEqual([10, 11]);
   
+  });
+
+  it('permits replacing a demolished main manor without treating its orphaned annex as a main', () => {
+    const main = building(10, BuildingType.LeaderHouse, { occupants: Array.from({ length: 21 }, (_, i) => i + 1) });
+    const annex = building(11, BuildingType.LeaderHouse, { groupId: 'leader-house:10' });
+    expect(canBuildLeaderHouse([main, annex])).toBe(false);
+    // Demolition removes the main, leaving an annex linked to a missing ID.
+    expect(leaderHouseBuildings([annex])).toEqual([]);
+    expect(canBuildLeaderHouse([annex])).toBe(true);
+    const replacement = building(12, BuildingType.LeaderHouse);
+    expect(leaderHouseBuildings([annex, replacement]).map((home) => home.id)).toEqual([12]);
+    expect(canBuildLeaderHouse([annex, replacement])).toBe(false);
+    // A new annex must link to the replacement rather than the demolished building.
+    const newAnnex = building(13, BuildingType.LeaderHouse, { groupId: 'leader-house:12' });
+    expect(leaderHouseBuildings([annex, replacement, newAnnex]).map((home) => home.id)).toEqual([12, 13]);
   });
 
   it('keeps the leader in the original manor and seats the extra household members in the annex', () => {
