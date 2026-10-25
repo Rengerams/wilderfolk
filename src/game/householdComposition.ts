@@ -108,6 +108,11 @@ export function collectMinorHousehold(seed: Entity, humans: Entity[]): Entity[] 
   return household;
 }
 
+/** Look up an alive human by id without applying housing or imprisonment eligibility. */
+export function findLivingHuman(humans: Entity[], id: number | undefined): Entity | undefined {
+  return id == null ? undefined : humans.find((human) => human.id === id && human.alive);
+}
+
 function livingHuman(
   humans: Entity[],
   id: number | undefined,
