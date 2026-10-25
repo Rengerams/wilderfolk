@@ -52,7 +52,7 @@ jobs:
             const y = old.find(a => a.population===x.population && a.spareHomes===x.spareHomes && a.scenario===x.scenario);
             if (!y) throw new Error('Missing baseline for '+JSON.stringify(x));
             const delta = ((x.warmMedianMs/y.warmMedianMs)-1)*100;
-            console.log(JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineMs:y.warmMedianMs,optimizedMs:x.warmMedianMs,deltaPct:+delta.toFixed(2),sameAssignments:x.assignmentHash===y.assignmentHash,baselineMoves:y.relocations,optimizedMoves:x.relocations,baselineViolations:y.violations,optimizedViolations:x.violations}}));
+            console.log(JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineMs:y.warmMedianMs,optimizedMs:x.warmMedianMs,deltaPct:+delta.toFixed(2),sameAssignments:x.assignmentHash===y.assignmentHash,baselineMoves:y.relocations,optimizedMoves:x.relocations,baselineViolations:y.violations,optimizedViolations:x.violations}));
             if(x.assignmentHash !== y.assignmentHash || x.violations !== y.violations) process.exitCode=1;
           }
           JS
