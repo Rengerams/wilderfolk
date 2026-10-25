@@ -1,3 +1,4 @@
+import { applyLeaderHousePhase } from './leaderHouse';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 /**
  * Daily population reconciliation owner called by tickLayerDaily — once per colony day.
@@ -117,7 +118,8 @@ function tickImmigration(
       const villagers = allAlive.filter(isPlayerHuman);
       // Newcomers arrive homeless, so the pass's own global fill seats them on this call whatever the
       // sweep bucket is; the tick only spreads the already-housed reassignment work.
-      assignMissingResidences(villagers, updatedBuildings, allAlive, state.tick);
+      assignMissingResidences(villagers, updatedBuildings, allAlive, state.tick, state.genealogyRegistry,
+        (ledger) => applyLeaderHousePhase(state, ledger));
 
       const label = admitted === 1
         ? (newcomers[0].age < HUMAN_ADULT_MIN_AGE ? 'A young settler arrived' : '+1 Settler arrived')
