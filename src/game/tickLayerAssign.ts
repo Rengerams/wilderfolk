@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, BuildingType } from './gameTypes';
 import { isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -28,22 +28,27 @@ export const LAYER_ASSIGN_PHASE_TICK = LAYER_ASSIGN_FIRST_HOUR * TICKS_PER_HOUR;
  * Cheap housing-change fingerprint for the scheduled sweeps. Work and movement
  * do not affect housing, so checking a few primitive fields is much cheaper
  * than rebuilding all household units four times a day. A full reconciliation
- * still runs at the final sweep every day as a safety net.
+ * runs only for changed inputs; a weekly full audit remains as a safety net.
  */
 const lastHousingSignature = new WeakMap<WorldState, string>();
+/** A change earlier in the day still gets its final commute sweep even after the change is reconciled. */
+const housingChangedThisDay = new WeakMap<WorldState, boolean>();
 
 function housingSignature(world: WorldState, humans: readonly WorldState['entities'][number][]): string {
   const parts: (number | string)[] = [];
   for (const building of world.buildings) {
     if (building.faction === 'rival') continue;
-    if (!isResidenceBuilding(building)) continue;
-    parts.push(building.id, building.completed ? 1 : 0, building.level);
+    if (!isResidenceBuilding(building) && building.type !== BuildingType.Road
+      && building.type !== BuildingType.Bridge) continue;
+    parts.push(building.id, building.type, building.completed ? 1 : 0, building.level,
+      building.x, building.y);
   }
   for (const h of humans) {
     if (!h.alive || !isPlayerHuman(h)) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
-      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
+      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1,
+      h.workerBuildingId ?? -1, h.schoolBuildingId ?? -1);
   }
   return parts.join(',');
 }
@@ -108,15 +113,21 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
     ? playerHumans
     : playerHumans.filter((person) => !protectedIds.has(person.id));
   const signatureBefore = housingSignature(world, allHumans);
+  const housingChanged = lastHousingSignature.get(world) !== signatureBefore;
+  if (housingChanged) housingChangedThisDay.set(world, true);
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
-  if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
+  // A stable colony does not need the full guardianship/family/commute pipeline every day.
+  // Revisit the final bucket after changes earlier today; keep a weekly defensive full sweep.
+  const safetyAudit = finalDailySweep && Math.floor(world.tick / (LAYER_ASSIGN_INTERVAL * 4)) % 7 === 0;
+  if (housingChanged || (finalDailySweep && housingChangedThisDay.get(world)) || safetyAudit) {
     // The manor hold is the sweep's first phase: one run, one ledger, one write path.
     assignMissingResidences(
       eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(world, ledger),
     );
     lastHousingSignature.set(world, housingSignature(world, allHumans));
+    if (finalDailySweep) housingChangedThisDay.set(world, false);
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');
