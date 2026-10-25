@@ -796,10 +796,16 @@ export function restoreCustodyAfterRelease(parent: Entity, humans: Entity[]): En
   for (const child of humans) {
     if (!child.alive || !isMinorChild(child)) continue;
     if (child.motherId !== parent.id && child.fatherId !== parent.id) continue;
-    // Only a stand-in taken because of the sentence ends here; an adoption after a death stays.
+    // Only reverse a temporary guardian assignment; never sweep children already
+    // living with their natural custodian into the released parent's housing bucket.
+    if (child.adoptiveMotherId == null && child.adoptiveFatherId == null) continue;
     if (![child.motherId, child.fatherId].every((id) => id == null || findLivingHuman(humans, id))) continue;
     child.adoptiveMotherId = undefined;
     child.adoptiveFatherId = undefined;
+    // An available natural custodian keeps the child in their existing home.
+    const otherParentId = child.motherId === parent.id ? child.fatherId : child.motherId;
+    const otherParent = freeParent(humans, otherParentId);
+    if (otherParent && otherParent.residenceBuildingId === child.residenceBuildingId) continue;
     returned.push(child);
   }
   return returned;
