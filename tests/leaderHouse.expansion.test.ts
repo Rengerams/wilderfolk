@@ -14,6 +14,12 @@ describe('Leader\'s House overflow annex', () => {
     const annex = building(11, BuildingType.LeaderHouse, { groupId: 'leader-house:10' });
     expect(canBuildLeaderHouse([main, annex])).toBe(false);
     expect(leaderHouseBuildings([annex, main]).map((home) => home.id)).toEqual([10, 11]);
+    const unlinked = building(12, BuildingType.LeaderHouse);
+    expect(leaderHouseBuildings([unlinked, annex, main]).map((home) => home.id)).toEqual([10, 11]);
+    expect(canBuildLeaderHouse([unlinked, main])).toBe(false);
+    const restored = JSON.parse(JSON.stringify([annex, main])) as typeof annex[];
+    expect(leaderHouseBuildings(restored).map((home) => home.id)).toEqual([10, 11]);
+  
   });
 
   it('keeps the leader in the original manor and seats the extra household members in the annex', () => {
