@@ -1,3 +1,4 @@
+import { applyLeaderHousePhase } from './leaderHouse';
 import { moveResident } from './residencyReconciliation';
 import type { WorldState } from './gameTypes';
 import { assignMissingWorkers } from './workforce';
@@ -12,7 +13,8 @@ import { assignMissingResidences, syncResidenceOccupants } from './residencyReco
  */
 function reconcileAssignmentsAfterResidenceChange(state: WorldState): void {
   const humans = allPlayerHumans(state.entities);
-  assignMissingResidences(humans, state.buildings, state.entities);
+  assignMissingResidences(humans, state.buildings, state.entities, undefined, state.genealogyRegistry,
+    (ledger) => applyLeaderHousePhase(state, ledger));
   assignMissingWorkers(humans, state.buildings, state);
 }
 
