@@ -9,7 +9,6 @@ import {
 import type { HousingLedger, HousingMoveContext } from './residencyReconciliation';
 import { listPlayerResidences } from './residencySelection';
 import {
-  BuildingType,
   EntityType,
   JobType,
   LEADER_OCCUPATION,
