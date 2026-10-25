@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
+
 - **Added:** A short runbook beside the repository facts now describes the sandbox preview: one Vite dev service runs from the mounted clone on port 3000, so edits stay live without rebuilding an image.
 
 - **Changed:** The strategic map is drawn as an antique survey sheet — parchment, engraved relief, compass rose and scale rule — and the raid, war and recall controls now sit once, in the rival roster beneath it.
