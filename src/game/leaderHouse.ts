@@ -136,6 +136,8 @@ export function applyLeaderHousePhase(state: WorldState, ledger: HousingLedger):
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
+    // A sentence holds the bed: the manor never rehouses a settler who is away in prison.
+    if (isImprisoned(e)) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
       if (!relocateHousehold([e], undefined, 'leader', 'leader', context)) continue;
       displaced.push(e);

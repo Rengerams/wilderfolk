@@ -88,6 +88,18 @@ describe('a whole-household relocation is all or nothing', () => {
     expect([first, second].every((member) => member.residenceBuildingId === SPARE_ID)).toBe(true);
     expect(context.ledger.report.relocations).toHaveLength(1);
   });
+
+  it('settles a household already at the destination without reporting a move', () => {
+    const cottage = building(COTTAGE_ID, BuildingType.House, { occupants: [1] });
+    const resident = human(1, { residenceBuildingId: COTTAGE_ID });
+    const context = standaloneMoveContext([resident], [cottage]);
+
+    const moved = relocateHousehold([resident], COTTAGE_ID, 'leader', 'leader', context);
+
+    expect(moved).toBe(true);
+    expect(resident.residenceBuildingId).toBe(COTTAGE_ID);
+    expect(context.ledger.report.relocations).toEqual([]);
+  });
 });
 
 describe('the manor hold inside the assignment sweep', () => {

@@ -173,6 +173,7 @@ export function relocateHousehold(
   if (!householdMayMove(unit, toId, reason, context)) return false;
   // All-or-nothing: one member the write would refuse cancels the move before anyone leaves.
   if (unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings))) return false;
+  const relocated = unit.some((member) => member.residenceBuildingId !== toId);
   const fromId = unit.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
   const homes = unit.map((member) => member.residenceBuildingId);
   applyHouseholdMove(unit, toId, context);
@@ -191,10 +192,13 @@ export function relocateHousehold(
     context.ledger.settled.set(member.id, phase);
     context.ledger.reported.set(member.id, member.residenceBuildingId);
   }
-  const relocation: HousingRelocation = { phase, reason, members: unit.map((member) => member.id) };
-  if (fromId !== undefined) relocation.from = fromId;
-  if (toId !== undefined) relocation.to = toId;
-  context.ledger.report.relocations.push(relocation);
+  // A household already at the destination is settled, not relocated: nothing to report.
+  if (relocated) {
+    const relocation: HousingRelocation = { phase, reason, members: unit.map((member) => member.id) };
+    if (fromId !== undefined) relocation.from = fromId;
+    if (toId !== undefined) relocation.to = toId;
+    context.ledger.report.relocations.push(relocation);
+  }
   return true;
 }
 

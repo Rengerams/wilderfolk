@@ -81,7 +81,8 @@ sweep is one decision process from the manor to the commute. `syncLeaderHouseRes
 phase alone — through the same `runHousingPhase` and `relocateHousehold` — for an election, a succession, a
 Moon Howler reversion or a completed manor, which cannot wait for a pulse; it then seats whoever it evicted.
 Every move is a `relocateHousehold` decision with phase and reason `leader`: an eviction of a settler the
-office no longer entitles, and a move-in of an entitled member without a bed there.
+office no longer entitles, and a move-in of an entitled member without a bed there. A jailed settler is
+never evicted — the sentence holds their bed, so the manor decides about them again on release.
 
 The manor never counts its bed cap: it seats the whole entitled household, exactly as the capacity phase
 never evicts from it. Every other check applies — a refused move leaves the settler where they are, and the

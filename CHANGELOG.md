@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** A jail sentence no longer costs a member of the leader's household their manor bed: the house they are away from is theirs until release, exactly as for any other home.
+
 - **Fixed:** An adult child no longer trades the family home for a house whose beds a jailed settler still reserves, so the custody move cannot fill a home past the beds a prison sentence already holds.
 
 - **Fixed:** The Leader's House again seats the leader's own dependent children when they share a house with a grown child's family, while that grown child's partner and children keep their own home.
