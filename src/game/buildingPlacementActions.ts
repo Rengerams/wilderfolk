@@ -1,5 +1,5 @@
 import type { Building, WorldState } from './gameTypes';
-import { canBuildLeaderHouse } from './leaderHouseExpansion';
+import { canBuildLeaderHouse, leaderHouseBuildings } from './leaderHouseExpansion';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -226,8 +226,7 @@ export function startBuilding(
 
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
   if (type === BuildingType.LeaderHouse) {
-    const main = state.buildings.find((existing) => existing.type === BuildingType.LeaderHouse
-      && existing.faction !== 'rival');
+    const main = leaderHouseBuildings(state.buildings)[0];
     if (main) building.groupId = `leader-house:${main.id}`;
   }
   building.spriteScale = 0;
