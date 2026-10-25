@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   for (const population of populations) for (const spareHomes of [0, Math.ceil(population/30)]) {
     for (const scenario of ['stable','displaced'] as const) {
       const times:number[]=[];
-      let relocations=0, violations=0, assignmentHash='';
+      let relocations=0, violations=0, assignmentHash='', initialHash='';
       let assignments: Array<[number, number | null]> = [];
       for(let sample=0;sample<repeats;sample++) {
     resetPathGridCaches();
@@ -67,6 +67,14 @@ async function main(): Promise<void> {
       }
     }
     for(let i=0;i<spareHomes;i++) createCompletedBuilding(state,BuildingType.House,500+(i%10)*48,200+Math.floor(i/10)*48);
+    // Confirm both revisions actually start from the same fixture before judging output parity.
+    const inputHash = createHash('sha256').update(JSON.stringify({
+      entities: humans.map(h => [h.id,h.age,h.partnerId,h.motherId,h.fatherId,
+        h.residenceBuildingId,h.workerBuildingId,h.schoolBuildingId]),
+      homes: state.buildings.map(b => [b.id,b.type,b.x,b.y,b.level,b.completed]),
+    })).digest('hex');
+    if (sample===0) initialHash=inputHash;
+    else if (inputHash !== initialHash) throw new Error('Non-deterministic initial fixture for '+population+'/'+spareHomes+'/'+scenario);
     // Every sample owns a fresh fixture; no roster, genealogy or occupancy state leaks between runs.
     if (scenario === 'displaced') humans.forEach((human,i) => {
       if (i%15===0) human.residenceBuildingId=undefined;
@@ -80,7 +88,7 @@ async function main(): Promise<void> {
         assignments = humans.map(h=>[h.id,h.residenceBuildingId ?? null]);
         assignmentHash=createHash('sha256').update(JSON.stringify(assignments)).digest('hex');
       }
-      console.log('HOUSING_PIPELINE_RESULT '+JSON.stringify({population,spareHomes,scenario,repeats,warmMedianMs:median(times.slice(2)),coldMs:times[0],relocations,violations,assignmentHash,assignments:process.env.PERF_ASSIGNMENT_DETAIL==='1'?assignments:undefined}));
+      console.log('HOUSING_PIPELINE_RESULT '+JSON.stringify({population,spareHomes,scenario,repeats,warmMedianMs:median(times.slice(2)),coldMs:times[0],relocations,violations,initialHash,assignmentHash,assignments:process.env.PERF_ASSIGNMENT_DETAIL==='1'?assignments:undefined}));
     }
   }
 }
