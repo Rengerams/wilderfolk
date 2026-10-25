@@ -1,10 +1,4 @@
-/**
- * The daily commute move is fair to every member, and a day has a budget.
- *
- * §12 lets a household trade its home for a nearer vacant one. A move may not pay for the household
- * total with one member's own day, and a colony makes at most `MAX_RELOCATIONS_PER_DAY` moves in one
- * sweep, so a newly built row of houses cannot reshuffle the valley in a single evening.
- */
+/** §12 fairness: no member's own day may worsen for the household total, and a day has a move budget. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';

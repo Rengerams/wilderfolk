@@ -1,11 +1,4 @@
-/**
- * §12 — a move closer to work or school.
- *
- * A settled household may trade its home for a vacant one that meaningfully shortens the whole
- * household's daily travel (workers' commutes plus children's school trips). The rule is graded:
- * a trivial improvement must not move anyone, and only vacant homes are targets, so the composition
- * rule that prefers an empty home can never trade the household straight back.
- */
+/** §12 commute trade: only a meaningful whole-household travel saving moves anyone, and only into a vacant home. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';

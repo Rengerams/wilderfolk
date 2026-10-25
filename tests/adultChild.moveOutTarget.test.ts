@@ -1,7 +1,4 @@
-/**
- * An adult child may trade the family home for a vacant one, but the Leader's House is never a
- * destination: the move is refused there instead of reporting success and staying put.
- */
+/** An adult child may trade the family home for a vacant one, never for the Leader's House. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';

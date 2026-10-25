@@ -126,7 +126,8 @@ bucket: a settler who loses a bed is never left outside until the cycle comes ro
 ### 6. Adult child
 
 An option, not a duty. Candidates are adult children living in a family home (never the manor), eldest
-first, and a move needs an empty home that fits the **whole departing household**. If the household a
+first, and a move needs an empty home that fits the **whole departing household**. The Leader's House is
+never a destination here: the move is refused rather than reported and left standing. If the household a
 mandatory phase settled, this phase is skipped for them — that is the protection rule in §3.
 
 ### 7. Commute
