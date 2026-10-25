@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Standaard permissies voor de PDF Studio hoofdinterface","local":true,"windows":["main"],"permissions":["core:default","core:path:default","core:event:default","core:window:default","dialog:allow-open","dialog:allow-save","fs:allow-read-file","fs:allow-write-file",{"identifier":"fs:scope","allow":["**"]}]}}
