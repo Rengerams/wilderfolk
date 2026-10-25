@@ -39,7 +39,7 @@ import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
-import { describeHotelRoster, getHotelRoster } from '../game/hotelStay';
+import { describeHotelRoster, getHotelRoster, isSettlerLodgingAtHotel } from '../game/hotelStay';
 import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
 import { hospitalDoctorRoster, hospitalCoverageSummary, HOSPITAL_SHIFT_WINDOWS } from '../game/hospitalShifts';
@@ -728,8 +728,6 @@ export default function SelectedBuildingPanel({
           );
         })()}
         {building.completed && building.type === BuildingType.Hotel && (() => {
-          // The tick stores no settler stay: a settler lodges by the same commute rule the roster
-          // applies, so the list is derived exactly as the school's attendance is.
           const roster = getHotelRoster(building, state.buildings, state.entities, getHourOfDay(state.tick));
           const summary = describeHotelRoster(roster, building.occupants.length > 0);
           return (
@@ -752,7 +750,8 @@ export default function SelectedBuildingPanel({
                     <li key={lodger.id} className="flex items-baseline justify-between gap-2 text-[11px]">
                       <span className="truncate text-stone-200">{formatCitizenName(lodger)}</span>
                       <span className="shrink-0 text-emerald-300">
-                        {roster.sleepingNow ? 'settler · asleep' : 'settler · lodging tonight'}
+                        {isSettlerLodgingAtHotel(lodger, state.buildings, getHourOfDay(state.tick))
+                          ? 'settler · asleep' : 'settler · bed reserved'}
                       </span>
                     </li>
                   ))}

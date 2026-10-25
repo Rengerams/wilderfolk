@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
+
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
