@@ -66,6 +66,22 @@ describe('the housing decision pipeline', () => {
     expect(ledger.report.relocations).toHaveLength(0);
   });
 
+  it('leaves a stable fully housed colony unchanged on repeated sweeps', () => {
+    const home = building(40, BuildingType.House);
+    const spare = building(41, BuildingType.House);
+    const parent = human(10, { age: 45, residenceBuildingId: home.id });
+    const child = human(11, { age: 8, isJuvenile: true, motherId: 10, residenceBuildingId: home.id });
+    const villagers = [parent, child];
+
+    const first = assignMissingResidences(villagers, [home, spare], villagers);
+    const second = assignMissingResidences(villagers, [home, spare], villagers);
+
+    expect(first.violations).toEqual([]);
+    expect(second.violations).toEqual([]);
+    expect(second.relocations).toEqual([]);
+    expect(villagers.every((person) => person.residenceBuildingId === home.id)).toBe(true);
+  });
+
   it('refuses the whole household move when the destination cannot hold everyone', () => {
     const from = building(0, BuildingType.House);
     const target = building(1, BuildingType.House);
