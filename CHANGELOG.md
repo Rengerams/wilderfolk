@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** A commercial product readme describing PDF Studio's features, audience and licensing now sits beside the existing documentation.
+
 - **Changed:** Removed the Help menu's Security notes entry; it opened the same About dialog.
 
 - **Changed:** The Windows installer build now signs every installer and executable automatically when signing details are supplied in the environment, and still builds unsigned without them.

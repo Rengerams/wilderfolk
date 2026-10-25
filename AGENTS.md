@@ -193,6 +193,7 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | Shell rules & profile commands | `command.md` (root) |
 | Active roadmap | `roadmap_V.0.6.6.0.md` (root) |
 | Changelog | `CHANGELOG.md` (root), newest first |
+| Commercial readme | `README_COMMERCIAL.md` (root) — owner-approved addition for product promotion |
 | Bug report | `BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` — format per `BUG_REPORTS/Readme.md`; tracker is `BUG_REPORTS/SUMMARY.md`; resolved reports stay in place |
 | Audit / review report | `docs/private/audits/<yyyy-mm-dd>/<area>.md` (gitignored); campaign tracker `LIVE-FINDINGS-STATUS.md` in same folder |
 | Implementation plan | `docs/plans/<topic>-<yyyy-mm-dd>.md` |
