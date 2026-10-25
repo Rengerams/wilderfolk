@@ -23,7 +23,7 @@ services:
       - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
     # Dependencies are installed from the lockfile at startup, after the mounts exist,
     # then the dev server takes over the process.
-    command: ["sh", "-ec", "npm ci --no-audit --no-fund && exec npm run dev -- --host 0.0.0.0 --port 3000"]
+    command: ["sh", "-ec", "npm ci --no-audit --no-fund && exec npm run dev -- --config vite.config.base44.ts --host 0.0.0.0 --port 3000"]
     restart: on-failure
     healthcheck:
       test:

@@ -271,9 +271,10 @@ the game's toolchain to it.
   dev server straight from the cloned source — never a prebuilt bundle, so edits appear live.
 * **Its own commands**, run inside `pdf-editor/`: `npm run typecheck`, `npm run test`, `npm run build`.
   The root scripts (`npm run test:types`, `lint`, `build`) do not cover this app.
-* **Sandbox-only configuration:** `pdf-editor/vite.config.ts` appends `.${BASE44_SANDBOX_HOST_DOMAIN}` to
-  `allowedHosts` **only** when `BASE44_PREVIEW_MODE === "1"`; with the flag unset, Vite's own defaults
-  apply. Compose passes `BASE44_PREVIEW_MODE`, `BASE44_PUBLIC_HOST_SUFFIX`,
+* **Sandbox-only configuration:** `pdf-editor/vite.config.ts` is the developer's own-machine config
+  (no sandbox logic). The sandbox runs `vite.config.base44.ts`, which adds file-watch polling and the
+  `.${BASE44_SANDBOX_HOST_DOMAIN}` host allowlist **only** when `BASE44_PREVIEW_MODE === "1"`. Compose
+  passes `BASE44_PREVIEW_MODE`, `BASE44_PUBLIC_HOST_SUFFIX`,
   `BASE44_SANDBOX_HOST_DOMAIN` and `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` through as bare entries.
 * **No secrets are required.** The OCR engine and its language data are prepared into `pdf-editor/public/ocr`
   (downloaded once from a public CDN, git-ignored) by `npm run dev`/`npm run build`, and cloud storage is

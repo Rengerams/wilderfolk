@@ -5,16 +5,22 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+
+    /* Strictness & Kwaliteit */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+
+    /* Bundler & Modules specificaties */
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "noEmit": true,
+
+    /* Browser-omgeving; node-types zijn nodig voor de tests en de config-bestanden */
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vite.config.base44.ts"]
 }
