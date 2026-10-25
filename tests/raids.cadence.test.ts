@@ -7,7 +7,7 @@
  * was asked once per 45–90 days, so a colony could go a whole game without being raided.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { BuildingType, Season, WeatherType } from '../src/game/gameTypes';
+import { BuildingType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickRivalSettlements, type RivalEventCallbacks } from '../src/game/rivalEvents';
@@ -167,6 +167,27 @@ describe('incoming raid cadence', () => {
     expect(rival.peaceTreatyDays).toBe(59);
     expect(state.pendingRaidEvents).toBe(raids);
     expect(state.nextBuildingId).toBe(nextBuildingId);
+  });
+
+  it('sweeps camp buildings no rival record still lists', () => {
+    const { state, allAlive } = makeState();
+    const rival = state.rivalSettlements[0];
+    const orphan = building(98, BuildingType.Farm, { faction: 'rival', groupId: rival.id });
+    state.buildings.push(orphan);
+    rival.buildingIds = [];
+    const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
+    settler.homeBuildingId = orphan.id;
+    settler.residenceBuildingId = orphan.id;
+    settler.job = JobType.Farmer;
+    settler.occupation = JobType.Farmer;
+
+    tickRivalSettlements(state, allAlive, callbacks);
+
+    expect(state.buildings.map((entry) => entry.id)).toEqual([1]);
+    expect(settler.homeBuildingId).toBeUndefined();
+    expect(settler.residenceBuildingId).toBeUndefined();
+    expect(settler.job).toBe(JobType.Settler);
+    expect(settler.occupation).toBe(JobType.Settler);
   });
 
   it('never expands strategic settlements onto the village map', () => {

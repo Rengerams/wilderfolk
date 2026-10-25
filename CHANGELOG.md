@@ -4,6 +4,10 @@
 
 - **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
 
+- **Added:** A short runbook beside the repository facts now describes the sandbox preview: one Vite dev service runs from the mounted clone on port 3000, so edits stay live without rebuilding an image.
+
+- **Changed:** The strategic map is drawn as an antique survey sheet — parchment, engraved relief, compass rose and scale rule — and the raid, war and recall controls now sit once, in the rival roster beneath it.
+
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.
@@ -19,6 +23,7 @@
 - **Fixed:** Children leave for weekday school up to two hours before class, based on distance from home. Pupils walk into the classroom at commute pace; travel overrides home and leisure routines, and attendance counts only during class.
 - **Fixed:** Removed an unused staffing import left behind by the virtual-player auto-fill repair, restoring compilation.
 - **Fixed:** Rival founding and growth no longer create enemy houses, farms or resident settlers inside the village. Legacy camp objects retire on the next rival update; strategic population, diplomacy and raids remain. Village camp markers and hit tests now cover visitors only.
+- **Fixed:** Camp structures left on the map by older saves are swept on the next rival update, even when no rival record still lists them; no enemy building stands in the village and whoever lived or worked there is released.
 - **Added:** Full-year diagnostics report the first invariant failure, watched settlers' moves, confirmed deaths and unconfirmed removals, actual versus assigned residents, and recent combat events. Checkpoint details print before assertions; debug output can be disabled.
 - **Fixed:** Company-following movement regression clones one isolated terrain-free world across all eight comparisons, avoiding repeated world generation and load-sensitive timeouts without changing its assertions.
 - **Fixed:** Ground Reinforcement catalogue artwork and its asset registration now match the shipped filename casing, restoring the preview on case-sensitive hosts.

@@ -137,6 +137,7 @@ If the task exposes a regression in your own change: one-sentence technical root
 * **Assets:** `public/sprites/**`, `public/audio/**` via `src/game/spriteLoader.ts` and `src/audio/*`; provenance in `ASSET_REGISTER.md`, licensing in `THIRD_PARTY_NOTICES.md`.
 * **Conventions:** relative imports from owner modules, no convenience re-exports (§5.7); a rule lives in its owner, a view renders it; blocked actions return the owner's reason string; diagnostics read-only and opt-in; determinism via `simRng` owner streams (`docs/SIM_RNG_GUIDELINES.md`); import cycles gated by `scripts/check-import-cycles.mjs`.
 * **`typescript@7` pin:** root `require("typescript")` is a stub (`{ version, versionMajorMinor }`). Compiler API lives on `typescript/unstable/sync`, `typescript/unstable/ast`, `typescript/unstable/ast/scanner`, `typescript/unstable/ast/is`. `bin/tsc` is unaffected. `dependency-cruiser` is broken by this and was removed — do not re-add. `@babel/parser` / `oxc-parser` are transitive only; don't rely on them. Guard any `while (token !== SyntaxKind.EndOfFileToken)` loop — an undefined kind makes it infinite.
+* **Sandbox environment:** `docker-compose.base44.yml` runs only the game's Vite dev server, from the bind-mounted clone on host port 3000, so preview edits are live; it is the Linux preview runbook and does not change the app's build. Start it with `docker compose -f docker-compose.base44.yml up -d` and verify with `curl http://localhost:3000/`.
 * **Concurrency:** several agents edit this tree at once. Read immediately before editing.
 
 ---
