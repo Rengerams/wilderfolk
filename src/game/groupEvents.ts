@@ -29,7 +29,7 @@ import {
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { tickRivalSettlements as tickRivalEvents } from './rivalEvents';
+import { makeNextAliveDeer, tickRivalSettlements as tickRivalEvents } from './rivalEvents';
 import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
@@ -205,14 +205,6 @@ function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   return index;
 }
 
-function buildAliveDeerList(allAlive: Entity[]): Entity[] {
-  const deer: Entity[] = [];
-  for (const e of allAlive) {
-    if (e.alive && e.type === EntityType.Deer && e.tamedBy == null) deer.push(e);
-  }
-  return deer;
-}
-
 function killWildGameForPoach(state: WorldState, animal: Entity): void {
   if (!animal.alive) return;
   animal.alive = false;
@@ -220,18 +212,6 @@ function killWildGameForPoach(state: WorldState, animal: Entity): void {
   for (const e of state.entities) {
     if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
   }
-}
-
-function makeNextAliveDeer(deerList: Entity[]): () => Entity | undefined {
-  let idx = 0;
-  return () => {
-    while (idx < deerList.length) {
-      const deer = deerList[idx];
-      if (deer?.alive) return deer;
-      idx++;
-    }
-    return undefined;
-  };
 }
 
 function pickSite(
@@ -468,7 +448,7 @@ export function tickVisitorGroups(state: WorldState, allAlive: Entity[]): void {
 
   const remaining: VisitorGroup[] = [];
   const aliveById = buildAliveEntityIndex(allAlive);
-  const nextDeer = makeNextAliveDeer(buildAliveDeerList(allAlive));
+  const nextDeer = makeNextAliveDeer(allAlive);
 
   const newCalendarDay = isNewCalendarDayTick(state);
   const calendarDay = getAbsoluteCalendarDay(state.tick);

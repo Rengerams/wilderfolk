@@ -27,7 +27,8 @@ Purpose: one decision → one owner module → one definition of each function.
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
-| Rival camp structure retirement | `rivalEvents.ts` | new-calendar-day | `retireLegacyCampStructures` — removes every rival-owned structure still standing on the player's map and releases whoever lived or worked there. |
+| Rival camp structure retirement | `rivalEvents.ts` | new-calendar-day | `retireLegacyCampStructures`, `releaseRetiredStructureReferences` — removes every rival-owned structure still standing on the player's map and releases whoever lived, worked or was jailed there. |
+| Camp poach target | `rivalEvents.ts` | rival day pulse + visitor camp pulse | `makeNextAliveDeer` — the deer alive when the pulse starts, shared by rival and visitor poaching. |
 | Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
 | Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
