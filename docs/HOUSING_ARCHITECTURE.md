@@ -186,6 +186,12 @@ on the same ledger: when phase `adult-child` settles a household, phase `commute
 during that run. The commute pass checks protection before pricing routes. This only protects one run:
 future days can still optimize an eligible home, subject to the commute thresholds and quota.
 
+**Stable-colony cadence.** The assignment pulse compares a cheap housing/relationship/work/school/
+road fingerprint; it no longer invokes full household classification on every unchanged final daily pulse.
+A changed input is reconciled, its final daily commute bucket is still processed, and a weekly full
+safety sweep catches missed dependencies. Invariant checking remains a separate safety concern.
+This is a sweep-level optimization, not yet an incremental per-household dirty queue.
+
 **Cheap phase eligibility.** Capacity builds its occupancy counts first and returns immediately when no
 ordinary home exceeds its bed limit, without constructing family units or residence traits. The final
 homeless refill similarly skips household grouping if every eligible settler already holds a home.
