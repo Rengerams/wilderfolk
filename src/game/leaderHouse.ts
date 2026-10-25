@@ -119,6 +119,8 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
+    // A prison sentence keeps the settler's bed, so an imprisoned leader keeps the manor.
+    if (isImprisoned(e)) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
       moveResident(e, undefined, 'leader', { buildings: state.buildings });
       displaced.push(e);

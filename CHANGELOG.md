@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** An imprisoned leader keeps the manor: the daily household sweep no longer unseats a settler serving a sentence, so the bed their arrest reserved stays theirs.
+
 - **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
 
 - **Fixed:** A household is no longer moved to a nearer home when the household total improves but one member's own daily trip lengthens, and a colony makes at most eight moves a day.

@@ -44,7 +44,6 @@ const DOOR_CALLERS = [
   'src/game/humanLifecycleCleanup.ts',
   'src/game/rivalEvents.ts',
   'src/game/tradeCaravans.ts',
-  'src/game/simulation/humanRelationships.ts',
 ];
 
 describe('the workplace reference has one owner (workforce.ts)', () => {

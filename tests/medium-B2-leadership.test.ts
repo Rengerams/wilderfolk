@@ -147,6 +147,26 @@ describe('M18 leader household composition', () => {
     ).toHaveLength(1);
     expect(collectSimulationInvariantErrors(state)).toEqual([]);
   });
+
+  it('keeps an imprisoned leader in the manor for the length of the sentence', () => {
+    const leader = human(1, {
+      occupation: LEADER_OCCUPATION,
+      partnerId: 2,
+      residenceBuildingId: 10,
+      prisonBuildingId: 20,
+      age: 45,
+    });
+    const spouse = human(2, { partnerId: 1, residenceBuildingId: 10, age: 43 });
+    const manor = building(10, BuildingType.LeaderHouse, { occupants: [1, 2] });
+    const prison = building(20, BuildingType.Prison, { occupants: [1] });
+    const state = makeWorld([leader, spouse], [manor, prison], 1);
+
+    syncLeaderHouseResidency(state);
+
+    expect(leader.residenceBuildingId).toBe(10);
+    expect(manor.occupants).toContain(1);
+    expect(state.eventLog.filter((e) => e.message.includes('relocated'))).toHaveLength(0);
+  });
 });
 
 describe('M35 zero-candidate election reveal', () => {
