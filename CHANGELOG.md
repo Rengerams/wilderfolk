@@ -2,6 +2,14 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** The Leader's House now has 20 fixed resident slots instead of 12; it remains non-upgradeable. Once the original manor exceeds 20 residents, one explicitly linked second Leader's House may be built as an overflow annex (40 normal slots across both buildings). The leader remains in the original; an orphan annex cannot become the primary manor.
+
+- **Changed:** Load, immigration and player residence actions now supply the mandatory leader-house phase to the shared housing ledger, while immediate leadership events still reconcile through the same housing move rules.
+
+- **Fixed:** Capacity rebalancing counts imprisoned settlers' reserved beds before selecting movable resident groups, preventing overcrowded houses from retaining too many free residents.
+
+- **Added:** Regression coverage for the manor annex and orphan linkage, prisoner-bed rebalance, and fixed 20-slot upgrade refusal; the housing architecture document now describes these policies.
+
 - **Fixed:** A new leader's household takes the manor as one unit, so the outgoing household leaves together and a minor child is never left behind while their parents are moved out.
 
 - **Fixed:** A child whose parents are both serving a sentence is now placed with a guardian instead of being left unplaced, and custody returns to the parent once the sentence ends.
@@ -17,7 +25,7 @@
 - **Fixed:** The Leader's House again seats the leader's own dependent children when they share a house with a grown child's family, while that grown child's partner and children keep their own home.
 
 
-- **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor still seats the household past its twelve beds.
+- **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor retains its mandatory household assignment regardless of its fixed capacity.
 
 - **Added:** A housing architecture note explains the single ordered decision pipeline: which phase owns which question, how a run's ledger protects a household a mandatory phase settled, and how to add a rule without a second scheduler.
 
