@@ -88,6 +88,7 @@ import {
   tickTavernService,
 } from './humanVenueBehavior';
 import {
+  checkoutVisitor,
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
   steerVisitorToHotel,
@@ -820,7 +821,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       : undefined;
 
     // Cross-map lodging: a walk home too long for the hours left before the sleep hour takes a
-    // hotel bed instead. Derived each tick; nothing is stored on the settler.
+    // reserved hotel bed instead, including the time spent walking there.
     const lodgingHotel =
       stayIn &&
       !onJobShift &&
@@ -828,8 +829,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inElectionCeremony &&
       !festivalGathering &&
       hasResidenceAssignment(entity)
-        ? lodgingHotelFor(entity, updatedBuildings, allHumans, hourOfDay)
+        ? lodgingHotelFor(entity, updatedBuildings, allHumans, state.tick)
         : undefined;
+
+    if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) checkoutVisitor(entity);
 
     if (onMoonPriestShift) {
       suppressIdle = true;

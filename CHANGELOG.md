@@ -87,6 +87,7 @@
 - **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
 
 - **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
+- **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
 
 - **Added:** A short runbook beside the repository facts now describes the sandbox preview: one Vite dev service runs from the mounted clone on port 3000, so edits stay live without rebuilding an image.
 
