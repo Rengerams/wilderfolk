@@ -43,6 +43,7 @@ export function PageViewer() {
   const pages = useEditor((state) => state.doc.pages)
   const annotations = useEditor((state) => state.doc.annotations)
   const ocrLayers = useEditor((state) => state.doc.ocr)
+  const watermark = useEditor((state) => state.doc.watermark)
   const activePageId = useEditor((state) => state.activePageId)
   const tool = useEditor((state) => state.tool)
   const zoom = useEditor((state) => state.zoom)
@@ -573,6 +574,20 @@ export function PageViewer() {
             className="page-canvas"
             style={{ width: stageWidth, height: stageHeight }}
           />
+          {watermark && watermark.text.trim().length > 0 ? (
+            <div className="watermark-layer" aria-hidden="true">
+              <span
+                style={{
+                  fontSize: `${Math.max(8, watermark.fontSize * scale)}px`,
+                  color: watermark.color,
+                  opacity: watermark.opacity,
+                  transform: `rotate(${rotation - watermark.angle}deg)`,
+                }}
+              >
+                {watermark.text}
+              </span>
+            </div>
+          ) : null}
           {page.kind === "source" && source ? (
             <>
               <PageTextLayer

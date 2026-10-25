@@ -52,6 +52,7 @@ export async function buildCurrentPdf(): Promise<Uint8Array> {
     annotations: doc.annotations,
     ocr: doc.ocr,
     metadata: doc.metadata,
+    watermark: doc.watermark,
     includeOcr: true,
   })
 }
@@ -172,6 +173,7 @@ async function loadPdfBytes(
       pages,
       annotations: [],
       ocr: [],
+      watermark: null,
       metadata,
       dirty: options.dirty,
       savedAt: options.savedAt ?? null,

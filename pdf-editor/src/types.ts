@@ -79,6 +79,16 @@ export type OcrLayer = {
   applied: boolean
 }
 
+/** Drawn on every page, centred; it is not an object and cannot be selected. */
+export type Watermark = {
+  text: string
+  fontSize: number
+  color: string
+  opacity: number
+  /** Counter-clockwise degrees, matching how the PDF stores it. */
+  angle: number
+}
+
 export type DocMetadata = {
   title: string
   author: string
@@ -100,6 +110,7 @@ export type DocState = {
   pages: PageRef[]
   annotations: Annotation[]
   ocr: OcrLayer[]
+  watermark: Watermark | null
   metadata: DocMetadata
   dirty: boolean
   savedAt: string | null
@@ -107,7 +118,7 @@ export type DocState = {
 
 export type DocSnapshot = Pick<
   DocState,
-  "name" | "pages" | "annotations" | "ocr" | "metadata"
+  "name" | "pages" | "annotations" | "ocr" | "watermark" | "metadata"
 >
 
 export type Tool = "select" | "text" | "highlight" | "shape" | "ink" | "image" | "region"
@@ -126,6 +137,9 @@ export type DialogKind =
   | "scan"
   | "find"
   | "form"
+  | "pageNumbers"
+  | "watermark"
+  | "extract"
   | null
 
 export type ThemeName = "light" | "dark"

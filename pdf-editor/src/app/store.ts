@@ -17,6 +17,7 @@ import type {
   Rotation,
   ThemeName,
   Tool,
+  Watermark,
 } from "../types"
 import { clampRectToPage, normalizeRotation } from "../pdf/geometry"
 import {
@@ -72,6 +73,7 @@ export function emptyDocument(): DocState {
     pages: [],
     annotations: [],
     ocr: [],
+    watermark: null,
     metadata: emptyMetadata(),
     dirty: false,
     savedAt: null,
@@ -84,6 +86,7 @@ function snapshot(doc: DocState): DocSnapshot {
     pages: doc.pages,
     annotations: doc.annotations,
     ocr: doc.ocr,
+    watermark: doc.watermark,
     metadata: doc.metadata,
   }
 }
@@ -149,6 +152,7 @@ export type EditorState = {
   importImages: (input: { name: string; images: ImportedImage[] }) => void
   appendImagePages: (images: ImportedImage[]) => void
   setDocumentName: (name: string) => void
+  setWatermark: (watermark: Watermark | null) => void
   setMetadata: (patch: Partial<DocMetadata>) => void
   markSaved: (savedAt: string) => void
 
@@ -330,6 +334,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     },
 
     setDocumentName: (name) => patchDoc({ name }),
+    setWatermark: (watermark) => patchDoc({ watermark }),
     setMetadata: (patch) =>
       patchDoc({
         metadata: { ...get().doc.metadata, ...patch, modificationDate: new Date().toISOString() },

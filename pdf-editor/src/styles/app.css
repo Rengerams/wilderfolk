@@ -529,6 +529,23 @@ textarea {
   height: 100%;
 }
 
+/* The watermark sits over the page image and never takes a click. */
+.watermark-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.watermark-layer span {
+  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1;
+}
+
 /* ---------- text and link layers ---------- */
 
 .textLayer {
@@ -953,6 +970,35 @@ textarea {
 
 .statusbar .grow {
   flex: 1 1 auto;
+}
+
+.statusbar .page-jump {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusbar .page-number {
+  width: 42px;
+  height: 19px;
+  padding: 0 3px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.statusbar .zoom-select {
+  height: 19px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 /* ---------- dialogs ---------- */

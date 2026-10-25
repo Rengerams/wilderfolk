@@ -1,8 +1,11 @@
+import { useState } from "react"
 import { formatFileSize } from "../pdf/pages"
 import { totalRotation } from "../pdf/pages"
 import { currentSettings } from "../storage/settings"
 import { selectActivePage, useEditor } from "../app/store"
 import { useT } from "../i18n"
+
+const ZOOM_PRESETS = [50, 75, 100, 125, 150, 200]
 
 export function StatusBar() {
   const t = useT()
@@ -16,16 +19,47 @@ export function StatusBar() {
   const sourceBytes = useEditor((state) => state.doc.source?.bytes.byteLength ?? 0)
   const zoom = useEditor((state) => state.zoom)
   const fitMode = useEditor((state) => state.fitMode)
+  const setActivePage = useEditor((state) => state.setActivePage)
+  const setZoom = useEditor((state) => state.setZoom)
+  const setFitMode = useEditor((state) => state.setFitMode)
+  const [pageDraft, setPageDraft] = useState<string | null>(null)
   const page = selectActivePage(useEditor.getState())
 
   const index = pages.findIndex((entry) => entry.id === (page?.id ?? activePageId))
   const appliedOcr = ocr.filter((layer) => layer.applied).reduce((sum, layer) => sum + layer.lines.length, 0)
   const settings = currentSettings()
 
+  const goToPage = (value: string) => {
+    const wanted = Number.parseInt(value, 10)
+    const target = Number.isFinite(wanted) ? pages[Math.min(pages.length, Math.max(1, wanted)) - 1] : undefined
+    if (target) setActivePage(target.id)
+    setPageDraft(null)
+  }
+
+  const zoomPercent = Math.round(zoom * 100)
+  const zoomChoices = ZOOM_PRESETS.includes(zoomPercent) || fitMode !== "custom"
+    ? ZOOM_PRESETS
+    : [...ZOOM_PRESETS, zoomPercent].sort((a, b) => a - b)
+
   return (
     <footer className="statusbar">
-      <span>
-        {t("Page")} <strong>{pages.length === 0 ? "—" : `${index + 1}/${pages.length}`}</strong>
+      <span className="page-jump">
+        {t("Page")}
+        <input
+          type="text"
+          inputMode="numeric"
+          className="page-number"
+          aria-label={t("Go to page")}
+          value={pageDraft ?? (pages.length === 0 ? "" : String(index + 1))}
+          disabled={pages.length === 0}
+          onChange={(event) => setPageDraft(event.target.value)}
+          onBlur={(event) => goToPage(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") goToPage(event.currentTarget.value)
+            if (event.key === "Escape") setPageDraft(null)
+          }}
+        />
+        <strong>{pages.length === 0 ? "—" : `/ ${pages.length}`}</strong>
       </span>
       {page ? (
         <span>
@@ -37,13 +71,24 @@ export function StatusBar() {
       ) : null}
       <span>
         {t("Zoom")}{" "}
-        <strong>
-          {fitMode === "custom"
-            ? `${Math.round(zoom * 100)}%`
-            : fitMode === "page"
-              ? t("fit page")
-              : t("fit width")}
-        </strong>
+        <select
+          className="zoom-select"
+          aria-label={t("Zoom")}
+          value={fitMode === "custom" ? String(zoomPercent) : fitMode}
+          onChange={(event) => {
+            const value = event.target.value
+            if (value === "page" || value === "width") setFitMode(value)
+            else setZoom(Number(value) / 100)
+          }}
+        >
+          <option value="page">{t("Fit page")}</option>
+          <option value="width">{t("Fit width")}</option>
+          {zoomChoices.map((percent) => (
+            <option key={percent} value={String(percent)}>
+              {`${percent}%`}
+            </option>
+          ))}
+        </select>
       </span>
       <span>
         {t("Objects")} <strong>{annotations.length}</strong>

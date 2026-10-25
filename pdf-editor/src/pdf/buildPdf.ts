@@ -10,7 +10,7 @@ import {
   type PDFPage,
 } from "pdf-lib"
 import { t } from "../i18n/translate"
-import type { Annotation, DocMetadata, OcrLayer, PageRef, Point, Rect } from "../types"
+import type { Annotation, DocMetadata, OcrLayer, PageRef, Point, Rect, Watermark } from "../types"
 import { pdfRect } from "./geometry"
 import { totalRotation } from "./pages"
 
@@ -20,6 +20,7 @@ export type BuildInput = {
   annotations: Annotation[]
   ocr: OcrLayer[]
   metadata: DocMetadata
+  watermark: Watermark | null
   includeOcr: boolean
 }
 
@@ -82,6 +83,27 @@ function drawTextBlock(
       font,
       color: pdfColor(annotation.color),
     })
+  })
+}
+
+/** Centres the watermark on the page, rotating the text about its own centre. */
+function drawWatermark(page: PDFPage, font: PDFFont, watermark: Watermark, ref: PageRef): void {
+  const text = sanitizeForWinAnsi(watermark.text).trim()
+  if (text.length === 0) return
+  const size = watermark.fontSize
+  const textWidth = font.widthOfTextAtSize(text, size)
+  const textHeight = font.heightAtSize(size)
+  const theta = (watermark.angle * Math.PI) / 180
+  const cos = Math.cos(theta)
+  const sin = Math.sin(theta)
+  page.drawText(text, {
+    x: ref.width / 2 - (textWidth / 2) * cos + (textHeight / 2) * sin,
+    y: ref.height / 2 - (textWidth / 2) * sin - (textHeight / 2) * cos,
+    size,
+    font,
+    color: pdfColor(watermark.color),
+    opacity: watermark.opacity,
+    rotate: degrees(watermark.angle),
   })
 }
 
@@ -231,6 +253,7 @@ export async function buildPdfBytes(input: BuildInput): Promise<Uint8Array> {
 
     const layer = ocrByPage.get(ref.id)
     if (input.includeOcr && layer) drawOcrLayer(page, font, layer, ref)
+    if (input.watermark) drawWatermark(page, font, input.watermark, ref)
   }
 
   applyMetadata(output, input.metadata)

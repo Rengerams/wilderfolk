@@ -250,6 +250,22 @@ export function MenuBar() {
         { label: t("Insert blank page"), shortcut: "Ctrl+Shift+N", onSelect: commands.insertBlank },
         { label: t("Duplicate page"), onSelect: commands.duplicateActive, disabled: pageCount === 0 },
         "separator",
+        {
+          label: t("Page numbers…"),
+          onSelect: () => useEditor.getState().openDialog("pageNumbers"),
+          disabled: pageCount === 0,
+        },
+        {
+          label: t("Watermark…"),
+          onSelect: () => useEditor.getState().openDialog("watermark"),
+          disabled: pageCount === 0,
+        },
+        {
+          label: t("Extract pages…"),
+          onSelect: () => useEditor.getState().openDialog("extract"),
+          disabled: pageCount === 0,
+        },
+        "separator",
         { label: t("Rotate left"), onSelect: () => commands.rotateActive(-90), disabled: pageCount === 0 },
         { label: t("Rotate right"), onSelect: () => commands.rotateActive(90), disabled: pageCount === 0 },
         "separator",

@@ -84,6 +84,7 @@ describe("building the PDF", () => {
         },
       ],
       metadata: METADATA,
+      watermark: null,
       includeOcr: true,
     })
 
@@ -126,9 +127,29 @@ describe("building the PDF", () => {
       annotations: [],
       ocr: [layer],
       metadata: METADATA,
+      watermark: null,
       includeOcr: false,
     })
     expect(hasText(contentStreams(bytes), "NietBedoeld")).toBe(false)
+  })
+
+  it("writes the watermark onto every page", async () => {
+    const pages = [blankPage(PAGE), blankPage(PAGE)]
+    const bytes = await buildPdfBytes({
+      sourceBytes: null,
+      pages,
+      annotations: [],
+      ocr: [],
+      metadata: METADATA,
+      watermark: { text: "Vertrouwelijk", fontSize: 48, color: "#9aa0a6", opacity: 0.2, angle: 45 },
+      includeOcr: false,
+    })
+    const streams = contentStreams(bytes)
+    const written =
+      streams.split("vertrouwelijk").length - 1 ||
+      streams.split(Buffer.from("Vertrouwelijk").toString("hex")).length - 1
+    expect(hasText(streams, "Vertrouwelijk")).toBe(true)
+    expect(written).toBeGreaterThanOrEqual(2)
   })
 
   it("reports a damaged source file instead of writing a broken PDF", async () => {
@@ -140,6 +161,7 @@ describe("building the PDF", () => {
         annotations: [],
         ocr: [],
         metadata: METADATA,
+        watermark: null,
         includeOcr: true,
       }),
     ).rejects.toThrow(/could not be read/)

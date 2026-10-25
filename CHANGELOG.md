@@ -2,6 +2,14 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio numbers pages where you want them — six edges, four number styles, a starting number and a page range — and the numbers are ordinary text you can move or delete afterwards.
+
+- **Added:** PDF Studio stamps a watermark on every page in your own wording, with its size, colour, angle and opacity, and takes it away again on request.
+
+- **Added:** A page range can be lifted out of a long document into a document of its own, ready to be saved separately.
+
+- **Added:** The status bar jumps straight to a page you type, and offers zoom steps from 50% to 200% next to fit page and fit width.
+
 - **Changed:** PDF Studio's menus now sit in a menu bar of their own below the window title, so File, Edit, View and the rest no longer crowd the document name, and they can be walked with the arrow keys.
 
 - **Added:** PDF Studio prints the whole document from the File menu or Ctrl+P, one sheet per page, exactly as it will be saved with every mark in place.

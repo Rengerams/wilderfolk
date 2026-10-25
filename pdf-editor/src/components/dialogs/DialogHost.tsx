@@ -6,10 +6,13 @@ import { FindReplaceDialog } from "./FindReplaceDialog"
 import { FormFieldsDialog } from "./FormFieldsDialog"
 import { LibraryDialog } from "./LibraryDialog"
 import { MetadataDialog } from "./MetadataDialog"
+import { ExtractPagesDialog } from "./ExtractPagesDialog"
 import { NewDocumentDialog } from "./NewDocumentDialog"
 import { OcrDialog } from "./OcrDialog"
+import { PageNumbersDialog } from "./PageNumbersDialog"
 import { ScanDialog } from "./ScanDialog"
 import { SettingsDialog } from "./SettingsDialog"
+import { WatermarkDialog } from "./WatermarkDialog"
 
 export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
   switch (kind) {
@@ -35,6 +38,12 @@ export function DialogHost({ kind }: { kind: Exclude<DialogKind, null> }) {
       return <FindReplaceDialog />
     case "form":
       return <FormFieldsDialog />
+    case "pageNumbers":
+      return <PageNumbersDialog />
+    case "watermark":
+      return <WatermarkDialog />
+    case "extract":
+      return <ExtractPagesDialog />
     case "exit":
       return <ExitDialog />
     case "closed":
