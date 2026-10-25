@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio opens password-protected PDFs: it asks for the password, unlocks the file on this PC, and then edits, prints and saves it like any other document.
+
 - **Changed:** PDF Studio's signature pad now smooths every drawn line into a natural curve, so a mouse, a pen or a finger no longer leaves jagged or wobbly strokes.
 
 - **Added:** PDF Studio splits a document by page count, maximum file size or chosen page ranges, shows progress while it works, and names every part after the original document.

@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib"
+import { PDFDocument } from "@cantoo/pdf-lib"
 import { describe, expect, it } from "vitest"
 import { fillFormFields, readFormFields } from "../src/pdf/formFields"
 import { contentStreams, hasText } from "./pdfText"

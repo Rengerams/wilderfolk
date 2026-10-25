@@ -3,6 +3,7 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { DocMetadata, PageSize, Rect, Rotation } from "../types"
 import { t } from "../i18n/translate"
+import { decryptPdfBytes } from "./decrypt"
 import { normalizeRotation } from "./geometry"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
@@ -17,17 +18,24 @@ export type PdfSource = {
   doc: PDFDocumentProxy
   pageMeta: SourcePageMeta[]
   task: ReturnType<typeof pdfjsLib.getDocument>
+  /** The decrypted file bytes when the document was locked, otherwise the file as it arrived. */
+  bytes: Uint8Array
 }
 
 /** Renders untrusted files with scripting and eval disabled. */
-export async function openPdfSource(bytes: Uint8Array, name: string): Promise<PdfSource> {
+export async function openPdfSource(
+  bytes: Uint8Array,
+  name: string,
+  options: { password?: string } = {},
+): Promise<PdfSource> {
   if (bytes.byteLength > MAX_SOURCE_BYTES) {
     throw new Error(t("This file is larger than 150 MB and cannot be opened."))
   }
+  const readable = (await decryptPdfBytes(bytes, options.password)) ?? bytes
   // pdf.js transfers the buffer to its worker, so it must receive a copy. Document JavaScript is
   // never enabled, which is what keeps scripts inside a PDF from running here.
   const task = pdfjsLib.getDocument({
-    data: bytes.slice(),
+    data: readable.slice(),
     useSystemFonts: true,
   })
   const doc = await task.promise
@@ -45,7 +53,7 @@ export async function openPdfSource(bytes: Uint8Array, name: string): Promise<Pd
     })
     page.cleanup()
   }
-  return { name, doc, pageMeta, task }
+  return { name, doc, pageMeta, task, bytes: readable }
 }
 
 export async function closePdfSource(source: PdfSource | null): Promise<void> {

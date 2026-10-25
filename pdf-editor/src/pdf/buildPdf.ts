@@ -8,7 +8,7 @@ import {
   type PDFFont,
   type PDFImage,
   type PDFPage,
-} from "pdf-lib"
+} from "@cantoo/pdf-lib"
 import { t } from "../i18n/translate"
 import type { Annotation, DocMetadata, OcrLayer, PageRef, Point, Rect, Watermark } from "../types"
 import { pdfRect } from "./geometry"

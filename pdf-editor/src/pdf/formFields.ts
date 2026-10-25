@@ -1,4 +1,4 @@
-import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PDFTextField } from "pdf-lib"
+import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PDFTextField } from "@cantoo/pdf-lib"
 
 /** Reading and filling PDF form fields (AcroForms), the reliable way to change fixed templates. */
 

@@ -213,6 +213,8 @@ export const nl: Record<string, string> = {
     "Pagina {number} · {lines} regels · {confidence}% betrouwbaarheid",
   Pages: "Pagina's",
   "Paper source": "Papierbron",
+  Password: "Wachtwoord",
+  "Password required": "Wachtwoord vereist",
   "Photograph the page: hold it flat and fill the frame. Each capture becomes one page.":
     "Fotografeer de pagina: houd hem plat en vul het kader. Elke opname wordt één pagina.",
   Portrait: "Staand",
@@ -341,6 +343,8 @@ export const nl: Record<string, string> = {
   "That document could not be opened.": "Dat document kon niet worden geopend.",
   "That document is no longer in the library.": "Dat document staat niet meer in de bibliotheek.",
   "That image could not be read.": "Die afbeelding kon niet worden gelezen.",
+  "That password is not correct.": "Dat wachtwoord is niet juist.",
+  "That password is not correct. Try again.": "Dat wachtwoord is niet juist. Probeer het opnieuw.",
   "That passphrase does not match this document.":
     "Die wachtwoordzin hoort niet bij dit document.",
   "There are no pages to print.": "Er zijn geen pagina's om af te drukken.",
@@ -391,6 +395,9 @@ export const nl: Record<string, string> = {
     "Dit document is versleuteld. Voer je wachtwoordzin in.",
   "This file is larger than 150 MB and cannot be opened.":
     "Dit bestand is groter dan 150 MB en kan niet worden geopend.",
+  "This PDF is locked. Enter its password to open it.":
+    "Deze PDF is vergrendeld. Voer het wachtwoord in om hem te openen.",
+  "This PDF is password protected.": "Deze PDF is met een wachtwoord beveiligd.",
   "This format is not installed in this build.":
     "Dit formaat is niet in deze versie geïnstalleerd.",
   "This page": "Deze pagina",
@@ -405,6 +412,7 @@ export const nl: Record<string, string> = {
   Type: "Type",
   Undo: "Ongedaan maken",
   "Undo (Ctrl+Z)": "Ongedaan maken (Ctrl+Z)",
+  Unlock: "Ontgrendelen",
   "Unlock library": "Bibliotheek ontgrendelen",
   "Unsaved changes": "Niet-opgeslagen wijzigingen",
   "Use {color}": "Gebruik {color}",
@@ -669,4 +677,6 @@ export const nl: Record<string, string> = {
   "Use page numbers like 1-3, 5 or 8-10.": "Gebruik paginanummers zoals 1-3, 5 of 8-10.",
   "{count} file will be created.": "Er wordt {count} bestand gemaakt.",
   "{count} files will be created.": "Er worden {count} bestanden gemaakt.",
+  "{name} was not opened because it needs a password.":
+    "{name} is niet geopend omdat er een wachtwoord nodig is.",
 }

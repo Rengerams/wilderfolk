@@ -9,6 +9,7 @@ import {
   totalRotation,
   withPdfExtension,
 } from "../pdf/pages"
+import { PdfPasswordError } from "../pdf/decrypt"
 import {
   closePdfSource,
   cropRegionDataUrl,
@@ -18,6 +19,7 @@ import {
   renderPageCanvas,
   type PdfSource,
 } from "../pdf/render"
+import { usePasswordPrompt } from "./passwordPrompt"
 import type { ExportArtifact, ExportFormatId } from "../formats/registry"
 import { runExport } from "../formats/registry"
 import { createProvider, type StorageProvider } from "../storage/providers"
@@ -147,6 +149,23 @@ export async function exportAs(format: ExportFormatId): Promise<ExportArtifact[]
   return artifacts
 }
 
+/** Opens a file, asking for its password until it unlocks or the user gives up. */
+async function openSource(bytes: Uint8Array, name: string): Promise<PdfSource> {
+  let password: string | undefined
+  for (;;) {
+    try {
+      return await openPdfSource(bytes, name, { password })
+    } catch (error) {
+      if (!(error instanceof PdfPasswordError)) throw error
+      const answer = await usePasswordPrompt.getState().ask(error.incorrect)
+      if (answer === null) {
+        throw new Error(t("{name} was not opened because it needs a password.", { name }))
+      }
+      password = answer
+    }
+  }
+}
+
 async function adoptSource(source: PdfSource): Promise<void> {
   const previous = getCurrentSource()
   setCurrentSource(source)
@@ -156,7 +175,6 @@ async function adoptSource(source: PdfSource): Promise<void> {
 async function loadPdfBytes(
   source: PdfSource,
   name: string,
-  bytes: Uint8Array,
   options: { id?: string; savedAt?: string; dirty: boolean },
 ): Promise<void> {
   const pages = source.pageMeta.map((meta, index) =>
@@ -169,7 +187,7 @@ async function loadPdfBytes(
     .replaceDocument({
       id: options.id ?? createId("doc"),
       name: withPdfExtension(name),
-      source: { name, bytes },
+      source: { name, bytes: source.bytes },
       pages,
       annotations: [],
       ocr: [],
@@ -182,9 +200,9 @@ async function loadPdfBytes(
 
 export async function openDocumentFile(file: File): Promise<void> {
   const bytes = await readFileBytes(file)
-  const source = await openPdfSource(bytes, file.name)
+  const source = await openSource(bytes, file.name)
   try {
-    await loadPdfBytes(source, file.name, bytes, { dirty: true })
+    await loadPdfBytes(source, file.name, { dirty: true })
   } catch (error) {
     await closePdfSource(source)
     throw error
@@ -263,9 +281,9 @@ export async function listLibrary(): Promise<StoredDocMeta[]> {
 
 export async function openFromLibrary(meta: StoredDocMeta): Promise<void> {
   const bytes = await activeProvider().read(meta.id)
-  const source = await openPdfSource(bytes, meta.name)
+  const source = await openSource(bytes, meta.name)
   try {
-    await loadPdfBytes(source, meta.name, bytes, {
+    await loadPdfBytes(source, meta.name, {
       id: meta.id,
       savedAt: meta.updatedAt,
       dirty: false,

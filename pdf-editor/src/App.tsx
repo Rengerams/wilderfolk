@@ -1,8 +1,10 @@
 import { useEffect } from "react"
 import { IMPORT_ACCEPT, pickFiles } from "./app/files"
+import { usePasswordPrompt } from "./app/passwordPrompt"
 import { useEditor } from "./app/store"
 import { useCommands } from "./app/useCommands"
 import { DialogHost } from "./components/dialogs/DialogHost"
+import { PasswordDialog } from "./components/dialogs/PasswordDialog"
 import { InspectorPanel } from "./components/InspectorPanel"
 import { MenuBar } from "./components/MenuBar"
 import { PageViewer } from "./components/PageViewer"
@@ -26,6 +28,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function App() {
   const commands = useCommands()
   const dialog = useEditor((state) => state.dialog)
+  const passwordRequest = usePasswordPrompt((state) => state.request)
   const showThumbnails = useEditor((state) => state.showThumbnails)
   const showInspector = useEditor((state) => state.showInspector)
   const setTheme = useEditor((state) => state.setTheme)
@@ -47,6 +50,10 @@ export function App() {
       const key = event.key.toLowerCase()
 
       if (event.key === "Escape") {
+        if (usePasswordPrompt.getState().request) {
+          usePasswordPrompt.getState().answer(null)
+          return
+        }
         if (state.dialog) {
           useEditor.getState().closeDialog()
           return
@@ -167,6 +174,7 @@ export function App() {
       </div>
       <StatusBar />
       {dialog ? <DialogHost kind={dialog} /> : null}
+      {passwordRequest ? <PasswordDialog incorrect={passwordRequest.incorrect} /> : null}
     </div>
   )
 }

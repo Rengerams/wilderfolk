@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from "pdf-lib"
+import { PDFDocument, StandardFonts } from "@cantoo/pdf-lib"
 import { describe, expect, it } from "vitest"
 import {
   MAX_SPLIT_BYTES,
