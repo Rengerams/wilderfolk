@@ -20,6 +20,9 @@ export const OCR_LANGUAGES = [
 export const DEFAULT_OCR_LANGUAGES = ["eng"]
 export const OCR_RENDER_SCALE = 2
 
+/** The worker, core and language data ship with the app, so recognition needs no network. */
+const OCR_ASSETS = `${import.meta.env.BASE_URL}ocr`
+
 export type OcrProgress = { status: string; progress: number }
 export type OcrPageResult = { lines: OcrLine[]; text: string; confidence: number }
 
@@ -69,6 +72,9 @@ async function getWorker(
   }
   const module = await loadTesseract()
   const worker = await module.createWorker(key, module.OEM.LSTM_ONLY, {
+    workerPath: `${OCR_ASSETS}/worker.min.js`,
+    corePath: `${OCR_ASSETS}/core`,
+    langPath: `${OCR_ASSETS}/lang`,
     logger: (message: { status?: unknown; progress?: unknown }) => {
       onProgress({
         status: String(message.status ?? "working"),
@@ -86,7 +92,7 @@ export async function terminateOcrWorker(): Promise<void> {
   activeWorker = null
 }
 
-/** Downloads and caches the language data now, so recognition later runs without fetching it again. */
+/** Warms the engine with the installed language data, so a later recognition starts immediately. */
 export async function prepareOcrLanguages(
   languages: string[],
   onProgress: (progress: OcrProgress) => void,

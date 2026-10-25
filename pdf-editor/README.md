@@ -108,6 +108,11 @@ installer language (English or Dutch), creates a Start-menu entry and an optiona
 an uninstaller in *Apps & features*, and installs the Microsoft Edge WebView2 runtime when the machine does
 not have it yet.
 
+Everything the editor needs to run comes with it: the setup program also installs the OCR engine (its worker
+and WebAssembly core) and the language data for all ten recognition languages, so text recognition works on
+a fresh PC without downloading anything. `scripts/prepare-ocr-assets.mjs` puts those files in place, and
+`npm run dev` and `npm run build` both run it first; they are generated, not committed.
+
 To build it, on Windows with Rust (`rustup`) installed:
 
 ```bash
@@ -149,9 +154,8 @@ scanning still works through the camera and through files your scanner software 
 * Rendering and OCR run in worker processes, so a damaged file cannot lock the editor.
 * File size and page limits, and clear errors for damaged or password-protected files.
 * Local-first storage; cloud is opt-in; no telemetry of any kind.
-* Network access happens only for OCR language files (from the OCR engine's public server, once per
-  language) and, when you enable it, your own cloud endpoint. The desktop shell sets no content-security
-  policy of its own for the same reason: the editor loads its workers and OCR data itself.
+* The OCR engine and its language data are installed with the app, so recognition never needs the network.
+  Network access happens only when you enable your own cloud endpoint.
 
 ## Known limitations (deliberate, documented)
 
@@ -164,8 +168,8 @@ scanning still works through the camera and through files your scanner software 
 * The searchable OCR layer is written with the standard Helvetica font, so recognition is limited to
   Latin-script languages (the ones offered in the dialogs). Non-Latin scripts would need a font embedded
   in the PDF.
-* OCR needs to download its language data once per language; without network access, recognition is
-  unavailable but everything else keeps working.
+* The installer carries the OCR engine and ten language packs, which makes it larger (roughly 40 MB of
+  recognition data) than a bare editor would be.
 * Camera capture needs a device with a camera and browser permission; inside a sandboxed preview browser
   this may be refused, in which case the scanner bridge or scanned files are the way in.
 * Filling a form starts a fresh undo history, because the underlying file changes.

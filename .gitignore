@@ -82,6 +82,9 @@ docs/superpowers/
 # Built Windows installers staged for download in the sandbox preview
 pdf-editor/public/downloads/
 
+# OCR engine and language files prepared for packaging (see pdf-editor/scripts/prepare-ocr-assets.mjs)
+pdf-editor/public/ocr/
+
 # Large or local-only sprite source tree; already-tracked sprites remain tracked
 
 

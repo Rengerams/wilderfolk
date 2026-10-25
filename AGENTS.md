@@ -275,8 +275,9 @@ the game's toolchain to it.
   `allowedHosts` **only** when `BASE44_PREVIEW_MODE === "1"`; with the flag unset, Vite's own defaults
   apply. Compose passes `BASE44_PREVIEW_MODE`, `BASE44_PUBLIC_HOST_SUFFIX`,
   `BASE44_SANDBOX_HOST_DOMAIN` and `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` through as bare entries.
-* **No secrets are required.** OCR language data comes from a public CDN, and cloud storage is configured
-  by the user inside the app (off by default), so `.base44/environment.json` lists none.
+* **No secrets are required.** The OCR engine and its language data are prepared into `pdf-editor/public/ocr`
+  (downloaded once from a public CDN, git-ignored) by `npm run dev`/`npm run build`, and cloud storage is
+  configured by the user inside the app (off by default), so `.base44/environment.json` lists none.
 * **Scanner hardware** needs the Windows-side bridge in `pdf-editor/scan-bridge/` (NAPS2 + .NET). It cannot
   be built or verified in this Linux sandbox; the editor works without it via camera capture and scanned
   files.

@@ -5,9 +5,11 @@
   "type": "module",
   "description": "PDF Studio — PDF editing without unnecessary complexity. Independent of the Wilderfolk game app.",
   "scripts": {
+    "predev": "node scripts/prepare-ocr-assets.mjs",
     "dev": "vite",
     "desktop": "tauri dev",
     "installer": "tauri build",
+    "prebuild": "node scripts/prepare-ocr-assets.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

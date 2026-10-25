@@ -519,8 +519,8 @@ export const nl: Record<string, string> = {
     "Gescande pagina's die de scannersoftware al op deze pc heeft opgeslagen (PNG of JPEG) kun je direct aan het document toevoegen en laten herkennen.",
   "the endpoint answers 409 when it already holds a newer revision, and the editor then asks you to open that copy instead of overwriting it. A document that cannot be uploaded stays open locally, so no work is lost while offline. Encryption in transit depends on your endpoint using HTTPS; for extra protection turn on library encryption below as well.":
     "het endpoint antwoordt 409 wanneer het al een nieuwere versie heeft, en de editor vraagt je dan die kopie te openen in plaats van hem te overschrijven. Een document dat niet kan worden geüpload blijft lokaal open, zodat er offline geen werk verloren gaat. Versleuteling onderweg hangt af van HTTPS op je endpoint; zet hieronder ook bibliotheekversleuteling aan voor extra bescherming.",
-  "Used by the scan and OCR dialogs by default. Language files are downloaded once per language from the OCR engine's own server.":
-    "Standaard gebruikt door de scan- en OCR-schermen. Taalbestanden worden één keer per taal gedownload van de eigen server van de OCR-engine.",
+  "Used by the scan and OCR dialogs by default. Language data for these languages is installed together with PDF Studio, so recognition works without a network connection.":
+    "Standaard gebruikt door de scan- en OCR-schermen. De taalgegevens van deze talen worden samen met PDF Studio geïnstalleerd, dus herkenning werkt zonder netwerkverbinding.",
   "Checks that this browser can paint pages onto a canvas.": "Controleert of deze browser pagina's op een canvas kan tekenen.",
   Danish: "Deens",
   Dependencies: "Onderdelen",

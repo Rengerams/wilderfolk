@@ -146,7 +146,7 @@ export function SettingsDialog() {
       <h3>{t("Text recognition languages")}</h3>
       <p className="hint">
         {t(
-          "Used by the scan and OCR dialogs by default. Language files are downloaded once per language from the OCR engine's own server.",
+          "Used by the scan and OCR dialogs by default. Language data for these languages is installed together with PDF Studio, so recognition works without a network connection.",
         )}
       </p>
       <div className="checkbox-grid">

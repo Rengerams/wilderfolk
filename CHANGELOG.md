@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** PDF Studio's Windows setup program now installs the OCR engine and the language data for all ten recognition languages, so text recognition works on a fresh PC without downloading anything.
+
 - **Changed:** PDF Studio starts straight into the editor: the in-app first-run setup program is gone, and accepting the license and choosing the language now belong to the Windows setup program.
 
 - **Changed:** PDF Studio's Windows setup program installs for the current user without administrator rights, offers English or Dutch, and adds the WebView2 runtime when a machine is missing it.
