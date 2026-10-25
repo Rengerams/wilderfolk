@@ -225,6 +225,11 @@ export function startBuilding(
   }
 
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
+  if (type === BuildingType.LeaderHouse) {
+    const main = state.buildings.find((existing) => existing.type === BuildingType.LeaderHouse
+      && existing.faction !== 'rival');
+    if (main) building.groupId = `leader-house:${main.id}`;
+  }
   building.spriteScale = 0;
   state.buildings.push(building);
 
