@@ -1,3 +1,4 @@
+import { applyLeaderHousePhase } from './leaderHouse';
 import { moveResident } from './residencyReconciliation';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
@@ -1566,7 +1567,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
     migrateLegacySecurityRoles(world);
-    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry);
+    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry,
+      (ledger) => applyLeaderHousePhase(world, ledger));
     assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
 
     const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
