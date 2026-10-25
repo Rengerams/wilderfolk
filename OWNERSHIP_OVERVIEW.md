@@ -46,6 +46,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Conception | `humanRelationships.ts` | new-calendar-day | `tryDailyConception` |
 | Pregnancy progress / birth | `humanLifecycle.ts` | pregnancy-progress | `tickPregnancyAndBirth` |
 | Moon Howler | `moonHowler.ts` | full-moon-event | `tickMoonHowlerCycle`, … |
+| Leader-house complex / annex eligibility | `leaderHouseExpansion.ts` | building placement, leader housing | `leaderHouseBuildings` (oldest manor is permanent primary), `canBuildLeaderHouse` (the sole annex unlocks once the main manor exceeds 20 occupants) |
 | Leader residency | `leaderHouse.ts` | assignment pulse (first phase) + event | `applyLeaderHousePhase` — the `leader` phase's decision, which the sweep runs on its own ledger; `leaderHousingContext` (the phase's decision context, built from the manor's policy); `evictionHouseholds` (the manor's departing residents grouped as households, so a minor leaves with their custodian); `syncLeaderHouseResidency` runs that phase alone after an election, a succession, a Moon Howler reversion or a completed manor. Who holds the manor is decided through `relocateHousehold` (the manor never counts its bed cap) |
 | Leader household membership | `leaderHouse.ts` | daily / query | `collectLeaderHousehold` — who is entitled to the manor |
 | Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
