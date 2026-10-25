@@ -1,9 +1,4 @@
-# Base44 sandbox development environment.
-#
-# Wilderfolk is a client-only React + Vite app (no backend, no database, no external service),
-# so the sandbox runs a single service: the Vite dev server, started from the bind-mounted
-# clone so every edit is live. The repo's own tooling targets Windows/PowerShell; this file is
-# the Linux/sandbox runbook only and changes nothing about the app's build.
+# Base44 sandbox development environment: one Vite dev service on host port 3000.
 services:
   web:
     image: node:22
