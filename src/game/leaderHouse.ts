@@ -15,7 +15,7 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderDescendants, isMinorChild } from './householdComposition';
+import { collectLeaderDescendants, getChildCustodian, isMinorChild } from './householdComposition';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
@@ -140,22 +140,29 @@ export function syncLeaderHouseResidency(state: WorldState): void {
     }
   }
 
-  // A settled adult child's home keeps its whole household: partner and dependent children stay put.
-  const settledHomeIds = new Set<number>();
+  // A settled descendant's household keeps its own home: the adult, their co-resident partner and
+  // the children whose custodian lives there; the leader's own minors still move in.
+  const settledIds = new Set<number>();
   for (const member of atHome) {
     const ownHome = member.residenceBuildingId;
     if (ownHome == null || ownHome === house.id || isMinorChild(member)) continue;
     if (member.id === state.villageLeaderId || member.partnerId === state.villageLeaderId) continue;
-    settledHomeIds.add(ownHome);
+    settledIds.add(member.id);
+    const partner = member.partnerId == null ? undefined : atHome.find((m) => m.id === member.partnerId);
+    if (partner && partner.residenceBuildingId === ownHome) settledIds.add(partner.id);
+  }
+  for (const member of atHome) {
+    if (!isMinorChild(member) || settledIds.has(member.id)) continue;
+    const custodian = getChildCustodian(member, atHome);
+    if (!custodian || !settledIds.has(custodian.id)) continue;
+    if (custodian.residenceBuildingId != null
+      && custodian.residenceBuildingId === member.residenceBuildingId) settledIds.add(member.id);
   }
 
   //Move in all members of the current leader's household
   for (const member of atHome) {
-    // The manor seats the leader, their spouse and anyone without a bed; a household already settled
-    // in a home of its own keeps it rather than being uprooted into the manor.
-    const ownHome = member.residenceBuildingId;
-    if (ownHome != null && ownHome !== house.id && settledHomeIds.has(ownHome)
-      && member.id !== state.villageLeaderId && member.partnerId !== state.villageLeaderId) continue;
+    // The manor seats the leader, their spouse and anyone without a bed of their own.
+    if (settledIds.has(member.id)) continue;
     if (member.residenceBuildingId !== house.id) {
       // The write releases the old home's reserved slot before displaced residents are rehoused.
       if (relocateHousehold([member], house.id, 'leader', 'leader', context)) movedIn = true;

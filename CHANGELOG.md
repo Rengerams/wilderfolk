@@ -4,6 +4,8 @@
 
 - **Fixed:** An adult child no longer trades the family home for a house whose beds a jailed settler still reserves, so the custody move cannot fill a home past the beds a prison sentence already holds.
 
+- **Fixed:** The Leader's House again seats the leader's own dependent children when they share a house with a grown child's family, while that grown child's partner and children keep their own home.
+
 
 - **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor still seats the household past its twelve beds.
 
