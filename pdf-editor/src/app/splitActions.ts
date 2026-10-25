@@ -42,6 +42,7 @@ export async function splitDocument(
       annotations: doc.annotations.filter((annotation) => pageIds.has(annotation.pageId)),
       ocr: doc.ocr.filter((layer) => pageIds.has(layer.pageId)),
       metadata: doc.metadata,
+      customTags: doc.customTags,
       watermark: doc.watermark,
       includeOcr: true,
     })

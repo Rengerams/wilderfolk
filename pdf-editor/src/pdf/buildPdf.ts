@@ -1,7 +1,10 @@
 import {
   BlendMode,
   LineCapStyle,
+  PDFDict,
   PDFDocument,
+  PDFName,
+  PDFString,
   StandardFonts,
   degrees,
   rgb,
@@ -20,6 +23,8 @@ export type BuildInput = {
   annotations: Annotation[]
   ocr: OcrLayer[]
   metadata: DocMetadata
+  /** Non-standard Info-dictionary entries written alongside the standard details. */
+  customTags: Record<string, string>
   watermark: Watermark | null
   includeOcr: boolean
 }
@@ -192,7 +197,11 @@ function drawOcrLayer(page: PDFPage, font: PDFFont, layer: OcrLayer, ref: PageRe
   }
 }
 
-export function applyMetadata(document: PDFDocument, metadata: DocMetadata): void {
+export function applyMetadata(
+  document: PDFDocument,
+  metadata: DocMetadata,
+  customTags: Record<string, string> = {},
+): void {
   document.setTitle(metadata.title)
   document.setAuthor(metadata.author)
   document.setSubject(metadata.subject)
@@ -205,6 +214,14 @@ export function applyMetadata(document: PDFDocument, metadata: DocMetadata): voi
   if (!Number.isNaN(created.getTime())) document.setCreationDate(created)
   const modified = new Date(metadata.modificationDate)
   if (!Number.isNaN(modified.getTime())) document.setModificationDate(modified)
+  // The standard setters above guarantee the Info dictionary exists, in the trailer.
+  const info = document.context.lookupMaybe(document.context.trailerInfo.Info, PDFDict)
+  if (info) {
+    for (const [key, value] of Object.entries(customTags)) {
+      const name = key.trim()
+      if (name.length > 0 && value.length > 0) info.set(PDFName.of(name), PDFString.of(value))
+    }
+  }
 }
 
 export async function buildPdfBytes(input: BuildInput): Promise<Uint8Array> {
@@ -256,6 +273,6 @@ export async function buildPdfBytes(input: BuildInput): Promise<Uint8Array> {
     if (input.watermark) drawWatermark(page, font, input.watermark, ref)
   }
 
-  applyMetadata(output, input.metadata)
+  applyMetadata(output, input.metadata, input.customTags)
   return output.save({ useObjectStreams: false })
 }

@@ -112,13 +112,16 @@ export type DocState = {
   ocr: OcrLayer[]
   watermark: Watermark | null
   metadata: DocMetadata
+  /** Info-dictionary entries outside the standard set, plus the raw XMP packet when present. */
+  customTags: Record<string, string>
+  xmp: string | null
   dirty: boolean
   savedAt: string | null
 }
 
 export type DocSnapshot = Pick<
   DocState,
-  "name" | "pages" | "annotations" | "ocr" | "watermark" | "metadata"
+  "name" | "pages" | "annotations" | "ocr" | "watermark" | "metadata" | "customTags"
 >
 
 export type Tool = "select" | "text" | "highlight" | "shape" | "ink" | "image" | "region"

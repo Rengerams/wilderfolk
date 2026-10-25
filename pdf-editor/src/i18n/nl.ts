@@ -679,4 +679,24 @@ export const nl: Record<string, string> = {
   "{count} files will be created.": "Er worden {count} bestanden gemaakt.",
   "{name} was not opened because it needs a password.":
     "{name} is niet geopend omdat er een wachtwoord nodig is.",
+
+  // Document metadata dialog: custom tags and XMP
+  "Add tag": "Tag toevoegen",
+  "Custom tags": "Eigen metatags",
+  "Extra tags read from the file, beyond the standard details.":
+    "Extra tags uit het bestand, naast de standaardgegevens.",
+  "Remove tag {name}": "Tag {name} verwijderen",
+  "Tag name": "Tagnaam",
+  "Value": "Waarde",
+  "Value of tag {name}": "Waarde van tag {name}",
+  "XMP metadata (read-only)": "XMP-metadata (alleen-lezen)",
+
+  // About dialog: license
+  "Copyright (c) 2026 Renffr": "Copyright (c) 2026 Renffr",
+  "Released as open source under the MIT License.":
+    "Vrijgegeven als open source onder de MIT-licentie.",
+  "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \u201cSoftware\u201d), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: the above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.":
+    "Hierbij wordt kosteloos toestemming verleend aan iedereen die een kopie van deze software en de bijbehorende documentatiebestanden (de \u201cSoftware\u201d) verkrijgt, om onbeperkt met de Software om te gaan, waaronder onverkort het recht om de Software te gebruiken, kopi\u00ebren, aan te passen, samen te voegen, te publiceren, te distribueren, in sublicentie te geven en te verkopen, en om personen aan wie de Software wordt verstrekt dit toe te staan, onder de volgende voorwaarden: de bovenstaande copyrightvermelding en deze toestemmingsverklaring worden opgenomen in alle kopie\u00ebn of wezenlijke delen van de Software.",
+  "THE SOFTWARE IS PROVIDED \u201cAS IS\u201d, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.":
+    "DE SOFTWARE WORDT GELEVERD \u201cAS IS\u201d, ZONDER ENIGE GARANTIE, EXPLICIET OF IMPLICIET, WAARONDER MAAR NIET BEPERKT TOT GARANTIES VAN VERKOOPBAARHEID, GESCHIKTHEID VOOR EEN BEPAALD DOEL EN NIET-INBREUK. IN GEEN GEVAL ZIJN DE AUTEURS OF COPYRIGHTHOUDERS AANSPRAKELIJK VOOR ENIGE CLAIM, SCHADE OF ANDERE AANSPRAKELIJKHEID, HETZIJ UIT EEN OVEREENKOMST, ONRECHTMATIGE DAAD OF ANDERSZINS, VOORTVLOEIEND UIT, VOORTKOMEND UIT OF IN VERBAND MET DE SOFTWARE OF HET GEBRUIK OF ANDERE HANDELINGEN IN DE SOFTWARE.",
 }

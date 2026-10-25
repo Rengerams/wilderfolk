@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from "@cantoo/pdf-lib"
+import { PDFDict, PDFDocument, PDFName, PDFString, StandardFonts } from "@cantoo/pdf-lib"
 import { describe, expect, it } from "vitest"
 import type { Annotation, DocMetadata } from "../src/types"
 import { buildPdfBytes, sanitizeForWinAnsi } from "../src/pdf/buildPdf"
@@ -84,6 +84,7 @@ describe("building the PDF", () => {
         },
       ],
       metadata: METADATA,
+      customTags: {},
       watermark: null,
       includeOcr: true,
     })
@@ -127,6 +128,7 @@ describe("building the PDF", () => {
       annotations: [],
       ocr: [layer],
       metadata: METADATA,
+      customTags: {},
       watermark: null,
       includeOcr: false,
     })
@@ -141,6 +143,7 @@ describe("building the PDF", () => {
       annotations: [],
       ocr: [],
       metadata: METADATA,
+      customTags: {},
       watermark: { text: "Vertrouwelijk", fontSize: 48, color: "#9aa0a6", opacity: 0.2, angle: 45 },
       includeOcr: false,
     })
@@ -161,10 +164,31 @@ describe("building the PDF", () => {
         annotations: [],
         ocr: [],
         metadata: METADATA,
+        customTags: {},
         watermark: null,
         includeOcr: true,
       }),
     ).rejects.toThrow(/could not be read/)
+  })
+
+  it("writes custom tags from the file alongside the standard details", async () => {
+    const blank = blankPage(PAGE)
+    const bytes = await buildPdfBytes({
+      sourceBytes: null,
+      pages: [blank],
+      annotations: [],
+      ocr: [],
+      metadata: METADATA,
+      customTags: { InvoiceNumber: "2026-042", Department: "Finance" },
+      watermark: null,
+      includeOcr: false,
+    })
+    const output = await PDFDocument.load(bytes, { updateMetadata: false })
+    const infoDict = output.context.lookupMaybe(output.context.trailerInfo.Info, PDFDict)
+    expect(infoDict?.lookupMaybe(PDFName.of("InvoiceNumber"), PDFString)?.decodeText()).toBe(
+      "2026-042",
+    )
+    expect(infoDict?.lookupMaybe(PDFName.of("Department"), PDFString)?.decodeText()).toBe("Finance")
   })
 
   it("replaces characters the standard font cannot encode", () => {

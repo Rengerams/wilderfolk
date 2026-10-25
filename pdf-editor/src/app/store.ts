@@ -75,6 +75,8 @@ export function emptyDocument(): DocState {
     ocr: [],
     watermark: null,
     metadata: emptyMetadata(),
+    customTags: {},
+    xmp: null,
     dirty: false,
     savedAt: null,
   }
@@ -88,6 +90,7 @@ function snapshot(doc: DocState): DocSnapshot {
     ocr: doc.ocr,
     watermark: doc.watermark,
     metadata: doc.metadata,
+    customTags: doc.customTags,
   }
 }
 
@@ -154,6 +157,7 @@ export type EditorState = {
   setDocumentName: (name: string) => void
   setWatermark: (watermark: Watermark | null) => void
   setMetadata: (patch: Partial<DocMetadata>) => void
+  setCustomTags: (tags: Record<string, string>) => void
   markSaved: (savedAt: string) => void
 
   rotatePage: (pageId: string, delta: number) => void
@@ -339,6 +343,7 @@ export const useEditor = create<EditorState>()((set, get) => {
       patchDoc({
         metadata: { ...get().doc.metadata, ...patch, modificationDate: new Date().toISOString() },
       }),
+    setCustomTags: (tags) => patchDoc({ customTags: tags }),
     markSaved: (savedAt) =>
       set({
         doc: {

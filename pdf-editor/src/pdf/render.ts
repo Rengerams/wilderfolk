@@ -5,6 +5,7 @@ import type { DocMetadata, PageSize, Rect, Rotation } from "../types"
 import { t } from "../i18n/translate"
 import { decryptPdfBytes } from "./decrypt"
 import { normalizeRotation } from "./geometry"
+import { customTagsFromInfo } from "./metadataTags"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -206,7 +207,13 @@ function parsePdfDate(value: string | undefined): string {
 }
 
 /** Reads the file's own document information so the user starts from the real values. */
-export async function readSourceMetadata(source: PdfSource): Promise<Partial<DocMetadata>> {
+export type SourceMetadata = {
+  metadata: Partial<DocMetadata>
+  customTags: Record<string, string>
+  xmp: string | null
+}
+
+export async function readSourceMetadata(source: PdfSource): Promise<SourceMetadata> {
   const raw = await source.doc.getMetadata()
   const info = (raw?.info ?? {}) as Record<string, unknown>
   const read = (key: string): string => {
@@ -214,15 +221,22 @@ export async function readSourceMetadata(source: PdfSource): Promise<Partial<Doc
     return typeof value === "string" ? value : ""
   }
   const keywords = read("Keywords")
+  // pdf.js exposes the raw XMP packet on a lightly typed Metadata wrapper.
+  const rawXmp = (raw?.metadata as unknown as { raw?: unknown } | undefined)?.raw
+  const xmp = typeof rawXmp === "string" ? rawXmp : null
   return {
-    title: read("Title"),
-    author: read("Author"),
-    subject: read("Subject"),
-    keywords,
-    creator: read("Creator"),
-    producer: read("Producer"),
-    creationDate: parsePdfDate(read("CreationDate")),
-    modificationDate: parsePdfDate(read("ModDate")),
+    metadata: {
+      title: read("Title"),
+      author: read("Author"),
+      subject: read("Subject"),
+      keywords,
+      creator: read("Creator"),
+      producer: read("Producer"),
+      creationDate: parsePdfDate(read("CreationDate")),
+      modificationDate: parsePdfDate(read("ModDate")),
+    },
+    customTags: customTagsFromInfo(info),
+    xmp,
   }
 }
 

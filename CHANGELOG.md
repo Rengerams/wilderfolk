@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio's About dialog now shows the MIT license text with the copyright holder and contact address, so the open source status is visible to users.
+
+- **Added:** PDF Studio reads every metadata tag a document carries — all extra tags beyond the standard details are listed and editable in the document details dialog, and the XMP packet is shown for reference.
+
 - **Added:** PDF Studio opens password-protected PDFs: it asks for the password, unlocks the file on this PC, and then edits, prints and saves it like any other document.
 
 - **Changed:** PDF Studio's signature pad now smooths every drawn line into a natural curve, so a mouse, a pen or a finger no longer leaves jagged or wobbly strokes.

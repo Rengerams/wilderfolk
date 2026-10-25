@@ -42,6 +42,15 @@ function stripEmpty(patch: Partial<DocMetadata>): Partial<DocMetadata> {
   return result
 }
 
+/** Drops empty values, mirroring how empty standard fields are stripped on load. */
+function stripTags(tags: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(tags)) {
+    if (key.trim().length > 0 && value.trim().length > 0) result[key] = value
+  }
+  return result
+}
+
 export function activeProvider(): StorageProvider {
   return createProvider(currentSettings())
 }
@@ -54,6 +63,7 @@ export async function buildCurrentPdf(): Promise<Uint8Array> {
     annotations: doc.annotations,
     ocr: doc.ocr,
     metadata: doc.metadata,
+    customTags: doc.customTags,
     watermark: doc.watermark,
     includeOcr: true,
   })
@@ -180,7 +190,9 @@ async function loadPdfBytes(
   const pages = source.pageMeta.map((meta, index) =>
     sourcePage({ srcIndex: index, size: meta.size, authoredRotation: meta.authoredRotation }),
   )
-  const metadata = { ...emptyMetadata(), ...stripEmpty(await readSourceMetadata(source)) }
+  const read = await readSourceMetadata(source)
+  const metadata = { ...emptyMetadata(), ...stripEmpty(read.metadata) }
+  const customTags = stripTags(read.customTags)
   await adoptSource(source)
   useEditor
     .getState()
@@ -193,6 +205,8 @@ async function loadPdfBytes(
       ocr: [],
       watermark: null,
       metadata,
+      customTags,
+      xmp: read.xmp,
       dirty: options.dirty,
       savedAt: options.savedAt ?? null,
     })

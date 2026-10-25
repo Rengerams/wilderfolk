@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Trash2 } from "lucide-react"
 import { Dialog, Field } from "./Dialog"
 import type { DocMetadata } from "../../types"
 import { useEditor } from "../../app/store"
@@ -22,10 +23,30 @@ export function MetadataDialog() {
   const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const setMetadata = useEditor((state) => state.setMetadata)
+  const setCustomTags = useEditor((state) => state.setCustomTags)
   const metadata = useEditor((state) => state.doc.metadata)
+  const customTags = useEditor((state) => state.doc.customTags)
+  const xmp = useEditor((state) => state.doc.xmp)
   const [draft, setDraft] = useState<DocMetadata>(metadata)
+  const [draftTags, setDraftTags] = useState<Record<string, string>>({ ...customTags })
+  const [newTag, setNewTag] = useState("")
 
   const update = (patch: Partial<DocMetadata>) => setDraft((current) => ({ ...current, ...patch }))
+  const updateTag = (key: string, value: string) =>
+    setDraftTags((current) => ({ ...current, [key]: value }))
+  const removeTag = (key: string) =>
+    setDraftTags((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+  const addTag = () => {
+    const key = newTag.trim()
+    if (key.length === 0 || key in draftTags) return
+    setDraftTags((current) => ({ ...current, [key]: "" }))
+    setNewTag("")
+  }
+  const tagKeys = Object.keys(draftTags)
 
   return (
     <Dialog
@@ -45,6 +66,7 @@ export function MetadataDialog() {
             className="btn btn-primary"
             onClick={() => {
               setMetadata(draft)
+              setCustomTags(draftTags)
               closeDialog()
             }}
           >
@@ -123,12 +145,63 @@ export function MetadataDialog() {
           />
         </Field>
       </div>
+      <Field label={t("Custom tags")} hint={t("Extra tags read from the file, beyond the standard details.")}>
+        <div className="list">
+          {tagKeys.map((key) => (
+            <div key={key} className="list-row">
+              <span className="grow">
+                <strong>{key}</strong>
+                <input
+                  type="text"
+                  aria-label={t("Value of tag {name}", { name: key })}
+                  value={draftTags[key]}
+                  onChange={(event) => updateTag(key, event.target.value)}
+                  placeholder={t("Value")}
+                />
+              </span>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t("Remove tag {name}", { name: key })}
+                onClick={() => removeTag(key)}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+          <div className="list-row">
+            <span className="grow">
+              <input
+                type="text"
+                aria-label={t("Tag name")}
+                value={newTag}
+                onChange={(event) => setNewTag(event.target.value)}
+                placeholder={t("Tag name")}
+              />
+            </span>
+            <button
+              type="button"
+              className="btn"
+              disabled={newTag.trim().length === 0}
+              onClick={addTag}
+            >
+              {t("Add tag")}
+            </button>
+          </div>
+        </div>
+      </Field>
       <div className="note">
         <strong>{t("Tip:")}</strong>{" "}
         {t(
           "clearing a field and saving removes that value from the file, so you can also strip details you do not want to share.",
         )}
       </div>
+      {xmp ? (
+        <details>
+          <summary>{t("XMP metadata (read-only)")}</summary>
+          <pre className="hint">{xmp}</pre>
+        </details>
+      ) : null}
     </Dialog>
   )
 }
