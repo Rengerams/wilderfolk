@@ -329,7 +329,6 @@ export function MenuBar() {
       entries: [
         { label: t("About PDF Studio"), onSelect: commands.about },
         { label: t("Keyboard shortcuts"), onSelect: commands.shortcuts },
-        { label: t("Security notes"), onSelect: () => useEditor.getState().openDialog("about") },
       ],
     },
   ]

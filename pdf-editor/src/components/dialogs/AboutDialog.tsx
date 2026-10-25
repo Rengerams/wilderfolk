@@ -38,7 +38,7 @@ const HIGHLIGHTS = [
   "Export to PDF, PNG, JPEG or plain text; more formats can be added as adapter modules.",
 ]
 
-export function AboutDialog(props: { section?: "about" | "shortcuts" | "security" }) {
+export function AboutDialog(props: { section?: "about" | "shortcuts" }) {
   const t = useT()
   const closeDialog = useEditor((state) => state.closeDialog)
   const section = props.section ?? "about"

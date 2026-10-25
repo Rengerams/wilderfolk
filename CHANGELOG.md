@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Removed the Help menu's Security notes entry; it opened the same About dialog.
+
 - **Changed:** The Windows installer build now signs every installer and executable automatically when signing details are supplied in the environment, and still builds unsigned without them.
 
 - **Fixed:** Saving to the local library now reports success only once the record is truly stored; a failed write surfaces an error instead of a silent save.
