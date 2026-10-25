@@ -201,7 +201,7 @@ export const HOTEL_GUEST_CAPACITY = 8;
 
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
   // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
-  // The unique Leader's House is out: its 12 beds are fixed and it can never gain a level.
+  // The unique Leader's House is out: its 20 beds are fixed and it can never gain a level.
   BuildingType.House,
   BuildingType.Mansion,
   BuildingType.Villa,
