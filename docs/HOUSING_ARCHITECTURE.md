@@ -186,6 +186,12 @@ on the same ledger: when phase `adult-child` settles a household, phase `commute
 during that run. The commute pass checks protection before pricing routes. This only protects one run:
 future days can still optimize an eligible home, subject to the commute thresholds and quota.
 
+**Cheap phase eligibility.** Capacity builds its occupancy counts first and returns immediately when no
+ordinary home exceeds its bed limit, without constructing family units or residence traits. The final
+homeless refill similarly skips household grouping if every eligible settler already holds a home.
+These are conservative early exits, not another expensive population-wide family classifier. Benchmark
+against the existing relocation reference before claiming a measured speedup.
+
 **No redundant optional evaluations.** The leader household is excluded from ordinary assignment once
 the manor phase has settled it. The adult-child pass skips settlers already recorded by an earlier phase
 before collecting their households. The commute pass filters settled households before preparing its
