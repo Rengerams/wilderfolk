@@ -326,7 +326,9 @@ export function rebalanceOvercrowdedResidences(
   const occupancy = buildResidenceOccupancy(humans);
   const traits = buildResidenceTraits(humans);
   const context = standaloneMoveContext(humans, residences, occupancy, traits, ledger);
-  const units = buildHousingUnits(humans);
+  // A prisoner's bed stays reserved: they count for capacity but never move in the rebalance.
+  const movable = humans.filter((human) => !isImprisoned(human));
+  const units = buildHousingUnits(movable);
   const targets = evictionTargets(residences);
   let moved = false;
   for (const residence of residences) {
@@ -334,7 +336,8 @@ export function rebalanceOvercrowdedResidences(
     const cap = getResidenceCapacity(residence);
     if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
     const alternatives = targets.filter((home) => home.id !== residence.id);
-    const occupants = [...(traits.get(residence.id)?.occupants.values() ?? [])];
+    const occupants = [...(traits.get(residence.id)?.occupants.values() ?? [])]
+      .filter((member) => !isImprisoned(member));
     const dependentUnit = units.filter((unit) => unit.some((member) => isMinorChild(member)
       && member.residenceBuildingId === residence.id)).sort((a, b) => b.length - a.length)[0];
     if (dependentUnit) {

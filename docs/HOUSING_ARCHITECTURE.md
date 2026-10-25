@@ -123,6 +123,9 @@ can never be packed into a house that was already too full. The shortage order i
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
 
+A jailed settler counts toward the home's occupancy but never moves here: their bed is reserved for their
+return, so the family or unrelated resident who is present carries the shortage instead.
+
 ### 5. Homeless
 
 Seat every household the colony has beds for. Units are built and sorted once, family-first and
@@ -286,8 +289,8 @@ be tested with the rest of housing, and a caller that picks a home is a second s
 A sentence is not a housing decision. `prisonBuildingId` is set; `residenceBuildingId` and
 `workerBuildingId` are left exactly as they were.
 
-* The prisoner keeps their bed, and `isImprisoned` keeps them out of the movable set (`alive`), so nobody is
-  seated in a bed that is still theirs.
+* The prisoner keeps their bed: `isImprisoned` keeps them out of every movable set (`alive` and the capacity
+  rebalance's own units), so no automatic move takes it and nobody is seated in a bed that is still theirs.
 * The prisoner still counts for capacity — the bed is reserved, not free.
 * The post is held: the colony does not refill a job that still has an owner, and the prisoner produces
   nothing while jailed.

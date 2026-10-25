@@ -34,6 +34,24 @@ describe('family shortage, reunion and a single residence writer', () => {
     expect(outsider.residenceBuildingId).toBe(spare.id);
   });
 
+  it('leaves a prisoner’s reserved bed alone while the family it shares a home with moves', () => {
+    const home = building(0, BuildingType.House);
+    const spare = building(25, BuildingType.House);
+    const household = family(getResidenceCapacity(home) - 2, home.id);
+    const prisoner = human(99, { residenceBuildingId: home.id, prisonBuildingId: 77 });
+
+    rebalanceOvercrowdedResidences([...household, prisoner], [home, spare]);
+
+    // The outsider is jailed, so the surplus family carries the move and the reserved bed stays put.
+    expect(prisoner.residenceBuildingId).toBe(home.id);
+    expect(household.every((member) => member.residenceBuildingId === spare.id)).toBe(true);
+
+    const crowded = family(getResidenceCapacity(home) - 2, home.id);
+    const jailed = human(98, { residenceBuildingId: home.id, prisonBuildingId: 77 });
+    rebalanceOvercrowdedResidences([...crowded, jailed], [home]);
+    expect(jailed.residenceBuildingId).toBe(home.id);
+  });
+
   it('never moves anyone into a home the household cannot occupy', () => {
     const home = building(0, BuildingType.House);
     const manor = building(25, BuildingType.LeaderHouse);
