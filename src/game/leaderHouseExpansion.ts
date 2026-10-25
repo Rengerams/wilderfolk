@@ -2,16 +2,22 @@ import { BuildingType } from './gameTypes';
 import type { Building } from './gameTypes';
 import { BUILDING_CONFIGS } from './buildings';
 
-/** Main manor is the oldest player-owned LeaderHouse; the second is its sole annex. */
+/** The lowest-id player manor is the original; no later annex can replace it. */
 export function leaderHouseBuildings(buildings: readonly Building[]): Building[] {
-  return buildings.filter((building) => building.type === BuildingType.LeaderHouse && building.faction !== 'rival')
-    .sort((a, b) => a.id - b.id);
+  const houses = buildings.filter((building) => building.type === BuildingType.LeaderHouse
+    && building.faction !== 'rival').sort((a, b) => a.id - b.id);
+  const main = houses[0];
+  if (!main) return [];
+  const annexId = `leader-house:${main.id}`;
+  return [main, ...houses.filter((building) => building.id !== main.id && building.groupId === annexId)];
 }
 
-/** An annex is available only when a completed main manor already houses over 20 settlers. */
+/** Only one explicitly linked annex is possible; it unlocks above 20 occupied beds. */
 export function canBuildLeaderHouse(buildings: readonly Building[]): boolean {
-  const houses = leaderHouseBuildings(buildings);
+  const houses = buildings.filter((building) => building.type === BuildingType.LeaderHouse
+    && building.faction !== 'rival');
   if (houses.length === 0) return true;
-  return houses.length === 1 && houses[0].completed
-    && houses[0].occupants.length > BUILDING_CONFIGS[BuildingType.LeaderHouse].maxOccupants;
+  const [main] = leaderHouseBuildings(buildings);
+  return houses.length === 1 && main.completed
+    && main.occupants.length > BUILDING_CONFIGS[BuildingType.LeaderHouse].maxOccupants;
 }
