@@ -53,7 +53,7 @@ export function FormFieldsDialog() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const usable = fields.filter((field) => field.type !== "unsupported")
 

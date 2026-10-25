@@ -222,7 +222,7 @@ function drawSpacedText(
   baselineY: number,
   spacing: number,
 ): void {
-  const characters = [...text]
+  const characters = Array.from(text)
   const widths = characters.map((character) => context.measureText(character).width)
   const total = widths.reduce((sum, width) => sum + width, 0) + spacing * Math.max(0, characters.length - 1)
   let x = centerX - total / 2

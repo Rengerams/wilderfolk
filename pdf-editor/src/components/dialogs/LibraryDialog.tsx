@@ -41,8 +41,23 @@ export function LibraryDialog() {
   }
 
   useEffect(() => {
-    void refresh()
-  }, [])
+    let cancelled = false
+    void (async () => {
+      try {
+        const documents = await listLibrary()
+        if (cancelled) return
+        setDocuments(documents)
+      } catch (caught) {
+        if (cancelled) return
+        setError(caught instanceof Error ? caught.message : t("The library could not be read."))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [t])
 
   const open = async (meta: StoredDocMeta) => {
     setError("")

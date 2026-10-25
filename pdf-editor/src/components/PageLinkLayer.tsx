@@ -32,12 +32,28 @@ function openableHref(href: string): boolean {
   }
 }
 
+/** The link boxes of the page they were measured for, so a stale page never shows stale boxes. */
+type LoadedLinks = {
+  source: PdfSource
+  srcIndex: number
+  rotation: Rotation
+  scale: number
+  links: LinkBox[]
+}
+
 /** Clickable regions for the links a PDF carries, so URLs and cross-references work in the editor. */
 export function PageLinkLayer({ source, srcIndex, rotation, scale, interactive, onFollowPage }: Props) {
-  const [links, setLinks] = useState<LinkBox[]>([])
+  const [loaded, setLoaded] = useState<LoadedLinks | null>(null)
+  const links =
+    loaded &&
+    loaded.source === source &&
+    loaded.srcIndex === srcIndex &&
+    loaded.rotation === rotation &&
+    loaded.scale === scale
+      ? loaded.links
+      : []
 
   useEffect(() => {
-    setLinks([])
     let cancelled = false
     void (async () => {
       const page = await source.doc.getPage(srcIndex + 1)
@@ -59,7 +75,7 @@ export function PageLinkLayer({ source, srcIndex, rotation, scale, interactive, 
             pageIndex: await destinationPage(source, annotation.dest),
           })
         }
-        if (!cancelled) setLinks(boxes)
+        if (!cancelled) setLoaded({ source, srcIndex, rotation, scale, links: boxes })
       } finally {
         page.cleanup()
       }

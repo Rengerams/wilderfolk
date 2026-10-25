@@ -47,6 +47,6 @@ describe("library encryption", () => {
   it("rejects a wrong passphrase", async () => {
     const payload = new TextEncoder().encode("%PDF-1.7 secret")
     const stored = await encryptBytes(payload, "correct horse")
-    await expect(decryptBytes(stored, "wrong horse")).rejects.toThrow()
+    await expect(decryptBytes(stored, "wrong horse")).rejects.toThrow(/passphrase does not match/)
   })
 })

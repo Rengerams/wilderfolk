@@ -65,10 +65,10 @@ describe("page range parsing", () => {
   })
 
   it("rejects text, page zero and ranges past the last page", () => {
-    expect(() => parsePageRanges("one-two", 10)).toThrow()
-    expect(() => parsePageRanges("0-2", 10)).toThrow()
-    expect(() => parsePageRanges("9-11", 10)).toThrow()
-    expect(() => parsePageRanges(" , ", 10)).toThrow()
+    expect(() => parsePageRanges("one-two", 10)).toThrow(/Use page numbers/)
+    expect(() => parsePageRanges("0-2", 10)).toThrow(/start at 1/)
+    expect(() => parsePageRanges("9-11", 10)).toThrow(/go up to/)
+    expect(() => parsePageRanges(" , ", 10)).toThrow(/at least one page or range/)
   })
 
   it("chunks a document from page one and rejects an empty chunk size", () => {
@@ -77,7 +77,7 @@ describe("page range parsing", () => {
       { from: 11, to: 20 },
       { from: 21, to: 25 },
     ])
-    expect(() => chunkPageRanges(10, 0)).toThrow()
+    expect(() => chunkPageRanges(10, 0)).toThrow(/at least one page per file/)
   })
 
   it("accepts a supported file size unchanged", () => {
@@ -141,7 +141,8 @@ describe("splitting a real document", () => {
       expect(result.part.from).toBe(next)
       next = result.part.to + 1
       // A page that alone exceeds the limit is still written, on its own.
-      if (result.bytes.byteLength > limit) expect(result.part.from).toBe(result.part.to)
+      const oversized = result.bytes.byteLength > limit
+      expect(!oversized || result.part.from === result.part.to).toBe(true)
     }
     expect(next).toBe(10)
     expect(progress.at(-1)).toBe(1)
@@ -149,7 +150,7 @@ describe("splitting a real document", () => {
   })
 
   it("refuses limits outside the supported range", () => {
-    expect(() => splitSizeLimit(MIN_SPLIT_BYTES - 1)).toThrow()
-    expect(() => splitSizeLimit(MAX_SPLIT_BYTES + 1)).toThrow()
+    expect(() => splitSizeLimit(MIN_SPLIT_BYTES - 1)).toThrow(/Choose a file size/)
+    expect(() => splitSizeLimit(MAX_SPLIT_BYTES + 1)).toThrow(/Choose a file size/)
   })
 })

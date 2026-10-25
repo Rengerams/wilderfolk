@@ -25,10 +25,8 @@ export function StampDialog() {
   const [color, setColor] = useState<string>(PRESETS[0].color)
   const [includeDate, setIncludeDate] = useState(true)
   const [tilt, setTilt] = useState(true)
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
-    [],
+  const [today] = useState(() =>
+    new Date().toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
   )
   const preview = useMemo(
     () => renderStampPng({ text, color, date: includeDate ? today : null, tilt }),

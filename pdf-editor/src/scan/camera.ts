@@ -6,7 +6,11 @@ import { t } from "../i18n/translate"
 let activeStream: MediaStream | null = null
 
 export function cameraSupported(): boolean {
-  return typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia)
+  return (
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.mediaDevices) &&
+    "getUserMedia" in navigator.mediaDevices
+  )
 }
 
 export async function startCamera(video: HTMLVideoElement): Promise<void> {

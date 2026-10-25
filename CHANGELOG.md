@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** The editor's type-aware lint scan now completes with zero warnings and zero errors; menu triggers register in an effect and page link state is keyed to its page.
+
 - **Changed:** The dev server config is now machine-local without sandbox logic; the sandbox preview runs its own config file instead.
 
 - **Changed:** PDF Studio's Windows build now pins its Tauri engine to exact released versions and uses the current Rust edition, so installer builds are reproducible.

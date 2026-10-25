@@ -49,9 +49,24 @@ export function ScanDialog() {
   }
 
   useEffect(() => {
-    void loadDevices()
-    return () => stopCamera()
-  }, [])
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await listBridgeDevices(bridgeUrl)
+        if (cancelled) return
+        setDevices(list)
+        setDeviceId((current) => current || (list[0]?.id ?? ""))
+      } catch (caught) {
+        if (cancelled) return
+        setDevices([])
+        setError(caught instanceof Error ? caught.message : t("The scan bridge could not be reached."))
+      }
+    })()
+    return () => {
+      cancelled = true
+      stopCamera()
+    }
+  }, [bridgeUrl, t])
 
   const scanWithBridge = async () => {
     setError("")

@@ -42,7 +42,7 @@ async function download(url, path) {
       return
     } catch (error) {
       if (attempt === 3) {
-        throw new Error(`Could not install ${url}: ${error instanceof Error ? error.message : error}`)
+        throw new Error(`Could not install ${url}: ${error instanceof Error ? error.message : String(error)}`)
       }
       await new Promise((wait) => setTimeout(wait, attempt * 1000))
     }

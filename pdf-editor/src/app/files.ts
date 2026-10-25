@@ -15,7 +15,10 @@ export async function readFileBytes(file: File): Promise<Uint8Array> {
 export async function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result)
+      else reject(new Error(t("{name} could not be read.", { name: file.name })))
+    }
     reader.onerror = () => reject(new Error(t("{name} could not be read.", { name: file.name })))
     reader.readAsDataURL(file)
   })

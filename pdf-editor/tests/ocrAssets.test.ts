@@ -1,13 +1,21 @@
 import { describe, expect, it, vi } from "vitest"
 import { prepareOcrLanguages } from "../src/pdf/ocr"
 
-const tesseract = vi.hoisted(() => ({
-  createWorker: vi.fn(async (..._args: unknown[]) => ({
-    recognize: vi.fn(),
-    terminate: vi.fn(async () => undefined),
-  })),
-  OEM: { LSTM_ONLY: 1 },
-}))
+const tesseract = vi.hoisted(() => {
+  type MockWorker = {
+    recognize: (image: unknown) => Promise<unknown>
+    terminate: () => Promise<undefined>
+  }
+  return {
+    createWorker: vi.fn<(language: string, oem: unknown, options: unknown) => Promise<MockWorker>>(
+      async () => ({
+        recognize: vi.fn<MockWorker["recognize"]>(),
+        terminate: vi.fn<MockWorker["terminate"]>(async () => undefined),
+      }),
+    ),
+    OEM: { LSTM_ONLY: 1 },
+  }
+})
 
 vi.mock("tesseract.js", () => tesseract)
 

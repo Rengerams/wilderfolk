@@ -80,9 +80,10 @@ export function PageViewer() {
   const textDraftRef = useRef("")
 
   const rotation: Rotation = page ? totalRotation(page) : 0
-  const pageDisplay = page
-    ? displaySize(page.width, page.height, rotation)
-    : { width: 595, height: 842 }
+  const pageDisplay = useMemo(
+    () => (page ? displaySize(page.width, page.height, rotation) : { width: 595, height: 842 }),
+    [page, rotation],
+  )
 
   const fitScale = useMemo(() => {
     const available = {

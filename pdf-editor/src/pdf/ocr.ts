@@ -77,8 +77,8 @@ async function getWorker(
     langPath: `${OCR_ASSETS}/lang`,
     logger: (message: { status?: unknown; progress?: unknown }) => {
       onProgress({
-        status: String(message.status ?? "working"),
-        progress: Number(message.progress ?? 0),
+        status: typeof message.status === "string" ? message.status : "working",
+        progress: typeof message.progress === "number" ? message.progress : 0,
       })
     },
   })

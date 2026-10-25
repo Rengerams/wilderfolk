@@ -22,7 +22,8 @@ export function ThumbnailRail() {
   const insertBlankPage = useEditor((state) => state.insertBlankPage)
   const movePageTo = useEditor((state) => state.movePageTo)
 
-  const [thumbs, setThumbs] = useState<Record<string, ThumbEntry>>({})
+  const [thumbsByDoc, setThumbsByDoc] = useState<Record<string, Record<string, ThumbEntry>>>({})
+  const thumbs = thumbsByDoc[documentId] ?? {}
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
   const railListRef = useRef<HTMLDivElement>(null)
@@ -30,7 +31,6 @@ export function ThumbnailRail() {
 
   useEffect(() => {
     renderedThumbsRef.current = {}
-    setThumbs({})
   }, [documentId])
 
   // Only pages near the visible part of the rail get a thumbnail, so a long file stays responsive.
@@ -85,9 +85,9 @@ export function ThumbnailRail() {
           if (cancelled) return
           const url = canvas.toDataURL("image/jpeg", 0.72)
           renderedThumbsRef.current[page.id] = rotation
-          setThumbs((current) => ({
-            ...current,
-            [page.id]: { url, rotation },
+          // Replacing the whole map frees an old document's previews once its pages are gone.
+          setThumbsByDoc((current) => ({
+            [documentId]: { ...(current[documentId] ?? {}), [page.id]: { url, rotation } },
           }))
         } catch {
           // A page that cannot be rendered keeps its previous thumbnail.
@@ -97,7 +97,7 @@ export function ThumbnailRail() {
     return () => {
       cancelled = true
     }
-  }, [activePageId, pages, visibleIds])
+  }, [activePageId, documentId, pages, visibleIds])
 
   const pageImage = (pageId: string): Annotation | undefined =>
     annotations.find((annotation) => annotation.pageId === pageId && annotation.type === "image")

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { IMPORT_ACCEPT, pickFiles } from "../app/files"
 import { selectActivePage, useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
@@ -28,7 +28,8 @@ function Menu(props: {
   entries: MenuEntry[]
   open: boolean
   focusOnOpen: OpenTarget
-  triggerRef: (node: HTMLButtonElement | null) => void
+  triggerIndex: number
+  registerTrigger: (index: number, node: HTMLButtonElement | null) => void
   onToggle: () => void
   onHover: () => void
   onOpenFromKeyboard: (focusOnOpen: Exclude<OpenTarget, null>) => void
@@ -36,6 +37,13 @@ function Menu(props: {
   onClose: (refocusTrigger: boolean) => void
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const { registerTrigger, triggerIndex } = props
+
+  useEffect(() => {
+    registerTrigger(triggerIndex, triggerRef.current)
+    return () => registerTrigger(triggerIndex, null)
+  }, [registerTrigger, triggerIndex])
 
   useEffect(() => {
     if (!props.open || !props.focusOnOpen) return
@@ -112,8 +120,8 @@ function Menu(props: {
         className="menu-trigger"
         aria-expanded={props.open}
         aria-haspopup="menu"
-        ref={props.triggerRef}
-        onClick={props.onToggle}
+        ref={triggerRef}
+        onClick={() => props.onToggle()}
         onKeyDown={onTriggerKeyDown}
       >
         {props.label}
@@ -156,6 +164,9 @@ export function MenuBar() {
 
   const navRef = useRef<HTMLElement>(null)
   const triggers = useRef<(HTMLButtonElement | null)[]>([])
+  const setTrigger = useCallback((index: number, node: HTMLButtonElement | null) => {
+    triggers.current[index] = node
+  }, [])
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   const [focusOnOpen, setFocusOnOpen] = useState<OpenTarget>(null)
 
@@ -345,9 +356,8 @@ export function MenuBar() {
           entries={section.entries}
           open={openIndex === index}
           focusOnOpen={openIndex === index ? focusOnOpen : null}
-          triggerRef={(node) => {
-            triggers.current[index] = node
-          }}
+          triggerIndex={index}
+          registerTrigger={setTrigger}
           onToggle={() => {
             setFocusOnOpen(null)
             setOpenIndex(openIndex === index ? null : index)
