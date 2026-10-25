@@ -58,6 +58,12 @@ jobs:
               const differences = x.assignments.filter(([id,home]) => byId.get(id)!==home).slice(0,20);
               console.log('HOUSING_DIFFERENCES '+JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,count:x.assignments.filter(([id,home]) => byId.get(id)!==home).length,examples:differences}));
             }
-            if(x.assignmentHash !== y.assignmentHash || x.violations !== y.violations) process.exitCode=1;
+            if (x.initialHash !== y.initialHash) {
+              console.log('FIXTURE_MISMATCH '+JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineInput:y.initialHash,optimizedInput:x.initialHash}));
+              process.exitCode=1;
+            } else if(x.assignmentHash !== y.assignmentHash || x.violations !== y.violations) {
+              console.log('BEHAVIOR_MISMATCH '+JSON.stringify({population:x.population,spareHomes:x.spareHomes,scenario:x.scenario,baselineOutput:y.assignmentHash,optimizedOutput:x.assignmentHash}));
+              process.exitCode=1;
+            }
           }
           JS
