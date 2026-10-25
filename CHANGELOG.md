@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor still seats the household past its twelve beds.
+
 - **Added:** A housing architecture note explains the single ordered decision pipeline: which phase owns which question, how a run's ledger protects a household a mandatory phase settled, and how to add a rule without a second scheduler.
 
 - **Changed:** Housing decisions now run as one ordered process — repairs, guardianship, seating and capacity before the optional adult-child and commute moves — so a household a mandatory step settled is no longer moved again by a later pass, and the whole household moves or none of it does.

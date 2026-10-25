@@ -1,4 +1,11 @@
-import { moveResident } from './residencyReconciliation';
+import {
+  assignMissingResidences,
+  standaloneMoveContext,
+  relocateHousehold,
+  syncResidenceOccupants,
+} from './residencyReconciliation';
+import type { HousingMoveContext } from './residencyReconciliation';
+import { listPlayerResidences } from './residencySelection';
 import {
   BuildingType,
   EntityType,
@@ -9,7 +16,6 @@ import {
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
 import { collectLeaderDescendants, isMinorChild } from './householdComposition';
-import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
@@ -80,6 +86,12 @@ export function applyLeaderOccupation(state: WorldState, prevLeaderId: number | 
   leader.occupation = LEADER_OCCUPATION;
 }
 
+/** The `leader` phase's decision context: the manor sets the policy, never the bed cap. */
+function leaderHousingContext(state: WorldState): HousingMoveContext {
+  const residents = state.entities.filter((e) => e.alive && isResidenceOccupantEntity(e));
+  return standaloneMoveContext(residents, listPlayerResidences(state.buildings));
+}
+
 export function syncLeaderHouseResidency(state: WorldState): void {
   const house = findLeaderHouse(state.buildings);
   if (!house) return;
@@ -90,9 +102,10 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   const incumbent = state.entities.find((e) => e.id === state.villageLeaderId);
   if (!incumbent?.alive) {
     const entitledIds = new Set(state.pendingLeaderHouseResidentIds ?? house.occupants);
+    const context = leaderHousingContext(state);
     for (const person of state.entities) {
       if (person.alive && isPlayerHuman(person) && !isImprisoned(person) && entitledIds.has(person.id)) {
-        moveResident(person, house.id, 'leader', { buildings: state.buildings });
+        relocateHousehold([person], house.id, 'leader', 'leader', context);
       }
     }
     syncResidenceOccupants(state.entities, state.buildings);
@@ -115,12 +128,13 @@ export function syncLeaderHouseResidency(state: WorldState): void {
   let evicted = false;
   let movedIn = false;
   const displaced: Entity[] = [];
+  const context = leaderHousingContext(state);
 
   //Evict settlers who are no longer part of the official leader's household
   for (const e of state.entities) {
     if (!e.alive || !isPlayerHuman(e)) continue;
     if (e.residenceBuildingId === house.id && !entitledIds.has(e.id)) {
-      moveResident(e, undefined, 'leader', { buildings: state.buildings });
+      if (!relocateHousehold([e], undefined, 'leader', 'leader', context)) continue;
       displaced.push(e);
       evicted = true;
     }
@@ -143,11 +157,8 @@ export function syncLeaderHouseResidency(state: WorldState): void {
     if (ownHome != null && ownHome !== house.id && settledHomeIds.has(ownHome)
       && member.id !== state.villageLeaderId && member.partnerId !== state.villageLeaderId) continue;
     if (member.residenceBuildingId !== house.id) {
-      // Release the old home's reserved slot before finding homes for displaced residents.
-      const previous = state.buildings.find((b) => b.id === member.residenceBuildingId);
-      if (previous) previous.occupants = previous.occupants.filter((id) => id !== member.id);
-      moveResident(member, house.id, 'leader', { buildings: state.buildings });
-      movedIn = true;
+      // The write releases the old home's reserved slot before displaced residents are rehoused.
+      if (relocateHousehold([member], house.id, 'leader', 'leader', context)) movedIn = true;
     }
   }
 

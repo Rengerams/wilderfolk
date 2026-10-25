@@ -36,13 +36,15 @@ the simulation they run only from `assignMissingResidences`.
 ```mermaid
 flowchart TD
   E[Event / command / load / daily pulse] --> S[assignMissingResidences]
-  S --> P1[1 integrity]
-  P1 --> P2[2 guardianship]
-  P2 --> P3[3 capacity]
-  P3 --> P4[4 homeless]
-  P4 --> P5[5 adult-child]
-  P5 --> P6[6 commute]
-  P1 & P2 & P3 & P4 & P5 & P6 --> L[(HousingLedger: settled · visited · report)]
+  E --> P0[1 leader — syncLeaderHouseResidency]
+  P0 --> S
+  S --> P1[2 integrity]
+  P1 --> P2[3 guardianship]
+  P2 --> P3[4 capacity]
+  P3 --> P4[5 homeless]
+  P4 --> P5[6 adult-child]
+  P5 --> P6[7 commute]
+  P0 & P1 & P2 & P3 & P4 & P5 & P6 --> L[(HousingLedger: settled · visited · report)]
   L --> W[relocateHousehold → moveResident]
   W --> R[syncResidenceOccupants · invariant audit]
 ```
@@ -51,35 +53,50 @@ flowchart TD
 
 ## 2. The phases, in order
 
-`HOUSING_PHASE_ORDER` is the declaration; `assignMissingResidences` runs it. A phase sees the previous
-phase's result and nothing else's intent.
+`HOUSING_PHASE_ORDER` is the declaration; `assignMissingResidences` runs every phase in it except
+`leader`, which `syncLeaderHouseResidency` runs just ahead of the sweep. A phase sees the previous phase's
+result and nothing else's intent.
 
 Class matters: **mandatory** phases fix something that is wrong. **Optional** phases only improve something
 that is already acceptable, and they are the ones that can be withheld (§3).
 
 | # | Phase | Class | The one question it answers |
 | :-- | :--- | :--- | :--- |
-| 1 | `integrity` | mandatory | Does every recorded home still exist as a player residence? |
-| 2 | `guardianship` | mandatory | Does every minor without a parent have a custodian, and a bed with them? |
-| 3 | `capacity` | mandatory | Is any home holding more settlers than it has beds? |
-| 4 | `homeless` | mandatory | Does every settler the colony has a bed for have one? |
-| 5 | `adult-child` | optional | Should an adult child still living at home take a genuinely empty home? |
-| 6 | `commute` | optional | Would this whole household be meaningfully better off in a vacant home? |
+| 1 | `leader` | mandatory | Does the leader's household hold the manor, and only them? |
+| 2 | `integrity` | mandatory | Does every recorded home still exist as a player residence? |
+| 3 | `guardianship` | mandatory | Does every minor without a parent have a custodian, and a bed with them? |
+| 4 | `capacity` | mandatory | Is any home holding more settlers than it has beds? |
+| 5 | `homeless` | mandatory | Does every settler the colony has a bed for have one? |
+| 6 | `adult-child` | optional | Should an adult child still living at home take a genuinely empty home? |
+| 7 | `commute` | optional | Would this whole household be meaningfully better off in a vacant home? |
 
-### 1. Integrity
+### 1. Leader
+
+The manor is a hold, not a placement: the leader's household occupies it and nobody else does.
+`syncLeaderHouseResidency` is the phase's driver — it runs from the assignment layer just before the sweep,
+and from an election, a succession or a Moon Howler reversion, which cannot wait for a pulse. Every move it
+makes is a `relocateHousehold` decision with phase and reason `leader`: an eviction of a settler the office
+no longer entitles, and a move-in of an entitled member without a bed there. Evicted settlers are then
+seated by `assignMissingResidences` like anyone else.
+
+The manor never counts its bed cap: it seats the whole entitled household, exactly as the capacity phase
+never evicts from it. Every other check applies — a refused move leaves the settler where they are, and the
+decision is logged in the run's report.
+
+### 2. Integrity
 
 A `residenceBuildingId` that points at a building that is gone, is not a residence, or belongs to a rival is
 not an assignment. The phase clears it (reason `assignment`), and the settler becomes homeless for phase 4.
 Nothing is placed here — repair and placement are different decisions.
 
-### 2. Guardianship
+### 3. Guardianship
 
 Every minor without a living parent gets custody resolved once for the whole sibling set
 (`ensureOrphanAdoption`: living relative, then grandparent of either gender, then a suitable couple, then a
 single guardian), and the guardian's household is placed as one. A child is never seated alone before this
 runs, and the Leader's House is never a guardianship destination.
 
-### 3. Capacity
+### 4. Capacity
 
 `rebalanceOvercrowdedResidences` relieves an over-full home **before** anyone new is seated, so a newcomer
 can never be packed into a house that was already too full. The shortage order is fixed:
@@ -92,7 +109,7 @@ can never be packed into a house that was already too full. The shortage order i
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
 
-### 4. Homeless
+### 5. Homeless
 
 Seat every household the colony has beds for. Units are built and sorted once, family-first and
 custodian-following, and the loop is bounded (24 passes with early exit when nothing moved). Two shapes:
@@ -106,13 +123,13 @@ custodian-following, and the loop is bounded (24 passes with early exit when not
 The capacity rebalance and the post-eviction homeless refill stay **global** on every call, whatever the
 bucket: a settler who loses a bed is never left outside until the cycle comes round.
 
-### 5. Adult child
+### 6. Adult child
 
 An option, not a duty. Candidates are adult children living in a family home (never the manor), eldest
 first, and a move needs an empty home that fits the **whole departing household**. If the household a
 mandatory phase settled, this phase is skipped for them — that is the protection rule in §3.
 
-### 6. Commute
+### 7. Commute
 
 The only relocation engine: a daily, batched, route-aware trade, run only on the last sweep bucket of the
 day. A move must clear `RELOCATION_MIN_SAVED_HOURS` (0.5 h/day) and beat the current home by
@@ -123,7 +140,7 @@ previous home are updated after every move, so the next household prices the col
 
 ### Closing steps
 
-After the six phases: one final `fillHomelessAfterEviction`, one `syncResidenceOccupants` (the roster is
+After the six sweep phases: one final `fillHomelessAfterEviction`, one `syncResidenceOccupants` (the roster is
 derived from the links once, at the end — never maintained by hand mid-pass), then the invariant audit.
 
 ---
@@ -166,7 +183,8 @@ becomes writes. Before a single member moves it verifies:
 * the destination exists, is a player residence, is completed, and is not a rival's;
 * the household has not already lived there this run;
 * the destination is not the Leader's House, unless the reason is `leader`, `birth` or `moon-form`;
-* `familyFitsInResidence` — the whole household fits in the destination's remaining beds;
+* `familyFitsInResidence` — the whole household fits in the destination's remaining beds (a `leader` move
+  into the manor skips this, as the capacity phase already never evicts from it);
 * `custodianTravelsAlong` — no minor in the household would land where their living custodian is not.
 
 If any check fails, **nobody** moves. Only then does each member go through `moveResident`. If the writer
@@ -187,8 +205,9 @@ members and calls `moveResident` for each — a household either passes the chec
 
 `moveResident` is left for decisions that are genuinely about one settler: the integrity clear, a birth, a
 death, a departure, a demolition, a prison or Moon Howler transition, one adult moving out of a guardian's
-home, and a child following an already-placed custodian (death cleanup, divorce). The manor entitlement
-(`leaderHouse.ts`) keeps its own rule and moves members selectively, so it stays outside this pipeline.
+home, and a child following an already-placed custodian (death cleanup, divorce). The manor hold
+(`leaderHouse.ts`) decides one entitled member per call, and each of those calls is a `relocateHousehold`
+decision too.
 
 ---
 
@@ -216,6 +235,7 @@ surfaces as a named failure with the settler or home id in it, not as a househol
 | Building placed, upgraded, demolished | `buildingPlacementActions.ts` / `buildingMaintenanceActions.ts` | full convergence |
 | Births, arrivals | `dailyPopulation.ts` (with tick) | newcomers are homeless, so the global fill seats them now |
 | Divorce, marriage, leadership, arrest, release, moon-form | their owner modules | full convergence after the event's own write |
+| Leader elected, dies, or reverts from Moon Howler form | `leaderHouse.syncLeaderHouseResidency` | the `leader` phase moves the entitled household, then the sweep seats the evicted |
 
 The pulse short-circuits when the housing signature (residences plus each settler's home, partner, parents,
 age class and prison) is unchanged since the last sweep, so a quiet colony costs nothing.
@@ -255,7 +275,8 @@ A sentence is not a housing decision. `prisonBuildingId` is set; `residenceBuild
 ## 9. What this pipeline does not own
 
 * **Staffing and job posts** — `workforce.ts` (`clearWorkerAssignment`, `detachWorkplaceReference`).
-* **Leader entitlement** (who the manor admits) — `leaderHouse.ts`.
+* **Leader entitlement** (who the manor admits) — `leaderHouse.ts`, which applies it through the `leader`
+  phase of this pipeline rather than writing residence ids itself.
 * **Pure scoring** (which home fits, which trade is worth it) — `residencySelection.ts`.
 * **Derived rosters for views** — `syncResidenceOccupants`, called once at the end of a run.
 * **Family structure** — `householdComposition.ts` / `genealogyTypes.ts`.

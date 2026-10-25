@@ -15,12 +15,12 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
 
-/** The decision order: a mandatory correction always runs before an optional improvement. */
-export const HOUSING_PHASE_ORDER = ['integrity', 'guardianship', 'capacity', 'homeless', 'adult-child', 'commute'] as const;
+/** Decision order: mandatory corrections before optional improvements; `leader` (the manor hold) first. */
+export const HOUSING_PHASE_ORDER = ['leader', 'integrity', 'guardianship', 'capacity', 'homeless', 'adult-child', 'commute'] as const;
 export type HousingPhase = (typeof HOUSING_PHASE_ORDER)[number];
 
 const MANDATORY_PHASES: ReadonlySet<HousingPhase> = new Set<HousingPhase>([
-  'integrity', 'guardianship', 'homeless', 'capacity',
+  'leader', 'integrity', 'guardianship', 'homeless', 'capacity',
 ]);
 
 export interface HousingRelocation {
@@ -93,7 +93,7 @@ export interface HousingMoveContext {
 }
 
 /** The context a caller outside the pipeline gets: one run of its own over the inputs it holds. */
-function standaloneMoveContext(
+export function standaloneMoveContext(
   alive: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
@@ -122,7 +122,9 @@ function householdMayMove(
     if (!target || !target.completed || target.faction === 'rival') return false;
     if (isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return false;
     if (unit.some((member) => context.ledger.visited.get(member.id)?.has(toId))) return false;
-    if (!familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
+    // The manor hold is unconditional: like the capacity rebalance, it never counts the bed cap.
+    const manorHold = reason === 'leader' && isLeaderHouseResidence(target);
+    if (!manorHold && !familyFitsInResidence([...unit], target, context.alive, context.occupancy)) return false;
   }
   return custodianTravelsAlong(unit, toId, context.alive);
 }
