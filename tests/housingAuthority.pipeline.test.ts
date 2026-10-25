@@ -39,6 +39,16 @@ describe('the housing decision pipeline', () => {
     expect(isHousingUnitProtected(ledger, [settler], 'guardianship')).toBe(false);
   });
 
+  it('does not allow commute to undo an adult-child decision in the same pipeline run', () => {
+    const ledger = createHousingLedger();
+    const adult = human(7, { age: 20 });
+    const partner = human(8, { age: 21 });
+    ledger.settled.set(adult.id, 'adult-child');
+    expect(isHousingUnitProtected(ledger, [adult, partner], 'commute')).toBe(true);
+    expect(isHousingUnitProtected(ledger, [adult], 'adult-child')).toBe(false);
+    expect(isHousingUnitProtected(ledger, [adult, partner], 'capacity')).toBe(false);
+  });
+
   it('refuses the whole household move when the destination cannot hold everyone', () => {
     const from = building(0, BuildingType.House);
     const target = building(1, BuildingType.House);
