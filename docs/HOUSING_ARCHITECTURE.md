@@ -135,8 +135,9 @@ Every run allocates its own `HousingLedger`, so no state leaks between pulses:
 | Field | Meaning |
 | :--- | :--- |
 | `settled` | settler id → the phase that decided their home. The protection key. |
-| `visited` | household key (lowest member id) → homes that household already held this run. |
+| `visited` | settler id → homes that settler's household already held this run. |
 | `before` | residence per settler when the running phase began, so the phase can log its moves. |
+| `reported` | settler id → the home a recorded household move already logged in this phase. |
 | `report` | `relocations[]`, `protectedUnits`, `violations[]` — returned to the caller. |
 
 **Protection.** `isHousingUnitProtected(ledger, unit, phase)` is consulted by every optional move. If any
@@ -175,6 +176,19 @@ than reported as done: a refused write is not a decision.
 `moveResident` stays the single residence write. It keeps the occupancy index, the household traits and the
 building's `occupants` roster consistent, carries the reason, and refuses ordinary moves out of or into the
 Leader's House.
+
+### Who calls it
+
+Every relocation inside the pipeline that moves more than one settler goes through `relocateHousehold`:
+homeless placement and its split fallbacks (`assignFamilyToResidence`), capacity rehousing and the surplus it
+unhouses (`rebalanceOvercrowdedResidences`), a sibling set with no guardian (`ensureOrphanAdoption`), a couple
+forming a household (`syncPartnerResidence`), the adult-child move and the commute trade. No phase loops over
+members and calls `moveResident` for each — a household either passes the checks above or stays put.
+
+`moveResident` is left for decisions that are genuinely about one settler: the integrity clear, a birth, a
+death, a departure, a demolition, a prison or Moon Howler transition, one adult moving out of a guardian's
+home, and a child following an already-placed custodian (death cleanup, divorce). The manor entitlement
+(`leaderHouse.ts`) keeps its own rule and moves members selectively, so it stays outside this pipeline.
 
 ---
 

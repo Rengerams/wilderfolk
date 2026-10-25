@@ -6,7 +6,7 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
-import { removeWorkerTransition } from './workforce';
+import { clearWorkerAssignment } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -58,7 +58,7 @@ function releaseRetiredStructureReferences(
   buildings: Building[],
 ): void {
   if (entity.workerBuildingId != null && retired.has(entity.workerBuildingId)) {
-    removeWorkerTransition(entity, buildings);
+    clearWorkerAssignment(entity, buildings);
   }
   if (entity.residenceBuildingId != null && retired.has(entity.residenceBuildingId)) {
     moveResident(entity, undefined, 'demolition', { buildings });
