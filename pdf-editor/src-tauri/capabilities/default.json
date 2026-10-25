@@ -1,0 +1,17 @@
+{
+  "$schema": "../bindings/capabilities.schema.json",
+  "identifier": "default",
+  "description": "Standaard permissies voor de PDF Studio hoofdinterface",
+  "windows": ["main"],
+  "permissions": [
+    "core:path:default",
+    "core:event:default",
+    "core:window:default",
+    "core:dialog:allow-open",
+    "core:dialog:allow-save",
+    "core:fs:allow-read-text",
+    "core:fs:allow-write-text",
+    "core:fs:allow-read-file",
+    "core:fs:allow-write-file"
+  ]
+}
