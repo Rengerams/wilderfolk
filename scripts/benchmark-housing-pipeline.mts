@@ -31,6 +31,7 @@ async function main(): Promise<void> {
       const times:number[]=[];
       let relocations=0, violations=0, assignmentHash='', initialHash='';
       let assignments: Array<[number, number | null]> = [];
+      let moveDetails: Array<{phase:string;members:number[];from?:number;to?:number}> = [];
       for(let sample=0;sample<repeats;sample++) {
     resetPathGridCaches();
     const state = initGame({ size: MapSize.Large, seed });
@@ -84,11 +85,12 @@ async function main(): Promise<void> {
         const report=assignMissingResidences(humans,state.buildings,humans,TICKS_PER_DAY-1);
         times.push(performance.now()-t);
         relocations=report.relocations.length;
+        moveDetails=report.relocations.map(m => ({phase:m.phase,members:m.members,from:m.from,to:m.to}));
         violations=report.violations.length;
         assignments = humans.map(h=>[h.id,h.residenceBuildingId ?? null]);
         assignmentHash=createHash('sha256').update(JSON.stringify(assignments)).digest('hex');
       }
-      console.log('HOUSING_PIPELINE_RESULT '+JSON.stringify({population,spareHomes,scenario,repeats,warmMedianMs:median(times.slice(2)),coldMs:times[0],relocations,violations,initialHash,assignmentHash,assignments:process.env.PERF_ASSIGNMENT_DETAIL==='1'?assignments:undefined}));
+      console.log('HOUSING_PIPELINE_RESULT '+JSON.stringify({population,spareHomes,scenario,repeats,warmMedianMs:median(times.slice(2)),coldMs:times[0],relocations,violations,initialHash,assignmentHash,assignments:process.env.PERF_ASSIGNMENT_DETAIL==='1'?assignments:undefined,moveDetails:process.env.PERF_ASSIGNMENT_DETAIL==='1'?moveDetails:undefined}));
     }
   }
 }
