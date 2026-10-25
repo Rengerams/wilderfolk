@@ -563,7 +563,7 @@ export const BUILDING_CONFIGS: Readonly<Record<BuildingType, BuildingConfig>> = 
     height: 53,
     cost: { wood: 0, stone: 0, gold: 0 },
     buildTime: 2,
-    maxOccupants: 12,
+    maxOccupants: 20,
     emoji: '👑',
     label: "Leader's House",
     description: 'Official residence of the elected village leader.',
