@@ -32,11 +32,31 @@ describe('Leader\'s House overflow annex', () => {
     expect(leaderHouseBuildings([annex])).toEqual([]);
     expect(canBuildLeaderHouse([annex])).toBe(true);
     const replacement = building(12, BuildingType.LeaderHouse);
-    expect(leaderHouseBuildings([annex, replacement]).map((home) => home.id)).toEqual([12]);
+    expect(leaderHouseBuildings([annex, replacement]).map((home) => home.id)).toEqual([12, 11]);
     expect(canBuildLeaderHouse([annex, replacement])).toBe(false);
     // A new annex must link to the replacement rather than the demolished building.
     const newAnnex = building(13, BuildingType.LeaderHouse, { groupId: 'leader-house:12' });
-    expect(leaderHouseBuildings([annex, replacement, newAnnex]).map((home) => home.id)).toEqual([12, 13]);
+    expect(leaderHouseBuildings([annex, replacement, newAnnex]).map((home) => home.id)).toEqual([12, 13, 11]);
+  });
+
+  it('evicts an unrelated prior leader household from a surviving annex after replacement', () => {
+    const formerLeader = human(31, { residenceBuildingId: 11 });
+    const newLeader = human(32, { residenceBuildingId: 12 });
+    const oldAnnex = building(11, BuildingType.LeaderHouse, { groupId: 'leader-house:10', occupants: [31] });
+    const replacement = building(12, BuildingType.LeaderHouse, { occupants: [32] });
+    const state = {
+      entities: [formerLeader, newLeader],
+      buildings: [oldAnnex, replacement],
+      villageLeaderId: 32,
+      eventLog: [],
+      tick: 0,
+      year: 0,
+      dayInYear: 1,
+    } as unknown as WorldState;
+    syncLeaderHouseResidency(state);
+    expect(newLeader.residenceBuildingId).toBe(12);
+    expect(formerLeader.residenceBuildingId).not.toBe(11);
+    expect(oldAnnex.occupants).not.toContain(31);
   });
 
   it('keeps the leader in the original manor and seats the extra household members in the annex', () => {
