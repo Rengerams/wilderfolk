@@ -1,4 +1,4 @@
-# PDF Studio 0.1.0
+# PDF Studio 0.2.0
 **A Modern, Powerful, and Accessible PDF Editing Solution**
 
 *An independent software project developed by Renger Vegting.*
@@ -42,9 +42,9 @@ Every feature should have a clear purpose, improve productivity, and contribute 
 
 ## Development Status
 
-**Version 0.1.0 — Initial Development Release**
+**Version 0.2.0 — Feature Release**
 
-PDF Studio is currently in its early development stage. This first version establishes the foundation for future improvements, additional editing capabilities, performance optimizations, and interface refinements.
+This release prints a whole document with every mark in place, lets you select and copy the text of an opened PDF and follow its links, and installs the text-recognition engine and its language data with the app so recognition works without a network connection.
 
 The project will continue to evolve toward a complete, practical, and accessible desktop PDF editing solution.
 
@@ -108,8 +108,8 @@ Rust (`rustup`) and the WebView2 runtime must be installed; the Tauri CLI, NSIS 
 build itself. The two installers appear in:
 
 ```
-src-tauri/target/release/bundle/nsis/PDF Studio_0.1.0_x64-setup.exe
-src-tauri/target/release/bundle/msi/PDF Studio_0.1.0_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/PDF Studio_0.2.0_x64-setup.exe
+src-tauri/target/release/bundle/msi/PDF Studio_0.2.0_x64_en-US.msi
 ```
 
 The same build runs on a Windows runner when the `PDF Studio installer` workflow is started by hand or a

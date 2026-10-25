@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PDF Studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.rengervegting.pdfstudio",
   "build": {
     "frontendDist": "../dist",
