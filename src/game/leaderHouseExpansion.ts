@@ -24,6 +24,6 @@ export function canBuildLeaderHouse(buildings: readonly Building[]): boolean {
   // An orphaned annex cannot act as the main manor; permit a replacement main.
   if (!houses.some((house) => !house.groupId?.startsWith('leader-house:'))) return true;
   const [main] = leaderHouseBuildings(buildings);
-  return leaderHouseBuildings(buildings).length === 1 && !!main?.completed
+  return houses.length === 1 && !!main?.completed
     && main.occupants.length > BUILDING_CONFIGS[BuildingType.LeaderHouse].maxOccupants;
 }
