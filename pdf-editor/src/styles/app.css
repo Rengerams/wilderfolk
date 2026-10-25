@@ -521,13 +521,95 @@ textarea {
   height: 100%;
 }
 
+/* ---------- text and link layers ---------- */
+
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer span,
+.textLayer br {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer ::selection {
+  color: transparent;
+  background: rgba(15, 108, 189, 0.3);
+}
+
+.textLayer[data-interactive="false"] {
+  pointer-events: none;
+}
+
+.linkLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.linkLayer[data-interactive="false"] {
+  pointer-events: none;
+}
+
+.page-link {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.page-link:hover {
+  background: rgba(15, 108, 189, 0.14);
+  box-shadow: 0 0 0 1px rgba(15, 108, 189, 0.45) inset;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 3;
 }
 
+/* Selecting leaves the page's own text selectable; objects inside stay clickable. */
 .overlay[data-tool="select"] {
   cursor: default;
+  pointer-events: none;
+}
+
+.overlay[data-tool="select"] .ann {
+  pointer-events: auto;
 }
 
 .overlay[data-tool="text"] {
@@ -1114,5 +1196,35 @@ textarea {
 
   .viewer {
     padding: 12px;
+  }
+}
+
+/* ---------- printing ---------- */
+
+.print-sheet {
+  display: none;
+}
+
+@page {
+  margin: 8mm;
+}
+
+@media print {
+  .app {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block;
+  }
+
+  .print-sheet img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 98vh;
+    margin: 0 auto;
+    break-after: page;
   }
 }

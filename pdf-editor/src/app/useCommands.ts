@@ -12,6 +12,7 @@ import {
   saveDocumentCopy,
 } from "./documentActions"
 import { readImageInput } from "./documentActions"
+import { printDocument } from "./printActions"
 import { selectActivePage, useEditor } from "./store"
 import { getCurrentSource } from "./sourceRegistry"
 
@@ -23,6 +24,7 @@ export type Commands = {
   save: () => Promise<void>
   saveCopy: () => Promise<void>
   exportAs: (format: ExportFormatId) => Promise<void>
+  print: () => Promise<void>
   editProperties: () => void
   runOcr: () => void
   storageSettings: () => void
@@ -92,6 +94,7 @@ export function useCommands(): Commands {
       save: () => wrap("Saving", () => saveDocument()),
       saveCopy: () => wrap("Saving a copy", () => saveDocumentCopy()),
       exportAs: (format) => wrap("Exporting", () => exportAs(format)),
+      print: () => wrap("Preparing to print", () => printDocument()),
       editProperties: () => openDialog("metadata"),
       runOcr: () => openDialog("ocr"),
       storageSettings: () => openDialog("settings"),

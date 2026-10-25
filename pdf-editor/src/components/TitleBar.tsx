@@ -111,6 +111,12 @@ export function TitleBar() {
               onSelect: () => useEditor.getState().openDialog("export"),
               disabled: pageCount === 0,
             },
+            {
+              label: t("Print…"),
+              shortcut: "Ctrl+P",
+              onSelect: () => void commands.print(),
+              disabled: pageCount === 0,
+            },
             "separator",
             {
               label: t("Scan pages…"),

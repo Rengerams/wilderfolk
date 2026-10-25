@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** PDF Studio prints the whole document from the File menu or Ctrl+P, one sheet per page, exactly as it will be saved with every mark in place.
+
+- **Added:** Text in an opened PDF can now be selected and copied, and the links a PDF carries — web addresses and cross-references to other pages — can be clicked.
+
 - **Changed:** PDF Studio's Windows setup program now installs the OCR engine and the language data for all ten recognition languages, so text recognition works on a fresh PC without downloading anything.
 
 - **Changed:** PDF Studio starts straight into the editor: the in-app first-run setup program is gone, and accepting the license and choosing the language now belong to the Windows setup program.

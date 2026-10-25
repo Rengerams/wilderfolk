@@ -9,6 +9,7 @@ const SHORTCUTS: [string, string][] = [
   ["Ctrl + O", "Open a PDF, PNG or JPEG file"],
   ["Ctrl + S", "Save to the library"],
   ["Ctrl + E", "Export as another format"],
+  ["Ctrl + P", "Print the document"],
   ["Ctrl + Shift + S", "Scan pages"],
   ["Ctrl + Z / Ctrl + Y", "Undo / redo"],
   ["Ctrl + 0", "Fit page in the window"],

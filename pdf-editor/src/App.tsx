@@ -90,6 +90,10 @@ export function App() {
             event.preventDefault()
             useEditor.getState().openDialog("export")
             return
+          case "p":
+            event.preventDefault()
+            void commands.print()
+            return
           case "h":
             event.preventDefault()
             useEditor.getState().openDialog("find")

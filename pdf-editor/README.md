@@ -62,6 +62,8 @@ Windows installer is built.
 | :--- | :--- |
 | Documents | New documents (A4, A5, A3, Letter, Legal, Tabloid, square; portrait/landscape, 1–200 pages), open PDF/PNG/JPEG, save, save a copy, export |
 | Pages | Reorder by dragging, rotate, duplicate, insert blank pages, delete, page thumbnails |
+| Reading | Select and copy the text of an opened PDF, follow its links and cross-references |
+| Printing | The whole document from the File menu or Ctrl+P, one sheet per page, exactly as it saves |
 | Editing | Text boxes, highlights, rectangles, freehand drawing, placed pictures — move, resize, restyle, undo/redo |
 | Pictures | Copy the picture inside any region of a PDF out into an editable image object |
 | Details | Title, author, subject, keywords, creator, producer, creation date, modification date — all editable, cleared when you empty a field |

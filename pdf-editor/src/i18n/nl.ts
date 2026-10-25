@@ -126,6 +126,7 @@ export const nl: Record<string, string> = {
   "Font size ({size} pt)": "Lettergrootte ({size} pt)",
   "Form fields live inside PDF files. Open a PDF that contains a form, then fill it here.":
     "Formuliervelden zitten in het PDF-bestand. Open een PDF met een formulier en vul het hier in.",
+  "Go to page {number}": "Ga naar pagina {number}",
   Help: "Help",
   "How syncing behaves:": "Hoe synchroniseren werkt:",
   "If your PDF has fillable form fields (a recurring invoice or contract), use":
@@ -216,6 +217,9 @@ export const nl: Record<string, string> = {
     "Fotografeer de pagina: houd hem plat en vul het kader. Elke opname wordt één pagina.",
   Portrait: "Staand",
   "Preparing recognition": "Herkennen voorbereiden",
+  "Preparing to print": "Afdrukken voorbereiden",
+  "Print the document": "Het document afdrukken",
+  "Print…": "Afdrukken…",
   "Produced by (producer)": "Geproduceerd door (producent)",
   Producer: "Producent",
   Properties: "Eigenschappen",
@@ -339,6 +343,7 @@ export const nl: Record<string, string> = {
   "That image could not be read.": "Die afbeelding kon niet worden gelezen.",
   "That passphrase does not match this document.":
     "Die wachtwoordzin hoort niet bij dit document.",
+  "There are no pages to print.": "Er zijn geen pagina's om af te drukken.",
   "The OCR engine could not be loaded.": "De OCR-engine kon niet worden geladen.",
   "The camera could not be started.": "De camera kon niet worden gestart.",
   "The camera has not produced a picture yet.": "De camera heeft nog geen beeld gegeven.",

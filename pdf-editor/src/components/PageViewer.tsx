@@ -18,6 +18,8 @@ import { pickFiles } from "../app/files"
 import { getCurrentSource } from "../app/sourceRegistry"
 import { useEditor } from "../app/store"
 import { useCommands } from "../app/useCommands"
+import { PageLinkLayer } from "./PageLinkLayer"
+import { PageTextLayer } from "./PageTextLayer"
 import { WelcomeScreen } from "./WelcomeScreen"
 
 const MIN_MARQUEE = 0.005
@@ -50,6 +52,8 @@ export function PageViewer() {
   const selectAnnotation = useEditor((state) => state.selectAnnotation)
   const addAnnotation = useEditor((state) => state.addAnnotation)
   const updateAnnotation = useEditor((state) => state.updateAnnotation)
+  const setActivePage = useEditor((state) => state.setActivePage)
+  const source = getCurrentSource()
 
   const page = useMemo(
     () => pages.find((entry) => entry.id === activePageId) ?? pages[0] ?? null,
@@ -236,6 +240,11 @@ export function PageViewer() {
     setEditingId(annotationId)
   }
 
+  const followPageLink = (srcIndex: number) => {
+    const target = pages.find((entry) => entry.kind === "source" && entry.srcIndex === srcIndex)
+    if (target) setActivePage(target.id)
+  }
+
   const pointFromEvent = (event: { clientX: number; clientY: number }, element: Element): Point => {
     const bounds = element.getBoundingClientRect()
     return {
@@ -270,15 +279,18 @@ export function PageViewer() {
     }
   }
 
+  // The overlay ignores pointers while selecting, so a click on the page clears the selection here.
+  const onStagePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (tool !== "select") return
+    if ((event.target as HTMLElement).closest("[data-ann]")) return
+    selectAnnotation(null)
+    setEditingId(null)
+  }
+
   const onOverlayPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!page) return
     if ((event.target as HTMLElement).closest("[data-ann]")) return
     const point = pointFromEvent(event, event.currentTarget)
-    if (tool === "select") {
-      selectAnnotation(null)
-      setEditingId(null)
-      return
-    }
     if (tool === "text") {
       const anchor = unrotatePoint(point, rotation)
       addAnnotation({
@@ -551,12 +563,37 @@ export function PageViewer() {
   return (
     <div className="viewer" ref={containerRef}>
       {page ? (
-        <div className="page-stage" style={{ width: stageWidth, height: stageHeight }}>
+        <div
+          className="page-stage"
+          style={{ width: stageWidth, height: stageHeight }}
+          onPointerDown={onStagePointerDown}
+        >
           <canvas
             ref={canvasRef}
             className="page-canvas"
             style={{ width: stageWidth, height: stageHeight }}
           />
+          {page.kind === "source" && source ? (
+            <>
+              <PageTextLayer
+                source={source}
+                srcIndex={page.srcIndex}
+                rotation={rotation}
+                scale={scale}
+                width={stageWidth}
+                height={stageHeight}
+                interactive={tool === "select"}
+              />
+              <PageLinkLayer
+                source={source}
+                srcIndex={page.srcIndex}
+                rotation={rotation}
+                scale={scale}
+                interactive={tool === "select"}
+                onFollowPage={followPageLink}
+              />
+            </>
+          ) : null}
           <div
             className="overlay"
             data-tool={tool}
