@@ -21,7 +21,7 @@ Today there is exactly one of each thing that matters:
 
 | Concern | Single owner |
 | :--- | :--- |
-| **When** housing is decided | `assignMissingResidences` — the only scheduler |
+| **When** housing is decided | `assignMissingResidences` — full seven-phase housing scheduler; `syncLeaderHouseResidency` — immediate leader-only event transition |
 | **What was already decided this run** | `HousingLedger` — one per run |
 | **How a decision is applied** | `relocateHousehold` for a household, `moveResident` for one settler |
 | **Which home a settler should get (pure scoring)** | `residencySelection.ts` |
@@ -56,7 +56,7 @@ flowchart TD
 ## 2. The phases, in order
 
 `HOUSING_PHASE_ORDER` is the declaration, and `assignMissingResidences` runs every phase in it — `leader`
-first, through the `leaderPhase` decision the assignment layer supplies. A phase sees the previous phase's
+first, through the `leaderPhase` decision supplied by the assignment layer and by load, immigration and player residence commands. A phase sees the previous phase's
 result and nothing else's intent.
 
 Class matters: **mandatory** phases fix something that is wrong. **Optional** phases only improve something
@@ -90,7 +90,7 @@ succeed for the whole household instead of leaving the child behind.
 
 The original manor seats the leader even when the household exceeds its fixed 20 beds. Once over 20,
 exactly one linked annex can be built; the annex stores its original-manor reference in `groupId`,
-and leader-phase housing allocates overflow there. Both residences form one custody complex.
+and leader-phase housing allocates overflow there. Both residences form one custody complex. The original leader residence is selected by its role (not by an annex ID), while an annex must reference it with `groupId = leader-house:<original id>`. A detached annex is not treated as a new primary residence; deleting the primary therefore leaves the annex orphaned until repaired rather than promoting it.
 The capacity phase never evicts members of that complex. Every other check applies — a refused move leaves the settler where they are, and the
 decision is logged in the run's report.
 
