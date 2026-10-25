@@ -710,18 +710,19 @@ export function relocateHouseholdsForCommute(
   traits: ResidenceTraitsById,
   ledger?: HousingLedger,
 ): void {
+  const decisions = ledger ?? createHousingLedger();
+  // Do not build the route index or price a journey when every unit was already settled.
+  const eligibleUnits = units.filter((unit) => !isHousingUnitProtected(decisions, unit, 'commute'));
+  if (eligibleUnits.length === 0) return;
   const index = buildCommuteRelocationIndex(residences, buildings, occupancy);
   if (index.vacant.length === 0) return;
   const cache = new Map<string, number>();
   beginCommuteRoutePass();
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
-  const decisions = ledger ?? createHousingLedger();
   const context: HousingMoveContext = { alive, residences, buildings, occupancy, traits, ledger: decisions };
   let relocated = 0;
-  for (const unit of units) {
+  for (const unit of eligibleUnits) {
     if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
-    // Phase 5 may have just placed this household; do not immediately trade that decision away.
-    if (isHousingUnitProtected(decisions, unit, 'commute')) continue;
     const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, cache, walkSpeed, index);
     if (better === undefined) continue;
     const previousId = unit[0]?.residenceBuildingId;
@@ -987,6 +988,7 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   const candidates = humans
     .filter(
       (h) =>
+        (!ledger || !ledger.settled.has(h.id)) &&
         isAdultChildAtHome(h, humans, humansById) &&
         (h.residenceBuildingId == null || !leaderHouseIds.has(h.residenceBuildingId)),
     )
