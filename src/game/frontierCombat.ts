@@ -145,6 +145,24 @@ export function cancelPendingOutgoingRaidsForRival(state: WorldState, rivalId: s
   return (state.pendingOutgoingRaidEvents?.length ?? 0) < before;
 }
 
+/** Founding raid cooldown: a new camp watches the frontier for 45–74 days before its first war-band. */
+export function rollFoundingRaidCooldownDays(roll: number): number {
+  return 45 + Math.floor(roll * 30);
+}
+
+/** A truce calls off both war-bands at a rival and keeps that camp quiet for the treaty's length. */
+export function applyTruceToRival(state: WorldState, rivalId: string, truceDays: number): void {
+  const rival = state.rivalSettlements.find((candidate) => candidate.id === rivalId);
+  if (!rival) return;
+  rival.raidCooldownDays = Math.max(rival.raidCooldownDays, truceDays);
+  if (cancelPendingRaidsForRival(state, rivalId)) {
+    logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
+  }
+  if (cancelPendingOutgoingRaidsForRival(state, rivalId)) {
+    logEvent(state, 'event', `War-band recalled — truce with ${rival.name}`, rival.name);
+  }
+}
+
 /** Rival strength when they attack you (war-band on the march). */
 export function getRivalRaidStrength(rival: RivalSettlement): number {
   const mood = rival.relationship === 'tense' ? 1.35 : rival.relationship === 'competitive' ? 1.15 : 0.9;

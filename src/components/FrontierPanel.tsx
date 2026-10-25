@@ -53,6 +53,7 @@ function FrontierPanel({
   const pendingRaids = state.pendingRaidEvents ?? [];
   const firstPendingRaid = pendingRaids[0];
   const pendingDiplomacy = state.pendingDiplomacyEvents ?? [];
+  const livingIds = new Set(state.entities.filter((person) => person.alive).map((person) => person.id));
   const hasNeighbors = state.visitorGroups.length > 0 || state.rivalSettlements.length > 0;
   const militia = computeMilitiaBreakdown(state, state.entities);
   const guards = getBarracksGuardCount(state, state.buildings);
@@ -71,7 +72,7 @@ function FrontierPanel({
     const year = state.year ?? 0;
     return (
       <div className="space-y-3">
-        <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
+        <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
       <div className="rounded-xl border border-dashed border-stone-600 bg-stone-800/40 p-4 text-center">
         <p className="text-[13px] text-stone-300">No caravans or rival camps yet.</p>
         <p className="mt-1 text-[13px] text-stone-300">
@@ -92,7 +93,7 @@ function FrontierPanel({
 
   return (
     <div className="space-y-3">
-      <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} onLaunchRaid={onLaunchRaid} onDeclareWar={onProvokeRival} onRecallRaid={onRecallRaid} />
+      <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
       {(state.raidBattleReports?.length ?? 0) > 0 && (
         <section className="rounded-lg border border-amber-600/40 bg-stone-900/70 px-3 py-2 text-[12px]">
           <h4 className="text-[13px] font-bold text-amber-200">Battle aftermath and recovery</h4>
@@ -202,6 +203,7 @@ function FrontierPanel({
             {state.rivalSettlements.map((r) => {
               const hasRaid = pendingRaids.some((e) => e.rivalId === r.id);
               const hasDiplo = pendingDiplomacy.some((e) => e.rivalId === r.id);
+              const warBands = (state.pendingOutgoingRaidEvents ?? []).filter((army) => army.rivalId === r.id);
               const raidEligibility = canLaunchRaidOnRival(state, r);
               const provokeEligibility = canProvokeRival(state, r);
               const raidFoodCost = getOutgoingRaidFoodCostForRival(state, r);
@@ -246,6 +248,28 @@ function FrontierPanel({
                     )}
                     <p className="text-[10px] text-stone-400">Select to highlight this settlement on the strategic map; no village-camera jump.</p>
                   </button>
+                  {warBands.map((army) => {
+                    const phase = army.phase === 'returning' ? 'Returning' : army.phase === 'fighting' ? 'Battle underway' : army.phase === 'engaging' ? 'Arrived' : 'Marching';
+                    const marchingSoldiers = army.soldierIds?.filter((id) => livingIds.has(id)).length ?? 0;
+                    const canRecall = onRecallRaid && army.phase !== 'returning' && army.phase !== 'fighting';
+                    return (
+                      <div key={army.id} className="mt-1.5 flex items-center justify-between gap-2 rounded bg-emerald-950/40 px-2 py-1 text-[10px] text-emerald-200">
+                        <span>🏹 {phase} · {marchingSoldiers} soldiers afield</span>
+                        {canRecall && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRecallRaid(army.id);
+                            }}
+                            className="rounded bg-amber-800 px-2 py-0.5 font-bold text-amber-50 hover:bg-amber-700"
+                          >
+                            Recall
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {onLaunchRaid && (
                     <>
                     {onProvokeRival && (
