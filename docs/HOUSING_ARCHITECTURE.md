@@ -256,6 +256,58 @@ decision too.
 
 ---
 
+### Detailed data flow and failure handling
+
+The trigger (assignment pulse, load, command or life event) supplies the current settlers, residence buildings and rules. `assignMissingResidences` builds one `HousingLedger` and visits eligible housing phases in priority order. An immediate leadership event may instead run the leader phase alone. `beginHousingPhase` snapshots each settler's home; `endHousingPhase` detects changes not already reported by `relocateHousehold`.
+
+```mermaid
+flowchart TD
+  A[Pulse, event, command or load] --> B[Housing context and per-run ledger]
+  B --> C[Ordered mandatory then optional phases]
+  C --> D{Household candidate?}
+  D -- No --> Z[Next candidate or phase]
+  D -- Yes --> E{Protected or invalid destination / capacity / custody?}
+  E -- Yes --> F[Reject: no write]
+  E -- No --> G{Any member fails residenceMoveRefused?}
+  G -- Yes --> F
+  G -- No --> H[Snapshot previous home of every member]
+  H --> I[writeResidence for each member]
+  I --> J{Every member at destination?}
+  J -- No --> K[Restore changed members; no relocation report]
+  J -- Yes --> L[Set visited, settled, reported; log changed move]
+  F --> Z
+  K --> Z
+  L --> Z
+  Z --> M[End phase: deduplicate and report other changes]
+  M --> N[Final roster synchronization and invariant audit]
+  N --> O[Return relocations, protectedUnits and violations]
+```
+
+**Writer boundary:** `householdMayMove` checks completion, faction, already-visited homes, available beds (except authorized manor admission) and custodians. `residenceMoveRefused` checks each proposed member against the single-resident writer's restrictions *before* moving anybody. `writeResidence` changes the settler's home, optional occupancy index, residence traits and occupants roster together. Phases must not directly set `residenceBuildingId`.
+
+**Expected refusals:** invalid or unfinished residence, rival home, insufficient beds, protected household, forbidden manor move, separated minor/custodian and repeated destination all result in no household move. An empty unit returns `false`. A valid no-op may return `true` yet correctly emits **no** relocation record: accepted is not synonymous with changed.
+
+**Partial write:** `relocateHousehold` stores each member's previous residence before the writes. If any member does not reach the target, it restores changed members through `writeResidence` and records no relocation. This protects against a detectable partial result, but is **not an exception-safe transaction**: unexpected exceptions from a writer are not caught here.
+
+**Final diagnostics:** phase snapshots catch nested-helper writes and avoid reporting a member twice. `collectHousingInvariantViolations` reports invalid home pointers, non-manor overcapacity and housed children separated from custodians. The report does not perform repairs and must be inspected by callers/tests.
+
+### Worked examples (illustrative IDs)
+
+| Input and situation | Outcome | Reason |
+| :--- | :--- | :--- |
+| Parents #11/#12 and minor #13 are homeless; completed House #201 has three free beds. | The `homeless` phase can move all three to #201 as one household and report one relocation. | Whole-household capacity and custody checks succeed. |
+| The same family is offered House #202 with only two available beds. | That *proposal* moves nobody; later fallback logic may try another valid solution. | Reject before writing: no split household. |
+| Adult #21 lives with parents; empty completed House #211 fits the departing household. | The optional `adult-child` phase may move the adult; `commute` cannot move that settled unit again during the same run. | Ledger protection prevents successive optional phases undoing one another. |
+| Household #31/#32 could have a faster walking route from vacant House #221 than House #220. | `commute` moves them only if improvement, per-member fairness, school reach and daily quota pass. | Actual priced routes matter; a benefit to one cannot excessively penalize another. |
+| Leader #41 succeeds the outgoing leader in Manor #300, with child #42. | Mandatory leader housing seats eligible members and moves the outgoing household as a unit, preserving custody. | Leader entitlement takes precedence; manor admission bypasses its normal capacity gate. |
+| An ordinary family relocation includes #52 who still lives in the manor. | The whole family proposal is rejected before #51 moves. | Per-member writer veto applies to the **entire** household. |
+| Both parents of siblings #61/#62 are jailed. | Guardianship finds a valid temporary custodian if available; the parents retain their home and work posts, and release may restore custody. | Prison does not mean death or a vacant reserved bed. |
+| Settler #71 references a deleted home. | Integrity clears that invalid home reference; later placement can look for a completed home. | Repair invalid references before assigning capacity. |
+
+These examples document **decision contracts**, not guaranteed outcomes for arbitrary game states: available buildings, other household members, earlier settled units and phase eligibility change which moves can actually happen.
+
+---
+
 ## 5. The invariant audit
 
 `collectHousingInvariantViolations` runs on the pipeline's **own output** and fills `report.violations`
