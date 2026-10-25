@@ -11,6 +11,7 @@ import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
+  assignStaffWorkerToBuilding,
   canAssignWorkerToBuilding,
   listAssignableWorkersForBuilding,
 } from '../src/game/buildingStaffingActions';
@@ -105,6 +106,22 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
     expect(html).toContain('👷 GuardUnique');
     expect(html).not.toContain('👷 InmateUnique');
     expect(html).toContain('⛓️ InmateUnique');
+  });
+});
+
+describe('reserved posts remain occupied during imprisonment', () => {
+  it('blocks manual assignments when jailed workers still hold every post', () => {
+    const farm = building(35, BuildingType.Farm, { occupants: [] });
+    const cap = getBuildingConfig(BuildingType.Farm).maxOccupants;
+    const prisoners = Array.from({ length: cap }, (_, index) =>
+      human(100 + index, { workerBuildingId: farm.id, prisonBuildingId: 99, prisonerUntilTick: 500 }));
+    const idle = human(999);
+    const state = makeWorld([...prisoners, idle], [farm]);
+
+    expect(staffingCapFor(farm, state.entities)).toEqual({ cap, staffed: cap });
+    const next = assignStaffWorkerToBuilding(state, farm.id, idle.id);
+    expect(next.entities.find((entity) => entity.id === idle.id)?.workerBuildingId).toBeUndefined();
+    expect(next.entities.filter((entity) => entity.workerBuildingId === farm.id)).toHaveLength(cap);
   });
 });
 
