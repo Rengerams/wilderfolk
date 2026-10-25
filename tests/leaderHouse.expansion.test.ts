@@ -17,6 +17,8 @@ describe('Leader\'s House overflow annex', () => {
     const unlinked = building(12, BuildingType.LeaderHouse);
     expect(leaderHouseBuildings([unlinked, annex, main]).map((home) => home.id)).toEqual([10, 11]);
     expect(canBuildLeaderHouse([unlinked, main])).toBe(false);
+    expect(leaderHouseBuildings([annex])).toEqual([]);
+    expect(canBuildLeaderHouse([annex])).toBe(false);
     const restored = JSON.parse(JSON.stringify([annex, main])) as typeof annex[];
     expect(leaderHouseBuildings(restored).map((home) => home.id)).toEqual([10, 11]);
   
