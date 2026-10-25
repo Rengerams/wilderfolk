@@ -44,7 +44,7 @@ describe('B2 worker assignment panel truth', () => {
     state.entities.push(
       makeWorker(1, 100), // employed farmer
       makeWorker(2, undefined), // unemployed
-      makeWorker(3, 100), // employed farmer
+      makeWorker(3, 101), // employed elsewhere; one farm post remains open
     );
     const assignable = listAssignableWorkersForBuilding(state, 100);
     const ids = assignable.map((e) => e.id);
