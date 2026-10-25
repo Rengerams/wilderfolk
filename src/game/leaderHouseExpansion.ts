@@ -18,6 +18,6 @@ export function canBuildLeaderHouse(buildings: readonly Building[]): boolean {
     && building.faction !== 'rival');
   if (houses.length === 0) return true;
   const [main] = leaderHouseBuildings(buildings);
-  return houses.length === 1 && main.completed
+  return houses.length === 1 && !!main?.completed
     && main.occupants.length > BUILDING_CONFIGS[BuildingType.LeaderHouse].maxOccupants;
 }
