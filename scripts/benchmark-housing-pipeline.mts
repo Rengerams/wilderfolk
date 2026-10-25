@@ -2,8 +2,7 @@
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { initGame } from '../src/game/gameEngine';
-import { MapSize, BuildingType, EntityType } from '../src/game/gameTypes';
-import { SPECIES_CONFIG } from '../src/game/speciesConfig';
+import { MapSize, BuildingType } from '../src/game/gameTypes';
 import { assignMissingResidences } from '../src/game/residencyReconciliation';
 import { resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -28,6 +27,10 @@ async function main(): Promise<void> {
   await preloadDialogueBank();
   await loadNames().catch(() => {});
   for (const population of populations) for (const spareHomes of [0, Math.ceil(population/30)]) {
+    for (const scenario of ['stable','displaced'] as const) {
+      const times:number[]=[];
+      let relocations=0, violations=0, assignmentHash='';
+      for(let sample=0;sample<repeats;sample++) {
     resetPathGridCaches();
     const state = initGame({ size: MapSize.Large, seed });
     seedCityScaleProfile(state, { ...DEFAULT_CITY_TARGETS, playerHumans: population });
@@ -63,13 +66,10 @@ async function main(): Promise<void> {
       }
     }
     for(let i=0;i<spareHomes;i++) createCompletedBuilding(state,BuildingType.House,500+(i%10)*48,200+Math.floor(i/10)*48);
-    // Compare stable and displacement-heavy scenarios. Restore precisely the same inputs every sample.
-    const initial = humans.map(h=>h.residenceBuildingId);
-    for (const scenario of ['stable','displaced'] as const) {
-      const times:number[]=[];
-      let relocations=0, violations=0, assignmentHash='';
-      for(let sample=0;sample<repeats;sample++) {
-        humans.forEach((h,i)=>{h.residenceBuildingId=scenario==='displaced' && i%15===0?undefined:initial[i];});
+    // Every sample owns a fresh fixture; no roster, genealogy or occupancy state leaks between runs.
+    if (scenario === 'displaced') humans.forEach((human,i) => {
+      if (i%15===0) human.residenceBuildingId=undefined;
+    });
         setCurrentPathMap(state.worldMap!,state.buildings);
         const t=performance.now();
         const report=assignMissingResidences(humans,state.buildings,humans,TICKS_PER_DAY-1);
