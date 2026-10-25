@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
-import { tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
+import { assignMissingResidences, tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
 
 function adultChildWorld(): { parent: Entity; child: Entity; familyHome: ReturnType<typeof building> } {
   const familyHome = building(0, BuildingType.House);
@@ -28,6 +28,25 @@ describe('tryMoveOutOfFamilyHome', () => {
     const manor = building(1, BuildingType.LeaderHouse);
 
     expect(tryMoveOutOfFamilyHome(child, [parent, child], [familyHome, manor])).toBe(false);
+    expect(child.residenceBuildingId).toBe(familyHome.id);
+  });
+});
+
+describe('assignMissingResidences — the adult-child phase', () => {
+  it('keeps the adult child home when a prisoner still holds a bed in the vacant house', () => {
+    const { parent, child, familyHome } = adultChildWorld();
+    // A sentence reserves the bed, so this house is not free for a departing household.
+    const reserved = building(1, BuildingType.House);
+    const prisoners = Array.from({ length: 6 }, (_, i) => human(10 + i, {
+      age: 30,
+      isJuvenile: false,
+      residenceBuildingId: reserved.id,
+      prisonBuildingId: 9,
+      prisonerUntilTick: 10_000,
+    }));
+
+    assignMissingResidences([parent, child, ...prisoners], [familyHome, reserved]);
+
     expect(child.residenceBuildingId).toBe(familyHome.id);
   });
 });

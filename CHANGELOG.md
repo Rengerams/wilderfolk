@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** An adult child no longer trades the family home for a house whose beds a jailed settler still reserves, so the custody move cannot fill a home past the beds a prison sentence already holds.
+
+
 - **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor still seats the household past its twelve beds.
 
 - **Added:** A housing architecture note explains the single ordered decision pipeline: which phase owns which question, how a run's ledger protects a household a mandatory phase settled, and how to add a rule without a second scheduler.

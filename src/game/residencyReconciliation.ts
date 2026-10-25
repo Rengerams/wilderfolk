@@ -594,7 +594,10 @@ export function assignMissingResidences(
 
   // Phase 5 — adult-child: an option, never a duty; withheld for a household a mandatory phase settled.
   runHousingPhase(ledger, 'adult-child', alive, () => {
-    rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(alive, residences, undefined, ledger);
+    // Reserved beds count here too: a home a prisoner still holds is not a vacant target.
+    rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
+      alive, residences, buildResidenceOccupancy(residents), ledger,
+    );
   });
 
   // Phase 6 — commute: the daily optional improvement, last, thresholded and capped.
