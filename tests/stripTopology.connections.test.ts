@@ -65,6 +65,18 @@ describe('connected strip planning', () => {
     expect(distinct.size).toBe(result.plan.length);
   });
 
+  it('connects successive diagonal freehand samples instead of dropping the minor axis', () => {
+    const state = { buildings: [], width: 900, height: 900 } as unknown as WorldState;
+    const points = [
+      { x: 120, y: 120 }, { x: 240, y: 240 }, { x: 360, y: 360 },
+    ];
+    const plan = buildStripPlanFromStroke(state, BuildingType.Road, points).plan;
+    expect(plan.some((piece) => piece.rotation === 0)).toBe(true);
+    expect(plan.some((piece) => piece.rotation === 90)).toBe(true);
+    expect(plan.some((piece) => piece.y > 200)).toBe(true);
+    expect(plan.some((piece) => piece.x > 300)).toBe(true);
+  });
+
   it('keeps freehand placement bounded for large mouse traces', () => {
     const state = { buildings: [], width: 2500, height: 2500 } as unknown as WorldState;
     const points = Array.from({ length: 200 }, (_, index) => ({
