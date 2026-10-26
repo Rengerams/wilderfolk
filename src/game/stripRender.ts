@@ -410,4 +410,7 @@ export function drawStripJunctionOverlay(
     drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha, info.cornerRotation);
     return;
   }
+  if (type === BuildingType.Wall || type === BuildingType.WallGate) {
+    drawProceduralWallJunction(ctx, sx, sy, w, h, info, alpha);
+  }
 }
