@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Road runs and intersections now use Drummyfish's CC0 cobblestone tile; walls and gates use matching original top-down PNG art, vendored locally for offline rendering with attribution and fallback assets.
+
 - **Fixed:** Empty road and demolition previews no longer crash render frames; rejected road detours reuse negative cache results. Snapshot build-grid validation now shares perpendicular strip crossing rules with authoritative placement.
 
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.
