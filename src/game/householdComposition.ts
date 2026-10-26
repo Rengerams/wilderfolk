@@ -37,7 +37,7 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
     const dependentMinors = humans.filter((person) => person.alive && isResidenceOccupantEntity(person)
       && isMinorChild(person) && (person.motherId === child.id || person.fatherId === child.id
         || person.adoptiveMotherId === child.id || person.adoptiveFatherId === child.id));
-    if (dependentMinors.length > 0 && child.residenceBuildingId == null) continue;
+    if (dependentMinors.length > 0) continue;
     if (!memberIds.has(child.id)) {
       members.push(child);
       memberIds.add(child.id);
