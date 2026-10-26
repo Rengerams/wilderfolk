@@ -416,7 +416,9 @@ export function useCanvasInteractions({
               rotation: building.rotation ?? 0, valid: true,
             }));
             loop?.patchView({
-              buildStripPreview: { segments, rotation: inferStripRotation(start.x, start.y, worldX, worldY), demolition: true },
+              buildStripPreview: segments.length > 0
+                ? { segments, rotation: inferStripRotation(start.x, start.y, worldX, worldY), demolition: true }
+                : null,
               buildGhost: null,
             }, true);
             return;
@@ -433,7 +435,7 @@ export function useCanvasInteractions({
           );
           loop?.patchView(
             {
-              buildStripPreview: preview,
+              buildStripPreview: preview.segments.length > 0 ? preview : null,
               buildRotation: rotation,
               buildGhost: null,
               hoveredBuildingId: hovered?.id ?? null,
