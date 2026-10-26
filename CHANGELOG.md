@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Map presets now keep recognizable coastlines, islands, highlands, Nordic fjords and a central oasis; founding clearings preserve neighboring forests. Generation revisions preserve old compact saves.
+- **Fixed:** Production buildings retain the biome bonus from their original site after construction removes the underlying forest.
+
 - **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
 
 - **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
