@@ -364,7 +364,12 @@ export function updateDisasters(state: WorldState): void {
             );
           }
         } else {
-          e.energy = Math.max(0, e.energy - 100);
+          if (e.needs) {
+            e.needs.stamina = Math.max(0, e.needs.stamina - 100 / Math.max(1, e.maxEnergy) * 100);
+            e.energy = e.maxEnergy * e.needs.stamina / 100;
+          } else {
+            e.energy = Math.max(0, e.energy - 100);
+          }
           e.flash = 10;
         }
       }
