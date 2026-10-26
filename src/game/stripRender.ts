@@ -447,9 +447,10 @@ export function drawProceduralWallJunction(
   ctx.globalAlpha = alpha;
   ctx.translate(sx, sy);
 
-  // Individual arms already draw their stone facades; an additional complete wall
-  // tile at the intersection would conceal gates and duplicate masonry.
+  // A single upright cap seals the joint without covering the connected arms.
   if (getSpriteFrame(RPG_WALL_SPRITE)) {
+    const depth = Math.min(w, h);
+    paintStripSprite(ctx, RPG_WALL_SPRITE, 0, -depth, depth * 2, depth * 3, 0);
     ctx.restore();
     return;
   }
