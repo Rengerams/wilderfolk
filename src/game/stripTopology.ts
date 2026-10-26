@@ -7,7 +7,7 @@ import {
   type CornerRotation,
   normalizeBuildingRotation,
 } from './buildingRotation';
-import { computeStripSegmentCenters, isStripBuildType, type EnclosedArea } from './stripBuild';
+import { computeStripSegmentCenters, isStripBuildType, MAX_STRIP_SEGMENTS, type EnclosedArea } from './stripBuild';
 import { isWallBuildingType } from './defenseStructures';
 import {
   analyzeStripJunction,
@@ -279,6 +279,36 @@ export function findStripBuildingAt(
     if (Math.hypot(b.x - x, b.y - y) <= tolerance) return b;
   }
   return undefined;
+}
+
+/** Select only matching player-built strips intersecting the drag rectangle, in stable world order. */
+export function collectStripDemolitionIds(
+  buildings: readonly Building[],
+  type: BuildingType,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number[] {
+  const family = stripFamilyFor(type);
+  if (!family) return [];
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  const top = Math.min(startY, endY);
+  const bottom = Math.max(startY, endY);
+  const ids: number[] = [];
+  for (const building of buildings) {
+    if (building.faction === 'rival') continue;
+    const matching = type === BuildingType.Fence
+      ? building.type === BuildingType.Fence
+      : family === 'wall' ? isWallStripType(building.type) : isRoadStripType(building.type);
+    if (!matching) continue;
+    if (building.x + building.width / 2 < left || building.x - building.width / 2 > right
+      || building.y + building.height / 2 < top || building.y - building.height / 2 > bottom) continue;
+    ids.push(building.id);
+    if (ids.length >= MAX_STRIP_SEGMENTS) break;
+  }
+  return ids;
 }
 
 const ENCLOSURE_CELL = 24;
