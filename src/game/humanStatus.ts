@@ -9,7 +9,8 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
 import { EVENING_START, prefersHomeTonight } from './dayCycle';
-import { isFestivalGatherer } from './humanSchedule';
+import { isAsleepAtHome, isFestivalGatherer } from './humanSchedule';
+import { isNearResidence } from './residencyOccupancy';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
@@ -78,6 +79,16 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
 
   if (!entity.isJuvenile && entity.combatTicks != null && entity.combatTicks > 0) return 'In combat';
   if (!entity.isJuvenile && entity.huntTargetId != null) return 'Hunting';
+
+  if (entity.needs?.lastMealTick === state.tick) return 'Eating';
+  if (entity.needs && (entity.needs.sleepRecoveryUntilTick ?? 0) > state.tick && !onWorkSchedule) {
+    const home = state.buildings.find((building) =>
+      building.id === entity.residenceBuildingId && building.completed);
+    if (home) {
+      return isNearResidence(entity, state.buildings) ? 'Sleeping (recovering)' : 'Walking home to sleep';
+    }
+  }
+  if (isAsleepAtHome(entity, state.buildings, hourOfDay, onWorkSchedule)) return 'Sleeping';
 
   // Assigned workplace during the configured work shift.
   if (workplace && onWorkSchedule) {
