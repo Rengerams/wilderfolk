@@ -7,6 +7,8 @@ import { getSpriteFrame } from './spriteLoader';
 
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
 const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
+const WALL_STRAIGHT_SPRITE = '/sprites/walls/wall_straight.svg';
+const WALL_GATE_SPRITE = '/sprites/walls/wall_gate.svg';
 const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
 const ROAD_CROSS = '/sprites/roads/road_cross.png';
 const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.png'] as const;
@@ -187,6 +189,11 @@ export function drawProceduralWall(
 ): void {
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
+  if (paintRoadSprite(ctx, isGate ? WALL_GATE_SPRITE : WALL_STRAIGHT_SPRITE, 0, 0, rw, rh, 0)) {
+    ctx.restore();
+    return;
+  }
+
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.fillRect(x0, y0 + rh * 0.55, rw, rh * 0.35);
 
@@ -353,7 +360,7 @@ export function drawProceduralWallJunction(
   info: StripJunctionInfo,
   alpha = 1,
 ): void {
-  if (info.kind !== 'tee' && info.kind !== 'cross') return;
+  if (info.kind !== 'elbow' && info.kind !== 'tee' && info.kind !== 'cross') return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(sx, sy);
