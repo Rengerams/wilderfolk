@@ -16,17 +16,7 @@ import {
 import { getBuildingUpgradeCost, estimateWorkshopGold } from '../game/buildingActions';
 // The upgrade owner itself, not its façade: `buildingActions` re-exports the price but not the gate.
 import { getBuildingUpgradeEligibility } from '../game/buildingMaintenanceActions';
-import {
-  getRivalGiftEligibility,
-  getRivalTradePactEligibility,
-  getShowStrengthEligibility,
-  getPeaceTreatyEligibility,
-  getDiplomacyExpiresAtTick,
-  RIVAL_GIFT_FOOD_COST,
-  RIVAL_TRADE_PACT_GOLD_COST,
-  PEACE_TREATY_GOLD_COST,
-  PEACE_TREATY_FOOD_COST,
-} from '../game/groupEvents';
+import { getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility, getPeaceTreatyEligibility, getDiplomacyExpiresAtTick, RIVAL_GIFT_FOOD_COST, RIVAL_TRADE_PACT_GOLD_COST, PEACE_TREATY_GOLD_COST, PEACE_TREATY_FOOD_COST } from '../game/rivalDiplomacy';
 import { moonHowlerRiteWeights, countStaffedPriests } from '../game/moonHowler';
 import { ensureEntityByIdMap } from '../game/entityIndex';
 import {
