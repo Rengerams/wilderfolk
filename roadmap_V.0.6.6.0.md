@@ -200,6 +200,10 @@ The existing combat, prison, election, worker and save owners now handle hourly 
 
 Only identifiable adult enemy soldiers can become prisoners, subject to real cells and escorts. Release and escape preserve living identities; recruitment requires consent, capacity and housing; execution requires confirmation and does not create player graves. Mercy, tribute and razing retain their existing consequences and add bounded witnessed diplomatic memory. Legacy saves receive safe defaults while retaining old grave history.
 
+Audit corrections preserve midpoint casualties in surrender choices and final announcements after normal tick cleanup and reload. Overlapping defeats retain the highest outstanding repair and food targets; completing repairs early does not cancel the seven-day raid protection. Natural captive deaths close custody history and never create village graves, while executions remain distinct.
+
+Mass destruction uses one building-removal batch and one housing/staffing/storage reconciliation, with bounded visual effects. The live troop count uses a single cached population pass, and captive housing availability is calculated once per world update. An opt-in lifecycle benchmark (`WARFARE_PERF_OUTPUT`) exercises 100/400/1,000 damaged structures through the real raid owner. A local 12-inhabitant run reduced 1,000-structure destruction from about 167 ms to under 3 ms; this is a focused measurement, not a large-colony or Windows acceptance result. These changes do not complete the large-colony performance gate.
+
 Automated lifecycle and migration checks cover these transitions. Browser checks exercise recovery, terminal export and captive decisions through the normal load interface. The checklist below remains the release acceptance gate: Windows desktop playthroughs and large-colony performance/soak validation are still outstanding.
 
 ## 9. Test and acceptance checklist

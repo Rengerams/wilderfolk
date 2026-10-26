@@ -3,7 +3,7 @@ import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
 import { isResidenceBuilding } from './residencyOccupancy';
-import { demolishBuildingInPlace } from './buildingMaintenanceActions';
+import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { JobType } from './gameTypes';
 import { logEvent } from './eventLog';
 
@@ -34,11 +34,13 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
     && (!person.raidDeploymentId || person.raidDeploymentId === event.id));
   if (event.intent === 'raze' && outcome !== 'stalemate' && !lastDefense
     && event.attackerStrength >= Math.max(1, defenseStrength) * OVERWHELMING_BREACH_RATIO) {
-    for (const home of [...state.buildings]) {
+    const ruinedIds: number[] = [];
+    for (const home of state.buildings) {
       if (!home.completed || home.faction === 'rival') continue;
       home.health = Math.max(0, home.health - DEVASTATION_BUILDING_DAMAGE);
-      if (home.health === 0) demolishBuildingInPlace(state, home.id, 'raid');
+      if (home.health === 0) ruinedIds.push(home.id);
     }
+    demolishBuildingsInPlace(state, ruinedIds, 'raid');
     logEvent(state, 'combat', 'The remaining defenses were breached; the razing force devastated unprotected infrastructure.', event.rivalName, 'defense', 'resolved');
   }
   const people = state.entities.filter((person) => person.alive && isPlayerHuman(person));
@@ -48,16 +50,25 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
   const destroyed = event.intent === 'raze' && outcome !== 'stalemate'
     && event.attackerStrength >= Math.max(1, defenseStrength) * OVERWHELMING_BREACH_RATIO
     && !lastDefense && !defenses && (!shelter || people.length === 0);
+  const previous = state.raidRecovery;
+  const currentBuildings = new Map(state.buildings.map((home) => [home.id, home]));
+  const repairs = new Map((previous?.repairs ?? []).filter((repair) => currentBuildings.has(repair.buildingId))
+    .map((repair) => [repair.buildingId, repair.health]));
+  for (const home of before.buildings) {
+    const current = currentBuildings.get(home.id);
+    if (home.faction !== 'rival' && current && current.health < home.health) {
+      repairs.set(home.id, Math.max(repairs.get(home.id) ?? 0, home.health));
+    }
+  }
   state.raidRecovery = {
     status: destroyed ? 'destroyed' : 'recovering', raidId: event.id, rivalName: event.rivalName,
-    startedAtTick: state.tick, protectedUntilTick: state.tick + RECOVERY_PROTECTION_DAYS * TICKS_PER_DAY,
+    startedAtTick: previous?.startedAtTick ?? state.tick,
+    protectedUntilTick: Math.max(previous?.protectedUntilTick ?? 0, state.tick + RECOVERY_PROTECTION_DAYS * TICKS_PER_DAY),
     reason: destroyed ? 'The razing force broke the last resistance; no functional settlement remains.'
       : 'Repair battle damage, rebuild food reserves and restore defenses.',
-    repairs: before.buildings.filter((home) => home.faction !== 'rival').flatMap((home) => {
-      const current = state.buildings.find((entry) => entry.id === home.id);
-      return current && current.health < home.health ? [{ buildingId: home.id, health: home.health }] : [];
-    }),
-    foodTarget: Math.min(before.resources.food, Math.max(RECOVERY_MIN_FOOD, people.length * RECOVERY_FOOD_DAYS)),
+    repairs: [...repairs].map(([buildingId, health]) => ({ buildingId, health })),
+    foodTarget: Math.max(previous?.foodTarget ?? 0,
+      Math.min(before.resources.food, Math.max(RECOVERY_MIN_FOOD, people.length * RECOVERY_FOOD_DAYS))),
   };
   if (destroyed) {
     state.paused = true;
@@ -71,8 +82,10 @@ export function beginRaidRecovery(state: WorldState, event: RaidEvent, outcome: 
 export function tickRaidRecovery(state: WorldState): void {
   const recovery = state.raidRecovery;
   if (!recovery || recovery.status === 'destroyed') return;
-  if (state.resources.food < recovery.foodTarget || recovery.repairs.some((repair) => {
-    const home = state.buildings.find((entry) => entry.id === repair.buildingId);
+  if (state.tick < recovery.protectedUntilTick || state.resources.food < recovery.foodTarget) return;
+  const buildings = new Map(state.buildings.map((home) => [home.id, home]));
+  if (recovery.repairs.some((repair) => {
+    const home = buildings.get(repair.buildingId);
     return home != null && home.health < repair.health;
   })) return;
   delete state.raidRecovery;

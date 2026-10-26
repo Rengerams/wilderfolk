@@ -14,7 +14,7 @@ import {
   getMilitiaArmamentLabel,
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
-import { demolishBuildingInPlace } from './buildingMaintenanceActions';
+import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { unindexEntityFromState } from './entityIndex';
 import { captureRaidPrisoners } from './warPrisoners';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
@@ -573,8 +573,9 @@ function persistBattleAftermath(
   const beforeAlive = new Map(before.entities.filter((entity) => entity.alive && !entity.faction && entity.type === EntityType.Human).map((entity) => [entity.id, formatCitizenName(entity)]));
   const fallen = [...new Set([...confirmedPlayerFallen, ...after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!)])];
   const previousBuildings = new Map(before.buildings.filter((building) => !building.faction).map((building) => [building.id, building.health]));
+  const currentBuildings = new Map(after.buildings.map((home) => [home.id, home]));
   const damagedBuildings = [...previousBuildings].filter(([id, health]) => {
-    const current = after.buildings.find((home) => home.id === id);
+    const current = currentBuildings.get(id);
     return !current || current.health < health;
   }).length;
   const suppliesLost = {
@@ -1552,8 +1553,11 @@ function resolveOutgoingRaidCombat(
   // The strength you brought over their defense is what decides how much there is to carry home.
   const lootScale = Math.sqrt(event.attackerStrength / Math.max(event.defenderStrength, 1));
   const warBand = raidArmy(state, event);
-  const allRaidSoldiers = state.entities.filter((person) => event.soldierIds?.includes(person.id) && person.raidDeploymentId === event.id);
+  const selectedIds = new Set(event.soldierIds ?? []);
+  const allRaidSoldiers = state.entities.filter((person) => selectedIds.has(person.id) && person.raidDeploymentId === event.id);
   rewardRaidParticipants(state, warBand, counterRaidToReward(outcome), rival.name);
+
+  const confirmedCasualties = new Set(event.battlePlayerCasualties ?? []);
 
   flashMilitia(state.entities, 20);
   state.screenShakeImpulse = Math.max(state.screenShakeImpulse, outcome === 'fail' ? 8 : 4);
@@ -1579,7 +1583,8 @@ function resolveOutgoingRaidCombat(
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
     captureRaidPrisoners(state, rival, event.id, warBand.filter((person) => person.alive).length);
-    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
+    const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
+    const playerDeaths = playerCasualties.length;
     // Record a distinct, persistent post-victory decision. Battle deaths are already
     // applied exactly once; reopening the dialog must never run combat again.
     if (!(state.pendingRaidVictories ?? []).some((pending) => pending.raidId === event.id)) {
@@ -1591,7 +1596,7 @@ function resolveOutgoingRaidCombat(
         credibleThreat: event.attackerStrength <= event.defenderStrength * 4,
         enemyDead: enemyDeaths,
         enemySurvivors: rival.population,
-        playerCasualties: allRaidSoldiers.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
+        playerCasualties,
         enemyCasualties: livingEnemyBefore.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
       }];
     }
@@ -1616,7 +1621,8 @@ function resolveOutgoingRaidCombat(
       'resolved',
     );
     addFloatingText(state, rival.campX, rival.campY - 20, formatLootParts(gained, '+') || 'Meager', '#fbbf24');
-    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
+    const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
+    const playerDeaths = playerCasualties.length;
     logEvent(state, 'combat', `The war-band returned from ${rival.name} with limited success: ${playerDeaths} of our people died. No victory celebration was held.`, rival.name, 'outgoing_raid', 'resolved');
   } else {
     spendFood(state, 'raid', 15);
@@ -1625,7 +1631,8 @@ function resolveOutgoingRaidCombat(
     if (!event.battleCasualtiesApplied) applyRaidCasualties(state, state.entities, 'heavy', rival.name, 'raiding', new Set(warBand.map((soldier) => soldier.id)));
     addFloatingText(state, rival.campX, rival.campY - 20, 'War-band broken!', '#f87171');
     logEvent(state, 'combat', `${verb} on ${rival.name} failed — war-band fought back`, rival.name, 'outgoing_raid', 'resolved');
-    const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
+    const playerCasualties = [...new Set([...confirmedCasualties, ...allRaidSoldiers.filter((fighter) => !fighter.alive).map(formatCitizenName)])];
+    const playerDeaths = playerCasualties.length;
     addBigNews(state, '⚔️ War-band defeated', `${verb} on ${rival.name} failed; ${playerDeaths} of our people were killed. The village mourns its losses.`, 'negative');
     logEvent(state, 'combat', `Village mourns after failed ${verb.toLowerCase()} on ${rival.name}: ${playerDeaths} dead.`, rival.name, 'outgoing_raid', 'resolved');
     maybeQueueRaid(state, rival, state.entities.filter((e) => e.alive));
@@ -2013,7 +2020,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       unindexEntityFromState(state, person.id);
     }
     state.entities = state.entities.filter((person) => !personIds.has(person.id));
-    for (const id of [...rival.buildingIds]) demolishBuildingInPlace(state, id, 'raid');
+    demolishBuildingsInPlace(state, rival.buildingIds, 'raid');
     if (report) report.refugees = rival.population;
     cancelPendingRaidsForRival(state, rival.id);
     cancelPendingOutgoingRaidsForRival(state, rival.id);

@@ -1,3 +1,4 @@
+import { recordWarPrisonerOutcome } from './warPrisonerCustody';
 import { ensureOrphanAdoption, placeOrphanInHouse, relocateChildToCustodian } from './residencyReconciliation';
 import { moveResident } from './residencyReconciliation';
 import type { Building, Entity, WorldState } from './gameTypes';
@@ -235,7 +236,12 @@ export function killHuman(
   state?: WorldState,
 ): void {
   if (!entity.alive || !isKillableSettlerEntity(entity)) return;
-  if (state) recordGenealogyDeath(state, entity);
+  if (state) {
+    recordGenealogyDeath(state, entity);
+    if (entity.warCaptive && !state.raidPrisonerHistory?.some((record) => record.entityId === entity.id && record.status === 'executed')) {
+      recordWarPrisonerOutcome(state, entity, 'died');
+    }
+  }
   entity.alive = false;
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);

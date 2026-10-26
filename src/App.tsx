@@ -1178,6 +1178,13 @@ export default function App() {
     () => world.tradeRoutes.filter((r) => canEstablishTradeRoute(world, r.id).ok).length,
     [world],
   );
+  const liveRaidSoldierCount = useMemo(() => {
+    const army = battleReport && world.pendingOutgoingRaidEvents.find((event) =>
+      event.phase === 'fighting' && (battleReport.raidId ? event.id === battleReport.raidId : event.rivalName === battleReport.rivalName));
+    if (!army) return null;
+    const selected = new Set(army.soldierIds ?? []);
+    return world.entities.reduce((count, person) => count + Number(selected.has(person.id) && person.alive && person.raidDeploymentId === army.id), 0);
+  }, [world, battleReport]);
   // `progressTabAlert` was removed with the sidebar's Village button — that badge was its only
   // consumer. `tradeReadyCount` above is still used (the header icon set), so it stays.
   const foodAlert = isFoodAlert(world);
@@ -2221,10 +2228,6 @@ export default function App() {
         const casualties = events.filter((event) => event.combatStage === 'casualties');
         const liveArmy = (world.pendingOutgoingRaidEvents ?? []).find((army) =>
           (battleReport.raidId ? army.id === battleReport.raidId : army.rivalName === battleReport.rivalName) && army.phase === 'fighting');
-        const liveSoldiers = liveArmy
-          ? (liveArmy.soldierIds ?? []).filter((id) => world.entities.some((person) =>
-              person.id === id && person.alive && person.raidDeploymentId === liveArmy.id)).length
-          : null;
         return (
           <div role="dialog" aria-modal="true" aria-label="Battle report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
             <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col gap-3 rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
@@ -2232,7 +2235,7 @@ export default function App() {
               <h2 className="text-2xl font-bold text-amber-100">{battleReport.incoming ? 'Defense against' : 'Raid on'} {battleReport.rivalName}</h2>
               <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : liveArmy ? 'LIVE · Text commentary follows the simulation. Casualties are named only after their deaths are recorded.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
               {liveArmy && <div className="rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
-                Battle underway · {liveSoldiers} soldiers still deployed · {getOutgoingBattleProgressPercent(liveArmy, world.tick)}% of battle time elapsed
+                Battle underway · {liveRaidSoldierCount} soldiers still deployed · {getOutgoingBattleProgressPercent(liveArmy, world.tick)}% of battle time elapsed
               </div>}
               {liveDefense && <p className="text-amber-200">Defense underway · hourly battle updates · {liveDefense.battlePlayerCasualties?.length ?? 0} confirmed village casualties.</p>}
               {report && <p className="text-emerald-300">Recorded village losses: {report.playerFallen.join(', ') || 'None'} · enemy losses: {report.enemyDeaths}, including {report.enemyFallen.length} identified fighters.</p>}

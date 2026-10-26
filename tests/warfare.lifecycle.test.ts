@@ -1,5 +1,5 @@
 import { departWarPrisoner } from '../src/game/warPrisonerCustody';
-import { demolishBuildingInPlace } from '../src/game/buildingMaintenanceActions';
+import { demolishBuildingInPlace, demolishBuildingsInPlace } from '../src/game/buildingMaintenanceActions';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,6 +20,9 @@ import { createInitialView } from '../src/game/viewState';
 import { gameTick } from '../src/game/gameTick';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { rebuildWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
+import { tryDailyHumanMortality } from '../src/game/simulation/humanRelationships';
+import { killHuman } from '../src/game/humanLifecycleCleanup';
+import { ensureEntityByIdMap } from '../src/game/entityIndex';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
 function colony(): WorldState {
@@ -127,6 +130,9 @@ describe('warfare lifecycle and persistence', () => {
     expect(world.raidRecovery).toBeDefined();
     world.buildings[0].health = 100;
     world.resources.food = 100;
+    tickRaidRecovery(world);
+    expect(world.raidRecovery).toBeDefined();
+    world.tick = world.raidRecovery!.protectedUntilTick;
     tickRaidRecovery(world);
     expect(world.raidRecovery).toBeUndefined();
   });
@@ -381,6 +387,126 @@ describe('warfare integration boundaries', () => {
 });
 
 
+describe('warfare cleanup regressions', () => {
+  it.each([140, 110, 90])('retains midpoint losses in final announcements after cleanup and reload at strength %s', (strength) => {
+    let world = launchRaidOnRival(colony(), 'enemy');
+    const event = world.pendingOutgoingRaidEvents[0];
+    event.rivalResponse = 'fight';
+    event.attackerStrength = strength;
+    event.defenderStrength = 100;
+    world.tick = event.arrivalAtTick!;
+    tickPendingOutgoingRaidEvents(world);
+    const start = world.tick;
+    setSimSeed(42);
+    world.tick = start + 3 * TICKS_PER_HOUR;
+    tickPendingOutgoingRaidEvents(world);
+    const fallen = [...event.battlePlayerCasualties!];
+    expect(fallen.length).toBeGreaterThan(0);
+    world.paused = false;
+    gameTick(world);
+    expect(world.entities.every((person) => person.alive)).toBe(true);
+    world = reload(world);
+    world.tick = start + 6 * TICKS_PER_HOUR;
+    tickPendingOutgoingRaidEvents(world);
+    expect(world.raidBattleReports?.[0].playerFallen).toEqual(fallen);
+    if (strength === 140) {
+      expect(world.pendingRaidVictories?.[0]).toMatchObject({ playerDead: fallen.length, playerCasualties: fallen });
+      expect(world.bigNews.some((news) => news.message.includes(`${fallen.length} of our people lost`))).toBe(true);
+    } else if (strength === 110) {
+      expect(world.eventLog.some((entry) => entry.message.includes(`${fallen.length} of our people died`))).toBe(true);
+    } else {
+      expect(world.bigNews.some((news) => news.message.includes(`${fallen.length} of our people were killed`))).toBe(true);
+    }
+    const loaded = reload(world);
+    expect(loaded.raidBattleReports?.[0].playerFallen).toEqual(fallen);
+    expect(loaded.pendingRaidVictories).toEqual(world.pendingRaidVictories);
+  });
+
+  it('preserves protection and cumulative food and repair goals through subsequent defeats and reload', () => {
+    let world = colony();
+    const beforeFirst = structuredClone(world);
+    world.buildings[0].health = 50;
+    world.resources.food = 20;
+    beginRaidRecovery(world, raid(), 'defeat', 1, beforeFirst);
+    const firstFoodTarget = world.raidRecovery!.foodTarget;
+    world = reload(world);
+    world.tick = TICKS_PER_HOUR;
+    const beforeSecond = structuredClone(world);
+    world.buildings[0].health = 40;
+    beginRaidRecovery(world, { ...raid(), id: 'second' }, 'defeat', 1, beforeSecond);
+    expect(world.raidRecovery?.repairs).toContainEqual({ buildingId: 900000, health: 100 });
+    expect(world.raidRecovery?.foodTarget).toBe(firstFoodTarget);
+    world.resources.food = 100;
+    world.buildings[0].health = 50;
+    world.tick = world.raidRecovery!.protectedUntilTick;
+    tickRaidRecovery(world);
+    expect(world.raidRecovery).toBeDefined();
+    world.buildings[0].health = 100;
+    world.tick--;
+    tickRaidRecovery(world);
+    expect(world.raidRecovery).toBeDefined();
+    world = reload(world);
+    world.tick++;
+    tickRaidRecovery(world);
+    expect(world.raidRecovery).toBeUndefined();
+  });
+
+  it('closes exhausted captive custody once through the normal tick cleanup', () => {
+    let world = captiveColony();
+    const captive = world.entities.find((person) => person.id === 910000)!;
+    world.resources.food = 0;
+    captive.energy = 0;
+    world.paused = false;
+    gameTick(world);
+    expect(world.entities.some((person) => person.id === captive.id)).toBe(false);
+    expect(world.raidPrisonerHistory?.[0].status).toBe('died');
+    expect(world.graveRecords?.length ?? 0).toBe(0);
+    const recorded = world.eventLog.filter((entry) => entry.type === 'prison' && entry.message.endsWith('died')).length;
+    killHuman(captive, world.buildings, ensureEntityByIdMap(world), world.tick, world);
+    expect(world.eventLog.filter((entry) => entry.type === 'prison' && entry.message.endsWith('died'))).toHaveLength(recorded);
+    world = reload(world);
+    expect(world.raidPrisonerHistory?.[0].status).toBe('died');
+  });
+
+  it('keeps old-age enemy deaths out of village graves and ends custody', () => {
+    const world = captiveColony();
+    const captive = world.entities.find((person) => person.id === 910000)!;
+    captive.age = 200;
+    expect(tryDailyHumanMortality(world, captive, world.buildings, ensureEntityByIdMap(world))).toBe(true);
+    expect(world.raidPrisonerHistory?.[0].status).toBe('died');
+    expect(world.graveRecords?.length ?? 0).toBe(0);
+  });
+
+  it('clears home, work and custody references for a destruction batch without refunds or repeated removal', () => {
+    const world = captiveColony();
+    const home = world.buildings[0];
+    const worker = world.entities[0];
+    const workshop = building(900200, BuildingType.Workshop);
+    const road = building(900300, BuildingType.Road);
+    world.buildings.push(workshop, road, building(900400, BuildingType.House));
+    worker.residenceBuildingId = home.id;
+    worker.workerBuildingId = workshop.id;
+    home.occupants = [worker.id];
+    workshop.occupants = [worker.id];
+    world.totalBuildingsCompleted = world.buildings.length;
+    const resources = { ...world.resources };
+    const destroyed = [home.id, 900100, workshop.id, road.id];
+    demolishBuildingsInPlace(world, [...destroyed, home.id, -1], 'raid');
+    expect(world.buildings.map((building) => building.id)).toEqual([900400]);
+    expect(world.totalBuildingsCompleted).toBe(1);
+    expect(world.entities.every((person) => !destroyed.includes(person.residenceBuildingId!)
+      && !destroyed.includes(person.workerBuildingId!) && !destroyed.includes(person.prisonBuildingId!))).toBe(true);
+    expect(world.raidPrisonerHistory?.[0].status).toBe('escaped');
+    for (const key of ['wood', 'stone', 'gold'] as const) expect(world.resources[key]).toBeLessThanOrEqual(resources[key]);
+    const history = structuredClone(world.raidPrisonerHistory);
+    demolishBuildingsInPlace(world, destroyed, 'raid');
+    expect(world.totalBuildingsCompleted).toBe(1);
+    expect(world.raidPrisonerHistory).toEqual(history);
+    expect(reload(world).buildings.map((building) => building.id)).toEqual([900400]);
+  });
+});
+
+
 if (process.env.WARFARE_SMOKE_FIXTURE_DIR) {
   it('exports verified saves for the existing browser harness', () => {
     const directory = process.env.WARFARE_SMOKE_FIXTURE_DIR!;
@@ -408,5 +534,25 @@ if (process.env.WARFARE_SMOKE_FIXTURE_DIR) {
     expect(recovery.raidRecovery?.status).toBe('recovering');
     expect(terminal.raidRecovery?.status).toBe('destroyed');
     expect(captives.raidPrisonerHistory).toHaveLength(1);
+  });
+}
+
+
+if (process.env.WARFARE_PERF_OUTPUT) {
+  it('measures mass razing through the combat and removal owners', () => {
+    const samples = [];
+    for (const count of [100, 400, 1000]) {
+      const world = colony();
+      world.entities.forEach((person) => { person.job = JobType.Settler; });
+      world.buildings = Array.from({ length: count }, (_, index) => building(950000 + index, BuildingType.Wall, { health: 40 }));
+      world.totalBuildingsCompleted = count;
+      const before = { buildings: world.buildings.map((home) => ({ ...home })), resources: { ...world.resources } };
+      const start = performance.now();
+      beginRaidRecovery(world, { ...raid(), intent: 'raze', attackerStrength: 100000 }, 'defeat', 1, before);
+      samples.push({ buildings: count, population: world.entities.length, milliseconds: performance.now() - start });
+      expect(world.buildings).toHaveLength(0);
+      expect(world.totalBuildingsCompleted).toBe(0);
+    }
+    writeFileSync(process.env.WARFARE_PERF_OUTPUT!, JSON.stringify(samples, null, 2));
   });
 }

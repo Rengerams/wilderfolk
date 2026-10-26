@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { WorldState } from '../game/gameTypes';
 import { formatCitizenName } from '../game/citizenId';
 import { getOpenPlayerBeds } from '../game/populationGrowth';
@@ -19,7 +19,9 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const [showCaptives, setShowCaptives] = useState(false);
   const [confirmExecution, setConfirmExecution] = useState<number | null>(null);
   const recovery = world.raidRecovery;
-  const prisoners = world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null);
+  const prisoners = useMemo(() => world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null), [world]);
+  const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
+  const buildingById = useMemo(() => new Map((world.raidRecovery ? world.buildings : []).map((home) => [home.id, home])), [world]);
   if (recovery?.status === 'destroyed') {
     const report = world.raidBattleReports?.find((entry) => entry.raidId === recovery.raidId);
     return <div role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-6 text-stone-100">
@@ -43,9 +45,9 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
     {recovery && <aside className="pointer-events-auto fixed bottom-3 left-3 z-40 max-w-sm rounded border border-amber-700 bg-stone-950 p-3 text-sm text-amber-100">
       <h3 className="font-bold">Village recovery</h3>
       <p>{recovery.reason}</p>
-      <p>Food: {Math.floor(world.resources.food)} / {recovery.foodTarget}. Repairs remaining: {recovery.repairs.filter((repair) => world.buildings.some((home) => home.id === repair.buildingId && home.health < repair.health)).length}.</p>
+      <p>Food: {Math.floor(world.resources.food)} / {recovery.foodTarget}. Repairs remaining: {recovery.repairs.filter((repair) => (buildingById.get(repair.buildingId)?.health ?? repair.health) < repair.health).length}.</p>
       {recovery.repairs.slice(0, 5).map((repair) => {
-        const home = world.buildings.find((entry) => entry.id === repair.buildingId);
+        const home = buildingById.get(repair.buildingId);
         return home && home.health < repair.health ? <button key={home.id} className="mr-2 mt-2 rounded bg-amber-900 p-1" onClick={() => onRepair(home.id)}>Repair {home.type} #{home.id} ({Math.round(home.health)}% health)</button> : null;
       })}
       <p>{daysUntilTick(world.tick, recovery.protectedUntilTick)} days before new raids can be raised.</p>
@@ -61,10 +63,10 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
           <div className="flex flex-wrap gap-2">
             <button onClick={() => onPrisonerDecision(person.id, 'keep')} className="rounded bg-stone-700 p-2">Keep imprisoned</button>
             <button onClick={() => onPrisonerDecision(person.id, 'release')} className="rounded bg-emerald-900 p-2">Release · mercy +3 reputation</button>
-            <button disabled={world.tick < person.warCaptive!.recruitAfterTick || getOpenPlayerBeds(world) <= 0} onClick={() => onPrisonerDecision(person.id, 'recruit')} className="rounded bg-amber-900 p-2 disabled:opacity-40">Offer to join</button>
+            <button disabled={world.tick < person.warCaptive!.recruitAfterTick || openBeds <= 0} onClick={() => onPrisonerDecision(person.id, 'recruit')} className="rounded bg-amber-900 p-2 disabled:opacity-40">Offer to join</button>
             <button onClick={() => setConfirmExecution(person.id)} className="rounded bg-rose-950 p-2">Execute…</button>
           </div>
-          {getOpenPlayerBeds(world) <= 0 && <p>No free village housing is available for a recruit.</p>}
+          {openBeds <= 0 && <p>No free village housing is available for a recruit.</p>}
           {world.tick < person.warCaptive!.recruitAfterTick && <p>Another recruitment offer is available in {daysUntilTick(world.tick, person.warCaptive!.recruitAfterTick)} days.</p>}
           {confirmExecution === person.id && <div className="rounded border border-rose-500 p-3">
             <p>Execute {formatCitizenName(person)} after surrender? This permanently kills the captive, costs 20 reputation and increases the home settlement’s fear and grievance.</p>

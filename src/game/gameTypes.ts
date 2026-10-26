@@ -366,6 +366,8 @@ export interface Entity {
   moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
   faction?: 'visitor' | 'rival' | 'trade_caravan';
+  /** Transient indoor presence, recomputed by the movement/activity owners. */
+  indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
   groupId?: string;
@@ -759,7 +761,7 @@ export interface WorldState {
   };
   scoredRaidIds?: string[];
   raidPrisonerHistory?: Array<{ entityId: number; name: string; raidId: string; originRivalId: string;
-    status: 'captured' | 'released' | 'recruited' | 'escaped' | 'executed'; tick: number }>;
+    status: 'captured' | 'released' | 'recruited' | 'escaped' | 'executed' | 'died'; tick: number }>;
   /** Permanent genealogy of living and deceased villagers. */
   genealogyRegistry?: import('./genealogyTypes').GenealogyRegistry;
   entities: Entity[];

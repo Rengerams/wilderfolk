@@ -4,6 +4,7 @@ import { isPlayerHuman } from './playerHuman';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay, personDayRoll } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
+import { enterHumanBuilding } from './simulation/humanMovement';
 import { steerEntityToward } from './simulation/movementSteering';
 import {
   doctorTreatNearby,
@@ -12,6 +13,8 @@ import {
   pickHospitalWalkTarget,
   treatPatientAtHospital,
 } from './hospitalCare';
+
+const PATIENT_ARRIVAL_RADIUS_PX = 36;
 
 export type HospitalRuntimeContext = {
   state: WorldState;
@@ -91,10 +94,18 @@ export function tickHumanHospitalPatientCare({
   speed,
 }: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): void {
   if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
-    const best = pickHospitalWalkTarget(entity, staffedHospitals);
+    const best = staffedHospitals.find((hospital) => Math.hypot(
+      entity.x - (hospital.x + hospital.width / 2),
+      entity.y - (hospital.y + hospital.height / 2),
+    ) < PATIENT_ARRIVAL_RADIUS_PX) ?? pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {
-      // Movement owns position: set velocity and let the human loop apply the step.
-      steerEntityToward(entity, best.x + best.width / 2, best.y + best.height / 2, speed, 0.55);
+      const x = best.x + best.width / 2;
+      const y = best.y + best.height / 2;
+      if (Math.hypot(entity.x - x, entity.y - y) < PATIENT_ARRIVAL_RADIUS_PX) enterHumanBuilding(entity, best);
+      else {
+        entity.indoorBuildingId = undefined;
+        steerEntityToward(entity, x, y, speed, 0.55);
+      }
     }
   }
 
@@ -103,8 +114,9 @@ export function tickHumanHospitalPatientCare({
       (building) => Math.hypot(
         entity.x - (building.x + building.width / 2),
         entity.y - (building.y + building.height / 2),
-      ) < 36,
+      ) < PATIENT_ARRIVAL_RADIUS_PX,
     );
+    if (hospital) enterHumanBuilding(entity, hospital);
     if (
       hospital
       && isHospitalTreatmentTick(entity.id, state.tick)
