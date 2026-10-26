@@ -1,8 +1,8 @@
 import { pickSite } from './worldEventSites';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
-  WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
-  DiplomacyEvent, DiplomacyEventKind, DiplomacyChoice, VillageRequest, VillageRequestHistoryEntry,
+  WorldState, Entity, Building, GameEvent, VisitorGroup, VisitorKind,
+  VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
 import { EntityType, BuildingType, JobType } from './gameTypes';
 import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
@@ -21,17 +21,11 @@ import { recordFoodProduced, spendFood } from './economyLedger';
 import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
-import {
-  applyTruceToRival,
-  getPlayerCampCenter,
-  hasMilitiaWeapons,
-  rollFoundingRaidCooldownDays,
-} from './frontierCombat';
+import { getPlayerCampCenter } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { makeNextAliveDeer, tickRivalSettlements as tickRivalEvents } from './rivalEvents';
-import { createRivalProfile, ensureRivalProfile } from './rivalProfiles';
+import { makeNextAliveDeer } from './rivalEvents';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
@@ -740,6 +734,10 @@ export function tradeWithVisitors(
   logEvent(state, 'trade', `Traded with ${group.name} — ${tradeDetail}`, group.name);
   return state;
 }
+
+/** Refugee offer prices — exported so the panel's button labels quote the owner's figures. */
+export const REFUGEE_WELCOME_FOOD = 40;
+export const REFUGEE_SCREEN_FOOD = 20;
 
 export type RefugeeChoice = 'welcome' | 'screen' | 'turn_away';
 
