@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Refactored:** Rival diplomacy, strategic settlement creation, event site selection and rival daily-tick wiring moved out of `groupEvents.ts` into their dedicated owners; the retired frontier auto-spawn is removed and ordinary world events no longer create rivals.
+- **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
 
 - **Changed:** Random world events and the frontier milestone no longer create rival settlements on the player's map; existing off-map rival diplomacy remains unchanged.
 
