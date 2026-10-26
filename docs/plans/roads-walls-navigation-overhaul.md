@@ -156,7 +156,7 @@ No profile, scheduled task or global Git configuration is changed.
 ### Follow-up: complete route and placement contracts
 
 - Affordability is calculated before drawing a strip stroke, including any capped refund for a replaced wall. A blocked or unfunded segment is not shown as valid; the overlay lists net cost, available stores and shortage. A broken wall preview does not claim a sealed enclosure.
-- The workforce commute fallback does not credit an entire journey at road speed when only a short road portion is present; all actual route discounts come from the grid's weighted route cost.
+- The workforce commute fallback computes the exact union of paved portions on a straight leg; a short road cannot discount a full journey. When a route grid is available, its weighted A* cost remains authoritative.
 - Road drag endpoints can snap to the front approach of completed player homes and workplaces, outside the building foundation. Existing road junction snaps take precedence.
 - Completed wall gates can be opened/closed from their building panel. The worker command persists the closed state and pathfinding treats closed gates as solid wall cells; old saved gates default to open. Closed gates have a visible latch marker. The old wall-replacement workflow remains valid.
 - Emergency relocation checks the full movement path before changing position, preventing a stuck walker from teleporting across a completed blocking wall or river.
