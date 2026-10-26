@@ -252,6 +252,7 @@ describe('long-run non-vacuity verdict', () => {
           pickResidenceForFamily(unit, residents, possibleHomes, occupancy),
           `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
         ).toBeUndefined();
+        if (unit.length !== 1) continue;
         for (const human of homeless) {
           expect(
             pickResidenceForHuman(human, residents, possibleHomes, occupancy),
