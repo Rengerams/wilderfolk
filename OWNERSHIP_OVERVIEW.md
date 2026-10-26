@@ -26,15 +26,17 @@ Purpose: one decision → one owner module → one definition of each function.
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
 | Building type identity: the name shown and persisted, and its stable number | `buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
-| Diplomacy card prices | `groupEvents.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
+| Diplomacy card prices | `rivalDiplomacy.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
 | Rival camp structure retirement | `rivalEvents.ts` | new-calendar-day + save load | `retireLegacyCampStructures` (also called on save load), `releaseRetiredStructureReferences` — removes every rival-owned structure still standing on the player's map and releases whoever lived, worked or was jailed there. |
 | Camp poach target | `rivalEvents.ts` | rival day pulse + visitor camp pulse | `makeNextAliveDeer` — the deer alive when the pulse starts, shared by rival and visitor poaching. |
 | Rival camp growth | `frontierCombat.ts` (rule) → `rivalEvents.ts` (day pulse) | new-calendar-day | `canRivalCampGrow`, `isRivalGrowthDay`, `getRivalGrowthFoodCost`, `RIVAL_GROWTH_INTERVAL_DAYS` |
 | Player-declared hostility | `frontierCombat.ts` | player-command | `provokeRival`, `canProvokeRival` |
-| Rival schedule wiring | `groupEvents.ts` | daily | `tickWorldRivalSettlements` (callbacks only) |
-| Yearly world event selection | `groupEvents.ts` | yearly event pulse | `rollYearlyWorldEvent` — delegates rival founding to the strategic settlement owner. |
-| Frontier founding | `groupEvents.ts` | new-calendar-day | `tryFrontierSettlement`, `FIRST_RIVAL_MIN_DAY`, `FIRST_RIVAL_MIN_HUMANS`, `spawnRivalSettlement` — strategic records only, with optional founding relationship. |
+| Rival diplomacy actions and expiring messages | `rivalDiplomacy.ts` | typed player action and rival day pulse | `getRivalGiftEligibility`, `sendRivalGift`, `respondToDiplomacyEvent`, `tickPendingDiplomacyEvents`, `maybeQueueDiplomacyEvent` and related gates; no duplicate implementations in `groupEvents.ts`. |
+| Event site sampling | `worldEventSites.ts` | event roll | `pickSite` — the shared deterministic site chooser used by visitors and strategic camp metadata. |
+| Rival schedule wiring | `rivalWorldTick.ts` | daily | `tickWorldRivalSettlements` — wires the dedicated rival tick, diplomacy and old camp poaching cleanup. |
+| Yearly world event selection | `groupEvents.ts` | yearly event pulse | `rollYearlyWorldEvent` — general events and visitors only; does not establish rival settlements. |
+| Rival settlement record creation | `rivalSettlements.ts` | explicit action or test fixture only | `spawnRivalSettlement` — strategic metadata with no on-map agents or buildings; the legacy automatic frontier milestone was removed. |
 | Village camp hit testing | `groupEvents.ts` | UI query | `hitTestCamp` — visitor camps only; rival settlements belong to the strategic map. |
 | Village camp highlights | `renderer/markers.ts` | render pass | `drawCampHighlightRings` — visitor camp selection only. |
 | Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
