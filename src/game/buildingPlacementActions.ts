@@ -225,6 +225,9 @@ export function startBuilding(
   }
 
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
+  building.siteTerrain = state.worldMap
+    ? tileAt(state.worldMap, Math.floor(x / PATH_CELL), Math.floor(y / PATH_CELL))?.type
+    : undefined;
   if (type === BuildingType.LeaderHouse) {
     const main = leaderHouseBuildings(state.buildings)[0];
     if (main) {
