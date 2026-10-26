@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
+
 - **Changed:** Random world events and the frontier milestone no longer create rival settlements on the player's map; existing off-map rival diplomacy remains unchanged.
 
 - **Fixed:** The targeted 90-day housing gate uses the game's residence selectors and distinguishes independent homeless adults from custodians of dependent minors, while checking entire households and capacity.

@@ -7,21 +7,8 @@ import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
 import { MINE_ORES, type MineMode } from '../buildings';
 import type { StripSegment } from '../stripBuild';
-import {
-  VISITOR_TRADE_COSTS,
-  type VisitorTradeAction,
-  type RefugeeChoice,
-  type VillageRequestChoiceId,
-  resolveVillageRequest,
-  sendRivalGift,
-  establishRivalTradePact,
-  showStrengthToRival,
-  signPeaceTreaty,
-  talkToVisitorLeader,
-  tradeWithVisitors,
-  negotiateRefugees,
-  respondToDiplomacyEvent,
-} from '../groupEvents';
+import { VISITOR_TRADE_COSTS, type VisitorTradeAction, type RefugeeChoice, type VillageRequestChoiceId, resolveVillageRequest, talkToVisitorLeader, tradeWithVisitors, negotiateRefugees } from '../groupEvents';
+import { sendRivalGift, establishRivalTradePact, showStrengthToRival, signPeaceTreaty, respondToDiplomacyEvent } from '../rivalDiplomacy';
 import { setWorkSchedule, validateWorkSchedule } from '../workSchedule';
 import { setVenueSchedule, validateVenueSchedule, type VenueScheduleKind } from '../venueSchedule';
 import {

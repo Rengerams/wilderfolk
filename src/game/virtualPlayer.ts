@@ -31,19 +31,8 @@ import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
 import { findPlayerTownHall } from './playerTownHall';
 import { canStartResearch } from './research';
-import {
-  getDiplomacyChoiceEligibility,
-  getPeaceTreatyEligibility,
-  getRefugeeChoiceEligibility,
-  getRivalGiftEligibility,
-  getRivalTradePactEligibility,
-  getShowStrengthEligibility,
-  getVisitorLeaderTalkMeta,
-  getVisitorTradeEligibility,
-  getVillageRequestEligibility,
-  type RefugeeChoice,
-  type VisitorTradeAction,
-} from './groupEvents';
+import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
+import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
 import { Human, VirtualPlayer } from './gameConstants';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';

@@ -1,4 +1,5 @@
 import { moveResident } from './residencyReconciliation';
+import { unindexEntityFromState } from './entityIndex';
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
@@ -21,6 +22,16 @@ export interface RivalEventCallbacks {
   tickPendingDiplomacyEvents: (state: WorldState) => void;
   queueDiplomacyEvent: (state: WorldState, rival: RivalSettlement) => void;
   killWildGameForPoach: (state: WorldState, animal: Entity) => void;
+}
+
+/** Retire a poached animal and clear any active hunter targeting it. */
+export function killWildGameForPoach(state: WorldState, animal: Entity): void {
+  if (!animal.alive) return;
+  animal.alive = false;
+  unindexEntityFromState(state, animal.id);
+  for (const entity of state.entities) {
+    if (entity.huntTargetId === animal.id) entity.huntTargetId = undefined;
+  }
 }
 
 /** Hands out the deer alive at pulse start, stepping past any a poach killed meanwhile. */

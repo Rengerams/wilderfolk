@@ -109,12 +109,6 @@ export { recordYearlyStats, updateLifetimeStats, drawBarChart, drawLineChart } f
 export type { YearlyStats, LifetimeStats } from './stats';
 export { logEvent } from './eventLog';
 export {
-  sendRivalGift,
-  establishRivalTradePact,
-  showStrengthToRival,
-  signPeaceTreaty,
-  respondToDiplomacyEvent,
-  getDiplomacyChoiceEligibility,
   tradeWithVisitors,
   negotiateRefugees,
   talkToVisitorLeader,
