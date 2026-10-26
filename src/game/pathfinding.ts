@@ -47,9 +47,10 @@ const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
 const BUILDING_SIGNATURE_HEIGHT_FACTOR = 23;
 const BUILDING_SIGNATURE_BRIDGE_FACTOR = 29;
 
-/** Completed player walls block walking; gates are passable openings. */
+/** Closed gates share the wall collision footprint; legacy gates remain open. */
 function isBlockingWall(b: Building): boolean {
-  return b.completed && b.type === BuildingType.Wall;
+  return b.completed && (b.type === BuildingType.Wall
+    || (b.type === BuildingType.WallGate && b.gateClosed === true));
 }
 
 /** Completed player roads and bridges: walkable, and cheaper than open ground. */
