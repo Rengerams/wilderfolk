@@ -3,7 +3,7 @@ import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
+import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 const mealTick = 24 * TICKS_PER_HOUR;
 function person(override: Partial<Entity> = {}): Entity {
@@ -75,6 +75,12 @@ describe('independent physiological advancement', () => {
     const once = { ...e.needs! };
     advanceHumanNeeds(e, { tick: mealTick, sleeping: true, working: false, moving: false });
     expect(e.needs).toEqual(once);
+  });
+
+  it('preserves normal output but penalizes severe deprivation', () => {
+    expect(getHumanNeedsWorkMultiplier(person())).toBe(1);
+    expect(getHumanNeedsWorkMultiplier(person({ needs: { nutrition: 4, rest: 70, stamina: 60 } }))).toBe(0.55);
+    expect(getHumanNeedsWorkMultiplier(person({ needs: { nutrition: 60, rest: 70, stamina: 3 } }))).toBe(0.55);
   });
 
   it('treats zero stamina as recoverable and clamps bad old energy', () => {

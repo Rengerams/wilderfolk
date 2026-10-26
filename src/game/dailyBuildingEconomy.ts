@@ -99,6 +99,7 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isImprisoned } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
+import { getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
   getScheduleLastWorkedHours,
@@ -440,7 +441,7 @@ function tickBuildingProduction(
     const current = buildingWorkerStats.get(siteId)
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
     current.count += 1;
-    current.fatigueSum += getScheduleProductivityMultiplier(h);
+    current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
     const lastWorkedHours = getScheduleLastWorkedHours(h);
     current.workedHoursSum += lastWorkedHours;
     if (lastWorkedHours > 0) current.workedCount += 1;

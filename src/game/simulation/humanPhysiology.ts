@@ -107,6 +107,13 @@ export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: 
   return 'continueActivity';
 }
 
+export function getHumanNeedsWorkMultiplier(entity: Pick<Entity, 'needs'>): number {
+  const needs = entity.needs;
+  if (!needs) return 1;
+  const lowReserve = Math.min(needs.nutrition / 20, needs.rest / 20, needs.stamina / 15);
+  return Number.isFinite(lowReserve) ? Math.max(0.55, Math.min(1, lowReserve)) : 1;
+}
+
 export function hasFatalStarvation(entity: Entity): boolean {
   return (entity.needs?.severeHungerTicks ?? 0) >= HUMAN_NEEDS.STARVATION_FATAL_SIM_HOURS * TICKS_PER_HOUR;
 }
