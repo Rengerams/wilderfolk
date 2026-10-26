@@ -42,6 +42,24 @@ describe('divorce custody and housing', () => {
     expect(first.residenceBuildingId).toBe(getChildCustodian(first, people)?.residenceBuildingId);
     expect(second.residenceBuildingId).toBe(getChildCustodian(second, people)?.residenceBuildingId);
   });
+  it('reserves the only family-sized home for an unhoused retaining parent and minors', () => {
+    const large = building(10, BuildingType.House, { x: 100, y: 0 });
+    const shared = building(20, BuildingType.House, { x: 200, y: 0 });
+    const mother = human(1, { gender: 'female', pastPartnerTicks: { 2: 1201 } });
+    const father = human(2, { gender: 'male', pastPartnerTicks: { 1: 1201 } });
+    const children = Array.from({ length: 5 }, (_, index) => human(3 + index, {
+      age: 5, isJuvenile: true, motherId: 1, fatherId: 2,
+    }));
+    const occupants = Array.from({ length: 2 }, (_, index) => human(20 + index, {
+      residenceBuildingId: shared.id,
+    }));
+    const people = [mother, father, ...children, ...occupants];
+    reassignDivorcedResidences(mother, father, [large, shared], people);
+    expect(mother.residenceBuildingId).toBe(large.id);
+    expect(father.residenceBuildingId).toBe(shared.id);
+    expect(children.every((child) => child.residenceBuildingId === large.id)).toBe(true);
+  });
+
   it('uses spare beds in an occupied home when no vacant home exists', () => {
     const marital = building(10, BuildingType.House, { x: 0, y: 0 });
     const shared = building(20, BuildingType.House, { x: 120, y: 0 });
