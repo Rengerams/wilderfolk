@@ -181,6 +181,38 @@ describe('M13 hospital treatment cadence', () => {
   });
 });
 
+describe('accepted road detour final approach', () => {
+  it('continues on accepted waypoints once closer than the initial search threshold', () => {
+    const road = {
+      id: 802, type: BuildingType.Road, x: pixel(20, 15), y: pixel(20, 15),
+      width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(45, 35, 20261027, () => false), [road]);
+    try {
+      const walker = human(802, pixel(4, 18), pixel(4, 18));
+      const targetX = pixel(36, 18);
+      const targetY = pixel(36, 18);
+      expect(steerWithPath(walker, targetX, targetY, 5, 'accepted-road')).toBe('path');
+      let enteredFinalApproach = false;
+      for (let step = 0; step < 120; step++) {
+        const result = steerWithPath(walker, targetX, targetY, 5, 'accepted-road');
+        const remaining = Math.hypot(walker.x - targetX, walker.y - targetY);
+        if (remaining < 150 && remaining > 35) {
+          expect(result).toBe('path');
+          enteredFinalApproach = true;
+          break;
+        }
+        expect(result).toBe('path');
+        walker.x += walker.vx;
+        walker.y += walker.vy;
+      }
+      expect(enteredFinalApproach).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+});
+
 describe('road detour negative caching', () => {
   it('keeps a rejected detour cached as the walker crosses tiles on a clear route', () => {
     const farRoad = {
