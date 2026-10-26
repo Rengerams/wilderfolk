@@ -48,6 +48,24 @@ import {
 } from '../src/game/relationshipDiagnostics';
 import { BASE_TICKS_PER_SECOND } from '../src/game/gameLoop';
 import { setSimSeed } from '../src/game/simRng';
+import { applyWorkerCommand } from '../src/game/simWorker/commands';
+import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+
+/** Apply the real Virtual Player command, retaining cloned worker command results. */
+export function applyColonyBotAction(world: WorldState): string | null {
+  const decision = decideVirtualPlayerAction(world);
+  if (!decision) return null;
+  const applied = applyWorkerCommand(world, decision.command);
+  if (applied !== world) {
+    const target = world as unknown as Record<string, unknown>;
+    const source = applied as unknown as Record<string, unknown>;
+    for (const key of Object.keys(target)) {
+      if (!(key in source)) delete target[key];
+    }
+    Object.assign(target, source);
+  }
+  return decision.command.op;
+}
 
 /**
  * One in-game tick's real-time budget at 1× speed, taken from the loop's own pacing constant rather
