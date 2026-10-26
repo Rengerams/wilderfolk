@@ -43,10 +43,7 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
     // An established ordinary residence makes this a separate adult household.
     // Do not admit only its unhoused partner into the manor.
     const hasIndependentHome = [child, partner].some((adult) =>
-      adult?.residenceBuildingId != null
-      && humans.some((resident) => resident.alive && resident.id !== leader.id
-        && resident.residenceBuildingId === adult.residenceBuildingId
-        && resident.id === adult.id));
+      adult?.residenceBuildingId != null && adult.residenceBuildingId !== leader.residenceBuildingId);
     if (hasDependentMinors || hasIndependentHome) continue;
     if (!memberIds.has(child.id)) {
       members.push(child);
