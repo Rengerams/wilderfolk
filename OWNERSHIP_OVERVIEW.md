@@ -323,7 +323,7 @@ exports it.
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
 | Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `isTileBuildable`, `setTileOverride`, `rebakeTerrainGrids` |
-| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain`, `terrainSeedFor`, `legacyTerrainSeed` |
+| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain`, `terrainSeedFor`, `legacyTerrainSeed`, `shapePresetRelief` |
 | Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `fbm`, `ridged`, `warp`, `valueNoise`, `mulberry32`, `hash2`, `clamp` |
 | River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt` |
 | What a terrain type **is** — water, and may anything stand on it | `terrain/terrainTraits.ts` | read-only leaf (breaks the `placementUtils ↔ terrainGrid` cycle) | `isWaterTerrainType`, `isUnbuildableTerrainType` |
