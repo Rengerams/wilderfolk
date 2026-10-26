@@ -574,8 +574,8 @@ Suggested implementation sequence to reduce integration risk:
 
 1. **Foundation:** benchmarks, event IDs, stable save migrations and shared typed APIs for traits, pathfinding and outcomes.
 2. **Simulation reliability:** incremental caches, performance profiling and save/load regression coverage.
-3. **Infrastructure:** road construction, connections, gates, walls and tower interactions.
-4. **Village life:** districts, logistics, careers and personality-driven priorities.
+3. **Infrastructure:** road construction, connections, gates, walls and tower interactions (issue #49).
+4. **Village life:** human physiology and food-economy balance (issue #61), districts, logistics, careers and personality-driven priorities.
 5. **Warfare:** raid states, prisoner decisions, diplomacy, leadership merit and consequences.
 6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
 
@@ -659,9 +659,9 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 These checked items mean **implemented on PR #40**, not merged into `main`. Outstanding gates stay unchecked until supported by test evidence on the final commit.
 
 
-### High priority — Roads, walls, gates and navigation overhaul (26 October 2026)
+### High priority — Roads, walls, gates and navigation overhaul (Issue #49; 26 October 2026)
 
-**Status: [ ] Proposed / not implemented.** One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
+**Status: [ ] Proposed / not verified on main.** [Issue #49](https://github.com/Rengerams/wilderfolk/issues/49) is the authoritative technical audit and implementation contract. One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
 
 - [ ] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
 - [ ] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.
@@ -677,3 +677,35 @@ These checked items mean **implemented on PR #40**, not merged into `main`. Outs
 **Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
 
 **Definition of done:** connected roads work visually and logically; enclosed walls actually block movement; gates are passable; roads provide measured travel benefits; click-and-drag build and demolition are responsive; saves and performance remain sound. Leave all boxes unchecked until supported by implementation and validation evidence.
+
+## 22. Human needs and food economy — Issue #61 (26 October 2026)
+
+**Priority:** high. **Status: [ ] Open / draft, not accepted.** Authoritative implementation and acceptance contract: [issue #61](https://github.com/Rengerams/wilderfolk/issues/61). Implementation tracking: [PR #62](https://github.com/Rengerams/wilderfolk/pull/62), currently a draft with outstanding work. Unchecked items are not claims of completed code or merge readiness.
+
+**Goal:** replace the combined player-human `energy` hunger/exhaustion model with three independent, serialized needs (**nutrition**, **rest**, **stamina**) integrated into existing health, activity, attendance, work output, food, death, persistence and UI. Preserve nonhuman energy rules and prevent visitors/rivals from charging the player's larder.
+
+### 22.1 One authoritative physiology and behavior pipeline
+
+- [ ] **Audit and mini-RFC:** inspect active owners and every player-human `energy` writer/reader, meal rule, sleep condition, attendance/production effect, `scheduleFatigue`, worker boundary and save migration. Register each owner in the ownership overview. No parallel needs engine.
+- [ ] **Canonical saved state:** bounded, normalized 0–100 nutrition/rest/stamina with old-save migration, deterministic worker delta/save round-trip and explicit Moonhowler/human transformation behavior. Do not save redundant derived statuses or keep two writable stamina representations.
+- [ ] **Exactly one update per interval:** advance physiology from observed elapsed sim time, duty, activity/movement and *verified* sleep once per player human before offscreen throttling. Ensure fast-forward, camera visibility, save/reload and worker execution cannot change physiological or food outcomes.
+- [ ] **Distinct effects:** nutrition drains over time and effort, food restores only nutrition; rest drains while awake and recovers only during eligible sleep, including off-shift sleep; stamina drains with exertion and recovers through actual breaks/inactivity/sleep. No instant death from one missed meal, zero stamina, or lack of sleep.
+- [ ] **Decision/action split:** deterministic nutrition, sleep and break intents with enter/exit thresholds and hysteresis; existing movement, emergency, labor, housing/hotel occupancy, ledger, hospital and death owners enforce feasible actions. Avoid repeated eating, fake sleep, flickering intents and lost emergency priorities.
+- [ ] **Work/health integration:** retain real attendance, `scheduleFatigue` as a distinct workload measure, and appropriate health/production consequences without stacking duplicate fatigue penalties. Reconcile legacy perks, wounds, exposure, wells and activity modifiers.
+- [ ] **Special roles and edge cases:** test children, adult/aging changes, shifts (tavern, hotel, hospital, guard, prison, moon priest), school, sickness, combat, long routes, sleeping without beds, transformed humans and offscreen workers; existing nonhuman systems must remain unchanged.
+
+### 22.2 Food economy and quantitative calibration
+
+- [ ] **Atomic meals:** one successful inventory debit in the existing food ledger restores nutrition exactly once; failed meals do nothing. Replace the legacy energy-threshold meal rule, prevent repeated per-tick consumption and eliminate duplicate daily food charges.
+- [ ] **Joint balancing:** tune nutrition consumption, meal quantities, sleep loss/recovery, stamina cost/recovery and prolonged deprivation together using actual simulated schedules. Treat roughly three food units per ordinary adult per day as a hypothesis to measure, never a disguised fixed tax.
+- [ ] **Production and forecast reconciliation:** derive colony food demand, production, spoilage, stock depletion, reserve-days forecast and automated farm planning from consistent parameters and observed worker output, for adults/children and special duties. Update planning/UI assumptions if actual demand differs.
+- [ ] **Publish evidence:** reproducible 7-day, 30-day and full-year (360-day) scenarios for normal/rested/long-shift/night workers, families/farms, no-food, poor-sleep, travel/combat, and on/offscreen plus save/reload equivalence. Record starting/ending needs, hours worked, food stocks and flows, sickness, starvation/deaths and deviations.
+
+### 22.3 Acceptance and merge gate
+
+- [ ] Present three independent needs and grounded reasons for eat/sleep/break/work interruptions in the settler inspector/status; UI must not mutate authoritative needs.
+- [ ] Replace outdated energy-based meal tests with observable nutrition and ledger assertions. Add deterministic tests for worker/saves, life-form restoration, roles/shifts, bed eligibility, starvation and health progression, production/attendance, compatibility and nonhuman isolation.
+- [ ] Complete relevant typecheck, lint, build, source/document checks, regression tests, simulation harnesses, performance comparisons and CI on the final PR commit. Update ownership documentation and changelog. Fix failures; do not weaken tests.
+- [ ] **Release gate:** every acceptance criterion in issue #61 passes end to end, including a single authoritative pipeline, no unintended human-energy writers, real food balance and stable long-run, save and offscreen results.
+
+**Definition of done:** villagers eat, sleep and rest for different reasons; starvation is gradual and meaningful; work and health respond coherently; food consumed matches food planned and produced; old saves, worker mode, offscreen simulation and nonhuman energy retain their established behavior. Issue #61 is the detailed specification where this roadmap is a summary.
