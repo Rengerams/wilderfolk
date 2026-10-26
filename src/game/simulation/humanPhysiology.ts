@@ -14,6 +14,8 @@ export const HUMAN_NEEDS = {
   STAMINA_WALK_LOSS_PER_SIM_HOUR: 5,
   STAMINA_IDLE_RECOVERY_PER_SIM_HOUR: 5,
   STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 13,
+  WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
+  HOSPITAL_STAMINA_DRAIN_MULTIPLIER: 0.9,
   REST_CRITICAL: 20,
   STAMINA_CRITICAL: 15,
   NUTRITION_STARVING: 8,
@@ -50,6 +52,8 @@ export interface HumanNeedsObservation {
   sleeping: boolean;
   working: boolean;
   moving: boolean;
+  hasWell?: boolean;
+  hasHospital?: boolean;
 }
 
 export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): HumanNeedsState {
@@ -64,10 +68,14 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   needs.nutrition = bounded(needs.nutrition - nutritionLoss * hours * (entity.isJuvenile ? 0.85 : 1), 0);
   needs.rest = bounded(needs.rest + hours * (obs.sleeping
     ? HUMAN_NEEDS.REST_RECOVERY_SLEEP_PER_SIM_HOUR : -HUMAN_NEEDS.REST_LOSS_AWAKE_PER_SIM_HOUR), 0);
-  const staminaRate = obs.sleeping ? HUMAN_NEEDS.STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR
+  let staminaRate = obs.sleeping ? HUMAN_NEEDS.STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR
     : obs.working ? -HUMAN_NEEDS.STAMINA_WORK_LOSS_PER_SIM_HOUR
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
+  if (staminaRate < 0) {
+    if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
+    if (obs.hasHospital) staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_DRAIN_MULTIPLIER;
+  }
   needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
   needs.severeHungerTicks = needs.nutrition <= HUMAN_NEEDS.NUTRITION_STARVING
     ? (needs.severeHungerTicks ?? 0) + ticks : 0;
