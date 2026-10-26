@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { buildStripPlanFromDrag, buildStripPlanFromStroke, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
+import { buildStripPlanFromDrag, buildStripPlanFromStroke, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan, snapStripDragEndpoints } from '../src/game/stripTopology';
 
 function strip(type: typeof BuildingType.Road | typeof BuildingType.Wall, rotation: 0 | 90): Building {
   const { width, height } = getBuildingFootprintForType(type, rotation);
@@ -19,6 +19,21 @@ const origin = [{ x: 0, y: 0 }];
 describe('connected strip planning', () => {
   it('does not place a duplicate road when the player retraces an existing piece', () => {
     expect(resolveRoadStripPlan(stateWith(strip(BuildingType.Road, 0)), origin, 0)).toEqual([]);
+  });
+
+  it('snaps road drags to suitable building fronts without entering the foundation', () => {
+    const house = {
+      ...strip(BuildingType.Road, 0), type: BuildingType.House,
+      id: 90, x: 300, y: 300, width: 46, height: 40,
+    };
+    const roadDepth = getBuildingFootprintForType(BuildingType.Road, 0).height;
+    const entranceY = house.y + house.height / 2 + roadDepth / 2;
+    const snapped = snapStripDragEndpoints([house], BuildingType.Road, 50, 50, 302, entranceY + 2);
+    expect(snapped.endX).toBe(house.x);
+    expect(snapped.endY).toBe(entranceY);
+    const walls = snapStripDragEndpoints([house], BuildingType.Wall, 50, 50, 302, entranceY + 2);
+    expect(walls.endX).toBe(302);
+    expect(walls.endY).toBe(entranceY + 2);
   });
 
   it('keeps the perpendicular road at an existing road junction', () => {
