@@ -123,7 +123,9 @@ export function drawStripBuildPreview(
   const reason = preview.segments.find((segment) => segment.reason)?.reason;
   const shortage = preview.segments.some((segment) => segment.resourceShortage);
   const cost = preview.cost;
-  const price = cost ? ` · net ${cost.wood}w ${cost.stone}s ${cost.gold}g` : '';
+  const available = preview.available;
+  const stock = available ? ` · stock ${available.wood}w ${available.stone}s ${available.gold}g` : '';
+  const price = cost ? ` · net ${cost.wood}w ${cost.stone}s ${cost.gold}g${stock}` : '';
   const text = demolition ? `${preview.segments.length} sections — release to remove`
     : blocked === 0
     ? `${preview.segments.length} tiles${price} — release to lay`
