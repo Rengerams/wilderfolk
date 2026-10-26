@@ -34,6 +34,10 @@ export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Enti
     && (parentIds.has(person.motherId ?? -1) || parentIds.has(person.fatherId ?? -1)
       || parentIds.has(person.adoptiveMotherId ?? -1) || parentIds.has(person.adoptiveFatherId ?? -1)));
   for (const child of directChildren) {
+    const dependentMinors = humans.filter((person) => person.alive && isResidenceOccupantEntity(person)
+      && isMinorChild(person) && (person.motherId === child.id || person.fatherId === child.id
+        || person.adoptiveMotherId === child.id || person.adoptiveFatherId === child.id));
+    if (dependentMinors.length > 0 && child.residenceBuildingId == null) continue;
     if (!memberIds.has(child.id)) {
       members.push(child);
       memberIds.add(child.id);
