@@ -271,9 +271,11 @@ function shapePresetRelief(
       const distance = Math.hypot(x - (cols - 1) / 2, y - (rows - 1) / 2) / shortSide;
       let e = elevation[i]!;
       switch (preset) {
-        case MapPreset.Coastal:
-          e -= 0.60 * smoothRange(0.43, 0.09, nx + (detail - 0.5) * 0.12);
+        case MapPreset.Coastal: {
+          const ocean = smoothRange(0.43, 0.09, nx + (detail - 0.5) * 0.12);
+          e = Math.min(e - 0.30 * ocean, seaLevel - 0.02 + 0.70 * (1 - ocean));
           break;
+        }
         case MapPreset.Islands:
           e += 0.18 * Math.sin(nx * Math.PI * 7 + detail * 2)
             * Math.sin(ny * Math.PI * 5 - detail * 2) - 0.09;
@@ -286,15 +288,18 @@ function shapePresetRelief(
             * Math.exp(-Math.pow((ny - 0.33 - 0.10 * Math.sin(nx * 8)) / 0.06, 2));
           const east = smoothRange(0.40, 0.86, nx)
             * Math.exp(-Math.pow((ny - 0.68 - 0.10 * Math.sin(nx * 7)) / 0.065, 2));
-          e -= 0.65 * Math.max(west, east);
+          const fjord = Math.max(west, east);
+          e = Math.min(e - 0.30 * fjord, seaLevel - 0.02 + 0.70 * (1 - fjord));
           break;
         }
         case MapPreset.Meadows:
           e = seaLevel + (e - seaLevel) * 0.75;
           break;
-        case MapPreset.Oasis:
-          e -= 0.66 * Math.exp(-Math.pow(distance / 0.11, 4));
+        case MapPreset.Oasis: {
+          const spring = Math.exp(-Math.pow(distance / 0.11, 4));
+          e = Math.min(e, seaLevel - 0.06 + 0.85 * (1 - spring));
           break;
+        }
         default:
           break;
       }
