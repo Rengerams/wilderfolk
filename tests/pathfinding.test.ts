@@ -145,6 +145,19 @@ describe('pathfinding', () => {
     expect(lineCrossesBlocked(grid, sx, sy, 8 * PATH_CELL, sy)).toBe(false);
   });
 
+  it('treats completed rival or legacy walls as impassable terrain', () => {
+    const map = makeMap(8, 8, 431, () => false);
+    const wall: Building = {
+      id: 900, type: BuildingType.Wall, faction: 'rival', x: 3.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      width: PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [wall]);
+    expect(grid.blocked[3 * grid.cols + 3]).toBe(1);
+    expect(findPath(grid, 1, 3, 6, 3)?.some((tile) => tile.x === 3 && tile.y === 3)).toBe(false);
+  });
+
   it('opens the water a bridge spans, so the deck is a crossing and not decoration', () => {
     // River column 5 for every row: the two banks are separate unless a deck connects them.
     const map = makeMap(10, 10, 8, (x) => x === 5);
