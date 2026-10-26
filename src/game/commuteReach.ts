@@ -1,9 +1,6 @@
-import { BuildingType } from './buildings';
 import type { Building, Entity } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
-import { isEntityOnBuilding } from './buildingRotation';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { findRouteCostOutcome, getCurrentPathGrid, type PathGrid } from './pathfinding';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
@@ -22,12 +19,6 @@ export const MAX_COMMUTE_LEAD_HOURS = 24;
 
 /** Urgent commutes may walk faster, but never exceed 3.5 times the settler's normal pace. */
 export const WORK_COMMUTE_RUSH = 3.5;
-
-/** Roads are quicker to walk, so a settler who may use them can be housed further out. */
-const COMMUTE_ROAD_SPEED_MULT = ROAD_SPEED_MULT;
-
-/** Spacing of the samples that test whether a road serves a route, in world px. */
-const ROAD_ROUTE_SAMPLE_PX = 24;
 
 /** Owner rule: a settler who cannot reach a post inside two hours is not a candidate for it. */
 export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
@@ -65,29 +56,6 @@ export function commuteLeadHoursFor(
   return Math.min(MAX_COMMUTE_LEAD_HOURS, Math.max(1, hours));
 }
 
-/** Whether a road serves the route between two points, sampled along the straight line. */
-function routePassesRoad(
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-  buildings: readonly Building[],
-): boolean {
-  const distance = Math.hypot(toX - fromX, toY - fromY);
-  const samples = Math.max(1, Math.min(24, Math.ceil(distance / ROAD_ROUTE_SAMPLE_PX)));
-  for (const building of buildings) {
-    if (building.type !== BuildingType.Road && building.type !== BuildingType.Bridge) continue;
-    if (!building.completed) continue;
-    for (let i = 1; i < samples; i++) {
-      const t = i / samples;
-      const x = fromX + (toX - fromX) * t;
-      const y = fromY + (toY - fromY) * t;
-      if (isEntityOnBuilding(x, y, building, ROAD_ROUTE_SAMPLE_PX)) return true;
-    }
-  }
-  return false;
-}
-
 /** Searches left in the housing sweep's budget; a cached leg costs nothing. */
 let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
@@ -98,13 +66,13 @@ export function beginCommuteRoutePass(): void {
 }
 
 /** Route hours home → destination over the sim's current grid, or null when no route is priced. */
-function routeCommuteHours(home: Building, destination: Building, walkSpeed: number): number | null {
+function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number): number | null {
   const grid = getCurrentPathGrid();
   if (!grid) return null;
-  const fromX = Math.floor(home.x / PATH_CELL);
-  const fromY = Math.floor(home.y / PATH_CELL);
-  const toX = Math.floor(destination.x / PATH_CELL);
-  const toY = Math.floor(destination.y / PATH_CELL);
+  const fromX = Math.floor(fromWorldX / PATH_CELL);
+  const fromY = Math.floor(fromWorldY / PATH_CELL);
+  const toX = Math.floor(toWorldX / PATH_CELL);
+  const toY = Math.floor(toWorldY / PATH_CELL);
   // Co-located buildings are the straight line's case, not the search's.
   if (fromX === toX && fromY === toY) return null;
   const key = `${walkSpeed}|${fromX},${fromY}>${toX},${toY}`;
@@ -139,16 +107,15 @@ function routeCommuteHours(home: Building, destination: Building, walkSpeed: num
 export function estimatedCommuteHours(
   home: Building,
   destination: Building,
-  buildings: readonly Building[],
+  _buildings: readonly Building[],
   walkSpeed: number,
 ): number {
-  const routed = routeCommuteHours(home, destination, walkSpeed);
+  const routed = routeCommuteHours(home.x, home.y, destination.x, destination.y, walkSpeed);
   if (routed === Infinity) return Infinity;
   if (routed !== null) return routed;
   const distance = Math.hypot(destination.x - home.x, destination.y - home.y);
-  const plain = commuteLeadHoursFor(distance, walkSpeed);
-  if (!routePassesRoad(home.x, home.y, destination.x, destination.y, buildings)) return plain;
-  return Math.min(plain, commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT));
+  // A missing or budget-exhausted route never grants a speculative road discount.
+  return commuteLeadHoursFor(distance, walkSpeed);
 }
 
 /**
@@ -172,8 +139,9 @@ export function isWithinAssignableCommute(
   if (home) {
     return estimatedCommuteHours(home, building, buildings, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
   }
-  const distance = Math.hypot(toX - from.x, toY - from.y);
-  if (commuteLeadHoursFor(distance, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS) return true;
-  if (commuteLeadHoursFor(distance, walkSpeed * COMMUTE_ROAD_SPEED_MULT) > MAX_ASSIGNABLE_COMMUTE_HOURS) return false;
-  return routePassesRoad(from.x, from.y, toX, toY, buildings);
+  const routed = routeCommuteHours(from.x, from.y, toX, toY, walkSpeed);
+  if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+  // No grid or exhausted search budget: do not infer a full-route speed bonus from one road.
+  return commuteLeadHoursFor(Math.hypot(toX - from.x, toY - from.y), walkSpeed)
+    <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 }
