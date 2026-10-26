@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE, tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
+import { getChildCustodian } from '../src/game/householdComposition';
 
 function human(id: number, gender: 'male' | 'female', overrides: Partial<Entity> = {}): Entity {
   return {
@@ -96,13 +97,12 @@ describe('amicable divorce', () => {
     expect(wife.relationshipStatus).toBe('single');
     // Maiden name is restored for the woman.
     expect(wife.surname).toBe('OriginalName');
-    // One of the two leaves the house; kids stay with the mother.
-    expect(wife.residenceBuildingId).toBe(10);
-    expect(husband.residenceBuildingId).toBe(20);
-    expect(child.residenceBuildingId).toBe(10);
+    // The shared child follows the deterministically selected parent, not necessarily the mother.
+    const custodian = getChildCustodian(child, world.entities);
+    expect(custodian).toBeDefined();
+    expect(child.residenceBuildingId).toBe(custodian?.residenceBuildingId);
+    expect(new Set([wife.residenceBuildingId, husband.residenceBuildingId])).toEqual(new Set([10, 20]));
     expect(home.occupants).toContain(wife.id);
-    expect(home.occupants).toContain(child.id);
-    expect(home.occupants).not.toContain(husband.id);
     expect(secondHome.occupants).toContain(husband.id);
     expect(world.eventLog.some((e) => e.message.includes('divorced amicably'))).toBe(true);
   });
