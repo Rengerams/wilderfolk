@@ -13,7 +13,8 @@ import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from '../src/game/residencyOccupancy';
+import { buildResidenceOccupancy, getResidenceCapacity, isHomelessSettler, isImprisoned, isResidenceBuilding, isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
+import { buildHousingUnits, listPlayerResidences, pickResidenceForFamily, pickResidenceForHuman } from '../src/game/residencySelection';
 import {
   resetRelationshipDiagnostics,
   setRelationshipDiagnosticsEnabled,
@@ -237,15 +238,26 @@ describe('long-run non-vacuity verdict', () => {
 
       const occupancy = buildResidenceOccupancy(run.world.entities);
       const residences = run.world.buildings.filter(isResidenceBuilding);
-      const availableBeds = residences.reduce((total, residence) => {
+      for (const residence of residences) {
         const used = occupancy.get(residence.id) ?? 0;
-        const capacity = getResidenceCapacity(residence);
-        expect(used, `residence ${residence.id} must not exceed its capacity`).toBeLessThanOrEqual(capacity);
-        return total + (isLeaderHouseResidence(residence) ? 0 : capacity - used);
-      }, 0);
+        expect(used, `residence ${residence.id} must not exceed its capacity`).toBeLessThanOrEqual(getResidenceCapacity(residence));
+      }
 
-      if (run.final.housing.homelessPlayerHumans > 0) {
-        expect(availableBeds, 'homeless settlers must not have vacant beds available').toBe(0);
+      const residents = run.world.entities.filter((human) => isResidenceOccupantEntity(human) && !isImprisoned(human));
+      const possibleHomes = listPlayerResidences(run.world.buildings);
+      for (const unit of buildHousingUnits(residents)) {
+        const homeless = unit.filter(isHomelessSettler);
+        if (homeless.length === 0) continue;
+        expect(
+          pickResidenceForFamily(unit, residents, possibleHomes, occupancy),
+          `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
+        ).toBeUndefined();
+        for (const human of homeless) {
+          expect(
+            pickResidenceForHuman(human, residents, possibleHomes, occupancy),
+            `homeless settler ${human.id} can be placed by the game's own selection rule`,
+          ).toBeUndefined();
+        }
       }
     },
     300_000,
