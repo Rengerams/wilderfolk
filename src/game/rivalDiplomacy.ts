@@ -36,9 +36,6 @@ export const RIVAL_GIFT_FOOD_COST = 25;
 export const RIVAL_TRADE_PACT_GOLD_COST = 40;
 export const PEACE_TREATY_GOLD_COST = 30;
 export const PEACE_TREATY_FOOD_COST = 20;
-/** Refugee offer prices — exported so the panel's button labels quote the owner's figures. */
-export const REFUGEE_WELCOME_FOOD = 40;
-export const REFUGEE_SCREEN_FOOD = 20;
 
 export function getRivalGiftEligibility(
   state: WorldState,
