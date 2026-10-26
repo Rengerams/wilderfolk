@@ -672,6 +672,8 @@ interface CachedPath {
   startTileX: number;
   startTileY: number;
   waypoints: { x: number; y: number }[] | null;
+  /** A clear walk rejected a road detour; keep direct travel cached across tiles. */
+  directDetourRejected?: boolean;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
 }
@@ -772,7 +774,7 @@ export function steerWithPath(
   if (directBlocked || considerRoadDetour) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
-      || (cached.waypoints === null && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
+      || (cached.waypoints === null && !cached.directDetourRejected && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
         || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
       cached = undefined;
     }
@@ -817,6 +819,7 @@ export function steerWithPath(
       cached = {
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
+        directDetourRejected: !directBlocked && !savesTime,
       };
       pathCache.delete(cacheKey);
       if (pathCache.size >= PATH_CACHE_LIMIT) {
