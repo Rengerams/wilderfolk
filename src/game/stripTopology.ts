@@ -425,6 +425,44 @@ export function findEnclosedWallAreas(
   return areas;
 }
 
+/** Freehand strip stroke: preserve every mouse turn and create one bounded placement command. */
+export function buildStripPlanFromStroke(
+  state: WorldState,
+  type: BuildingType,
+  points: readonly { x: number; y: number }[],
+): { plan: StripPlacementPiece[]; enclosedAreas: EnclosedArea[] } {
+  if (points.length === 0) return { plan: [], enclosedAreas: [] };
+  if (points.length === 1) {
+    const p = points[0];
+    return buildStripPlanFromDrag(state, type, p.x, p.y, p.x, p.y, 0);
+  }
+  const plan: StripPlacementPiece[] = [];
+  const seen = new Set<string>();
+  const emit = (piece: StripPlacementPiece) => {
+    const key = `${piece.type}:${piece.x}:${piece.y}:${piece.rotation}`;
+    if (!seen.has(key) && plan.length < MAX_STRIP_SEGMENTS) {
+      seen.add(key);
+      plan.push(piece);
+    }
+  };
+  for (let i = 1; i < points.length && plan.length < MAX_STRIP_SEGMENTS; i++) {
+    const start = points[i - 1];
+    const end = points[i];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    if (dx === 0 && dy === 0) continue;
+    const rotation: BuildingRotation = Math.abs(dx) >= Math.abs(dy) ? 0 : 90;
+    const snapped = snapStripDragEndpoints(state.buildings, type, start.x, start.y, end.x, end.y);
+    const centers = computeStripSegmentCenters(
+      type, snapped.startX, snapped.startY, snapped.endX, snapped.endY, rotation,
+    );
+    for (const piece of resolveStripPlan(state, type, centers, rotation)) emit(piece);
+  }
+  const enclosedAreas = isWallStripType(type)
+    ? findEnclosedWallAreas(state, plan.map((piece) => ({ x: piece.x, y: piece.y }))) : [];
+  return { plan, enclosedAreas };
+}
+
 export function buildStripPlanFromDrag(
   state: WorldState,
   type: BuildingType,
