@@ -253,7 +253,6 @@ describe('long-run non-vacuity verdict', () => {
           pickResidenceForFamily(unit, residents, possibleHomes, occupancy),
           `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
         ).toBeUndefined();
-        if (unit.length !== 1) continue;
         const dependentIds = new Set(
           unit.filter(isMinorChild).map((child) => getChildCustodian(child, residents)?.id),
         );
