@@ -168,6 +168,28 @@ describe('a release is uneventful', () => {
   });
 });
 
+describe('release of a guard imprisoned at their own workplace', () => {
+  it('keeps the staff roster entry while clearing the prisoner state', () => {
+    const state = initGame({ seed: FIXTURE_SEED });
+    const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
+    const guard = human(7411, {
+      job: JobType.PrisonGuard,
+      workerBuildingId: prison.id,
+      prisonBuildingId: prison.id,
+      prisonerUntilTick: state.tick - 1,
+    });
+    prison.occupants = [guard.id];
+    state.entities = [guard];
+    state.buildings = [prison];
+
+    releasePrisoners(state);
+
+    expect(guard.prisonBuildingId).toBeUndefined();
+    expect(guard.workerBuildingId).toBe(prison.id);
+    expect(prison.occupants).toContain(guard.id);
+  });
+});
+
 describe('custody restoration when a prisoner is released', () => {
   it('does not move children already living with their available mother', () => {
     const state = initGame({ seed: FIXTURE_SEED });
