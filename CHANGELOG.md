@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Imprisoned blacksmiths retain their reserved job slots but no longer contribute to the colony's operational lumber, quarry and mine bonus; added arrest/release regression coverage.
+
 - **Fixed:** The 90-day colony gate now checks every home's occupancy against its bed limit and forbids homelessness while beds remain free, rather than requiring zero homelessness after population outgrows fixed starter housing.
 
 - **Fixed:** Release of a surviving parent restores temporary child custody even when the other biological parent died during imprisonment.
