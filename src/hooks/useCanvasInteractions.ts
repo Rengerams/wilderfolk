@@ -576,9 +576,13 @@ export function useCanvasInteractions({
           const target = end ? { x: end.worldX, y: end.worldY } : start;
           const last = stroke[stroke.length - 1];
           if (!last || Math.hypot(last.x - target.x, last.y - target.y) > 0) stroke.push(target);
+          const dragged = stroke.some((point) => point.x !== start.x || point.y !== start.y);
+          const rotation = dragged
+            ? inferStripRotation(start.x, start.y, target.x, target.y)
+            : loop?.getView().buildRotation ?? 0;
           const preview = buildStripPreview(
             currentWorld, selectedBuildingType, start.x, start.y, target.x, target.y,
-            inferStripRotation(start.x, start.y, target.x, target.y), stroke,
+            rotation, dragged ? stroke : undefined,
           );
   
           // Commit only if all segments are valid
