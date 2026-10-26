@@ -8,9 +8,9 @@ import { getSpriteFrame } from './spriteLoader';
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
 const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
 // CC0 original sprites by Drummyfish: https://opengameart.org/content/top-down-rpg-mockup-scene
-const RPG_PAVEMENT_SPRITE = 'https://opengameart.org/sites/default/files/tile_pavement.png';
-const RPG_WALL_SPRITE = 'https://opengameart.org/sites/default/files/wall_4.png';
-const RPG_GATE_SPRITE = 'https://opengameart.org/sites/default/files/gate_1.png';
+const RPG_PAVEMENT_SPRITE = '/sprites/oga_drummyfish/tile_pavement.png';
+const RPG_WALL_SPRITE = '/sprites/oga_drummyfish/wall.png';
+const RPG_GATE_SPRITE = '/sprites/oga_drummyfish/gate.png';
 const WALL_STRAIGHT_FALLBACK = '/sprites/walls/wall_straight.svg';
 const WALL_GATE_FALLBACK = '/sprites/walls/wall_gate.svg';
 const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
@@ -212,7 +212,7 @@ export function drawProceduralWall(
   const original = getSpriteFrame(isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE);
   if (original) {
     const height = Math.max(rh * 3, rh);
-    const width = Math.min(rw, height * original.sw / original.sh);
+    const width = rw;
     paintStripSprite(ctx, isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE, 0, -height / 3, width, height, 0);
     ctx.restore();
     return;
