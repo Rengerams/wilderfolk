@@ -1083,6 +1083,12 @@ export function reassignDivorcedResidences(
     && getChildCustodian(child, villagers)?.id === keeper.id
     && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(keeper.id),
   );
+  // Retaining parent's dependent unit must get first access to scarce family-sized housing.
+  if (!isImprisoned(keeper) && !hasResidenceAssignment(keeper)) {
+    const target = pickResidenceForFamily([keeper, ...keeperChildren], villagers, residences,
+      context.occupancy, context.traits);
+    if (target != null) relocateHousehold([keeper, ...keeperChildren], target, 'homeless', 'divorce', context);
+  }
   const blockedIds = new Set([a.residenceBuildingId, b.residenceBuildingId].filter(
     (id): id is number => id != null,
   ));
@@ -1152,11 +1158,6 @@ export function reassignDivorcedResidences(
         }
       }
     }
-  }
-  if (!isImprisoned(keeper) && !hasResidenceAssignment(keeper)) {
-    const target = pickResidenceForFamily([keeper, ...keeperChildren], villagers, residences,
-      context.occupancy, context.traits);
-    if (target != null) relocateHousehold([keeper, ...keeperChildren], target, 'homeless', 'divorce', context);
   }
   for (const child of keeperChildren) {
     if (child.residenceBuildingId !== keeper.residenceBuildingId) {
