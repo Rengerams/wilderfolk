@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Adoption capacity now counts jailed residents' reserved beds without making them eligible to move; regression coverage prevents overcrowding.
+
 - **Fixed:** Manual staffing now counts imprisoned workers' reserved posts, preventing overstaffing after release; added a regression test.
 
 - **Docs:** Housing architecture now diagrams move validation, refusal and rollback and provides eight worked relocation examples.
