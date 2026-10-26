@@ -160,6 +160,7 @@ No profile, scheduled task or global Git configuration is changed.
 - Road drag endpoints can snap to the front approach of completed player homes and workplaces, outside the building foundation. Existing road junction snaps take precedence.
 - Completed wall gates can be opened/closed from their building panel. The worker command persists the closed state and pathfinding treats closed gates as solid wall cells; old saved gates default to open. Closed gates have a visible latch marker. The old wall-replacement workflow remains valid.
 - Emergency relocation checks the full movement path before changing position, preventing a stuck walker from teleporting across a completed blocking wall or river.
+- Virtual-player road work requires the established food buffer and tracks actual material deductions across every leg of a corridor; emergency food recovery is not displaced by paving.
 - Full-scale 1,800-settler responsiveness and a real historical save remain owner-waived for this PR; synthetic compatibility and existing performance gates still apply.
 
 ### Pointer drift correction
