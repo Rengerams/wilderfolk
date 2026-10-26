@@ -11,6 +11,7 @@ import { Walkability } from '../src/game/terrain/terrainGrid';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
+import { estimatedCommuteHours, isWithinAssignableCommute } from '../src/game/commuteReach';
 
 describe('infrastructure acceptance boundaries', () => {
   for (const terrain of [TerrainType.Mountains, TerrainType.Snow, TerrainType.RiverBank]) {
@@ -122,6 +123,42 @@ describe('infrastructure acceptance boundaries', () => {
     expect(isOnWalkableRoadAt(100, 100)).toBe(true);
     expect(isOnWalkableRoadAt(100, 95)).toBe(false);
     setCurrentPathMap(null);
+  });
+
+  it('prices the full construction preview using real resources and does not draw unfunded segments as valid', () => {
+    const world = initGame({ seed: 102 });
+    world.worldMap = testWorldMap({ tilesX: 200, tilesY: 200 });
+    world.buildings = [];
+    const roadCost = BUILDING_CONFIGS[BuildingType.Road].cost;
+    world.resources.wood = roadCost.wood * 2 - 1;
+    world.resources.stone = roadCost.stone * 2 + 20;
+    world.resources.gold = roadCost.gold * 2 + 20;
+    world.storageMax = { ...world.storageMax, wood: 10000, stone: 10000, gold: 10000 };
+    const original = { ...world.resources };
+    const preview = buildStripPreview(world, BuildingType.Road, 500, 500, 850, 500, 0);
+    expect(preview.segments.length).toBeGreaterThan(2);
+    expect(preview.segments.filter((entry) => entry.valid)).toHaveLength(1);
+    expect(preview.segments.some((entry) => entry.resourceShortage)).toBe(true);
+    expect(preview.cost).toMatchObject(roadCost);
+    expect(preview.available).toMatchObject({ wood: original.wood, stone: original.stone, gold: original.gold });
+    // Preview reads must not spend any resources; the worker applies exactly the funded pieces.
+    expect(world.resources).toMatchObject(original);
+    const placed = placeStripChain(world, BuildingType.Road, preview.segments, 0);
+    expect(placed.buildings.filter((entry) => entry.type === BuildingType.Road)).toHaveLength(1);
+    for (const resource of ['wood', 'stone', 'gold'] as const) {
+      expect(original[resource] - placed.resources[resource]).toBe(preview.cost?.[resource]);
+    }
+  });
+
+  it('does not classify an off-grid trip as reachable from a single short road segment', () => {
+    setCurrentPathMap(null);
+    const home = building(801, BuildingType.House, { x: 50, y: 100 });
+    const work = building(802, BuildingType.LumberMill, { x: 235, y: 100 });
+    const tinyRoad = building(803, BuildingType.Road, { x: 145, y: 100, width: 10, height: 10 });
+    const buildings = [home, work, tinyRoad];
+    expect(estimatedCommuteHours(home, work, buildings, 7)).toBeGreaterThan(2);
+    const settler = human(804, { x: home.x, y: home.y, residenceBuildingId: home.id });
+    expect(isWithinAssignableCommute(settler, work, buildings, 7)).toBe(false);
   });
 
   it('commits the gate preview with correct orientation and refunds, and preserves a refused replacement', () => {
