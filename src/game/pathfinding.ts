@@ -771,8 +771,11 @@ export function steerWithPath(
   if (!currentGrid) return 'direct';
 
   const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
+  const acceptedRoute = pathCache.get(cacheKey);
+  const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
+    && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
   const considerRoadDetour = !directBlocked && !!currentGrid.road && dist >= ROAD_ROUTE_MIN_DISTANCE_PX;
-  if (directBlocked || considerRoadDetour) {
+  if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.directDetourRejected && (directBlocked
