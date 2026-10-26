@@ -254,12 +254,21 @@ const PRESET_SETTINGS: Record<MapPreset, TerrainSettings> = {
 
 const idx = (x: number, y: number, w: number) => y * w + x;
 
+/** Deterministic spring locations shared by Arabian relief and moisture. */
+function arabianSpringCenters(cols: number, rows: number, seed: number): { x: number; y: number }[] {
+  return [0, 1, 2, 3].map(i => ({
+    x: (0.16 + 0.68 * hash2(i + 11, 17, seed + 13031)) * (cols - 1),
+    y: (0.16 + 0.68 * hash2(i + 29, 13, seed + 13031)) * (rows - 1),
+  }));
+}
+
 /** Distinct landscape signatures for new games; legacy compact saves use revision 1. */
 function shapePresetRelief(
   elevation: Float32Array, cols: number, rows: number,
   seaLevel: number, preset: MapPreset, seed: number,
+  arabianSprings: readonly { x: number; y: number }[],
 ): void {
-  if (preset === MapPreset.Arabia || preset === MapPreset.BlackForest
+  if (preset === MapPreset.BlackForest
       || preset === MapPreset.Rivers || preset === MapPreset.Continental) return;
   const shortSide = Math.min(cols, rows);
   for (let y = 0; y < rows; y++) {
@@ -271,6 +280,15 @@ function shapePresetRelief(
       const distance = Math.hypot(x - (cols - 1) / 2, y - (rows - 1) / 2) / shortSide;
       let e = elevation[i]!;
       switch (preset) {
+        case MapPreset.Arabia: {
+          let nearest = Infinity;
+          for (const spring of arabianSprings) {
+            nearest = Math.min(nearest, Math.hypot(x - spring.x, y - spring.y) / shortSide);
+          }
+          const pool = Math.exp(-Math.pow(nearest / 0.035, 4));
+          e = Math.min(e, seaLevel - 0.045 + 0.95 * (1 - pool));
+          break;
+        }
         case MapPreset.Coastal: {
           const ocean = smoothRange(0.43, 0.09, nx + (detail - 0.5) * 0.12);
           e = Math.min(e - 0.30 * ocean, seaLevel - 0.02 + 0.70 * (1 - ocean));
@@ -852,7 +870,11 @@ export function generateRawTerrain(
   // Spread the height field before anything reads it, so the biome bands, the river
   // gradient walk and the rendered hillshade all see the same relief.
   const { heights: elevation, seaLevel } = spreadHeights(rawElevation, configuredSeaLevel);
-  if (generationVersion === 2) shapePresetRelief(elevation, cols, rows, seaLevel, preset, tseed);
+  const arabianSprings = generationVersion === 2 && preset === MapPreset.Arabia
+    ? arabianSpringCenters(cols, rows, tseed) : [];
+  if (generationVersion === 2) {
+    shapePresetRelief(elevation, cols, rows, seaLevel, preset, tseed, arabianSprings);
+  }
 
   const moisture = new Float32Array(cols * rows);
   const temperature = new Float32Array(cols * rows);
@@ -876,6 +898,15 @@ export function generateRawTerrain(
         0,
         1,
       );
+      if (arabianSprings.length) {
+        let nearest = Infinity;
+        for (const spring of arabianSprings) {
+          nearest = Math.min(
+            nearest, Math.hypot(x - spring.x, y - spring.y) / Math.min(cols, rows),
+          );
+        }
+        mo = clamp(mo + 0.48 * Math.exp(-Math.pow(nearest / 0.09, 4)), 0, 1);
+      }
       if (generationVersion === 2 && preset === MapPreset.Oasis) {
         const distance = Math.hypot(
           x - (cols - 1) / 2, y - (rows - 1) / 2,
