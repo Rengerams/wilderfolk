@@ -21,6 +21,7 @@ import {
   createBuildGhost,
 } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
+import { collectStripDemolitionIds } from '../game/stripTopology';
 import { getHumanSelectionBounds } from '../game/humanSprites';
 import { playClickSound } from '../audio';
 import type { WorkerCommand } from '../game/simWorker/commands';
@@ -114,6 +115,7 @@ export function useCanvasInteractions({
 }: UseCanvasInteractionsOptions) {
   // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
   const stripPlacedOnMouseUpRef = useRef(false);
+  const stripDemolitionGestureRef = useRef(false);
   /**
    * Did the gesture that just ended move the pointer far enough to be a pan rather than a click?
    *
@@ -404,6 +406,10 @@ export function useCanvasInteractions({
 
       if (selectedBuildingType) {
         if (isStripBuildType(selectedBuildingType) && stripDragStartRef.current) {
+          if (stripDemolitionGestureRef.current) {
+            loop?.patchView({ buildStripPreview: null, buildGhost: null }, true);
+            return;
+          }
           const start = stripDragStartRef.current;
           const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
           const preview = buildStripPreview(
@@ -487,6 +493,7 @@ export function useCanvasInteractions({
         const coords = getEventWorldCoords(e.clientX, e.clientY);
         if (!coords) return;
         stripDragStartRef.current = { x: coords.worldX, y: coords.worldY };
+        stripDemolitionGestureRef.current = e.altKey;
         clickOriginRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
@@ -522,6 +529,20 @@ export function useCanvasInteractions({
         stripDragStartRef.current = null;
         const loop = loopRef.current;
         const currentWorld = loop?.getWorld() ?? worldRef.current;
+        if (stripDemolitionGestureRef.current) {
+          stripDemolitionGestureRef.current = false;
+          const end = e ? getEventWorldCoords(e.clientX, e.clientY) : null;
+          const buildingIds = collectStripDemolitionIds(
+            currentWorld.buildings, selectedBuildingType, start.x, start.y,
+            end?.worldX ?? start.x, end?.worldY ?? start.y,
+          );
+          if (buildingIds.length > 0) {
+            applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds });
+            stripPlacedOnMouseUpRef.current = true;
+            playClickSound();
+          }
+          loop?.patchView({ buildStripPreview: null });
+        } else {
         const preview =
           loop?.getView().buildStripPreview ??
           buildStripPreview(
@@ -542,6 +563,7 @@ export function useCanvasInteractions({
           stripPlacedOnMouseUpRef.current = true;
         }
         loop?.patchView({ buildStripPreview: null });
+        }
       }
 
       // Short right-click cancels build mode
@@ -591,6 +613,7 @@ export function useCanvasInteractions({
 
   const handleMouseLeave = useCallback(() => {
     stripDragStartRef.current = null;
+    stripDemolitionGestureRef.current = false;
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
     clickOriginRef.current = null;
