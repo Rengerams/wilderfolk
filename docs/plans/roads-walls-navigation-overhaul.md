@@ -38,3 +38,12 @@ The current implementation must support walking correctly, while leaving a clear
 - Tests for current walking must continue to enforce walls, gates, roads and bridges. Add focused tests for any new mode-sensitive boundary introduced now.
 
 The coding agent has discretion to propose a better extensibility design and must explain tradeoffs. All module-level configuration constants belong near the top of their owning module; no magic numbers.
+
+
+## Design intent clarification: riverboats extend practical travel range
+
+Boats are not merely a hypothetical additional locomotion mode. The gameplay motivation is that settlers' current walking speed and commute/reach limits make distant destinations impractical or unreachable. Navigable rivers could become faster transport corridors that extend settlement access and economic reach without arbitrarily increasing walking speed.
+
+For future implementation, the planner should compare **complete door-to-door travel time**, including walking to a dock, boarding/waiting, boat journey, disembarking, and final walking. A boat-assisted route should be preferred only when faster and feasible, not simply because water is present. River direction, navigability, dock accessibility, capacity and scheduling are design considerations for that future feature, not rules to invent or hardcode now.
+
+Important architectural implication: commute eligibility and destination reach must eventually consume the same route-cost model as navigation, so a feasible river journey can genuinely make a distant destination reachable. Do not implement boat transport as a separate cosmetic shortcut or ignore the commute budget. Current PR scope remains fixing walking, roads, walls and gates, with an extension point for later river transport. The coding agent may recommend the smallest sound architecture to support this.
