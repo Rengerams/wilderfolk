@@ -14,6 +14,8 @@ import { initGame } from '../src/game/worldGen';
 import { buildRenderSnapshot } from '../src/game/renderSnapshot';
 import { createInitialView } from '../src/game/viewState';
 import { _cachedHumans, resetEntityCaches, updateCachedEntitiesFromSoA } from '../src/game/renderer/entityCache';
+import { observeIndoorPatients } from '../src/game/virtualPlayer';
+import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 
 describe('settlers inside buildings', () => {
@@ -60,16 +62,19 @@ describe('settlers inside buildings', () => {
   it('keeps a pregnant patient indoors across real simulation ticks and releases her when care ends', () => {
     const world = initGame({ seed: 622 });
     world.worldMap = null;
-    world.entities = [human(1, { x: 110, y: 110, pregnant: true, pregnancyProgress: 1 }),
+    world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 1 }),
       human(2, { x: 100, y: 120, job: 'doctor', workerBuildingId: 0 })];
     world.buildings = [building(0, BuildingType.Hospital, { x: 100, y: 100, occupants: [2], staffingMode: 'manual' })];
     world.entityByType = undefined;
+    world.entityById = undefined;
     world.paused = false;
     world.tick = 0;
     for (let count = 0; count < 3; count++) gameTick(world);
     const patient = world.entities.find((entry) => entry.id === 1)!;
     expect(patient.indoorBuildingId).toBe(0);
     expect(patient.alive).toBe(true);
+    expect(patient.pregnancyProgress).toBeGreaterThan(1);
+    expect(observeIndoorPatients(world).patients).toContainEqual({ id: 1, indoorBuildingId: 0, hospitalId: 0 });
     const fixtureDirectory = process.env.INDOOR_SMOKE_FIXTURE_DIR;
     if (fixtureDirectory) {
       mkdirSync(fixtureDirectory, { recursive: true });
@@ -85,6 +90,42 @@ describe('settlers inside buildings', () => {
     world.paused = false;
     gameTick(world);
     expect(patient.indoorBuildingId).toBeUndefined();
+  });
+
+
+  it('observes missing, outdoor and dead patients without claiming admission', () => {
+    const world = initGame({ seed: 623 });
+    world.buildings = [building(0, BuildingType.Hospital)];
+    world.entities = [];
+    expect(observeIndoorPatients(world).patients).toEqual([]);
+    world.entities = [human(1, { pregnant: true }), human(2, { pregnant: true, alive: false, indoorBuildingId: 0 })];
+    expect(observeIndoorPatients(world).patients).toEqual([{ id: 1, indoorBuildingId: null, hospitalId: null }]);
+    world.entities[0].indoorBuildingId = 0;
+    world.buildings[0].completed = false;
+    expect(observeIndoorPatients(world).patients[0].hospitalId).toBeNull();
+  });
+
+  it('lets an indoor worker leave for an established affair during work hours', () => {
+    const world = initGame({ seed: 624 });
+    world.worldMap = null;
+    const workplace = building(0, BuildingType.Blacksmith, { x: 300, y: 300, occupants: [1], staffingMode: 'manual' });
+    const person = human(1, { ...humanBuildingTarget(workplace, 1, false), gender: 'male',
+      job: 'blacksmith', workerBuildingId: 0, relationshipStatus: 'married', partnerId: 2,
+      affairPartnerId: 3, affairProgress: 30, residenceBuildingId: 4 });
+    world.entities = [person,
+      human(2, { x: 1500, y: 1500, gender: 'female', relationshipStatus: 'married', partnerId: 1, residenceBuildingId: 4 }),
+      human(3, { x: 700, y: 700, gender: 'female', affairPartnerId: 1, affairProgress: 30, residenceBuildingId: 5 })];
+    world.buildings = [workplace, building(4, BuildingType.House, { x: 1000, y: 1000, occupants: [1, 2] }),
+      building(5, BuildingType.House, { x: 700, y: 700, occupants: [3] })];
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 10 * TICKS_PER_HOUR + 1;
+    world.lastProcessedCalendarDay = 0;
+    const before = { x: person.x, y: person.y };
+    gameTick(world);
+    expect(person.indoorBuildingId).toBeUndefined();
+    expect(Math.hypot(person.x - before.x, person.y - before.y)).toBeGreaterThan(0);
   });
 
   it('transports indoor presence through the actual worker render buffer and hides selected leaders too', () => {

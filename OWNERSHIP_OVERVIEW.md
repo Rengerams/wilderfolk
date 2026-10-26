@@ -11,7 +11,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Realtime pulse | `tickLayerRealtime.ts` | realtime (every tick) | `tickLayerRealtime` |
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
-| Indoor browser smoke | `scripts/autoplay_playwright_probe.py` | existing browser harness | `run_indoor_smoke` — normal save-load and canvas check for an admitted patient. |
+| Indoor browser smoke | `scripts/autoplay_playwright_probe.py` | existing browser harness | `run_indoor_smoke` — normal save-load and observed indoor patient assertion. |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
 | School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` | realtime | movement helpers, `enterHumanBuilding` (completed indoor destinations only), `commuteHumanToBuilding`, `humanBuildingTarget` (home, classroom and workplace destinations), `applyHumanWalkStep` (the one integration of a walk step) |
@@ -142,7 +142,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Shared sim helpers (multipliers, reputation, season) | `simHelpers.ts` | — (helper, no cadence of its own) | `getMultiplier`, `addReputation`, `hasTech`, `getSeason` |
 | Relationship diagnostics | `relationshipDiagnostics.ts` | dev-only, recorded at each decision roll | `recordRelationshipDiagnostic`, `flushRelationshipDiagnostics`, `setRelationshipDiagnosticsEnabled` |
 | Spatial-query metrics and grid A/B switch | `spatialQueryMetrics.ts` | dev-only | `setSpatialQueryMetricsEnabled`, `setSpatialQueryGridMode`, `isSpatialQueryMetricsEnabled` |
-| Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount` |
+| Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `observeIndoorPatients` (read-only live patient state), `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount` |
 | Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
 | Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
 | Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `createInitialViewForWorld`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |

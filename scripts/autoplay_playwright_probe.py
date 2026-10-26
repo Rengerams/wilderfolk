@@ -232,7 +232,7 @@ def run_indoor_smoke(args) -> int:
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.add_init_script("localStorage.setItem('ecosim_save', " + json.dumps(payload) + ");")
-        page.goto(args.url, wait_until="load")
+        page.goto(args.url + ("&" if "?" in args.url else "?") + "indoorSmoke=1", wait_until="load")
         if not click_text(page, "skip intro"):
             click_text(page, "choose your land")
         wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
@@ -241,10 +241,26 @@ def run_indoor_smoke(args) -> int:
         page.locator("canvas").first.wait_for(state="visible", timeout=90000)
         page.wait_for_function("() => !!document.querySelector('header')", timeout=90000)
         click_text(page, "got it")
-        page.wait_for_timeout(1500)
+        observation_js = """() => {
+          const raw = document.querySelector('header')?.getAttribute('data-indoor-patients');
+          return raw ? JSON.parse(raw) : null;
+        }"""
+        page.wait_for_function("""() => {
+          const raw = document.querySelector('header')?.getAttribute('data-indoor-patients');
+          if (!raw) return false;
+          return JSON.parse(raw).patients.some((patient) => patient.hospitalId !== null
+            && patient.indoorBuildingId === patient.hospitalId);
+        }""", timeout=15000)
+        observation = page.evaluate(observation_js)
+        patients = observation.get("patients", []) if observation else []
+        admitted = [patient for patient in patients if patient["hospitalId"] is not None
+                    and patient["indoorBuildingId"] == patient["hospitalId"]]
+        if not admitted:
+            browser.close()
+            raise RuntimeError("No observed indoor hospital patient: " + json.dumps(observation))
         if args.indoor_screenshot:
             page.screenshot(path=args.indoor_screenshot)
-        print(json.dumps({"loaded_saved_patient": True, "canvas_count": page.locator("canvas").count(), "page_errors": errors}))
+        print(json.dumps({"loaded_saved_patient": bool(admitted), "observation": observation, "canvas_count": page.locator("canvas").count(), "page_errors": errors}))
         browser.close()
         return 1 if errors else 0
 

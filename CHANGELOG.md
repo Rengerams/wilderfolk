@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Indoor workers can leave for secret meetings without being pinned at work; the browser smoke now requires an observed living patient inside a completed hospital.
+
 - **Fixed:** Settlers disappear while inside completed workplaces, homes, schools, hospitals, prisons and indoor venues, including selected occupants and hotel guests; travel, construction and outdoor work remain visible.
 
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.

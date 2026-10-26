@@ -1288,6 +1288,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const intimate = isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
 
         if (!intimate) {
+          entity.indoorBuildingId = undefined;
           entity.vx = (dx / dist) * config.speed * 0.38;
           entity.vy = (dy / dist) * config.speed * 0.38;
           faceVelocity(entity);
@@ -1359,6 +1360,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dist = Math.hypot(dx, dy) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
         if (!tryst && dist > 14) {
+          entity.indoorBuildingId = undefined;
           entity.vx = (dx / dist) * config.speed * 0.32;
           entity.vy = (dy / dist) * config.speed * 0.32;
           faceVelocity(entity);
