@@ -482,7 +482,12 @@ function searchRoute(
       path.push({ x: actualSx, y: actualSy });
       path.reverse();
 
-      // Smooth the route: drop intermediate tiles the walker can see past (line-of-sight).
+      // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
+      if (road) {
+        recordPathNodes(nodes);
+        recordPathFound();
+        return { path, cost: scores[goal], hitNodeCap: false };
+      }
       const simplified: { x: number; y: number }[] = [path[0]];
       for (let i = 1; i < path.length - 1; i++) {
         const last = simplified[simplified.length - 1];
@@ -549,7 +554,7 @@ export function findPath(
   ty: number,
   maxNodes = PATH_MAX_SEARCH_NODES,
 ): { x: number; y: number }[] | null {
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false).path;
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, true).path;
 }
 
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
