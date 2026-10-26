@@ -603,6 +603,24 @@ export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y:
   return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
 }
 
+/** Keep road turns while merging collinear tiles into safe longer steering legs. */
+function collapseStraightWaypoints(points: { x: number; y: number }[]): { x: number; y: number }[] {
+  if (points.length < 3) return points;
+  const result = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const before = points[i - 1];
+    const at = points[i];
+    const after = points[i + 1];
+    const ax = Math.sign(at.x - before.x);
+    const ay = Math.sign(at.y - before.y);
+    const bx = Math.sign(after.x - at.x);
+    const by = Math.sign(after.y - at.y);
+    if (ax !== bx || ay !== by) result.push(at);
+  }
+  result.push(points[points.length - 1]);
+  return result;
+}
+
 /** True when the straight line from (x0,y0) to (x1,y1) crosses a blocked tile. */
 export function lineCrossesBlocked(
   grid: PathGrid,
@@ -814,7 +832,8 @@ export function steerWithPath(
         PATH_MAX_SEARCH_NODES,
       );
       const savesTime = route.cost !== null && route.cost * PATH_CELL < dist * ROAD_ROUTE_MIN_TIME_SAVING;
-      let waypoints = route.path && (directBlocked || savesTime) ? pathWaypoints(route.path) : null;
+      let waypoints = route.path && (directBlocked || savesTime)
+        ? collapseStraightWaypoints(pathWaypoints(route.path)) : null;
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
       const startIsBlocked = startTx >= 0 && startTy >= 0
@@ -847,8 +866,11 @@ export function steerWithPath(
       const ndy = next.y - entity.y;
       const nd = Math.hypot(ndx, ndy) || 1;
 
-      entity.vx = (ndx / nd) * speed;
-      entity.vy = (ndy / nd) * speed;
+      // The step integrator applies the road multiplier later: cap the base velocity now.
+      // This prevents skipping a corner waypoint while keeping long straight road legs fast.
+      const boundedSpeed = Math.min(speed, nd / ROAD_SPEED_MULT);
+      entity.vx = (ndx / nd) * boundedSpeed;
+      entity.vy = (ndy / nd) * boundedSpeed;
       faceVelocity(entity);
       return 'path';
     }
