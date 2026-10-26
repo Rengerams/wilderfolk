@@ -357,6 +357,7 @@ export function commuteHumanToBuilding(
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
   if (handled === 'arrived') return true;
+  if (handled === 'blocked') return false;
 
   if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
     || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {
