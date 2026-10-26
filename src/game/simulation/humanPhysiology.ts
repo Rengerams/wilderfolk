@@ -82,6 +82,13 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     if (obs.hasHospital) staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_DRAIN_MULTIPLIER;
   }
   needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
+  // Intent latching belongs to the single physiology mutator. Read-only status
+  // queries must never modify saved human state or change the next sim tick.
+  if (needs.breakUntilRecovered === true) {
+    if (needs.stamina >= HUMAN_NEEDS.STAMINA_BREAK_RECOVERED) needs.breakUntilRecovered = undefined;
+  } else if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL) {
+    needs.breakUntilRecovered = true;
+  }
   needs.severeHungerTicks = needs.nutrition <= HUMAN_NEEDS.NUTRITION_STARVING
     ? (needs.severeHungerTicks ?? 0) + ticks : 0;
   if (needs.rest >= HUMAN_NEEDS.REST_RECOVERY_TARGET) {
@@ -108,12 +115,8 @@ export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: 
        tick - needs.lastMealTick >= HUMAN_NEEDS.EAT_COOLDOWN_SIM_HOURS * TICKS_PER_HOUR)) return 'eat';
   if (needs.rest < HUMAN_NEEDS.REST_CRITICAL || (needs.sleepRecoveryUntilTick ?? 0) > tick) return 'sleep';
   // Keep the active break until meaningful recovery, rather than toggling at its onset.
-  if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL ||
-      (needs.breakUntilRecovered && needs.stamina < HUMAN_NEEDS.STAMINA_BREAK_RECOVERED)) {
-    needs.breakUntilRecovered = true;
-    return 'takeBreak';
-  }
-  needs.breakUntilRecovered = undefined;
+  if (needs.breakUntilRecovered === true) return 'takeBreak';
+  if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL) return 'takeBreak';
   return 'continueActivity';
 }
 
