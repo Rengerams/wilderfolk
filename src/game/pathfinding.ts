@@ -405,7 +405,7 @@ function searchRoute(
   tx: number,
   ty: number,
   maxNodes: number,
-  optimalCost: boolean,
+  scaleHeuristicForRoadCost: boolean,
 ): RouteSearchResult {
   const pathProfileStart = profileStart();
   try {
@@ -444,9 +444,9 @@ function searchRoute(
 
   const { scores, parents, stamps, generation } = beginPathSearch(cols * rows);
 
-  // Octile distance heuristic for 8-direction grids, scaled by the cheapest step: a road costs
-  // `ROAD_STEP_COST`, so an unscaled octile would overestimate and return a slower route's cost.
-  const cheapestStep = optimalCost && road ? ROAD_STEP_COST : 1;
+  // Cost searches need the discounted road heuristic for optimality. Bounded movement searches
+  // use the stronger unscaled heuristic to avoid exhausting their node budget on remote roads.
+  const cheapestStep = scaleHeuristicForRoadCost && road ? ROAD_STEP_COST : 1;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);

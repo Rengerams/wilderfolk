@@ -13,7 +13,8 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickRivalSettlements, type RivalEventCallbacks } from '../src/game/rivalEvents';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { building, human } from '../src/test/factories';
-import { hitTestCamp, spawnRivalSettlement } from '../src/game/groupEvents';
+import { hitTestCamp } from '../src/game/groupEvents';
+import { spawnRivalSettlement } from '../src/game/rivalSettlements';
 
 /** First tick of a calendar day, i.e. one `isNewCalendarDayTick` sees. */
 const FIRST_DAY_TICK = TICKS_PER_DAY;

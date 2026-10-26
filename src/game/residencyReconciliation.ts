@@ -441,31 +441,38 @@ function assignFamilyToResidence(
     return;
   }
 
-  // A blended household may contain children with different custodians. Split by each
-  // child's actual custodian rather than attaching every child to the first parent.
-  const assigned = new Set<number>();
   const dependentGroups = new Map<number, Entity[]>();
   for (const child of family.filter(isMinorChild)) {
     const custodian = getChildCustodian(child, allHumans);
-    if (!custodian || !family.some((member) => member.id === custodian.id)) continue;
+    if (!custodian || !family.includes(custodian)) continue;
     const group = dependentGroups.get(custodian.id) ?? [custodian];
     group.push(child);
     dependentGroups.set(custodian.id, group);
-    assigned.add(custodian.id);
-    assigned.add(child.id);
   }
-
-  for (const group of dependentGroups.values()) {
-    const custodian = group[0];
-    const existing = residences.find((home) =>
-      home.id === custodian.residenceBuildingId && !isLeaderHouseResidence(home));
-    const homeId = (existing && familyFitsInResidence(group, existing, alive, occupancy) ? existing.id : undefined)
-      ?? pickResidenceForFamily(group, alive, residences, occupancy, traits);
-    relocateHousehold(group, homeId, phase, 'family', context);
+  if (dependentGroups.size > 0) {
+    const dependentIds = new Set([...dependentGroups.values()].flatMap((group) => group.map((member) => member.id)));
+    for (const adult of family) {
+      if (isMinorChild(adult) || dependentIds.has(adult.id)) continue;
+      if ([...dependentGroups.values()].some((group) => adult.residenceBuildingId != null
+        && adult.residenceBuildingId === group[0].residenceBuildingId)) {
+        relocateHousehold([adult], undefined, phase, 'family', context);
+      }
+    }
+    for (const group of dependentGroups.values()) {
+      const custodian = group[0];
+      const existing = residences.find((home) => home.id === custodian.residenceBuildingId && !isLeaderHouseResidence(home));
+      const homeId = (existing && familyFitsInResidence(group, existing, alive, occupancy) ? existing.id : undefined)
+        ?? pickResidenceForFamily(group, alive, residences, occupancy, traits);
+      relocateHousehold(group, homeId, phase, 'family', context);
+    }
+    for (const adult of family) {
+      if (isMinorChild(adult) || dependentIds.has(adult.id) || hasResidenceAssignment(adult)) continue;
+      const homeId = pickResidenceForHuman(adult, alive, residences, occupancy, traits);
+      if (homeId !== undefined) relocateHousehold([adult], homeId, phase, 'family', context);
+    }
+    return;
   }
-
   for (const member of family) {
-    if (assigned.has(member.id)) continue;
     relocateHousehold([member], pickResidenceForHuman(member, alive, residences, occupancy, traits),
       phase, 'family', context);
   }

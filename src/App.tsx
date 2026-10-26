@@ -9,7 +9,7 @@ import {
 
   saveGameToSlot, loadGameOutcome, describeSaveLoadOutcome, hasSave, hasSaveSlot, deleteSave,
   loadGameFromFileTextOutcome,
-  getDiplomacyChoiceEligibility, getVisitorLeaderTalkMeta,
+  getVisitorLeaderTalkMeta,
   ensureFullTradeRoutes,
   getCombatPreview,
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
@@ -34,6 +34,7 @@ import { getStoryChoiceEligibility } from './game/storyEvents';
 // The village-request card's gate lives with the command that answers it (`resolveVillageRequest`),
 // not in the `gameEngine` barrel, so it is imported from its owner directly.
 import { getVillageRequestEligibility } from './game/groupEvents';
+import { getDiplomacyChoiceEligibility } from './game/rivalDiplomacy';
 import type { WorldState } from './game/gameEngine';
 
 import type { EntityCatalog } from './game/entityCatalog';
