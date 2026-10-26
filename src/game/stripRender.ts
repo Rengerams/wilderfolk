@@ -135,7 +135,8 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  if (!paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0) && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
+  const authoredRoad = paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
+  if (!authoredRoad && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(x0, y0, rw, rh);
@@ -158,9 +159,11 @@ export function drawProceduralRoad(
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x0 + 0.5, y0 + 0.5, rw - 1, rh - 1);
+  if (!authoredRoad) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, rw - 1, rh - 1);
+  }
   ctx.restore();
 }
 
