@@ -33,6 +33,14 @@ describe('connected strip planning', () => {
     expect(pieces[0]).toMatchObject({ type: BuildingType.Wall, x: 0, y: 0, rotation: 90 });
   });
 
+  it('aligns replacement gates with older off-grid wall coordinates', () => {
+    const wall = strip(BuildingType.Wall, 0);
+    wall.x = 14;
+    const pieces = resolveWallStripPlan(stateWith(wall), BuildingType.WallGate, origin, 0);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0]).toMatchObject({ x: 14, y: 0, rotation: 0, replacesBuildingId: 10 });
+  });
+
   it('preserves the existing wall-to-gate replacement behavior', () => {
     const pieces = resolveWallStripPlan(stateWith(strip(BuildingType.Wall, 0)), BuildingType.WallGate, origin, 0);
     expect(pieces).toHaveLength(1);
