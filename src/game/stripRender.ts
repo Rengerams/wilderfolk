@@ -56,17 +56,23 @@ function paintRpgPavementPattern(
   y: number,
   width: number,
   height: number,
+  tileDepth = height,
+  phaseX = 0,
+  phaseY = 0,
 ): boolean {
   const sprite = getSpriteFrame(RPG_PAVEMENT_SPRITE);
-  if (!sprite?.image || sprite.sh <= 0 || height <= 0) return false;
+  if (!sprite?.image || sprite.sh <= 0 || tileDepth <= 0) return false;
   const pattern = ctx.createPattern(sprite.image as CanvasImageSource, 'repeat');
   if (!pattern) return false;
-  const scale = height / sprite.sh;
+  const scale = tileDepth / sprite.sh;
+  const offsetX = (phaseX + x) / scale;
+  const offsetY = (phaseY + y) / scale;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scale, scale);
   ctx.fillStyle = pattern;
-  ctx.fillRect(0, 0, width / scale, sprite.sh);
+  ctx.translate(-offsetX, -offsetY);
+  ctx.fillRect(offsetX, offsetY, width / scale, height / scale);
   ctx.restore();
   return true;
 }
@@ -201,7 +207,8 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  const authoredRoad = paintRpgPavementPattern(ctx, x0, y0, rw, rh)
+  const authoredRoad = paintRpgPavementPattern(ctx, x0, y0, rw, rh, rh,
+    rotation === 90 ? sy : sx, rotation === 90 ? -sx : sy)
     || paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
   if (!authoredRoad && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
@@ -405,7 +412,8 @@ export function drawProceduralRoadJunction(
       ? ROAD_TEE[0]
       : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)
+  if (!paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap,
+    Math.min(w, h), sx, sy)
     && !paintStripSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0)
     && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
