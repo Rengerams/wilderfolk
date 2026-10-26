@@ -46,8 +46,6 @@ import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { applyWorkerCommand } from '../src/game/simWorker/commands';
-import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
@@ -68,6 +66,7 @@ import {
   PACING_TICK_BUDGET_MS,
   SCENARIOS,
   SERIALIZATION_SPIKE_MS,
+  applyColonyBotAction,
   assessColonyStall,
   assertColonyNotStalled,
   captureConsoleVolume,
@@ -378,27 +377,15 @@ function writeCheckpoint(
   );
 }
 
-/**
- * One bot act through the command door `GameLoop` uses. A cloning owner (venue schedules, trade
- * routes) returns a new world object, so the clone is copied back into the object the observer holds.
- */
+/** Count a bot decision using the same executor as the seeded non-vacuity test. */
 function applyBotDecision(world: WorldState): void {
-  const decision = decideVirtualPlayerAction(world);
-  if (!decision) {
+  const operation = applyColonyBotAction(world);
+  if (operation == null) {
     counters.botIdleHours += 1;
     return;
   }
   counters.botActs += 1;
-  counters.botByOp[decision.command.op] = (counters.botByOp[decision.command.op] ?? 0) + 1;
-
-  const applied = applyWorkerCommand(world, decision.command);
-  if (applied === world) return;
-  const target = world as unknown as Record<string, unknown>;
-  const source = applied as unknown as Record<string, unknown>;
-  for (const key of Object.keys(target)) {
-    if (!(key in source)) delete target[key];
-  }
-  Object.assign(target, source);
+  counters.botByOp[operation] = (counters.botByOp[operation] ?? 0) + 1;
 }
 
 /** The world's own `eventLog`, unfiltered, one entry per line in the order the world holds it. */
