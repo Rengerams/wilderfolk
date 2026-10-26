@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
+
 - **Fixed:** Failed worker ticks now roll back nested human and Moon-form needs exactly. Foreign captives retain their legacy exhaustion death while player settlers require prolonged starvation; attendance reasons use nutrition instead of combat energy.
 
 - **Fixed:** Worker render sidecars and reconstructed human views retain detached nutrition, rest and stamina values instead of silently omitting new physiology from worker-facing inspectors.
