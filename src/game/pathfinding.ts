@@ -753,7 +753,8 @@ export function steerWithPath(
   }
   if (!currentGrid) return 'direct';
 
-  if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
+  const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
+  if (directBlocked) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.waypoints === null && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
@@ -825,7 +826,7 @@ export function steerWithPath(
       return 'path';
     }
   }
-  if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
+  if (directBlocked) {
     entity.vx = 0;
     entity.vy = 0;
     return 'blocked';
