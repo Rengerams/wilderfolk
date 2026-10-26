@@ -13,6 +13,13 @@ describe('empty strip preview render guards', () => {
     expect(interactions).toContain('buildStripPreview: preview.segments.length > 0 ? preview : null');
   });
 
+  it('keeps the selected R rotation on a click without pointer travel', () => {
+    const interactions = source('hooks/useCanvasInteractions.ts');
+    expect(interactions).toContain('const rotation = dragged');
+    expect(interactions).toContain(': loop?.getView().buildRotation ?? 0;');
+    expect(interactions).toContain('rotation, dragged ? stroke : undefined,');
+  });
+
   it('does not dereference an empty preview inside the render dirty-key', () => {
     const loop = source('game/gameLoop.ts');
     expect(loop).toContain('strip?.segments.length ?');
