@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Tested:** Deterministic 7/30-day physiological budgets now cover regular and night shifts, idle food demand, delayed starvation and snapshot equivalence. Full-colony balance remains a separate merge gate.
+
 - **Changed:** Work output and workshop estimates apply a bounded physiological impairment alongside roster fatigue without stacking two full fatigue penalties. Attendance hours remain authoritative.
 
 - **Changed:** Recovery sleep can be pursued at home off-shift when critically sleep-deprived; a bounded persisted sleep plan prevents tick-to-tick priority jitter. Prisoners can rest at night in their actual cell.
