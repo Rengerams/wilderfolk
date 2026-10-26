@@ -95,7 +95,7 @@ and third-party registers now include them and the two original SVG fallbacks.
 ### Verification limits
 
 The full browser and zoom-level visual acceptance is not yet executed: this host has
-no installed Playwright Python package or Chromium executable. Renderer unit assertions
+no installed Chromium executable; a temporary download attempt returned a truncated archive. Renderer unit assertions
 are not a substitute for visual inspection. Gate toggling/locking is not a distinct
 saved gameplay feature; navigation tests close an opening by replacing the gate with a
 wall. No boat mechanics or unrelated gameplay changes are introduced.
@@ -105,3 +105,35 @@ pieces and 72 wall/gate pieces to the 1,800-settler city. This is a simulation b
 it does not measure pointer latency or canvas frame time. Initial runs shared CPU with
 the full test suite and are unsuitable for claiming a performance improvement. Both
 versions produced the same final delta fingerprint, 0a40016f2632d2ec.
+
+
+### Final validation results
+
+| Check | Result |
+| --- | --- |
+| `npm run test:standard` | PASS: 377 files; 2,435 passed, 2 existing skipped; 418.4 seconds |
+| `npm run test:types` | PASS |
+| `npm run lint` | PASS |
+| `npm run build` | PASS; existing large-chunk warning remains |
+| `npm test -- invariant-test` | FAILED: 300,000 ms timeout; no completed annual invariant verdict |
+| `node scripts/test.mjs scripts-types` | FAILED outside this diff: unused assert in colonyHealth and missing Building import in inspect-save |
+| Browser visual acceptance | BLOCKED: no installed Chromium; temporary browser download returned an invalid/truncated archive |
+
+Population benchmark: 1,800 settlers, 144 infrastructure pieces, 10 warmup + 72
+measured ticks, full simulation, Node 24.22.1 on Linux. Baseline aee72891 measured
+307.73 ms average / 697.52 ms p95; final implementation measured 398.83 ms average /
+816.33 ms p95. These runs overlapped other validation jobs and must not be treated
+as a controlled regression comparison or proof of responsiveness. Both retained
+3,254 living entities and the same delta fingerprint, 0a40016f2632d2ec. Pointer,
+demolition and render latency at scale remain unmeasured. Performance acceptance
+is open; no performance improvement is claimed.
+
+The complete Definition of Done in issue #49 is therefore NOT signed off. Remaining
+acceptance work includes visual checks at multiple zoom levels, controlled before/after
+performance measurements including interaction latency, a completed annual invariant
+run, and validation against a real historical settlement save. Gate locking remains
+unimplemented as a distinct gameplay state; no separate gate locking UI is claimed.
+
+Shell: Linux/Bash; the Windows-specific command.md file is absent in this checkout.
+Temporary comparison checkout and browser installation files were removed. No
+profile, environment, scheduled task or global Git configuration was changed.
