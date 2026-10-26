@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed:** Imprisoned blacksmiths retain their reserved job slots but no longer contribute to the colony's operational lumber, quarry and mine bonus; added arrest/release regression coverage.
+- **Fixed:** Imprisoned blacksmiths keep reserved jobs but no longer contribute to operational production bonuses; regression coverage added.
 
 - **Fixed:** The 90-day colony gate now checks every home's occupancy against its bed limit and forbids homelessness while beds remain free, rather than requiring zero homelessness after population outgrows fixed starter housing.
 
