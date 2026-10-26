@@ -558,14 +558,15 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
     custody outcome and must not silently revert it to a mother-first default.
   - Choose the departing parent's home as far from the former spouse as feasible among valid
     homes. Preserve dependent children, capacity and leader-home restrictions; distance is a
-    preference, not an excuse to strand minors. The current divorce relocation excludes the
-    previous residence but does not explicitly maximize physical separation.
+    preference, not an excuse to strand minors. The divorce relocation now ranks eligible destinations by physical distance,
+    with a deterministic id tie-break.
   - **Already implemented:** former spouses cannot court or remarry each other for one full
     game year (`REMARRIAGE_BAR_TICKS`, `isWithinRemarriageBar` and `pastPartnerTicks`
     in the relationship/divorce owners). Do not add a parallel timer or duplicate this rule.
-  Divorce custody selection and distance-aware relocation are now coded with focused regression
-  tests, but have not yet passed an executed validation run. Broader capacity reshuffling and
-  full event-to-housing integration remain to be verified.
+  Divorce custody selection, distance-aware relocation, and a one-hop move of an intact
+  blocking household are implemented. The 90-day housing regression passes; full CI and
+  wider divorce/succession verification are still pending. This one-hop reshuffle does not
+  guarantee a home if a multi-step chain of moves would be necessary.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
