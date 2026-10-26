@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Replaced the duplicate 100-day endurance simulation with an independent restocked scenario (seed 67890); the producers comparison retains seed 12345.
+
 - **Fixed:** Adoption now reports success only after household relocation succeeds; failed placements leave custody and surnames unchanged.
 
 - **Fixed:** Adoption capacity now counts jailed residents' reserved beds without making them eligible to move; regression coverage prevents overcrowding.
