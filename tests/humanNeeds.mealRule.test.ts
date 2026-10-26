@@ -127,6 +127,7 @@ describe('independent physiological advancement', () => {
 
   it('persists an off-duty stamina break until sufficiently recovered, even when hungry', () => {
     const e = person({ needs: { nutrition: 60, rest: 80, stamina: 10 } });
+    advanceHumanNeeds(e, { tick: mealTick + 1, sleeping: false, working: false, moving: false });
     expect(resolveHumanNeedsIntent(e, mealTick + 1, false)).toBe('takeBreak');
     expect(e.needs!.breakUntilRecovered).toBe(true);
     const restored = structuredClone(e);
@@ -134,7 +135,9 @@ describe('independent physiological advancement', () => {
     expect(restored.needs!.breakUntilRecovered).toBe(true);
     restored.needs!.stamina = 30;
     expect(resolveHumanNeedsIntent(restored, mealTick + 2, false)).toBe('takeBreak');
+    expect(restored.needs!.breakUntilRecovered).toBe(true);
     restored.needs!.stamina = 55;
+    advanceHumanNeeds(restored, { tick: mealTick + 2, sleeping: false, working: false, moving: false });
     expect(resolveHumanNeedsIntent(restored, mealTick + 3, false)).toBe('continueActivity');
     expect(restored.needs!.breakUntilRecovered).toBeUndefined();
   });
