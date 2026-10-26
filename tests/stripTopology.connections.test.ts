@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { buildStripPlanFromDrag, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
+import { buildStripPlanFromDrag, buildStripPlanFromStroke, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
 
 function strip(type: typeof BuildingType.Road | typeof BuildingType.Wall, rotation: 0 | 90): Building {
   const { width, height } = getBuildingFootprintForType(type, rotation);
@@ -47,6 +47,30 @@ describe('connected strip planning', () => {
     expect(plan.some((piece) => piece.rotation === 0)).toBe(true);
     expect(plan.some((piece) => piece.rotation === 90)).toBe(true);
     expect(plan.length).toBeGreaterThan(3);
+  });
+
+  it('preserves successive freehand turns in one road placement stroke', () => {
+    const state = { buildings: [], width: 900, height: 900 } as unknown as WorldState;
+    const points = [
+      { x: 120, y: 120 }, { x: 200, y: 120 },
+      { x: 280, y: 120 }, { x: 280, y: 220 },
+      { x: 280, y: 340 }, { x: 400, y: 340 },
+    ];
+    const result = buildStripPlanFromStroke(state, BuildingType.Road, points);
+    expect(result.plan.some((segment) => segment.rotation === 0)).toBe(true);
+    expect(result.plan.some((segment) => segment.rotation === 90)).toBe(true);
+    expect(result.plan.filter((segment) => segment.rotation === 0).length).toBeGreaterThan(2);
+    expect(result.plan.length).toBeGreaterThan(5);
+    const distinct = new Set(result.plan.map((segment) => `${segment.x}:${segment.y}:${segment.rotation}`));
+    expect(distinct.size).toBe(result.plan.length);
+  });
+
+  it('keeps freehand placement bounded for large mouse traces', () => {
+    const state = { buildings: [], width: 2500, height: 2500 } as unknown as WorldState;
+    const points = Array.from({ length: 200 }, (_, index) => ({
+      x: 120 + index * 12, y: 120 + (index % 20) * 12,
+    }));
+    expect(buildStripPlanFromStroke(state, BuildingType.Road, points).plan.length).toBeLessThanOrEqual(72);
   });
 
   it('selects only player roads touched by a demolition drag', () => {
