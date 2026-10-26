@@ -148,6 +148,46 @@ function paintStripSprite(
   return true;
 }
 
+/** Repeats upright stone facades along the construction axis without rotating the art. */
+function paintRpgStoneStrip(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  rotation: BuildingRotation,
+  isGate: boolean,
+  alpha: number,
+): boolean {
+  const wall = getSpriteFrame(RPG_WALL_SPRITE);
+  const gate = isGate ? getSpriteFrame(RPG_GATE_SPRITE) : null;
+  if (!wall || (isGate && !gate)) return false;
+  const run = Math.max(w, h);
+  const depth = Math.max(1, Math.min(w, h));
+  const count = Math.max(1, Math.ceil(run / (depth * 1.8)));
+  const pitch = run / count;
+  const wallHeight = depth * 3;
+  const gateWidth = Math.min(run, depth * 2.8);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(sx, sy);
+  for (let i = 0; i < count; i++) {
+    const along = -run / 2 + (i + 0.5) * pitch;
+    if (isGate && Math.abs(along) < gateWidth / 2) continue;
+    const x = rotation === 90 ? 0 : along;
+    const y = rotation === 90 ? along : 0;
+    paintStripSprite(ctx, RPG_WALL_SPRITE, x, y - wallHeight / 2 + depth / 2,
+      rotation === 90 ? depth * 2 : pitch + 1, wallHeight, 0);
+  }
+  if (isGate) {
+    const gateHeight = gateWidth * (gate!.sh / gate!.sw);
+    paintStripSprite(ctx, RPG_GATE_SPRITE, 0, depth / 2 - gateHeight / 2,
+      gateWidth, gateHeight, 0);
+  }
+  ctx.restore();
+  return true;
+}
+
 /** Top-down cobble road — uses the hand-made path pieces with procedural fallback. */
 export function drawProceduralRoad(
   ctx: CanvasRenderingContext2D,
@@ -217,19 +257,7 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
-  // The authored masonry is an upright facade, never an axis-rotated ground tile.
-  const sprite = isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE;
-  const original = getSpriteFrame(sprite);
-  if (original) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(sx, sy);
-    const uprightWidth = rotation === 90 ? Math.max(w, Math.min(h, w * 2)) : w;
-    const uprightHeight = rotation === 90 ? h + Math.max(w, 12) : Math.max(h * 3, h);
-    paintStripSprite(ctx, sprite, 0, -uprightHeight / 3, uprightWidth, uprightHeight, 0);
-    ctx.restore();
-    return;
-  }
+  if (paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)) return;
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
   if (paintStripSprite(ctx, isGate ? WALL_GATE_FALLBACK : WALL_STRAIGHT_FALLBACK, 0, 0, rw, rh, 0)) {
     ctx.restore();
