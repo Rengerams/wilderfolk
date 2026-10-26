@@ -1,4 +1,4 @@
-import { demolishBuildingInPlace } from '../buildingMaintenanceActions';
+import { demolishBuildingInPlace, demolishStripBuildingsInPlace } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import { BuildingType } from '../gameTypes';
@@ -6,7 +6,7 @@ import type { HuntingSpotPrey } from '../gameTypes';
 import { isValidHuntingSpotPrey } from '../huntingSpots';
 import type { BuildingRotation } from '../buildingRotation';
 import { MINE_ORES, type MineMode } from '../buildings';
-import type { StripSegment } from '../stripBuild';
+import { MAX_STRIP_SEGMENTS, type StripSegment } from '../stripBuild';
 import { VISITOR_TRADE_COSTS, type VisitorTradeAction, type RefugeeChoice, type VillageRequestChoiceId, resolveVillageRequest, talkToVisitorLeader, tradeWithVisitors, negotiateRefugees } from '../groupEvents';
 import { sendRivalGift, establishRivalTradePact, showStrengthToRival, signPeaceTreaty, respondToDiplomacyEvent } from '../rivalDiplomacy';
 import { setWorkSchedule, validateWorkSchedule } from '../workSchedule';
@@ -62,6 +62,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'repairBuildings'; buildingIds: number[] }
   | { proto: 1; op: 'upgradeBuilding'; buildingId: number }
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
+  | { proto: 1; op: 'demolishStripBuildings'; buildingIds: number[] }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
   | { proto: 1; op: 'setMineMode'; buildingId: number; mode: MineMode }
@@ -106,6 +107,7 @@ const WORKER_COMMAND_OPS = [
   'repairBuildings',
   'upgradeBuilding',
   'demolishBuilding',
+  'demolishStripBuildings',
   'setWorkshopRecipe',
   'setHuntingSpotPrey',
   'setMineMode',
@@ -229,6 +231,12 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
         && cmd.buildingIds.length > 0
         && cmd.buildingIds.every((id: unknown) => Number.isSafeInteger(id) && (id as number) > 0)
         && new Set(cmd.buildingIds).size === cmd.buildingIds.length;
+    case 'demolishStripBuildings':
+      return Array.isArray(cmd.buildingIds)
+        && cmd.buildingIds.length > 0
+        && cmd.buildingIds.length <= MAX_STRIP_SEGMENTS
+        && cmd.buildingIds.every((id: unknown) => Number.isSafeInteger(id) && (id as number) > 0)
+        && new Set(cmd.buildingIds).size === cmd.buildingIds.length;
     case 'repairBuilding':
     case 'upgradeBuilding':
     case 'demolishBuilding':
@@ -337,6 +345,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return upgradeBuilding(world, cmd.buildingId);
     case 'demolishBuilding':
       return demolishBuildingInPlace(world, cmd.buildingId);
+    case 'demolishStripBuildings':
+      return demolishStripBuildingsInPlace(world, cmd.buildingIds);
     case 'setWorkshopRecipe':
       return setWorkshopRecipe(world, cmd.buildingId, cmd.recipeId);
     case 'setHuntingSpotPrey':
