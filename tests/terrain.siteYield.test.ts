@@ -9,7 +9,7 @@ describe('production retains its terrain bonus after building placement', () => 
   it.each([
     [BuildingType.LumberMill, 1.5],
     [BuildingType.Farm, 0.8],
-  ])('%s uses the wooded building site, not the cleared grass', (kind, multiplier) => {
+  ] as const)('%s uses the wooded building site, not the cleared grass', (kind, multiplier) => {
     const world = initGame({ size: MapSize.Medium, preset: MapPreset.BlackForest, seed: 1234 });
     const map = world.worldMap!;
     const { x, y } = map.campSite!;
