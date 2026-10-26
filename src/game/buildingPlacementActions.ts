@@ -21,7 +21,7 @@ import {
 } from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
 import { getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
-import { buildStripPlanFromDrag } from './stripTopology';
+import { buildStripPlanFromDrag, buildStripPlanFromStroke } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
   getBuildingFootprintRect,
@@ -278,8 +278,11 @@ export function buildStripPreview(
   endX: number,
   endY: number,
   rotation: BuildingRotation,
+  stroke?: readonly { x: number; y: number }[],
 ): StripBuildPreview {
-  const { plan, enclosedAreas } = buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
+  const { plan, enclosedAreas } = stroke && stroke.length > 1
+    ? buildStripPlanFromStroke(state, type, stroke)
+    : buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
   return {
     rotation,
     enclosedAreas,
