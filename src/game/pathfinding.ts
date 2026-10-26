@@ -184,11 +184,8 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
-  // Rasterised footprint coverage is deliberately larger than the paved centre line: a road
-  // overlapping a tile by one pixel must not make that tile's *centre* cheaper to traverse.
-  // Keep the broad mask/index for exact walker-position checks, but price A* waypoints on
-  // their actual positions. Narrow roads can still accelerate walkers standing on them,
-  // even when no path-grid centre falls inside the footprint.
+  // A* prices only paved tile centres; the footprint index still supports
+  // exact speed eligibility on narrow roads between tile centres.
   let roadCost: Uint8Array | undefined;
   if (road) {
     const centreMask = new Uint8Array(cols * rows);
