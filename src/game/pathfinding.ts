@@ -54,7 +54,7 @@ function isBlockingWall(b: Building): boolean {
 }
 
 /** Completed player roads and bridges: walkable, and cheaper than open ground. */
-function isWalkableRoad(b: Building): boolean {
+export function isWalkableRoad(b: Building): boolean {
   return (
     b.completed &&
     b.faction !== 'rival' &&
