@@ -3,7 +3,7 @@ import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { BUILDING_CONFIGS, BuildingType, TerrainType } from '../src/game/gameTypes';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
-import { findPath, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { findPath, findRouteCost, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { demolishStripBuildingsInPlace } from '../src/game/buildingMaintenanceActions';
 import { createBuilding } from '../src/game/worldGen';
@@ -90,6 +90,39 @@ describe('infrastructure acceptance boundaries', () => {
     setCurrentPathMap(null);
   });
 
+
+  it('prices only road tile centres actually within the paved footprint', () => {
+    const map = testWorldMap({ tilesX: 24, tilesY: 24 });
+    const road = building(301, BuildingType.Road, { x: 100, y: 100, width: 160, height: 26 });
+    const grid = getPathGrid(map, [road]);
+    const at = (row: number) => row * grid.cols + 10;
+    // The physical road covers a slice of rows 8 and 11, but their centres (85/115)
+    // lie outside the road (y=87..113). Rows 9/10 have centres on the pavement.
+    for (const row of [8, 9, 10, 11]) expect(grid.road?.[at(row)]).toBe(1);
+    expect(grid.roadCost?.[at(8)]).toBe(0);
+    expect(grid.roadCost?.[at(9)]).toBe(1);
+    expect(grid.roadCost?.[at(10)]).toBe(1);
+    expect(grid.roadCost?.[at(11)]).toBe(0);
+    setCurrentPathMap(map, [road]);
+    expect(isOnWalkableRoadAt(105, 85)).toBe(false);
+    expect(isOnWalkableRoadAt(105, 100)).toBe(true);
+    setCurrentPathMap(null);
+  });
+
+  it('never discounts the route through a thin road with no paved grid centres', () => {
+    const map = testWorldMap({ tilesX: 24, tilesY: 24 });
+    const road = building(302, BuildingType.Road, { x: 100, y: 100, width: 160, height: 6 });
+    const plainCost = findRouteCost(getPathGrid(map, []), 3, 9, 15, 9);
+    const grid = getPathGrid(map, [road]);
+    expect(grid.road?.[9 * grid.cols + 10]).toBe(1);
+    expect(grid.roadCost).toBeUndefined();
+    expect(findRouteCost(grid, 3, 9, 15, 9)).toBeCloseTo(plainCost!, 5);
+    // A walker precisely on the thin pavement still gets the speed benefit.
+    setCurrentPathMap(map, [road]);
+    expect(isOnWalkableRoadAt(100, 100)).toBe(true);
+    expect(isOnWalkableRoadAt(100, 95)).toBe(false);
+    setCurrentPathMap(null);
+  });
 
   it('commits the gate preview with correct orientation and refunds, and preserves a refused replacement', () => {
     const world = initGame({ seed: 49 });
