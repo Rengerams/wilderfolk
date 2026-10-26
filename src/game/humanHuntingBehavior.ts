@@ -23,6 +23,8 @@ import {
 import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
 
+const HUNTER_WORK_STAMINA_THRESHOLD = 85;
+
 const NORMAL_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Deer,
   EntityType.Rabbit,
@@ -61,7 +63,7 @@ export function tickHumanHunting(
   // Assigned hunters retain their stamina-based job cadence; emergency hunting
   // is triggered by nutrition, never by the unrelated stamina projection.
   const freeHuntHungry = isJobHunter
-    ? (entity.needs?.stamina ?? entity.energy / Math.max(1, entity.maxEnergy) * 100) < 85
+    ? (entity.needs?.stamina ?? entity.energy / Math.max(1, entity.maxEnergy) * 100) < HUNTER_WORK_STAMINA_THRESHOLD
     : famine && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
 
   const blueberryForaging =
