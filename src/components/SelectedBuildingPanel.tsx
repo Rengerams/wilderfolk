@@ -177,6 +177,7 @@ export interface SelectedBuildingPanelProps {
   onRepair: () => void;
   onUpgrade: () => void;
   onDemolish: () => void;
+  onToggleGate?: () => void;
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
   onSetMineMode?: (mode: MineMode) => void;
@@ -189,7 +190,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
@@ -484,6 +485,15 @@ export default function SelectedBuildingPanel({
         </div>
       </div>
 
+      {building.type === BuildingType.WallGate && building.completed && (
+        <div className="mb-2 rounded border border-amber-700/40 p-2 text-xs text-amber-100">
+          <p>Gate: {building.gateClosed === true ? 'Closed — passage blocked' : 'Open — passage allowed'}</p>
+          <button type="button" onClick={onToggleGate} disabled={!onToggleGate}
+            className="mt-1 rounded bg-amber-800 px-3 py-1 font-semibold hover:bg-amber-700 disabled:opacity-50">
+            {building.gateClosed === true ? 'Open gate' : 'Close gate'}
+          </button>
+        </div>
+      )}
       <CollapsibleSection title="Overview" defaultOpen storageKey={`building-overview-${building.id}`}>
         <div className="space-y-0.5 text-xs text-amber-200">
           <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
