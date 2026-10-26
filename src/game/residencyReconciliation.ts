@@ -1059,70 +1059,61 @@ export function reassignDivorcedResidences(
   preferredCustodian?: Entity,
 ): void {
   const residences = buildings.filter(isResidenceBuilding);
-  // Every write below is one settler's household decision, so it passes the pipeline's checks.
   const context = standaloneMoveContext(villagers, residences);
-
-  const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : null;
-  // A sitting leader keeps the manor on divorce, regardless of gender.
-  // Generic marital-home rules would otherwise evict the leader until the next
-  // leader-house reconciliation pulse and produce a residence bounce.
   const sharedManor = a.residenceBuildingId != null
     && a.residenceBuildingId === b.residenceBuildingId
-    && buildings.some((building) => building.id === a.residenceBuildingId
-      && building.type === BuildingType.LeaderHouse && building.completed);
-  const manorLeader = sharedManor
+    && buildings.some((home) => home.id === a.residenceBuildingId
+      && home.type === BuildingType.LeaderHouse && home.completed);
+  const leader = sharedManor
     ? [a, b].find((person) => person.occupation === LEADER_OCCUPATION)
     : undefined;
-  const custodian = manorLeader ?? preferredCustodian ?? wife ?? a;
-  const leaver = custodian === a ? b : a;
+  const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : undefined;
+  const keeper = leader ?? preferredCustodian ?? wife ?? a;
+  const leaver = keeper.id === a.id ? b : a;
+  const formerHome = keeper.residenceBuildingId == null
+    ? undefined : residences.find((home) => home.id === keeper.residenceBuildingId);
+  const dependentChildren = villagers.filter((child) =>
+    child.alive && isMinorChild(child)
+    && getChildCustodian(child, villagers)?.id === leaver.id
+    && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(leaver.id),
+  );
+  const leavingUnit = [leaver, ...dependentChildren];
+  const keeperChildren = villagers.filter((child) =>
+    child.alive && isMinorChild(child)
+    && getChildCustodian(child, villagers)?.id === keeper.id
+    && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(keeper.id),
+  );
+  const blockedIds = new Set([a.residenceBuildingId, b.residenceBuildingId].filter(
+    (id): id is number => id != null,
+  ));
+  const candidates = residences.filter((home) =>
+    home.completed && home.faction !== 'rival'
+    && !isLeaderHouseResidence(home) && !blockedIds.has(home.id)
+    && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
+  );
+  candidates.sort((left, right) => {
+    const leftDistance = formerHome
+      ? (left.x - formerHome.x) ** 2 + (left.y - formerHome.y) ** 2 : 0;
+    const rightDistance = formerHome
+      ? (right.x - formerHome.x) ** 2 + (right.y - formerHome.y) ** 2 : 0;
+    return rightDistance - leftDistance || left.id - right.id;
+  });
 
-  const formerHomes = new Set<number>();
-  for (const resident of [custodian, leaver]) {
-    if (resident.residenceBuildingId != null) {
-      formerHomes.add(resident.residenceBuildingId);
+  if (!isImprisoned(leaver)) {
+    for (const home of candidates) {
+      if (relocateHousehold(leavingUnit, home.id, 'homeless', 'divorce', context)) break;
     }
   }
-
-  const custodianImprisoned = isImprisoned(custodian);
-  if (custodianImprisoned) {
-    relocateHousehold([custodian], undefined, 'homeless', 'divorce', context);
-  } else {
-    const custodianHome = custodian.residenceBuildingId != null
-      ? residences.find((building) => building.id === custodian.residenceBuildingId)
-      : undefined;
-    if (!custodianHome) {
-      relocateHousehold([custodian], pickResidenceForHuman(custodian, villagers, residences),
-        'homeless', 'divorce', context);
+  if (!isImprisoned(keeper) && !hasResidenceAssignment(keeper)) {
+    const target = pickResidenceForFamily([keeper, ...keeperChildren], villagers, residences,
+      context.occupancy, context.traits);
+    if (target != null) relocateHousehold([keeper, ...keeperChildren], target, 'homeless', 'divorce', context);
+  }
+  for (const child of keeperChildren) {
+    if (child.residenceBuildingId !== keeper.residenceBuildingId) {
+      relocateChildToCustodian(child, villagers, residences);
     }
   }
-
-  if (isImprisoned(leaver)) {
-    relocateHousehold([leaver], undefined, 'homeless', 'divorce', context);
-  } else {
-    const excludeHomes = new Set(formerHomes);
-    if (custodian.residenceBuildingId != null) {
-      excludeHomes.add(custodian.residenceBuildingId);
-    }
-    const available = residences.filter((home) => !excludeHomes.has(home.id));
-    relocateHousehold([leaver], pickResidenceForHuman(leaver, villagers, available),
-      'homeless', 'divorce', context);
-  }
-
-  if (!custodianImprisoned && custodian.residenceBuildingId != null) {
-    const children = villagers.filter(
-      (child) =>
-        child.alive &&
-        isMinorChild(child) &&
-        (child.motherId === custodian.id ||
-          child.adoptiveMotherId === custodian.id ||
-          child.fatherId === custodian.id ||
-          child.adoptiveFatherId === custodian.id),
-    );
-    // A child follows the custodian only into a home with room for them; the assign layer
-    // places the rest, exactly as the death path does.
-    for (const child of children) relocateChildToCustodian(child, villagers, residences);
-  }
-
   syncResidenceOccupants(villagers, buildings);
 }
 
