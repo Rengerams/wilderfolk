@@ -10,6 +10,6 @@
 
 **Tuning proposal (not measured):** adult nutrition loss about 30/day, 10 restored per unit of food, aiming at 3 food/day; awake rest loss 4/h and verified sleep +12/h. Severe starvation death follows 48 hours at less than eight nutrition. Stamina zero is never immediately fatal.
 
-**Recovery:** A critically tired off-duty settler has a five-simulation-hour recovery window. Home rest is credited only when physically back at a completed assigned residence; a prisoner requires an actual completed prison cell. Recovery ends at 65 rest, even if the window remains. Night work is not automatically credited as sleep.
+**Recovery:** A critically tired off-duty settler has a eight-simulation-hour recovery window. Home rest is credited only when physically back at a completed assigned residence; a prisoner requires an actual completed prison cell. Recovery ends at 85 rest, even if the window remains. Overnight work schedules a daytime recovery intent after the shift; only actual time at an assigned, completed residence credits sleep. Night work is never itself credited as sleep.
 
 **Merge requirements still outstanding:** full energy reference migration, viable day sleep for night workers, health and productivity effects, real task-based need intents, 7/30-day and full-year measured economy balance, verified type/lint/build/tests.
