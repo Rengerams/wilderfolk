@@ -220,6 +220,51 @@ def wait_for(page, expression: str, label: str, timeout_ms: int = 40000) -> None
     page.wait_for_function(expression, timeout=timeout_ms, polling=250)
 
 
+def run_indoor_smoke(args) -> int:
+    """Load an actual indoor-patient save through the normal game UI."""
+    from pathlib import Path
+    payload = Path(args.indoor_save).read_text(encoding="utf8")
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=not args.headful,
+            executable_path=args.browser_executable or None,
+            args=["--no-sandbox", "--disable-dev-shm-usage"])
+        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.add_init_script("localStorage.setItem('ecosim_save', " + json.dumps(payload) + ");")
+        page.goto(args.url + ("&" if "?" in args.url else "?") + "indoorSmoke=1", wait_until="load")
+        if not click_text(page, "skip intro"):
+            click_text(page, "choose your land")
+        wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+        if not click_text(page, "load saved game"):
+            raise RuntimeError("Load saved game was unavailable")
+        page.locator("canvas").first.wait_for(state="visible", timeout=90000)
+        page.wait_for_function("() => !!document.querySelector('header')", timeout=90000)
+        click_text(page, "got it")
+        observation_js = """() => {
+          const raw = document.querySelector('header')?.getAttribute('data-indoor-patients');
+          return raw ? JSON.parse(raw) : null;
+        }"""
+        page.wait_for_function("""() => {
+          const raw = document.querySelector('header')?.getAttribute('data-indoor-patients');
+          if (!raw) return false;
+          return JSON.parse(raw).patients.some((patient) => patient.hospitalId !== null
+            && patient.indoorBuildingId === patient.hospitalId);
+        }""", timeout=15000)
+        observation = page.evaluate(observation_js)
+        patients = observation.get("patients", []) if observation else []
+        admitted = [patient for patient in patients if patient["hospitalId"] is not None
+                    and patient["indoorBuildingId"] == patient["hospitalId"]]
+        if not admitted:
+            browser.close()
+            raise RuntimeError("No observed indoor hospital patient: " + json.dumps(observation))
+        if args.indoor_screenshot:
+            page.screenshot(path=args.indoor_screenshot)
+        print(json.dumps({"loaded_saved_patient": bool(admitted), "observation": observation, "canvas_count": page.locator("canvas").count(), "page_errors": errors}))
+        browser.close()
+        return 1 if errors else 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:5173/")
@@ -240,7 +285,12 @@ def main() -> int:
         default=0.0,
         help="camera zoom preset to measure the ground at (0 = leave the game's own default)",
     )
+    parser.add_argument("--browser-executable", default="")
+    parser.add_argument("--indoor-save", default="")
+    parser.add_argument("--indoor-screenshot", default="")
     args = parser.parse_args()
+    if args.indoor_save:
+        return run_indoor_smoke(args)
     if args.ground_presets:
         args.ground_presets = [p.strip() for p in args.ground_presets.split(",") if p.strip()]
         return run_ground_look(args)

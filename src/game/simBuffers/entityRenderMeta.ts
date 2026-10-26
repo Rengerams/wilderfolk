@@ -27,6 +27,7 @@ export interface EntityRenderMeta {
   gender?: 'male' | 'female';
   spriteVariant?: number;
   faction?: Entity['faction'];
+  indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
 
@@ -61,6 +62,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     gender: entity.gender,
     spriteVariant: entity.spriteVariant,
     faction: entity.faction,
+    indoorBuildingId: entity.indoorBuildingId,
     hiddenFromPlayer: entity.hiddenFromPlayer,
     detectedByPatrol: entity.detectedByPatrol,
 
@@ -139,6 +141,7 @@ export function buildRenderEntityShim(
     gender: meta?.gender ?? (flags & RENDER_FLAG_FEMALE ? 'female' : flags & RENDER_FLAG_MALE ? 'male' : undefined),
     spriteVariant: meta?.spriteVariant,
     faction: meta?.faction ?? factionFromFlags(flags),
+    indoorBuildingId: meta?.indoorBuildingId,
     hiddenFromPlayer: meta?.hiddenFromPlayer,
     detectedByPatrol: meta?.detectedByPatrol,
 

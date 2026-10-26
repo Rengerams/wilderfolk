@@ -1,3 +1,4 @@
+import { needsMedicalCare } from './hospitalCare';
 
 import type { Building, HuntingSpotPrey, Resources, VisitorGroup, WorldState } from './gameTypes';
 import { canBuildLeaderHouse } from './leaderHouseExpansion';
@@ -1822,4 +1823,21 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
   }
 
   return null;
+}
+
+/** Read-only patient observation for the opt-in browser harness. */
+export function observeIndoorPatients(state: WorldState): {
+  tick: number;
+  patients: { id: number; indoorBuildingId: number | null; hospitalId: number | null }[];
+} {
+  const hospitals = state.buildings.filter((entry) => entry.completed && entry.type === BuildingType.Hospital);
+  return {
+    tick: state.tick,
+    patients: state.entities.filter((person) => person.alive && isPlayerHuman(person)
+      && needsMedicalCare(person, state.tick)).map((person) => ({
+      id: person.id,
+      indoorBuildingId: person.indoorBuildingId ?? null,
+      hospitalId: hospitals.find((hospital) => hospital.id === person.indoorBuildingId)?.id ?? null,
+    })),
+  };
 }
