@@ -1409,7 +1409,7 @@ export default function App() {
           {/* Strip gestures: a contextual hint makes bulk demolition discoverable. */}
           {selectedBuildingType && isStripBuildType(selectedBuildingType) && (
             <div className="absolute left-3 top-3 rounded bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-md">
-              Drag to build · Alt + drag to remove matching paths or walls
+              Hold and draw paths or walls · Alt + drag to remove
             </div>
           )}
           
