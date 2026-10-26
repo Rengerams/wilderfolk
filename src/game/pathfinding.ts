@@ -2,11 +2,9 @@
  * Grid pathfinding over the terrain map — settlers/visitors stop walking in
  * straight lines through rivers and mountains.
  *
- * Design: the passability grid is built once per map (cached by seed, preset and
- * size). A* is only invoked when the direct line between an entity and its target
- * actually crosses a blocked tile (cheap sampling), and results are cached per
- * origin-target pair with a bounded cache. Every pathing call falls back to
- * direct movement when no path exists, so nothing can ever deadlock.
+ * Design: the map's cached walkability grid owns walls, gates, roads and bridges.
+ * Bounded A* routes around obstacles and chooses profitable road detours. Routes
+ * are cached by walker; no route means stop rather than walk through a barrier.
  *
  * Occupancy and slope both come from Teraforge's four-layer model: the L0 path
  * grid decides what blocks a step, and the tile's projected elevation decides
@@ -49,7 +47,7 @@ const ROAD_ROUTE_MIN_TIME_SAVING = 0.95;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
-  return b.completed && b.faction !== 'rival' && b.type === BuildingType.Wall;
+  return b.completed && b.type === BuildingType.Wall;
 }
 
 /** Completed player roads and bridges: walkable, and cheaper than open ground. */
