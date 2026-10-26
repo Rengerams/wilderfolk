@@ -641,10 +641,14 @@ function tickBuildingProduction(
           }
 
   const mauled = fate === 'mauled';
-          hunter.energy = Math.max(
-            0,
-            hunter.energy - HUNTING_FIGHT_BACK_BITE_ENERGY - (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0),
-          );
+          const damage = HUNTING_FIGHT_BACK_BITE_ENERGY + (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0);
+          if (hunter.needs) {
+            hunter.needs.stamina = Math.max(0, hunter.needs.stamina
+              - damage / Math.max(1, hunter.maxEnergy) * 100);
+            hunter.energy = hunter.maxEnergy * hunter.needs.stamina / 100;
+          } else {
+            hunter.energy = Math.max(0, hunter.energy - damage);
+          }
           hunter.combatTicks = 14;
           hunter.flash = 10;
           addFloatingText(
