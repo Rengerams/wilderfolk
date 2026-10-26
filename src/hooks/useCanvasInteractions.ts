@@ -406,6 +406,7 @@ export function useCanvasInteractions({
 
       if (selectedBuildingType) {
         if (isStripBuildType(selectedBuildingType) && stripDragStartRef.current) {
+          const start = stripDragStartRef.current;
           if (stripDemolitionGestureRef.current) {
             const ids = new Set(collectStripDemolitionIds(
               liveWorld.buildings, selectedBuildingType, start.x, start.y, worldX, worldY,
@@ -420,7 +421,6 @@ export function useCanvasInteractions({
             }, true);
             return;
           }
-          const start = stripDragStartRef.current;
           const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
           const preview = buildStripPreview(
             liveWorld,
