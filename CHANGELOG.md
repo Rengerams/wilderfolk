@@ -5,7 +5,7 @@
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.
 - **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
 
-- **Changed:** Roads use time-aware routes and on-tile speed bonuses; unreachable journeys stop at barriers. Drag placement deduplicates sections and permits perpendicular junctions, with aligned wall-to-gate replacement, wall art, and Alt-drag batch demolition.
+- **Changed:** Roads use time-aware routes and on-tile speed bonuses; unreachable journeys stop at barriers. L-shaped drags deduplicate sections and join perpendicular junctions, with aligned wall-to-gate replacement, wall art, and Alt-drag batch demolition.
 
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
