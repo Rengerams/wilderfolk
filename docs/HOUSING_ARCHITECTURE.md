@@ -117,10 +117,22 @@ An adoption that replaced a **dead** parent is permanent and is never cleared th
 `rebalanceOvercrowdedResidences` relieves an over-full home **before** anyone new is seated, so a newcomer
 can never be packed into a house that was already too full. The shortage order is fixed:
 
-1. move unrelated residents out first;
-2. if the home is still over its beds, move the whole family together;
-3. if no home fits the family, keep the dependent group (custodian + minors) together and unhoused rather
-   than overfill the house or split the children from their guardian.
+1. move unrelated residents and independent adult children out first, where suitable beds exist;
+2. before displacing the family, try reshuffling eligible residents across other completed homes to free
+   enough beds for the entire parent-and-minor household, while respecting capacity and existing custody;
+3. if a complete-family move becomes possible, relocate the family together, never scattering everyone;
+4. only if no feasible reshuffle or whole-family residence exists, temporarily relocate the adult male
+   partner first, provided he is not a minor's required custodian whose departure would leave that child
+   without their necessary caregiver; preserve mother/remaining custodians with their minor children in
+   the original home whenever capacity allows;
+5. if the male is a necessary custodian, find another custody-safe dependent-group arrangement instead.
+   Do not leave minors unaccompanied or evict an entire family simply because one home is undersized.
+   Reunite the household automatically when a suitable whole-family residence becomes available.
+
+This is the **confirmed target policy**, not yet proven to be the implemented capacity algorithm.
+The reshuffle must avoid oscillation, obey residence eligibility and respect the per-run housing ledger.
+The temporary male relocation is not a custody override, and an imprisoned settler's reserved bed
+must not be treated as free.
 
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
@@ -526,6 +538,12 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   partner and minor children moves with their own dependent household. The optional adult-child phase can
   use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
   equate a family-tree relationship with one indivisible housing unit.
+* **Oversized households — owner policy confirmed, implementation not yet verified.**
+  First try to free capacity by moving unrelated people and independent adults or reshuffling other
+  households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
+  exists, move the adult male temporarily before disturbing the remaining dependents, but only when
+  his departure is custody-safe. Reunite everyone once a suitable home becomes available; do not
+  evict all family members just because the present home is too small.
 * **Blended and guardian households — regression verification required.** Build dependent groups around
   each minor's actual custodians, not the first child's mother or an arbitrary shared parent. If a blended
   family exceeds the largest home, do not strand any minor by moving their custodian into a different
