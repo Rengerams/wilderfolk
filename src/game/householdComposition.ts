@@ -25,60 +25,9 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
   return household;
 }
 
-/** Leader, spouse, children and children's spouses; retain unmarried-grandchild eligibility. */
+/** The leader's entitled housing unit: partner and dependent minors, not grown descendants. */
 export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Entity[] {
-  const byId = new Map(humans.map((human) => [human.id, human]));
-  const childrenByParent = new Map<number, Entity[]>();
-  for (const human of humans) {
-    for (const parentId of new Set([
-      human.motherId, human.fatherId, human.adoptiveMotherId, human.adoptiveFatherId,
-    ])) {
-      if (parentId == null) continue;
-      const children = childrenByParent.get(parentId);
-      if (children) children.push(human);
-      else childrenByParent.set(parentId, [human]);
-    }
-  }
-  const family: Entity[] = [];
-  const included = new Set<number>();
-  // A cursed Moon Howler is still the leader's descendant; their wolf form must not orphan the
-  // children who keep their manor beds through them.
-  const add = (human?: Entity): Entity | undefined => {
-    if (!human?.alive || !isResidenceOccupantEntity(human)) return undefined;
-    if (!included.has(human.id)) {
-      included.add(human.id);
-      family.push(human);
-    }
-    return human;
-  };
-  const childrenOf = (parent: Entity): Entity[] => {
-    const found = new Map<number, Entity>();
-    for (const child of childrenByParent.get(parent.id) ?? []) found.set(child.id, child);
-    for (const childId of parent.childrenIds ?? []) {
-      const child = byId.get(childId);
-      if (child) found.set(child.id, child);
-    }
-    return [...found.values()];
-  };
-  add(leader);
-  const spouse = add(byId.get(leader.partnerId ?? -1));
-  const firstGeneration = new Map<number, Entity>();
-  for (const root of [leader, spouse].filter((e): e is Entity => !!e)) {
-    for (const child of childrenOf(root)) {
-      const added = add(child);
-      if (added) {
-        firstGeneration.set(added.id, added);
-        add(byId.get(added.partnerId ?? -1));
-      }
-    }
-  }
-  for (const child of firstGeneration.values()) {
-    for (const grandchild of childrenOf(child)) {
-      if (grandchild.partnerId != null && !grandchild.isJuvenile && grandchild.age >= HUMAN_ADULT_MIN_AGE) continue;
-      add(grandchild);
-    }
-  }
-  return family;
+  return collectMinorHousehold(leader, humans).filter(isResidenceOccupantEntity);
 }
 
 /**

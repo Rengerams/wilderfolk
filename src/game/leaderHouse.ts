@@ -7,7 +7,7 @@ import {
   syncResidenceOccupants,
 } from './residencyReconciliation';
 import type { HousingLedger, HousingMoveContext } from './residencyReconciliation';
-import { listPlayerResidences } from './residencySelection';
+import { buildHousingUnits, listPlayerResidences } from './residencySelection';
 import {
   EntityType,
   JobType,
@@ -37,7 +37,7 @@ function leaderDisplayName(leader: Entity): string {
 }
 
 /**
- * Leader and spouse, their children and grandchildren of any age.
+ * Leader and partner, with their dependent minor children.
  * Extended relatives remain in their own homes; empty while office is vacant.
  */
 export function collectLeaderHousehold(state: WorldState): Entity[] {
@@ -94,18 +94,7 @@ function leaderHousingContext(state: WorldState, ledger: HousingLedger): Housing
 
 /** The manor's departing residents as households: a minor leaves with their custodian, never alone. */
 function evictionHouseholds(departing: Entity[]): Entity[][] {
-  const unitOf = new Map<number, Entity[]>(departing.map((member) => [member.id, [member]]));
-  for (const member of departing) {
-    if (!isMinorChild(member)) continue;
-    const custodian = getChildCustodian(member, departing);
-    const target = custodian ? unitOf.get(custodian.id) : undefined;
-    const own = unitOf.get(member.id);
-    if (!target || !own || target === own) continue;
-    own.splice(own.indexOf(member), 1);
-    target.push(member);
-    unitOf.set(member.id, target);
-  }
-  return [...new Set(unitOf.values())].filter((unit) => unit.length > 0);
+  return buildHousingUnits(departing);
 }
 
 /** The manor hold's decision; returns the settlers it evicted so a caller can seat them. */
