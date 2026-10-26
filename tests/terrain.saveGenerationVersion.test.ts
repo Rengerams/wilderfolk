@@ -10,7 +10,8 @@ describe('compact map generation revision', () => {
   it('preserves the new landscape after saving and loading', () => {
     const world = initGame({ seed: 34567, size: MapSize.Medium, preset: MapPreset.Oasis });
     const save = buildSaveData(world, createInitialView(world.width, world.height));
-    expect(save.worldMap?._generationVersion).toBe(2);
+    const compact = save.worldMap as { _generationVersion?: number };
+    expect(compact._generationVersion).toBe(2);
     const parsed = parseSaveJson(JSON.stringify(save));
     expect(parsed.valid).toBe(true);
     if (!parsed.valid) return;
@@ -27,7 +28,8 @@ describe('compact map generation revision', () => {
     );
     const original = world.worldMap;
     const save = buildSaveData(world, createInitialView(world.width, world.height));
-    delete save.worldMap?._generationVersion;
+    const compact = save.worldMap as { _generationVersion?: number };
+    delete compact._generationVersion;
     const parsed = parseSaveJson(JSON.stringify(save));
     expect(parsed.valid).toBe(true);
     if (!parsed.valid) return;
