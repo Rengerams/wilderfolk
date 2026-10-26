@@ -1,3 +1,4 @@
+import { departWarPrisoner } from './warPrisonerCustody';
 import { moveResident } from './residencyReconciliation';
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
@@ -242,6 +243,10 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
     if (entity.workerBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
     if (entity.residenceBuildingId === buildingId) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     if (entity.prisonBuildingId === buildingId) {
+      if (entity.alive && entity.warCaptive) {
+        departWarPrisoner(state, entity, 'escaped');
+        continue;
+      }
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;

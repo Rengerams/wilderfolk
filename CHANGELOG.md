@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Raid reports retain a fallen starting leader after population cleanup, and removing a prison resolves enemy captives as living escapees instead of leaving inaccessible custody.
+
 - **Changed:** Incoming defenses and outgoing battles advance hourly over six game hours; saved milestones prevent repeated casualties, and truce or razing cleanup releases deployed soldiers.
 - **Added:** Defeated villages enter repair and food recovery. Explicit razing intent, failed last resistance and devastated shelter can end a settlement; final reports remain exportable and cannot resume simulation.
 - **Added:** Real adult enemy fighters can be held in existing prison cells, released, voluntarily recruited or executed after confirmation. Abstract world-map populations never become fabricated captives.

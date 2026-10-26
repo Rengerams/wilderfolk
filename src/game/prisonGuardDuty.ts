@@ -5,7 +5,7 @@
  * stood on the post, and the daily `tickPrisonGuardDuty` rolls one escape chance per hour that nobody
  * did. An "escape" frees one prisoner early — the settler stays in the colony (no removal/cleanup).
  */
-import { departWarPrisoner } from './warPrisoners';
+import { departWarPrisoner } from './warPrisonerCustody';
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';

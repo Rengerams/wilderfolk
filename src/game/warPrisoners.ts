@@ -1,4 +1,5 @@
-import type { Entity, RivalSettlement, WorldState } from './gameTypes';
+import { departWarPrisoner, recordWarPrisonerOutcome } from './warPrisonerCustody';
+import type { RivalSettlement, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, EntityType, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { prisonPrisonerCapacity } from './prisonShifts';
@@ -7,7 +8,7 @@ import { addReputation } from './simHelpers';
 import { formatCitizenName } from './citizenId';
 import { logDeath, logEvent } from './eventLog';
 import { killHuman } from './dayCycle';
-import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
+import { ensureEntityByIdMap } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
 import { moveResident, assignMissingResidences } from './residencyReconciliation';
 import { applyLeaderHousePhase } from './leaderHouse';
@@ -20,7 +21,6 @@ const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
 const RECRUIT_ATTEMPT_PENALTY = 0.05;
 const RECRUIT_MAX_CHANCE = 0.6;
-const CAPTURE_HISTORY_LIMIT = 200;
 const TRUST_RECRUIT_SCALE = 200;
 const RELEASE_REPUTATION = 3;
 const EXECUTION_REPUTATION = -20;
@@ -50,33 +50,6 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
     recordWarPrisonerOutcome(state, person, 'captured');
     availableEscorts--;
   }
-}
-
-/** A single identity-linked custody record is updated rather than replaying captures or rewards. */
-function recordWarPrisonerOutcome(state: WorldState, person: Entity,
-  status: NonNullable<WorldState['raidPrisonerHistory']>[number]['status']): void {
-  const custody = person.warCaptive;
-  if (!custody) return;
-  const previous = (state.raidPrisonerHistory ?? []).filter((entry) => entry.entityId !== person.id);
-  state.raidPrisonerHistory = [...previous.slice(-(CAPTURE_HISTORY_LIMIT - 1)), {
-    entityId: person.id, name: formatCitizenName(person), raidId: custody.raidId,
-    originRivalId: custody.originRivalId, status, tick: state.tick,
-  }];
-  logEvent(state, 'prison', `${formatCitizenName(person)} — enemy combatant ${status}`, formatCitizenName(person));
-}
-
-/** A released or escaped captive leaves alive; departure is never recorded as a death. */
-export function departWarPrisoner(state: WorldState, person: Entity, status: 'released' | 'escaped'): void {
-  if (!person.warCaptive) return;
-  recordWarPrisonerOutcome(state, person, status);
-  const home = state.rivalSettlements.find((rival) => rival.id === person.warCaptive!.originRivalId);
-  if (home) home.population++;
-  for (const building of state.buildings) building.occupants = building.occupants.filter((id) => id !== person.id);
-  person.prisonBuildingId = undefined;
-  person.prisonerUntilTick = undefined;
-  person.departedAlive = true;
-  unindexEntityFromState(state, person.id);
-  state.entities = state.entities.filter((entry) => entry.id !== person.id);
 }
 
 /** Villagers' existing traits shape political reactions without awarding another military victory. */

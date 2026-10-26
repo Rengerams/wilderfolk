@@ -1,3 +1,5 @@
+import { departWarPrisoner } from '../src/game/warPrisonerCustody';
+import { demolishBuildingInPlace } from '../src/game/buildingMaintenanceActions';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -10,7 +12,7 @@ import { cancelPendingOutgoingRaidsForRival, launchRaidOnRival, queueRaidDefense
   tickPendingOutgoingRaidEvents, tickPendingRaidEvents } from '../src/game/frontierCombat';
 import { signPeaceTreaty } from '../src/game/rivalDiplomacy';
 import { beginRaidRecovery, tickRaidRecovery } from '../src/game/raidAftermath';
-import { captureRaidPrisoners, departWarPrisoner, resolveWarPrisoner } from '../src/game/warPrisoners';
+import { captureRaidPrisoners, resolveWarPrisoner } from '../src/game/warPrisoners';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
@@ -293,6 +295,44 @@ describe('warfare integration boundaries', () => {
     const merit = world.entities.find((person) => person.id === leaderId)?.battleLeadershipMerit;
     const clickedAgain = applyWorkerCommand(world, { proto: 1, op: 'respondToRaidEvent', eventId: 'raid', choiceId: 'defend' });
     expect(clickedAgain.entities.find((person) => person.id === leaderId)?.battleLeadershipMerit).toBe(merit);
+  });
+
+  it('preserves the starting leader after actual tick cleanup removes the midpoint casualty', () => {
+    let world = colony();
+    const leaderId = world.entities[0].id;
+    const successorId = world.entities[1].id;
+    world.villageLeaderId = leaderId;
+    world.pendingRaidEvents = [{ ...raid(), attackerStrength: 100 }];
+    world = queueRaidDefense(world, 'raid', 'defend');
+    world.tick = 3 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(world, world.entities);
+    world.entities.find((person) => person.id === leaderId)!.alive = false;
+    world.villageLeaderId = successorId;
+    world.paused = false;
+    gameTick(world);
+    expect(world.entities.some((person) => person.id === leaderId)).toBe(false);
+    world.tick = 6 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(world, world.entities);
+    expect(world.raidBattleReports?.[0].leaderId).toBe(leaderId);
+    expect(world.raidBattleReports?.[0].leadershipMerit).toBe(0);
+    expect(world.entities.find((person) => person.id === successorId)?.battleLeadershipMerit ?? 0).toBe(0);
+  });
+
+  it.each(['demolition', 'raid'] as const)('resolves custody alive when a prison is removed by %s', (cause) => {
+    const world = captiveColony();
+    const captive = world.entities.find((person) => person.id === 910000)!;
+    const prisonId = captive.prisonBuildingId!;
+    const population = world.rivalSettlements[0].population;
+    demolishBuildingInPlace(world, prisonId, cause);
+    expect(world.entities.some((person) => person.id === captive.id)).toBe(false);
+    expect(captive.alive).toBe(true);
+    expect(captive.departedAlive).toBe(true);
+    expect(world.raidPrisonerHistory?.find((entry) => entry.entityId === captive.id)?.status).toBe('escaped');
+    expect(world.rivalSettlements[0].population).toBe(population + 1);
+    expect(world.buildings.some((building) => building.occupants.includes(captive.id))).toBe(false);
+    expect(world.graveRecords?.some((entry) => entry.name.includes(captive.name ?? 'unknown')) ?? false).toBe(false);
+    demolishBuildingInPlace(world, prisonId, cause);
+    expect(world.rivalSettlements[0].population).toBe(population + 1);
   });
 
   it('blocks recruitment at the population ceiling and still permits release after the home camp is gone', () => {

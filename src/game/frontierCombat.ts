@@ -552,7 +552,7 @@ function flashMilitia(entities: Entity[], ticks = 22) {
 /** A leader killed during the battle is memorialized instead of crediting a replacement. */
 function battleReportLeader(state: WorldState, initialLeaderId: number | null | undefined): number | null {
   const initial = initialLeaderId == null ? undefined : state.entities.find((person) => person.id === initialLeaderId);
-  return initial && !initial.alive ? initial.id : state.villageLeaderId;
+  return initialLeaderId != null && (!initial || !initial.alive) ? initialLeaderId : state.villageLeaderId;
 }
 
 function persistBattleAftermath(
