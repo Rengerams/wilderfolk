@@ -133,6 +133,22 @@ function drawStripBuilding(
     : building.type === BuildingType.Road ? ROAD_STRIP_ALPHA : WALL_PANEL_ALPHA;
   const rot = effectiveBuildingRotation(building.type, building.rotation);
   drawProceduralStripBuilding(ctx, building.type, sx, sy, w, h, rot, alpha);
+  if (building.type === BuildingType.WallGate && building.gateClosed === true) {
+    // Mark the sealed opening on the same axis as the gate's physical footprint.
+    ctx.save();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.22);
+    ctx.beginPath();
+    if (w >= h) {
+      ctx.moveTo(sx - w * 0.34, sy);
+      ctx.lineTo(sx + w * 0.34, sy);
+    } else {
+      ctx.moveTo(sx, sy - h * 0.34);
+      ctx.lineTo(sx, sy + h * 0.34);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
   if (!strips) return;
   const junction = analyzeStripJunction(building.x, building.y, strips.hList, strips.vList, strips.along);
   if (junction.kind !== 'end' && junction.kind !== 'straight') {
