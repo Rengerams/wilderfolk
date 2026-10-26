@@ -315,6 +315,8 @@ export function applyHumanWalkStep(entity: Entity, roadMult: number): void {
       const recoveryX = (tileX + dx * ring + 0.5) * PATH_CELL;
       const recoveryY = (tileY + dy * ring + 0.5) * PATH_CELL;
       if (!isGroundWalkableAt(recoveryX, recoveryY)) continue;
+      // Recovery may not teleport across a wall or river to a disconnected stand point.
+      if (!isWalkStepAllowed(entity.x, entity.y, recoveryX, recoveryY)) continue;
       entity.x = recoveryX;
       entity.y = recoveryY;
       entity.vx = 0;
