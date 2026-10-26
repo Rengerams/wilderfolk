@@ -154,8 +154,8 @@ describe('infrastructure acceptance boundaries', () => {
   it('does not classify an off-grid trip as reachable from a single short road segment', () => {
     setCurrentPathMap(null);
     const home = building(801, BuildingType.House, { x: 50, y: 100 });
-    const work = building(802, BuildingType.LumberMill, { x: 235, y: 100 });
-    const tinyRoad = building(803, BuildingType.Road, { x: 145, y: 100, width: 10, height: 10 });
+    const work = building(802, BuildingType.LumberMill, { x: 1050, y: 100 });
+    const tinyRoad = building(803, BuildingType.Road, { x: 545, y: 100, width: 10, height: 10 });
     const buildings = [home, work, tinyRoad];
     expect(estimatedCommuteHours(home, work, buildings, 7)).toBeGreaterThan(2);
     const settler = human(804, { x: home.x, y: home.y, residenceBuildingId: home.id });
