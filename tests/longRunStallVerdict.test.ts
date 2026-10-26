@@ -255,7 +255,7 @@ describe('long-run non-vacuity verdict', () => {
         for (const human of homeless) {
           expect(
             pickResidenceForHuman(human, residents, possibleHomes, occupancy),
-            `homeless settler ${human.id} can be placed by the game's own selection rule`,
+            `homeless settler ${human.id} (age ${human.age}, minor ${human.isJuvenile}, mother ${human.motherId}, father ${human.fatherId}, partner ${human.partnerId}, home ${human.residenceBuildingId}, household [${unit.map((member) => `${member.id}:${member.residenceBuildingId ?? 'none'}`).join(',')}]) can be placed by selection`,
           ).toBeUndefined();
         }
       }
