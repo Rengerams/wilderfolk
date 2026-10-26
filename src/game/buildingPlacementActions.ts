@@ -29,6 +29,7 @@ import {
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
   overlapsAnyBuilding,
+  stripCrossingIsTheOnlyOverlap,
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
@@ -76,28 +77,6 @@ export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingTy
   if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(state.buildings);
   const config = BUILDING_CONFIGS[type];
   return !!config.unique && state.buildings.some((building) => building.type === type);
-}
-
-/** Road and solid-wall crossings must not collide with unrelated buildings or parallel strips. */
-function stripCrossingIsTheOnlyOverlap(
-  buildings: readonly Building[],
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  type: BuildingType,
-): boolean {
-  let hasCrossing = false;
-  for (const b of buildings) {
-    const overlaps = x + width / 2 > b.x - b.width / 2
-      && x - width / 2 < b.x + b.width / 2
-      && y + height / 2 > b.y - b.height / 2
-      && y - height / 2 < b.y + b.height / 2;
-    if (!overlaps) continue;
-    if (b.type !== type || (width > height) === (b.width > b.height)) return false;
-    hasCrossing = true;
-  }
-  return hasCrossing;
 }
 
 export function getPlaceBuildingFailureReason(
