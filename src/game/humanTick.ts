@@ -384,7 +384,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       });
     }
     tryEatColonyMeal(entity, state, hourOfDay);
-    if (isPlayerHuman(entity) && entity.energy <= 0) {
+    if ((isPlayerHuman(entity) || entity.warCaptive) && entity.energy <= 0) {
       killFromExhaustion(entity, state, updatedBuildings, entityById);
     }
   };

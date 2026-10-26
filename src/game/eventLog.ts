@@ -106,7 +106,7 @@ export function assignPendingGraves(state: WorldState): void {
   }
   if (capacity.size === 0) return;
   for (const grave of graves) {
-    if (grave.graveyardId != null && capacity.has(grave.graveyardId)) {
+    if (grave.faction === 'player' && grave.graveyardId != null && capacity.has(grave.graveyardId)) {
       capacity.set(grave.graveyardId, Math.max(0, capacity.get(grave.graveyardId)! - 1));
     }
   }

@@ -227,6 +227,7 @@ function FrontierPanel({
                       {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d</span>}
                     </p>
                     <p className="text-[10px] capitalize text-amber-300/80">{getRivalProfileLabel(profile)} · {presence.stanceLabel}</p>
+                    {r.diplomacyMemory && <p className="text-[10px] text-stone-300">Valley memory: trust {r.diplomacyMemory.trust} · fear {r.diplomacyMemory.fear} · grievance {r.diplomacyMemory.grievance}</p>}
                     <p className="text-[10px] text-cyan-300/80">Activity: {presence.modeLabel}</p>
                     <p className="text-[10px] text-stone-400">Ledger: {profile.ledger.food} food · {profile.ledger.wood} wood · {profile.ledger.gold} gold · morale {profile.ledger.morale}% · recovery {profile.ledger.recovery}%</p>
                     <p className="text-[10px] text-stone-400">Latest contact: {presence.latestContact}</p>

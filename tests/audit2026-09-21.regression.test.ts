@@ -176,6 +176,10 @@ describe('the leader-honored announcement survives a maxed reputation', () => {
 
     const rival = {
       id: 'rival_1',
+      population: 8,
+      entityIds: [],
+      buildingIds: [],
+      foundedYear: 0,
       name: 'Ravenhold',
       campX: 900,
       campY: 900,

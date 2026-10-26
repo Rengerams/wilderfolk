@@ -40,7 +40,7 @@ export const WORLD_STATE_SAVE_KEYS = [
   'tradeRoutes', 'totalBuildingsCompleted', 'lastProcessedCalendarDay', 'yearlyStats',
   'lifetimeStats', 'eventLog', 'chronicleChapters', 'festival', 'townHallFestivalCooldownUntilTick',
   'visitorGroups', 'activeVillageRequest', 'villageRequestCooldownUntilDay', 'villageRequestHistory',
-  'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports',
+  'rivalSettlements', 'pendingDiplomacyEvents', 'pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'raidRecovery', 'scoredRaidIds', 'raidPrisonerHistory', 'graveRecords',
   'renffrOmen', 'renffrChatterUntilTick',
   'activeMigration', 'migrationNextHerdSize',
   'ecoHealthYearsAbove80', 'firstWeekVisitorSpawned', 'villageLeaderId', 'pendingLeaderHouseResidentIds', 'leaderSinceYear',
@@ -93,7 +93,7 @@ export const WORLD_STATE_SAVE_KEYS = [
 export const ENTITY_PERSISTED_FIELDS = [
   'skills',
   'battleLeadershipMerit',
-  'raidDeploymentId',
+  'raidDeploymentId', 'departedAlive', 'battleLeadershipAwards', 'warCaptive',
   'promiseLeadershipMerit',
   'moonHowlerSaved',
   'moonHowlerCursed',

@@ -83,6 +83,9 @@ import { setRelationshipDiagnosticsConsoleLoggingEnabled } from './game/relation
 import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
+import WarfareStatus from './components/WarfareStatus';
+import { downloadSaveFile } from './game/saveLoad';
+import { downloadChronicleLog } from './game/eventLogExport';
 
 import GameBuildRail from './components/GameBuildRail';
 
@@ -186,7 +189,7 @@ export default function App() {
     return s;
   });
   // The dialog follows authoritative combat events rather than a fake countdown.
-  const [battleReport, setBattleReport] = useState<{ rivalName: string; baselineId: number; incoming?: boolean } | null>(null);
+  const [battleReport, setBattleReport] = useState<{ rivalName: string; raidId?: string; baselineId: number; incoming?: boolean } | null>(null);
   const [razeConfirmationId, setRazeConfirmationId] = useState<string | null>(null);
   const [view, setView] = useState<ViewState>(() => createInitialViewForWorld(world));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
@@ -345,6 +348,13 @@ export default function App() {
     viewRef,
     onGameSaved: markGameSaved,
   });
+  const archivedTerminalRaid = useRef<string | null>(null);
+  useEffect(() => {
+    const terminal = world.raidRecovery;
+    if (terminal?.status !== 'destroyed' || archivedTerminalRaid.current === terminal.raidId) return;
+    archivedTerminalRaid.current = terminal.raidId;
+    void persistCurrentGame({ chronicle: false, feedback: false, background: true });
+  }, [world.raidRecovery, persistCurrentGame]);
   const {
     activeBigNews,
     activeEventDismissible,
@@ -1483,7 +1493,7 @@ export default function App() {
                           ? `Offer: ${formatRaidLootSummary(raidEventLoot(evt))}`
                           : 'They chose to fight'}
                         {' · '}
-                        <strong>{formatRaidDeadline(evt, world.tick)}</strong>
+                        <strong>{evt.phase === 'fighting' ? 'Battle underway — hourly updates' : formatRaidDeadline(evt, world.tick)}</strong>
                         {evt.marchDistanceTiles > 0 && (
                           <span> · {evt.marchDistanceTiles} tiles march</span>
                         )}
@@ -1503,6 +1513,7 @@ export default function App() {
                               if (choice.id === 'fight' || choice.id === 'decline_payoff' || choice.id === 'accept_payoff') {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
+                                  raidId: evt.id,
                                   baselineId: world.eventLog[0]?.id ?? 0,
                                 });
                               }
@@ -1556,7 +1567,7 @@ export default function App() {
                       <p className="mt-1 text-[11px] text-rose-300/90">
                         At risk: {formatRaidLootSummary(raidEventLoot(evt)) || `${evt.lootFood}🍖`}
                         {' · '}
-                        <strong>{formatRaidDeadline(evt, world.tick)}</strong>
+                        <strong>{evt.phase === 'fighting' ? 'Battle underway — hourly updates' : formatRaidDeadline(evt, world.tick)}</strong>
                         {evt.marchDistanceTiles > 0 && (
                           <span> · {evt.marchDistanceTiles} tiles march</span>
                         )}
@@ -1595,6 +1606,7 @@ export default function App() {
                               if (choice.id === 'defend' || choice.id === 'barricade') {
                                 setBattleReport({
                                   rivalName: evt.rivalName,
+                                  raidId: evt.id,
                                   baselineId: world.eventLog[0]?.id ?? 0,
                                   incoming: true,
                                 });
@@ -2021,6 +2033,12 @@ export default function App() {
       )}
             overlays={(
         <GameOverlays>
+          <WarfareStatus world={world}
+            onRepair={(buildingId) => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId })}
+            onPrisonerDecision={(entityId, choiceId) => applyGameAction({ proto: 1, op: 'resolveWarPrisoner', entityId, choiceId })}
+            onExport={() => { downloadSaveFile(world, view); }}
+            onChronicle={() => { downloadChronicleLog(world.eventLog, { villageName: world.villageName, year: world.year, day: world.dayInYear, tick: world.tick, population: world.humanPopulation }); }}
+            onNewVillage={startNewGame} onMainMenu={() => setShowIntro(true)} />
       {/*
         The authored decision cards below stack in one flow column instead of each pinning itself to
         `top-4`. The story card and the diplomacy card were both `absolute left-1/2 top-4 z-10 w-full
@@ -2183,7 +2201,7 @@ export default function App() {
               key={pending.raidId}
               type="button"
               className="rounded-lg border border-amber-400 bg-stone-950 px-4 py-3 text-left font-bold text-amber-200 shadow-xl"
-              onClick={() => setBattleReport({ rivalName: pending.rivalName, baselineId: 0 })}
+              onClick={() => setBattleReport({ rivalName: pending.rivalName, raidId: pending.raidId, baselineId: 0 })}
             >
               ⚖️ Decide fate of {pending.rivalName}
             </button>
@@ -2197,10 +2215,12 @@ export default function App() {
           (event.entityName === battleReport.rivalName || event.message.includes(battleReport.rivalName))
         );
         const resolved = events.some((event) => event.combatStage === 'resolved');
-        const pending = (world.pendingRaidVictories ?? []).find((entry) => entry.rivalName === battleReport.rivalName);
+        const pending = (world.pendingRaidVictories ?? []).find((entry) => battleReport.raidId ? entry.raidId === battleReport.raidId : entry.rivalName === battleReport.rivalName);
+        const report = world.raidBattleReports?.find((entry) => entry.raidId === battleReport.raidId);
+        const liveDefense = world.pendingRaidEvents.find((entry) => entry.id === battleReport.raidId && entry.phase === 'fighting');
         const casualties = events.filter((event) => event.combatStage === 'casualties');
         const liveArmy = (world.pendingOutgoingRaidEvents ?? []).find((army) =>
-          army.rivalName === battleReport.rivalName && army.phase === 'fighting');
+          (battleReport.raidId ? army.id === battleReport.raidId : army.rivalName === battleReport.rivalName) && army.phase === 'fighting');
         const liveSoldiers = liveArmy
           ? (liveArmy.soldierIds ?? []).filter((id) => world.entities.some((person) =>
               person.id === id && person.alive && person.raidDeploymentId === liveArmy.id)).length
@@ -2214,6 +2234,8 @@ export default function App() {
               {liveArmy && <div className="rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
                 Battle underway · {liveSoldiers} soldiers still deployed · {getOutgoingBattleProgressPercent(liveArmy, world.tick)}% of battle time elapsed
               </div>}
+              {liveDefense && <p className="text-amber-200">Defense underway · hourly battle updates · {liveDefense.battlePlayerCasualties?.length ?? 0} confirmed village casualties.</p>}
+              {report && <p className="text-emerald-300">Recorded village losses: {report.playerFallen.join(', ') || 'None'} · enemy losses: {report.enemyDeaths}, including {report.enemyFallen.length} identified fighters.</p>}
               {pending && (
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-stone-700 p-3 text-sm">
                   <div className="text-emerald-300">Your village: {pending.playerDead} killed</div>
@@ -2222,6 +2244,7 @@ export default function App() {
                   <div className="text-rose-300">Enemy dead: {pending.enemyCasualties.length ? pending.enemyCasualties.join(', ') : 'No identifiable fighters'}{pending.enemyDead > pending.enemyCasualties.length ? ` · ${pending.enemyDead - pending.enemyCasualties.length} off-map` : ''}</div>
                 </div>
               )}
+              {pending && <p className="text-sm text-slate-300">Prisoners captured: {(world.raidPrisonerHistory ?? []).filter((entry) => entry.raidId === pending.raidId).length}. Off-map survivors are counts, not invented captives.</p>}
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm">
                 {events.length === 0 && <p className="text-amber-300">No battle events received yet.</p>}
                 {events.map((event) => (
@@ -2240,7 +2263,7 @@ export default function App() {
                   </div>
                   {razeConfirmationId === pending.raidId && (
                     <div className="space-y-2 rounded border border-rose-500 p-3">
-                      <p className="text-rose-200">Permanently destroy {battleReport.rivalName}? The camp and its remaining inhabitants will be removed; reputation −30. This cannot be undone.</p>
+                      <p className="text-rose-200">Permanently destroy {battleReport.rivalName}? The settlement will be removed and its remaining inhabitants displaced; reputation −30. This cannot be undone.</p>
                       <button type="button" className="mr-2 rounded bg-rose-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' }); setRazeConfirmationId(null); setBattleReport(null); }}>Confirm raze</button>
                       <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(null)}>Cancel</button>
                     </div>

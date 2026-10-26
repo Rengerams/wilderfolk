@@ -1,3 +1,4 @@
+import { resolveWarPrisoner } from '../warPrisoners';
 import { demolishBuildingInPlace } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
@@ -39,7 +40,7 @@ import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
 import { addBigNews, addFloatingText } from '../simEffects';
 import { deliverVisitorQuest } from '../visitorQuest';
-import { respondToOutgoingRaidEvent, resolveRaidVictory, respondToRaidEvent, launchRaidOnRival, provokeRival } from '../frontierCombat';
+import { respondToOutgoingRaidEvent, resolveRaidVictory, queueRaidDefense, launchRaidOnRival, provokeRival } from '../frontierCombat';
 import { respondToStoryEvent } from '../storyEvents';
 import { startGuidedCampaign } from '../guidedCampaign';
 import { hostTownFestival } from '../townHall';
@@ -70,6 +71,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'tameEntity'; entityId: number; humanId: number }
   | { proto: 1; op: 'notifyBuildingLocked'; type: BuildingType }
+  | { proto: 1; op: 'resolveWarPrisoner'; entityId: number; choiceId: string }
   | { proto: 1; op: 'respondToRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'respondToOutgoingRaidEvent'; eventId: string; choiceId: string }
   | { proto: 1; op: 'resolveRaidVictory'; eventId: string; choiceId: string }
@@ -114,7 +116,7 @@ const WORKER_COMMAND_OPS = [
   'recruitSettler',
   'tameEntity',
   'notifyBuildingLocked',
-  'respondToRaidEvent',
+  'respondToRaidEvent', 'resolveWarPrisoner',
   'respondToOutgoingRaidEvent',
   'resolveRaidVictory',
   'respondToDiplomacyEvent',
@@ -205,6 +207,8 @@ function isStripSegment(value: unknown): boolean {
 /** Validate main → worker command shape before dispatch. */
 function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<string, unknown>): boolean {
   switch (cmd.op) {
+    case 'resolveWarPrisoner':
+      return isFiniteNumber(cmd.entityId) && ['keep', 'release', 'recruit', 'execute_confirmed'].includes(String(cmd.choiceId));
     case 'startBuilding':
       return (
         isBuildingType(cmd.type) &&
@@ -311,12 +315,15 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
 
 /** Apply a versioned command on the worker-authoritative world. */
 export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): WorldState {
+  if (world.raidRecovery?.status === 'destroyed') return world;
   if (!isWorkerCommand(cmd)) {
     console.warn('[WorkerCommand] Invalid command', (cmd as { op?: string })?.op ?? '?');
     return world;
   }
 
   switch (cmd.op) {
+    case 'resolveWarPrisoner':
+      return resolveWarPrisoner(world, cmd.entityId, cmd.choiceId);
     case 'startBuilding':
       return startBuilding(world, cmd.type, cmd.x, cmd.y, cmd.rotation ?? 0);
     case 'placeStripChain':
@@ -354,7 +361,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
     case 'notifyBuildingLocked':
       return notifyBuildingLocked(world, cmd.type);
     case 'respondToRaidEvent':
-      return respondToRaidEvent(world, cmd.eventId, cmd.choiceId);
+      return queueRaidDefense(world, cmd.eventId, cmd.choiceId);
     case 'respondToOutgoingRaidEvent':
       return respondToOutgoingRaidEvent(world, cmd.eventId, cmd.choiceId);
     case 'resolveRaidVictory':

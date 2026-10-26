@@ -76,6 +76,11 @@ type SimPrepKeys =
   | 'pendingRaidEvents'
   | 'pendingOutgoingRaidEvents'
   | 'raidBattleReports'
+  | 'pendingRaidVictories'
+  | 'raidRecovery'
+  | 'scoredRaidIds'
+  | 'graveRecords'
+  | 'raidPrisonerHistory'
   | 'pendingDiplomacyEvents'
   | 'tradeRoutes'
   | 'disasters'
@@ -144,6 +149,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     // Clone entity objects and isolate nested arrays/maps from in-place property mutations
     entities: (state.entities ?? []).map((e) => ({
       ...e,
+      battleLeadershipAwards: e.battleLeadershipAwards ? { ...e.battleLeadershipAwards } : undefined,
+      warCaptive: e.warCaptive ? { ...e.warCaptive } : undefined,
       skills: e.skills ? { ...e.skills } : e.skills,
       traits: e.traits ? [...e.traits] : e.traits,
       childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
@@ -221,9 +228,14 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     villageRequestCooldownUntilDay: state.villageRequestCooldownUntilDay ?? 0,
     villageRequestHistory: structuredClone(state.villageRequestHistory ?? []),
     rivalSettlements: structuredClone(state.rivalSettlements ?? []),
-    pendingRaidEvents: [...(state.pendingRaidEvents ?? [])],
-    pendingOutgoingRaidEvents: [...(state.pendingOutgoingRaidEvents ?? [])],
+    pendingRaidEvents: structuredClone(state.pendingRaidEvents ?? []),
+    pendingOutgoingRaidEvents: structuredClone(state.pendingOutgoingRaidEvents ?? []),
+    pendingRaidVictories: state.pendingRaidVictories === undefined ? undefined : structuredClone(state.pendingRaidVictories),
     raidBattleReports: state.raidBattleReports === undefined ? undefined : structuredClone(state.raidBattleReports),
+    raidRecovery: state.raidRecovery === undefined ? undefined : structuredClone(state.raidRecovery),
+    scoredRaidIds: state.scoredRaidIds === undefined ? undefined : structuredClone(state.scoredRaidIds),
+    graveRecords: state.graveRecords === undefined ? undefined : structuredClone(state.graveRecords),
+    raidPrisonerHistory: state.raidPrisonerHistory === undefined ? undefined : structuredClone(state.raidPrisonerHistory),
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: structuredClone(state.tradeRoutes ?? []),
     disasters: structuredClone(state.disasters ?? []),
@@ -338,8 +350,18 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.rivalSettlements = prep.rivalSettlements;
   world.pendingRaidEvents = prep.pendingRaidEvents;
   world.pendingOutgoingRaidEvents = prep.pendingOutgoingRaidEvents;
+  if (prep.pendingRaidVictories === undefined) delete world.pendingRaidVictories;
+  else world.pendingRaidVictories = prep.pendingRaidVictories;
   if (prep.raidBattleReports === undefined) delete world.raidBattleReports;
   else world.raidBattleReports = prep.raidBattleReports;
+  if (prep.raidRecovery === undefined) delete world.raidRecovery;
+  else world.raidRecovery = prep.raidRecovery;
+  if (prep.scoredRaidIds === undefined) delete world.scoredRaidIds;
+  else world.scoredRaidIds = prep.scoredRaidIds;
+  if (prep.graveRecords === undefined) delete world.graveRecords;
+  else world.graveRecords = prep.graveRecords;
+  if (prep.raidPrisonerHistory === undefined) delete world.raidPrisonerHistory;
+  else world.raidPrisonerHistory = prep.raidPrisonerHistory;
   world.pendingDiplomacyEvents = prep.pendingDiplomacyEvents;
   world.tradeRoutes = prep.tradeRoutes;
   world.disasters = prep.disasters;

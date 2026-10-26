@@ -36,8 +36,8 @@ Each raid progresses through explicit states:
 - Preserve older saves with more than six settlements; block additional founding instead of deleting existing neighbors.
 - [x] Implement strategic-only founding and the combined cap; cover daily game-tick integration, capacity and real save/load regression cases.
 - [ ] Verify the live world-map UI in browser and Windows desktop builds; automated checks alone do not complete this gameplay gate.
-- [ ] Advance active battles on **game-hour ticks**, independently of daily rival growth/diplomacy/cooldowns. Battle duration is a separate named tuning value; six game hours is proposed for playtesting, not implemented by the founding change.
-- [ ] Repair deployment cleanup when an expedition is cancelled or its rival is razed, and clear declared-war state when peace is signed. These remain separate audit findings.
+- [x] Advance incoming and outgoing battles on game-hour ticks over six game hours, independently of daily rival growth and diplomacy; persist midpoint casualties and reserved troops.
+- [x] Release deployments when expeditions are cancelled or their rival is razed; peace clears declared-war state.
 
 ## 3. Battle outcomes and settlement survival
 
@@ -193,6 +193,14 @@ Implement inside the existing game owners where possible; avoid parallel raid or
 8. **Chronicle/alerts:** log events once, distinguish raid phases and consequences, make crucial decisions persistent and visible.
 9. **Save migration:** consider saves containing enemy graves or already-pending raid outcomes and design safe defaults rather than silently erasing records.
 10. **Versioning/docs:** ship this only when verified; move future features from this roadmap into v0.6.6.0 release notes once working.
+
+### Implementation checkpoint — 26 October 2026
+
+The existing combat, prison, election, worker and save owners now handle hourly incoming/outgoing battles, durable reports and victory decisions, bounded leadership rewards, recovery and terminal settlement state. Recovery requires actual food and repair progress; destruction requires a razing intent and a breached last defense, not strength ratio alone.
+
+Only identifiable adult enemy soldiers can become prisoners, subject to real cells and escorts. Release and escape preserve living identities; recruitment requires consent, capacity and housing; execution requires confirmation and does not create player graves. Mercy, tribute and razing retain their existing consequences and add bounded witnessed diplomatic memory. Legacy saves receive safe defaults while retaining old grave history.
+
+Automated lifecycle and migration checks cover these transitions. Browser checks exercise recovery, terminal export and captive decisions through the normal load interface. The checklist below remains the release acceptance gate: Windows desktop playthroughs and large-colony performance/soak validation are still outstanding.
 
 ## 9. Test and acceptance checklist
 

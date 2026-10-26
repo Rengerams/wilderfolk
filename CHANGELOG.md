@@ -2,6 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Incoming defenses and outgoing battles advance hourly over six game hours; saved milestones prevent repeated casualties, and truce or razing cleanup releases deployed soldiers.
+- **Added:** Defeated villages enter repair and food recovery. Explicit razing intent, failed last resistance and devastated shelter can end a settlement; final reports remain exportable and cannot resume simulation.
+- **Added:** Real adult enemy fighters can be held in existing prison cells, released, voluntarily recruited or executed after confirmation. Abstract world-map populations never become fabricated captives.
+- **Fixed:** Warfare outcomes, graves, custody, diplomatic memory and leadership awards survive saves and worker rollback; repeated trivial victories no longer duplicate election merit or mercy rewards.
+
 - **Fixed:** World-map settlements now appear from day 10 at 30-day intervals, up to six friends and rivals combined. No rival buildings or settlers enter the village map; existing saved settlements and diplomacy are preserved.
 
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.

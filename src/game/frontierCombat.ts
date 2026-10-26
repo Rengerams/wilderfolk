@@ -14,6 +14,10 @@ import {
   getMilitiaArmamentLabel,
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
+import { demolishBuildingInPlace } from './buildingMaintenanceActions';
+import { unindexEntityFromState } from './entityIndex';
+import { captureRaidPrisoners } from './warPrisoners';
+import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
 
 /**
@@ -37,6 +41,13 @@ import { addReputation, getReputationBand } from './simHelpers';
 
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 
+export const RAID_BATTLE_HOURS = 6;
+const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
+const MERCY_REPUTATION_REWARD = 12;
+const MERCY_CIVIC_MERIT = 10;
+const RIVAL_RAZE_INTENT_CHANCE = 0.15;
+const RIVAL_MEMORY_RAID_CHANCE_FLOOR = 0.25;
+const RIVAL_MEMORY_RAID_SCALE = 200;
 const RAID_RESPONSE_MIN_DAYS = 2;
 const RAID_RESPONSE_MAX_DAYS = 6;
 /** Legacy fixed window for saves/events missing `expiresAtTick`. */
@@ -58,7 +69,7 @@ export function getOutgoingBattleProgressPercent(event: OutgoingRaidEvent, tick:
   if (event.phase === 'returning') return 100;
   if (event.phase !== 'fighting' || event.battleStartedAtTick == null) return 0;
   const elapsed = Math.max(0, tick - event.battleStartedAtTick);
-  return Math.min(100, Math.round(elapsed / (2 * TICKS_PER_HOUR) * 100));
+  return Math.min(100, Math.round(elapsed / (RAID_BATTLE_HOURS * TICKS_PER_HOUR) * 100));
 }
 
 export function getCampDistancePixels(
@@ -97,21 +108,21 @@ export function getIncomingRaidExpireTicks(distancePixels: number): number {
  * deadline, expressed *here* rather than by a wrapper at the call site, so both raid cards render the
  * same thing (duplication A16).
  */
-export function getRaidExpiresAtTick(evt: RaidEvent): number {
+export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>): number {
   if (evt.expiresAtTick != null) return evt.expiresAtTick;
   if (evt.createdAtTick == null) return Number.NaN;
   return evt.createdAtTick + getRaidExpireTicksLegacy();
 }
 
-export function getRaidTicksRemaining(evt: RaidEvent, currentTick: number): number {
+export function getRaidTicksRemaining(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): number {
   return Math.max(0, getRaidExpiresAtTick(evt) - currentTick);
 }
 
-export function getRaidDaysRemaining(evt: RaidEvent, currentTick: number): number {
+export function getRaidDaysRemaining(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): number {
   return Math.max(0, Math.ceil(getRaidTicksRemaining(evt, currentTick) / TICKS_PER_DAY));
 }
 
-export function formatRaidDeadline(evt: RaidEvent, currentTick: number): string {
+export function formatRaidDeadline(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>, currentTick: number): string {
   // An unknown deadline must not read as "arriving now": `Math.max(0, NaN)` is NaN, and the old
   // `days <= 0` test let `NaN` fall through to `NaN days left`.
   if (!Number.isFinite(getRaidExpiresAtTick(evt))) return 'deadline unknown';
@@ -134,6 +145,9 @@ export function getOutgoingRaidFoodCost(distancePixels: number, soldierCount = 0
 /** Remove in-flight raid events when a truce is signed. */
 export function cancelPendingRaidsForRival(state: WorldState, rivalId: string): boolean {
   const before = state.pendingRaidEvents?.length ?? 0;
+  for (const event of state.pendingRaidEvents ?? []) {
+    if (event.rivalId === rivalId) releaseRaidSoldiers(state, event.id);
+  }
   state.pendingRaidEvents = (state.pendingRaidEvents ?? []).filter((e) => e.rivalId !== rivalId);
   return (state.pendingRaidEvents?.length ?? 0) < before;
 }
@@ -141,6 +155,9 @@ export function cancelPendingRaidsForRival(state: WorldState, rivalId: string): 
 /** Recall a player war-band when peace is signed. */
 export function cancelPendingOutgoingRaidsForRival(state: WorldState, rivalId: string): boolean {
   const before = state.pendingOutgoingRaidEvents?.length ?? 0;
+  for (const event of state.pendingOutgoingRaidEvents ?? []) {
+    if (event.rivalId === rivalId) releaseRaidSoldiers(state, event.id);
+  }
   state.pendingOutgoingRaidEvents = (state.pendingOutgoingRaidEvents ?? []).filter((e) => e.rivalId !== rivalId);
   return (state.pendingOutgoingRaidEvents?.length ?? 0) < before;
 }
@@ -154,6 +171,7 @@ export function rollFoundingRaidCooldownDays(roll: number): number {
 export function applyTruceToRival(state: WorldState, rivalId: string, truceDays: number): void {
   const rival = state.rivalSettlements.find((candidate) => candidate.id === rivalId);
   if (!rival) return;
+  rival.atWarWithPlayer = false;
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, truceDays);
   if (cancelPendingRaidsForRival(state, rivalId)) {
     logEvent(state, 'event', `Raid called off — truce with ${rival.name}`, rival.name);
@@ -531,6 +549,12 @@ function flashMilitia(entities: Entity[], ticks = 22) {
   }
 }
 
+/** A leader killed during the battle is memorialized instead of crediting a replacement. */
+function battleReportLeader(state: WorldState, initialLeaderId: number | null | undefined): number | null {
+  const initial = initialLeaderId == null ? undefined : state.entities.find((person) => person.id === initialLeaderId);
+  return initial && !initial.alive ? initial.id : state.villageLeaderId;
+}
+
 function persistBattleAftermath(
   before: Pick<WorldState, 'entities' | 'buildings' | 'resources' | 'villageLeaderId'>,
   after: WorldState,
@@ -542,12 +566,17 @@ function persistBattleAftermath(
   forceRatio: number,
   enemyDeaths = 0,
   enemyFallen: string[] = [],
+  confirmedPlayerFallen: string[] = [],
 ): void {
-  if ((after.raidBattleReports ?? []).some((report) => report.raidId === raidId)) return;
+  if ((after.scoredRaidIds ?? []).includes(raidId)) return;
+  (after.scoredRaidIds ??= []).push(raidId);
   const beforeAlive = new Map(before.entities.filter((entity) => entity.alive && !entity.faction && entity.type === EntityType.Human).map((entity) => [entity.id, formatCitizenName(entity)]));
-  const fallen = after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!);
+  const fallen = [...new Set([...confirmedPlayerFallen, ...after.entities.filter((entity) => beforeAlive.has(entity.id) && !entity.alive).map((entity) => beforeAlive.get(entity.id)!)])];
   const previousBuildings = new Map(before.buildings.filter((building) => !building.faction).map((building) => [building.id, building.health]));
-  const damagedBuildings = after.buildings.filter((building) => !building.faction && (previousBuildings.get(building.id) ?? building.health) > building.health).length;
+  const damagedBuildings = [...previousBuildings].filter(([id, health]) => {
+    const current = after.buildings.find((home) => home.id === id);
+    return !current || current.health < health;
+  }).length;
   const suppliesLost = {
     food: Math.max(0, before.resources.food - after.resources.food),
     gold: Math.max(0, before.resources.gold - after.resources.gold),
@@ -558,15 +587,19 @@ function persistBattleAftermath(
   const notableDefense = side === 'defense' && (outcome === 'decisive' || outcome === 'narrow') && forceRatio <= 2.5;
   let leadershipMerit = 0;
   if (side === 'defense') {
-    if (notableDefense) leadershipMerit = forceRatio <= 1.05 ? 60 : outcome === 'narrow' ? 20 : 40;
-    else if (outcome === 'defeat') leadershipMerit = -25;
+    if (notableDefense) leadershipMerit = outcome === 'narrow' ? 20 : forceRatio <= 1.5 ? 60 : 40;
+    else if (outcome === 'defeat' || outcome === 'unanswered') leadershipMerit = -25;
   } else if (outcome === 'success' && forceRatio <= 4) {
     leadershipMerit = forceRatio <= 1.5 ? 30 : forceRatio <= 2.5 ? 25 : 15;
   } else if (outcome === 'fail' && fallen.length > 0) {
     leadershipMerit = -20;
   }
   const leader = leaderId == null ? undefined : after.entities.find((entity) => entity.id === leaderId);
+  const lastAward = leader?.battleLeadershipAwards?.[rivalId];
+  if (leadershipMerit > 0 && lastAward != null
+    && after.tick - lastAward < RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY) leadershipMerit = 0;
   if (leader && leadershipMerit !== 0) {
+    if (leadershipMerit > 0) (leader.battleLeadershipAwards ??= {})[rivalId] = after.tick;
     leader.battleLeadershipMerit = Math.max(-100, Math.min(100, (leader.battleLeadershipMerit ?? 0) + leadershipMerit));
     logEvent(after, 'combat', `${formatCitizenName(leader)} ${leadershipMerit > 0 ? 'earned' : 'lost'} ${Math.abs(leadershipMerit)} leadership merit after ${outcome} against ${rivalName}`, formatCitizenName(leader), side === 'defense' ? 'defense' : 'outgoing_raid', 'resolved');
   }
@@ -659,15 +692,8 @@ function rewardRaidParticipants(
   const leaderId = state.villageLeaderId;
   let leaderInFight = false;
 
-  const earnedMerit =
-    tier === 'decisive_win' || tier === 'narrow_win' ? 15
-      : tier === 'outgoing_success' ? 25
-        : 0;
   for (const fighter of participants) {
     gainSkill(state, fighter.id, JobType.Soldier, baseXp);
-    if (earnedMerit > 0) {
-      fighter.battleLeadershipMerit = Math.min(100, Math.max(0, fighter.battleLeadershipMerit ?? 0) + earnedMerit);
-    }
     if (fighter.id === leaderId) {
       leaderInFight = true;
       gainSkill(state, fighter.id, JobType.Soldier, RAID_LEADER_GUARD_XP_BONUS);
@@ -688,10 +714,10 @@ function rewardRaidParticipants(
       logEvent(
         state,
         'event',
-        `${formatCitizenName(leader)} led the raid against ${rivalName} — village reputation +${repBonus}`,
+        `${formatCitizenName(leader)} led the raid against ${rivalName} — village reputation +${granted}`,
         formatCitizenName(leader),
       );
-      addFloatingText(state, leader.x, leader.y - 24, `👑 +${repBonus} rep`, '#fbbf24');
+      if (granted > 0) addFloatingText(state, leader.x, leader.y - 24, `👑 +${granted} rep`, '#fbbf24');
     }
     if (granted > 0) {
       addBigNews(
@@ -756,7 +782,7 @@ function applyRaidCasualties(
   selectedIds?: ReadonlySet<number>,
   casualtyLimit?: number,
 ): number {
-  const pool = entities.filter((e) => selectedIds ? selectedIds.has(e.id) && e.alive : canBeMustered(e));
+  const pool = entities.filter((e) => selectedIds ? selectedIds.has(e.id) && e.alive && e.prisonBuildingId == null : canBeMustered(e));
   if (pool.length === 0) return 0;
 
   const [minK, maxK] = getRaidCasualtyBounds(tier, pool.length);
@@ -1054,6 +1080,7 @@ function raidChoices(lootFood: number, rivalName: string): RaidChoice[] {
 }
 
 export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAlive: Entity[]): void {
+  if (state.raidRecovery && state.tick < state.raidRecovery.protectedUntilTick) return;
   if (!state.pendingRaidEvents) state.pendingRaidEvents = [];
   if (rival.population <= 0) return;
   if (state.pendingRaidEvents.some((r) => r.rivalId === rival.id)) return;
@@ -1068,6 +1095,8 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
 
   const rep = state.villageReputation ?? 0;
   let chance = rival.relationship === 'tense' ? 0.22 : 0.12;
+  const memory = rival.diplomacyMemory;
+  if (memory) chance *= Math.max(RIVAL_MEMORY_RAID_CHANCE_FLOOR, 1 + memory.grievance / RIVAL_MEMORY_RAID_SCALE - memory.fear / RIVAL_MEMORY_RAID_SCALE);
   // The same reputation bands the caravans price by (`simHelpers` owns them) — a village the
   // valley dislikes gets raided harder, one it respects gets raided less.
   const reputationBand = getReputationBand(rep);
@@ -1087,6 +1116,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
   const distanceLabel = formatCampDistance(marchDistancePx);
 
   const event: RaidEvent = {
+    intent: rival.atWarWithPlayer && getSimRng('frontierCombat')() < RIVAL_RAZE_INTENT_CHANCE ? 'raze' : 'plunder',
     id: `raid_${rival.id}_${state.tick}`,
     rivalId: rival.id,
     rivalName: rival.name,
@@ -1104,6 +1134,7 @@ export function maybeQueueRaid(state: WorldState, rival: RivalSettlement, allAli
     lootStone: loot.stone,
   };
 
+  if (event.intent === 'raze') event.description += ' Their declared aim is to raze the village if its last defenses fail.';
   state.pendingRaidEvents.push(event);
   rival.raidCooldownDays = 21;
   addBigNews(state, '⚔️ Raid incoming!', `${rival.name} war-bands approach your border. Respond in the banner or rival inspector.`, 'negative');
@@ -1116,16 +1147,33 @@ export function tickPendingRaidEvents(
   allAlive: Entity[],
   buildings = state.buildings,
 ): void {
-  if (!state.pendingRaidEvents?.length) return;
+  if (isSettlementDestroyed(state) || !state.pendingRaidEvents?.length) return;
 
+  for (const event of [...state.pendingRaidEvents]) {
+    if (event.phase !== 'fighting') continue;
+    const elapsed = state.tick - (event.battleStartedAtTick ?? state.tick);
+    if (elapsed >= RAID_BATTLE_HOURS * TICKS_PER_HOUR / 2) {
+      const outcome = resolveDefenseRatio(event.defenseStrength ?? 0, event.attackerStrength);
+      resolveIncomingRaidCasualties(state, event, state.entities,
+        outcome === 'decisive' ? 'victory' : outcome === 'narrow' ? 'costly' : outcome === 'stalemate' ? 'moderate' : 'heavy');
+    }
+    if (elapsed < RAID_BATTLE_HOURS * TICKS_PER_HOUR) continue;
+    event.phase = 'resolving';
+    const before = { entities: state.entities.map((person) => ({ ...person })),
+      buildings: state.buildings.map((home) => ({ ...home })), resources: { ...state.resources }, villageLeaderId: state.villageLeaderId };
+    resolveIncomingRaidInPlace(state, event.id, event.defenseChoice ?? 'defend', before);
+    if (isSettlementDestroyed(state)) return;
+  }
+  allAlive = state.entities.filter((person) => person.alive);
   const expired: RaidEvent[] = [];
   state.pendingRaidEvents = state.pendingRaidEvents.filter((evt) => {
-    if (state.tick < getRaidExpiresAtTick(evt)) return true;
+    if (evt.phase === 'fighting' || state.tick < getRaidExpiresAtTick(evt)) return true;
     expired.push(evt);
     return false;
   });
 
   for (const evt of expired) {
+    if (isSettlementDestroyed(state)) break;
     const battleBefore = {
       entities: state.entities.map((entity) => ({ ...entity })),
       buildings: state.buildings.map((building) => ({ ...building })),
@@ -1160,6 +1208,7 @@ export function tickPendingRaidEvents(
       defenseFactor < 0.55 ? 'moderate' : 'heavy',
       evt.rivalName,
     );
+    beginRaidRecovery(state, evt, 'unanswered', getBarricadeStrength(state, allAlive), battleBefore);
     persistBattleAftermath(battleBefore, state, evt.id, evt.rivalId, evt.rivalName, 'defense', 'unanswered', 0);
   }
 }
@@ -1170,6 +1219,7 @@ export function getRaidChoiceEligibility(
   choiceId: string,
   allAlive: Entity[] = state.entities.filter((entity) => entity.alive),
 ): { ok: boolean; blockReason?: string } {
+  if (event.phase) return { ok: false, blockReason: 'Battle already underway' };
   if (choiceId === 'payoff') {
     if (state.resources.food < event.lootFood) {
       return { ok: false, blockReason: `Need ${event.lootFood}🍖` };
@@ -1197,21 +1247,64 @@ export function getRaidChoiceEligibility(
   return { ok: false, blockReason: 'Unknown raid answer' };
 }
 
-export function respondToRaidEvent(
-  originalState: WorldState,
-  eventId: string,
-  choiceId: string,
-): WorldState {
-  const state = structuredClone(originalState);
+/** The command starts a timed defense; only the combat owner later applies its result. */
+export function queueRaidDefense(original: WorldState, eventId: string, choice: string): WorldState {
+  if (choice === 'payoff') return respondToRaidEvent(original, eventId, choice);
+  const event = original.pendingRaidEvents?.find((entry) => entry.id === eventId);
+  if (!event || event.phase || !['defend', 'barricade'].includes(choice)
+    || !getRaidChoiceEligibility(original, event, choice, original.entities).ok) return original;
+  const state = structuredClone(original);
+  const battle = state.pendingRaidEvents.find((entry) => entry.id === eventId)!;
+  battle.phase = 'fighting';
+  battle.defenseChoice = choice as 'defend' | 'barricade';
+  battle.defenseStrength = choice === 'barricade' ? getBarricadeStrength(state, state.entities) : getMilitiaStrength(state, state.entities);
+  battle.battleStartedAtTick = state.tick;
+  battle.leaderIdAtBattleStart = state.villageLeaderId;
+  battle.soldierIds = getRaidParticipants(state, state.entities, choice === 'barricade' ? 'barricade' : 'militia').map((person) => person.id);
+  for (const person of state.entities) if (battle.soldierIds.includes(person.id)) person.raidDeploymentId = battle.id;
+  if (choice === 'barricade') {
+    state.resources.wood -= BARRICADE_RAID_COST.wood ?? 0;
+    state.resources.stone -= BARRICADE_RAID_COST.stone ?? 0;
+    battle.barricadePaid = true;
+  }
+  battle.choices = [];
+  logEvent(state, 'combat', `Defense of the village against ${battle.rivalName} begins; ${RAID_BATTLE_HOURS} game hours of fighting.`, battle.rivalName, 'defense', 'dispatched');
+  return state;
+}
+
+/** A saved milestone applies named defender losses once, including across reload and replay. */
+function resolveIncomingRaidCasualties(state: WorldState, event: RaidEvent, entities: Entity[], tier: RaidCasualtyTier): void {
+  if (event.battleCasualtiesApplied) return;
+  const selected = event.soldierIds == null ? undefined : new Set(event.soldierIds);
+  const before = entities.filter((person) => person.alive && (selected ? selected.has(person.id) : canBeMustered(person)));
+  applyRaidCasualties(state, entities, tier, event.rivalName, 'defending', selected);
+  event.battleCasualtiesApplied = true;
+  event.battlePlayerCasualties = before.filter((person) => !person.alive).map(formatCitizenName);
+}
+
+export function respondToRaidEvent(originalState: WorldState, eventId: string, choiceId: string): WorldState {
+  return resolveIncomingRaidInPlace(structuredClone(originalState), eventId, choiceId, originalState);
+}
+
+/** The hourly simulation mutates its existing world, preserving runtime cache classes and event identity. */
+function resolveIncomingRaidInPlace(state: WorldState, eventId: string, choiceId: string,
+  originalState: Pick<WorldState, 'entities' | 'buildings' | 'resources' | 'villageLeaderId'>): WorldState {
   const idx = state.pendingRaidEvents?.findIndex((e) => e.id === eventId) ?? -1;
   if (idx < 0) return state;
 
   const event = state.pendingRaidEvents[idx];
+  if (event.phase === 'fighting') return state;
   const rival = state.rivalSettlements.find((r) => r.id === event.rivalId);
   const allAlive = state.entities.filter((e) => e.alive);
   const camp = getPlayerCampCenter(state, state.buildings);
-  const defenderStrength = getMilitiaStrength(state, allAlive);
+  const defenderStrength = event.defenseStrength ?? getMilitiaStrength(state, allAlive);
   const remove = () => {
+    releaseRaidSoldiers(state, event.id);
+    const report = state.raidBattleReports?.find((entry) => entry.raidId === event.id);
+    if (report && event.battlePlayerCasualties?.length) {
+      report.playerFallen = [...new Set([...report.playerFallen, ...event.battlePlayerCasualties])];
+      report.playerDeaths = report.playerFallen.length;
+    }
     state.pendingRaidEvents = state.pendingRaidEvents.filter((e) => e.id !== eventId);
     if (cancelPendingOutgoingRaidsForRival(state, event.rivalId)) {
       logEvent(
@@ -1227,7 +1320,7 @@ export function respondToRaidEvent(
 
   if (choiceId === 'payoff') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
-    if (!eligibility.ok) {
+    if (!eligibility.ok && event.phase !== 'resolving') {
       addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? `Need ${event.lootFood}🍖`, '#f97316');
       return state;
     }
@@ -1244,16 +1337,18 @@ export function respondToRaidEvent(
 
   if (choiceId === 'barricade') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
-    if (!eligibility.ok) {
+    if (!eligibility.ok && event.phase !== 'resolving') {
       addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot barricade', '#f97316');
       return state;
     }
-    state.resources.wood -= BARRICADE_RAID_COST.wood ?? 0;
-    state.resources.stone -= BARRICADE_RAID_COST.stone ?? 0;
-    const effectiveDef = getBarricadeStrength(state, allAlive);
+    if (!event.barricadePaid) {
+      state.resources.wood -= BARRICADE_RAID_COST.wood ?? 0;
+      state.resources.stone -= BARRICADE_RAID_COST.stone ?? 0;
+    }
+    const effectiveDef = event.defenseStrength ?? getBarricadeStrength(state, allAlive);
     const outcome = resolveDefenseRatio(effectiveDef, event.attackerStrength);
     const raidLoot = raidEventLoot(event);
-    const barricadeFighters = getRaidParticipants(state, allAlive, 'barricade');
+    const barricadeFighters = event.soldierIds ? allAlive.filter((person) => person.alive && event.soldierIds!.includes(person.id)) : getRaidParticipants(state, allAlive, 'barricade');
     rewardRaidParticipants(
       state,
       barricadeFighters,
@@ -1275,36 +1370,38 @@ export function respondToRaidEvent(
         'resolved',
       );
       addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided', '#f87171');
-      applyRaidCasualties(
+      resolveIncomingRaidCasualties(
         state,
+        event,
         allAlive,
         outcome === 'defeat' ? 'heavy' : 'moderate',
-        event.rivalName,
       );
     } else {
       addReputation(state, 2);
       if (rival) rival.relationship = rival.relationship === 'tense' ? 'competitive' : rival.relationship;
       addFloatingText(state, camp.x, camp.y - 20, 'Held!', '#22c55e');
       logEvent(state, 'combat', `Barricade repelled ${event.rivalName}'s raid`, event.rivalName, 'repelled', 'resolved');
-      applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
+      resolveIncomingRaidCasualties(state, event, allAlive, 'victory');
     }
     flashMilitia(allAlive, 14);
     if (rival) rival.raidCooldownDays = 18;
-    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, effectiveDef / Math.max(1, event.attackerStrength));
+    const enemyLosses = recordIncomingRivalLosses(state, event, outcome, effectiveDef);
+    beginRaidRecovery(state, event, outcome, effectiveDef, originalState);
+    persistBattleAftermath({ ...originalState, villageLeaderId: battleReportLeader(state, event.leaderIdAtBattleStart ?? originalState.villageLeaderId) }, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, effectiveDef / Math.max(1, event.attackerStrength), enemyLosses.deaths, enemyLosses.fallen, event.battlePlayerCasualties);
     remove();
     return state;
   }
 
   if (choiceId === 'defend') {
     const eligibility = getRaidChoiceEligibility(state, event, choiceId, allAlive);
-    if (!eligibility.ok) {
+    if (!eligibility.ok && event.phase !== 'resolving') {
       addFloatingText(state, camp.x, camp.y - 20, eligibility.blockReason ?? 'Cannot defend', '#f97316');
       return state;
     }
 
     const outcome = resolveDefenseRatio(defenderStrength, event.attackerStrength);
     const raidLoot = raidEventLoot(event);
-    const militiaFighters = getRaidParticipants(state, allAlive, 'militia');
+    const militiaFighters = event.soldierIds ? allAlive.filter((person) => person.alive && event.soldierIds!.includes(person.id)) : getRaidParticipants(state, allAlive, 'militia');
     rewardRaidParticipants(
       state,
       militiaFighters,
@@ -1323,7 +1420,7 @@ export function respondToRaidEvent(
         }
         addFloatingText(state, camp.x, camp.y - 20, 'Victory!', '#22c55e');
         logEvent(state, 'combat', `Militia routed ${event.rivalName}'s war-band`, event.rivalName, 'repelled', 'resolved');
-        applyRaidCasualties(state, allAlive, 'victory', event.rivalName);
+        resolveIncomingRaidCasualties(state, event, allAlive, 'victory');
         break;
       case 'narrow': {
         const taken = applyRaidLootTaken(state, raidLoot, 0.3);
@@ -1340,7 +1437,7 @@ export function respondToRaidEvent(
           'defense',
           'resolved',
         );
-        applyRaidCasualties(state, allAlive, 'costly', event.rivalName);
+        resolveIncomingRaidCasualties(state, event, allAlive, 'costly');
         break;
       }
       case 'stalemate': {
@@ -1348,7 +1445,7 @@ export function respondToRaidEvent(
         damageRandomPlayerBuilding(state, 10);
         addReputation(state, -3);
         if (rival) rival.relationship = 'tense';
-        applyRaidCasualties(state, allAlive, 'moderate', event.rivalName);
+        resolveIncomingRaidCasualties(state, event, allAlive, 'moderate');
         const lootNote = formatLootParts(taken);
         logEvent(
           state,
@@ -1366,7 +1463,7 @@ export function respondToRaidEvent(
         damageRandomPlayerBuilding(state, 18);
         addReputation(state, -6);
         if (rival) rival.relationship = 'tense';
-        applyRaidCasualties(state, allAlive, 'heavy', event.rivalName);
+        resolveIncomingRaidCasualties(state, event, allAlive, 'heavy');
         addFloatingText(state, camp.x, camp.y - 20, formatLootParts(taken, '-') || 'Raided!', '#f87171');
         const lootNote = formatLootParts(taken);
         logEvent(
@@ -1380,7 +1477,9 @@ export function respondToRaidEvent(
         break;
       }
     }
-    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, defenderStrength / Math.max(1, event.attackerStrength));
+    const enemyLosses = recordIncomingRivalLosses(state, event, outcome, defenderStrength);
+    beginRaidRecovery(state, event, outcome, defenderStrength, originalState);
+    persistBattleAftermath({ ...originalState, villageLeaderId: battleReportLeader(state, event.leaderIdAtBattleStart ?? originalState.villageLeaderId) }, state, event.id, event.rivalId, event.rivalName, 'defense', outcome, defenderStrength / Math.max(1, event.attackerStrength), enemyLosses.deaths, enemyLosses.fallen, event.battlePlayerCasualties);
     remove();
     return state;
   }
@@ -1393,7 +1492,20 @@ export function respondToRaidEvent(
  * force may destroy the settlement outright; remove its physical presence and
  * queued events as well, otherwise it could keep raiding after being destroyed.
  */
-function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number): void {
+function recordIncomingRivalLosses(state: WorldState, event: RaidEvent, outcome: RaidOutcomeTier,
+  strength: number): { deaths: number; fallen: string[] } {
+  const rival = state.rivalSettlements.find((entry) => entry.id === event.rivalId);
+  if (!rival || outcome === 'defeat') return { deaths: 0, fallen: [] };
+  const population = rival.population;
+  const fighters = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
+  applyRivalBattleLosses(state, rival, strength / Math.max(1, event.attackerStrength), 'incoming_raid');
+  const losses = { deaths: population - rival.population, fallen: fighters.filter((person) => !person.alive).map(formatCitizenName) };
+  if (outcome === 'decisive' || outcome === 'narrow') captureRaidPrisoners(state, rival, event.id,
+    state.entities.filter((person) => person.alive && !person.faction && person.type === EntityType.Human && event.soldierIds?.includes(person.id)).length);
+  return losses;
+}
+
+function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, strengthRatio: number, kind: 'incoming_raid' | 'outgoing_raid' = 'outgoing_raid'): void {
   // Combat can rout a settlement, but only a later explicit player decision can raze it.
   const lossFraction = strengthRatio >= 4 ? 0.85 : strengthRatio >= 2 ? 0.6 : 0.25;
   const losses = Math.min(Math.max(0, rival.population - 1), Math.max(1, Math.ceil(rival.population * lossFraction)));
@@ -1401,26 +1513,27 @@ function applyRivalBattleLosses(state: WorldState, rival: RivalSettlement, stren
   // Rivals can have a larger simulated population than their visible character roster.
   // Kill only living members, record named deaths when available, and count any
   // remaining losses as off-map casualties instead of inventing character names.
-  const livingRivals = state.entities.filter((entity) => entity.alive && rival.entityIds.includes(entity.id));
+  const livingRivals = state.entities.filter((entity) => entity.alive && !entity.warCaptive && !entity.isJuvenile
+    && entity.job === JobType.Soldier && rival.entityIds.includes(entity.id));
   const victims = livingRivals.slice(0, losses);
   const casualties = new Set(victims.map((entity) => entity.id));
   for (const victim of victims) {
-    victim.alive = false;
+    killHuman(victim, state.buildings, ensureEntityByIdMap(state), state.tick, state);
     logDeath(
       state,
-      formatDeathLog(victim, `fell defending ${rival.name} against our war-band`),
+      formatDeathLog(victim, kind === 'incoming_raid' ? `fell attacking ${state.villageName}` : `fell defending ${rival.name} against our war-band`),
       formatCitizenName(victim),
       { x: victim.x, y: victim.y },
       'enemy',
     );
-    logEvent(state, 'combat', `Enemy killed: ${formatCitizenName(victim)} — defending ${rival.name}`, rival.name, 'outgoing_raid', 'casualties');
+    logEvent(state, 'combat', `Enemy killed: ${formatCitizenName(victim)} — ${kind === 'incoming_raid' ? 'attacking the village' : `defending ${rival.name}`}`, rival.name, kind, 'casualties');
   }
   rival.entityIds = rival.entityIds.filter((id) => !casualties.has(id));
   const offMapDeaths = losses - victims.length;
   logEvent(
     state,
     'combat',
-    `${rival.name} lost ${losses} inhabitants defending their settlement (${victims.length} named casualties${offMapDeaths > 0 ? `, ${offMapDeaths} off-map` : ''}); ${rival.population} survive`,
+    `${rival.name} lost ${losses} combatants ${kind === 'incoming_raid' ? 'attacking the village' : 'defending their settlement'} (${victims.length} named casualties${offMapDeaths > 0 ? `, ${offMapDeaths} off-map` : ''}); ${rival.population} survive`,
     rival.name,
     'outgoing_raid',
     'casualties',
@@ -1465,6 +1578,7 @@ function resolveOutgoingRaidCombat(
     const livingEnemyBefore = state.entities.filter((person) => person.alive && rival.entityIds.includes(person.id));
     applyRivalBattleLosses(state, rival, event.attackerStrength / Math.max(1, event.defenderStrength));
     const enemyDeaths = defendersBefore - rival.population;
+    captureRaidPrisoners(state, rival, event.id, warBand.filter((person) => person.alive).length);
     const playerDeaths = allRaidSoldiers.filter((fighter) => !fighter.alive).length;
     // Record a distinct, persistent post-victory decision. Battle deaths are already
     // applied exactly once; reopening the dialog must never run combat again.
@@ -1474,6 +1588,7 @@ function resolveOutgoingRaidCombat(
         rivalId: rival.id,
         rivalName: rival.name,
         playerDead: playerDeaths,
+        credibleThreat: event.attackerStrength <= event.defenderStrength * 4,
         enemyDead: enemyDeaths,
         enemySurvivors: rival.population,
         playerCasualties: allRaidSoldiers.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
@@ -1537,6 +1652,7 @@ function beginTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void 
   if (event.phase === 'fighting') return;
   event.phase = 'fighting';
   event.battleStartedAtTick = state.tick;
+  event.leaderIdAtBattleStart = state.villageLeaderId;
   event.battleChronicle = [`Our soldiers engage the defenders of ${event.rivalName}.`];
   event.title = `Battle at ${event.rivalName}`;
   logEvent(state, 'combat', event.battleChronicle[0], event.rivalName, 'outgoing_raid', 'dispatched');
@@ -1571,7 +1687,9 @@ function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void
   if (rival) {
     const initial = event.soldierIds?.length ?? raidArmy(state, event).length;
     const enemyBefore = rival.population;
-    const beforeBattle = structuredClone(state);
+    const beforeBattle = { entities: state.entities.map((person) => ({ ...person })),
+      buildings: state.buildings.map((home) => ({ ...home })), resources: { ...state.resources }, villageLeaderId: state.villageLeaderId };
+    beforeBattle.villageLeaderId = battleReportLeader(state, event.leaderIdAtBattleStart);
     resolveOutgoingRaidCombat(state, rival, event);
     const survivors = raidArmy(state, event).length;
     const narrative = `Battle ended: ${Math.max(0, initial - survivors)} of our soldiers lost, ${Math.max(0, enemyBefore - rival.population)} defenders lost. ${survivors} soldiers are returning home.`;
@@ -1579,7 +1697,7 @@ function finishTextRaidBattle(state: WorldState, event: OutgoingRaidEvent): void
     logEvent(state, 'combat', narrative, rival.name, 'outgoing_raid', 'casualties');
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
     const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
-    persistBattleAftermath(beforeBattle, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
+    persistBattleAftermath(beforeBattle, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? [], event.battlePlayerCasualties);
     const report = state.raidBattleReports?.find((item) => item.raidId === event.id);
     if (report && event.battlePlayerCasualties?.length) {
       report.playerFallen = [...new Set([...report.playerFallen, ...event.battlePlayerCasualties])];
@@ -1620,18 +1738,19 @@ export function tickPendingOutgoingRaidEvents(state: WorldState): void {
     }
     if (event.phase === 'fighting') {
       const elapsed = state.tick - (event.battleStartedAtTick ?? state.tick);
-      if (elapsed >= TICKS_PER_HOUR * 2) {
+      if (elapsed >= TICKS_PER_HOUR * RAID_BATTLE_HOURS) {
+        resolveLiveRaidCasualties(state, event);
         finishTextRaidBattle(state, event);
       } else {
-        if (elapsed >= TICKS_PER_HOUR && !event.battleCasualtiesApplied) resolveLiveRaidCasualties(state, event);
+        if (elapsed >= TICKS_PER_HOUR * RAID_BATTLE_HOURS / 2 && !event.battleCasualtiesApplied) resolveLiveRaidCasualties(state, event);
         // Commentary milestones are derived from the real muster and recorded combat
         // strengths. No casualties are claimed until killHuman actually records them.
         const phases = [
-          { at: Math.ceil(TICKS_PER_HOUR / 2), count: 2,
+          { at: Math.ceil(TICKS_PER_HOUR * RAID_BATTLE_HOURS / 4), count: 2,
             text: `Our ${raidArmy(state, event).length} soldiers have met ${event.rivalName}'s defenders. The first assault is underway.` },
-          { at: TICKS_PER_HOUR, count: 3,
-            text: `Fighting continues at ${event.rivalName}. ${raidArmy(state, event).length} of our soldiers still hold the line; no casualties have been confirmed yet.` },
-          { at: Math.ceil(TICKS_PER_HOUR * 1.5), count: 4,
+          { at: TICKS_PER_HOUR * RAID_BATTLE_HOURS / 2, count: 3,
+            text: `Fighting continues at ${event.rivalName}. ${raidArmy(state, event).length} of our soldiers still hold the line; confirmed casualties are recorded separately.` },
+          { at: Math.ceil(TICKS_PER_HOUR * RAID_BATTLE_HOURS * 3 / 4), count: 4,
             text: `The battle approaches its decisive stage. The enemy defense was assessed at ${Math.round(event.defenderStrength)} strength against our ${Math.round(event.attackerStrength)} at departure.` },
         ];
         for (const phase of phases) {
@@ -1742,7 +1861,7 @@ export function respondToOutgoingRaidEvent(
     resolveOutgoingRaidCombat(state, rival, event);
     const outcome = resolveCounterRaidRatio(event.attackerStrength, event.defenderStrength);
     const pending = state.pendingRaidVictories?.find((victory) => victory.raidId === event.id);
-    persistBattleAftermath(originalState, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? []);
+    persistBattleAftermath({ ...originalState, villageLeaderId: battleReportLeader(state, event.leaderIdAtBattleStart ?? originalState.villageLeaderId) }, state, event.id, event.rivalId, event.rivalName, 'offense', outcome, event.attackerStrength / Math.max(1, event.defenderStrength), pending?.enemyDead ?? 0, pending?.enemyCasualties ?? [], event.battlePlayerCasualties);
     return state;
   }
 
@@ -1843,6 +1962,9 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
   if (!rival) return state;
   const witnesses = state.rivalSettlements.filter((neighbor) =>
     neighbor.id !== rival.id && Math.hypot(neighbor.campX - rival.campX, neighbor.campY - rival.campY) <= 750);
+  rememberRivalDisposition(state, rival, choice as 'mercy' | 'tribute' | 'raze');
+  const report = state.raidBattleReports?.find((entry) => entry.raidId === pending.raidId);
+  if (report) report.disposition = choice as 'mercy' | 'tribute' | 'raze';
   if (choice === 'mercy') {
     for (const neighbor of witnesses) {
       if (neighbor.relationship === 'tense') neighbor.relationship = 'competitive';
@@ -1851,15 +1973,24 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     rival.relationship = 'neutral';
     rival.atWarWithPlayer = false;
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 30);
+    applyTruceToRival(state, rival.id, 30);
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 30);
-    addReputation(state, 12);
-    logEvent(state, 'combat', `Spared ${rival.name} after victory — ${rival.population} survivors, 30-day truce, +12 reputation`, rival.name, 'outgoing_raid', 'resolved');
+    const rewardEligible = pending.credibleThreat !== false && (rival.lastDispositionRewardTick == null
+      || state.tick - rival.lastDispositionRewardTick >= RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY);
+    const reputation = addReputation(state, rewardEligible ? MERCY_REPUTATION_REWARD : 0);
+    if (rewardEligible) {
+      rival.lastDispositionRewardTick = state.tick;
+      const leader = state.entities.find((person) => person.id === state.villageLeaderId && person.alive);
+      if (leader) leader.battleLeadershipMerit = Math.min(100, (leader.battleLeadershipMerit ?? 0) + MERCY_CIVIC_MERIT);
+    }
+    logEvent(state, 'combat', `Spared ${rival.name} after victory — ${rival.population} survivors, 30-day truce, +${reputation} reputation${rewardEligible ? ', civic mercy recognized' : ', no repeat or trivial-victory reward'}`, rival.name, 'outgoing_raid', 'resolved');
   } else if (choice === 'tribute') {
     // A one-off settlement of terms, not an invented recurring tribute agreement.
     const offer = rollRivalPayoffOffer(rival, Math.max(1, pending.enemyDead + pending.enemySurvivors), Math.max(1, pending.enemySurvivors));
     const gained = grantRaidSpoils(state, offer);
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 21);
+    applyTruceToRival(state, rival.id, 21);
     addReputation(state, -3);
     logEvent(state, 'combat', `Terms imposed on ${rival.name} — one-time tribute ${formatLootParts(gained)}; 21-day truce`, rival.name, 'outgoing_raid', 'resolved');
   } else {
@@ -1876,18 +2007,21 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
         neighbor.raidCooldownDays = Math.max(neighbor.raidCooldownDays, 20);
       }
     }
-    const structureIds = new Set(rival.buildingIds);
     const personIds = new Set(rival.entityIds);
-    for (const person of state.entities) {
-      if (personIds.has(person.id)) person.alive = false;
+    for (const person of state.entities) if (personIds.has(person.id)) {
+      person.departedAlive = true;
+      unindexEntityFromState(state, person.id);
     }
-    state.buildings = state.buildings.filter((building) => !structureIds.has(building.id));
-    state.pendingRaidEvents = (state.pendingRaidEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
-    state.pendingOutgoingRaidEvents = (state.pendingOutgoingRaidEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
+    state.entities = state.entities.filter((person) => !personIds.has(person.id));
+    for (const id of [...rival.buildingIds]) demolishBuildingInPlace(state, id, 'raid');
+    if (report) report.refugees = rival.population;
+    cancelPendingRaidsForRival(state, rival.id);
+    cancelPendingOutgoingRaidsForRival(state, rival.id);
     state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
     state.rivalSettlements = state.rivalSettlements.filter((entry) => entry.id !== rival.id);
+    state.pendingRaidVictories = state.pendingRaidVictories?.filter((entry) => entry.rivalId !== rival.id);
     addReputation(state, -30);
-    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants lost their settlement; -30 reputation. ${witnesses.length} neighboring settlements witnessed the destruction and may respond.`, rival.name, 'outgoing_raid', 'resolved');
+    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants fled as displaced people; -30 reputation. ${witnesses.length} neighboring settlements witnessed the destruction and may respond.`, rival.name, 'outgoing_raid', 'resolved');
   }
   return state;
 }

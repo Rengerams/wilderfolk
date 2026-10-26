@@ -50,7 +50,7 @@ export function isMealCheckHour(hourOfDay: number): boolean {
  * applies before it drains a unit of food.
  */
 export function canEatColonyMeal(state: WorldState, entity: Entity, hourOfDay: number): boolean {
-  if (!entity.alive || !isPlayerHuman(entity)) return false;
+  if (!entity.alive || (!isPlayerHuman(entity) && !entity.warCaptive)) return false;
   if (!isMealCheckHour(hourOfDay)) return false;
   if (!isStartOfClockHour(state.tick)) return false;
   if (state.resources.food <= 0) return false;
@@ -97,6 +97,7 @@ export function killFromExhaustion(
     formatDeathLog(entity, 'succumbed to exhaustion'),
     formatCitizenName(entity),
     { x: entity.x, y: entity.y },
+    entity.warCaptive ? 'enemy' : 'player',
   );
 }
 

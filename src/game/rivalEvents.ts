@@ -98,7 +98,7 @@ export function tickRivalSettlements(
   for (const rival of state.rivalSettlements) campMembers.set(rival.id, new Set(rival.entityIds));
   for (const entity of allAlive) {
     releaseRetiredStructureReferences(entity, retiredStructures, state.buildings);
-    if (entity.faction !== 'rival') continue;
+    if (entity.faction !== 'rival' || entity.warCaptive) continue;
     const camp = entity.groupId == null ? undefined : campMembers.get(entity.groupId);
     if (camp?.has(entity.id)) entity.alive = false;
   }

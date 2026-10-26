@@ -294,13 +294,13 @@ export function refundBuildingCost(
  * the entire save (entities, world map and all) for one building is unnecessary.
  * Keep the immutable wrapper below for direct callers and tests.
  */
-export function demolishBuildingInPlace(state: WorldState, buildingId: number): WorldState {
+export function demolishBuildingInPlace(state: WorldState, buildingId: number, cause: 'demolition' | 'raid' = 'demolition'): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return state;
 
   // The refund is capped by the storage owner, so report what was actually added rather than the
   // nominal refund (a full store used to announce a refund it never received).
-  const { wood: gotWood, stone: gotStone } = refundBuildingCost(state, building.type);
+  const { wood: gotWood, stone: gotStone } = cause === 'raid' ? { wood: 0, stone: 0 } : refundBuildingCost(state, building.type);
 
   clearAssignmentsForDemolishedBuilding(state, buildingId);
   createDeathParticles(
@@ -311,7 +311,7 @@ export function demolishBuildingInPlace(state: WorldState, buildingId: number): 
     25,
     'smoke',
   );
-  addFloatingText(state, building.x, building.y - 10, `Refunded: ${gotWood}w ${gotStone}s`, '#eab308');
+  addFloatingText(state, building.x, building.y - 10, cause === 'raid' ? 'Destroyed in battle' : `Refunded: ${gotWood}w ${gotStone}s`, '#eab308');
   impulseScreenShake(state, 4);
 
   removeBuildingFromState(state, building);

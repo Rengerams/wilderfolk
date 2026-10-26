@@ -306,6 +306,9 @@ export interface Entity {
   skills?: Partial<Record<JobType, number>>;
   battleLeadershipMerit?: number;
   raidDeploymentId?: string;
+  departedAlive?: boolean;
+  battleLeadershipAwards?: Record<string, number>;
+  warCaptive?: { raidId: string; originRivalId: string; capturedAtTick: number; recruitAfterTick: number; attempts: number };
   promiseLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
@@ -384,6 +387,7 @@ export interface VisitorGroup {
   spawnedAtCalendarDay?: number;
   entityIds: number[];
   giftsGiven: number;
+  diplomacyMemory?: { trust: number; fear: number; grievance: number };
   tradesCompleted: number;
   gold?: number;
   refugeeResolved: boolean;
@@ -448,6 +452,8 @@ export interface RivalSettlement {
   raidCooldownDays: number;
   peaceTreatyDays: number;
   atWarWithPlayer?: boolean;
+  lastDispositionRewardTick?: number;
+  diplomacyMemory?: { trust: number; fear: number; grievance: number };
   /** Food gifts the colony has sent this rival — the bot's "already paid" marker. */
   giftsGiven?: number;
   profile?: RivalProfile;
@@ -640,6 +646,15 @@ export interface RaidLootBundle {
 export type OutgoingRaidRivalResponse = 'payoff_offer' | 'fight';
 
 export interface RaidEvent {
+  phase?: 'fighting' | 'resolving';
+  defenseChoice?: 'defend' | 'barricade';
+  defenseStrength?: number;
+  battleStartedAtTick?: number;
+  battleCasualtiesApplied?: boolean;
+  battlePlayerCasualties?: string[];
+  soldierIds?: number[];
+  barricadePaid?: boolean;
+  leaderIdAtBattleStart?: number | null;
   id: string;
   rivalId: string;
   rivalName: string;
@@ -650,6 +665,7 @@ export interface RaidEvent {
   createdAtTick: number;
   expiresAtTick: number;
   marchDistanceTiles: number;
+  intent?: 'plunder' | 'punish' | 'raze';
   attackerStrength: number;
   lootFood: number;
   lootGold: number;
@@ -659,6 +675,7 @@ export interface RaidEvent {
 
 export interface OutgoingRaidEvent {
   phase?: 'marching' | 'engaging' | 'fighting' | 'returning';
+  leaderIdAtBattleStart?: number | null;
   battleStartedAtTick?: number;
   battleChronicle?: string[];
   battleCasualtiesApplied?: boolean;
@@ -735,6 +752,14 @@ export interface GraveRecord {
 export interface WorldState {
   /** Up to fifty memorial records per completed player graveyard. */
   graveRecords?: GraveRecord[];
+  raidRecovery?: {
+    status: 'recovering' | 'destroyed'; raidId: string; rivalName: string;
+    startedAtTick: number; protectedUntilTick: number; reason: string;
+    repairs: Array<{ buildingId: number; health: number }>; foodTarget: number;
+  };
+  scoredRaidIds?: string[];
+  raidPrisonerHistory?: Array<{ entityId: number; name: string; raidId: string; originRivalId: string;
+    status: 'captured' | 'released' | 'recruited' | 'escaped' | 'executed'; tick: number }>;
   /** Permanent genealogy of living and deceased villagers. */
   genealogyRegistry?: import('./genealogyTypes').GenealogyRegistry;
   entities: Entity[];
@@ -821,6 +846,8 @@ export interface WorldState {
     resolvedAtTick: number;
     leaderId: number | null;
     leadershipMerit: number;
+    disposition?: 'mercy' | 'tribute' | 'raze';
+    refugees?: number;
     playerFallen: string[];
     enemyFallen: string[];
     playerDeaths: number;
@@ -828,7 +855,7 @@ export interface WorldState {
     damagedBuildings: number;
     suppliesLost: { food: number; gold: number; wood: number; stone: number };
   }>;
-  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[] }>;
+  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[]; credibleThreat?: boolean }>;
 
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;
