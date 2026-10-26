@@ -3,6 +3,7 @@
 ## 0.6.6.0[Unreleased]
 
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
+- **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
 
 - **Changed:** Random world events and the frontier milestone no longer create rival settlements on the player's map; existing off-map rival diplomacy remains unchanged.
 

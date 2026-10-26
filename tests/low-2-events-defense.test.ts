@@ -34,7 +34,7 @@ import {
   tradeWithVisitors,
   tryFirstWeekVisitor,
 } from '../src/game/groupEvents';
-import { getDiplomacyChoiceEligibility, respondToDiplomacyEvent } from '../src/game/groupEvents';
+import { getDiplomacyChoiceEligibility, respondToDiplomacyEvent } from '../src/game/rivalDiplomacy';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
