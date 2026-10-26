@@ -19,9 +19,10 @@ import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/c
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
-import { getPathGrid, invalidateCommutePathsForWalker, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
@@ -131,6 +132,43 @@ describe('M12 hotel visitor movement', () => {
     expect(Math.hypot(visitor.vx, visitor.vy)).toBeGreaterThan(0);
     expect(visitor.x - startX).toBeCloseTo(visitor.vx, 6);
     expect(visitor.y - startY).toBeCloseTo(visitor.vy, 6);
+  });
+});
+
+describe('hotel guest routing and road speed', () => {
+  it('uses the same road multiplier as its path planner and moves exactly once', () => {
+    const h = hotel(5, 300, 180);
+    const visitor = human(3, 55, 207, { faction: 'visitor', hotelStayBuildingId: h.id });
+    const road = {
+      id: 805, type: BuildingType.Road, x: 190, y: 207,
+      width: 350, height: 14, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(60, 40, 20261029, () => false), [road]);
+    try {
+      expect(isOnWalkableRoadAt(visitor.x, visitor.y)).toBe(true);
+      const before = { x: visitor.x, y: visitor.y };
+      expect(steerVisitorToHotel(visitor, [h], 2)).toBe(true);
+      expect(Math.hypot(visitor.vx, visitor.vy)).toBeGreaterThan(0);
+      expect(visitor.x - before.x).toBeCloseTo(visitor.vx * ROAD_SPEED_MULT, 6);
+      expect(visitor.y - before.y).toBeCloseTo(visitor.vy * ROAD_SPEED_MULT, 6);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('does not walk through a sealed river when the hotel is unreachable', () => {
+    setCurrentPathMap(makeMap(40, 40, 20261030, (x) => x === 20), []);
+    try {
+      const h = hotel(6, 300, 180);
+      const visitor = human(6, 55, 180, { faction: 'visitor', hotelStayBuildingId: h.id });
+      expect(steerVisitorToHotel(visitor, [h], 2)).toBe(true);
+      expect(visitor.x).toBe(55);
+      expect(visitor.y).toBe(180);
+      expect(visitor.vx).toBe(0);
+      expect(visitor.vy).toBe(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
   });
 });
 
