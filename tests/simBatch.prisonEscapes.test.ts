@@ -3,7 +3,7 @@
  * more than one prisoner, which a single-escape-per-day cap made impossible.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
@@ -73,6 +73,30 @@ afterEach(() => {
 });
 
 describe('tickPrisonGuardDuty rolls per unguarded hour', () => {
+  it('keeps an escaped guard on the prison workforce roster', () => {
+    let escaped = false;
+    for (let attempt = 0; attempt < 40 && !escaped; attempt++) {
+      const state = initGame({ seed: 4242 });
+      const guard = prisoner(3);
+      guard.job = JobType.PrisonGuard;
+      guard.workerBuildingId = PRISON_ID;
+      const prison = prisonBuilding([guard.id]);
+      state.entities = [guard];
+      state.buildings = [prison];
+      state.tick = attempt * TICKS_PER_DAY;
+      setSimSeed(1000 + attempt);
+
+      tickPrisonGuardDuty(state);
+
+      if (guard.prisonBuildingId == null) {
+        escaped = true;
+        expect(guard.workerBuildingId).toBe(PRISON_ID);
+        expect(prison.occupants).toContain(guard.id);
+      }
+    }
+    expect(escaped).toBe(true);
+  });
+
   it('releases both prisoners on a single day when the post was open all day', () => {
     expect(escapedTogetherOnOneDay()).toBe(true);
   });
