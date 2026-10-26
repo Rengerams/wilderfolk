@@ -119,26 +119,32 @@ export function drawStripBuildPreview(
   }
   ctx.restore();
 
-  // One label for the stroke: how much of it will land, and the reason the rest will not.
+  // The status and materials lines stay visible near the viewport edge.
   const reason = preview.segments.find((segment) => segment.reason)?.reason;
   const shortage = preview.segments.some((segment) => segment.resourceShortage);
   const cost = preview.cost;
   const available = preview.available;
-  const stock = available ? ` · stock ${available.wood}w ${available.stone}s ${available.gold}g` : '';
-  const price = cost ? ` · net ${cost.wood}w ${cost.stone}s ${cost.gold}g${stock}` : '';
   const text = demolition ? `${preview.segments.length} sections — release to remove`
     : blocked === 0
-    ? `${preview.segments.length} tiles${price} — release to lay`
-    : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${price}${shortage ? ' — insufficient resources' : reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+      ? `${preview.segments.length} tiles — release to lay`
+      : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${shortage ? ' — insufficient resources' : reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+  const lines = [text];
+  if (!demolition && cost) lines.push(`Net cost: ${cost.wood}w ${cost.stone}s ${cost.gold}g`);
+  if (!demolition && available) lines.push(`Stock: ${available.wood}w ${available.stone}s ${available.gold}g`);
   ctx.save();
   ctx.font = `bold ${labelSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const width = ctx.measureText(text).width;
+  const initialWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+  const fontSize = Math.min(labelSize, labelSize * Math.max(0.35, (cw - 20) / Math.max(1, initialWidth)));
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const width = Math.max(...lines.map((line) => ctx.measureText(line).width));
+  const x = Math.max(width / 2 + 6, Math.min(cw - width / 2 - 6, sampleX));
+  const lineHeight = fontSize + 3;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(sampleX - width / 2 - 6, sampleY + 6, width + 12, labelSize + 8);
+  ctx.fillRect(x - width / 2 - 6, sampleY + 6, width + 12, lines.length * lineHeight + 5);
   ctx.fillStyle = demolition || blocked > 0 ? '#fca5a5' : '#6ee7b7';
-  ctx.fillText(text, sampleX, sampleY + 10);
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, sampleY + 9 + i * lineHeight);
   ctx.restore();
 }
 
