@@ -258,6 +258,8 @@ decision too.
 
 ### Detailed data flow and failure handling
 
+Orphan adoption must secure a valid whole-household destination before recording guardianship. If the validated relocation is refused, temporary adoptive parent IDs, surname changes and guardian child lists are restored; adoption returns false. A guardianship decision is successful only when the placement succeeds.
+
 The trigger (assignment pulse, load, command or life event) supplies the current settlers, residence buildings and rules. `assignMissingResidences` builds one `HousingLedger` and visits eligible housing phases in priority order. An immediate leadership event may instead run the leader phase alone. `beginHousingPhase` snapshots each settler's home; `endHousingPhase` detects changes not already reported by `relocateHousehold`.
 
 ```mermaid
