@@ -10,7 +10,8 @@ import { addReputation } from './simHelpers';
 import { tickLeaderVacancy, tickElectionBuildup, tryStartVacancyElectionCeremony, tryStartTermElectionCeremony } from './villageLeadership';
 import { getTownHallFestivalCooldownTicks, isTownHallStaffed } from './townHall';
 
-import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryFrontierSettlement, tryMidYearVisitorEvent, tickWorldRivalSettlements, tickVisitorGroups, tickVillageRequests } from './groupEvents';
+import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tickVisitorGroups, tickVillageRequests } from './groupEvents';
+import { tickWorldRivalSettlements } from './rivalWorldTick';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
 import { tickPendingOutgoingRaidEvents, tickPendingRaidEvents } from './frontierCombat';
@@ -271,16 +272,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
       state.activeEvent = firstWeekEvent;
       trackYearEvent(state, firstWeekEvent.title);
       addNotification(state, firstWeekEvent.title, firstWeekEvent.description, 'success');
-    }
-  }
-
-  // Frontier scout: the first rival camp opens the raid/diplomacy system, so it is not left to a draw.
-  if (state.rivalSettlements.length === 0) {
-    const frontierEvent = tryFrontierSettlement(state, allAlive, ctx.updatedBuildings);
-    if (frontierEvent) {
-      state.activeEvent = frontierEvent;
-      trackYearEvent(state, frontierEvent.title);
-      addNotification(state, frontierEvent.title, frontierEvent.description, 'event');
     }
   }
 
