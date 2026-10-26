@@ -1092,7 +1092,17 @@ export function reassignDivorcedResidences(
     && countResidentsInBuilding(villagers, home.id, context.occupancy) === 0
     && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
   );
+  const sharedCandidates = residences.filter((home) =>
+    home.completed && home.faction !== 'rival'
+    && !isLeaderHouseResidence(home) && !blockedIds.has(home.id)
+    && countResidentsInBuilding(villagers, home.id, context.occupancy) > 0
+    && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
+  );
+  candidates.push(...sharedCandidates);
   candidates.sort((left, right) => {
+    const leftVacant = countResidentsInBuilding(villagers, left.id, context.occupancy) === 0;
+    const rightVacant = countResidentsInBuilding(villagers, right.id, context.occupancy) === 0;
+    if (leftVacant !== rightVacant) return leftVacant ? -1 : 1;
     const leftDistance = formerHome
       ? (left.x - formerHome.x) ** 2 + (left.y - formerHome.y) ** 2 : 0;
     const rightDistance = formerHome
