@@ -546,9 +546,9 @@ export function useCanvasInteractions({
             currentWorld.buildings, selectedBuildingType, start.x, start.y,
             end?.worldX ?? start.x, end?.worldY ?? start.y,
           );
+          stripPlacedOnMouseUpRef.current = true;
           if (buildingIds.length > 0) {
             applyGameAction({ proto: 1, op: 'demolishStripBuildings', buildingIds });
-            stripPlacedOnMouseUpRef.current = true;
             playClickSound();
           }
           loop?.patchView({ buildStripPreview: null });
