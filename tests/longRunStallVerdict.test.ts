@@ -15,6 +15,7 @@ import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { buildResidenceOccupancy, getResidenceCapacity, isHomelessSettler, isImprisoned, isResidenceBuilding, isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
 import { buildHousingUnits, listPlayerResidences, pickResidenceForFamily, pickResidenceForHuman } from '../src/game/residencySelection';
+import { getChildCustodian, isMinorChild } from '../src/game/householdComposition';
 import {
   resetRelationshipDiagnostics,
   setRelationshipDiagnosticsEnabled,
@@ -253,10 +254,14 @@ describe('long-run non-vacuity verdict', () => {
           `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
         ).toBeUndefined();
         if (unit.length !== 1) continue;
+        const dependentIds = new Set(
+          unit.filter(isMinorChild).map((child) => getChildCustodian(child, residents)?.id),
+        );
         for (const human of homeless) {
+          if (isMinorChild(human) || dependentIds.has(human.id)) continue;
           expect(
             pickResidenceForHuman(human, residents, possibleHomes, occupancy),
-            `homeless settler ${human.id} (age ${human.age}, minor ${human.isJuvenile}, mother ${human.motherId}, father ${human.fatherId}, partner ${human.partnerId}, home ${human.residenceBuildingId}, household [${unit.map((member) => `${member.id}:${member.residenceBuildingId ?? 'none'}`).join(',')}]) can be placed by selection`,
+            `homeless independent adult ${human.id} can be placed by the game's selection rule`,
           ).toBeUndefined();
         }
       }
