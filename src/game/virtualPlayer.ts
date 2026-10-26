@@ -598,11 +598,12 @@ function decideUnstaffedQuarry(state: WorldState): VirtualPlayerDecision | null 
   };
 }
 
-function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
+function decideIndustry(state: WorldState, onlyType?: BuildingType): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
 
   for (const entry of INDUSTRY_BUILD_ORDER) {
+    if (onlyType !== undefined && entry.type !== onlyType) continue;
     const stock = state.resources[entry.stock] ?? 0;
     const short = stock < entry.minimumStock;
     // The Store is storage rather than a producer, so it stays a first-copy answer. Past the first
@@ -635,6 +636,13 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   }
 
   return null;
+}
+
+
+/** Keep stone production actionable before optional spending consumes the decision slot. */
+function decideStoneRecovery(state: WorldState): VirtualPlayerDecision | null {
+  if ((state.resources.stone ?? 0) >= LOW_STONE_STOCK) return null;
+  return decideUnstaffedQuarry(state) ?? decideIndustry(state, BuildingType.Quarry);
 }
 
 
@@ -1682,6 +1690,7 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideLeaderHouse(state)
     ?? decideHousing(state)
     ?? decideFood(state)
+    ?? decideStoneRecovery(state)
     ?? decideCivic(state)
     ?? decideResearch(state)
     ?? decideFestival(state)
