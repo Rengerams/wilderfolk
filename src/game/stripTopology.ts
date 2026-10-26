@@ -181,9 +181,9 @@ export function resolveWallStripPlan(
       if (stripType === BuildingType.WallGate && existing.type === BuildingType.Wall) {
         pieces.push({
           type: stripType,
-          x: snapped.x,
-          y: snapped.y,
-          rotation: stripRotation,
+          x: existing.x,
+          y: existing.y,
+          rotation: buildingStripRotation(existing),
           replacesBuildingId: existing.id,
         });
       }
