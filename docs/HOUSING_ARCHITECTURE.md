@@ -563,9 +563,9 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   - **Already implemented:** former spouses cannot court or remarry each other for one full
     game year (`REMARRIAGE_BAR_TICKS`, `isWithinRemarriageBar` and `pastPartnerTicks`
     in the relationship/divorce owners). Do not add a parallel timer or duplicate this rule.
-  The existing divorce relocation and `getChildCustodian` behavior require code changes and
-  dedicated regression tests before the newly confirmed custody and distance policies may
-  be reported as implemented.
+  Divorce custody selection and distance-aware relocation are now coded with focused regression
+  tests, but have not yet passed an executed validation run. Broader capacity reshuffling and
+  full event-to-housing integration remain to be verified.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
