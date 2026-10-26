@@ -137,3 +137,31 @@ describe('the manor hold inside the assignment sweep', () => {
     expect(guest.residenceBuildingId).toBe(COTTAGE_ID);
   });
 });
+
+describe('blended household shortage', () => {
+  it('houses each minor with their own custodian when seven people cannot share one six-bed home', () => {
+    const mother = human(10, { partnerId: 11, childrenIds: [12, 13, 14] });
+    const father = human(11, { partnerId: 10, childrenIds: [15, 16] });
+    const motherChildren = [12, 13, 14].map((id) => human(id, {
+      motherId: 10, fatherId: 11, isJuvenile: true, age: 7,
+    }));
+    const fatherChildren = [15, 16].map((id) => human(id, {
+      motherId: 999, fatherId: 11, isJuvenile: true, age: 7,
+    }));
+    const family = [mother, father, ...motherChildren, ...fatherChildren];
+    const houses = [
+      building(COTTAGE_ID, BuildingType.House),
+      building(SPARE_ID, BuildingType.House),
+    ];
+
+    for (let pulse = 0; pulse < 2; pulse++) {
+      const report = assignMissingResidences(family, houses);
+      expect(report.violations).toEqual([]);
+      expect(mother.residenceBuildingId).toBeDefined();
+      expect(father.residenceBuildingId).toBeDefined();
+      expect(mother.residenceBuildingId).not.toBe(father.residenceBuildingId);
+      for (const child of motherChildren) expect(child.residenceBuildingId).toBe(mother.residenceBuildingId);
+      for (const child of fatherChildren) expect(child.residenceBuildingId).toBe(father.residenceBuildingId);
+    }
+  });
+});
