@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
+
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
 
