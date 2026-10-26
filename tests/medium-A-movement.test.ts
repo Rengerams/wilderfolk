@@ -181,6 +181,32 @@ describe('M13 hospital treatment cadence', () => {
   });
 });
 
+describe('road detour negative caching', () => {
+  it('keeps a rejected detour cached as the walker crosses tiles on a clear route', () => {
+    const farRoad = {
+      id: 801, type: BuildingType.Road, x: pixel(30, 30), y: pixel(30, 30),
+      width: PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(40, 40, 20261026, () => false), [farRoad]);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const walker = human(801, pixel(2, 5), pixel(2, 5));
+      expect(steerWithPath(walker, pixel(35, 5), pixel(35, 5), 5, 'negative-road')).toBe('direct');
+      const searches = getCurrentPathfinderTickCounters().findPathCalls;
+      expect(searches).toBeGreaterThan(0);
+      for (let tile = 3; tile <= 12; tile++) {
+        walker.x = pixel(tile, 5);
+        expect(steerWithPath(walker, pixel(35, 5), pixel(35, 5), 5, 'negative-road')).toBe('direct');
+      }
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+});
+
 describe('M22 path cache origin', () => {
   it('retains routes for hundreds of simultaneous commuters and invalidates topology changes', () => {
     const map = makeMap(40, 40, 934, (x, y) => y === 20 && x !== 35);
