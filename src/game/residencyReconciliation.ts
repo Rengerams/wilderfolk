@@ -799,7 +799,6 @@ export function restoreCustodyAfterRelease(parent: Entity, humans: Entity[]): En
     // Only reverse a temporary guardian assignment; never sweep children already
     // living with their natural custodian into the released parent's housing bucket.
     if (child.adoptiveMotherId == null && child.adoptiveFatherId == null) continue;
-    if (![child.motherId, child.fatherId].every((id) => id == null || findLivingHuman(humans, id))) continue;
     child.adoptiveMotherId = undefined;
     child.adoptiveFatherId = undefined;
     // An available natural custodian keeps the child in their existing home.
