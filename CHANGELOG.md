@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Player-human nutrition, rest and stamina now persist separately, including Moon-form recovery; the settler inspector displays all three (#61).
+
 - **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
 - **Fixed:** Captive deaths close custody history without creating village graves; confirmed executions retain their distinct outcome.
 - **Changed:** Mass raid destruction reconciles housing, staffing and storage once per batch with bounded effects. Warfare panels cache troop, captive and repair lookups between world updates.

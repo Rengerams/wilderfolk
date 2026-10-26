@@ -256,6 +256,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   const livePrisonId = human.prisonBuildingId;
 
   human.moonHowlerSaved = {
+    needs: human.needs ? { ...human.needs } : undefined,
     energy: human.energy,
     maxEnergy: human.maxEnergy,
     speed: human.speed,
@@ -300,6 +301,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   releaseDialogueSession(human);
 
   human.type = EntityType.Werewolf;
+  human.needs = undefined;
   human.huntTargetId = undefined;
   human.combatTicks = 0;
   if (human.combatRollSeed == null) {

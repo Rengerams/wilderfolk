@@ -226,7 +226,17 @@ export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<B
 export const LEADER_OCCUPATION = 'leader';
 
 
+export interface HumanNeedsState {
+  nutrition: number;
+  rest: number;
+  stamina: number;
+  lastMealTick?: number;
+  lastAdvancedTick?: number;
+  severeHungerTicks?: number;
+}
+
 export interface MoonHowlerSavedState {
+  needs?: HumanNeedsState;
   energy: number;
   maxEnergy: number;
   speed: number;
@@ -266,6 +276,7 @@ export interface Entity {
   y: number;
   energy: number;
   maxEnergy: number;
+  needs?: HumanNeedsState;
   age: number;
   birthYear: number;
   birthMonth: number;
