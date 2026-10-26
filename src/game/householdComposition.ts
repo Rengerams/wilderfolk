@@ -27,7 +27,25 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
 
 /** The leader's entitled housing unit: partner and dependent minors, not grown descendants. */
 export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Entity[] {
-  return collectMinorHousehold(leader, humans).filter(isResidenceOccupantEntity);
+  const members = collectMinorHousehold(leader, humans).filter(isResidenceOccupantEntity);
+  const memberIds = new Set(members.map((person) => person.id));
+  const parentIds = new Set([leader.id, leader.partnerId].filter((id): id is number => id != null));
+  const directChildren = humans.filter((person) => person.alive && isResidenceOccupantEntity(person)
+    && (parentIds.has(person.motherId ?? -1) || parentIds.has(person.fatherId ?? -1)
+      || parentIds.has(person.adoptiveMotherId ?? -1) || parentIds.has(person.adoptiveFatherId ?? -1)));
+  for (const child of directChildren) {
+    if (!memberIds.has(child.id)) {
+      members.push(child);
+      memberIds.add(child.id);
+    }
+    const partner = humans.find((person) => person.id === child.partnerId
+      && person.alive && isResidenceOccupantEntity(person));
+    if (partner && !memberIds.has(partner.id)) {
+      members.push(partner);
+      memberIds.add(partner.id);
+    }
+  }
+  return members;
 }
 
 /**
