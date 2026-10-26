@@ -43,8 +43,8 @@ describe('divorce custody and housing', () => {
     expect(second.residenceBuildingId).toBe(getChildCustodian(second, people)?.residenceBuildingId);
   });
   it('reshuffles a whole independent household to free enough beds for a parent', () => {
-    const oldHome = building(10, BuildingType.House, { x: 0, y: 0 });
-    const occupied = building(20, BuildingType.House, { x: 150, y: 0 });
+    const oldHome = building(10, BuildingType.Mansion, { x: 0, y: 0, level: 3 });
+    const occupied = building(20, BuildingType.Mansion, { x: 150, y: 0, level: 3 });
     const spare = building(30, BuildingType.House, { x: 40, y: 0 });
     const mother = human(1, { gender: 'female', residenceBuildingId: 10, pastPartnerTicks: { 2: 1201 } });
     const father = human(2, { gender: 'male', residenceBuildingId: 10, pastPartnerTicks: { 1: 1201 } });
@@ -52,13 +52,17 @@ describe('divorce custody and housing', () => {
     const second = human(4, { age: 8, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
     const occupant = human(5, { age: 30, partnerId: 6, residenceBuildingId: 20 });
     const spouse = human(6, { age: 30, partnerId: 5, residenceBuildingId: 20 });
-    const people = [mother, father, first, second, occupant, spouse];
+    const moreChildren = Array.from({ length: 4 }, (_, index) => human(7 + index, {
+      age: 6, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10,
+    }));
+    const people = [mother, father, first, second, ...moreChildren, occupant, spouse];
     reassignDivorcedResidences(mother, father, [oldHome, occupied, spare], people, father);
     expect(occupant.residenceBuildingId).toBe(30);
     expect(spouse.residenceBuildingId).toBe(30);
     expect(mother.residenceBuildingId).toBe(20);
     expect(first.residenceBuildingId).toBe(getChildCustodian(first, people)?.residenceBuildingId);
     expect(second.residenceBuildingId).toBe(getChildCustodian(second, people)?.residenceBuildingId);
+    expect(moreChildren.every((child) => child.residenceBuildingId === mother.residenceBuildingId)).toBe(true);
   });
 
 });
