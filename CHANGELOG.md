@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Virtual player postpones road construction during food shortages and budgets multi-leg road projects across the full stroke instead of reusing the starting funds for each leg.
+
 - **Added:** Completed wall gates can be opened or closed from their building panel; the saved state controls wall collision and invalidates route grids. Legacy gates remain open.
 
 - **Fixed:** Construction previews now show affordable pieces, net material costs, current stores and shortages. Blocked wall recoveries cannot teleport through obstacles.
