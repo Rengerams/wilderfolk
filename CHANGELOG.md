@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Release of a surviving parent restores temporary child custody even when the other biological parent died during imprisonment.
+
 - **Changed:** Replaced the duplicate 100-day endurance simulation with an independent restocked scenario (seed 67890); the producers comparison retains seed 12345.
 
 - **Fixed:** Adoption now reports success only after household relocation succeeds; failed placements leave custody and surnames unchanged.
