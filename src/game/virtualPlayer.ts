@@ -576,26 +576,29 @@ const INDUSTRY_BUILD_ORDER: readonly {
   { type: BuildingType.Store, stock: 'gold', minimumStock: 80 },
 ];
 
-/** Staff an empty essential Quarry only when the real auto-staff pass can transfer a worker. */
-function decideUnstaffedQuarry(state: WorldState): VirtualPlayerDecision | null {
-  if ((state.resources.stone ?? 0) >= LOW_STONE_STOCK) return null;
-  const quarry = state.buildings.find((building) =>
-    building.completed && building.type === BuildingType.Quarry
-    && building.faction !== 'rival' && !isManualStaffingBuilding(building)
-    && countWorkersAtBuilding(state.entities, building.id) === 0,
-  );
-  if (!quarry) return null;
+/** Recover an understocked basic material using the existing workforce assignment command. */
+function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | null {
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
     && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
   );
-  const donor = findOverstaffedDonorBuilding(workplaces, humans, quarry.id, state.tick);
-  if (!donor || !pickWorkerToTransfer(humans, donor, quarry, state.tick)) return null;
-  return {
-    command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
-    reason: `staff the Quarry — only ${Math.floor(state.resources.stone ?? 0)} stone left`,
-  };
+  for (const entry of INDUSTRY_BUILD_ORDER) {
+    if (entry.type === BuildingType.Store || (state.resources[entry.stock] ?? 0) >= entry.minimumStock) continue;
+    const producer = state.buildings.find((building) =>
+      building.completed && building.type === entry.type
+      && building.faction !== 'rival' && !isManualStaffingBuilding(building)
+      && countWorkersAtBuilding(state.entities, building.id) === 0,
+    );
+    if (!producer) continue;
+    const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick);
+    if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) continue;
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
+      reason: `staff the ${BUILDING_CONFIGS[entry.type].label} — only ${Math.floor(state.resources[entry.stock] ?? 0)} ${entry.stock} left`,
+    };
+  }
+  return null;
 }
 
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
@@ -636,7 +639,6 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
 
   return null;
 }
-
 
 
 function decideRepairs(state: WorldState): VirtualPlayerDecision | null {
@@ -1682,12 +1684,12 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     ?? decideLeaderHouse(state)
     ?? decideHousing(state)
     ?? decideFood(state)
+    ?? decideUnstaffedProducer(state)
+    ?? decideIndustry(state)
     ?? decideCivic(state)
     ?? decideResearch(state)
     ?? decideFestival(state)
     ?? decideRepairs(state)
-    ?? decideUnstaffedQuarry(state)
-    ?? decideIndustry(state)
     ?? decideForgeOrders(state)
     ?? decideBuildingTuning(state)
     ?? decideRecruitment(state)

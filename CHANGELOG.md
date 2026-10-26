@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Auto-play now prioritizes wood, stone and iron recovery equally and can reassign workers to their producers. Food and housing remain higher priorities.
+
+
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
 
