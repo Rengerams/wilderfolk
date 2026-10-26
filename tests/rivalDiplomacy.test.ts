@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPeaceTreatyEligibility, getRivalTradePactEligibility, tickPendingDiplomacyEvents } from '../src/game/groupEvents';
+import { getPeaceTreatyEligibility, getRivalTradePactEligibility, tickPendingDiplomacyEvents } from '../src/game/rivalDiplomacy';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 
