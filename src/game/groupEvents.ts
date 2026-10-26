@@ -1,3 +1,4 @@
+import { tickPendingDiplomacyEvents, maybeQueueDiplomacyEvent } from './rivalDiplomacy';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
