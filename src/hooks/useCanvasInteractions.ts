@@ -543,26 +543,26 @@ export function useCanvasInteractions({
           }
           loop?.patchView({ buildStripPreview: null });
         } else {
-        const preview =
-          loop?.getView().buildStripPreview ??
-          buildStripPreview(
-            currentWorld,
-            selectedBuildingType,
-            start.x,
-            start.y,
-            start.x,
-            start.y,
-            loop?.getView().buildRotation ?? 0,
-          );
-
-        // Commit only if all segments are valid
-        const command = stripChainCommand(preview, selectedBuildingType);
-        if (command) {
-          playClickSound();
-          applyGameAction(command);
-          stripPlacedOnMouseUpRef.current = true;
-        }
-        loop?.patchView({ buildStripPreview: null });
+          const preview =
+            loop?.getView().buildStripPreview ??
+            buildStripPreview(
+              currentWorld,
+              selectedBuildingType,
+              start.x,
+              start.y,
+              start.x,
+              start.y,
+              loop?.getView().buildRotation ?? 0,
+            );
+  
+          // Commit only if all segments are valid
+          const command = stripChainCommand(preview, selectedBuildingType);
+          if (command) {
+            playClickSound();
+            applyGameAction(command);
+            stripPlacedOnMouseUpRef.current = true;
+          }
+          loop?.patchView({ buildStripPreview: null });
         }
       }
 
@@ -600,6 +600,7 @@ export function useCanvasInteractions({
       selectedBuildingType,
       applyGameAction,
       cancelBuildMode,
+      getEventWorldCoords,
       stripDragStartRef,
       isDraggingRef,
       cameraDragStartRef,
