@@ -51,6 +51,14 @@ describe('unambiguous housing units', () => {
     expect(new Set(units.flat().map((entry) => entry.id)).size).toBe(3);
   });
 
+  it('does not separate an unhoused adult descendant from their minor child for manor entitlement', () => {
+    const leader = person(1, { childrenIds: [2] });
+    const adult = person(2, { age: 28, motherId: 1, childrenIds: [3] });
+    const minor = person(3, { age: 6, isJuvenile: true, motherId: 2 });
+    expect(collectLeaderDescendants(leader, [leader, adult, minor]).map((person) => person.id))
+      .toEqual([1]);
+  });
+
   it('keeps the leader’s children and their spouses in the manor alongside unmarried minors', () => {
     const leader = person(1, { childrenIds: [2, 3] });
     const adult = person(2, { age: 25, motherId: 1, partnerId: 4 });
