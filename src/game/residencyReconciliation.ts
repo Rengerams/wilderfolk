@@ -912,6 +912,7 @@ export function ensureOrphanAdoption(
     && ![sibling.motherId, sibling.fatherId].some((id) => freeParent(humans, id)))
     .sort((a, b) => a.id - b.id);
   const alive = humans.filter((human) => isResidenceOccupantEntity(human) && !isImprisoned(human));
+  const residents = humans.filter((human) => isResidenceOccupantEntity(human));
   // The Leader's House is not an orphan home, so a manor resident is never a guardian here:
   // naming one would relocate the leader's household out of the manor to seat the child.
   const guardianPool = humans.filter((human) => {
@@ -926,15 +927,15 @@ export function ensureOrphanAdoption(
     const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
       .map((member) => [member.id, member])).values()];
     const candidates = currentOnly ? residences.filter((home) => home.id === guardian.residenceBuildingId) : residences;
-    return pickResidenceForFamily(household, alive, candidates, occupancy, traits) !== undefined;
+    return pickResidenceForFamily(household, residents, candidates, occupancy, traits) !== undefined;
   };
   const couple = couples.find((candidate) => canHouse(candidate.partnerA, true))
     ?? couples.find((candidate) => canHouse(candidate.partnerA)) ?? couples[0];
   const guardian = relative ?? existing ?? couple?.partnerA ?? singles.find((candidate) => canHouse(candidate, true)) ?? singles.find((candidate) => canHouse(candidate)) ?? singles[0];
   if (!guardian) {
-    const picked = pickResidenceForFamily(siblings, alive, residences, occupancy, traits);
+    const picked = pickResidenceForFamily(siblings, residents, residences, occupancy, traits);
     if (picked === undefined) return false;
-    relocateHousehold(siblings, picked, 'guardianship', 'guardian', standaloneMoveContext(alive, residences, occupancy, traits, ledger));
+    relocateHousehold(siblings, picked, 'guardianship', 'guardian', standaloneMoveContext(residents, residences, occupancy, traits, ledger));
     return true;
   }
   const partner = findLivingHuman(alive, guardian.partnerId);
@@ -951,8 +952,8 @@ export function ensureOrphanAdoption(
   }
   const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
     .map((member) => [member.id, member])).values()];
-  assignFamilyToResidence(household, alive, residences, humans, 'guardianship',
-    standaloneMoveContext(alive, residences, occupancy, traits, ledger));
+  assignFamilyToResidence(household, residents, residences, humans, 'guardianship',
+    standaloneMoveContext(residents, residences, occupancy, traits, ledger));
   return true;
 }
 
