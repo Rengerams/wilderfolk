@@ -77,6 +77,29 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
     }
   });
 
+  it('plans daytime sleep after an overnight shift and restores rest only while actually sleeping', () => {
+    const worker = { id: 2, type: EntityType.Human, alive: true, isJuvenile: false,
+      energy: 400, maxEnergy: 500, needs: { nutrition: 75, rest: 40, stamina: 55 } } as Entity;
+    advanceHumanNeeds(worker, { tick: 100, sleeping: false, working: true,
+      nightDuty: true, moving: false });
+    expect(worker.needs!.nightDutyRecoveryPending).toBe(true);
+    const restored = structuredClone(worker);
+    normalizeHumanNeeds(restored);
+    expect(restored.needs!.nightDutyRecoveryPending).toBe(true);
+    advanceHumanNeeds(restored, { tick: 101, sleeping: false, working: false,
+      nightDuty: false, moving: true });
+    expect(restored.needs!.nightDutyRecoveryPending).toBeUndefined();
+    expect(restored.needs!.sleepRecoveryUntilTick).toBeGreaterThan(101);
+    const awakeRest = restored.needs!.rest;
+    advanceHumanNeeds(restored, { tick: 102, sleeping: false, working: false, moving: true });
+    expect(restored.needs!.rest).toBeLessThan(awakeRest);
+    for (let tick = 103; tick < 103 + 8 * TICKS_PER_HOUR; tick++) {
+      advanceHumanNeeds(restored, { tick, sleeping: true, working: false, moving: false });
+    }
+    expect(restored.needs!.rest).toBeGreaterThanOrEqual(85);
+    expect(restored.needs!.sleepRecoveryUntilTick).toBeUndefined();
+  });
+
   it('exports detached physiology values through the worker render sidecar', () => {
     const e = { id: 1, type: EntityType.Human, energy: 400, maxEnergy: 500,
       needs: initialHumanNeeds(400, 500) } as Entity;
