@@ -217,17 +217,20 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
-  const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
-
-  // Upright artwork retains its height; the stone wall must not be flattened to road depth.
-  const original = getSpriteFrame(isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE);
+  // The authored masonry is an upright facade, never an axis-rotated ground tile.
+  const sprite = isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE;
+  const original = getSpriteFrame(sprite);
   if (original) {
-    const height = Math.max(rh * 3, rh);
-    const width = rw;
-    paintStripSprite(ctx, isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE, 0, -height / 3, width, height, 0);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(sx, sy);
+    const uprightWidth = rotation === 90 ? Math.max(w, Math.min(h, w * 2)) : w;
+    const uprightHeight = rotation === 90 ? h + Math.max(w, 12) : Math.max(h * 3, h);
+    paintStripSprite(ctx, sprite, 0, -uprightHeight / 3, uprightWidth, uprightHeight, 0);
     ctx.restore();
     return;
   }
+  const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
   if (paintStripSprite(ctx, isGate ? WALL_GATE_FALLBACK : WALL_STRAIGHT_FALLBACK, 0, 0, rw, rh, 0)) {
     ctx.restore();
     return;
@@ -385,9 +388,11 @@ export function drawProceduralRoadJunction(
     ctx.fillRect(-cap * 0.28, -cap * 0.28, cap * 0.56, cap * 0.56);
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(-cap / 2 + 0.5, -cap / 2 + 0.5, cap - 1, cap - 1);
+  if (!getSpriteFrame(RPG_PAVEMENT_SPRITE)) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-cap / 2 + 0.5, -cap / 2 + 0.5, cap - 1, cap - 1);
+  }
   ctx.restore();
 }
 
@@ -406,12 +411,13 @@ export function drawProceduralWallJunction(
   ctx.globalAlpha = alpha;
   ctx.translate(sx, sy);
 
-  const size = Math.max(w, h);
-  const stoneHeight = Math.max(Math.min(w, h) * 3, Math.min(w, h));
-  if (paintStripSprite(ctx, RPG_WALL_SPRITE, 0, -stoneHeight / 3, size, stoneHeight, 0)) {
+  // Individual arms already draw their stone facades; an additional complete wall
+  // tile at the intersection would conceal gates and duplicate masonry.
+  if (getSpriteFrame(RPG_WALL_SPRITE)) {
     ctx.restore();
     return;
   }
+  const size = Math.max(w, h);
   const half = size / 2;
   const thick = size * 0.34;
   const arm = size * 0.46;
