@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed:** The colony housing gate excludes leader-reserved manor beds when checking whether ordinary homeless settlers have vacant housing.
+- **Fixed:** The 90-day colony housing gate uses the game's actual household and individual residence selectors to detect placeable homeless settlers, with its own targeted CI check.
 
 - **Fixed:** Imprisoned blacksmiths keep reserved jobs but no longer contribute to operational production bonuses; regression coverage added.
 
