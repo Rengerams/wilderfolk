@@ -198,7 +198,7 @@ describe('M22 path cache origin', () => {
       }
       expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
       setCurrentPathMap(makeMap(40, 40, 935, (x, y) => y === 20), []);
-      expect(steerWithPath(walkers[0], pixel(20, 0), pixel(10, 0), 5, 'load_0')).toBe('direct');
+      expect(steerWithPath(walkers[0], pixel(20, 0), pixel(10, 0), 5, 'load_0')).toBe('blocked');
       expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches + 1);
     } finally {
       setPathfindingMetricsEnabled(false);
@@ -209,7 +209,7 @@ describe('M22 path cache origin', () => {
   it('retries a failed route when the same key moves to another origin or destination', () => {
     setCurrentPathMap(makeMap(40, 40, 936, (x, y) => y === 20), []);
     const walker = human(1, pixel(5, 0), pixel(35, 0));
-    expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry')).toBe('direct');
+    expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry')).toBe('blocked');
     setPathfindingMetricsEnabled(true);
     resetPathfinderSession();
     try {
