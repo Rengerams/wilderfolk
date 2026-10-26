@@ -34,6 +34,26 @@ describe('custody while both parents serve a sentence', () => {
     expect(child.residenceBuildingId).toBe(guardian.residenceBuildingId);
   });
 
+  it('counts a prisoners reserved bed when selecting a guardian residence', () => {
+    const prison = building(PRISON_ID, BuildingType.Prison);
+    const mother = human(1, { gender: 'female', prisonBuildingId: PRISON_ID, childrenIds: [3] });
+    const child = human(3, { age: 8, isJuvenile: true, motherId: 1 });
+    const guardian = human(4, { gender: 'female', age: 35, residenceBuildingId: GUARDIAN_HOUSE_ID });
+    const house = building(GUARDIAN_HOUSE_ID, BuildingType.House);
+    const capacity = 6;
+    const occupants = Array.from({ length: capacity - 1 }, (_, index) =>
+      human(20 + index, { age: 35, residenceBuildingId: house.id, prisonBuildingId: index === 0 ? PRISON_ID : undefined }));
+    house.occupants = [guardian.id, ...occupants.map((resident) => resident.id)];
+    const free = building(FREE_HOUSE_ID, BuildingType.House);
+    const people = [mother, child, guardian, ...occupants];
+
+    ensureOrphanAdoption(child, people, [house, free]);
+
+    expect(house.occupants).toHaveLength(capacity);
+    expect(occupants[0].residenceBuildingId).toBe(house.id);
+    expect(child.residenceBuildingId).not.toBe(house.id);
+  });
+
   it('returns custody to the parent once the sentence ends', () => {
     const { mother, father, child, guardianHouse, freeHouse, humans, residences } = jailedCoupleWorld();
     ensureOrphanAdoption(child, humans, residences);
