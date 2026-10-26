@@ -144,7 +144,10 @@ bucket: a settler who loses a bed is never left outside until the cycle comes ro
 
 ### 6. Adult child
 
-An option, not a duty. Candidates are adult children living in a family home (never the manor), eldest
+An option, not a duty. The protected nuclear-family unit is the parent(s) and their **minor** children,
+including every child's actual custodian. Turning 18 removes the default requirement to remain with parents;
+adult descendants (including people aged 30+) are independent housing units unless they have their own
+partner or dependent minors. Candidates are adult children living in a family home (never the manor), eldest
 first, and a move needs an empty home that fits the **whole departing household**. The Leader's House is
 never a destination here: the move is refused rather than reported and left standing. If the household a
 mandatory phase settled, this phase is skipped for them — that is the protection rule in §3.
@@ -423,7 +426,7 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 6 | Find the Leader's House by type | **DONE** — `findLeaderHouse` matches type, completed, player faction |
 | 7 | Manor exclusivity and succession | **DONE** — see §9 |
 | 8 | Families stay together | **DONE** — the exact shortage order in §2 phase 4 |
-| 9 | Adult children at 18 | **OPEN** — one word needed from the owner; see §13 |
+| 9 | Adult children at 18 | **OWNER DECISION CONFIRMED; IMPLEMENTATION NEEDS REVALIDATION** — adult children may split from parents; only parents/custodians plus minors are inseparable dependent units. See §14. |
 | 10 | Singles, capacity, no homeless while beds exist | **DONE** — `getResidenceCapacity`, `fillHomelessAfterEviction`, `tests/housingUnits.composition.test.ts` |
 | 11 | Children without parents | **DONE** — §2 phase 3 |
 | 12 | Meaningful commute moves | **DONE — measured and optimized** — identical assignment hashes, warm median at 2,400 settlers 684.6 → 66.1 ms (table below) |
@@ -514,14 +517,20 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
 
 ---
 
-## 14. Still open, and owned by the owner
+## 14. Confirmed rules and remaining verification
 
-* **Adult children at 18 (spec §9).** The phase treats the move as an option that needs a genuinely empty
-  home fitting the whole household. Decide: (a) an automatic move into a genuinely free home is fine — then
-  the section is done as-is; or (b) the move must be the settler's or player's choice — then the empty-home
-  sweep goes and the "looking for a home" path stays. The alternative argued in the design review is a
-  *leaver* rule: a preference, binding only once the family's home is over capacity, preferring a singles'
-  house with another leaver.
+* **Adult children at 18 (spec §9) — policy decided, implementation requires regression verification.**
+  A household that must remain together consists of parent(s)/actual custodian(s) and their minor children,
+  not every living descendant. At adulthood, a child becomes eligible to move to an independent residence;
+  adult descendants, even those aged 30+, are not permanently attached to their parents. An adult with a
+  partner and minor children moves with their own dependent household. The optional adult-child phase can
+  use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
+  equate a family-tree relationship with one indivisible housing unit.
+* **Blended and guardian households — regression verification required.** Build dependent groups around
+  each minor's actual custodians, not the first child's mother or an arbitrary shared parent. If a blended
+  family exceeds the largest home, do not strand any minor by moving their custodian into a different
+  residence; split only independent adults or valid custodian-plus-minor units. Re-run the housing sweep
+  and check no custody violation remains after capacity and leader-succession relocation.
 * **Churn numbers.** A per-household relocation cooldown (`RELOCATION_COOLDOWN_DAYS`, 4) and pricing only
   vacant homes within the household's corridor are proposed but **not implemented**; the quota and the
   margins above are what ship today. Pick these by watching a full year, not by argument.
