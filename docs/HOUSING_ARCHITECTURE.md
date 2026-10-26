@@ -538,24 +538,26 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   partner and minor children moves with their own dependent household. The optional adult-child phase can
   use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
   equate a family-tree relationship with one indivisible housing unit.
-* **Divorce custody and marital home — owner policy confirmed; code audit identifies a mismatch.**
-  Minor children follow their living, available mother (including adoptive mother where applicable)
-  during divorce. Which adult keeps the former family home is a separate decision:
-  - Amicable divorce or the father's adultery: mother and minor children stay in the family home;
-    father leaves for another suitable home.
-  - Mother's adultery: father keeps the former family home; mother **and all her minor children
-    move together** to a suitable residence. Never move the mother alone or leave the children
-    behind with the father because the destination has insufficient capacity.
-  - Before displacing a mother-and-minor unit, attempt custody-safe housing reshuffles to find
-    enough beds for them. If no suitable home exists, preserve the mother-and-children unit and
-    report the shortage rather than forcing a partial move or violating capacity. Do not restore
-    the divorced pair to the same home through subsequent optional housing passes.
-  - If the mother has died or is genuinely unavailable, use existing fallback guardianship
-    rules instead of assigning children to an absent parent. The leader's manor entitlement
-    remains a separate invariant, requiring an explicit custody-safe reconciliation rather
-    than silently overriding divorce housing rules.
-  These are target rules requiring implementation/regression verification, not a statement that
-  current runtime divorce relocation already satisfies them.
+* **Divorce custody and marital home — owner policy confirmed; implementation not yet verified.**
+  For a divorce with two living, available parents, decide custody of their shared minor children
+  with a deterministic, seeded **50/50 selection between mother and father**, once per divorcing
+  parental unit. Do not make an independent random roll for each child: siblings sharing the same
+  custodial parents stay together. In blended families, preserve each child's actual parent or
+  adoptive-custodian relationships rather than assigning unrelated stepchildren automatically.
+  - Marital-home possession is independent of custody. In an amicable divorce, prefer the mother
+    retaining the former home. For adultery, the non-cheating spouse retains the former home.
+  - The selected parent takes their assigned minor children. If that parent must leave the
+    original home, move the parent **and children together** into a suitable residence. If the
+    selected parent stays, the other spouse departs alone or with any children actually in their
+    custody. Do not leave children behind solely because the destination lacks beds.
+  - Attempt custody-safe household reshuffles before giving up on adequate housing. Preserve
+    existing capacity, guardianship and leader-house rules; report any unresolved shortage
+    without partially moving a dependent unit.
+  - If only one parent is living and available, custody follows that parent; if neither is,
+    use the established guardianship fallback. Housing reconciliation must honor the chosen
+    custody outcome and must not silently revert it to a mother-first default.
+  The existing divorce relocation and `getChildCustodian` behavior require code changes and
+  dedicated regression tests before these rules may be reported as implemented.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
