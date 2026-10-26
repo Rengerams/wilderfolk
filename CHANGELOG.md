@@ -2,6 +2,12 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Added:** Completed wall gates can be opened or closed from their building panel; the saved state controls wall collision and invalidates route grids. Legacy gates remain open.
+
+- **Fixed:** Construction previews now show affordable pieces, net material costs, current stores and shortages. Blocked wall recoveries cannot teleport through obstacles.
+
+- **Fixed:** Commute eligibility no longer grants a whole-route speed bonus from a short road crossing; road drags can snap to the front approach of suitable buildings.
+
 - **Fixed:** Minor pointer drift no longer creates perpendicular road, wall or gate segments or extra construction costs; genuine freehand bends remain connected.
 
 - **Fixed:** Walkers consider faster road routes on short trips and for savings below five percent; bounded searches and route caching remain in use.
