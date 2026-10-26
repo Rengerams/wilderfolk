@@ -66,6 +66,16 @@ export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: n
   return true;
 }
 
+export function killForeignCaptiveFromExhaustion(
+  entity: Entity, state: WorldState, buildings: Building[], entityById: Map<number, Entity>,
+): void {
+  if (!entity.alive || !entity.warCaptive || isPlayerHuman(entity)) return;
+  killHuman(entity, buildings, entityById, state.tick, state);
+  createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
+  logDeath(state, formatDeathLog(entity, 'succumbed to exhaustion'),
+    formatCitizenName(entity), { x: entity.x, y: entity.y }, 'enemy');
+}
+
 export function killFromStarvation(
   entity: Entity, state: WorldState, buildings: Building[], entityById: Map<number, Entity>,
 ): void {

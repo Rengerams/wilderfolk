@@ -97,7 +97,7 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
-import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
+import { fract, tryEatColonyMeal, humanEnergyLoss, killForeignCaptiveFromExhaustion, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
@@ -637,6 +637,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
       if (hasFatalStarvation(entity)) {
         killFromStarvation(entity, state, updatedBuildings, entityById);
+        syncEntityGrids(ctx, entity);
+        continue;
+      }
+    }
+
+    if (entity.warCaptive && !isPlayerHuman(entity)) {
+      entity.energy -= humanEnergyLoss(entity, config, {
+        hasWell, isWinter, canHeat, hasHospital, tick: state.tick, hourOfDay, buildingById,
+      });
+      if (entity.energy <= 0) {
+        killForeignCaptiveFromExhaustion(entity, state, updatedBuildings, entityById);
         syncEntityGrids(ctx, entity);
         continue;
       }

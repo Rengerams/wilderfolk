@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
 import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
-const mealTick = 24 * TICKS_PER_HOUR;
+const mealTick = TICKS_PER_DAY;
 function person(override: Partial<Entity> = {}): Entity {
   return {
     id: 1, type: EntityType.Human, alive: true, age: 30, isJuvenile: false,

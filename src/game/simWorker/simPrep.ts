@@ -158,7 +158,10 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       friendships: e.friendships ? { ...e.friendships } : e.friendships,
       feuds: e.feuds ? { ...e.feuds } : e.feuds,
       feudPeaks: e.feudPeaks ? { ...e.feudPeaks } : e.feudPeaks,
-      moonHowlerSaved: e.moonHowlerSaved ? { ...e.moonHowlerSaved } : e.moonHowlerSaved,
+      needs: e.needs ? { ...e.needs } : e.needs,
+      moonHowlerSaved: e.moonHowlerSaved
+        ? { ...e.moonHowlerSaved, needs: e.moonHowlerSaved.needs ? { ...e.moonHowlerSaved.needs } : undefined }
+        : e.moonHowlerSaved,
     })),
 
     // Clone building objects and isolate occupants array
