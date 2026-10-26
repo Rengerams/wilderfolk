@@ -119,7 +119,7 @@ export const SMITH_BONUS_PER_WORKER = 0.25;
 export const SMITH_BONUS_CAP = 1.5;
 
 export function getSmithBonus(buildings: Building[], humans: Entity[]): number {
-  const workers = countStaffedWorkersAtType(buildings, humans, BuildingType.Blacksmith);
+  const workers = countStaffedWorkersAtType(buildings, humans.filter((human) => !isImprisoned(human)), BuildingType.Blacksmith);
   if (workers <= 0) return 1.0;
   return Math.min(SMITH_BONUS_CAP, 1 + workers * SMITH_BONUS_PER_WORKER);
 }
