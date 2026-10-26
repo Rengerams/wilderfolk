@@ -4,7 +4,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
+import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
 
 const mealTick = TICKS_PER_DAY;
 function person(override: Partial<Entity> = {}): Entity {
@@ -123,6 +123,20 @@ describe('independent physiological advancement', () => {
     expect(getHumanNeedsWorkMultiplier(person())).toBe(1);
     expect(getHumanNeedsWorkMultiplier(person({ needs: { nutrition: 4, rest: 70, stamina: 60 } }))).toBe(0.55);
     expect(getHumanNeedsWorkMultiplier(person({ needs: { nutrition: 60, rest: 70, stamina: 3 } }))).toBe(0.55);
+  });
+
+  it('persists an off-duty stamina break until sufficiently recovered, even when hungry', () => {
+    const e = person({ needs: { nutrition: 60, rest: 80, stamina: 10 } });
+    expect(resolveHumanNeedsIntent(e, mealTick + 1, false)).toBe('takeBreak');
+    expect(e.needs!.breakUntilRecovered).toBe(true);
+    const restored = structuredClone(e);
+    normalizeHumanNeeds(restored);
+    expect(restored.needs!.breakUntilRecovered).toBe(true);
+    restored.needs!.stamina = 30;
+    expect(resolveHumanNeedsIntent(restored, mealTick + 2, false)).toBe('takeBreak');
+    restored.needs!.stamina = 55;
+    expect(resolveHumanNeedsIntent(restored, mealTick + 3, false)).toBe('continueActivity');
+    expect(restored.needs!.breakUntilRecovered).toBeUndefined();
   });
 
   it('treats zero stamina as recoverable and clamps bad old energy', () => {
