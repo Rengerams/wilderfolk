@@ -192,6 +192,15 @@ function cloneWorldStateForAction(originalState: WorldState): WorldState {
   return structuredClone(originalState);
 }
 
+function killWildGameForPoach(state: WorldState, animal: Entity): void {
+  if (!animal.alive) return;
+  animal.alive = false;
+  unindexEntityFromState(state, animal.id);
+  for (const e of state.entities) {
+    if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
+  }
+}
+
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   const index = new Map<number, Entity>();
   for (const e of allAlive) {
