@@ -1,6 +1,6 @@
 # Roads, Walls, Gates & Navigation Overhaul — implementation brief
 
-Status: implementation pending. This branch is reserved for the coordinated overhaul.
+Status: implemented in PR #59; validation and remaining limitations recorded below.
 
 ## Required outcome
 - Click-and-drag roads and walls with seamless, deterministic connections and clear previews.
@@ -21,7 +21,7 @@ The coder may propose and implement a simpler or more robust architecture, expla
 Long straight and L-shaped drags, corners, T and cross junctions, reconnecting and demolishing segments, terrain policy, gate insertion and removal, sealed enclosures, blocked-route recovery, road preference based on travel time, actual road speed bonus, older save hydration, worker roundtrips and performance at 1,800 settlers.
 
 ## Next work
-Implement, validate and update roadmap, changelog, ownership and asset documentation. This brief is not an implementation or a passing test report.
+Complete visual acceptance and review measured performance against the settlement budget before merging.
 
 
 ## Future travel modes: navigation architecture constraint
@@ -47,3 +47,61 @@ Boats are not merely a hypothetical additional locomotion mode. The gameplay mot
 For future implementation, the planner should compare **complete door-to-door travel time**, including walking to a dock, boarding/waiting, boat journey, disembarking, and final walking. A boat-assisted route should be preferred only when faster and feasible, not simply because water is present. River direction, navigability, dock accessibility, capacity and scheduling are design considerations for that future feature, not rules to invent or hardcode now.
 
 Important architectural implication: commute eligibility and destination reach must eventually consume the same route-cost model as navigation, so a feasible river journey can genuinely make a distant destination reachable. Do not implement boat transport as a separate cosmetic shortcut or ignore the commute budget. Current PR scope remains fixing walking, roads, walls and gates, with an extension point for later river transport. The coding agent may recommend the smallest sound architecture to support this.
+
+
+## Acceptance follow-up — 2026-10-26
+
+### Architecture and corrections
+
+Keep the existing construction command, placement, demolition and A* owners. No new
+runtime dependency or save schema is needed. Pointer snapping may use a radius, but
+junction classification reads actual saved rectangles: nearby disconnected pieces
+and distant pieces no longer create phantom arms, and a real crossing has four arms.
+The previous alternative coerced coincident strips to an elbow and resnapped legacy
+coordinates during rendering, disagreeing with physical geometry.
+
+Road foundations now accept dry passable terrain, including ordinary mountain, snow
+and riverbank tiles, while rejecting reserved boulders and water. Ordinary building
+foundation restrictions stay in their existing owner. Only bridges clear terrain
+blockers in the navigation raster. Roads over water in older saves remain saved but
+cannot become accidental bridges. Grid signatures include dimensions and road versus
+bridge type. Road speed checks exact rectangles in a per-cell surface index, avoiding
+a full building scan for every settler and preventing bonuses beside narrow roads.
+
+### Test matrix
+
+- Existing strip tests cover straight and freehand multi-turn drags, diagonal legs,
+  duplicate prevention, preview guards, crossing validity and bounded worker commands.
+- Infrastructure acceptance tests cover dry rocky foundations, reserved decor, water
+  rejection, legacy roads over water versus bridges, incomplete walls, completion,
+  wall-to-gate opening and closure by wall replacement, removal, sealed rectangles,
+  exact surface speed eligibility, failed non-destructive gate replacement, alignment,
+  cost/refund accounting and preserving unrelated buildings during batch demolition.
+- Supported legacy version 0.6.5.0 is loaded three times with long roads, a perpendicular
+  road, walls, a gate, a bridge and unfinished construction; IDs, footprints and progress
+  remain unchanged. This is a generated legacy-format fixture, not a real historic save.
+- Junction geometry cases cover disconnected parallel strips, distant strips, crosses,
+  endpoint T-junctions and off-grid legacy coordinates.
+- The existing final-approach route fixture supplied the x tile for both axes, placing
+  its target outside the map. Corrected coordinates test the intended accepted route.
+- The old lone-crossing test expected a two-arm elbow; it now requires all four arms.
+
+### Assets and scope
+
+No new art or libraries were imported in this follow-up. The existing three Drummyfish
+sprites are CC0, verified against their OpenGameArt source on 2026-10-26; central asset
+and third-party registers now include them and the two original SVG fallbacks.
+
+### Verification limits
+
+The full browser and zoom-level visual acceptance is not yet executed: this host has
+no installed Playwright Python package or Chromium executable. Renderer unit assertions
+are not a substitute for visual inspection. Gate toggling/locking is not a distinct
+saved gameplay feature; navigation tests close an opening by replacing the gate with a
+wall. No boat mechanics or unrelated gameplay changes are introduced.
+
+The existing population benchmark now accepts PERF_INFRASTRUCTURE=1, adding 72 road
+pieces and 72 wall/gate pieces to the 1,800-settler city. This is a simulation benchmark;
+it does not measure pointer latency or canvas frame time. Initial runs shared CPU with
+the full test suite and are unsuitable for claiming a performance improvement. Both
+versions produced the same final delta fingerprint, 0a40016f2632d2ec.

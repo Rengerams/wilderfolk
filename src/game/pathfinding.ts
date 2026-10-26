@@ -67,6 +67,7 @@ function stampBuildingFootprint(
   rows: number,
   b: Building,
   value = 1,
+  surfaces?: Map<number, Building[]>,
 ): void {
   // Building positions are centres, not top-left corners. The walking mask must
   // cover the same footprint that placement and rendering use.
@@ -77,7 +78,13 @@ function stampBuildingFootprint(
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
-      grid[y * cols + x] = value;
+      const index = y * cols + x;
+      grid[index] = value;
+      if (surfaces) {
+        const entries = surfaces.get(index);
+        if (entries) entries.push(b);
+        else surfaces.set(index, [b]);
+      }
     }
   }
 }
@@ -92,7 +99,8 @@ function buildingSignature(
   let count = 0;
   for (const b of buildings) {
     if (!matches(b)) continue;
-    hash = (hash + b.id * 31 + Math.round(b.x) * 17 + Math.round(b.y) * 13 + (b.rotation ?? 0) * 7) >>> 0;
+    hash = (hash + b.id * 31 + b.x * 17 + b.y * 13 + (b.rotation ?? 0) * 7
+      + b.width * 19 + b.height * 23 + (b.type === BuildingType.Bridge ? 29 : 0)) >>> 0;
     count++;
   }
   return `${count}:${hash}`;
@@ -106,6 +114,7 @@ export interface PathGrid {
   elevation?: Float32Array;
   /** 1 on every tile a completed road or bridge covers. Absent when the map has none. */
   road?: Uint8Array;
+  roadSurfaces?: Map<number, Building[]>;
 }
 
 let gridCache: PathGrid | null = null;
@@ -150,20 +159,21 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
     }
   }
   let road: Uint8Array | null = null;
+  const roadSurfaces = new Map<number, Building[]>();
   if (buildings) {
     // Bridges open water first. Walls always win at overlapping footprints,
     // regardless of building array order. A gate remains an intentional gap.
     for (const b of buildings) {
       if (!isWalkableRoad(b)) continue;
       road ??= new Uint8Array(cols * rows);
-      stampBuildingFootprint(road, cols, rows, b);
-      stampBuildingFootprint(blocked, cols, rows, b, 0);
+      stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
+      if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
     }
     for (const b of buildings) {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
-  return road ? { cols, rows, blocked, elevation, road } : { cols, rows, blocked, elevation };
+  return road ? { cols, rows, blocked, elevation, road, roadSurfaces } : { cols, rows, blocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
@@ -951,5 +961,9 @@ export function isOnWalkableRoadAt(x: number, y: number): boolean {
   const tx = Math.floor(x / PATH_CELL);
   const ty = Math.floor(y / PATH_CELL);
   return tx >= 0 && ty >= 0 && tx < grid.cols && ty < grid.rows
-    && grid.road[ty * grid.cols + tx] === 1;
+    && grid.blocked[ty * grid.cols + tx] === 0
+    && grid.road[ty * grid.cols + tx] === 1
+    && (grid.roadSurfaces?.get(ty * grid.cols + tx)?.some((b) =>
+      x >= b.x - b.width / 2 && x < b.x + b.width / 2
+      && y >= b.y - b.height / 2 && y < b.y + b.height / 2) ?? true);
 }

@@ -400,6 +400,8 @@ The valley remembers **how a victory was handled**, not just who won:
 
 The player should be able to build an attractive, connected settlement where roads genuinely guide travel and walls and towers genuinely defend it. Construction must feel precise and rewarding: visually connected pieces, useful previews, understandable costs, and predictable behavior after placement.
 
+PR #59 validation follow-up: road terrain policy, physical junction footprints, bridge-only water clearance, exact road-surface speed, gate replacement accounting and legacy infrastructure round trips are implemented. Final visual checks and performance acceptance remain open; test evidence is recorded in the infrastructure implementation brief.
+
 ### 13.1 Road building and editing
 
 - Support intuitive **click-and-drag road painting** with straight runs, corners and optional route preview; avoid having to place every individual tile.

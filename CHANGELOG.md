@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Junctions use actual infrastructure footprints, preserving legacy positions and excluding disconnected nearby or distant strips.
+
+- **Fixed:** Roads accept passable rocky ground while rejecting water and reserved obstacles. Only bridges open blocked terrain; navigation refreshes when infrastructure dimensions or road or bridge type changes. Sprite provenance is registered.
+
 - **Changed:** Roads and walls can now be painted freehand with a single drag across multiple bends; a continuous preview tracks the stroke, and the release sends one bounded placement command.
 
 - **Fixed:** CC0 pavement aligns across joints using a stable texture phase and scale. Masonry repeats upright along either wall axis, gates stay upright, and merged demolition uses the authoritative batch cleanup owner.

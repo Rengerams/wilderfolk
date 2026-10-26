@@ -3,7 +3,7 @@ import { type BuildingRotation, getBuildingFootprintForType } from './buildingRo
 import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
-import { tileAt } from './terrain/terrainGrid';
+import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
 import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
@@ -76,6 +76,7 @@ export function isFootprintOnBuildableTerrain(
   const reinforcement = buildingType === BuildingType.GroundReinforcement;
   const bridge = buildingType === BuildingType.Bridge;
   const fishing = buildingType === BuildingType.FishingSpot;
+  const road = buildingType === BuildingType.Road;
   let riverCells = 0;
   let waterCells = 0;
   let cells = 0;
@@ -97,6 +98,10 @@ export function isFootprintOnBuildableTerrain(
         // A fishing dock may straddle land and water — but never mountains/snow.
         if (isUnbuildableTerrainType(tile.type) && !isWaterTerrainType(tile.type)) return false;
         if (isWaterTerrainType(tile.type)) waterCells++;
+      } else if (road) {
+        const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
+        if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
+          || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
       } else if (isUnbuildableTerrainType(tile.type)) {
         return false;
       }

@@ -225,14 +225,14 @@ describe('fast road waypoint steering', () => {
 describe('accepted road detour final approach', () => {
   it('continues on accepted waypoints once closer than the initial search threshold', () => {
     const road = {
-      id: 802, type: BuildingType.Road, x: pixel(20, 18), y: pixel(20, 18),
+      id: 802, type: BuildingType.Road, x: pixel(20, 18), y: pixel(18, 0),
       width: 34 * PATH_CELL, height: PATH_CELL, completed: true,
     } as Building;
     setCurrentPathMap(makeMap(45, 35, 20261027, () => false), [road]);
     try {
-      const walker = human(802, pixel(4, 18), pixel(4, 18));
+      const walker = human(802, pixel(4, 0), pixel(18, 0));
       const targetX = pixel(36, 18);
-      const targetY = pixel(36, 18);
+      const targetY = pixel(18, 0);
       expect(steerWithPath(walker, targetX, targetY, 5, 'accepted-road')).toBe('path');
       let enteredFinalApproach = false;
       for (let step = 0; step < 120; step++) {

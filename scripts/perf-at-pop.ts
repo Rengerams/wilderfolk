@@ -67,6 +67,11 @@ const TRACE = process.env.PERF_TRACE === '1';
 const TICKS_PER_DAY_TRACE = TICKS_PER_DAY;
 const REPORT = process.env.PERF_REPORT;
 const BASELINE = process.env.PERF_BASELINE;
+const INFRASTRUCTURE = process.env.PERF_INFRASTRUCTURE === '1';
+const INFRASTRUCTURE_RUNS = 6;
+const INFRASTRUCTURE_PIECES = 12;
+const INFRASTRUCTURE_SPACING = 72;
+const INFRASTRUCTURE_MARGIN = 120;
 
 type HourRow = { hour: number; ticks: number; avgMs: number; maxMs: number; p95Ms: number };
 type BenchmarkReport = { label: string; ticks: number; warmup: number; population: number; alive: number; averageMs: number; averageCpuMs: number; p50Ms: number; p95Ms: number; p99Ms: number; overBudgetTicks: number; deltaHash: string; populationSummary: ReturnType<typeof summarizeLivingPopulation>; relationships: ReturnType<typeof countRelationships>; roundtrip: { saveMs: number; loadMs: number; bytes: number; population: number; invariantErrors: string[] } | null; invariantErrors: string[]; profile: PerformanceSnapshot | null; maxMs: number; ticksPerSecond: number; byHour: HourRow[] };
@@ -321,7 +326,20 @@ async function main() {
     const state = initGame({ villageName: 'Bench', size: MapSize.Large, seed: SEED });
     state.resources.food = 8000;
     seedCityScaleProfile(state, targets);
-    bench(state, `City ${pop} player humans`, fullSim ? undefined : focus, targets, true);
+    if (INFRASTRUCTURE) {
+      for (let row = 0; row < INFRASTRUCTURE_RUNS; row++) {
+        for (let column = 0; column < INFRASTRUCTURE_PIECES; column++) {
+          createCompletedBuilding(state, BuildingType.Road,
+            INFRASTRUCTURE_MARGIN + column * INFRASTRUCTURE_SPACING,
+            INFRASTRUCTURE_MARGIN + row * INFRASTRUCTURE_SPACING);
+          createCompletedBuilding(state, column === Math.floor(INFRASTRUCTURE_PIECES / 2)
+            ? BuildingType.WallGate : BuildingType.Wall,
+          INFRASTRUCTURE_MARGIN + column * INFRASTRUCTURE_SPACING,
+          state.height - INFRASTRUCTURE_MARGIN - row * INFRASTRUCTURE_SPACING);
+        }
+      }
+    }
+    bench(state, `City ${pop} player humans${INFRASTRUCTURE ? ' infrastructure' : ''}`, fullSim ? undefined : focus, targets, true);
   }
   if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), reports: benchmarkReports }, null, 2) + '\n');
 }
