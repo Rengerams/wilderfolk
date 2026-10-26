@@ -451,12 +451,19 @@ function assignFamilyToResidence(
   }
   if (dependentGroups.size > 0) {
     const dependentIds = new Set([...dependentGroups.values()].flatMap((group) => group.map((member) => member.id)));
+    for (const adult of family) {
+      if (isMinorChild(adult) || dependentIds.has(adult.id)) continue;
+      if ([...dependentGroups.values()].some((group) => adult.residenceBuildingId != null
+        && adult.residenceBuildingId === group[0].residenceBuildingId)) {
+        relocateHousehold([adult], undefined, phase, 'family', context);
+      }
+    }
     for (const group of dependentGroups.values()) {
       const custodian = group[0];
       const existing = residences.find((home) => home.id === custodian.residenceBuildingId && !isLeaderHouseResidence(home));
       const homeId = (existing && familyFitsInResidence(group, existing, alive, occupancy) ? existing.id : undefined)
         ?? pickResidenceForFamily(group, alive, residences, occupancy, traits);
-      if (homeId !== undefined) relocateHousehold(group, homeId, phase, 'family', context);
+      relocateHousehold(group, homeId, phase, 'family', context);
     }
     for (const adult of family) {
       if (isMinorChild(adult) || dependentIds.has(adult.id) || hasResidenceAssignment(adult)) continue;
