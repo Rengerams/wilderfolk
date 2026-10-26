@@ -50,6 +50,19 @@ describe('single human meal transaction', () => {
     }
   });
 
+  it('feeds foreign war captives without creating player physiology state', () => {
+    const state = world(12);
+    const captive = person({ faction: 'rival', warCaptive: true, energy: 180, needs: undefined });
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(true);
+    expect(state.resources.food).toBe(11);
+    expect(state.economyLedger?.consumed.meals).toBe(1);
+    expect(captive.energy).toBeGreaterThan(180);
+    expect(captive.needs).toBeUndefined();
+    const visitor = person({ faction: 'rival', warCaptive: false, energy: 180, needs: undefined });
+    expect(tryEatColonyMeal(visitor, state, 8)).toBe(false);
+    expect(state.resources.food).toBe(11);
+  });
+
   it('accounts accurately for fractional food and meal cooldown', () => {
     const state = world(0.5);
     const eater = person();
