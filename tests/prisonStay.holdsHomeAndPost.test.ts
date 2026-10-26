@@ -197,6 +197,21 @@ describe('custody restoration when a prisoner is released', () => {
     expect(restoreCustodyAfterRelease(father, state.entities)).toEqual([]);
   });
 
+  it('restores custody when the other natural parent died during imprisonment', () => {
+    const released = human(7301, { gender: 'male', residenceBuildingId: HOUSE_ID });
+    const deceased = human(7302, { gender: 'female', alive: false });
+    const child = human(7303, {
+      age: 8, isJuvenile: true, motherId: deceased.id, fatherId: released.id,
+      adoptiveMotherId: 7304, residenceBuildingId: 903,
+    });
+
+    const returned = restoreCustodyAfterRelease(released, [released, deceased, child]);
+
+    expect(returned).toEqual([child]);
+    expect(child.adoptiveMotherId).toBeUndefined();
+    expect(child.adoptiveFatherId).toBeUndefined();
+  });
+
   it('clears temporary guardians but leaves the child with an available natural custodian', () => {
     const mother = human(7201, { gender: 'female', residenceBuildingId: HOUSE_ID });
     const father = human(7202, { gender: 'male', residenceBuildingId: 903 });
