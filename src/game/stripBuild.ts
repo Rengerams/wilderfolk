@@ -43,6 +43,8 @@ export interface EnclosedArea {
 }
 
 export interface StripBuildPreview {
+  /** True when the same strip preview describes selected demolition targets, not new construction. */
+  readonly demolition?: boolean;
   readonly segments: readonly StripSegment[];
   readonly rotation: BuildingRotation;
   /** Regions fully enclosed by walls (preview + existing). */
