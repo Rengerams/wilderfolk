@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
+import { collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
 
 function strip(type: typeof BuildingType.Road | typeof BuildingType.Wall, rotation: 0 | 90): Building {
   const { width, height } = getBuildingFootprintForType(type, rotation);
@@ -39,6 +39,14 @@ describe('connected strip planning', () => {
     const pieces = resolveWallStripPlan(stateWith(wall), BuildingType.WallGate, origin, 0);
     expect(pieces).toHaveLength(1);
     expect(pieces[0]).toMatchObject({ x: 14, y: 0, rotation: 0, replacesBuildingId: 10 });
+  });
+
+  it('selects only player roads touched by a demolition drag', () => {
+    const road = strip(BuildingType.Road, 0);
+    const wall = { ...strip(BuildingType.Wall, 0), id: 11 };
+    const rivalRoad = { ...road, id: 12, faction: 'rival' as const };
+    expect(collectStripDemolitionIds([road, wall, rivalRoad], BuildingType.Road, -2, -2, 2, 2))
+      .toEqual([10]);
   });
 
   it('preserves the existing wall-to-gate replacement behavior', () => {
