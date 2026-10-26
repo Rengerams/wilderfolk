@@ -318,7 +318,7 @@ describe('worker boundary closure', () => {
       expect(newYearSettlers).toBeGreaterThan(0); // the round trip really did carry a January 1 settler
     });  });
 
-  it('keeps 21 leader-house residents across worker transport, tick delta, and real save/load', () => {
+  it('keeps the leader couple and independent adult descendants across worker and save/load boundaries', () => {
     resetSimRng();
     const authority = initGame({ seed: SEED });
     const leader = authority.entities.find((e) => e.type === EntityType.Human && e.alive);
@@ -336,12 +336,13 @@ describe('worker boundary closure', () => {
     authority.buildings = [manor];
     authority.villageLeaderId = leader.id;
     syncLeaderHouseResidency(authority);
-    const ids = family.map((e) => e.id).sort((a, b) => a - b);
+    const ids = [leader.id, spouseId].sort((a, b) => a - b);
     const assertHouse = (world: WorldState) => {
       const home = world.buildings.find((b) => b.id === manor.id);
       expect(home).toBeDefined();
       expect([...home!.occupants].sort((a, b) => a - b)).toEqual(ids);
       expect(world.entities.filter((e) => ids.includes(e.id)).every((e) => e.residenceBuildingId === manor.id)).toBe(true);
+      expect(world.entities.filter((e) => childIds.includes(e.id))).toHaveLength(childIds.length);
     };
     assertHouse(authority);
     invalidateWorldRuntimeCaches(authority);

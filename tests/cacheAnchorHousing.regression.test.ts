@@ -51,12 +51,12 @@ describe('unambiguous housing units', () => {
     expect(new Set(units.flat().map((entry) => entry.id)).size).toBe(3);
   });
 
-  it('keeps the leader’s children and their spouses in the manor alongside unmarried minors', () => {
+  it('limits the leader household to the leader and dependent minors', () => {
     const leader = person(1, { childrenIds: [2, 3] });
     const adult = person(2, { age: 25, motherId: 1, partnerId: 4 });
     const minor = person(3, { age: 12, isJuvenile: true, motherId: 1 });
     const spouse = person(4, { partnerId: 2 });
     expect(collectLeaderDescendants(leader, [leader, adult, minor, spouse]).map((e) => e.id).sort((a, b) => a - b))
-      .toEqual([1, 2, 3, 4]);
+      .toEqual([1, 3]);
   });
 });

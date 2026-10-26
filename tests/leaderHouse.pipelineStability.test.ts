@@ -27,7 +27,7 @@ function manorWorld(): ManorWorld {
   const child = human(3, {
     motherId: 2, fatherId: 1, residenceBuildingId: MANOR_ID, isJuvenile: true, age: 8,
   });
-  const son = human(4, { motherId: 2, fatherId: 1, residenceBuildingId: MANOR_ID, age: 21 });
+  const son = human(4, { motherId: 2, fatherId: 1, residenceBuildingId: MANOR_ID, age: 14, isJuvenile: true });
   const neighbour = human(5, { partnerId: 6 });
   const neighbourSpouse = human(6, { partnerId: 5 });
   const manor = building(MANOR_ID, BuildingType.LeaderHouse, { occupants: [...HOUSEHOLD_IDS] });
