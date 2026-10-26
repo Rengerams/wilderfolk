@@ -556,8 +556,16 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   - If only one parent is living and available, custody follows that parent; if neither is,
     use the established guardianship fallback. Housing reconciliation must honor the chosen
     custody outcome and must not silently revert it to a mother-first default.
+  - Choose the departing parent's home as far from the former spouse as feasible among valid
+    homes. Preserve dependent children, capacity and leader-home restrictions; distance is a
+    preference, not an excuse to strand minors. The current divorce relocation excludes the
+    previous residence but does not explicitly maximize physical separation.
+  - **Already implemented:** former spouses cannot court or remarry each other for one full
+    game year (`REMARRIAGE_BAR_TICKS`, `isWithinRemarriageBar` and `pastPartnerTicks`
+    in the relationship/divorce owners). Do not add a parallel timer or duplicate this rule.
   The existing divorce relocation and `getChildCustodian` behavior require code changes and
-  dedicated regression tests before these rules may be reported as implemented.
+  dedicated regression tests before the newly confirmed custody and distance policies may
+  be reported as implemented.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
