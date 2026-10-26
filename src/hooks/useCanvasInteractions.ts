@@ -407,7 +407,17 @@ export function useCanvasInteractions({
       if (selectedBuildingType) {
         if (isStripBuildType(selectedBuildingType) && stripDragStartRef.current) {
           if (stripDemolitionGestureRef.current) {
-            loop?.patchView({ buildStripPreview: null, buildGhost: null }, true);
+            const ids = new Set(collectStripDemolitionIds(
+              liveWorld.buildings, selectedBuildingType, start.x, start.y, worldX, worldY,
+            ));
+            const segments = liveWorld.buildings.filter((building) => ids.has(building.id)).map((building) => ({
+              x: building.x, y: building.y, placeType: building.type,
+              rotation: building.rotation ?? 0, valid: true,
+            }));
+            loop?.patchView({
+              buildStripPreview: { segments, rotation: inferStripRotation(start.x, start.y, worldX, worldY), demolition: true },
+              buildGhost: null,
+            }, true);
             return;
           }
           const start = stripDragStartRef.current;
