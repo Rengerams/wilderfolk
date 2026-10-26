@@ -538,16 +538,24 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   partner and minor children moves with their own dependent household. The optional adult-child phase can
   use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
   equate a family-tree relationship with one indivisible housing unit.
-* **Divorce custody — owner policy confirmed; code audit identifies a mismatch.** Minor children
-  remain with or move to their living, available mother (including an adoptive mother where applicable),
-  regardless of which partner initiated the divorce or committed adultery. The father is the departing
-  parent when the couple separates; try to find him a suitable residence without displacing the
-  mother and children. If the mother is deceased or genuinely unavailable, invoke the established
-  fallback guardianship rules rather than assigning children to an absent parent. The sitting leader
-  retains the manor entitlement, but that must not silently override maternal custody: reconcile
-  housing without splitting mother and minors. Custody and relocation must be consistent across
-  divorce handling and the subsequent housing sweep. This is a required code change/verification,
-  not a claim about currently shipped behavior.
+* **Divorce custody and marital home — owner policy confirmed; code audit identifies a mismatch.**
+  Minor children follow their living, available mother (including adoptive mother where applicable)
+  during divorce. Which adult keeps the former family home is a separate decision:
+  - Amicable divorce or the father's adultery: mother and minor children stay in the family home;
+    father leaves for another suitable home.
+  - Mother's adultery: father keeps the former family home; mother **and all her minor children
+    move together** to a suitable residence. Never move the mother alone or leave the children
+    behind with the father because the destination has insufficient capacity.
+  - Before displacing a mother-and-minor unit, attempt custody-safe housing reshuffles to find
+    enough beds for them. If no suitable home exists, preserve the mother-and-children unit and
+    report the shortage rather than forcing a partial move or violating capacity. Do not restore
+    the divorced pair to the same home through subsequent optional housing passes.
+  - If the mother has died or is genuinely unavailable, use existing fallback guardianship
+    rules instead of assigning children to an absent parent. The leader's manor entitlement
+    remains a separate invariant, requiring an explicit custody-safe reconciliation rather
+    than silently overriding divorce housing rules.
+  These are target rules requiring implementation/regression verification, not a statement that
+  current runtime divorce relocation already satisfies them.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
