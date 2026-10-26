@@ -42,6 +42,8 @@ const SLOPE_DOWN_COST = 0.004;
 const CLIFF_STEP = 32;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
+const PATH_MAX_SEARCH_NODES = 6000;
+const PATH_ARRIVAL_DISTANCE_PX = 8;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
@@ -545,7 +547,7 @@ export function findPath(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): { x: number; y: number }[] | null {
   return searchRoute(grid, sx, sy, tx, ty, maxNodes, false).path;
 }
@@ -557,7 +559,7 @@ export function findRouteCost(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): number | null {
   return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
 }
@@ -569,7 +571,7 @@ export function findRouteCostOutcome(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): { cost: number | null; budgetExhausted: boolean } {
   const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
   return { cost: result.cost, budgetExhausted: result.hitNodeCap };
@@ -726,7 +728,8 @@ export function getRouteObstruction(
  *   commute leaves it to the human loop, the hotel walk moves the visitor itself). The stepper
  *   never writes a position: doing that *and* letting the caller move advanced entities twice per
  *   tick, which is the 2026-09-13 movement regression.
- * - 'direct': no pathing needed/found — caller does its usual straight move.
+ * - 'direct': the direct leg is traversable — caller does its usual straight move.
+ * - 'blocked': no safe route exists; caller must not advance.
  */
 export function steerWithPath(
   entity: Entity,
@@ -734,11 +737,11 @@ export function steerWithPath(
   targetY: number,
   speed: number,
   cacheKey: string,
-): 'arrived' | 'path' | 'direct' {
+): 'arrived' | 'path' | 'direct' | 'blocked' {
   const dx = targetX - entity.x;
   const dy = targetY - entity.y;
   const dist = Math.hypot(dx, dy) || 1;
-  if (dist <= 8) {
+  if (dist <= PATH_ARRIVAL_DISTANCE_PX) {
     entity.vx = 0;
     entity.vy = 0;
     return 'arrived';
@@ -816,6 +819,11 @@ export function steerWithPath(
       faceVelocity(entity);
       return 'path';
     }
+  }
+  if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return 'blocked';
   }
   return 'direct';
 }
