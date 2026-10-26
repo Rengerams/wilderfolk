@@ -127,6 +127,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/bush.png',
     '/sprites/stump.png',
     '/sprites/tile_pavement.png',
+    '/sprites/walls/wall_straight.svg',
+    '/sprites/walls/wall_gate.svg',
     '/sprites/ground_soil.PNG',
     // Leader's manor — not yet wired to a BuildingType, preloaded explicitly.
     '/sprites/house_leader.png',
