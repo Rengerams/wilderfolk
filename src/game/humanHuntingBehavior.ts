@@ -12,6 +12,7 @@ import { personDayRoll } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
+import { HUMAN_NEEDS } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -58,8 +59,8 @@ export function tickHumanHunting(
   // doesn't send settlers off to thin the wild herd for sport.
   const famine = (state.resources?.food ?? 0) <= 0;
   const freeHuntHungry = isJobHunter
-    ? entity.energy < entity.maxEnergy * 0.85
-    : famine && entity.energy < entity.maxEnergy * 0.6;
+    ? (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION
+    : famine && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
 
   const blueberryForaging =
     !isJobHunter &&
@@ -140,7 +141,13 @@ export function tickHumanHunting(
       const energyBite =
         config.energyGain[closestPrey.type] ??
         (closestPrey.type === EntityType.Deer ? 350 : 150);
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
+      if (entity.needs) {
+        entity.needs.stamina = Math.min(100, entity.needs.stamina
+          + energyBite / Math.max(1, entity.maxEnergy) * 100);
+        entity.energy = entity.maxEnergy * entity.needs.stamina / 100;
+      } else {
+        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
+      }
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;
