@@ -17,6 +17,8 @@ export const HUMAN_NEEDS = {
   WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
   HOSPITAL_STAMINA_DRAIN_MULTIPLIER: 0.9,
   REST_CRITICAL: 20,
+  REST_RECOVERY_TARGET: 65,
+  RECOVERY_SLEEP_HOURS: 5,
   STAMINA_CRITICAL: 15,
   NUTRITION_STARVING: 8,
   STARVATION_FATAL_SIM_HOURS: 48,
@@ -42,6 +44,7 @@ export function normalizeHumanNeeds(entity: Entity): HumanNeedsState {
   };
   if (typeof old?.lastMealTick === 'number' && Number.isSafeInteger(old.lastMealTick) && old.lastMealTick >= 0) result.lastMealTick = old.lastMealTick;
   if (typeof old?.lastAdvancedTick === 'number' && Number.isSafeInteger(old.lastAdvancedTick) && old.lastAdvancedTick >= 0) result.lastAdvancedTick = old.lastAdvancedTick;
+  if (typeof old?.sleepRecoveryUntilTick === 'number' && Number.isSafeInteger(old.sleepRecoveryUntilTick) && old.sleepRecoveryUntilTick >= 0) result.sleepRecoveryUntilTick = old.sleepRecoveryUntilTick;
   entity.needs = result;
   return result;
 }
@@ -79,6 +82,12 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
   needs.severeHungerTicks = needs.nutrition <= HUMAN_NEEDS.NUTRITION_STARVING
     ? (needs.severeHungerTicks ?? 0) + ticks : 0;
+  if (needs.rest >= HUMAN_NEEDS.REST_RECOVERY_TARGET) {
+    needs.sleepRecoveryUntilTick = undefined;
+  } else if (!obs.sleeping && needs.rest < HUMAN_NEEDS.REST_CRITICAL &&
+    (needs.sleepRecoveryUntilTick ?? 0) <= obs.tick) {
+    needs.sleepRecoveryUntilTick = obs.tick + HUMAN_NEEDS.RECOVERY_SLEEP_HOURS * TICKS_PER_HOUR;
+  }
   needs.lastAdvancedTick = obs.tick;
   // One-way compatibility read for legacy social and combat consumers.
   entity.energy = entity.maxEnergy * needs.stamina / 100;
@@ -93,7 +102,7 @@ export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: 
   if (needs.nutrition < HUMAN_NEEDS.EAT_ENTER_NUTRITION &&
       (needs.lastMealTick == null ||
        tick - needs.lastMealTick >= HUMAN_NEEDS.EAT_COOLDOWN_SIM_HOURS * TICKS_PER_HOUR)) return 'eat';
-  if (needs.rest < HUMAN_NEEDS.REST_CRITICAL) return 'sleep';
+  if (needs.rest < HUMAN_NEEDS.REST_CRITICAL || (needs.sleepRecoveryUntilTick ?? 0) > tick) return 'sleep';
   if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL) return 'takeBreak';
   return 'continueActivity';
 }

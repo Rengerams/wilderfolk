@@ -233,6 +233,7 @@ export interface HumanNeedsState {
   lastMealTick?: number;
   lastAdvancedTick?: number;
   severeHungerTicks?: number;
+  sleepRecoveryUntilTick?: number;
 }
 
 export interface MoonHowlerSavedState {

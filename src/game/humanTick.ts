@@ -31,7 +31,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
-import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isNightHour, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -594,10 +594,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
 
+    const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const inFocus = !focus || isInFocus(entity, focus);
     const active =
       !isPrisoner &&
       (inFocus ||
+        (recoveringSleep && !onJobShift) ||
         hospitalCommuteDue ||
         schoolCommuteDue || onSchoolShift ||
         prisonCommuteDue ||
@@ -612,9 +614,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
-    const sleepingForNeeds = !isPrisoner && !entity.raidDeploymentId && !onDutyForSleep && (
-      isAsleepAtHome(entity, buildingById, hourOfDay, onDutyForSleep)
-      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+    const cell = isPrisoner ? buildingById.get(entity.prisonBuildingId!) : undefined;
+    const sleepingInCell = Boolean(cell?.completed && isNightHour(hourOfDay)
+      && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18);
+    const sleepingForNeeds = !entity.raidDeploymentId && (
+      sleepingInCell || (!isPrisoner && !onDutyForSleep && (
+        isAsleepAtHome(entity, buildingById, hourOfDay, onDutyForSleep)
+        || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+        || (recoveringSleep && isNearResidence(entity, buildingById))
+      ))
     );
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
@@ -776,7 +784,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !festivalGathering &&
       !onTavernShift &&
       !onMoonPriestShift &&
-      prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay);
+      (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
+        || (recoveringSleep && !onJobShift));
 
     const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn);
     const socialBlockedByJob = isInnkeeper

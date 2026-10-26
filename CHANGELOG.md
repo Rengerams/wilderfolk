@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Recovery sleep can be pursued at home off-shift when critically sleep-deprived; a bounded persisted sleep plan prevents tick-to-tick priority jitter. Prisoners can rest at night in their actual cell.
+
 - **Changed:** Settlers advance physiology once per tick before camera throttling, eat against nutrition thresholds with ledger-backed food debit, and face delayed starvation rather than zero-energy death.
 
 - **Changed:** Player-human nutrition, rest and stamina now persist separately, including Moon-form recovery; the settler inspector displays all three (#61).
