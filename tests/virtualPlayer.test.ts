@@ -1078,6 +1078,8 @@ describe('virtual player remaining action surface', () => {
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1] }),
         building(3, BuildingType.LumberMill),
+        // Keep spare housing from pre-empting the repairs this fixture is isolating.
+        building(4, BuildingType.Mansion, { level: 3 }),
         ...roads,
       ],
       { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 150 } },
