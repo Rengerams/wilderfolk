@@ -935,11 +935,22 @@ export function ensureOrphanAdoption(
   if (!guardian) {
     const picked = pickResidenceForFamily(siblings, residents, residences, occupancy, traits);
     if (picked === undefined) return false;
-    relocateHousehold(siblings, picked, 'guardianship', 'guardian', standaloneMoveContext(residents, residences, occupancy, traits, ledger));
-    return true;
+    return relocateHousehold(siblings, picked, 'guardianship', 'guardian',
+      standaloneMoveContext(residents, residences, occupancy, traits, ledger));
   }
   const partner = findLivingHuman(alive, guardian.partnerId);
   const guardians = [guardian, partner].filter((human): human is Entity => !!human);
+  const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
+    .map((member) => [member.id, member])).values()];
+  const picked = pickResidenceForFamily(household, residents, residences, occupancy, traits);
+  if (picked === undefined) return false;
+  const previous = siblings.map((sibling) => ({
+    sibling,
+    motherId: sibling.adoptiveMotherId,
+    fatherId: sibling.adoptiveFatherId,
+    surname: sibling.surname,
+  }));
+  const childrenBefore = guardians.map((adult) => ({ adult, ids: [...(adult.childrenIds ?? [])] }));
   for (const sibling of siblings) {
     if (livingAdoptiveCustodian(sibling, humans)) continue;
     sibling.adoptiveMotherId = guardians.find((human) => human.gender === 'female')?.id;
@@ -950,11 +961,15 @@ export function ensureOrphanAdoption(
       if (!adult.childrenIds.includes(sibling.id)) adult.childrenIds.push(sibling.id);
     }
   }
-  const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
-    .map((member) => [member.id, member])).values()];
-  assignFamilyToResidence(household, residents, residences, humans, 'guardianship',
-    standaloneMoveContext(residents, residences, occupancy, traits, ledger));
-  return true;
+  if (relocateHousehold(household, picked, 'guardianship', 'guardian',
+    standaloneMoveContext(residents, residences, occupancy, traits, ledger))) return true;
+  for (const entry of previous) {
+    entry.sibling.adoptiveMotherId = entry.motherId;
+    entry.sibling.adoptiveFatherId = entry.fatherId;
+    entry.sibling.surname = entry.surname;
+  }
+  for (const entry of childrenBefore) entry.adult.childrenIds = entry.ids;
+  return false;
 }
 
 export function tryMoveOutOfFamilyHome(
