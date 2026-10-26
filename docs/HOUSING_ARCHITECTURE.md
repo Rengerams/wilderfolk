@@ -438,7 +438,7 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 6 | Find the Leader's House by type | **DONE** — `findLeaderHouse` matches type, completed, player faction |
 | 7 | Manor exclusivity and succession | **DONE** — see §9 |
 | 8 | Families stay together | **DONE** — the exact shortage order in §2 phase 4 |
-| 9 | Adult children at 18 | **OWNER DECISION CONFIRMED; IMPLEMENTATION NEEDS REVALIDATION** — adult children may split from parents; only parents/custodians plus minors are inseparable dependent units. See §14. |
+| 9 | Adult children at 18 | **VERIFIED** — adult children may split from parents; only parents/custodians plus minors are inseparable dependent units. See §14. |
 | 10 | Singles, capacity, no homeless while beds exist | **DONE** — `getResidenceCapacity`, `fillHomelessAfterEviction`, `tests/housingUnits.composition.test.ts` |
 | 11 | Children without parents | **DONE** — §2 phase 3 |
 | 12 | Meaningful commute moves | **DONE — measured and optimized** — identical assignment hashes, warm median at 2,400 settlers 684.6 → 66.1 ms (table below) |
@@ -531,14 +531,16 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
 
 ## 14. Confirmed rules and remaining verification
 
-* **Adult children at 18 (spec §9) — policy decided, implementation requires regression verification.**
+* **Adult children at 18 (spec §9) — policy and regression tests verified.**
   A household that must remain together consists of parent(s)/actual custodian(s) and their minor children,
   not every living descendant. At adulthood, a child becomes eligible to move to an independent residence;
   adult descendants, even those aged 30+, are not permanently attached to their parents. An adult with a
   partner and minor children moves with their own dependent household. The optional adult-child phase can
   use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
-  equate a family-tree relationship with one indivisible housing unit.
-* **Divorce custody and marital home — owner policy confirmed; implementation not yet verified.**
+  equate a family-tree relationship with one indivisible housing unit. Manor entitlement also stops at
+  the leader, partner and dependent minors, including when adult descendants have no home. The manor,
+  annex, worker transport and saved-game regression tests verify that boundary.
+* **Divorce custody and marital home — focused custody and relocation regressions verified.**
   For a divorce with two living, available parents, decide custody of their shared minor children
   with a deterministic, seeded **50/50 selection between mother and father**, once per divorcing
   parental unit. Do not make an independent random roll for each child: siblings sharing the same
@@ -564,8 +566,8 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
     game year (`REMARRIAGE_BAR_TICKS`, `isWithinRemarriageBar` and `pastPartnerTicks`
     in the relationship/divorce owners). Do not add a parallel timer or duplicate this rule.
   Divorce custody selection, distance-aware relocation, and a one-hop move of an intact
-  blocking household are implemented. The 90-day housing regression passes; full CI and
-  wider divorce/succession verification are still pending. This one-hop reshuffle does not
+  blocking household are implemented. Focused divorce, leader succession, worker transport and
+  saved-game regressions pass locally. Full remote CI remains required. This one-hop reshuffle does not
   guarantee a home if a multi-step chain of moves would be necessary.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other

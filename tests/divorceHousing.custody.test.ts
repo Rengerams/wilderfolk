@@ -75,7 +75,7 @@ describe('divorce custody and housing', () => {
 
   it('reshuffles a whole independent household to free enough beds for a parent', () => {
     const oldHome = building(10, BuildingType.Mansion, { x: 0, y: 0, level: 3 });
-    const occupied = building(20, BuildingType.Mansion, { x: 150, y: 0, level: 3 });
+    const occupied = building(20, BuildingType.Mansion, { x: 150, y: 0 });
     const spare = building(30, BuildingType.House, { x: 40, y: 0 });
     const mother = human(1, { gender: 'female', residenceBuildingId: 10, pastPartnerTicks: { 2: 1201 } });
     const father = human(2, { gender: 'male', residenceBuildingId: 10, pastPartnerTicks: { 1: 1201 } });

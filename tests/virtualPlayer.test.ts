@@ -1093,6 +1093,8 @@ describe('virtual player remaining action surface', () => {
         building(3, BuildingType.LumberMill),
         // Keep spare housing from pre-empting the repairs this fixture is isolating.
         building(4, BuildingType.Mansion, { level: 3 }),
+        // Material recovery is already available while this fixture tests repair batching.
+        building(5, BuildingType.Quarry),
         ...roads,
       ],
       { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 150 } },

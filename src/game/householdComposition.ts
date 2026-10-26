@@ -27,34 +27,7 @@ export function collectOwnHousehold(seed: Entity, humans: Entity[]): Entity[] {
 
 /** The leader's entitled housing unit: partner and dependent minors, not grown descendants. */
 export function collectLeaderDescendants(leader: Entity, humans: Entity[]): Entity[] {
-  const members = collectMinorHousehold(leader, humans).filter(isResidenceOccupantEntity);
-  const memberIds = new Set(members.map((person) => person.id));
-  const parentIds = new Set([leader.id, leader.partnerId].filter((id): id is number => id != null));
-  const directChildren = humans.filter((person) => person.alive && isResidenceOccupantEntity(person)
-    && (parentIds.has(person.motherId ?? -1) || parentIds.has(person.fatherId ?? -1)
-      || parentIds.has(person.adoptiveMotherId ?? -1) || parentIds.has(person.adoptiveFatherId ?? -1)));
-  for (const child of directChildren) {
-    const partner = humans.find((person) => person.id === child.partnerId
-      && person.alive && isResidenceOccupantEntity(person));
-    const hasDependentMinors = [child, partner].some((parent) => parent != null
-      && humans.some((person) => person.alive && isResidenceOccupantEntity(person)
-        && isMinorChild(person) && (person.motherId === parent.id || person.fatherId === parent.id
-          || person.adoptiveMotherId === parent.id || person.adoptiveFatherId === parent.id)));
-    // An established ordinary residence makes this a separate adult household.
-    // Do not admit only its unhoused partner into the manor.
-    const hasIndependentHome = [child, partner].some((adult) =>
-      adult?.residenceBuildingId != null && adult.residenceBuildingId !== leader.residenceBuildingId);
-    if (hasDependentMinors || hasIndependentHome) continue;
-    if (!memberIds.has(child.id)) {
-      members.push(child);
-      memberIds.add(child.id);
-    }
-    if (partner && !memberIds.has(partner.id)) {
-      members.push(partner);
-      memberIds.add(partner.id);
-    }
-  }
-  return members;
+  return collectMinorHousehold(leader, humans).filter(isResidenceOccupantEntity);
 }
 
 /**

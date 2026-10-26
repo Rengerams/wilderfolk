@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed:** Leader House entitlement still recognizes adult children while allowing established adult households to remain independent.
+- **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.
 - **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
 
 - **Planned:** Added the high-priority roads, walls, gates, navigation and drag-demolition overhaul to the v0.6.6.0 roadmap; implementation and validation remain pending.
