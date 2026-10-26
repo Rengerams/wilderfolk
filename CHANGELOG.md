@@ -6,7 +6,7 @@
 
 - **Docs:** Housing architecture now diagrams move validation, refusal and rollback and provides eight worked relocation examples.
 
-- **Changed:** PR40 housing endurance comparison now runs 200 days instead of 600 to reduce CI duration; the baseline and optimized scenarios retain the same seed and checks.
+- **Changed:** PR40 housing endurance comparison now runs 100 days instead of 600 to reduce CI duration; the baseline and optimized scenarios retain the same seed and checks.
 
 - **Changed:** Leader's House has 20 fixed beds (was 12), no upgrades, and one linked annex unlocked above 20 occupants (40 beds combined). The leader stays in the original; an orphan annex cannot replace it.
 
