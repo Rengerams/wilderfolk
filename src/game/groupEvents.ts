@@ -7,7 +7,7 @@ import type {
 import { EntityType, BuildingType, JobType } from './gameTypes';
 import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
-import { indexLivingEntity } from './entityIndex';
+import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
