@@ -600,6 +600,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !isPrisoner &&
       (inFocus ||
         (recoveringSleep && !onJobShift) ||
+        (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
         schoolCommuteDue || onSchoolShift ||
         prisonCommuteDue ||
@@ -792,6 +793,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
     const shiftStartHour = prisonShiftStartHour;
 
+    // A resting settler takes an actual off-duty pause, not merely a status label.
+    // On-duty and emergency movement remain owned by their existing systems.
+    const takingNeedsBreak = isPlayerHuman(entity) && !onJobShift &&
+      !onOfficialShift && !onPriestShift && !schoolCommuteDue &&
+      resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'takeBreak';
+
     const stayIn =
       !festivalGathering &&
       !onTavernShift &&
@@ -799,7 +806,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
         || (recoveringSleep && !onJobShift));
 
-    const allowFreeRoam = festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn);
+    const allowFreeRoam = !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
@@ -1773,6 +1780,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entity.vx = 0;
         entity.vy = 0;
       }
+    }
+
+    // Idle stamina recovery requires an actual stationary break; keep danger,
+    // scheduled duty and ceremonies free to override it.
+    if (takingNeedsBreak && !huntingWere && !inElectionCeremony && !festivalGathering &&
+      !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !entity.raidDeploymentId) {
+      entity.vx = 0;
+      entity.vy = 0;
     }
 
     const nearRoad = queryIsNearRoad(
