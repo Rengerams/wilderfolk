@@ -2005,6 +2005,7 @@ export default function App() {
                 onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
                 onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
                 onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
+                onToggleGate={() => applyGameAction({ proto: 1, op: 'toggleWallGate', buildingId: selectedBuilding.id })}
                 onSetWorkshopRecipe={(recipeId: string) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setWorkshopRecipe', buildingId: selectedBuilding.id, recipeId });
