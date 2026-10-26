@@ -51,6 +51,15 @@ describe('unambiguous housing units', () => {
     expect(new Set(units.flat().map((entry) => entry.id)).size).toBe(3);
   });
 
+  it('keeps a blended descendant household independent when the spouse has dependent minors', () => {
+    const leader = person(1, { childrenIds: [2] });
+    const descendant = person(2, { motherId: 1, partnerId: 3 });
+    const spouse = person(3, { partnerId: 2, childrenIds: [4] });
+    const minor = person(4, { age: 7, isJuvenile: true, motherId: 3 });
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse, minor]).map((person) => person.id))
+      .toEqual([1]);
+  });
+
   it('does not separate an unhoused adult descendant from their minor child for manor entitlement', () => {
     const leader = person(1, { childrenIds: [2] });
     const adult = person(2, { age: 28, motherId: 1, childrenIds: [3] });
