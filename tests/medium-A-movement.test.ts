@@ -181,6 +181,47 @@ describe('M13 hospital treatment cadence', () => {
   });
 });
 
+describe('fast road waypoint steering', () => {
+  it('crosses ten-pixel road tiles without oscillating at a waypoint or repeatedly searching', () => {
+    const road = {
+      id: 803, type: BuildingType.Road, x: pixel(20, 15), y: pixel(20, 15),
+      width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(45, 35, 20261028, () => false), [road]);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const walker = human(803, pixel(4, 18), pixel(4, 18));
+      const goalX = pixel(36, 18);
+      const goalY = pixel(36, 18);
+      const steps: number[] = [];
+      let arrived = false;
+      for (let tick = 0; tick < 90; tick++) {
+        const mode = steerWithPath(walker, goalX, goalY, 28, 'fast-road');
+        if (mode === 'arrived') { arrived = true; break; }
+        if (mode === 'direct') {
+          const dx = goalX - walker.x;
+          const dy = goalY - walker.y;
+          const dist = Math.hypot(dx, dy);
+          walker.vx = dx / dist * Math.min(28, dist / 1.5);
+          walker.vy = dy / dist * Math.min(28, dist / 1.5);
+        } else {
+          expect(mode).toBe('path');
+        }
+        const roadMult = 1.5;
+        steps.push(Math.hypot(walker.vx, walker.vy) * roadMult);
+        applyHumanWalkStep(walker, roadMult);
+      }
+      expect(arrived).toBe(true);
+      expect(steps.some((step) => step > PATH_CELL * 2)).toBe(true);
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBeLessThan(15);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+});
+
 describe('accepted road detour final approach', () => {
   it('continues on accepted waypoints once closer than the initial search threshold', () => {
     const road = {
