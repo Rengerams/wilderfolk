@@ -339,28 +339,12 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
 export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
   return demolishBuildingInPlace(structuredClone(originalState), buildingId);
 }
-/** One authoritative batch demolition: the worker reconciles world state after all strips leave. */
+/** Strip selection delegates demolition, assignment cleanup, and refunds to the shared batch owner. */
 export function demolishStripBuildingsInPlace(state: WorldState, buildingIds: readonly number[]): WorldState {
   if (buildingIds.length === 0 || buildingIds.length > MAX_STRIP_SEGMENTS) return state;
   const wanted = new Set(buildingIds);
   if (wanted.size !== buildingIds.length) return state;
   const selected = state.buildings.filter((building) => wanted.has(building.id)
     && building.faction !== 'rival' && isStripBuildType(building.type));
-  if (selected.length === 0) return state;
-
-  let wood = 0;
-  let stone = 0;
-  for (const building of selected) {
-    const refunded = refundBuildingCost(state, building.type);
-    wood += refunded.wood;
-    stone += refunded.stone;
-    clearAssignmentsForDemolishedBuilding(state, building.id);
-    removeBuildingFromState(state, building);
-  }
-
-  updateStorageCaps(state);
-  invalidatePopulationSnapshotCache(state);
-  reconcileAssignmentsAfterBuildingRemoval(state);
-  addFloatingText(state, selected[0].x, selected[0].y, `Removed ${selected.length} · +${wood}w +${stone}s`, '#eab308');
-  return state;
+  return demolishBuildingsInPlace(state, selected.map((building) => building.id));
 }
