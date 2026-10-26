@@ -1,4 +1,4 @@
-name: 100-day housing endurance comparison
+name: 100-day restocked housing scenario comparison
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ on:
 jobs:
   real-game:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,20 +25,20 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Play baseline colony for 100 days
+      - name: Play restocked baseline colony for 100 days
         shell: bash
         run: |
           set -euo pipefail
           git checkout --detach ae3532c5062c7b6b57629c9d5ab52c801dd23145
           npm ci --no-audit --no-fund
-          /usr/bin/time -f 'GAME_RUNTIME baseline elapsed_seconds=%e peak_kib=%M'             npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --seed=12345 --bot             2>&1 | tee /tmp/game-baseline.log
-      - name: Play optimized colony for 100 days
+          /usr/bin/time -f 'GAME_RUNTIME baseline elapsed_seconds=%e peak_kib=%M'             npx tsx scripts/run-full-year.mts --scenario=restocked --days=100 --seed=67890 --bot             2>&1 | tee /tmp/game-baseline.log
+      - name: Play restocked optimized colony for 100 days
         shell: bash
         run: |
           set -euo pipefail
           git checkout --detach "$GITHUB_SHA"
           npm ci --no-audit --no-fund
-          /usr/bin/time -f 'GAME_RUNTIME optimized elapsed_seconds=%e peak_kib=%M'             npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --seed=12345 --bot             2>&1 | tee /tmp/game-optimized.log
+          /usr/bin/time -f 'GAME_RUNTIME optimized elapsed_seconds=%e peak_kib=%M'             npx tsx scripts/run-full-year.mts --scenario=restocked --days=100 --seed=67890 --bot             2>&1 | tee /tmp/game-optimized.log
       - name: Print comparison
         if: always()
         shell: bash
