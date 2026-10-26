@@ -13,7 +13,7 @@ import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { buildResidenceOccupancy, getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
+import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from '../src/game/residencyOccupancy';
 import {
   resetRelationshipDiagnostics,
   setRelationshipDiagnosticsEnabled,
@@ -241,7 +241,7 @@ describe('long-run non-vacuity verdict', () => {
         const used = occupancy.get(residence.id) ?? 0;
         const capacity = getResidenceCapacity(residence);
         expect(used, `residence ${residence.id} must not exceed its capacity`).toBeLessThanOrEqual(capacity);
-        return total + capacity - used;
+        return total + (isLeaderHouseResidence(residence) ? 0 : capacity - used);
       }, 0);
 
       if (run.final.housing.homelessPlayerHumans > 0) {
