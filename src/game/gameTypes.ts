@@ -363,6 +363,8 @@ export interface Entity {
   moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
   faction?: 'visitor' | 'rival' | 'trade_caravan';
+  /** Transient indoor presence, recomputed by the movement/activity owners. */
+  indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
   groupId?: string;
