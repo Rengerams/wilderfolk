@@ -62,6 +62,22 @@ describe('pathfinding', () => {
     expect(path!.some((p) => p.y === 3)).toBe(false);
   });
 
+  it('selects a faster paved detour without a blocking obstacle', () => {
+    const map = makeMap(22, 8, 420, () => false);
+    const road: Building = {
+      id: 44, type: BuildingType.Road,
+      x: 11 * PATH_CELL, y: 2.5 * PATH_CELL,
+      width: 19 * PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [road]);
+    const route = findPath(grid, 2, 3, 19, 3);
+    expect(lineCrossesBlocked(grid, 2.5 * PATH_CELL, 3.5 * PATH_CELL, 19.5 * PATH_CELL, 3.5 * PATH_CELL)).toBe(false);
+    expect(route).not.toBeNull();
+    expect(route!.some((tile) => tile.y === 2)).toBe(true);
+  });
+
   it('routes around a vertical river that does not span the whole map', () => {
     // River column 5, rows 1..8 — a path exists around the top or bottom end.
     const grid = getPathGrid(makeMap(10, 10, 2, (x, y) => x === 5 && y >= 1 && y <= 8));
