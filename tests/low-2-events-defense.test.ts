@@ -543,8 +543,7 @@ describe('prison coverage is presence, not the roster', () => {
  * The frontier opens on a milestone, not on the weighted `rival_settlement` draw — a camp is the
  * only source of raids and diplomacy, so a run without one has no raid system at all.
  */
-describe('the first rival camp is a milestone, not a lottery ticket', () => {
-  /** The colony the pioneer camp waits for: `FIRST_RIVAL_MIN_HUMANS` living settlers and a house. */
+describe('legacy frontier rival settlement spawning is retired', () => {
   function colonyFixture(humans: number, withHouse: boolean): { state: WorldState; allAlive: Entity[] } {
     const state = initGame();
     const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
@@ -572,65 +571,30 @@ describe('the first rival camp is a milestone, not a lottery ticket', () => {
     return { state, allAlive: [...state.entities] };
   }
 
-  const atDay = (state: WorldState, day: number): void => {
-    state.tick = day * TICKS_PER_DAY;
-  };
 
-  it('waits for a real colony: settlers, a house of your own, and the grace period', () => {
-    const early = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
-    atDay(early.state, FIRST_RIVAL_MIN_DAY - 1);
-    expect(tryFrontierSettlement(early.state, early.allAlive, early.state.buildings)).toBeNull();
-
-    const small = colonyFixture(FIRST_RIVAL_MIN_HUMANS - 1, true);
-    atDay(small.state, FIRST_RIVAL_MIN_DAY);
-    expect(tryFrontierSettlement(small.state, small.allAlive, small.state.buildings)).toBeNull();
-
-    const homeless = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, false);
-    atDay(homeless.state, FIRST_RIVAL_MIN_DAY);
-    expect(tryFrontierSettlement(homeless.state, homeless.allAlive, homeless.state.buildings)).toBeNull();
-
-    expect(early.state.rivalSettlements).toEqual([]);
-  });
-
-  it('founds one camp at `competitive` once the colony qualifies, whatever the seed', () => {
+  it('does not create a rival camp at the former frontier milestone, for any seed', () => {
     for (const seed of [1, 7, 42]) {
       resetSimRng();
       setSimSeed(seed);
-      const { state, allAlive } = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
-      atDay(state, FIRST_RIVAL_MIN_DAY);
+      const { state } = colonyFixture(10, true);
+      state.paused = false;
+      state.tick = tickAtDailyPhase(10, 'worldEvents') - 1;
 
-      const event = tryFrontierSettlement(state, allAlive, state.buildings);
+      gameTick(state);
 
-      expect(event, `seed ${seed} never met a neighbour`).not.toBeNull();
-      expect(state.rivalSettlements).toHaveLength(1);
-      const camp = state.rivalSettlements[0];
-      // `competitive`/`tense` are the only states `maybeQueueRaid` will ever raid from.
-      expect(camp.relationship).toBe('competitive');
-      expect(camp.population).toBeGreaterThan(0);
-      expect(camp.entityIds).toEqual([]);
-      expect(camp.buildingIds).toEqual([]);
+      expect(state.rivalSettlements).toEqual([]);
+      expect(state.entities.some((entity) => entity.faction === 'rival')).toBe(false);
       expect(state.buildings.some((building) => building.faction === 'rival')).toBe(false);
-      // One milestone, not one per day.
-      expect(tryFrontierSettlement(state, allAlive, state.buildings)).toBeNull();
-      expect(state.rivalSettlements).toHaveLength(1);
     }
   });
 
-  it('the daily tick actually founds it, so a played run meets a neighbour within the fortnight', () => {
-    resetSimRng();
-    setSimSeed(5);
-    const { state } = colonyFixture(FIRST_RIVAL_MIN_HUMANS + 4, true);
-    state.paused = false;
-
-    // Exercise the real daily world-events integration at the first eligible day.
-    // The colony fixture is deliberately synthetic (cloned people, one tiny house);
-    // simulating ten days of unrelated survival can kill those people before the
-    // frontier milestone and does not test the event dispatch contract.
-    state.tick = tickAtDailyPhase(FIRST_RIVAL_MIN_DAY, 'worldEvents') - 1;
-    gameTick(state);
-
-    expect(state.tick).toBe(tickAtDailyPhase(FIRST_RIVAL_MIN_DAY, 'worldEvents'));
-    expect(state.rivalSettlements.length, 'the frontier never opened in a played run').toBe(1);
+  it('keeps the old rival settlement roll out of the regular world event pool', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../src/game/groupEvents.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(source).not.toContain("id: 'rival_settlement'");
+    expect(source).not.toContain('spawnRivalSettlement');
   });
 });
 
