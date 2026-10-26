@@ -21,8 +21,10 @@ import {
   setRelationshipDiagnosticsEnabled,
 } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
+import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import {
   STALL_SETTLING_DAYS,
+  applyColonyBotAction,
   assessColonyStall,
   captureConsoleVolume,
   createColonyObserver,
@@ -45,10 +47,7 @@ interface ObservedRun {
   newBuildings: number;
 }
 
-/**
- * Run the real simulation without the Virtual Player.
- * Record observations at each checkpoint.
- */
+/** Tick a growing colony with the same bot cadence as the full-year gate. */
 function observeRun(world: WorldState, days: number): ObservedRun {
   setRelationshipDiagnosticsEnabled(true);
 
@@ -58,6 +57,7 @@ function observeRun(world: WorldState, days: number): ObservedRun {
   );
 
   const snapshots: ColonyHealthReport[] = [];
+  let lastBotActedTick: number | null = null;
 
   const checkpoints = new Set(
     Array.from(
@@ -70,6 +70,10 @@ function observeRun(world: WorldState, days: number): ObservedRun {
 
   for (let tick = 1; tick <= days * TICKS_PER_DAY; tick++) {
     gameTick(world);
+    if (shouldVirtualPlayerAct(true, { paused: world.paused, tick: world.tick }, lastBotActedTick)) {
+      lastBotActedTick = world.tick;
+      applyColonyBotAction(world);
+    }
 
     if (!checkpoints.has(tick)) continue;
 
@@ -188,7 +192,7 @@ afterEach(() => {
 
 describe('long-run non-vacuity verdict', () => {
   it(
-    `passes a real ${HEALTHY_DAYS}-day run that grows, on seed ${SEED}`,
+    `passes a real ${HEALTHY_DAYS}-day bot-driven producer run on seed ${SEED}`,
     () => {
       const prepared = prepareColonyWorld({
         size: MapSize.Medium,
