@@ -1,5 +1,5 @@
 import { resolveWarPrisoner } from '../warPrisoners';
-import { demolishBuildingInPlace, demolishStripBuildingsInPlace } from '../buildingMaintenanceActions';
+import { demolishBuildingInPlace, demolishStripBuildingsInPlace, toggleWallGate } from '../buildingMaintenanceActions';
 
 import type { WorldState, ForgeOrderId } from '../gameTypes';
 import { BuildingType } from '../gameTypes';
@@ -63,6 +63,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'repairBuildings'; buildingIds: number[] }
   | { proto: 1; op: 'upgradeBuilding'; buildingId: number }
   | { proto: 1; op: 'demolishBuilding'; buildingId: number }
+  | { proto: 1; op: 'toggleWallGate'; buildingId: number }
   | { proto: 1; op: 'demolishStripBuildings'; buildingIds: number[] }
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
@@ -109,6 +110,7 @@ const WORKER_COMMAND_OPS = [
   'repairBuildings',
   'upgradeBuilding',
   'demolishBuilding',
+  'toggleWallGate',
   'demolishStripBuildings',
   'setWorkshopRecipe',
   'setHuntingSpotPrey',
@@ -244,6 +246,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'repairBuilding':
     case 'upgradeBuilding':
     case 'demolishBuilding':
+    case 'toggleWallGate':
     case 'hostTownFestival':
       return isFiniteNumber(cmd.buildingId);
     case 'setWorkshopRecipe':
@@ -352,6 +355,8 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return upgradeBuilding(world, cmd.buildingId);
     case 'demolishBuilding':
       return demolishBuildingInPlace(world, cmd.buildingId);
+    case 'toggleWallGate':
+      return toggleWallGate(world, cmd.buildingId);
     case 'demolishStripBuildings':
       return demolishStripBuildingsInPlace(world, cmd.buildingIds);
     case 'setWorkshopRecipe':
