@@ -29,16 +29,12 @@ import { indexLivingEntity } from '../src/game/entityIndex';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import {
-  FIRST_RIVAL_MIN_DAY,
-  FIRST_RIVAL_MIN_HUMANS,
-  getDiplomacyChoiceEligibility,
-  respondToDiplomacyEvent,
   rollYearlyWorldEvent,
   spawnVisitorGroup,
   tradeWithVisitors,
   tryFirstWeekVisitor,
-  tryFrontierSettlement,
 } from '../src/game/groupEvents';
+import { getDiplomacyChoiceEligibility, respondToDiplomacyEvent } from '../src/game/rivalDiplomacy';
 import { getBarracksGuardCount } from '../src/game/defenseStructures';
 import { tickPrisonGuardDuty, tickPrisonPresence } from '../src/game/prisonGuardDuty';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
