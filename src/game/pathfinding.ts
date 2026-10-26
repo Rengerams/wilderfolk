@@ -44,6 +44,8 @@ const CLIFF_STEP = 32;
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 6000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
+const ROAD_ROUTE_MIN_DISTANCE_PX = 150;
+const ROAD_ROUTE_MIN_TIME_SAVING = 0.95;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
@@ -545,6 +547,20 @@ function searchRoute(
   }
 }
 
+/** Time-aware walking route; bounded recovery remains safe when a distant road expands A*. */
+function walkRoute(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes: number,
+): RouteSearchResult {
+  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
+  if (optimal.path || !optimal.hitNodeCap || !grid.road) return optimal;
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false);
+}
+
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
 export function findPath(
   grid: PathGrid,
@@ -554,11 +570,7 @@ export function findPath(
   ty: number,
   maxNodes = PATH_MAX_SEARCH_NODES,
 ): { x: number; y: number }[] | null {
-  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
-  // With a remote road, admissible road-aware A* can exhaust the bounded movement budget.
-  // Recover a safe, goal-directed route rather than letting the settler remain stuck.
-  if (optimal.path || !optimal.hitNodeCap || !grid.road) return optimal.path;
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false).path;
+  return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
 
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
@@ -758,7 +770,8 @@ export function steerWithPath(
   if (!currentGrid) return 'direct';
 
   const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
-  if (directBlocked) {
+  const considerRoadDetour = !directBlocked && !!currentGrid.road && dist >= ROAD_ROUTE_MIN_DISTANCE_PX;
+  if (directBlocked || considerRoadDetour) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
       || (cached.waypoints === null && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
@@ -785,14 +798,16 @@ export function steerWithPath(
     }
     if (cached === undefined) {
       recordPathCacheMiss();
-      const path = findPath(
+      const route = walkRoute(
         currentGrid,
         Math.floor(entity.x / PATH_CELL),
         Math.floor(entity.y / PATH_CELL),
         Math.floor(targetX / PATH_CELL),
         Math.floor(targetY / PATH_CELL),
+        PATH_MAX_SEARCH_NODES,
       );
-      let waypoints = path ? pathWaypoints(path) : null;
+      const savesTime = route.cost !== null && route.cost * PATH_CELL < dist * ROAD_ROUTE_MIN_TIME_SAVING;
+      let waypoints = route.path && (directBlocked || savesTime) ? pathWaypoints(route.path) : null;
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
       const startIsBlocked = startTx >= 0 && startTy >= 0
