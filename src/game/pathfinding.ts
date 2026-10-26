@@ -61,6 +61,12 @@ function isWalkableRoad(b: Building): boolean {
   );
 }
 
+/** Exact footprint test shared by path pricing and the per-walker speed bonus. */
+function isRoadSurfacePoint(b: Building, x: number, y: number): boolean {
+  return x >= b.x - b.width / 2 && x < b.x + b.width / 2
+    && y >= b.y - b.height / 2 && y < b.y + b.height / 2;
+}
+
 /** Stamps `value` over every grid tile a building's footprint covers, clamped to the grid. */
 function stampBuildingFootprint(
   grid: Uint8Array,
@@ -116,6 +122,9 @@ export interface PathGrid {
   elevation?: Float32Array;
   /** 1 on every tile a completed road or bridge covers. Absent when the map has none. */
   road?: Uint8Array;
+  /** A* discount only where the waypoint at the tile centre is actually on a paved footprint. */
+  roadCost?: Uint8Array;
+  /** Partial-cell footprint index for exact point-speed checks (including narrow legacy roads). */
   roadSurfaces?: Map<number, Building[]>;
 }
 
@@ -175,7 +184,25 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
-  return road ? { cols, rows, blocked, elevation, road, roadSurfaces } : { cols, rows, blocked, elevation };
+  // Rasterised footprint coverage is deliberately larger than the paved centre line: a road
+  // overlapping a tile by one pixel must not make that tile's *centre* cheaper to traverse.
+  // Keep the broad mask/index for exact walker-position checks, but price A* waypoints on
+  // their actual positions. Narrow roads can still accelerate walkers standing on them,
+  // even when no path-grid centre falls inside the footprint.
+  let roadCost: Uint8Array | undefined;
+  if (road) {
+    const centreMask = new Uint8Array(cols * rows);
+    for (const [index, surfaces] of roadSurfaces) {
+      const x = ((index % cols) + 0.5) * PATH_CELL;
+      const y = (Math.floor(index / cols) + 0.5) * PATH_CELL;
+      if (surfaces.some((b) => isRoadSurfacePoint(b, x, y))) {
+        centreMask[index] = 1;
+        roadCost ??= centreMask;
+      }
+    }
+  }
+  return road ? { cols, rows, blocked, elevation, road, roadCost, roadSurfaces }
+    : { cols, rows, blocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
@@ -425,6 +452,9 @@ function searchRoute(
   const pathProfileStart = profileStart();
   try {
   const { cols, rows, blocked, elevation, road } = grid;
+  // Generated grids distinguish partial footprint coverage from tile-centre speed
+  // eligibility. Older test grids without surface geometry retain their road mask.
+  const pricedRoad = grid.roadCost ?? (grid.roadSurfaces ? undefined : road);
   recordFindPathCall();
   const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
@@ -461,7 +491,7 @@ function searchRoute(
 
   // Cost searches need the discounted road heuristic for optimality. Bounded movement searches
   // use the stronger unscaled heuristic to avoid exhausting their node budget on remote roads.
-  const cheapestStep = scaleHeuristicForRoadCost && road ? ROAD_STEP_COST : 1;
+  const cheapestStep = scaleHeuristicForRoadCost && pricedRoad ? ROAD_STEP_COST : 1;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);
@@ -496,7 +526,7 @@ function searchRoute(
       path.reverse();
 
       // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
-      if (road) {
+      if (pricedRoad) {
         recordPathNodes(nodes);
         recordPathFound();
         return { path, cost: scores[goal], hitNodeCap: false };
@@ -530,7 +560,7 @@ function searchRoute(
 
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
-      if (road?.[nIdx]) step *= ROAD_STEP_COST;
+      if (pricedRoad?.[nIdx]) step *= ROAD_STEP_COST;
       if (elevation) {
         const nextElev = elevation[nIdx];
         const delta = nextElev - curElev;
@@ -966,6 +996,5 @@ export function isOnWalkableRoadAt(x: number, y: number): boolean {
     && grid.blocked[ty * grid.cols + tx] === 0
     && grid.road[ty * grid.cols + tx] === 1
     && (grid.roadSurfaces?.get(ty * grid.cols + tx)?.some((b) =>
-      x >= b.x - b.width / 2 && x < b.x + b.width / 2
-      && y >= b.y - b.height / 2 && y < b.y + b.height / 2) ?? true);
+      isRoadSurfacePoint(b, x, y)) ?? true);
 }
