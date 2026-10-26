@@ -554,7 +554,11 @@ export function findPath(
   ty: number,
   maxNodes = PATH_MAX_SEARCH_NODES,
 ): { x: number; y: number }[] | null {
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, true).path;
+  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
+  // With a remote road, admissible road-aware A* can exhaust the bounded movement budget.
+  // Recover a safe, goal-directed route rather than letting the settler remain stuck.
+  if (optimal.path || !optimal.hitNodeCap || !grid.road) return optimal.path;
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false).path;
 }
 
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
