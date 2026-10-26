@@ -913,3 +913,13 @@ export function isGroundWalkableAt(x: number, y: number): boolean {
   if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return true;
   return grid.blocked[ty * grid.cols + tx] !== 1;
 }
+
+/** Walk-speed ownership uses the same completed-road mask as A* and commute pricing. */
+export function isOnWalkableRoadAt(x: number, y: number): boolean {
+  const grid = currentGrid;
+  if (!grid?.road) return false;
+  const tx = Math.floor(x / PATH_CELL);
+  const ty = Math.floor(y / PATH_CELL);
+  return tx >= 0 && ty >= 0 && tx < grid.cols && ty < grid.rows
+    && grid.road[ty * grid.cols + tx] === 1;
+}
