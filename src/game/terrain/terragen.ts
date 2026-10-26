@@ -254,6 +254,55 @@ const PRESET_SETTINGS: Record<MapPreset, TerrainSettings> = {
 
 const idx = (x: number, y: number, w: number) => y * w + x;
 
+/** Distinct landscape signatures for new games; legacy compact saves use revision 1. */
+function shapePresetRelief(
+  elevation: Float32Array, cols: number, rows: number,
+  seaLevel: number, preset: MapPreset, seed: number,
+): void {
+  if (preset === MapPreset.Arabia || preset === MapPreset.BlackForest
+      || preset === MapPreset.Rivers || preset === MapPreset.Continental) return;
+  const shortSide = Math.min(cols, rows);
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = idx(x, y, cols);
+      const nx = x / Math.max(1, cols - 1);
+      const ny = y / Math.max(1, rows - 1);
+      const detail = fbm(x * 0.07, y * 0.07, seed + 15551, { octaves: 3 });
+      const distance = Math.hypot(x - (cols - 1) / 2, y - (rows - 1) / 2) / shortSide;
+      let e = elevation[i]!;
+      switch (preset) {
+        case MapPreset.Coastal:
+          e -= 0.60 * smoothRange(0.43, 0.09, nx + (detail - 0.5) * 0.12);
+          break;
+        case MapPreset.Islands:
+          e += 0.18 * Math.sin(nx * Math.PI * 7 + detail * 2)
+            * Math.sin(ny * Math.PI * 5 - detail * 2) - 0.09;
+          break;
+        case MapPreset.Highland:
+          e += 0.20 * Math.pow(Math.abs(Math.sin(nx * 18 + ny * 9 + detail * 2)), 4);
+          break;
+        case MapPreset.Scandinavia: {
+          const west = smoothRange(0.60, 0.14, nx)
+            * Math.exp(-Math.pow((ny - 0.33 - 0.10 * Math.sin(nx * 8)) / 0.06, 2));
+          const east = smoothRange(0.40, 0.86, nx)
+            * Math.exp(-Math.pow((ny - 0.68 - 0.10 * Math.sin(nx * 7)) / 0.065, 2));
+          e -= 0.65 * Math.max(west, east);
+          break;
+        }
+        case MapPreset.Meadows:
+          e = seaLevel + (e - seaLevel) * 0.75;
+          break;
+        case MapPreset.Oasis:
+          e -= 0.66 * Math.exp(-Math.pow(distance / 0.11, 4));
+          break;
+        default:
+          break;
+      }
+      elevation[i] = clamp(e, 0, 1);
+    }
+  }
+}
+
 /* ===== Height ===== */
 
 function buildHeight(s: TerrainSettings, seed: number, cols: number, rows: number): Float32Array {
@@ -775,8 +824,12 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
   /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
   terrainSeed?: number,
+  generationVersion: 1 | 2 = 2,
 ): WorldMap {
-  const s = PRESET_SETTINGS[preset];
+  const settings = PRESET_SETTINGS[preset];
+  const s = generationVersion === 2 && preset === MapPreset.Rivers
+    ? { ...settings, rivers: 7, riverWidth: 3.2 }
+    : settings;
   const tseed = terrainSeedFor(seed, size, terrainSeed);
 
   const tileW = Math.ceil(width / 10);
@@ -794,6 +847,7 @@ export function generateRawTerrain(
   // Spread the height field before anything reads it, so the biome bands, the river
   // gradient walk and the rendered hillshade all see the same relief.
   const { heights: elevation, seaLevel } = spreadHeights(rawElevation, configuredSeaLevel);
+  if (generationVersion === 2) shapePresetRelief(elevation, cols, rows, seaLevel, preset, tseed);
 
   const moisture = new Float32Array(cols * rows);
   const temperature = new Float32Array(cols * rows);
@@ -817,6 +871,12 @@ export function generateRawTerrain(
         0,
         1,
       );
+      if (generationVersion === 2 && preset === MapPreset.Oasis) {
+        const distance = Math.hypot(
+          x - (cols - 1) / 2, y - (rows - 1) / 2,
+        ) / Math.min(cols, rows);
+        mo = clamp(mo + 0.65 * Math.exp(-Math.pow(distance / 0.20, 4)), 0, 1);
+      }
       moisture[i] = mo;
       // `s.temperature` keeps its long-standing `× 1.1` amplifier, and latitude is removed
       // *before* it so the equator row is exactly the temperature this preset had before the
@@ -949,6 +1009,7 @@ export function generateRawTerrain(
     moistureBias: s.moisture,
     /** Recorded so a save can regenerate this exact valley — see `terrainSeedFor`. */
     terrainSeed: tseed,
+    generationVersion,
     moistureForestThreshold: cuts.forest,
     moistureDarkForestThreshold: cuts.darkForest,
     waterfalls,
