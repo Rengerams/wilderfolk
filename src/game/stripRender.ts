@@ -49,6 +49,28 @@ function paintPavementPattern(
   return true;
 }
 
+/** Seamless CC0 cobblestone, used for straight runs and every junction shape. */
+function paintRpgPavementPattern(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  const sprite = getSpriteFrame(RPG_PAVEMENT_SPRITE);
+  if (!sprite?.image || sprite.sh <= 0 || height <= 0) return false;
+  const pattern = ctx.createPattern(sprite.image as CanvasImageSource, 'repeat');
+  if (!pattern) return false;
+  const scale = height / sprite.sh;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, width / scale, sprite.sh);
+  ctx.restore();
+  return true;
+}
+
 function seeded(seed: number): number {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
@@ -139,19 +161,8 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  // Repeat the CC0 cobblestone pavement rather than stretch one tiny tile along the road.
-  const originalPavement = getSpriteFrame(RPG_PAVEMENT_SPRITE)?.image;
-  const authoredRoad = originalPavement ? (() => {
-    const pattern = ctx.createPattern(originalPavement as CanvasImageSource, 'repeat');
-    if (!pattern) return false;
-    ctx.save();
-    ctx.translate(x0, y0);
-    ctx.scale(rh / 32, rh / 32);
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, rw * 32 / rh, 32);
-    ctx.restore();
-    return true;
-  })() : paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
+  const authoredRoad = paintRpgPavementPattern(ctx, x0, y0, rw, rh)
+    || paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
   if (!authoredRoad && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
@@ -363,7 +374,9 @@ export function drawProceduralRoadJunction(
       ? ROAD_TEE[0]
       : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintStripSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+  if (!paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)
+    && !paintStripSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0)
+    && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
     ctx.fillStyle = '#5c5346';
