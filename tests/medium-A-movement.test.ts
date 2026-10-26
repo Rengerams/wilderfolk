@@ -225,8 +225,8 @@ describe('fast road waypoint steering', () => {
 describe('accepted road detour final approach', () => {
   it('continues on accepted waypoints once closer than the initial search threshold', () => {
     const road = {
-      id: 802, type: BuildingType.Road, x: pixel(20, 15), y: pixel(20, 15),
-      width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
+      id: 802, type: BuildingType.Road, x: pixel(20, 18), y: pixel(20, 18),
+      width: 34 * PATH_CELL, height: PATH_CELL, completed: true,
     } as Building;
     setCurrentPathMap(makeMap(45, 35, 20261027, () => false), [road]);
     try {
