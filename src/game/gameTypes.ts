@@ -236,6 +236,8 @@ export interface HumanNeedsState {
   sleepRecoveryUntilTick?: number;
   /** Active stamina break; persists until meaningful recovery to avoid tick oscillation. */
   breakUntilRecovered?: boolean;
+  /** Overnight shift was worked; schedule daytime sleep once the shift ends. */
+  nightDutyRecoveryPending?: boolean;
 }
 
 export interface MoonHowlerSavedState {
