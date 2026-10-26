@@ -1,4 +1,5 @@
 import { getOutgoingBattleProgressPercent } from './game/frontierCombat';
+import { isStripBuildType } from './game/stripBuild';
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   initGame,
@@ -1388,8 +1389,12 @@ export default function App() {
         
 
           <div className="pointer-events-none absolute inset-0 z-10">
-          {/* Build mode is shown by the building ghost following the cursor —
-              no banner. Esc / right-click exits placement; R rotates. */}
+          {/* Strip gestures: a contextual hint makes bulk demolition discoverable. */}
+          {selectedBuildingType && isStripBuildType(selectedBuildingType) && (
+            <div className="absolute left-3 top-3 rounded bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-md">
+              Drag to build · Alt + drag to remove matching paths or walls
+            </div>
+          )}
           
           {/* Notification setting affects display only; the Chronicle remains unchanged. */}
           <div className="pointer-events-auto absolute right-3 top-3 z-[40] w-[min(20rem,calc(100vw-8rem))]">
