@@ -427,11 +427,14 @@ export function useCanvasInteractions({
           const stroke = stripStrokeRef.current;
           const last = stroke[stroke.length - 1];
           if (last && Math.hypot(worldX - last.x, worldY - last.y) >= 12 && stroke.length < 512) {
-            const steps = Math.min(512 - stroke.length, Math.ceil(Math.hypot(worldX - last.x, worldY - last.y) / 12));
-            for (let i = 1; i <= steps; i++) {
-              const t = i / steps;
-              stroke.push({ x: last.x + (worldX - last.x) * t, y: last.y + (worldY - last.y) * t });
-            }
+            const previous = stroke[stroke.length - 2];
+            const dx = worldX - last.x;
+            const dy = worldY - last.y;
+            const sameAxis = previous && Math.abs(dx) + Math.abs(dy) > 0
+              && (Math.abs(dx) >= Math.abs(dy)) === (Math.abs(last.x - previous.x) >= Math.abs(last.y - previous.y))
+              && (dx * (last.x - previous.x) + dy * (last.y - previous.y) > 0);
+            if (sameAxis && stroke.length > 2) stroke[stroke.length - 1] = { x: worldX, y: worldY };
+            else stroke.push({ x: worldX, y: worldY });
           }
           const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
           const preview = buildStripPreview(
