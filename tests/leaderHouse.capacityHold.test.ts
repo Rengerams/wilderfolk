@@ -36,16 +36,16 @@ function oversizedHousehold(): OversizedHousehold {
 }
 
 describe("Leader's House beyond its bed cap", () => {
-  it('seats every descendant of the household', () => {
+  it('does not require adult descendants to occupy the manor', () => {
     const { state, manor, children } = oversizedHousehold();
 
     syncLeaderHouseResidency(state);
 
-    for (const child of children) expect(child.residenceBuildingId).toBe(manor.id);
-    expect(manor.occupants).toHaveLength(2 + CHILD_IDS.length);
+    for (const child of children) expect(child.residenceBuildingId).not.toBe(manor.id);
+    expect(manor.occupants).toEqual([1, 2]);
   });
 
-  it('preserves 21 leader-house residents through real save/load and housing reconciliation', () => {
+  it('preserves independent adult descendants through real save/load and housing reconciliation', () => {
     const world = initGame({ seed: 4242 });
     const leader = human(900001, { partnerId: 900002, childrenIds: CHILD_IDS.map((id) => id + 900000) });
     const spouse = human(900002, { partnerId: leader.id, childrenIds: [...(leader.childrenIds ?? [])] });
@@ -55,7 +55,7 @@ describe("Leader's House beyond its bed cap", () => {
     world.buildings = [manor];
     world.villageLeaderId = leader.id;
     syncLeaderHouseResidency(world);
-    const expected = [leader.id, spouse.id, ...children.map((child) => child.id)].sort((a, b) => a - b);
+    const expected = [leader.id, spouse.id].sort((a, b) => a - b);
     expect([...manor.occupants].sort((a, b) => a - b)).toEqual(expected);
     const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
     const parsed = parseSaveJson(raw);
@@ -68,6 +68,7 @@ describe("Leader's House beyond its bed cap", () => {
     const restoredManor = loaded.buildings.find((item) => item.id === manor.id);
     expect(restoredManor).toBeDefined();
     const assertResidents = () => {
+      expect(loaded.entities.filter((entity) => children.some((child) => child.id === entity.id))).toHaveLength(children.length);
       expect(loaded.entities.filter((entity) => expected.includes(entity.id)).map((entity) => entity.id).sort((a, b) => a - b)).toEqual(expected);
       expect(loaded.entities.filter((entity) => expected.includes(entity.id)).every((entity) => entity.residenceBuildingId === manor.id)).toBe(true);
       expect([...(restoredManor?.occupants ?? [])].sort((a, b) => a - b)).toEqual(expected);

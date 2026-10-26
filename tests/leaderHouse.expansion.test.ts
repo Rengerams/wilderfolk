@@ -59,7 +59,7 @@ describe('Leader\'s House overflow annex', () => {
     expect(oldAnnex.occupants).not.toContain(31);
   });
 
-  it('keeps the leader in the original manor and seats the extra household members in the annex', () => {
+  it('keeps the leader and dependent minor in the original manor without annexing adult descendants', () => {
     const childIds = Array.from({ length: 20 }, (_, index) => index + 3);
     const leader = human(1, { partnerId: 2, residenceBuildingId: 10, childrenIds: childIds });
     const spouse = human(2, { partnerId: 1, residenceBuildingId: 10, childrenIds: childIds });
@@ -83,11 +83,11 @@ describe('Leader\'s House overflow annex', () => {
     syncLeaderHouseResidency(state);
 
     expect(leader.residenceBuildingId).toBe(10);
-    expect(main.occupants).toHaveLength(20);
-    expect(annex.occupants).toHaveLength(2);
-    expect(children.at(-1)?.residenceBuildingId).toBe(11);
+    expect(main.occupants).toEqual([1, 2, 22]);
+    expect(annex.occupants).toHaveLength(0);
+    expect(children.at(-1)?.residenceBuildingId).toBe(10);
     syncLeaderHouseResidency(state);
-    expect(main.occupants).toHaveLength(20);
-    expect(annex.occupants).toHaveLength(2);
+    expect(main.occupants).toEqual([1, 2, 22]);
+    expect(annex.occupants).toHaveLength(0);
   });
 });
