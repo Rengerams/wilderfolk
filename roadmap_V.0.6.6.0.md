@@ -633,3 +633,23 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 - [ ] **Architecture enforcement:** verify every production residence writer is owned by the housing layer, and add regression/static coverage for unintended direct `residenceBuildingId` writes or duplicate housing schedulers. Do not equate passing unit tests with a completed repository-wide writer audit.
 
 These checked items mean **implemented on PR #40**, not merged into `main`. Outstanding gates stay unchecked until supported by test evidence on the final commit.
+
+
+### High priority — Roads, walls, gates and navigation overhaul (26 October 2026)
+
+**Status: [ ] Proposed / not implemented.** One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
+
+- [ ] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
+- [ ] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.
+- [ ] **Terrain:** permit roads on ordinarily walkable ground without treating them as building foundations; retain impassable cliffs and water restrictions and explicit bridge rules.
+- [ ] **Wall construction and gates:** easy continuous drag walls with exact visual/logical connections; insert gates into existing wall segments without manual demolition. Invalid insertion leaves the original wall intact.
+- [ ] **Navigation correctness:** completed walls are impassable except through genuine openings/gates; no diagonal clipping, smoothing shortcuts or blocked-path straight-line fallback. No-path cases must stop or use established unreachable-target recovery.
+- [ ] **Road travel benefit:** existing `ROAD_SPEED_MULT` applies only while traversing roads/bridges. Choose the fastest valid route using actual traversal costs, not simply the geometrically shortest line; preserve bounded-search performance, caching and determinism.
+- [ ] **Bulk demolition:** single drag for many road/wall segments; one authoritative batch operation with accurate refunds, affected topology/collision/routes updated and ordinary buildings protected.
+- [ ] **Rendering and assets:** topology-driven natural paths and connected defensive walls, including all corner/junction/end forms. Investigate current sprites first; any replacement assets must cost €0 and have verified commercial/redistribution licenses and appropriate registration.
+- [ ] **Compatibility and scale:** keep older infrastructure saves loadable and IDs stable; validate deterministic rebuilding and repeat save/load, and benchmark at least 1,800 settlers. Preserve established performance budgets and avoid new global per-tick A* scans.
+- [ ] **Single validation/merge gate:** test drag building/demolition, junctions, wall enclosure and gate traversal, road speed/path choices, worker commands, refunds, saves, simulation invariants, performance and full required CI. Update ownership docs, changelog and asset register where applicable.
+
+**Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
+
+**Definition of done:** connected roads work visually and logically; enclosed walls actually block movement; gates are passable; roads provide measured travel benefits; click-and-drag build and demolition are responsive; saves and performance remain sound. Leave all boxes unchecked until supported by implementation and validation evidence.
