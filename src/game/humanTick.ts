@@ -733,8 +733,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           entity.faction === 'visitor' &&
           steerVisitorToHotel(entity, updatedBuildings, config.speed * speedMult)
         ) {
-          // Lodging at hotel
-          applyHumanWalkStep(entity, 1);
+          // Hotel lodging owns its single walk step, including the road-speed multiplier.
         } else {
           tickFactionCampWander(state, entity, cx, cy, updatedBuildings, config.speed * speedMult);
         }
