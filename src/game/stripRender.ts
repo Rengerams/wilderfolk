@@ -7,8 +7,12 @@ import { getSpriteFrame } from './spriteLoader';
 
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
 const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
-const WALL_STRAIGHT_SPRITE = '/sprites/walls/wall_straight.svg';
-const WALL_GATE_SPRITE = '/sprites/walls/wall_gate.svg';
+// CC0 original sprites by Drummyfish: https://opengameart.org/content/top-down-rpg-mockup-scene
+const RPG_PAVEMENT_SPRITE = 'https://opengameart.org/sites/default/files/tile_pavement.png';
+const RPG_WALL_SPRITE = 'https://opengameart.org/sites/default/files/wall_4.png';
+const RPG_GATE_SPRITE = 'https://opengameart.org/sites/default/files/gate_1.png';
+const WALL_STRAIGHT_FALLBACK = '/sprites/walls/wall_straight.svg';
+const WALL_GATE_FALLBACK = '/sprites/walls/wall_gate.svg';
 const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
 const ROAD_CROSS = '/sprites/roads/road_cross.png';
 const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.png'] as const;
@@ -135,7 +139,19 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  const authoredRoad = paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
+  // Repeat the CC0 cobblestone pavement rather than stretch one tiny tile along the road.
+  const originalPavement = getSpriteFrame(RPG_PAVEMENT_SPRITE)?.image;
+  const authoredRoad = originalPavement ? (() => {
+    const pattern = ctx.createPattern(originalPavement as CanvasImageSource, 'repeat');
+    if (!pattern) return false;
+    ctx.save();
+    ctx.translate(x0, y0);
+    ctx.scale(rh / 32, rh / 32);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, rw * 32 / rh, 32);
+    ctx.restore();
+    return true;
+  })() : paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
   if (!authoredRoad && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
@@ -192,7 +208,16 @@ export function drawProceduralWall(
 ): void {
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
-  if (paintStripSprite(ctx, isGate ? WALL_GATE_SPRITE : WALL_STRAIGHT_SPRITE, 0, 0, rw, rh, 0)) {
+  // Upright artwork retains its height; the stone wall must not be flattened to road depth.
+  const original = getSpriteFrame(isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE);
+  if (original) {
+    const height = Math.max(rh * 3, rh);
+    const width = Math.min(rw, height * original.sw / original.sh);
+    paintStripSprite(ctx, isGate ? RPG_GATE_SPRITE : RPG_WALL_SPRITE, 0, -height / 3, width, height, 0);
+    ctx.restore();
+    return;
+  }
+  if (paintStripSprite(ctx, isGate ? WALL_GATE_FALLBACK : WALL_STRAIGHT_FALLBACK, 0, 0, rw, rh, 0)) {
     ctx.restore();
     return;
   }
