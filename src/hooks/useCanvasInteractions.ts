@@ -116,6 +116,7 @@ export function useCanvasInteractions({
   // Suppresses subsequent onClick handling if strip build was already committed on mouseUp
   const stripPlacedOnMouseUpRef = useRef(false);
   const stripDemolitionGestureRef = useRef(false);
+  const stripStrokeRef = useRef<{ x: number; y: number }[]>([]);
   /**
    * Did the gesture that just ended move the pointer far enough to be a pan rather than a click?
    *
@@ -423,6 +424,15 @@ export function useCanvasInteractions({
             }, true);
             return;
           }
+          const stroke = stripStrokeRef.current;
+          const last = stroke[stroke.length - 1];
+          if (last && Math.hypot(worldX - last.x, worldY - last.y) >= 12 && stroke.length < 512) {
+            const steps = Math.min(512 - stroke.length, Math.ceil(Math.hypot(worldX - last.x, worldY - last.y) / 12));
+            for (let i = 1; i <= steps; i++) {
+              const t = i / steps;
+              stroke.push({ x: last.x + (worldX - last.x) * t, y: last.y + (worldY - last.y) * t });
+            }
+          }
           const rotation = inferStripRotation(start.x, start.y, worldX, worldY);
           const preview = buildStripPreview(
             liveWorld,
@@ -432,6 +442,7 @@ export function useCanvasInteractions({
             worldX,
             worldY,
             rotation,
+            stroke,
           );
           loop?.patchView(
             {
@@ -505,6 +516,7 @@ export function useCanvasInteractions({
         const coords = getEventWorldCoords(e.clientX, e.clientY);
         if (!coords) return;
         stripDragStartRef.current = { x: coords.worldX, y: coords.worldY };
+        stripStrokeRef.current = [{ x: coords.worldX, y: coords.worldY }];
         stripDemolitionGestureRef.current = e.altKey;
         clickOriginRef.current = { x: e.clientX, y: e.clientY };
         return;
@@ -538,7 +550,9 @@ export function useCanvasInteractions({
         isStripBuildType(selectedBuildingType)
       ) {
         const start = stripDragStartRef.current;
+        const stroke = stripStrokeRef.current;
         stripDragStartRef.current = null;
+        stripStrokeRef.current = [];
         const loop = loopRef.current;
         const currentWorld = loop?.getWorld() ?? worldRef.current;
         if (stripDemolitionGestureRef.current) {
@@ -555,17 +569,14 @@ export function useCanvasInteractions({
           }
           loop?.patchView({ buildStripPreview: null });
         } else {
-          const preview =
-            loop?.getView().buildStripPreview ??
-            buildStripPreview(
-              currentWorld,
-              selectedBuildingType,
-              start.x,
-              start.y,
-              start.x,
-              start.y,
-              loop?.getView().buildRotation ?? 0,
-            );
+          const end = e ? getEventWorldCoords(e.clientX, e.clientY) : null;
+          const target = end ? { x: end.worldX, y: end.worldY } : start;
+          const last = stroke[stroke.length - 1];
+          if (!last || Math.hypot(last.x - target.x, last.y - target.y) > 0) stroke.push(target);
+          const preview = buildStripPreview(
+            currentWorld, selectedBuildingType, start.x, start.y, target.x, target.y,
+            inferStripRotation(start.x, start.y, target.x, target.y), stroke,
+          );
   
           // Commit only if all segments are valid
           const command = stripChainCommand(preview, selectedBuildingType);
@@ -626,6 +637,7 @@ export function useCanvasInteractions({
 
   const handleMouseLeave = useCallback(() => {
     stripDragStartRef.current = null;
+    stripStrokeRef.current = [];
     stripDemolitionGestureRef.current = false;
     isDraggingRef.current = false;
     cameraDragStartRef.current = null;
