@@ -407,6 +407,11 @@ export function drawProceduralWallJunction(
   ctx.translate(sx, sy);
 
   const size = Math.max(w, h);
+  const stoneHeight = Math.max(Math.min(w, h) * 3, Math.min(w, h));
+  if (paintStripSprite(ctx, RPG_WALL_SPRITE, 0, -stoneHeight / 3, size, stoneHeight, 0)) {
+    ctx.restore();
+    return;
+  }
   const half = size / 2;
   const thick = size * 0.34;
   const arm = size * 0.46;
@@ -458,7 +463,7 @@ export function drawStripJunctionOverlay(
     drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha, info.cornerRotation);
     return;
   }
-  if (type === BuildingType.Wall || type === BuildingType.WallGate) {
+  if (type === BuildingType.Wall) {
     drawProceduralWallJunction(ctx, sx, sy, w, h, info, alpha);
   }
 }
