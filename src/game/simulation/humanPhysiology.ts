@@ -20,6 +20,7 @@ export const HUMAN_NEEDS = {
   REST_RECOVERY_TARGET: 65,
   RECOVERY_SLEEP_HOURS: 5,
   STAMINA_CRITICAL: 15,
+  STAMINA_BREAK_RECOVERED: 50,
   NUTRITION_STARVING: 8,
   STARVATION_FATAL_SIM_HOURS: 48,
 } as const;
@@ -44,6 +45,7 @@ export function normalizeHumanNeeds(entity: Entity): HumanNeedsState {
   };
   if (typeof old?.lastMealTick === 'number' && Number.isSafeInteger(old.lastMealTick) && old.lastMealTick >= 0) result.lastMealTick = old.lastMealTick;
   if (typeof old?.lastAdvancedTick === 'number' && Number.isSafeInteger(old.lastAdvancedTick) && old.lastAdvancedTick >= 0) result.lastAdvancedTick = old.lastAdvancedTick;
+  if (old?.breakUntilRecovered === true) result.breakUntilRecovered = true;
   if (typeof old?.sleepRecoveryUntilTick === 'number' && Number.isSafeInteger(old.sleepRecoveryUntilTick) && old.sleepRecoveryUntilTick >= 0) result.sleepRecoveryUntilTick = old.sleepRecoveryUntilTick;
   entity.needs = result;
   return result;
@@ -103,7 +105,13 @@ export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: 
       (needs.lastMealTick == null ||
        tick - needs.lastMealTick >= HUMAN_NEEDS.EAT_COOLDOWN_SIM_HOURS * TICKS_PER_HOUR)) return 'eat';
   if (needs.rest < HUMAN_NEEDS.REST_CRITICAL || (needs.sleepRecoveryUntilTick ?? 0) > tick) return 'sleep';
-  if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL) return 'takeBreak';
+  // Keep the active break until meaningful recovery, rather than toggling at its onset.
+  if (needs.stamina < HUMAN_NEEDS.STAMINA_CRITICAL ||
+      (needs.breakUntilRecovered && needs.stamina < HUMAN_NEEDS.STAMINA_BREAK_RECOVERED)) {
+    needs.breakUntilRecovered = true;
+    return 'takeBreak';
+  }
+  needs.breakUntilRecovered = undefined;
   return 'continueActivity';
 }
 
