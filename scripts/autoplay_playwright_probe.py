@@ -248,6 +248,34 @@ def run_warfare_smoke(args) -> int:
                 dialog.get_by_role("button", name="Export final save", exact=True).click()
             observed = {"heading": dialog.get_by_role("heading").inner_text(),
                 "export": download.value.suggested_filename, "actions": dialog.get_by_role("button").all_text_contents()}
+        elif args.warfare_mode == "raze":
+            fate = page.get_by_role("button", name="Decide fate of", exact=False)
+            fate.wait_for(state="visible", timeout=90000)
+            fate.click()
+            dialog = page.get_by_role("dialog", name="Battle report", exact=True)
+            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Confirm raze", exact=True).wait_for(state="visible")
+            dialog.get_by_role("button", name="Cancel", exact=True).click()
+            if dialog.get_by_role("button", name="Confirm raze", exact=True).count():
+                raise RuntimeError("Cancel did not dismiss raze confirmation")
+            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Confirm raze", exact=True).click()
+            dialog.wait_for(state="hidden")
+            fate.wait_for(state="hidden")
+            click_text(page, "menu")
+            with page.expect_download() as download:
+                if not click_text(page, "save game"):
+                    raise RuntimeError("Save game action unavailable")
+            export_path = Path(args.warfare_save).parent / "raze-result.json"
+            download.value.save_as(str(export_path))
+            result = json.loads(export_path.read_text(encoding="utf8"))
+            rival_id = json.loads(payload)["pendingRaidVictories"][0]["rivalId"]
+            if any(rival["id"] == rival_id for rival in result["rivalSettlements"]):
+                raise RuntimeError("Confirmed razing did not remove the settlement from the exported save")
+            if any(entry["rivalId"] == rival_id for entry in result.get("pendingRaidVictories", [])):
+                raise RuntimeError("Confirmed razing left a pending victory decision")
+            observed = {"confirmation": "shown, cancelled, then confirmed", "settlement_removed_from_export": True,
+                "pending_decision_cleared": True}
         elif args.warfare_mode == "captives":
             page.get_by_role("button", name="Prisoners of war (1)", exact=True).click(timeout=90000)
             dialog = page.get_by_role("dialog", name="Prisoners of war", exact=True)
@@ -293,7 +321,7 @@ def main() -> int:
     )
     parser.add_argument("--browser-executable", default="", help="Optional installed Chromium executable")
     parser.add_argument("--warfare-save", default="", help="Load a real warfare save and inspect the existing UI")
-    parser.add_argument("--warfare-mode", choices=["recovery", "terminal", "captives"], default="recovery")
+    parser.add_argument("--warfare-mode", choices=["recovery", "terminal", "captives", "raze"], default="recovery")
     parser.add_argument("--warfare-screenshot", default="", help="Optional screenshot of the observed warfare panel")
     args = parser.parse_args()
     if args.warfare_save:

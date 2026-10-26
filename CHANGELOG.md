@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Tested:** Added a browser check for cancelling and confirming settlement razing, then verifying permanent removal and cleared decisions in the exported save.
+
 - **Fixed:** Raid reports retain a fallen starting leader after population cleanup, and removing a prison resolves enemy captives as living escapees instead of leaving inaccessible custody.
 
 - **Changed:** Incoming defenses and outgoing battles advance hourly over six game hours; saved milestones prevent repeated casualties, and truce or razing cleanup releases deployed soldiers.

@@ -396,7 +396,11 @@ if (process.env.WARFARE_SMOKE_FIXTURE_DIR) {
     terminal.buildings = [];
     beginRaidRecovery(terminal, { ...raid(), intent: 'raze', attackerStrength: 100000 }, 'defeat', 1, terminalBefore);
     const captives = captiveColony();
-    for (const [name, world] of Object.entries({ recovery, terminal, captives })) {
+    const raze = colony();
+    raze.paused = true;
+    raze.pendingRaidVictories = [{ raidId: 'raze-smoke', rivalId: 'enemy', rivalName: 'Enemy',
+      playerDead: 0, enemyDead: 2, enemySurvivors: 8, playerCasualties: [], enemyCasualties: [] }];
+    for (const [name, world] of Object.entries({ recovery, terminal, captives, raze })) {
       world.autoSave = false;
       world.tutorialSeen = ['all'];
       writeFileSync(path.join(directory, `${name}.json`), JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
