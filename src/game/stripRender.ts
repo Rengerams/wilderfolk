@@ -101,8 +101,8 @@ function drawPalisadeArm(
   strokePalisadeRails(ctx, ax, ay, aw, ah);
 }
 
-/** Draw one of the user's hand-made road pieces, falling back when not loaded. */
-function paintRoadSprite(
+/** Draw an authored road or wall asset, falling back when it has not loaded. */
+function paintStripSprite(
   ctx: CanvasRenderingContext2D,
   spritePath: string,
   x: number,
@@ -135,7 +135,7 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  if (!paintRoadSprite(ctx, roadSprite, 0, 0, rw, rh, 0) && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
+  if (!paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0) && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(x0, y0, rw, rh);
@@ -189,7 +189,7 @@ export function drawProceduralWall(
 ): void {
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
-  if (paintRoadSprite(ctx, isGate ? WALL_GATE_SPRITE : WALL_STRAIGHT_SPRITE, 0, 0, rw, rh, 0)) {
+  if (paintStripSprite(ctx, isGate ? WALL_GATE_SPRITE : WALL_STRAIGHT_SPRITE, 0, 0, rw, rh, 0)) {
     ctx.restore();
     return;
   }
@@ -335,7 +335,7 @@ export function drawProceduralRoadJunction(
       ? ROAD_TEE[0]
       : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintRoadSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+  if (!paintStripSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
     ctx.fillStyle = '#5c5346';
