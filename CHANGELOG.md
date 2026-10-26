@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Long road routes preserve corners while coalescing straight waypoints; fast commuters clamp their steps before applying the road multiplier to prevent waypoint oscillation.
+
 - **Changed:** Road runs and intersections now use Drummyfish's CC0 cobblestone tile; walls and gates use matching original top-down PNG art, vendored locally for offline rendering with attribution and fallback assets.
 
 - **Fixed:** Empty road and demolition previews no longer crash render frames; rejected road detours reuse negative cache results. Snapshot build-grid validation now shares perpendicular strip crossing rules with authoritative placement.
