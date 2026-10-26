@@ -208,18 +208,27 @@ export function resolveRoadStripPlan(
   }));
   const { hList, vList, along } = collectStripCenters(state.buildings, 'road', extra);
 
-  return centers.map((c) => {
+  const emitted = new Set<string>();
+  return centers.flatMap((c): StripPlacementPiece[] => {
     const snapped = snapBuildingCenter(BuildingType.Road, c.x, c.y, stripRotation);
+    const key = cellKey(snapped.x, snapped.y);
+    if (emitted.has(key)) return [];
+    emitted.add(key);
+    // A repeated stroke must not create another building over an existing road segment.
+    const existing = state.buildings.some((b) => b.type === BuildingType.Road
+      && b.faction !== 'rival' && b.x === snapped.x && b.y === snapped.y
+      && buildingStripRotation(b) === stripRotation);
+    if (existing) return [];
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
     const info = analyzeStripJunction(junctionPt.x, junctionPt.y, hList, vList, along);
     const junctionInfo = info.kind === 'end' || info.kind === 'straight' ? undefined : info;
-    return {
+    return [{
       type: BuildingType.Road,
       x: snapped.x,
       y: snapped.y,
       rotation: stripRotation,
       junctionInfo,
-    };
+    }];
   });
 }
 
