@@ -643,6 +643,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     if (entity.warCaptive && !isPlayerHuman(entity)) {
+      tryEatColonyMeal(entity, state, hourOfDay);
       entity.energy -= humanEnergyLoss(entity, config, {
         hasWell, isWinter, canHeat, hasHospital, tick: state.tick, hourOfDay, buildingById,
       });
