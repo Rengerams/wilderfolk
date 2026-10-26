@@ -117,10 +117,22 @@ An adoption that replaced a **dead** parent is permanent and is never cleared th
 `rebalanceOvercrowdedResidences` relieves an over-full home **before** anyone new is seated, so a newcomer
 can never be packed into a house that was already too full. The shortage order is fixed:
 
-1. move unrelated residents out first;
-2. if the home is still over its beds, move the whole family together;
-3. if no home fits the family, keep the dependent group (custodian + minors) together and unhoused rather
-   than overfill the house or split the children from their guardian.
+1. move unrelated residents and independent adult children out first, where suitable beds exist;
+2. before displacing the family, try reshuffling eligible residents across other completed homes to free
+   enough beds for the entire parent-and-minor household, while respecting capacity and existing custody;
+3. if a complete-family move becomes possible, relocate the family together, never scattering everyone;
+4. only if no feasible reshuffle or whole-family residence exists, temporarily relocate the adult male
+   partner first, provided he is not a minor's required custodian whose departure would leave that child
+   without their necessary caregiver; preserve mother/remaining custodians with their minor children in
+   the original home whenever capacity allows;
+5. if the male is a necessary custodian, find another custody-safe dependent-group arrangement instead.
+   Do not leave minors unaccompanied or evict an entire family simply because one home is undersized.
+   Reunite the household automatically when a suitable whole-family residence becomes available.
+
+This is the **confirmed target policy**, not yet proven to be the implemented capacity algorithm.
+The reshuffle must avoid oscillation, obey residence eligibility and respect the per-run housing ledger.
+The temporary male relocation is not a custody override, and an imprisoned settler's reserved bed
+must not be treated as free.
 
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
@@ -144,7 +156,10 @@ bucket: a settler who loses a bed is never left outside until the cycle comes ro
 
 ### 6. Adult child
 
-An option, not a duty. Candidates are adult children living in a family home (never the manor), eldest
+An option, not a duty. The protected nuclear-family unit is the parent(s) and their **minor** children,
+including every child's actual custodian. Turning 18 removes the default requirement to remain with parents;
+adult descendants (including people aged 30+) are independent housing units unless they have their own
+partner or dependent minors. Candidates are adult children living in a family home (never the manor), eldest
 first, and a move needs an empty home that fits the **whole departing household**. The Leader's House is
 never a destination here: the move is refused rather than reported and left standing. If the household a
 mandatory phase settled, this phase is skipped for them — that is the protection rule in §3.
@@ -423,7 +438,7 @@ Statuses: **DONE** · **DONE (guidance)** · **PARTIAL** · **OPEN** · **BLOCKE
 | 6 | Find the Leader's House by type | **DONE** — `findLeaderHouse` matches type, completed, player faction |
 | 7 | Manor exclusivity and succession | **DONE** — see §9 |
 | 8 | Families stay together | **DONE** — the exact shortage order in §2 phase 4 |
-| 9 | Adult children at 18 | **OPEN** — one word needed from the owner; see §13 |
+| 9 | Adult children at 18 | **VERIFIED** — adult children may split from parents; only parents/custodians plus minors are inseparable dependent units. See §14. |
 | 10 | Singles, capacity, no homeless while beds exist | **DONE** — `getResidenceCapacity`, `fillHomelessAfterEviction`, `tests/housingUnits.composition.test.ts` |
 | 11 | Children without parents | **DONE** — §2 phase 3 |
 | 12 | Meaningful commute moves | **DONE — measured and optimized** — identical assignment hashes, warm median at 2,400 settlers 684.6 → 66.1 ms (table below) |
@@ -514,14 +529,57 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
 
 ---
 
-## 14. Still open, and owned by the owner
+## 14. Confirmed rules and remaining verification
 
-* **Adult children at 18 (spec §9).** The phase treats the move as an option that needs a genuinely empty
-  home fitting the whole household. Decide: (a) an automatic move into a genuinely free home is fine — then
-  the section is done as-is; or (b) the move must be the settler's or player's choice — then the empty-home
-  sweep goes and the "looking for a home" path stays. The alternative argued in the design review is a
-  *leaver* rule: a preference, binding only once the family's home is over capacity, preferring a singles'
-  house with another leaver.
+* **Adult children at 18 (spec §9) — policy and regression tests verified.**
+  A household that must remain together consists of parent(s)/actual custodian(s) and their minor children,
+  not every living descendant. At adulthood, a child becomes eligible to move to an independent residence;
+  adult descendants, even those aged 30+, are not permanently attached to their parents. An adult with a
+  partner and minor children moves with their own dependent household. The optional adult-child phase can
+  use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
+  equate a family-tree relationship with one indivisible housing unit. Manor entitlement also stops at
+  the leader, partner and dependent minors, including when adult descendants have no home. The manor,
+  annex, worker transport and saved-game regression tests verify that boundary.
+* **Divorce custody and marital home — focused custody and relocation regressions verified.**
+  For a divorce with two living, available parents, decide custody of their shared minor children
+  with a deterministic, seeded **50/50 selection between mother and father**, once per divorcing
+  parental unit. Do not make an independent random roll for each child: siblings sharing the same
+  custodial parents stay together. In blended families, preserve each child's actual parent or
+  adoptive-custodian relationships rather than assigning unrelated stepchildren automatically.
+  - Marital-home possession is independent of custody. In an amicable divorce, prefer the mother
+    retaining the former home. For adultery, the non-cheating spouse retains the former home.
+  - The selected parent takes their assigned minor children. If that parent must leave the
+    original home, move the parent **and children together** into a suitable residence. If the
+    selected parent stays, the other spouse departs alone or with any children actually in their
+    custody. Do not leave children behind solely because the destination lacks beds.
+  - Attempt custody-safe household reshuffles before giving up on adequate housing. Preserve
+    existing capacity, guardianship and leader-house rules; report any unresolved shortage
+    without partially moving a dependent unit.
+  - If only one parent is living and available, custody follows that parent; if neither is,
+    use the established guardianship fallback. Housing reconciliation must honor the chosen
+    custody outcome and must not silently revert it to a mother-first default.
+  - Choose the departing parent's home as far from the former spouse as feasible among valid
+    homes. Preserve dependent children, capacity and leader-home restrictions; distance is a
+    preference, not an excuse to strand minors. The divorce relocation now ranks eligible destinations by physical distance,
+    with a deterministic id tie-break.
+  - **Already implemented:** former spouses cannot court or remarry each other for one full
+    game year (`REMARRIAGE_BAR_TICKS`, `isWithinRemarriageBar` and `pastPartnerTicks`
+    in the relationship/divorce owners). Do not add a parallel timer or duplicate this rule.
+  Divorce custody selection, distance-aware relocation, and a one-hop move of an intact
+  blocking household are implemented. Focused divorce, leader succession, worker transport and
+  saved-game regressions pass locally. Full remote CI remains required. This one-hop reshuffle does not
+  guarantee a home if a multi-step chain of moves would be necessary.
+* **Oversized households — owner policy confirmed, implementation not yet verified.**
+  First try to free capacity by moving unrelated people and independent adults or reshuffling other
+  households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
+  exists, move the adult male temporarily before disturbing the remaining dependents, but only when
+  his departure is custody-safe. Reunite everyone once a suitable home becomes available; do not
+  evict all family members just because the present home is too small.
+* **Blended and guardian households — regression verification required.** Build dependent groups around
+  each minor's actual custodians, not the first child's mother or an arbitrary shared parent. If a blended
+  family exceeds the largest home, do not strand any minor by moving their custodian into a different
+  residence; split only independent adults or valid custodian-plus-minor units. Re-run the housing sweep
+  and check no custody violation remains after capacity and leader-succession relocation.
 * **Churn numbers.** A per-household relocation cooldown (`RELOCATION_COOLDOWN_DAYS`, 4) and pricing only
   vacant homes within the household's corridor are proposed but **not implemented**; the quota and the
   margins above are what ship today. Pick these by watching a full year, not by argument.

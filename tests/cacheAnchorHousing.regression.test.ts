@@ -51,7 +51,36 @@ describe('unambiguous housing units', () => {
     expect(new Set(units.flat().map((entry) => entry.id)).size).toBe(3);
   });
 
-  it('limits the leader household to the leader and dependent minors', () => {
+  it('does not separate a descendant couple when only one partner has an independent home', () => {
+    const leader = person(1, { residenceBuildingId: 1, childrenIds: [2] });
+    const descendant = person(2, { motherId: 1, partnerId: 3, residenceBuildingId: 10 });
+    const spouse = person(3, { partnerId: 2 });
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse]).map((member) => member.id))
+      .toEqual([1]);
+    descendant.residenceBuildingId = undefined;
+    spouse.residenceBuildingId = 10;
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse]).map((member) => member.id))
+      .toEqual([1]);
+  });
+
+  it('keeps a blended descendant household independent when the spouse has dependent minors', () => {
+    const leader = person(1, { childrenIds: [2] });
+    const descendant = person(2, { motherId: 1, partnerId: 3 });
+    const spouse = person(3, { partnerId: 2, childrenIds: [4] });
+    const minor = person(4, { age: 7, isJuvenile: true, motherId: 3 });
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse, minor]).map((person) => person.id))
+      .toEqual([1]);
+  });
+
+  it('does not separate an unhoused adult descendant from their minor child for manor entitlement', () => {
+    const leader = person(1, { childrenIds: [2] });
+    const adult = person(2, { age: 28, motherId: 1, childrenIds: [3] });
+    const minor = person(3, { age: 6, isJuvenile: true, motherId: 2 });
+    expect(collectLeaderDescendants(leader, [leader, adult, minor]).map((person) => person.id))
+      .toEqual([1]);
+  });
+
+  it('limits manor entitlement to the leader and dependent minors even when adults are unhoused', () => {
     const leader = person(1, { childrenIds: [2, 3] });
     const adult = person(2, { age: 25, motherId: 1, partnerId: 4 });
     const minor = person(3, { age: 12, isJuvenile: true, motherId: 1 });

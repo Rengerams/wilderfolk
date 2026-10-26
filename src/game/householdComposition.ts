@@ -93,8 +93,16 @@ export function getChildCustodian(
   genealogy?: GenealogyRegistry,
 ): Entity | undefined {
   const mother = livingHuman(humans, child.motherId, entityById);
-  if (mother) return mother;
   const father = livingHuman(humans, child.fatherId, entityById);
+  if (mother && father && mother.partnerId !== father.id && father.partnerId !== mother.id) {
+    const endedAt = mother.pastPartnerTicks?.[father.id];
+    if (endedAt != null && endedAt === father.pastPartnerTicks?.[mother.id]) {
+      // One deterministic decision per divorced parental pair, shared by all their minors.
+      const fatherSelected = ((mother.id * 31 + father.id * 17 + endedAt) >>> 0) % 2 === 1;
+      return fatherSelected ? father : mother;
+    }
+  }
+  if (mother) return mother;
   if (father) return father;
   for (const parentId of [child.motherId, child.fatherId]) {
     const parent = humanById(humans, parentId, entityById)
