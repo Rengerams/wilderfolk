@@ -1117,10 +1117,7 @@ export interface WorldMap {
   size: MapSize;
   /** Sparse per-tile overrides (camp/forest clearing) — key = y*width+x. */
   overrides?: Map<number, TerrainTile>;
-  /**
-   * The world-pixel site the camp clearing was carved around: the founders' own ground, which is
-   * the nearest buildable land to the map centre rather than the centre itself.
-   */
+  /** World-pixel camp clearing location, on buildable land nearest the map centre. */
   campSite?: { x: number; y: number };
   /** Teraforge continuous fields (L2). */
   cols?: number;
