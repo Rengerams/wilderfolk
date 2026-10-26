@@ -121,10 +121,13 @@ export function drawStripBuildPreview(
 
   // One label for the stroke: how much of it will land, and the reason the rest will not.
   const reason = preview.segments.find((segment) => segment.reason)?.reason;
+  const shortage = preview.segments.some((segment) => segment.resourceShortage);
+  const cost = preview.cost;
+  const price = cost ? ` · net ${cost.wood}w ${cost.stone}s ${cost.gold}g` : '';
   const text = demolition ? `${preview.segments.length} sections — release to remove`
     : blocked === 0
-    ? `${preview.segments.length} tiles — release to lay`
-    : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+    ? `${preview.segments.length} tiles${price} — release to lay`
+    : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${price}${shortage ? ' — insufficient resources' : reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
   ctx.save();
   ctx.font = `bold ${labelSize}px sans-serif`;
   ctx.textAlign = 'center';
