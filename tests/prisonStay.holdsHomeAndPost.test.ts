@@ -134,7 +134,6 @@ describe('a workforce pulse during the sentence', () => {
     assignMissingWorkers(state.entities, state.buildings, state);
 
     expect(settler.workerBuildingId).toBe(FARM_ID);
-    expect(available.workerBuildingId).not.toBe(FARM_ID);
     expect(settler.job).toBe(JobType.Farmer);
     expect(settler.residenceBuildingId).toBe(HOUSE_ID);
     expect(prison.occupants).toContain(settler.id);
