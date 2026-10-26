@@ -51,15 +51,22 @@ export function isMealCheckHour(hourOfDay: number): boolean {
  * applies before it drains a unit of food.
  */
 export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: number): boolean {
-  if (!entity.alive || !isPlayerHuman(entity) || state.resources.food <= 0) return false;
+  if (!entity.alive || state.resources.food <= 0) return false;
   if (!isStartOfClockHour(state.tick)) return false;
-  return resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
+  if (entity.warCaptive && !isPlayerHuman(entity)) {
+    return isMealCheckHour(_hourOfDay) && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD;
+  }
+  return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
 
 export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: number): boolean {
   if (!canEatColonyMeal(state, entity, hourOfDay)) return false;
   const amount = spendFood(state, 'meals', Math.min(1, state.resources.food));
   if (amount <= 0) return false;
+  if (entity.warCaptive && !isPlayerHuman(entity)) {
+    entity.energy = Math.min(entity.maxEnergy, entity.energy + (Human.MEAL_ENERGY_RESTORE ?? 65) * amount);
+    return true;
+  }
   const needs = entity.needs!;
   needs.nutrition = Math.min(100, needs.nutrition + amount * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT);
   needs.lastMealTick = state.tick;
