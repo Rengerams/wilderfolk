@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Virtual player now treats wood, stone, and iron shortages at the same recovery priority, after essential food and housing but before civic construction, research, festivals, and repairs. Automatic staffing recovery covers empty Lumber Mills, Quarries, and Mines when a safe worker donor is available; existing resource thresholds are unchanged.
+
+
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.
 
