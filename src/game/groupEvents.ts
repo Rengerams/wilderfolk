@@ -1,4 +1,4 @@
-import { tickPendingDiplomacyEvents, maybeQueueDiplomacyEvent } from './rivalDiplomacy';
+import { pickSite } from './worldEventSites';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
   WorldState, Entity, Building, GameEvent, VisitorGroup, RivalSettlement, VisitorKind,
@@ -206,37 +206,6 @@ function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   return index;
 }
 
-function killWildGameForPoach(state: WorldState, animal: Entity): void {
-  if (!animal.alive) return;
-  animal.alive = false;
-  unindexEntityFromState(state, animal.id);
-  for (const e of state.entities) {
-    if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
-  }
-}
-
-function pickSite(
-  state: WorldState,
-  anchor: { x: number; y: number },
-  minDist: number,
-  maxDist: number,
-  avoid: { x: number; y: number }[] = []
-): { x: number; y: number } {
-  const margin = 80;
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const angle = getSimRng('groupEvents')() * Math.PI * 2;
-    const dist = minDist + getSimRng('groupEvents')() * (maxDist - minDist);
-    const x = Math.max(margin, Math.min(state.width - margin, anchor.x + Math.cos(angle) * dist));
-    const y = Math.max(margin, Math.min(state.height - margin, anchor.y + Math.sin(angle) * dist));
-    const tooClose = avoid.some((p) => Math.hypot(p.x - x, p.y - y) < minDist * 0.6);
-    if (!tooClose) return { x, y };
-  }
-  return {
-    x: Math.max(margin, Math.min(state.width - margin, anchor.x + minDist)),
-    y: Math.max(margin, Math.min(state.height - margin, anchor.y)),
-  };
-}
-
 /** Daily faction-human spawn: `pushNewEntity` when a tick context is present, else the harness fallback. */
 function registerSpawnedEntity(
   state: WorldState,
@@ -292,15 +261,6 @@ const VISITOR_TEMPLATES: Record<VisitorKind, { emoji: string; names: string[]; d
   performers: { emoji: '🎭', names: ['Traveling Players', 'Bardic Troupe', 'Fire-Jugglers'], days: [8, 15], members: [4, 6] },
 };
 
-const RIVAL_PREFIXES = ['Oak', 'Mist', 'Iron', 'Silver', 'Ash', 'Cedar', 'Stone', 'Willow', 'Fox', 'Raven'];
-const RIVAL_SUFFIXES = ['Hollow', 'Reach', 'Ford', 'Glen', 'Creek', 'Ridge', 'Crossing', 'Haven'];
-
-function randomRivalName(): string {
-  const prefix = RIVAL_PREFIXES[Math.floor(getSimRng('groupEvents')() * RIVAL_PREFIXES.length)];
-  const suffix = RIVAL_SUFFIXES[Math.floor(getSimRng('groupEvents')() * RIVAL_SUFFIXES.length)];
-  return `${prefix}${suffix}`;
-}
-
 export function spawnVisitorGroup(
   state: WorldState,
   allAlive: Entity[],
@@ -312,7 +272,6 @@ export function spawnVisitorGroup(
   const name = template.names[Math.floor(getSimRng('groupEvents')() * template.names.length)];
   const center = getPlayerCampCenter(state, buildings);
   const avoid = [
-    ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
     ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
   ];
   const site = pickSite(state, center, 70, 160, avoid);
@@ -379,63 +338,6 @@ export function spawnVisitorGroup(
     emoji: template.emoji,
     effect: effectMap[kind],
     type: 'neutral',
-  };
-}
-
-export function spawnRivalSettlement(
-  state: WorldState,
-  buildings: Building[],
-  /** Scripted founding state; the pool draws its own when this is omitted. */
-  foundingRelationship?: RivalSettlement['relationship'],
-): GameEvent {
-  const name = randomRivalName();
-  const center = getPlayerCampCenter(state, buildings);
-  const avoid = [
-    center,
-    ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
-    ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
-  ];
-  const site = pickSite(state, center, 180, Math.min(state.width, state.height) * 0.38, avoid);
-  const groupId = `rival_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
-  const pop = 4 + Math.floor(getSimRng('groupEvents')() * 4);
-  const relRoll = getSimRng('groupEvents')();
-  const relationship: RivalSettlement['relationship'] = foundingRelationship
-    ?? (relRoll < 0.3 ? 'friendly' : relRoll < 0.7 ? 'neutral' : relRoll < 0.95 ? 'competitive' : 'tense');
-
-  state.rivalSettlements.push({
-    id: groupId,
-    name,
-    campX: site.x,
-    campY: site.y,
-    population: pop,
-    entityIds: [],
-    buildingIds: [],
-    relationship,
-    foundedYear: state.year,
-    daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),
-    raidCooldownDays: rollFoundingRaidCooldownDays(getSimRng('groupEvents')()),
-    peaceTreatyDays: 0,
-    giftsGiven: 0,
-    profile: createRivalProfile(groupId.length + state.year + pop, relationship),
-  });
-
-  const relText = {
-    friendly: 'They wave warmly from afar.',
-    neutral: 'They keep to themselves for now.',
-    competitive: 'They eye your hunting grounds.',
-    tense: 'Their leader looks… unamused.',
-  }[relationship];
-
-  addBigNews(state, '🏕️ New Settlement!', `${name} (${pop} settlers) founded a settlement beyond your village. ${relText}`, relationship === 'tense' ? 'negative' : 'neutral');
-  logEvent(state, 'migration', `${name} established a rival settlement on the frontier`, name);
-
-  return {
-    id: `rival_settlement_${state.tick}`,
-    title: `🏕️ ${name} Settles Nearby`,
-    description: `Another group has claimed land on the same frontier — ${pop} inhabitants beyond your village.`,
-    emoji: '🏕️',
-    effect: `Relationship: ${relationship}`,
-    type: relationship === 'tense' ? 'negative' : 'neutral',
   };
 }
 
@@ -978,17 +880,6 @@ export function hitTestCamp(
   return null;
 }
 
-export function tickWorldRivalSettlements(state: WorldState, allAlive: Entity[]): void {
-  tickRivalEvents(state, allAlive, {
-    pushNews: addBigNews,
-    pushFloat: addFloatingText,
-    logEvent,
-    tickPendingDiplomacyEvents,
-    queueDiplomacyEvent: maybeQueueDiplomacyEvent,
-    killWildGameForPoach,
-  });
-}
-
 export type WorldEventId =
   | 'wolf_migration'
   | 'bountiful_harvest'
@@ -1004,7 +895,7 @@ export type WorldEventId =
   | 'deer_migration'
   | 'generous_neighbors';
 
-const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number; maxRivals?: number; requiresNoVisitors?: boolean }[] = [
+const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number; requiresNoVisitors?: boolean }[] = [
   { id: 'wolf_migration', weight: 10 },
   { id: 'bountiful_harvest', weight: 10 },
   { id: 'traveling_merchant', weight: 8 },
@@ -1128,16 +1019,6 @@ export function rollYearlyWorldEvent(
         bountifulHarvest,
       };
     case 'generous_neighbors':
-      if (state.rivalSettlements.length > 0) {
-        const rival = state.rivalSettlements[Math.floor(getSimRng('groupEvents')() * state.rivalSettlements.length)];
-        const food = 25 + Math.floor(getSimRng('groupEvents')() * 25);
-        addCappedResource(state, 'food', food);
-        addFloatingText(state, rival.campX, rival.campY - 20, `+${food} food`, '#22c55e');
-        return {
-          event: { id: `generous_neighbors_${state.tick}`, title: 'Neighborly Gift', description: `${rival.name} shared food across the wilds.`, emoji: '🤝', effect: `+${food} Food`, type: 'positive' },
-          bountifulHarvest,
-        };
-      }
       addCappedResource(state, 'food', 40);
       return {
         event: { id: `generous_neighbors_${state.tick}`, title: 'Forest Bounty', description: 'Foragers returned with an unusually rich harvest.', emoji: '🍄', effect: '+40 Food', type: 'positive' },
@@ -1231,32 +1112,3 @@ export function tryFirstWeekVisitor(
   return event;
 }
 
-/** Days before the first camp may appear — long enough to have founded a house of your own. */
-export const FIRST_RIVAL_MIN_DAY = 10;
-
-/** Colony size the pioneer camp waits for, the same gate the weighted `rival_settlement` event uses. */
-export const FIRST_RIVAL_MIN_HUMANS = 6;
-
-/**
- * Opens the frontier: the first rival camp is a milestone, not a lottery ticket, and it starts
- * `competitive` so the raid path (tense or competitive only) is reachable. Later camps use the pool.
- */
-export function tryFrontierSettlement(
-  state: WorldState,
-  allAlive: Entity[],
-  buildings: Building[],
-): GameEvent | null {
-  if (state.rivalSettlements.length > 0) return null;
-  if (state.tick < FIRST_RIVAL_MIN_DAY * TICKS_PER_DAY) return null;
-  if (playerHumanCount(allAlive) < FIRST_RIVAL_MIN_HUMANS) return null;
-
-  const hasPlayerHouse = buildings.some(
-    (b) =>
-      b.completed
-      && b.faction !== 'rival'
-      && (b.type === BuildingType.House || b.type === BuildingType.Mansion),
-  );
-  if (!hasPlayerHouse) return null;
-
-  return null;
-}
