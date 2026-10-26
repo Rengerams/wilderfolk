@@ -166,6 +166,13 @@ export function resolveWallStripPlan(
     const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
 
     if (existing && isWallStripType(existing.type)) {
+      // A perpendicular wall can intersect an existing wall; both arms must remain physical.
+      if (stripType === BuildingType.Wall && existing.type === BuildingType.Wall
+        && buildingStripRotation(existing) !== stripRotation) {
+        pieces.push({ type: stripType, x: snapped.x, y: snapped.y, rotation: stripRotation });
+        emitted.add(key);
+        continue;
+      }
       emitted.add(key);
       // A WallGate run replaces the plain Wall it lands on — the placement owner
       // demolishes it and refunds half. Any other wall-family overlap (a Wall run
