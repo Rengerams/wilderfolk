@@ -44,7 +44,6 @@ import { advanceHumanWalkAnim } from './humanSprites';
 import { isRenffrGossipActive } from './renffrStar';
 import { getHumanFleeSpeedMultiplier } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
-import { isEntityOnBuilding } from './buildingRotation';
 
 import {
   applyEducationGraduation,
@@ -95,7 +94,7 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
+import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
@@ -103,7 +102,7 @@ import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
 import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
-import { buildResidenceOccupantIndex, findClosestEntityInRadius, queryIsNearRoad } from './simQueries';
+import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
 import { traitMultiplier } from './settlerTraits';
 import type { TickContext } from './simulation/simulationTypes';
@@ -242,7 +241,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   if (!ctx.roadAvoidance) {
     ctx.roadAvoidance = buildRoadAvoidanceIndex(width, height, roadBuildings);
   }
-  const roadAvoidance = ctx.roadAvoidance;
   const churchStrength = getChurchStrength(updatedBuildings, playerHumans);
 
   // `ctx.hasWell` / `ctx.hasHospital` are the colony-infrastructure flags owned by `gameTick`, which
@@ -1766,14 +1764,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    const nearRoad = queryIsNearRoad(
-      roadAvoidance,
-      entity.x,
-      entity.y,
-      roadBuildings,
-      (x, y, road) => isEntityOnBuilding(x, y, road, 12),
-    );
-    const roadMult = nearRoad ? ROAD_SPEED_MULT : 1.0;
+    // Use the same completed-road tiles the route planner prices, not proximity to a road.
+    const roadMult = isOnWalkableRoadAt(entity.x, entity.y) ? ROAD_SPEED_MULT : 1.0;
 
     // The single integration for every walk, and the only place water and walls are enforced: the
     // steerers set a velocity without checking what it points into (see `applyHumanWalkStep`).
