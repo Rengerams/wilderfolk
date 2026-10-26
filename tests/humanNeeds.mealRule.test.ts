@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { EntityType } from '../src/game/gameTypes';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
+import { treatPatientAtHospital } from '../src/game/hospitalCare';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
 import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
@@ -75,6 +76,25 @@ describe('single human meal transaction', () => {
     expect(tryEatColonyMeal(eater, state, 8)).toBe(false);
     state.tick += TICKS_PER_HOUR;
     expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
+  });
+});
+
+describe('cross-system physiology compatibility', () => {
+  it('keeps a hospital stamina treatment after the next physiological tick', () => {
+    const patient = person({ x: 100, y: 100, needs: { nutrition: 60, rest: 70, stamina: 20 },
+      energy: 100 });
+    const doctor = person({ id: 2, x: 100, y: 100 });
+    const hospital = { id: 4, type: BuildingType.Hospital, completed: true,
+      x: 100, y: 100, width: 40, height: 40, occupants: [doctor.id] } as Building;
+    const state = { ...world(10), entities: [patient, doctor],
+      floatingTexts: [], nextFloatingTextId: 1 } as WorldState;
+    const before = patient.needs!.stamina;
+    expect(treatPatientAtHospital(state, patient, hospital, { doctorPresent: true })).toBe(true);
+    expect(patient.needs!.stamina).toBeGreaterThan(before);
+    const afterTreatment = patient.needs!.stamina;
+    advanceHumanNeeds(patient, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
+    expect(patient.needs!.stamina).toBeGreaterThanOrEqual(afterTreatment);
+    expect(patient.energy / patient.maxEnergy * 100).toBeCloseTo(patient.needs!.stamina, 4);
   });
 });
 
