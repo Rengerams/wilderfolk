@@ -1,4 +1,4 @@
-import { BuildingType } from './gameTypes';
+import { BUILDING_JOB_TYPES, BuildingType } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
 import {
   getBuildingFootprintForType,
@@ -24,6 +24,9 @@ const STRIP_SNAP_SAMPLE_PX = 12;
 const STRIP_BEND_MIN_DISTANCE_PX = 30;
 
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
+const ROAD_ENTRANCE_HOUSING_TYPES = new Set<BuildingType>([
+  BuildingType.House, BuildingType.Villa, BuildingType.Mansion, BuildingType.LeaderHouse,
+]);
 
 /** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here. */
 export function isWallStripType(type: BuildingType): boolean {
@@ -106,6 +109,18 @@ function nearestSnapPoint(
   return best;
 }
 
+/** South-facing building approaches, beyond foundations but within the road's footprint reach. */
+function collectRoadEntranceSnapPoints(buildings: readonly Building[]): { x: number; y: number }[] {
+  const roadHalfDepth = getBuildingFootprintForType(BuildingType.Road, 0).height / 2;
+  const entrances: { x: number; y: number }[] = [];
+  for (const building of buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (!ROAD_ENTRANCE_HOUSING_TYPES.has(building.type) && !BUILDING_JOB_TYPES[building.type]) continue;
+    entrances.push({ x: building.x, y: building.y + building.height / 2 + roadHalfDepth });
+  }
+  return entrances;
+}
+
 /** Snap drag endpoints to nearby strip chain endpoints. */
 export function snapStripDragEndpoints(
   buildings: Building[],
@@ -118,10 +133,13 @@ export function snapStripDragEndpoints(
   const family = stripFamilyFor(type);
   if (!family) return { startX, startY, endX, endY };
   const snaps = collectSnapPoints(buildings, family);
-  if (snaps.length === 0) return { startX, startY, endX, endY };
+  const entrances = family === 'road' ? collectRoadEntranceSnapPoints(buildings) : [];
+  if (snaps.length === 0 && entrances.length === 0) return { startX, startY, endX, endY };
 
-  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
-  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
+  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS)
+    ?? nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
+  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS)
+    ?? nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
   return {
     startX: startSnap?.x ?? startX,
     startY: startSnap?.y ?? startY,
