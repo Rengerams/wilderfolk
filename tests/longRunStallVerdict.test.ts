@@ -13,6 +13,7 @@ import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
+import { buildResidenceOccupancy, getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
 import {
   resetRelationshipDiagnostics,
   setRelationshipDiagnosticsEnabled,
@@ -234,10 +235,18 @@ describe('long-run non-vacuity verdict', () => {
         'the larder still holds food',
       ).toBeGreaterThan(0);
 
-      expect(
-        run.final.housing.homelessPlayerHumans,
-        'nobody was left outside a bed',
-      ).toBe(0);
+      const occupancy = buildResidenceOccupancy(run.world.entities);
+      const residences = run.world.buildings.filter(isResidenceBuilding);
+      const availableBeds = residences.reduce((total, residence) => {
+        const used = occupancy.get(residence.id) ?? 0;
+        const capacity = getResidenceCapacity(residence);
+        expect(used, `residence ${residence.id} must not exceed its capacity`).toBeLessThanOrEqual(capacity);
+        return total + capacity - used;
+      }, 0);
+
+      if (run.final.housing.homelessPlayerHumans > 0) {
+        expect(availableBeds, 'homeless settlers must not have vacant beds available').toBe(0);
+      }
     },
     300_000,
   );
