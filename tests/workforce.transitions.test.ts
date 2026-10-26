@@ -28,6 +28,7 @@ import {
   assignWorkerInPlace,
   assignWorkerTransition,
   countWorkingAndIdleSettlers,
+  getSmithBonus,
   prepareWorkforce,
   removeWorkerTransition,
   syncJobBuildingOccupants,
@@ -359,5 +360,21 @@ describe('prison occupant reconciliation (BUG 2026-08-20-prisoner-occupants-wipe
     syncJobBuildingOccupants([prisoner], [prison]);
 
     expect(prison.occupants).toEqual([]);
+  });
+});
+
+
+describe('blacksmith operational bonus during imprisonment', () => {
+  it('reserves the post without granting a bonus until the smith is released', () => {
+    const smith = human(31, { workerBuildingId: 32, job: JobType.Blacksmith });
+    const forge = building(32, BuildingType.Blacksmith, { occupants: [smith.id] });
+    expect(getSmithBonus([forge], [smith])).toBe(1.25);
+
+    smith.prisonBuildingId = 33;
+    expect(getSmithBonus([forge], [smith])).toBe(1);
+    expect(smith.workerBuildingId).toBe(forge.id);
+
+    smith.prisonBuildingId = undefined;
+    expect(getSmithBonus([forge], [smith])).toBe(1.25);
   });
 });
