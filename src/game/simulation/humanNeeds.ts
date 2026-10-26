@@ -69,6 +69,7 @@ export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: n
   }
   const needs = entity.needs!;
   needs.nutrition = Math.min(100, needs.nutrition + amount * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT);
+  if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
   needs.lastMealTick = state.tick;
   return true;
 }
