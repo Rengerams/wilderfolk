@@ -234,6 +234,8 @@ export interface HumanNeedsState {
   lastAdvancedTick?: number;
   severeHungerTicks?: number;
   sleepRecoveryUntilTick?: number;
+  /** Active stamina break; persists until meaningful recovery to avoid tick oscillation. */
+  breakUntilRecovered?: boolean;
 }
 
 export interface MoonHowlerSavedState {
