@@ -44,6 +44,7 @@ const PATH_MAX_SEARCH_NODES = 6000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
 const ROAD_ROUTE_MIN_DISTANCE_PX = 150;
 const ROAD_ROUTE_MIN_TIME_SAVING = 0.95;
+const ROAD_DETOUR_RECHECK_TILES = 20;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
@@ -774,6 +775,9 @@ export function steerWithPath(
   if (directBlocked || considerRoadDetour) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
+      || (cached.directDetourRejected && (directBlocked
+        || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
+          + Math.abs(cached.startTileY - Math.floor(entity.y / PATH_CELL)) >= ROAD_DETOUR_RECHECK_TILES))
       || (cached.waypoints === null && !cached.directDetourRejected && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
         || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
       cached = undefined;
