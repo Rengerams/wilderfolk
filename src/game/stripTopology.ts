@@ -21,6 +21,7 @@ export const STRIP_SNAP_RADIUS = 38;
 
 /** Spacing of the snap samples taken along an existing strip, in world px. */
 const STRIP_SNAP_SAMPLE_PX = 12;
+const STRIP_BEND_MIN_DISTANCE_PX = 30;
 
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
 
@@ -437,15 +438,26 @@ export function buildStripPlanFromDrag(
   enclosedAreas: EnclosedArea[];
 } {
   const snapped = snapStripDragEndpoints(state.buildings, type, startX, startY, endX, endY);
-  const centers = computeStripSegmentCenters(
-    type,
-    snapped.startX,
-    snapped.startY,
-    snapped.endX,
-    snapped.endY,
+  // A diagonal drag becomes one L-shaped stroke instead of silently discarding an axis.
+  const bend = Math.min(Math.abs(snapped.endX - snapped.startX), Math.abs(snapped.endY - snapped.startY))
+    >= STRIP_BEND_MIN_DISTANCE_PX;
+  const cornerX = rotation === 0 ? snapped.endX : snapped.startX;
+  const cornerY = rotation === 0 ? snapped.startY : snapped.endY;
+  const first = computeStripSegmentCenters(
+    type, snapped.startX, snapped.startY,
+    bend ? cornerX : snapped.endX,
+    bend ? cornerY : snapped.endY,
     rotation,
   );
-  const plan = resolveStripPlan(state, type, centers, rotation);
+  const plan = resolveStripPlan(state, type, first, rotation);
+  if (bend && plan.length < MAX_STRIP_SEGMENTS) {
+    const turnRotation: BuildingRotation = rotation === 0 ? 90 : 0;
+    const second = computeStripSegmentCenters(
+      type, cornerX, cornerY, snapped.endX, snapped.endY, turnRotation,
+    );
+    const turnPlan = resolveStripPlan(state, type, second, turnRotation);
+    plan.push(...turnPlan.slice(0, MAX_STRIP_SEGMENTS - plan.length));
+  }
   const enclosedAreas = isWallStripType(type)
     ? findEnclosedWallAreas(state, plan.map((p) => ({ x: p.x, y: p.y })))
     : [];
