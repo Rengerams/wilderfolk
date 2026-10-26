@@ -58,8 +58,10 @@ export function tickHumanHunting(
   // hunt when the colony has no food to feed them (famine) — a fed village
   // doesn't send settlers off to thin the wild herd for sport.
   const famine = (state.resources?.food ?? 0) <= 0;
+  // Assigned hunters retain their stamina-based job cadence; emergency hunting
+  // is triggered by nutrition, never by the unrelated stamina projection.
   const freeHuntHungry = isJobHunter
-    ? (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION
+    ? (entity.needs?.stamina ?? entity.energy / Math.max(1, entity.maxEnergy) * 100) < 85
     : famine && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
 
   const blueberryForaging =
