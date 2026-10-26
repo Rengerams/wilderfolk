@@ -332,10 +332,10 @@ export function drawProceduralRoadJunction(
   const spritePath = kind === 'cross'
     ? ROAD_CROSS
     : kind === 'tee'
-      ? ROAD_TEE[Math.abs(Math.round(rotation / 90)) % ROAD_TEE.length]
+      ? ROAD_TEE[0]
       : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintRoadSprite(ctx, spritePath, 0, 0, cap, cap, 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+  if (!paintRoadSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
     ctx.fillStyle = '#5c5346';
