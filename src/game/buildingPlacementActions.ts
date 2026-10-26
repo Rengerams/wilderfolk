@@ -78,6 +78,27 @@ export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingTy
   return !!config.unique && state.buildings.some((building) => building.type === type);
 }
 
+/** A road may cross a perpendicular road, but never duplicate a parallel piece or hide a building. */
+function roadCrossingIsTheOnlyOverlap(
+  buildings: readonly Building[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  let hasCrossing = false;
+  for (const b of buildings) {
+    const overlaps = x + width / 2 > b.x - b.width / 2
+      && x - width / 2 < b.x + b.width / 2
+      && y + height / 2 > b.y - b.height / 2
+      && y - height / 2 < b.y + b.height / 2;
+    if (!overlaps) continue;
+    if (b.type !== BuildingType.Road || (width > height) === (b.width > b.height)) return false;
+    hasCrossing = true;
+  }
+  return hasCrossing;
+}
+
 export function getPlaceBuildingFailureReason(
   state: WorldState,
   type: BuildingType,
@@ -96,7 +117,8 @@ export function getPlaceBuildingFailureReason(
   }
   if (isUniqueBuildingAlreadyBuilt(state, type)) return 'unique';
   if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
-  if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
+  if (overlapsAnyBuilding(state.buildings, width, height, x, y)
+    && !(type === BuildingType.Road && roadCrossingIsTheOnlyOverlap(state.buildings, x, y, width, height))) return 'blocked';
   return null;
 }
 
