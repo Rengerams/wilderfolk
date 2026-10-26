@@ -59,9 +59,9 @@ export function cornerRotationFromConnections(c: JunctionConnections): CornerRot
 
   // T-junctions — rotation points arms toward the three connected sides
   if (c.north && c.east && c.west && !c.south) return 0;
-  if (c.south && c.east && c.west && !c.north) return 90;
   if (c.north && c.south && c.east && !c.west) return 90;
-  if (c.north && c.south && c.west && !c.east) return 180;
+  if (c.south && c.east && c.west && !c.north) return 180;
+  if (c.north && c.south && c.west && !c.east) return 270;
 
   // Cross — default NE corner frame
   if (c.north && c.south && c.east && c.west) return 0;
