@@ -10,7 +10,7 @@ import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { assignMissingResidences, restoreCustodyAfterRelease } from '../src/game/residencyReconciliation';
-import { prepareWorkforce, releasePrisoners } from '../src/game/workforce';
+import { assignMissingWorkers, prepareWorkforce, releasePrisoners } from '../src/game/workforce';
 import { exposeAffair } from '../src/game/simulation/humanRelationships';
 import { setSimSeed } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -129,8 +129,12 @@ describe('a workforce pulse during the sentence', () => {
     state.buildings = [prison, house, farm];
 
     prepareWorkforce(state.entities, state.buildings);
+    const available = human(7002, { job: JobType.Settler });
+    state.entities.push(available);
+    assignMissingWorkers(state.entities, state.buildings, state);
 
     expect(settler.workerBuildingId).toBe(FARM_ID);
+    expect(available.workerBuildingId).not.toBe(FARM_ID);
     expect(settler.job).toBe(JobType.Farmer);
     expect(settler.residenceBuildingId).toBe(HOUSE_ID);
     expect(prison.occupants).toContain(settler.id);
