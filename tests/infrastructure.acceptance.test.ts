@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { building } from '../src/test/factories';
+import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { BUILDING_CONFIGS, BuildingType, TerrainType } from '../src/game/gameTypes';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
-import { findPath, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap } from '../src/game/pathfinding';
+import { findPath, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
 import { demolishStripBuildingsInPlace } from '../src/game/buildingMaintenanceActions';
 import { createBuilding } from '../src/game/worldGen';
@@ -29,6 +29,17 @@ describe('infrastructure acceptance boundaries', () => {
       expect(isFootprintOnBuildableTerrain({ worldMap }, 10, 10, 55, 55, BuildingType.Road)).toBe(false);
     });
   }
+
+  it('considers faster roads on short trips and when the gain is below five percent', () => {
+    const map = testWorldMap({ tilesX: 40, tilesY: 20 });
+    const shortRoad = building(70, BuildingType.Road, { x: 100, y: 105, width: 160, height: 10 });
+    setCurrentPathMap(map, [shortRoad]);
+    expect(steerWithPath(human(70, { x: 45, y: 105 }), 145, 105, 2, 'short-road')).toBe('path');
+    const smallGain = building(71, BuildingType.Road, { x: 105, y: 105, width: 10, height: 10 });
+    setCurrentPathMap(map, [smallGain]);
+    expect(steerWithPath(human(71, { x: 25, y: 105 }), 325, 105, 2, 'small-gain')).toBe('path');
+    setCurrentPathMap(null);
+  });
 
   it('never lets a legacy road open impassable water', () => {
     const map = testWorldMap({ tilesX: 20, tilesY: 20, tileType: (x) => x === 10 ? TerrainType.River : undefined });

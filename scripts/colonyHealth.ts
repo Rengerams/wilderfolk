@@ -291,10 +291,6 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
   };
 }
 
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Population / relationship summaries (moved here from run-full-year.mts so P2 shares them)
 // ─────────────────────────────────────────────────────────────────────────────

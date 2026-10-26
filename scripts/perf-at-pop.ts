@@ -38,7 +38,8 @@ import { moveResident, relocateHouseholdsForCommute } from '../src/game/residenc
 import { buildHousingUnits, buildResidenceTraits, listPlayerResidences, pickCommuteRelocation } from '../src/game/residencySelection';
 import { buildResidenceOccupancy } from '../src/game/residencyOccupancy';
 import { setCurrentPathMap, resetPathGridCaches } from '../src/game/pathfinding';
-import { BuildingType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, PATH_CELL } from '../src/game/gameTypes';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import { getSimFocus } from './simFocus';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -67,7 +68,12 @@ const TRACE = process.env.PERF_TRACE === '1';
 const TICKS_PER_DAY_TRACE = TICKS_PER_DAY;
 const REPORT = process.env.PERF_REPORT;
 const BASELINE = process.env.PERF_BASELINE;
-const INFRASTRUCTURE = process.env.PERF_INFRASTRUCTURE === '1';
+const INFRASTRUCTURE_VISUAL_SAVE = process.env.PERF_INFRASTRUCTURE_VISUAL_SAVE;
+const INFRASTRUCTURE = process.env.PERF_INFRASTRUCTURE === '1' || !!INFRASTRUCTURE_VISUAL_SAVE;
+const INFRASTRUCTURE_VISUAL_WALL_OFFSET = 8;
+const INFRASTRUCTURE_VISUAL_ZOOM = 0.75;
+const INFRASTRUCTURE_VISUAL_EXTENT = 1200;
+const INFRASTRUCTURE_VISUAL_CROSS_COLUMN = 3;
 const INFRASTRUCTURE_RUNS = 6;
 const INFRASTRUCTURE_PIECES = 12;
 const INFRASTRUCTURE_SPACING = 72;
@@ -326,18 +332,42 @@ async function main() {
     const state = initGame({ villageName: 'Bench', size: MapSize.Large, seed: SEED });
     state.resources.food = 8000;
     seedCityScaleProfile(state, targets);
+    if (INFRASTRUCTURE_VISUAL_SAVE && state.worldMap) {
+      state.worldMap = testWorldMap({ tilesX: state.width / PATH_CELL, tilesY: state.height / PATH_CELL, seed: SEED });
+      state.entities = state.entities.filter((entity) => entity.type === EntityType.Human
+        || entity.x > INFRASTRUCTURE_VISUAL_EXTENT || entity.y > INFRASTRUCTURE_VISUAL_EXTENT);
+    }
     if (INFRASTRUCTURE) {
       for (let row = 0; row < INFRASTRUCTURE_RUNS; row++) {
         for (let column = 0; column < INFRASTRUCTURE_PIECES; column++) {
           createCompletedBuilding(state, BuildingType.Road,
-            INFRASTRUCTURE_MARGIN + column * INFRASTRUCTURE_SPACING,
-            INFRASTRUCTURE_MARGIN + row * INFRASTRUCTURE_SPACING);
+            INFRASTRUCTURE_MARGIN + column * (INFRASTRUCTURE_VISUAL_SAVE ? BUILDING_CONFIGS[BuildingType.Road].width : INFRASTRUCTURE_SPACING),
+            INFRASTRUCTURE_MARGIN + row * (INFRASTRUCTURE_VISUAL_SAVE ? BUILDING_CONFIGS[BuildingType.Road].width : INFRASTRUCTURE_SPACING));
           createCompletedBuilding(state, column === Math.floor(INFRASTRUCTURE_PIECES / 2)
             ? BuildingType.WallGate : BuildingType.Wall,
-          INFRASTRUCTURE_MARGIN + column * INFRASTRUCTURE_SPACING,
-          state.height - INFRASTRUCTURE_MARGIN - row * INFRASTRUCTURE_SPACING);
+          INFRASTRUCTURE_MARGIN + column * (INFRASTRUCTURE_VISUAL_SAVE ? BUILDING_CONFIGS[BuildingType.Wall].width : INFRASTRUCTURE_SPACING),
+          INFRASTRUCTURE_VISUAL_SAVE
+            ? INFRASTRUCTURE_MARGIN + (row + INFRASTRUCTURE_VISUAL_WALL_OFFSET) * INFRASTRUCTURE_SPACING
+            : state.height - INFRASTRUCTURE_MARGIN - row * INFRASTRUCTURE_SPACING);
         }
       }
+    }
+    if (INFRASTRUCTURE_VISUAL_SAVE) {
+      for (let row = 0; row < INFRASTRUCTURE_RUNS; row++) {
+        const crossing = createCompletedBuilding(state, BuildingType.Road,
+          INFRASTRUCTURE_MARGIN + INFRASTRUCTURE_VISUAL_CROSS_COLUMN * BUILDING_CONFIGS[BuildingType.Road].width,
+          INFRASTRUCTURE_MARGIN + row * BUILDING_CONFIGS[BuildingType.Road].width);
+        crossing.rotation = 90;
+        crossing.width = BUILDING_CONFIGS[BuildingType.Road].height;
+        crossing.height = BUILDING_CONFIGS[BuildingType.Road].width;
+      }
+      state.paused = true;
+      const view = createInitialView(state.width, state.height, INFRASTRUCTURE_VISUAL_ZOOM);
+      view.camera.x = view.camera.targetX = INFRASTRUCTURE_MARGIN + INFRASTRUCTURE_PIECES * INFRASTRUCTURE_SPACING / 2;
+      view.camera.y = view.camera.targetY = INFRASTRUCTURE_MARGIN + INFRASTRUCTURE_VISUAL_WALL_OFFSET * INFRASTRUCTURE_SPACING / 2;
+      writeFileSync(INFRASTRUCTURE_VISUAL_SAVE, JSON.stringify(buildSaveData(state, view)));
+      console.log(`Infrastructure visual save: ${INFRASTRUCTURE_VISUAL_SAVE}`);
+      return;
     }
     bench(state, `City ${pop} player humans${INFRASTRUCTURE ? ' infrastructure' : ''}`, fullSim ? undefined : focus, targets, true);
   }

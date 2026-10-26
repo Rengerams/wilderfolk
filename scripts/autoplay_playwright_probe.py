@@ -26,6 +26,11 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+INFRASTRUCTURE_VISUAL_ZOOMS = (0.5, 0.75, 1.45)
+INFRASTRUCTURE_VISUAL_LOAD_TIMEOUT_MS = 90000
+INFRASTRUCTURE_VISUAL_ZOOM_TIMEOUT_MS = 15000
+INFRASTRUCTURE_VISUAL_MIN_COLORS = 2
+
 # Everything the header can tell us about the bot and the treasury.
 STATE_JS = """
 () => {
@@ -344,6 +349,46 @@ def run_indoor_smoke(args) -> int:
         return 1 if errors else 0
 
 
+def run_infrastructure_visual(args) -> int:
+    """Inspect infrastructure through the existing saved-game UI at several zoom levels."""
+    from pathlib import Path
+    payload = Path(args.infrastructure_save).read_text(encoding="utf8")
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True,
+            executable_path=args.browser_executable or None,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--no-zygote", "--single-process"])
+        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.add_init_script("localStorage.setItem('ecosim_save', " + json.dumps(payload) + ");")
+        page.goto(args.url, wait_until="load")
+        if not click_text(page, "skip intro"):
+            click_text(page, "choose your land")
+        wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+        if not click_text(page, "load saved game"):
+            raise RuntimeError("Load saved game was unavailable")
+        page.locator('canvas[aria-label="Valley map"]').wait_for(state="visible", timeout=INFRASTRUCTURE_VISUAL_LOAD_TIMEOUT_MS)
+        page.wait_for_function("() => !!document.querySelector('header')", timeout=INFRASTRUCTURE_VISUAL_LOAD_TIMEOUT_MS)
+        click_text(page, "got it")
+        click_text(page, "skip")
+        observed = []
+        for zoom in INFRASTRUCTURE_VISUAL_ZOOMS:
+            label = set_camera_zoom(page, zoom)
+            page.wait_for_function("""(zoom) => {
+                const label = document.querySelector('[title="Live zoom"]');
+                return label && Math.abs(parseFloat(label.textContent) - zoom * 100) < 1;
+            }""", arg=zoom, timeout=INFRASTRUCTURE_VISUAL_ZOOM_TIMEOUT_MS)
+            page.evaluate("() => document.fonts.ready")
+            stats = page.evaluate(GROUND_STATS_JS)
+            if stats.get("error") or stats.get("distinctColors", 0) < INFRASTRUCTURE_VISUAL_MIN_COLORS:
+                raise RuntimeError("Infrastructure canvas did not paint: " + json.dumps(stats))
+            page.screenshot(path=f"{args.infrastructure_screenshot_prefix}-{zoom}.png")
+            observed.append({"zoom": zoom, "label": label, "canvas": stats})
+        print(json.dumps({"infrastructure_visual": observed, "page_errors": errors}))
+        browser.close()
+        return 1 if errors else 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:5173/")
@@ -370,7 +415,11 @@ def main() -> int:
     parser.add_argument("--warfare-screenshot", default="", help="Optional screenshot of the observed warfare panel")
     parser.add_argument("--indoor-save", default="")
     parser.add_argument("--indoor-screenshot", default="")
+    parser.add_argument("--infrastructure-save", default="")
+    parser.add_argument("--infrastructure-screenshot-prefix", default="tmp/infrastructure")
     args = parser.parse_args()
+    if args.infrastructure_save:
+        return run_infrastructure_visual(args)
     if args.warfare_save:
         return run_warfare_smoke(args)
     if args.indoor_save:

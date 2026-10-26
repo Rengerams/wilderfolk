@@ -18,10 +18,10 @@ Read AGENTS.md and OWNERSHIP_OVERVIEW.md first. Audit existing stripBuild, strip
 The coder may propose and implement a simpler or more robust architecture, explaining significant tradeoffs. Do not mechanically create all suggested modules; retain one authoritative source for topology, validation and navigation. Do not claim implementation is complete until acceptance tests and the required pipeline pass.
 
 ## Acceptance tests
-Long straight and L-shaped drags, corners, T and cross junctions, reconnecting and demolishing segments, terrain policy, gate insertion and removal, sealed enclosures, blocked-route recovery, road preference based on travel time, actual road speed bonus, older save hydration, worker roundtrips and performance at 1,800 settlers.
+Long straight and L-shaped drags, corners, T and cross junctions, reconnecting and demolishing segments, terrain policy, gate insertion and removal, sealed enclosures, blocked-route recovery, road preference based on travel time, actual road speed bonus, older save hydration, worker roundtrips and preservation of established performance budgets.
 
 ## Next work
-Complete visual acceptance and review measured performance against the settlement budget before merging.
+Complete visual acceptance and the remaining validation before merging.
 
 
 ## Future travel modes: navigation architecture constraint
@@ -92,48 +92,62 @@ No new art or libraries were imported in this follow-up. The existing three Drum
 sprites are CC0, verified against their OpenGameArt source on 2026-10-26; central asset
 and third-party registers now include them and the two original SVG fallbacks.
 
-### Verification limits
+### Verification and current scope
 
-The full browser and zoom-level visual acceptance is not yet executed: this host has
-no installed Chromium executable; a temporary download attempt returned a truncated archive. Renderer unit assertions
-are not a substitute for visual inspection. Gate toggling/locking is not a distinct
-saved gameplay feature; navigation tests close an opening by replacing the gate with a
-wall. No boat mechanics or unrelated gameplay changes are introduced.
-
-The existing population benchmark now accepts PERF_INFRASTRUCTURE=1, adding 72 road
-pieces and 72 wall/gate pieces to the 1,800-settler city. This is a simulation benchmark;
-it does not measure pointer latency or canvas frame time. Initial runs shared CPU with
-the full test suite and are unsuitable for claiming a performance improvement. Both
-versions produced the same final delta fingerprint, 0a40016f2632d2ec.
-
-
-### Final validation results
+The owner removed full responsiveness at 1,800 settlers and testing with a real
+historical settlement save from this PR's mandatory acceptance criteria. Existing
+performance budgets and synthetic legacy save compatibility remain applicable.
 
 | Check | Result |
 | --- | --- |
-| `npm run test:standard` | PASS: 377 files; 2,435 passed, 2 existing skipped; 418.4 seconds |
+| Earlier complete standard gate | PASS: 377 files; 2,435 passed, 2 existing skipped |
+| Latest road/infrastructure regression tests | PASS: 46 tests, including short trips and savings below five percent |
 | `npm run test:types` | PASS |
 | `npm run lint` | PASS |
 | `npm run build` | PASS; existing large-chunk warning remains |
-| `npm test -- invariant-test` | FAILED: 300,000 ms timeout; no completed annual invariant verdict |
-| `node scripts/test.mjs scripts-types` | FAILED outside this diff: unused assert in colonyHealth and missing Building import in inspect-save |
-| Browser visual acceptance | BLOCKED: no installed Chromium; temporary browser download returned an invalid/truncated archive |
+| `npm test -- invariant-test` | PASS: 360 days; 157.75 seconds with the original 300,000 ms timeout |
+| `node scripts/test.mjs scripts-types` | PASS: missing Building type import and unused assertion helper fixed |
+| Real browser infrastructure view | PASS: saved scenario loaded through the normal UI; 50%, 75% and 145% zoom; no page errors |
 
-Population benchmark: 1,800 settlers, 144 infrastructure pieces, 10 warmup + 72
-measured ticks, full simulation, Node 24.22.1 on Linux. Baseline aee72891 measured
-307.73 ms average / 697.52 ms p95; final implementation measured 398.83 ms average /
-816.33 ms p95. These runs overlapped other validation jobs and must not be treated
-as a controlled regression comparison or proof of responsiveness. Both retained
-3,254 living entities and the same delta fingerprint, 0a40016f2632d2ec. Pointer,
-demolition and render latency at scale remain unmeasured. Performance acceptance
-is open; no performance improvement is claimed.
+The original annual run overlapped the complete test suite and exceeded its timeout.
+The isolated rerun completes within the same budget. The annual harness now counts
+only new chronicle entries using the log owner's newest-first monotonic ID contract,
+instead of scanning the complete history on every tick. Its duration, simulation,
+checkpoints and assertions remain unchanged.
 
-The complete Definition of Done in issue #49 is therefore NOT signed off. Remaining
-acceptance work includes visual checks at multiple zoom levels, controlled before/after
-performance measurements including interaction latency, a completed annual invariant
-run, and validation against a real historical settlement save. Gate locking remains
-unimplemented as a distinct gameplay state; no separate gate locking UI is claimed.
+Road route selection no longer ignores trips below 150 pixels or savings below five
+percent. Existing bounded A* searches, accepted-waypoint reuse and rejected-detour
+caching remain; regression coverage includes an unrelated distant road. The latter
+fixture now keeps its route on the intended row instead of accidentally crossing
+the road diagonally through a duplicated x coordinate.
+
+The visual mode extends the existing population harness with an opt-in synthetic
+save export (`PERF_INFRASTRUCTURE_VISUAL_SAVE`) and the existing browser harness with
+`--infrastructure-save`. It shows repeated horizontal roads, perpendicular crossings,
+wall runs and gates at actual footprint spacing. Temporary Chromium and Python tools
+are verification tools only; no browser binary or additional runtime dependency ships.
+The screenshots were manually inspected for road continuity and upright wall/gate art.
+These captures do not claim to measure interaction latency or every possible layout.
+
+Gate locking remains an optional future gameplay feature; this PR preserves the
+existing passable gate model. The navigation regression closes an opening by replacing
+a gate with a wall. Boat mechanics are also outside this PR.
+
+### Updated requirement assessment
+
+| Requirement | Result |
+| --- | --- |
+| Drag roads and walls | Implemented; bounded single-command planning and multi-turn regressions |
+| Automatic road connections | Footprint-based classification; snapping radius is pointer assistance only |
+| Seamless road/wall presentation | Browser captures inspected at three zoom levels; renderer regressions |
+| Physical walls | Movement, blocked-route recovery, diagonal corner and sealed-enclosure regressions |
+| Gates in existing walls | Alignment, passage, failure preservation and resource accounting covered |
+| Bulk demolition | Bounded worker command, shared cleanup/refunds and unrelated-building preservation |
+| Faster road travel | Weighted routing and exact-surface speed; short and small-benefit trips covered |
+| Traversable terrain foundations | Dry passable terrain accepted; water and reserved obstacles rejected |
+| Existing supported saves | Synthetic 0.6.5.0 infrastructure matrix retained across three load cycles |
+| Documentation and licences | Ownership, roadmap, changelog, asset register and third-party notices updated |
 
 Shell: Linux/Bash; the Windows-specific command.md file is absent in this checkout.
-Temporary comparison checkout and browser installation files were removed. No
-profile, environment, scheduled task or global Git configuration was changed.
+Temporary browser, scenario and screenshot files are cleaned up after verification.
+No profile, scheduled task or global Git configuration is changed.

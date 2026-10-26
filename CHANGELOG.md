@@ -2,6 +2,12 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Walkers consider faster road routes on short trips and for savings below five percent; bounded searches and route caching remain in use.
+
+- **Fixed:** The annual integration check counts only newly added chronicle entries instead of rescanning the entire history on every tick; simulation coverage and timeout remain unchanged.
+
+- **Fixed:** Save inspection and simulation tooling compile again after restoring a missing building type import and removing an unused assertion helper.
+
 - **Fixed:** Junctions use actual infrastructure footprints, preserving legacy positions and excluding disconnected nearby or distant strips.
 
 - **Fixed:** Roads accept passable rocky ground while rejecting water and reserved obstacles. Only bridges open blocked terrain; navigation refreshes when infrastructure dimensions or road or bridge type changes. Sprite provenance is registered.

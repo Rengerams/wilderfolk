@@ -264,13 +264,13 @@ describe('road detour negative caching', () => {
     setPathfindingMetricsEnabled(true);
     resetPathfinderSession();
     try {
-      const walker = human(801, pixel(2, 5), pixel(2, 5));
-      expect(steerWithPath(walker, pixel(35, 5), pixel(35, 5), 5, 'negative-road')).toBe('direct');
+      const walker = human(801, pixel(2, 0), pixel(5, 0));
+      expect(steerWithPath(walker, pixel(35, 0), pixel(5, 0), 5, 'negative-road')).toBe('direct');
       const searches = getCurrentPathfinderTickCounters().findPathCalls;
       expect(searches).toBeGreaterThan(0);
       for (let tile = 3; tile <= 12; tile++) {
         walker.x = pixel(tile, 5);
-        expect(steerWithPath(walker, pixel(35, 5), pixel(35, 5), 5, 'negative-road')).toBe('direct');
+        expect(steerWithPath(walker, pixel(35, 0), pixel(5, 0), 5, 'negative-road')).toBe('direct');
       }
       expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
     } finally {

@@ -11,7 +11,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Realtime pulse | `tickLayerRealtime.ts` | realtime (every tick) | `tickLayerRealtime` |
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
-| Indoor browser smoke | `scripts/autoplay_playwright_probe.py` | existing browser harness | `run_indoor_smoke` — normal save-load and observed indoor patient assertion. |
+| Indoor browser smoke | `scripts/autoplay_playwright_probe.py` | existing browser harness | `run_indoor_smoke`, `run_infrastructure_visual` — normal save-load, observed indoor patient assertion and infrastructure captures through the zoom controls. |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
 | School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` (integration) + `pathfinding.ts` (grid, A*, steering, road mask) | realtime | `enterHumanBuilding`, `commuteHumanToBuilding`, `humanBuildingTarget`, `applyHumanWalkStep`, `steerWithPath`, `walkRoute`, `findPath`, `findRouteCostOutcome`, `isOnWalkableRoadAt`, `buildPathGrid`, `buildingSignature`, `stampBuildingFootprint` |

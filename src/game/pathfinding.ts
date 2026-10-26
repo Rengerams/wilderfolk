@@ -42,9 +42,10 @@ const CLIFF_STEP = 32;
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
 const PATH_MAX_SEARCH_NODES = 6000;
 const PATH_ARRIVAL_DISTANCE_PX = 8;
-const ROAD_ROUTE_MIN_DISTANCE_PX = 150;
-const ROAD_ROUTE_MIN_TIME_SAVING = 0.95;
 const ROAD_DETOUR_RECHECK_TILES = 20;
+const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
+const BUILDING_SIGNATURE_HEIGHT_FACTOR = 23;
+const BUILDING_SIGNATURE_BRIDGE_FACTOR = 29;
 
 /** Completed player walls block walking; gates are passable openings. */
 function isBlockingWall(b: Building): boolean {
@@ -100,7 +101,8 @@ function buildingSignature(
   for (const b of buildings) {
     if (!matches(b)) continue;
     hash = (hash + b.id * 31 + b.x * 17 + b.y * 13 + (b.rotation ?? 0) * 7
-      + b.width * 19 + b.height * 23 + (b.type === BuildingType.Bridge ? 29 : 0)) >>> 0;
+      + b.width * BUILDING_SIGNATURE_WIDTH_FACTOR + b.height * BUILDING_SIGNATURE_HEIGHT_FACTOR
+      + (b.type === BuildingType.Bridge ? BUILDING_SIGNATURE_BRIDGE_FACTOR : 0)) >>> 0;
     count++;
   }
   return `${count}:${hash}`;
@@ -802,7 +804,7 @@ export function steerWithPath(
   const acceptedRoute = pathCache.get(cacheKey);
   const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
     && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
-  const considerRoadDetour = !directBlocked && !!currentGrid.road && dist >= ROAD_ROUTE_MIN_DISTANCE_PX;
+  const considerRoadDetour = !directBlocked && !!currentGrid.road;
   if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
@@ -841,7 +843,7 @@ export function steerWithPath(
         Math.floor(targetY / PATH_CELL),
         PATH_MAX_SEARCH_NODES,
       );
-      const savesTime = route.cost !== null && route.cost * PATH_CELL < dist * ROAD_ROUTE_MIN_TIME_SAVING;
+      const savesTime = route.cost !== null && route.cost * PATH_CELL < dist;
       let waypoints = route.path && (directBlocked || savesTime)
         ? collapseStraightWaypoints(pathWaypoints(route.path)) : null;
       const startTx = Math.floor(entity.x / PATH_CELL);
