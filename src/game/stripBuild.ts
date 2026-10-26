@@ -29,6 +29,8 @@ export interface StripSegment {
    * skips ground can name what it skipped. Placement-time only; the commit recomputes it.
    */
   readonly reason?: PlaceBuildingFailureReason;
+  /** The stroke ran out of materials before this segment could be constructed. */
+  readonly resourceShortage?: boolean;
   /** Tee, cross, or elbow topology for procedural junction rendering. */
   readonly junctionInfo?: StripJunctionInfo;
   /** Existing building to be demolished/replaced (refunded at 50%). */
@@ -49,6 +51,10 @@ export interface StripBuildPreview {
   readonly rotation: BuildingRotation;
   /** Regions fully enclosed by walls (preview + existing). */
   readonly enclosedAreas?: readonly EnclosedArea[];
+  /** Net resources spent by valid segments, including accepted replacement refunds. */
+  readonly cost?: { wood: number; stone: number; gold: number };
+  /** Available materials when the preview was computed. */
+  readonly available?: { wood: number; stone: number; gold: number };
 }
 
 /**
