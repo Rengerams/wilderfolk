@@ -58,6 +58,7 @@ export function drawStripBuildPreview(
   const cam = state.camera;
   const zoom = cam.zoom > 0 ? cam.zoom : 1;
   const pulse = 0.4 + Math.sin(motionTime * 4.5) * 0.12;
+  const demolition = preview.demolition === true;
   const labelSize = Math.max(10, Math.round(11 * zoom));
   let blocked = 0;
   let sampleX = 0;
@@ -82,9 +83,10 @@ export function drawStripBuildPreview(
     sampleY = sy + h / 2;
 
     ctx.globalAlpha = segment.valid ? 0.72 : 0.5;
-    ctx.fillStyle = segment.valid ? 'rgba(34, 197, 94, 0.22)' : 'rgba(239, 68, 68, 0.26)';
+    ctx.fillStyle = demolition ? 'rgba(239, 68, 68, 0.38)'
+      : segment.valid ? 'rgba(34, 197, 94, 0.22)' : 'rgba(239, 68, 68, 0.26)';
     ctx.fillRect(sx - w / 2, sy - h / 2, w, h);
-    if (segment.valid) {
+    if (segment.valid && !demolition) {
       drawProceduralStripBuilding(
         ctx,
         segment.placeType,
@@ -98,7 +100,8 @@ export function drawStripBuildPreview(
     }
     ctx.globalAlpha = 1;
     ctx.lineWidth = Math.max(1.2, 1.5 * zoom);
-    ctx.strokeStyle = segment.valid ? `rgba(16, 185, 129, ${pulse + 0.5})` : 'rgba(248, 113, 113, 0.95)';
+    ctx.strokeStyle = demolition ? '#f87171'
+      : segment.valid ? `rgba(16, 185, 129, ${pulse + 0.5})` : 'rgba(248, 113, 113, 0.95)';
     ctx.setLineDash(segment.valid ? [] : [Math.max(3, 4 / zoom), Math.max(3, 3 / zoom)]);
     ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
     ctx.setLineDash([]);
@@ -118,7 +121,8 @@ export function drawStripBuildPreview(
 
   // One label for the stroke: how much of it will land, and the reason the rest will not.
   const reason = preview.segments.find((segment) => segment.reason)?.reason;
-  const text = blocked === 0
+  const text = demolition ? `${preview.segments.length} sections — release to remove`
+    : blocked === 0
     ? `${preview.segments.length} tiles — release to lay`
     : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
   ctx.save();
@@ -128,7 +132,7 @@ export function drawStripBuildPreview(
   const width = ctx.measureText(text).width;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(sampleX - width / 2 - 6, sampleY + 6, width + 12, labelSize + 8);
-  ctx.fillStyle = blocked === 0 ? '#6ee7b7' : '#fca5a5';
+  ctx.fillStyle = demolition || blocked > 0 ? '#fca5a5' : '#6ee7b7';
   ctx.fillText(text, sampleX, sampleY + 10);
   ctx.restore();
 }
