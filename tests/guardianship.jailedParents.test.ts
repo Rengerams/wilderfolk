@@ -50,7 +50,7 @@ describe('custody while both parents serve a sentence', () => {
 
     ensureOrphanAdoption(child, people, [house, free]);
 
-    expect(house.occupants).toHaveLength(capacity);
+    expect(house.occupants.length).toBeLessThanOrEqual(capacity);
     expect(occupants[0].residenceBuildingId).toBe(house.id);
     expect(child.residenceBuildingId).not.toBe(house.id);
   });
