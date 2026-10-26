@@ -1,6 +1,7 @@
 /** A jailed parent is away, not gone: custody is borrowed and returns on release. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
+import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { assignMissingResidences, ensureOrphanAdoption, restoreCustodyAfterRelease } from '../src/game/residencyReconciliation';
 import { building, human } from '../src/test/factories';
@@ -40,7 +41,7 @@ describe('custody while both parents serve a sentence', () => {
     const child = human(3, { age: 8, isJuvenile: true, motherId: 1 });
     const guardian = human(4, { gender: 'female', age: 35, residenceBuildingId: GUARDIAN_HOUSE_ID });
     const house = building(GUARDIAN_HOUSE_ID, BuildingType.House);
-    const capacity = 6;
+    const capacity = getResidenceCapacity(house);
     const occupants = Array.from({ length: capacity - 1 }, (_, index) =>
       human(20 + index, { age: 35, residenceBuildingId: house.id, prisonBuildingId: index === 0 ? PRISON_ID : undefined }));
     house.occupants = [guardian.id, ...occupants.map((resident) => resident.id)];
