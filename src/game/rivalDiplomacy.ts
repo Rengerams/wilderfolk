@@ -307,7 +307,7 @@ function pickDiplomacyKind(rel: RivalRelationship): DiplomacyEventKind | null {
   return null;
 }
 
-function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): void {
+export function maybeQueueDiplomacyEvent(state: WorldState, rival: RivalSettlement): void {
   if (!state.pendingDiplomacyEvents) state.pendingDiplomacyEvents = [];
   if (state.pendingDiplomacyEvents.some((e) => e.rivalId === rival.id)) return;
   const kind = pickDiplomacyKind(rival.relationship);
