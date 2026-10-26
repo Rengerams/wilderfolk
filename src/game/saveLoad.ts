@@ -651,6 +651,13 @@ function migrateTickTimeline(
   for (const e of world.entities ?? []) {
     const rec = e as unknown as Record<string, unknown>;
     scaleField(rec, 'prisonerUntilTick');
+    if (e.warCaptive) {
+      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'capturedAtTick');
+      scaleField(e.warCaptive as unknown as Record<string, unknown>, 'recruitAfterTick');
+    }
+    if (e.battleLeadershipAwards) {
+      for (const key of Object.keys(e.battleLeadershipAwards)) scaleField(e.battleLeadershipAwards, key);
+    }
     scaleField(rec, 'scandalCooldownUntilTick');
     scaleField(rec, 'griefUntilTick');
     scaleField(rec, 'hotelStayUntilTick');
@@ -682,12 +689,20 @@ function migrateTickTimeline(
     const rec = evt as unknown as Record<string, unknown>;
     scaleField(rec, 'createdAtTick');
     scaleField(rec, 'expiresAtTick');
+    scaleField(rec, 'battleStartedAtTick');
   }
   for (const evt of world.pendingOutgoingRaidEvents ?? []) {
     const rec = evt as unknown as Record<string, unknown>;
-    scaleField(rec, 'createdAtTick');
-    scaleField(rec, 'expiresAtTick');
+    for (const field of ['createdAtTick', 'expiresAtTick', 'battleStartedAtTick', 'launchedAtTick',
+      'arrivalAtTick', 'returnAtTick', 'returnStartedAtTick']) scaleField(rec, field);
   }
+  if (world.raidRecovery) {
+    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'startedAtTick');
+    scaleField(world.raidRecovery as unknown as Record<string, unknown>, 'protectedUntilTick');
+  }
+  for (const report of world.raidBattleReports ?? []) scaleField(report as unknown as Record<string, unknown>, 'resolvedAtTick');
+  for (const record of world.raidPrisonerHistory ?? []) scaleField(record as unknown as Record<string, unknown>, 'tick');
+  for (const rival of world.rivalSettlements ?? []) scaleField(rival as unknown as Record<string, unknown>, 'lastDispositionRewardTick');
   for (const evt of world.pendingDiplomacyEvents ?? []) {
     const rec = evt as unknown as Record<string, unknown>;
     scaleField(rec, 'createdAtTick');
@@ -1009,6 +1024,17 @@ const ARRAY_CONTAINER_RULES: Partial<Record<WorldArrayKeys, ContainerArrayRule>>
   pendingRaidEvents: containerArrayRule(isAnyArray, PENDING_RAID_ELEMENT_RULES),
   pendingStoryEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
   pendingOutgoingRaidEvents: containerArrayRule(isAnyArray, WORLD_ELEMENT_RULES),
+  pendingRaidVictories: containerArrayRule(isAnyArray, [
+    { field: 'raidId', isValid: isStringId }, { field: 'rivalId', isValid: isStringId },
+    { field: 'playerCasualties', isValid: isAnyArray }, { field: 'enemyCasualties', isValid: isAnyArray },
+  ]),
+  raidBattleReports: containerArrayRule(isAnyArray, [
+    { field: 'raidId', isValid: isStringId }, { field: 'playerFallen', isValid: isAnyArray },
+    { field: 'enemyFallen', isValid: isAnyArray },
+  ]),
+  graveRecords: containerArrayRule(isAnyArray, [{ field: 'name', isValid: isStringId }]),
+  scoredRaidIds: containerArrayRule(isAnyArray, null),
+  raidPrisonerHistory: containerArrayRule(isAnyArray, [{ field: 'entityId', isValid: isPersistedId }]),
   tutorialSeen: containerArrayRule(isAnyArray, null),
   eventsThisYear: containerArrayRule(isAnyArray, null),
   appliedSaveMigrations: containerArrayRule(isAnyArray, null),
@@ -1031,14 +1057,41 @@ function normalizeBigNewsItem(item: WorldState['bigNews'][number]): WorldState['
   };
 }
 
+/** New optional warfare records are validated without requiring them in legacy saves. */
+function findInvalidWarfareState(parsed: Record<string, unknown>): string | null {
+  const recovery = parsed.raidRecovery;
+  if (recovery !== undefined) {
+    if (!isSaveObject(recovery) || !['recovering', 'destroyed'].includes(String(recovery.status))
+      || !isStringId(recovery.raidId) || !isStringId(recovery.rivalName)
+      || !isFiniteNumber(recovery.startedAtTick) || !isFiniteNumber(recovery.protectedUntilTick)
+      || typeof recovery.reason !== 'string' || !isFiniteNumber(recovery.foodTarget)
+      || !Array.isArray(recovery.repairs) || !recovery.repairs.every((item) => isSaveObject(item)
+        && isPersistedId(item.buildingId) && isFiniteNumber(item.health))) return 'raidRecovery';
+  }
+  if (parsed.scoredRaidIds !== undefined && (!Array.isArray(parsed.scoredRaidIds)
+    || !parsed.scoredRaidIds.every(isStringId))) return 'scoredRaidIds';
+  if (Array.isArray(parsed.entities)) {
+    for (const person of parsed.entities) {
+      if (!isSaveObject(person) || person.warCaptive === undefined) continue;
+      const captive = person.warCaptive;
+      if (!isSaveObject(captive) || !isStringId(captive.raidId) || !isStringId(captive.originRivalId)
+        || !isFiniteNumber(captive.capturedAtTick) || !isFiniteNumber(captive.recruitAfterTick)
+        || !isFiniteNumber(captive.attempts)) return 'entities.warCaptive';
+    }
+  }
+  return null;
+}
+
 /**
  * The first unusable container array, named as `tradeRoutes` or `visitorGroups[2]`.
  *
  * Only a field the payload actually holds is judged: an absent one is the restore's own `?? []`.
  */
 function findUnrestorableContainerField(parsed: Record<string, unknown>): string | null {
+  const warfareError = findInvalidWarfareState(parsed);
+  if (warfareError) return warfareError;
   for (const [key, rule] of Object.entries(ARRAY_CONTAINER_RULES)) {
-    if (!(key in parsed)) continue;
+    if (!(key in parsed) || parsed[key] === undefined) continue;
     const list: unknown = parsed[key];
     if (!rule.isValid(list)) return key;
     if (!rule.elementRules) continue;
@@ -1437,6 +1490,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       pendingDiplomacyEvents: worldData.pendingDiplomacyEvents ?? [],
       pendingRaidEvents: worldData.pendingRaidEvents ?? [],
       pendingOutgoingRaidEvents: worldData.pendingOutgoingRaidEvents ?? [],
+      pendingRaidVictories: worldData.pendingRaidVictories,
+      raidBattleReports: worldData.raidBattleReports,
+      graveRecords: worldData.graveRecords,
+      raidRecovery: worldData.raidRecovery,
+      scoredRaidIds: worldData.scoredRaidIds,
+      raidPrisonerHistory: worldData.raidPrisonerHistory,
       entities: (worldData.entities || []).map((e: Partial<Entity>) => {
         // Required fields (`vx`, `vy`, `alive`, `flash`, `birthYear`, `birthMonth`, `birthDay`) are
         // repaired for every element here; `...e` still wins over every default the payload carries.
@@ -1561,6 +1620,12 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
       }
     }
 
+    world.scoredRaidIds ??= world.raidBattleReports?.map((report) => report.raidId);
+    if (world.raidRecovery?.status === 'destroyed') world.paused = true;
+    for (const grave of world.graveRecords ?? []) {
+      if (grave.faction === 'enemy') grave.graveyardId = undefined;
+    }
+    world.entities = world.entities.filter((person) => !person.departedAlive);
     repairLoadedHumanGround(world);
     reconcileDanglingReferencesOnLoad(world);
 

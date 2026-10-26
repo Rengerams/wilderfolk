@@ -220,6 +220,85 @@ def wait_for(page, expression: str, label: str, timeout_ms: int = 40000) -> None
     page.wait_for_function(expression, timeout=timeout_ms, polling=250)
 
 
+def run_warfare_smoke(args) -> int:
+    """Observe saved warfare UI through the normal Load saved game flow."""
+    from pathlib import Path
+    payload = Path(args.warfare_save).read_text(encoding="utf8")
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=not args.headful,
+            executable_path=args.browser_executable or None,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
+        page = browser.new_page(viewport={"width": args.width, "height": args.height}, accept_downloads=True)
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.add_init_script("localStorage.setItem('ecosim_save', " + json.dumps(payload) + ");")
+        page.goto(args.url, wait_until="load")
+        if not click_text(page, "skip intro"):
+            click_text(page, "choose your land")
+        wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+        if not click_text(page, "load saved game"):
+            raise RuntimeError("Load saved game was not available")
+        if args.warfare_mode == "terminal":
+            dialog = page.get_by_role("dialog", name="Settlement fallen", exact=True)
+            dialog.wait_for(state="visible", timeout=90000)
+            for label in ["Export final save", "View / export Chronicle", "Export & start new village", "Return to main menu"]:
+                if dialog.get_by_role("button", name=label, exact=True).count() != 1:
+                    raise RuntimeError("Missing terminal action: " + label)
+            with page.expect_download() as download:
+                dialog.get_by_role("button", name="Export final save", exact=True).click()
+            observed = {"heading": dialog.get_by_role("heading").inner_text(),
+                "export": download.value.suggested_filename, "actions": dialog.get_by_role("button").all_text_contents()}
+        elif args.warfare_mode == "raze":
+            fate = page.get_by_role("button", name="Decide fate of", exact=False)
+            fate.wait_for(state="visible", timeout=90000)
+            fate.click()
+            dialog = page.get_by_role("dialog", name="Battle report", exact=True)
+            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Confirm raze", exact=True).wait_for(state="visible")
+            dialog.get_by_role("button", name="Cancel", exact=True).click()
+            if dialog.get_by_role("button", name="Confirm raze", exact=True).count():
+                raise RuntimeError("Cancel did not dismiss raze confirmation")
+            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Confirm raze", exact=True).click()
+            dialog.wait_for(state="hidden")
+            fate.wait_for(state="hidden")
+            click_text(page, "menu")
+            with page.expect_download() as download:
+                if not click_text(page, "save game"):
+                    raise RuntimeError("Save game action unavailable")
+            export_path = Path(args.warfare_save).parent / "raze-result.json"
+            download.value.save_as(str(export_path))
+            result = json.loads(export_path.read_text(encoding="utf8"))
+            rival_id = json.loads(payload)["pendingRaidVictories"][0]["rivalId"]
+            if any(rival["id"] == rival_id for rival in result["rivalSettlements"]):
+                raise RuntimeError("Confirmed razing did not remove the settlement from the exported save")
+            if any(entry["rivalId"] == rival_id for entry in result.get("pendingRaidVictories", [])):
+                raise RuntimeError("Confirmed razing left a pending victory decision")
+            observed = {"confirmation": "shown, cancelled, then confirmed", "settlement_removed_from_export": True,
+                "pending_decision_cleared": True}
+        elif args.warfare_mode == "captives":
+            page.get_by_role("button", name="Prisoners of war (1)", exact=True).click(timeout=90000)
+            dialog = page.get_by_role("dialog", name="Prisoners of war", exact=True)
+            dialog.wait_for(state="visible")
+            dialog.get_by_role("button", name="Execute…", exact=True).click()
+            dialog.get_by_role("button", name="Confirm execution", exact=True).wait_for(state="visible")
+            dialog.get_by_role("button", name="Cancel", exact=True).click()
+            dialog.get_by_role("button", name="Release · mercy +3 reputation", exact=True).click()
+            dialog.get_by_text("No identifiable combatants remain in captivity.", exact=True).wait_for(state="visible")
+            observed = {"heading": dialog.get_by_role("heading", level=2).inner_text(), "execution_confirmation": "shown and cancelled",
+                "release": dialog.get_by_text("No identifiable combatants remain in captivity.", exact=True).inner_text()}
+        else:
+            heading = page.get_by_role("heading", name="Village recovery", exact=True)
+            heading.wait_for(state="visible", timeout=90000)
+            observed = {"heading": heading.inner_text(), "panel": heading.locator("..").inner_text()}
+        if args.warfare_screenshot:
+            page.screenshot(path=args.warfare_screenshot)
+        observed["page_errors"] = errors
+        print(json.dumps(observed))
+        browser.close()
+        return 1 if errors else 0
+
+
 def run_indoor_smoke(args) -> int:
     """Load an actual indoor-patient save through the normal game UI."""
     from pathlib import Path
@@ -285,10 +364,15 @@ def main() -> int:
         default=0.0,
         help="camera zoom preset to measure the ground at (0 = leave the game's own default)",
     )
-    parser.add_argument("--browser-executable", default="")
+    parser.add_argument("--browser-executable", default="", help="Optional installed Chromium executable")
+    parser.add_argument("--warfare-save", default="", help="Load a real warfare save and inspect the existing UI")
+    parser.add_argument("--warfare-mode", choices=["recovery", "terminal", "captives", "raze"], default="recovery")
+    parser.add_argument("--warfare-screenshot", default="", help="Optional screenshot of the observed warfare panel")
     parser.add_argument("--indoor-save", default="")
     parser.add_argument("--indoor-screenshot", default="")
     args = parser.parse_args()
+    if args.warfare_save:
+        return run_warfare_smoke(args)
     if args.indoor_save:
         return run_indoor_smoke(args)
     if args.ground_presets:

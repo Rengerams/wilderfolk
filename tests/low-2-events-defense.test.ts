@@ -572,7 +572,7 @@ describe('legacy frontier rival settlement spawning is retired', () => {
   }
 
 
-  it('does not create a rival camp at the former frontier milestone, for any seed', () => {
+  it('founds only a strategic settlement at the frontier milestone, for any seed', () => {
     for (const seed of [1, 7, 42]) {
       resetSimRng();
       setSimSeed(seed);
@@ -582,7 +582,8 @@ describe('legacy frontier rival settlement spawning is retired', () => {
 
       gameTick(state);
 
-      expect(state.rivalSettlements).toEqual([]);
+      expect(state.rivalSettlements).toHaveLength(1);
+      expect(state.rivalSettlements[0]).toMatchObject({ buildingIds: [], entityIds: [] });
       expect(state.entities.some((entity) => entity.faction === 'rival')).toBe(false);
       expect(state.buildings.some((building) => building.faction === 'rival')).toBe(false);
     }

@@ -222,7 +222,7 @@ describe('mobilized raid lifecycle', () => {
     if (event.rivalResponse === 'fight') {
       expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('fighting');
       expect(result.pendingOutgoingRaidEvents[0]?.battleChronicle?.length).toBeGreaterThan(0);
-      result.tick += 2 * TICKS_PER_HOUR;
+      result.tick += 6 * TICKS_PER_HOUR;
       tickPendingOutgoingRaidEvents(result);
     }
     expect(result.pendingOutgoingRaidEvents[0]?.phase).toBe('returning');
@@ -234,21 +234,25 @@ describe('mobilized raid lifecycle', () => {
 
   it('streams factual text commentary in chronological stages without replaying deaths', () => {
     const world = launchRaidOnRival(village([rival({ relationship: 'tense' })]), 'rival_oakcrossing');
-    const raid = world.pendingOutgoingRaidEvents![0]!;
+    let raid = world.pendingOutgoingRaidEvents![0]!;
     world.tick = raid.arrivalAtTick!;
     tickPendingOutgoingRaidEvents(world);
-    if (raid.rivalResponse !== 'fight') return;
+    if (raid.rivalResponse !== 'fight') {
+      const fighting = respondToOutgoingRaidEvent(world, raid.id, 'decline_payoff');
+      Object.assign(world, fighting);
+      raid = world.pendingOutgoingRaidEvents[0];
+    }
 
     const started = raid.battleStartedAtTick!;
     expect(raid.battleChronicle).toHaveLength(1);
-    world.tick = started + Math.ceil(TICKS_PER_HOUR / 2);
+    world.tick = started + 2 * TICKS_PER_HOUR;
     tickPendingOutgoingRaidEvents(world);
     expect(raid.battleChronicle).toHaveLength(2);
     const halfHour = [...raid.battleChronicle!];
     tickPendingOutgoingRaidEvents(world);
     expect(raid.battleChronicle).toEqual(halfHour);
 
-    world.tick = started + TICKS_PER_HOUR;
+    world.tick = started + 3 * TICKS_PER_HOUR;
     tickPendingOutgoingRaidEvents(world);
     expect(raid.battleChronicle).toHaveLength(3);
     expect(raid.battleCasualtiesApplied).toBe(true);
@@ -257,11 +261,11 @@ describe('mobilized raid lifecycle', () => {
     tickPendingOutgoingRaidEvents(world);
     expect(world.entities.filter((person) => !person.alive)).toHaveLength(deadAtMidpoint);
 
-    world.tick = started + Math.ceil(TICKS_PER_HOUR * 1.5);
+    world.tick = started + 5 * TICKS_PER_HOUR;
     tickPendingOutgoingRaidEvents(world);
     expect(raid.battleChronicle).toHaveLength(4);
 
-    world.tick = started + 2 * TICKS_PER_HOUR;
+    world.tick = started + 6 * TICKS_PER_HOUR;
     tickPendingOutgoingRaidEvents(world);
     expect(raid.phase).toBe('returning');
     expect(raid.battleChronicle).toHaveLength(5);

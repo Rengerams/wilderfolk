@@ -47,6 +47,9 @@ import { tickLayerRealtime } from './tickLayerRealtime';
 import { tickLayerSystems, LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 import { tickLayerAssign, LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from './tickLayerAssign';
 import { tickLayerDaily } from './tickLayerDaily';
+import { isSettlementDestroyed, tickRaidRecovery } from './raidAftermath';
+import { tickPendingRaidEvents, tickPendingOutgoingRaidEvents } from './frontierCombat';
+import { isStartOfClockHour } from './dayCycleClock';
 import { tickPrisonPresence } from './prisonGuardDuty';
 import { tickWinterHeating } from './dailyBuildingEconomy';
 import {
@@ -70,7 +73,7 @@ import { collectSimulationInvariantErrors } from './simulation/simulationInvaria
 import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
-  if (state.paused) return state;
+  if (state.paused || isSettlementDestroyed(state)) return state;
   const { width, height } = state;
 
   if (isSpatialQueryMetricsEnabled()) {
@@ -123,7 +126,20 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   ensureEntityByIdMap(state);
 
   const newEntities: Entity[] = [];
-  const aliveEntities = state.entities.filter((e) => e.alive);
+  if (isStartOfClockHour(state.tick)) {
+    const beforeRaids = state.pendingRaidEvents.length || state.pendingOutgoingRaidEvents.length
+      ? state.entities.filter((person) => person.alive && isPlayerHuman(person)) : [];
+    tickPendingOutgoingRaidEvents(state);
+    tickPendingRaidEvents(state, state.entities.filter((person) => person.alive));
+    tickRaidRecovery(state);
+    const fallen = beforeRaids.filter((person) => !person.alive).length;
+    if (fallen > 0) {
+      const tally = state.deathsThisYear ??= { humans: 0, animals: 0 };
+      tally.humans += fallen;
+    }
+    if (isSettlementDestroyed(state)) return state;
+  }
+  const aliveEntities = state.entities.filter((e) => e.alive && !e.departedAlive);
 
   for (const entity of aliveEntities) {
     if (entity.moonHowlerCursed && entity.type === EntityType.Human) {
@@ -302,7 +318,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   let writeIndex = 0;
   for (let i = 0; i < allAlive.length; i++) {
     const entity = allAlive[i];
-    if (!entity.alive || seenFinalIds.has(entity.id)) continue;
+    if (!entity.alive || entity.departedAlive || seenFinalIds.has(entity.id)) continue;
     seenFinalIds.add(entity.id);
     allAlive[writeIndex++] = entity;
   }
