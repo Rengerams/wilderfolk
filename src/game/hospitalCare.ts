@@ -10,6 +10,7 @@ import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { recordFoodConsumed } from './economyLedger';
+import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -190,7 +191,11 @@ export function treatPatientAtHospital(
     recordFoodConsumed(state, 'medicine', 1);
   }
 
-  patient.energy = Math.min(patient.maxEnergy, patient.energy + heal);
+  // Medical recovery is stamina in the new physiology model. Keep the legacy
+  // projection in sync so the next metabolism tick cannot erase paid treatment.
+  const needs = normalizeHumanNeeds(patient);
+  needs.stamina = Math.min(100, needs.stamina + heal / Math.max(1, patient.maxEnergy) * 100);
+  patient.energy = patient.maxEnergy * needs.stamina / 100;
   // Pregnancy progress is owned only by humanLifecycle.tickPregnancyAndBirth.
 
   for (const id of hospital.occupants) {
