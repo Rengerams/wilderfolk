@@ -25,7 +25,9 @@ describe('local CC0 RPG paths, walls and gates', () => {
       expect(loader).toContain(`/sprites/oga_drummyfish/${name}`);
       expect(renderer).toContain(`/sprites/oga_drummyfish/${name}`);
     }
-    expect(renderer).toContain('paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)');
+    expect(renderer).toContain('paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap,');
+    expect(renderer).toContain('rotation === 90 ? sy : sx');
+    expect(renderer).toContain('paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)');
     expect(renderer).not.toContain('https://opengameart.org/sites/default/files/');
   });
 });
