@@ -1089,6 +1089,7 @@ export function reassignDivorcedResidences(
   const candidates = residences.filter((home) =>
     home.completed && home.faction !== 'rival'
     && !isLeaderHouseResidence(home) && !blockedIds.has(home.id)
+    && countResidentsInBuilding(villagers, home.id, context.occupancy) === 0
     && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
   );
   candidates.sort((left, right) => {
