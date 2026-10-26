@@ -11,7 +11,8 @@ type Scenario = 'normal' | 'night' | 'idle' | 'starving';
 function runNeedsScenario(days: number, scenario: Scenario) {
   const e = { id: 1, type: EntityType.Human, alive: true, isJuvenile: false,
     energy: 400, maxEnergy: 500, needs: initialHumanNeeds(400, 500) } as Entity;
-  const state = { tick: 0, resources: { food: scenario === 'starving' ? 0 : 1000 } } as WorldState;
+  const initialFood = scenario === 'starving' ? 0 : Math.max(1000, days * 4);
+  const state = { tick: 0, resources: { food: initialFood } } as WorldState;
   let observedWorkHours = 0;
   let firstFatalTick: number | undefined;
   const ticksPerDay = 24 * TICKS_PER_HOUR;
@@ -26,7 +27,7 @@ function runNeedsScenario(days: number, scenario: Scenario) {
     if (!sleeping && tick % TICKS_PER_HOUR === 0) tryEatColonyMeal(e, state, hour);
     if (hasFatalStarvation(e) && firstFatalTick === undefined) firstFatalTick = tick;
   }
-  return { needs: e.needs!, foodEaten: 1000 - state.resources.food,
+  return { needs: e.needs!, foodEaten: initialFood - state.resources.food,
     observedWorkHours, firstFatalHour: firstFatalTick === undefined ? null : firstFatalTick / TICKS_PER_HOUR };
 }
 
@@ -62,6 +63,18 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
     expect(after.firstFatalHour).not.toBeNull();
     expect(after.firstFatalHour!).toBeGreaterThan(90);
     expect(after.needs.nutrition).toBe(0);
+  });
+
+  it('maintains physiology and demand over a full 360-day simulation year', () => {
+    for (const scenario of ['normal', 'night', 'idle'] as const) {
+      const after = runNeedsScenario(360, scenario);
+      expect(after.foodEaten).toBeGreaterThan(900);
+      expect(after.foodEaten).toBeLessThan(1200);
+      expect(after.needs.nutrition).toBeGreaterThan(40);
+      expect(after.needs.rest).toBeGreaterThan(25);
+      expect(after.needs.stamina).toBeGreaterThan(15);
+      expect(after.firstFatalHour).toBeNull();
+    }
   });
 
   it('exports detached physiology values through the worker render sidecar', () => {
