@@ -22,3 +22,19 @@ Long straight and L-shaped drags, corners, T and cross junctions, reconnecting a
 
 ## Next work
 Implement, validate and update roadmap, changelog, ownership and asset documentation. This brief is not an implementation or a passing test report.
+
+
+## Future travel modes: navigation architecture constraint
+
+The current implementation must support walking correctly, while leaving a clear extension path for future travel modes such as boats. Do not implement unused boat gameplay now.
+
+- Separate **route selection** from **mode-specific traversability and movement cost** without creating unnecessary wrappers, aliases, re-exports, or speculative frameworks.
+- Walking remains the implemented mode: traversable land, roads, bridges, walls and gates; road speed bonus applies only to walkers physically on a road.
+- A future boat mode may have distinct passability (navigable water), speed and route costs. A boat must not be allowed to traverse ordinary land merely because walking paths exist.
+- Future multimodal journeys may require explicit transfer nodes, such as docks: walk to dock, board boat, travel on water, disembark at another dock, walk onward. Do not allow arbitrary transfers in the middle of water.
+- Keep authoritative terrain, collision, and cost rules mode-aware where needed, but avoid introducing an unused transport framework or second independent pathfinding engine.
+- Preserve existing save formats and movement APIs unless a necessary, reviewed change is justified.
+- Prefer small extension points that can be exercised by today's walking tests; document how boat navigation could be added later.
+- Tests for current walking must continue to enforce walls, gates, roads and bridges. Add focused tests for any new mode-sensitive boundary introduced now.
+
+The coding agent has discretion to propose a better extensibility design and must explain tradeoffs. All module-level configuration constants belong near the top of their owning module; no magic numbers.
