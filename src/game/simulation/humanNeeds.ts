@@ -12,7 +12,8 @@ import {
 import { createDeathParticles } from '../simEffects';
 import { logDeath } from '../eventLog';
 import { formatCitizenName, formatDeathLog } from '../citizenId';
-import { recordFoodConsumed } from '../economyLedger';
+import { spendFood } from '../economyLedger';
+import { HUMAN_NEEDS, resolveHumanNeedsIntent } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import type { SpeciesConfig } from '../speciesConfig';
 import { Human } from '../gameConstants';
@@ -49,56 +50,30 @@ export function isMealCheckHour(hourOfDay: number): boolean {
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
  * applies before it drains a unit of food.
  */
-export function canEatColonyMeal(state: WorldState, entity: Entity, hourOfDay: number): boolean {
-  if (!entity.alive || (!isPlayerHuman(entity) && !entity.warCaptive)) return false;
-  if (!isMealCheckHour(hourOfDay)) return false;
+export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: number): boolean {
+  if (!entity.alive || !isPlayerHuman(entity) || state.resources.food <= 0) return false;
   if (!isStartOfClockHour(state.tick)) return false;
-  if (state.resources.food <= 0) return false;
-  return entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD;
+  return resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
 
-/**
- * The one colony-larder meal rule, shared by every human tick path.
- *
- * Drains food and restores energy when all of these hold: the eater is an alive player
- * settler, the hour is a meal-check hour, the tick starts a clock hour, the larder holds food,
- * and the eater is below HUNGER_MEAL_THRESHOLD of max energy.
- */
 export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: number): boolean {
   if (!canEatColonyMeal(state, entity, hourOfDay)) return false;
-
-  // Consume up to 1 unit of food (accommodating fractional food stores without starving settlers)
-  const foodEaten = Math.min(1, state.resources.food);
-  state.resources.food = Math.max(0, state.resources.food - foodEaten);
-  recordFoodConsumed(state, 'meals', foodEaten);
-
-  const mealRestore = Human?.MEAL_ENERGY_RESTORE ?? 220;
-  entity.energy = Math.min(entity.maxEnergy, entity.energy + mealRestore * foodEaten);
+  const amount = spendFood(state, 'meals', Math.min(1, state.resources.food));
+  if (amount <= 0) return false;
+  const needs = entity.needs!;
+  needs.nutrition = Math.min(100, needs.nutrition + amount * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT);
+  needs.lastMealTick = state.tick;
   return true;
 }
 
-/**
- * The one exhaustion-death sequence, shared by every human tick path: kill the
- * settler, spawn death particles at their position, and log the cause.
- */
-export function killFromExhaustion(
-  entity: Entity,
-  state: WorldState,
-  buildings: Building[],
-  entityById: Map<number, Entity>,
+export function killFromStarvation(
+  entity: Entity, state: WorldState, buildings: Building[], entityById: Map<number, Entity>,
 ): void {
-  // Guard against duplicate obituary and processing if entity already died this tick
   if (!entity.alive) return;
-
   killHuman(entity, buildings, entityById, state.tick, state);
   createDeathParticles(state, entity.x, entity.y, '#8B0000', 8);
-  logDeath(
-    state,
-    formatDeathLog(entity, 'succumbed to exhaustion'),
-    formatCitizenName(entity),
-    { x: entity.x, y: entity.y },
-    entity.warCaptive ? 'enemy' : 'player',
-  );
+  logDeath(state, formatDeathLog(entity, 'died after prolonged starvation'),
+    formatCitizenName(entity), { x: entity.x, y: entity.y }, 'player');
 }
 
 /** Returns the fractional component of a floating-point number. */

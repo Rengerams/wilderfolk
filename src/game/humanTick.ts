@@ -97,7 +97,8 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
-import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
+import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
+import { advanceHumanNeeds, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
@@ -369,26 +370,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     return buildingCampAnchor ?? getPlayerSettlerCenter(state);
   };
 
-  const applySettlerUpkeep = (entity: Entity, sleeping = false): void => {
-    if (sleeping && isPlayerHuman(entity)) {
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + entity.maxEnergy / (7 * TICKS_PER_HOUR));
-    } else {
-      entity.energy -= humanEnergyLoss(entity, config, {
-        hasWell,
-        isWinter,
-        canHeat,
-        hasHospital,
-        tick: state.tick,
-        hourOfDay,
-        buildingById,
-      });
-    }
-    tryEatColonyMeal(entity, state, hourOfDay);
-    if ((isPlayerHuman(entity) || entity.warCaptive) && entity.energy <= 0) {
-      killFromExhaustion(entity, state, updatedBuildings, entityById);
-    }
-  };
-
   const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
     if (
       entity.alive &&
@@ -563,6 +544,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'tavern', hourOfDay));
 
+    const isHotelier =
+      entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && workplace.completed;
+    const onHotelShift =
+      isHotelier && (venueWorkerIndex >= 0 && usesAutoVenueShifts
+        ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
+        : isVenueServiceHour(state, 'hotel', hourOfDay));
+
     const onMoonPriestShift =
       entity.job === JobType.Priest &&
       workplace?.type === BuildingType.Church &&
@@ -596,7 +584,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
     // is what stops a workplace's output from tracking where the camera happens to be.
     const onJobShift =
-      onDayJobShift || onTavernShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
+      onDayJobShift || onTavernShift || onHotelShift || onHospitalShift || onMoonPriestShift || onPrisonShift;
     // Work wins over revelry: the festival gathering is the free-time case (see `isFestivalGatherer`).
     const festivalGathering = isFestivalGatherer(
       hourOfDay,
@@ -623,6 +611,28 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const inElectionCeremony =
       !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
 
+    const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
+    const sleepingForNeeds = !isPrisoner && !entity.raidDeploymentId && !onDutyForSleep && (
+      isAsleepAtHome(entity, buildingById, hourOfDay, onDutyForSleep)
+      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
+    );
+    let ateMeal = false;
+    if (isPlayerHuman(entity)) {
+      advanceHumanNeeds(entity, {
+        tick: state.tick, sleeping: sleepingForNeeds,
+        working: onJobShift && entity.workerBuildingId != null,
+        moving: Math.hypot(entity.vx, entity.vy) > 0.1,
+      });
+      if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'eat') {
+        ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
+      }
+      if (hasFatalStarvation(entity)) {
+        killFromStarvation(entity, state, updatedBuildings, entityById);
+        syncEntityGrids(ctx, entity);
+        continue;
+      }
+    }
+
     if (isPrisoner) {
       entity.vx = 0;
       entity.vy = 0;
@@ -639,7 +649,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         }
       }
       tickHumanChat(entity, resolveChatPartner);
-      applySettlerUpkeep(entity);
       advancePregnancy(entity, conceivedToday);
       syncEntityGrids(ctx, entity);
       continue;
@@ -648,7 +657,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.raidDeploymentId) {
       entity.vx = 0;
       entity.vy = 0;
-      applySettlerUpkeep(entity);
       advancePregnancy(entity, conceivedToday);
       syncEntityGrids(ctx, entity);
       continue;
@@ -656,9 +664,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Asleep at home or in a hotel bed: keep the mouth shut, so no speech bubble sits over somebody
     // in bed. A scripted dialogue session is left alone — the dialogue tree owns it.
-    const asleepAtHome =
-      isAsleepAtHome(entity, buildingById, hourOfDay, onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue)
-      || (!onJobShift && !onOfficialShift && !onPriestShift && !schoolCommuteDue && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay));
+    const asleepAtHome = sleepingForNeeds;
     tickHumanChat(entity, resolveChatPartner);
     if (asleepAtHome) endAmbientHumanChat(entity);
 
@@ -689,7 +695,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
         entity.indoorBuildingId = previousIndoorBuildingId;
       }
-      applySettlerUpkeep(entity, asleepAtHome);
       syncEntityGrids(ctx, entity);
       continue;
     }
@@ -754,43 +759,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       continue;
     }
 
-    const energyLoss = humanEnergyLoss(entity, config, {
-      hasWell,
-      isWinter,
-      canHeat,
-      hasHospital,
-      tick: state.tick,
-      hourOfDay,
-      buildingById,
-    });
     if (isWinter && !canHeat && isTick8) entity.flash = 5;
-
-    // Seven full hours of actual sleep restore one entire energy bar.
-    // Sleeping fewer hours restores proportionally less; an awake settler
-    // (including someone who sneaks out) earns no sleep recovery that tick.
-    const onDuty = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
-    const sleepingHere = !onDuty && (
-      isAsleepAtHome(entity, buildingById, hourOfDay, onDuty)
-      || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
-    );
-    if (sleepingHere && isPlayerHuman(entity)) {
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + entity.maxEnergy / (7 * TICKS_PER_HOUR));
-    } else {
-      entity.energy -= energyLoss;
-    }
-
-    const ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
 
     let suppressIdle = false;
     let onSchedule = false;
 
-    const isHotelier =
-      entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && workplace.completed;
-    const onHotelShift =
-      isHotelier &&
-      (venueWorkerIndex >= 0 && usesAutoVenueShifts
-        ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
-        : isVenueServiceHour(state, 'hotel', hourOfDay));
 
     // A crew larger than the three shifts takes days off in turn, and a resting guard is *free* — he is
     // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
@@ -1801,9 +1774,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     advanceHumanWalkAnim(entity);
 
-    if (entity.energy <= 0) {
-      killFromExhaustion(entity, state, updatedBuildings, entityById);
-    }
     syncEntityGrids(ctx, entity);
   }
 
