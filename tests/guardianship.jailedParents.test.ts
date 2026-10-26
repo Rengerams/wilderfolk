@@ -55,6 +55,20 @@ describe('custody while both parents serve a sentence', () => {
     expect(child.residenceBuildingId).not.toBe(house.id);
   });
 
+  it('does not record adoption when no completed home has room', () => {
+    const { child, guardian, guardianHouse, humans } = jailedCoupleWorld();
+    const cap = getResidenceCapacity(guardianHouse);
+    const others = Array.from({ length: cap - 1 }, (_, index) =>
+      human(100 + index, { residenceBuildingId: guardianHouse.id }));
+    guardianHouse.occupants = [guardian.id, ...others.map((member) => member.id)];
+    const adopted = ensureOrphanAdoption(child, [...humans, ...others], [guardianHouse]);
+
+    expect(adopted).toBe(false);
+    expect(child.residenceBuildingId).toBeUndefined();
+    expect(child.adoptiveMotherId).toBeUndefined();
+    expect(guardian.childrenIds ?? []).not.toContain(child.id);
+  });
+
   it('returns custody to the parent once the sentence ends', () => {
     const { mother, father, child, guardianHouse, freeHouse, humans, residences } = jailedCoupleWorld();
     ensureOrphanAdoption(child, humans, residences);
