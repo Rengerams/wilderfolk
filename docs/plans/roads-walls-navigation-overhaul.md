@@ -1,6 +1,6 @@
 # Roads, Walls, Gates & Navigation Overhaul — implementation brief
 
-Status: implemented in PR #59; validation and remaining limitations recorded below.
+Status: implemented in PR #59; local validation passed in the owner-adjusted scope. Verification details and scope limits are recorded below.
 
 ## Required outcome
 - Click-and-drag roads and walls with seamless, deterministic connections and clear previews.
@@ -21,7 +21,7 @@ The coder may propose and implement a simpler or more robust architecture, expla
 Long straight and L-shaped drags, corners, T and cross junctions, reconnecting and demolishing segments, terrain policy, gate insertion and removal, sealed enclosures, blocked-route recovery, road preference based on travel time, actual road speed bonus, older save hydration, worker roundtrips and preservation of established performance budgets.
 
 ## Next work
-Complete visual acceptance and the remaining validation before merging.
+Review the final PR and its remote CI before merging. Local standard checks, annual integration and three-zoom visual inspection have passed.
 
 
 ## Future travel modes: navigation architecture constraint
@@ -100,8 +100,9 @@ performance budgets and synthetic legacy save compatibility remain applicable.
 
 | Check | Result |
 | --- | --- |
-| Earlier complete standard gate | PASS: 377 files; 2,435 passed, 2 existing skipped |
-| Latest road/infrastructure regression tests | PASS: 46 tests, including short trips and savings below five percent |
+| Final complete standard gate | PASS: 377 files; 2,436 passed, 2 existing skipped; 185.1 seconds |
+| Road/infrastructure regression tests | PASS: 46 tests, including short trips and savings below five percent |
+| Pointer-jitter and strip regression tests | PASS: 36 tests; seven new jitter cases fail before the fix and pass after it |
 | `npm run test:types` | PASS |
 | `npm run lint` | PASS |
 | `npm run build` | PASS; existing large-chunk warning remains |
@@ -151,3 +152,10 @@ a gate with a wall. Boat mechanics are also outside this PR.
 Shell: Linux/Bash; the Windows-specific command.md file is absent in this checkout.
 Temporary browser, scenario and screenshot files are cleaned up after verification.
 No profile, scheduled task or global Git configuration is changed.
+
+### Pointer drift correction
+
+Freehand strokes reuse the same minimum bend distance as the drag planner. Sub-threshold
+minor movement stays projected onto the accepted axis; small subsequent samples accumulate
+from that projected anchor. This prevents an incidental perpendicular piece from being
+built or charged for without dropping genuine diagonal legs or multi-turn strokes.

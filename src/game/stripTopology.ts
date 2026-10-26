@@ -445,12 +445,14 @@ export function buildStripPlanFromStroke(
       plan.push(piece);
     }
   };
+  let anchor = points[0];
   for (let i = 1; i < points.length && plan.length < MAX_STRIP_SEGMENTS; i++) {
-    const start = points[i - 1];
+    const start = anchor;
     const end = points[i];
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     if (dx === 0 && dy === 0) continue;
+    if (plan.length > 0 && Math.max(Math.abs(dx), Math.abs(dy)) < STRIP_BEND_MIN_DISTANCE_PX) continue;
     const rotation: BuildingRotation = Math.abs(dx) >= Math.abs(dy) ? 0 : 90;
     const snapped = snapStripDragEndpoints(state.buildings, type, start.x, start.y, end.x, end.y);
     const cornerX = rotation === 0 ? snapped.endX : snapped.startX;
@@ -460,7 +462,10 @@ export function buildStripPlanFromStroke(
     );
     for (const piece of resolveStripPlan(state, type, first, rotation)) emit(piece);
     if (plan.length >= MAX_STRIP_SEGMENTS) break;
-    if (cornerX !== snapped.endX || cornerY !== snapped.endY) {
+    const bend = Math.min(Math.abs(snapped.endX - snapped.startX), Math.abs(snapped.endY - snapped.startY))
+      >= STRIP_BEND_MIN_DISTANCE_PX;
+    anchor = bend ? end : { x: cornerX, y: cornerY };
+    if (bend) {
       const turnRotation: BuildingRotation = rotation === 0 ? 90 : 0;
       const second = computeStripSegmentCenters(
         type, cornerX, cornerY, snapped.endX, snapped.endY, turnRotation,

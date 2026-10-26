@@ -77,6 +77,30 @@ describe('connected strip planning', () => {
     expect(plan.some((piece) => piece.x > 300)).toBe(true);
   });
 
+  for (const type of [BuildingType.Road, BuildingType.Wall, BuildingType.WallGate]) {
+    for (const vertical of [false, true]) {
+      it(`ignores minor drift in a ${vertical ? 'vertical' : 'horizontal'} ${type} stroke`, () => {
+        const state = { buildings: [], width: 900, height: 900 } as unknown as WorldState;
+        const start = { x: 120, y: 120 };
+        const straightEnd = vertical ? { x: 120, y: 200 } : { x: 200, y: 120 };
+        const straight = buildStripPlanFromStroke(state, type, [start, straightEnd]).plan;
+        for (const drift of [-1, 1, 29]) {
+          const end = vertical ? { x: 120 + drift, y: 200 } : { x: 200, y: 120 + drift };
+          expect(buildStripPlanFromStroke(state, type, [start, end]).plan).toEqual(straight);
+        }
+      });
+    }
+  }
+
+  it('does not charge extra pieces for tiny orthogonal samples after a straight leg', () => {
+    const state = { buildings: [], width: 900, height: 900 } as unknown as WorldState;
+    const straight = [{ x: 120, y: 120 }, { x: 200, y: 120 }];
+    const jittered = [...straight, { x: 200, y: 121 }, { x: 240, y: 122 }];
+    const clean = [...straight, { x: 240, y: 120 }];
+    expect(buildStripPlanFromStroke(state, BuildingType.Road, jittered).plan)
+      .toEqual(buildStripPlanFromStroke(state, BuildingType.Road, clean).plan);
+  });
+
   it('keeps freehand placement bounded for large mouse traces', () => {
     const state = { buildings: [], width: 2500, height: 2500 } as unknown as WorldState;
     const points = Array.from({ length: 200 }, (_, index) => ({

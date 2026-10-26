@@ -663,7 +663,7 @@ These checked items mean **implemented on PR #40**, not merged into `main`. Outs
 
 ### High priority — Roads, walls, gates and navigation overhaul (26 October 2026)
 
-**Status: [ ] Proposed / not implemented.** One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
+**Status: implemented on PR #59; local standard checks (2,436 tests), the complete annual integration and three-zoom visual inspection pass. Not merged; remote CI remains a merge gate.** One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
 
 - [ ] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
 - [ ] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.

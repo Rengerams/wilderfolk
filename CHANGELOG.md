@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Minor pointer drift no longer creates perpendicular road, wall or gate segments or extra construction costs; genuine freehand bends remain connected.
+
 - **Fixed:** Walkers consider faster road routes on short trips and for savings below five percent; bounded searches and route caching remain in use.
 
 - **Fixed:** The annual integration check counts only newly added chronicle entries instead of rescanning the entire history on every tick; simulation coverage and timeout remain unchanged.
