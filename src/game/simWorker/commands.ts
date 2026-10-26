@@ -246,9 +246,10 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
     case 'repairBuilding':
     case 'upgradeBuilding':
     case 'demolishBuilding':
-    case 'toggleWallGate':
     case 'hostTownFestival':
       return isFiniteNumber(cmd.buildingId);
+    case 'toggleWallGate':
+      return Number.isSafeInteger(cmd.buildingId) && (cmd.buildingId as number) > 0;
     case 'setWorkshopRecipe':
       return isFiniteNumber(cmd.buildingId) && isNonEmptyString(cmd.recipeId);
     case 'setHuntingSpotPrey':
