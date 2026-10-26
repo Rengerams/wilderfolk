@@ -51,6 +51,15 @@ describe('single human meal transaction', () => {
     }
   });
 
+  it('cancels accumulated fatal hunger when food restores nutrition above the severe threshold', () => {
+    const state = world(1);
+    const eater = person({ needs: { nutrition: 0, rest: 60, stamina: 40,
+      severeHungerTicks: 100000 } });
+    expect(tryEatColonyMeal(eater, state, 9)).toBe(true);
+    expect(eater.needs!.nutrition).toBe(10);
+    expect(eater.needs!.severeHungerTicks).toBe(0);
+  });
+
   it('feeds foreign war captives without creating player physiology state', () => {
     const state = world(12);
     const captive = person({ faction: 'rival', warCaptive: true, energy: 180, needs: undefined });
