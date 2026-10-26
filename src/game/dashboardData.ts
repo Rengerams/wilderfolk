@@ -20,6 +20,7 @@ import { isFoodCritical } from './resourceUtils';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
 import {
+  buildResidenceOccupancy,
   countHomelessSettlers,
   countResidentsInBuilding,
   getResidenceCapacity,
@@ -28,6 +29,7 @@ import {
   isResidenceBuildingType,
 } from './residencyOccupancy';
 import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew, staffingCapFor } from './workforce';
+import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
 import type { HumanActivityTarget } from './humanStatus';
@@ -79,6 +81,20 @@ export interface DashboardSettler {
   status: 'working' | 'idle' | 'at school' | 'going to school' | 'school off-hours' | 'no school place' | 'too young for school' | 'prison' | 'leader' | 'home' | 'none';
   /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
   workReason: SettlerWorkReason;
+}
+
+/** One village building as the dashboard's table lists it — both identities, level and occupancy. */
+export interface DashboardBuilding {
+  id: number;
+  /** The append-only type number (`buildings.BUILDING_TYPE_CODES`). */
+  typeCode: number;
+  label: string;
+  level: number;
+  completed: boolean;
+  /** Construction progress 0–100, as the building's own field holds it. */
+  progressPct: number;
+  /** Workers against their slots, or residents against beds; null when a building takes neither. */
+  slots: { used: number; cap: number } | null;
 }
 
 export interface HistoryPoint {
@@ -138,6 +154,8 @@ export interface DashboardData {
   population: { humans: number; ecoHealth: number; pollution: number; biodiversity: number };
   valleyStage: WorldState['valleyStage'];
   settlers: DashboardSettler[];
+  /** Every village building, ordered by type number and then by unique building id. */
+  buildings: DashboardBuilding[];
   history: HistoryPoint[];
 }
 
@@ -442,6 +460,37 @@ function deriveCouncil(state: WorldState, postAbsences: string | null = null): C
   return lines;
 }
 
+/**
+ * Village buildings with both identities — type number and unique building id — in type-then-id order.
+ */
+function deriveDashboardBuildings(state: WorldState): DashboardBuilding[] {
+  const occupancy = buildResidenceOccupancy(state.entities);
+  const rows: DashboardBuilding[] = [];
+  for (const building of state.buildings) {
+    if (building.faction === 'rival') continue;
+    const residence = building.completed && isResidenceBuildingType(building.type);
+    // A finished workplace's slot count is the staffing owner's: a Prison's occupants are guards ∪ prisoners.
+    const staffing = !residence && building.completed && BUILDING_JOB_TYPES[building.type] !== undefined
+      ? staffingCapFor(building, state.entities)
+      : null;
+    rows.push({
+      id: building.id,
+      typeCode: BUILDING_TYPE_CODES[building.type],
+      label: getBuildingConfig(building.type).label,
+      level: building.level,
+      completed: building.completed,
+      progressPct: Math.round(building.constructionProgress),
+      slots: residence
+        ? { used: countResidentsInBuilding(state.entities, building.id, occupancy), cap: getResidenceCapacity(building) }
+        : staffing
+          ? { used: staffing.staffed, cap: staffing.cap }
+          : null,
+    });
+  }
+  rows.sort((a, b) => a.typeCode - b.typeCode || a.id - b.id);
+  return rows;
+}
+
 /** Single-pass read-only snapshot for the dashboard. */
 export function collectDashboard(state: WorldState): DashboardData {
   const resources: DashboardResource[] = RESOURCE_KEYS.map((key) => ({
@@ -559,6 +608,7 @@ export function collectDashboard(state: WorldState): DashboardData {
     concerns: deriveConcerns(state, postAbsences),
     council: deriveCouncil(state, postAbsences),
     settlers,
+    buildings: deriveDashboardBuildings(state),
     history,
   };
 }
@@ -589,8 +639,8 @@ export function explainSettler(state: WorldState, id: number): SettlerExplanatio
     tone: 'neutral',
   });
 
-  const workplace = settler.homeBuildingId != null
-    ? state.buildings.find((b) => b.id === settler.homeBuildingId)
+  const workplace = settler.workerBuildingId != null
+    ? state.buildings.find((b) => b.id === settler.workerBuildingId)
     : undefined;
   const residence = settler.residenceBuildingId != null
     ? state.buildings.find((b) => b.id === settler.residenceBuildingId)

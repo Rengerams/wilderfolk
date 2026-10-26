@@ -173,11 +173,11 @@ export function getDefenseStructureBreakdown(state: WorldState, buildings: Build
 
 export function isBarracksGuard(
   humanId: number,
-  homeBuildingId: number | null | undefined,
+  workerBuildingId: number | null | undefined,
   buildings: Building[],
 ): boolean {
-  if (homeBuildingId == null) return false;
-  const workplace = buildings.find((b) => b.id === homeBuildingId);
+  if (workerBuildingId == null) return false;
+  const workplace = buildings.find((b) => b.id === workerBuildingId);
   return !!workplace?.completed
     && workplace.type === BuildingType.Barracks
     && workplace.occupants?.includes(humanId) === true;

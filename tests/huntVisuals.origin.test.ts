@@ -48,7 +48,7 @@ function hunter(id: number, workplaceId: number): Entity {
     generation: 0,
     isJuvenile: false,
     job: JobType.Settler,
-    homeBuildingId: workplaceId,
+    workerBuildingId: workplaceId,
     name: `Hunter${id}`,
     gender: 'male',
   } as unknown as Entity;

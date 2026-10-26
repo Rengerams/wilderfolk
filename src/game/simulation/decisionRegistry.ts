@@ -67,7 +67,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.occupants',
-      'human.homeBuildingId',
+      'human.workerBuildingId',
       'human.occupation',
       'human.job',
       'human.skills',
@@ -77,9 +77,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'residency/ — residencyReconciliation.ts (assignMissingResidences, syncResidenceOccupants), residencySelection.ts, residenceActions.ts; immediate player entry: residenceActions.assignResidentToBuilding',
+    owner: 'residencyReconciliation.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; moveResident stays the sole write; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'tickLayerAssign pulses 4×/day for the assignment pass, BUT the residence mirror is re-synced every tick: gameTick calls syncResidenceOccupants(allAlive, buildings) at the tick boundary (72×/day) because residenceBuildingId has realtime writers, and tickLayerRealtime does the same on a howler night. Immediate on place/recruit/death; delegated writes on divorce/arrest (humanRelationships), demolish (buildingActions), birth (humanLifecycle), leader move (leaderHouse), moon transform/restore (moonHowler), worker authoritative apply (simBuffers/applyKinematics)',
+    cadenceNote: 'Scheduled housing sweeps run four times per day; events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
@@ -215,14 +215,13 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId)',
     cadence: 'daily',
     cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
     writes: [
-      'human.residenceBuildingId (household)',
       'human.occupation',
       'human.job',
-      'human.homeBuildingId (stale-repair only)',
+      'human.workerBuildingId (stale-repair only)',
       'building.occupants (stale leader assignment only)',
       'villageLeaderId',
       'leaderSinceYear',

@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
 import { addResource, updateStorageCaps } from './economy';
@@ -30,8 +31,8 @@ export const NO_LEVEL_BENEFIT_REASON = 'This building does not have levels';
  * like its upgradable"* — i.e. behave exactly like a maxed building, which already hides the button
  * and reads as complete.
  *
- * Membership of `LEVEL_BENEFIT_BUILDING_TYPES` is the whole rule, and that set is the list of types
- * something actually reads `level` for: the production multiplier, the workshop multiplier and
+ * Membership of `LEVEL_BENEFIT_BUILDING_TYPES` is the whole rule, and that set lists every type the
+ * colony may raise whose level something reads: the production multiplier, the workshop multiplier and
  * residence capacity. "Is a residence or has a job" was the older test, and it offered an upgrade on
  * Church, School, Tavern, Prison, Barracks, Hospital and Town Hall — staffed buildings whose level no
  * code reads, so the button charged real resources for a number that affected nothing.
@@ -146,8 +147,8 @@ export function getBuildingUpgradeCost(building: Building): { wood: number; ston
 
 /**
  * Whether `upgradeBuilding` would actually raise this building a level:
- * it exists, stands complete, is below the level ceiling, is not the
- * already-complete Leader's House, and its cost is affordable.
+ * it exists, stands complete, is below the level ceiling, is a type the
+ * colony may raise, and its cost is affordable.
  *
  * Single definition of the upgrade rule, shared with the auto-play bot
  * (`virtualPlayer.ts`) exactly like `getRepairBuildingEligibility`.
@@ -238,8 +239,8 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: number): void {
   for (const entity of state.entities) {
     // Workforce cleanup through the owner's transition keeps work fields consistent.
-    if (entity.homeBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
-    if (entity.residenceBuildingId === buildingId) entity.residenceBuildingId = undefined;
+    if (entity.workerBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
+    if (entity.residenceBuildingId === buildingId) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
     if (entity.prisonBuildingId === buildingId) {
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;

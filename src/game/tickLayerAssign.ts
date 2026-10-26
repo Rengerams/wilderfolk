@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { EntityType, BuildingType } from './gameTypes';
 import { isResidenceBuilding } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -10,7 +10,7 @@ import {
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { assignMissingWorkers } from './workforce';
-import { collectLeaderHousehold, findLeaderHouse, syncLeaderHouseResidency } from './leaderHouse';
+import { applyLeaderHousePhase, collectLeaderHousehold, findLeaderHouse } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';
 
 /**
@@ -28,22 +28,27 @@ export const LAYER_ASSIGN_PHASE_TICK = LAYER_ASSIGN_FIRST_HOUR * TICKS_PER_HOUR;
  * Cheap housing-change fingerprint for the scheduled sweeps. Work and movement
  * do not affect housing, so checking a few primitive fields is much cheaper
  * than rebuilding all household units four times a day. A full reconciliation
- * still runs at the final sweep every day as a safety net.
+ * runs only for changed inputs; a weekly full audit remains as a safety net.
  */
 const lastHousingSignature = new WeakMap<WorldState, string>();
+/** A change earlier in the day still gets its final commute sweep even after the change is reconciled. */
+const housingChangedThisDay = new WeakMap<WorldState, boolean>();
 
 function housingSignature(world: WorldState, humans: readonly WorldState['entities'][number][]): string {
   const parts: (number | string)[] = [];
   for (const building of world.buildings) {
     if (building.faction === 'rival') continue;
-    if (!isResidenceBuilding(building)) continue;
-    parts.push(building.id, building.completed ? 1 : 0, building.level);
+    if (!isResidenceBuilding(building) && building.type !== BuildingType.Road
+      && building.type !== BuildingType.Bridge) continue;
+    parts.push(building.id, building.type, building.completed ? 1 : 0, building.level,
+      building.x, building.y);
   }
   for (const h of humans) {
     if (!h.alive || !isPlayerHuman(h)) continue;
     parts.push(h.id, h.residenceBuildingId ?? -1, h.partnerId ?? -1, h.motherId ?? -1,
       h.fatherId ?? -1, h.adoptiveMotherId ?? -1, h.adoptiveFatherId ?? -1,
-      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1);
+      h.age >= HUMAN_ADULT_MIN_AGE ? 1 : 0, h.isJuvenile ? 1 : 0, h.prisonBuildingId ?? -1,
+      h.workerBuildingId ?? -1, h.schoolBuildingId ?? -1);
   }
   return parts.join(',');
 }
@@ -96,29 +101,36 @@ export function tickLayerAssign(world: WorldState, ctx: TickContext): void {
   // The pulse owns one sweep bucket of the day's reassignment work; the homeless fill inside the
   // pass stays global, so nothing waits for its bucket to come round.
   const startedassignMissingResidences = profileStart();
-  // A household is protected from relocation only when a completed manor exists.
-  // Protection never removes its residents from bed counts or family lookups.
-  const protectedIds = findLeaderHouse(updatedBuildings)
+  // Only a standing manor protects the leader's household from reassignment. Without one they are
+  // ordinary residents: the housing pass must count their beds and stay free to move them.
+  const protectedIds = findLeaderHouse(world.buildings)
     ? new Set([
       ...collectLeaderHousehold(world).map((person) => person.id),
       ...(world.villageLeaderId == null ? world.pendingLeaderHouseResidentIds ?? [] : []),
     ])
-    : undefined;
+    : new Set<number>();
+  const eligibleForHousing = protectedIds.size === 0
+    ? playerHumans
+    : playerHumans.filter((person) => !protectedIds.has(person.id));
   const signatureBefore = housingSignature(world, allHumans);
+  const housingChanged = lastHousingSignature.get(world) !== signatureBefore;
+  if (housingChanged) housingChangedThisDay.set(world, true);
   const finalDailySweep = ((world.tick % (LAYER_ASSIGN_INTERVAL * 4)) + LAYER_ASSIGN_INTERVAL * 4)
     % (LAYER_ASSIGN_INTERVAL * 4) === LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
-  if (finalDailySweep || lastHousingSignature.get(world) !== signatureBefore) {
-    assignMissingResidences(playerHumans, updatedBuildings, allHumans, world.tick, protectedIds);
+  // A stable colony does not need the full guardianship/family/commute pipeline every day.
+  // Revisit the final bucket after changes earlier today; keep a weekly defensive full sweep.
+  const safetyAudit = finalDailySweep && Math.floor(world.tick / (LAYER_ASSIGN_INTERVAL * 4)) % 7 === 0;
+  if (housingChanged || (finalDailySweep && housingChangedThisDay.get(world)) || safetyAudit) {
+    // The manor hold is the sweep's first phase: one run, one ledger, one write path.
+    assignMissingResidences(
+      eligibleForHousing, updatedBuildings, allHumans, world.tick, world.genealogyRegistry,
+      (ledger) => applyLeaderHousePhase(world, ledger),
+    );
     lastHousingSignature.set(world, housingSignature(world, allHumans));
+    if (finalDailySweep) housingChangedThisDay.set(world, false);
   }
   profileEnd('assign.assignMissingResidences', startedassignMissingResidences);
   checkLeader('assignMissingResidences');
-  // Housing sweeps run four times per day, after the daily leader-house repair.
-  // Restore the leader's protected residence after each sweep, not a day later.
-  const startedsyncLeaderHouseResidency = profileStart();
-  syncLeaderHouseResidency(world);
-  profileEnd('assign.syncLeaderHouseResidency', startedsyncLeaderHouseResidency);
-  checkLeader('syncLeaderHouseResidency');
   // Assigning or relocating residents changes residenceBuildingId after the opening
   // occupant sync. Rebuild the authoritative occupancy lists once more at the end
   // of the housing pass so snapshots and invariants cannot see stale beds.

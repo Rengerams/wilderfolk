@@ -33,7 +33,7 @@ import {
   syncResidenceOccupants,
 } from '../src/game/residencyReconciliation';
 import { syncJobBuildingOccupants } from '../src/game/workforce';
-import { tryMoveOutOfFamilyHome } from '../src/game/residencySelection';
+import { tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
 
 const FIXTURE_SEED = 20_260_921;
 
@@ -110,7 +110,7 @@ function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building
           (h) =>
             h.alive &&
             isPlayerHuman(h) &&
-            (h.homeBuildingId === building.id || h.prisonBuildingId === building.id),
+            (h.workerBuildingId === building.id || h.prisonBuildingId === building.id),
         )
         .map((h) => h.id);
       continue;
@@ -120,7 +120,7 @@ function referenceSyncJobBuildingOccupants(humans: Entity[], buildings: Building
         (h) =>
           h.alive &&
           isPlayerHuman(h) &&
-          h.homeBuildingId === building.id &&
+          h.workerBuildingId === building.id &&
           h.prisonBuildingId == null,
       )
       .map((h) => h.id);
@@ -290,20 +290,20 @@ describe('syncJobBuildingOccupants buckets like its pre-fix per-building filter'
 
     const humans: Entity[] = [
       // home === prison for both ids: the union must not emit this id twice.
-      settler(undefined, { homeBuildingId: prison.id, prisonBuildingId: prison.id }),
+      settler(undefined, { workerBuildingId: prison.id, prisonBuildingId: prison.id }),
       // homes the farm, no prison.
-      settler(undefined, { homeBuildingId: farm.id }),
+      settler(undefined, { workerBuildingId: farm.id }),
       // homes the farm but is imprisoned elsewhere: excluded from the farm, present in the prison list.
-      settler(undefined, { homeBuildingId: farm.id, prisonBuildingId: prison.id }),
+      settler(undefined, { workerBuildingId: farm.id, prisonBuildingId: prison.id }),
       // homeless prisoner.
       settler(undefined, { prisonBuildingId: prison.id }),
-      settler(undefined, { homeBuildingId: barracks.id }),
-      settler(undefined, { homeBuildingId: rivalFarm.id }),
-      settler(undefined, { homeBuildingId: site.id }),
-      settler(undefined, { homeBuildingId: farm.id, faction: 'rival' }),
+      settler(undefined, { workerBuildingId: barracks.id }),
+      settler(undefined, { workerBuildingId: rivalFarm.id }),
+      settler(undefined, { workerBuildingId: site.id }),
+      settler(undefined, { workerBuildingId: farm.id, faction: 'rival' }),
       deadWorker,
     ];
-    deadWorker.homeBuildingId = farm.id;
+    deadWorker.workerBuildingId = farm.id;
 
     const realWorld = newWorld();
     realWorld.buildings = structuredClone([prison, farm, barracks, rivalFarm, site]);

@@ -6,7 +6,8 @@
  * orphaned bonds), this module checks the *ownership* invariants:
  *
  *   - a living human appears in at most one workplace/crew occupants list
- *   - `homeBuildingId` ↔ workplace occupants agree in both directions
+ *   - `workerBuildingId` ↔ workplace occupants agree in both directions, except
+ *     a prisoner's post, which is reserved while the workplace roster omits them
  *   - `residenceBuildingId` ↔ residence occupants agree in both directions
  *   - no stale references to demolished/missing buildings or entities
  *   - pregnancy state has a valid `pregnancyDueProgress` (and non-pregnant
@@ -16,11 +17,11 @@
  *     occupation and residing in the Leader's House when a completed manor exists
  *
  * IMPORTANT — occupants is role-overloaded (buildings.ts):
- *   - workplaces (completed BUILDING_JOB_TYPES): workers via `homeBuildingId`
+ *   - workplaces (completed BUILDING_JOB_TYPES): workers via `workerBuildingId`
  *   - residences (completed House/Mansion/LeaderHouse): residents via
  *     `residenceBuildingId` (synced by dayCycle.syncResidenceOccupants)
- *   - construction crews (incomplete buildings): builders, no `homeBuildingId`
- *   - prison (completed): guards via `homeBuildingId` + prisoners via
+ *   - construction crews (incomplete buildings): builders, no `workerBuildingId`
+ *   - prison (completed): guards via `workerBuildingId` + prisoners via
  *     `prisonBuildingId`
  *   - no-occupant buildings (roads, walls, wells, barns, decor): must be empty
  *
@@ -84,9 +85,9 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
 
       switch (role) {
         case 'workplace': {
-          if (occupant.homeBuildingId !== building.id) {
+          if (occupant.workerBuildingId !== building.id) {
             errors.push(
-              `human ${occupantId} listed in workplace #${building.id} (${building.type}) occupants but homeBuildingId is ${occupant.homeBuildingId ?? 'unset'}`,
+              `human ${occupantId} listed in workplace #${building.id} (${building.type}) occupants but workerBuildingId is ${occupant.workerBuildingId ?? 'unset'}`,
             );
           }
           const existing = workplaceByHuman.get(occupantId);
@@ -100,9 +101,9 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
           break;
         }
         case 'crew': {
-          if (occupant.homeBuildingId != null) {
+          if (occupant.workerBuildingId != null) {
             errors.push(
-              `human ${occupantId} on construction crew #${building.id} but also holds workplace #${occupant.homeBuildingId}`,
+              `human ${occupantId} on construction crew #${building.id} but also holds workplace #${occupant.workerBuildingId}`,
             );
           }
           const existing = crewByHuman.get(occupantId);
@@ -133,10 +134,10 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
         }
         case 'prison': {
           const isPrisoner = occupant.prisonBuildingId === building.id;
-          const isGuard = occupant.homeBuildingId === building.id;
+          const isGuard = occupant.workerBuildingId === building.id;
           if (!isPrisoner && !isGuard) {
             errors.push(
-              `human ${occupantId} in prison #${building.id} is neither prisoner (prisonBuildingId) nor guard (homeBuildingId)`,
+              `human ${occupantId} in prison #${building.id} is neither prisoner (prisonBuildingId) nor guard (workerBuildingId)`,
             );
           }
           break;
@@ -157,19 +158,20 @@ export function collectSimulationInvariantErrors(state: WorldState): string[] {
     if (!isSettlerRelationshipEntity(entity)) continue;
     const id = entity.id;
 
-    if (entity.homeBuildingId != null) {
-      const site = buildingById.get(entity.homeBuildingId);
+    if (entity.workerBuildingId != null) {
+      const site = buildingById.get(entity.workerBuildingId);
       if (!site) {
         errors.push(
-          `human ${id} homeBuildingId ${entity.homeBuildingId} references demolished or missing building`,
+          `human ${id} workerBuildingId ${entity.workerBuildingId} references demolished or missing building`,
         );
       } else if (!site.completed || BUILDING_JOB_TYPES[site.type] == null) {
         errors.push(
-          `human ${id} homeBuildingId ${entity.homeBuildingId} is not a completed workplace (${site.type})`,
+          `human ${id} workerBuildingId ${entity.workerBuildingId} is not a completed workplace (${site.type})`,
         );
-      } else if (!site.occupants.includes(id)) {
+      } else if (!site.occupants.includes(id) && entity.prisonBuildingId == null) {
+        // A prisoner's post is reserved, not staffed, so the workplace roster omits them.
         errors.push(
-          `human ${id} homeBuildingId ${entity.homeBuildingId} missing from that workplace's occupants`,
+          `human ${id} workerBuildingId ${entity.workerBuildingId} missing from that workplace's occupants`,
         );
       }
     }

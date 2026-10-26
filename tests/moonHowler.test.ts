@@ -228,7 +228,7 @@ describe('moonHowler.exorcism.test.ts', () => {
       alive: true,
       x: 100,
       y: 100,
-      homeBuildingId: 8000,
+      workerBuildingId: 8000,
     };
     const howler: Entity = {
       ...human,
@@ -320,7 +320,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         occupation: 'Soldier',
         x: 120,
         y: 90,
-        homeBuildingId: 8001,
+        workerBuildingId: 8001,
       };
       const barracks: Building = {
         ...f.church,
@@ -1056,12 +1056,12 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
     // (cap 8 — seven of its eight slots are taken below). Both would fit if the reverted settler were
     // not pushed back into the human snapshot, so this pair pins that push.
     const revertA = settler(REVERT_A_ID, { ageYears: 38 });
-    revertA.homeBuildingId = FARM_ID;
+    revertA.workerBuildingId = FARM_ID;
     revertA.residenceBuildingId = MANSION_ID;
     toCursedWerewolf(revertA, state.buildings);
 
     const revertB = settler(REVERT_B_ID, { ageYears: 36 });
-    revertB.homeBuildingId = FARM_ID;
+    revertB.workerBuildingId = FARM_ID;
     revertB.residenceBuildingId = MANSION_ID;
     toCursedWerewolf(revertB, state.buildings);
 
@@ -1078,7 +1078,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
     });
 
     const farmWorker = settler(FARM_WORKER_ID, { ageYears: 44 });
-    farmWorker.homeBuildingId = FARM_ID;
+    farmWorker.workerBuildingId = FARM_ID;
     farmWorker.residenceBuildingId = MANSION_ID;
 
     const rivalSettler = settler(RIVAL_SETTLER_ID, { ageYears: 31 });
@@ -1122,7 +1122,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
 
     const resident = settler(ELDER_ID, { ageYears: 41 });
     resident.residenceBuildingId = HOUSE_ID;
-    resident.homeBuildingId = FARM_ID;
+    resident.workerBuildingId = FARM_ID;
     const neighbour = settler(PLAIN_RESIDENT_ID, { ageYears: 39 });
     neighbour.residenceBuildingId = HOUSE_ID;
     const wolf = createEntity(EntityType.Wolf, 200, 200, WOLF_ID, 500);
@@ -1162,7 +1162,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
       moonHowlerCursed: entity.moonHowlerCursed ?? null,
       moonHowlerSaved: entity.moonHowlerSaved ?? null,
       residenceBuildingId: entity.residenceBuildingId ?? null,
-      homeBuildingId: entity.homeBuildingId ?? null,
+      workerBuildingId: entity.workerBuildingId ?? null,
       prisonBuildingId: entity.prisonBuildingId ?? null,
     };
   }
@@ -1293,9 +1293,9 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
       // earlier draft of this pin assumed the first revert would take a residence slot too and was wrong;
       // the differential above agreed with the reference throughout, so the pin was corrected rather
       // than the production code.
-      expect(entityById(world, REVERT_A_ID).homeBuildingId).toBe(FARM_ID);
+      expect(entityById(world, REVERT_A_ID).workerBuildingId).toBe(FARM_ID);
       expect(entityById(world, REVERT_A_ID).residenceBuildingId).toBeUndefined();
-      expect(entityById(world, REVERT_B_ID).homeBuildingId).toBeUndefined();
+      expect(entityById(world, REVERT_B_ID).workerBuildingId).toBeUndefined();
       expect(entityById(world, REVERT_B_ID).residenceBuildingId).toBeUndefined();
       // The prison sentence is restored from the saved snapshot, jittered off the global stream.
       expect(entityById(world, REVERT_PRISONER_ID).prisonBuildingId).toBe(PRISON_ID);
@@ -1328,7 +1328,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
       expect(actual.revertedIds).toEqual([]);
       expect(actual.nightFall).toBe(false);
       expect(entityById(world, ELDER_ID).residenceBuildingId).toBe(HOUSE_ID);
-      expect(entityById(world, ELDER_ID).homeBuildingId).toBe(FARM_ID);
+      expect(entityById(world, ELDER_ID).workerBuildingId).toBe(FARM_ID);
     });
   });
 });

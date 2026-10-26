@@ -3,6 +3,7 @@ import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
 import { hasWorkAssignment } from './residencyOccupancy';
+import { clearWorkerAssignment } from './workforce';
 import {
   DAYS_PER_YEAR,
   getAbsoluteCalendarDay,
@@ -92,21 +93,15 @@ export {
   auditHousingSharingIssues,
   buildFamilyGroups,
   buildHousingUnits,
-  canMoveOutOfFamilyHome,
   housingUnitNeedsReassignment,
-  isUnnecessarilySharingHousing,
   pickResidenceForFamily,
   pickResidenceForHuman,
-  pickResidenceForHumanExcluding,
   pickResidenceFromChildCustodian,
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
-  tryMoveOutOfFamilyHome,
 } from './residencySelection';
 
 export {
   assignMissingResidences,
   isResidenceOccupantEntity,
-  rebalanceOvercrowdedResidences,
   rebuildChildrenIds,
   syncPartnerResidence,
   syncResidenceOccupants,
@@ -290,13 +285,7 @@ export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
     // A sitting leader is `validateVillageLeaderOnLoad`'s business, not this pass's.
     if (entity.id === world.villageLeaderId) continue;
     if (!hasWorkAssignment(entity) && entity.job === JobType.Settler) continue;
-    const workplace = (world.buildings ?? []).find((building) => building.id === entity.homeBuildingId);
-    if (workplace) {
-      workplace.occupants = workplace.occupants.filter((id) => id !== entity.id);
-    }
-    entity.homeBuildingId = undefined;
-    entity.job = JobType.Settler;
-    entity.occupation = 'settler';
+    clearWorkerAssignment(entity, world.buildings ?? []);
   }
 }
 
@@ -398,6 +387,9 @@ export function migrateHumanAges(
     if (human.type !== EntityType.Human || human.faction) continue;
     const stored = Math.max(0, human.age);
     const computed = state ? computeHumanAgeYears(human, colonyDay) : stored;
+    // All three zeroed means no date was saved: one is rebuilt from the stored age below. January 1
+    // is day 0 of month 0, so the year is what tells a saved date from an absent one.
+    const hasBirthDate = human.birthDay !== 0 || human.birthMonth !== 0 || human.birthYear !== 0;
     const looksLikeLegacyFastAge = stored > HUMAN_MAX_LIFESPAN_YEARS + 5;
     const looksLikeLegacyPerDayAging =
       colonyDay > 0
@@ -405,10 +397,11 @@ export function migrateHumanAges(
       && stored >= colonyDay * 0.85
       && human.birthYear === 0
       && human.birthDay === 0;
+    const rescaleAge = Boolean(options?.forceCalendar) || looksLikeLegacyFastAge || looksLikeLegacyPerDayAging;
 
     let ageYears = stored;
-    if (options?.forceCalendar || looksLikeLegacyFastAge || looksLikeLegacyPerDayAging) {
-      if (computed < stored - 3 && (human.birthYear !== 0 || human.birthDay !== 0)) {
+    if (rescaleAge) {
+      if (computed < stored - 3 && hasBirthDate) {
         ageYears = computed;
       } else if ((human.generation ?? 0) <= 1 && colonyDay < DAYS_PER_YEAR * 2) {
         ageYears = human.isJuvenile
@@ -420,11 +413,12 @@ export function migrateHumanAges(
           Math.max(human.isJuvenile ? 0 : HUMAN_ADULT_MIN_AGE, computed),
         );
       }
-    } else if (state && Math.abs(computed - stored) <= 2) {
-      ageYears = computed;
     }
 
-    if (state) {
+    if (state && hasBirthDate && !rescaleAge) {
+      // A saved birthdate is authoritative: the age follows it, the date itself is left alone.
+      syncHumanAgeFromCalendar(human, state);
+    } else if (state) {
       setHumanBirthFromAge(human, ageYears, colonyDay);
     } else {
       human.maxAge = HUMAN_MAX_LIFESPAN_YEARS;

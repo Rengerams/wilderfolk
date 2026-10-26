@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { countHomelessSettlers } from './residencyOccupancy';
+import { collectFamilyHousingShortages } from './residencySelection';
 import { isFoodCritical } from './resourceUtils';
 import { getBuildingCenter } from './placementUtils';
 import {
@@ -134,6 +135,15 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
       icon: '🏠',
       title: 'Build more housing',
       detail: `${homeless} settler${homeless === 1 ? '' : 's'} without a bed — place another House`,
+      action: { type: 'build', building: BuildingType.House },
+    });
+  }
+
+  const separatedFamilies = collectFamilyHousingShortages(state.entities, state.buildings).length;
+  if (separatedFamilies > 0) {
+    alerts.push({
+      id: 'family-housing-shortage', severity: 'warning', icon: '🏠', title: 'Families need more space',
+      detail: `${separatedFamilies} household${separatedFamilies === 1 ? '' : 's'} cannot fit together — children stay with their guardian; build or expand a home to reunite the family`,
       action: { type: 'build', building: BuildingType.House },
     });
   }

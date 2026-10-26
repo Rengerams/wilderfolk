@@ -330,9 +330,9 @@ function diplomacyWorld(
 
 describe('L15 — barracks occupancy is not pruned by a getter', () => {
   it('counts only live, non-imprisoned soldiers and never rewrites the occupant list', () => {
-    const soldier = human(1, { job: JobType.Soldier, homeBuildingId: 8 });
-    const deadSoldier = human(2, { job: JobType.Soldier, alive: false, homeBuildingId: 8 });
-    const reassigned = human(3, { job: JobType.Settler, homeBuildingId: 8 });
+    const soldier = human(1, { job: JobType.Soldier, workerBuildingId: 8 });
+    const deadSoldier = human(2, { job: JobType.Soldier, alive: false, workerBuildingId: 8 });
+    const reassigned = human(3, { job: JobType.Settler, workerBuildingId: 8 });
     const barracks = building(8, BuildingType.Barracks, { occupants: [1, 2, 3] });
     const world = {
       entities: [soldier, deadSoldier, reassigned],
@@ -354,7 +354,7 @@ function prisonWorld(): { world: WorldState; prisoner: Entity; prison: Building 
     (e) => e.type === EntityType.Human && e.id !== world.villageLeaderId,
   )!;
   const prisonId = 9001;
-  prisoner.homeBuildingId = undefined;
+  prisoner.workerBuildingId = undefined;
   prisoner.prisonBuildingId = prisonId;
   prisoner.prisonerUntilTick = world.tick + 10 * TICKS_PER_DAY;
   prisoner.prisonSentenceCrime = 'scandal';
@@ -399,7 +399,7 @@ describe('L51 — a prison escape re-syncs the prison occupant list', () => {
 function staffedPrison(guardCount: number): { world: WorldState; prisoner: Entity; prison: Building } {
   const { world, prisoner, prison } = prisonWorld();
   for (let i = 0; i < guardCount; i++) {
-    const guard = human(7000 + i, { job: JobType.PrisonGuard, homeBuildingId: prison.id });
+    const guard = human(7000 + i, { job: JobType.PrisonGuard, workerBuildingId: prison.id });
     world.entities.push(guard);
     prison.occupants = [...(prison.occupants ?? []), guard.id];
   }
@@ -466,7 +466,7 @@ describe('prison coverage is presence, not the roster', () => {
     const { world, prisoner, prison } = prisonWorld();
     const guards: Entity[] = [];
     for (let i = 0; i < PRISON_GUARDS_FOR_FULL_COVERAGE; i++) {
-      const guard = human(7000 + i, { job: JobType.PrisonGuard, homeBuildingId: prison.id });
+      const guard = human(7000 + i, { job: JobType.PrisonGuard, workerBuildingId: prison.id });
       world.entities.push(guard);
       guards.push(guard);
     }

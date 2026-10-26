@@ -188,8 +188,8 @@ export function isHotelierAtHotel(
   entity: Entity,
   buildings: readonly Building[] | ReadonlyMap<number, Building>,
 ): Building | undefined {
-  if (entity.job !== JobType.Hotelier || entity.homeBuildingId == null) return undefined;
-  const id = entity.homeBuildingId;
+  if (entity.job !== JobType.Hotelier || entity.workerBuildingId == null) return undefined;
+  const id = entity.workerBuildingId;
   const h = 'get' in buildings
     ? (buildings as ReadonlyMap<number, Building>).get(id)
     : (buildings as readonly Building[]).find((b) => b.id === id);

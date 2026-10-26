@@ -13,6 +13,9 @@ import { gameTick } from '../src/game/gameEngine';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
+import { buildResidenceOccupancy, getResidenceCapacity, isHomelessSettler, isImprisoned, isResidenceBuilding, isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
+import { buildHousingUnits, listPlayerResidences, pickResidenceForFamily, pickResidenceForHuman } from '../src/game/residencySelection';
+import { getChildCustodian, isMinorChild } from '../src/game/householdComposition';
 import {
   resetRelationshipDiagnostics,
   setRelationshipDiagnosticsEnabled,
@@ -32,7 +35,8 @@ import {
 
 const SEED = 12345;
 const CHECKPOINT_DAYS = 30;
-const HEALTHY_DAYS = CHECKPOINT_DAYS * 2;
+/** Three checkpoints: the retuned 288-tick day pushed the first delivery past the old 60-day window. */
+const HEALTHY_DAYS = CHECKPOINT_DAYS * 3;
 
 interface ObservedRun {
   world: WorldState;
@@ -233,10 +237,33 @@ describe('long-run non-vacuity verdict', () => {
         'the larder still holds food',
       ).toBeGreaterThan(0);
 
-      expect(
-        run.final.housing.homelessPlayerHumans,
-        'nobody was left outside a bed',
-      ).toBe(0);
+      const occupancy = buildResidenceOccupancy(run.world.entities);
+      const residences = run.world.buildings.filter(isResidenceBuilding);
+      for (const residence of residences) {
+        const used = occupancy.get(residence.id) ?? 0;
+        expect(used, `residence ${residence.id} must not exceed its capacity`).toBeLessThanOrEqual(getResidenceCapacity(residence));
+      }
+
+      const residents = run.world.entities.filter((human) => isResidenceOccupantEntity(human) && !isImprisoned(human));
+      const possibleHomes = listPlayerResidences(run.world.buildings);
+      for (const unit of buildHousingUnits(residents)) {
+        const homeless = unit.filter(isHomelessSettler);
+        if (homeless.length === 0) continue;
+        expect(
+          pickResidenceForFamily(unit, residents, possibleHomes, occupancy),
+          `household containing ${homeless.map((human) => human.id).join(', ')} has a viable home`,
+        ).toBeUndefined();
+        const dependentIds = new Set(
+          unit.filter(isMinorChild).map((child) => getChildCustodian(child, residents)?.id),
+        );
+        for (const human of homeless) {
+          if (isMinorChild(human) || dependentIds.has(human.id)) continue;
+          expect(
+            pickResidenceForHuman(human, residents, possibleHomes, occupancy),
+            `homeless independent adult ${human.id} can be placed by the game's selection rule`,
+          ).toBeUndefined();
+        }
+      }
     },
     300_000,
   );

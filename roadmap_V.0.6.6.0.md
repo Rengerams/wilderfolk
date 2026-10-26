@@ -618,3 +618,18 @@ Split these milestones into independently testable changes with regression cover
 - [ ] Remaining: browser/Windows timing profiles, production `?debug=1` live smoke test, long-run raid/school benchmarks, incremental terrain topology updates, worker transfer profiling, and remaining staffing/housing spikes. These are not marked complete by this checkpoint.
 
 Measurements and limitations: `docs/plans/performance-roadmap-2026-10-20.md`.
+
+
+### Housing architecture checkpoint — 25 October 2026 (PR #40)
+
+This is a cross-cutting housing dependency for the release, not a new warfare feature. The implementation contract and detailed rules live in [docs/HOUSING_ARCHITECTURE.md](docs/HOUSING_ARCHITECTURE.md); do not duplicate the full design in this roadmap.
+
+- [x] Consolidate ordinary housing decisions into the ordered `assignMissingResidences` pipeline with a shared `HousingLedger`: leader hold, integrity, guardianship, capacity, homeless placement, adult-child independence and commute optimization. Immediate leadership transitions retain a dedicated leader-only entry through the same move owner.
+- [x] Route load, immigration and player residence reconciliation through the leader phase within the full housing ledger. Preserve prisoners' beds when capacity is rebalanced.
+- [x] Set the original Leader's House to 20 fixed beds and allow at most one explicitly linked overflow annex after the main residence exceeds 20 occupants; do not promote an orphan annex to primary. The elected leader remains assigned to the original building.
+- [x] Add targeted regression coverage for prisoner-bed retention, fixed manor capacity, overflow-annex eligibility and orphan-link handling; register helper ownership and update architectural documentation/changelog.
+- [ ] **Merge gate:** current PR HEAD passes Node.js CI, housing performance, the 100-day producers scenario (seed 12345), and the independent 100-day restocked scenario (seed 67890), with both scenario comparisons exercising optimized PR code as well as baseline. Zero housing invariant violations.
+- [ ] **Integration proof:** exercise primary + linked annex at 21+ occupants across construction/completion, leader succession, demolition/orphan handling, and full game save/load (not only a JSON object roundtrip). Verify the leader retains the primary home, guardianship and occupancy remain consistent.
+- [ ] **Architecture enforcement:** verify every production residence writer is owned by the housing layer, and add regression/static coverage for unintended direct `residenceBuildingId` writes or duplicate housing schedulers. Do not equate passing unit tests with a completed repository-wide writer audit.
+
+These checked items mean **implemented on PR #40**, not merged into `main`. Outstanding gates stay unchecked until supported by test evidence on the final commit.

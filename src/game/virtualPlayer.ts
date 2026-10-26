@@ -1,5 +1,6 @@
 
 import type { Building, HuntingSpotPrey, Resources, VisitorGroup, WorldState } from './gameTypes';
+import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, GRID_SIZE, PATH_CELL } from './gameTypes';
 import type { ForgeOrderId } from './gameTypes';
 import { WORKER_CMD_PROTO, type WorkerCommand } from './simWorker/commands';
@@ -292,11 +293,11 @@ function isUnderConstruction(state: WorldState, type: BuildingType): boolean {
  * farm produces nothing. That is the owner's report *"there is no food"* next to a healthy status.
  *
  * It is the same assignment-versus-reality distinction as `countWorkersAtBuilding` (which counts
- * `homeBuildingId`, an assignment, not attendance) and as the daily-production fix.
+ * `workerBuildingId`, an assignment, not attendance) and as the daily-production fix.
  *
  * **Why it is not fixed here.** Narrowing the predicate to "completed AND staffed" was tried and
  * measured: it broke **22 of the 68** cases in `tests/virtualPlayer.test.ts`, because those fixtures
- * give a food producer `occupants` but never set `homeBuildingId`, so `countWorkersAtBuilding`
+ * give a food producer `occupants` but never set `workerBuildingId`, so `countWorkersAtBuilding`
  * reports 0 for a farm the fixture considers staffed. Fixing this properly therefore means deciding
  * the basis (assignment vs. presence) *and* migrating the fixtures to model it — a deliberate change,
  * not a drive-by. The guard was also tried without the predicate change and broke 1 case by letting
@@ -399,18 +400,14 @@ function answerOpenCard(state: WorldState): VirtualPlayerDecision | null {
 
 function decideLeaderHouse(state: WorldState): VirtualPlayerDecision | null {
   const type = BuildingType.LeaderHouse;
-  // One may already stand, or be on the way: `unique` means only ever one, so a
-  // second proposal would be refused every hour. Rival-owned copies do not count.
-  if (state.buildings.some((building) => building.type === type && building.faction !== 'rival')) {
-    return null;
-  }
+  if (!canBuildLeaderHouse(state.buildings)) return null;
   if (!canAfford(state, BUILDING_CONFIGS[type].cost)) return null;
   const spot = findPlacementSpot(state, type, 0);
   if (!spot) return null;
 
   return {
     command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
-    reason: "build the Leader's House — free, and the office has no residence yet",
+    reason: state.buildings.some((b) => b.type === type) ? "build the Leader's House extension — the leader's household exceeds 20" : "build the Leader's House — free, and the office has no residence yet",
   };
 }
 
@@ -1022,7 +1019,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
 
     const crew = humans.filter(
-      (human) => human.alive && !human.isJuvenile && human.homeBuildingId === building.id,
+      (human) => human.alive && !human.isJuvenile && human.workerBuildingId === building.id,
     );
     if (crew.length <= cap) continue;
 
@@ -1249,10 +1246,6 @@ function decideUpgrades(state: WorldState): VirtualPlayerDecision | null {
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival') continue;
     if (!buildingTypeHasLevelBenefit(building.type)) continue;
-    // The Leader's House is free and belongs to the office, not the colony's budget: raising its
-    // level would spend real resources on the one building nobody paid to raise. The UI hides the
-    // button for it (`upgradeBuilding` treats it as structural); the bot must skip it too.
-    if (building.type === BuildingType.LeaderHouse) continue;
     if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
     if (!canAffordUpgradeWithReserve(state, building)) continue;
     return {
@@ -1790,6 +1783,26 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     .find((type) => isUnderConstruction(state, type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
 
+  // An unmanned producer outranks a low shelf: it is the concrete thing to fix, and the ladder above
+  // cannot crew it without a rebalance, so the wait must name the building rather than a neighbour.
+  for (const entry of INDUSTRY_BUILD_ORDER) {
+    const stock = Math.floor(state.resources[entry.stock] ?? 0);
+    const built = completedProducerCount(state, entry.type);
+    const scaling = entry.type !== BuildingType.Store && built >= 1 && built < wanted;
+    if (stock >= entry.minimumStock && !scaling) continue;
+
+    const unmanned = state.buildings.find(
+      (building) =>
+        building.type === entry.type &&
+        building.faction !== 'rival' &&
+        building.completed &&
+        countWorkersAtBuilding(state.entities, building.id) === 0,
+    );
+    if (unmanned) {
+      return `${BUILDING_CONFIGS[entry.type].label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;
+    }
+  }
+
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = Math.floor(state.resources[entry.stock] ?? 0);
     const short = stock < entry.minimumStock;
@@ -1807,9 +1820,6 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     }
     const standing = owned.find((building) => building.completed);
     if (standing) {
-      if (countWorkersAtBuilding(state.entities, standing.id) === 0) {
-        return `${label} stands unmanned — ${stock} ${entry.stock} left and no settler free to work it`;
-      }
       // No standing producer cannot "keep up": the ones that are missing are named by price below.
       if (!scaling) return `${stock} ${entry.stock} left — the ${label} cannot keep up`;
       return `${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers — ${buildingBlockReason(state, entry.type, true)}`;

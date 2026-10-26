@@ -4,8 +4,10 @@ import type { Entity } from '../src/game/gameTypes';
 import {
   getScheduleProductivityMultiplier,
   getScheduleFatigue,
+  recordScheduleWorkTick,
   resolveDailyScheduleFatigue,
 } from '../src/game/scheduleFatigue';
+import { human as settler } from '../src/test/factories';
 
 const state = { workSchedule: { startHour: 7, endHour: 18 } };
 
@@ -65,6 +67,17 @@ describe('schedule fatigue', () => {
     const result = resolveDailyScheduleFatigue(asEntity(worker), state);
     // One excess hour: 0 + 1 x 10 - BASE_DAILY_RECOVERY(4) = 6.
     expect(result.fatigueAfter).toBe(6);
+  });
+
+  it('credits no attendance to a jailed settler', () => {
+    const free = settler(1);
+    const jailed = settler(2, { prisonBuildingId: 9, prisonerUntilTick: 500 });
+
+    recordScheduleWorkTick(free, 3);
+    recordScheduleWorkTick(jailed, 3);
+
+    expect(free.scheduleWorkedTicksToday).toBe(3);
+    expect(jailed.scheduleWorkedTicksToday).toBeUndefined();
   });
 
   it('keeps productivity above the documented safety floor', () => {

@@ -140,7 +140,7 @@ describe('A7 — the village labour counters have one aggregator', () => {
     expect(overview.working).toBe(stats.working);
     expect(overview.idle).toBe(stats.idle);
     expect(overview.adults).toBe(stats.adults);
-    // Pre-fix `deriveConcerns` counted `!juvenile && homeBuildingId == null` as an idle adult, so the
+    // Pre-fix `deriveConcerns` counted `!juvenile && workerBuildingId == null` as an idle adult, so the
     // dashboard reported "1 idle adult" while the HUD reported 1 working / 0 idle for the same tick.
     expect(
       dashboard.concerns.find((c) => c.id === 'idle'),

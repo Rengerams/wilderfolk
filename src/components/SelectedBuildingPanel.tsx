@@ -32,10 +32,10 @@ import { ensureEntityByIdMap } from '../game/entityIndex';
 import {
   isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, daysUntilTick, getHourOfDay,
 } from '../game/dayCycle';
-import { formatEducationLabel, getSchoolRoster, describeSchoolRoster } from '../game/education';
+import { formatEducationLabel, getSchoolRoster, describeSchoolRoster, schoolCapacity } from '../game/education';
 import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../game/citizenId';
 import { isProductionBuildingType } from '../game/buildCatalog';
-import { MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
+import { BUILDING_TYPE_CODES, MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
@@ -154,7 +154,7 @@ const BUILDING_OUTPUT_HINTS: Partial<Record<BuildingType, string>> = {
   [BuildingType.Market]: 'Trades goods for gold with assigned workers.',
   [BuildingType.Workshop]: 'Pick a recipe below — crafts every 2 days when staffed and stocked.',
   [BuildingType.Church]: 'Staffed church boosts courtship/morals. Full-moon nights: more priests = higher cure chance vs a Moon Howler; no priest = howler unopposed.',
-  [BuildingType.School]: 'Assign a teacher — children walk here by day; schooling speeds growth and grants graduation perks.',
+  [BuildingType.School]: 'Assign up to 2 teachers — 10 pupils each; children earn school days only while a teacher is present.',
   [BuildingType.Hospital]: describeHospitalReputation(),
   [BuildingType.TownHall]: 'Staff officials — taxes, trade & immigration boost, elections, scandal buffer, host festivals.',
   [BuildingType.Well]: 'Lowers settler energy drain for the whole village.',
@@ -241,7 +241,7 @@ export default function SelectedBuildingPanel({
           )}
           <div>
             <h3 className="text-sm font-bold text-indigo-200">{rival?.name ?? building.campLabel ?? 'Rival Camp'}</h3>
-            <p className="text-[11px] text-indigo-300/70">Building ID: {building.id}</p>
+            <p className="text-[11px] text-indigo-300/70">Type #{BUILDING_TYPE_CODES[building.type]} · Building ID: {building.id}</p>
             <p className="text-[11px] text-indigo-300/80">
               {config.label} · {rival ? formatRivalPopulationLabel(rival) : '?'} · <span className="capitalize">{rival?.relationship ?? 'unknown'}</span>
               {rival && (
@@ -490,7 +490,7 @@ export default function SelectedBuildingPanel({
         )}
         <div>
           <h3 className="text-base font-bold text-amber-200">{config.label} {building.level > 1 && `(Lv.${building.level})`}</h3>
-          <p className="text-[11px] text-amber-300/70">Building ID: {building.id}</p>
+          <p className="text-[11px] text-amber-300/70">Type #{BUILDING_TYPE_CODES[building.type]} · Building ID: {building.id}</p>
           <p className="text-[11px] text-amber-400">{config.description}</p>
         </div>
       </div>
@@ -697,7 +697,7 @@ export default function SelectedBuildingPanel({
             state.tick,
             getHourOfDay(state.tick),
           );
-          const summary = describeSchoolRoster(roster, building.occupants.length > 0);
+          const summary = describeSchoolRoster(roster, building.occupants.length > 0, schoolCapacity(building));
           return (
             <div className="mt-2 space-y-1 rounded-lg border border-emerald-700/40 bg-emerald-950/30 p-2">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">

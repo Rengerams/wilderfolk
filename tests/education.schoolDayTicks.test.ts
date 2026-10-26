@@ -5,10 +5,11 @@
  * was credited a whole school day and `schoolDays` accrued ~3.3× too fast.
  */
 import { describe, expect, it } from 'vitest';
-import { EntityType } from '../src/game/gameTypes';
-import type { Entity } from '../src/game/gameTypes';
-import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay } from '../src/game/education';
-import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
+import type { Building, Entity } from '../src/game/gameTypes';
+import { SCHOOL_DAY_MIN_HOURS, SCHOOL_DAY_MIN_TICKS, SCHOOL_HOURS_PER_DAY, isSchoolTime, creditChildSchoolDay, recordChildSchoolTick } from '../src/game/education';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 
 function child(overrides: Partial<Entity> = {}): Entity {
   return {
@@ -55,5 +56,68 @@ describe('school-day credit threshold (F1)', () => {
     creditChildSchoolDay(kid);
     creditChildSchoolDay(kid);
     expect(kid.schoolDays).toBe(1);
+  });
+});
+
+/**
+ * 2026-10-22: a school day needs the teacher in the classroom as well as the
+ * pupil — the credit is gated on a teacher standing at the school, not only on
+ * a staffed building the child happens to be at.
+ */
+describe('school-day credit needs the teacher there', () => {
+  /** A workday tick inside class hours, found through the owner's own rule. */
+  function classTick(): number {
+    for (let day = 1; day < 10; day++) {
+      const tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+      if (isSchoolTime(tick, 10)) return tick;
+    }
+    throw new Error('no workday class tick found');
+  }
+
+  function school(occupants: number[]): Building {
+    return {
+      id: 50,
+      type: BuildingType.School,
+      completed: true,
+      occupants,
+      x: 100,
+      y: 100,
+      width: 20,
+      height: 20,
+    } as unknown as Building;
+  }
+
+  /** A pupil standing exactly where the tick sends them at this school. */
+  function pupilAt(target: Building): Entity {
+    const spot = humanBuildingTarget(target, 1, false);
+    return child({ x: spot.x, y: spot.y });
+  }
+
+  it('credits a classroom tick while the teacher is there', () => {
+    const target = school([900]);
+    const kid = pupilAt(target);
+    recordChildSchoolTick(kid, target, 10, true, classTick());
+    expect(kid.schoolTicksToday).toBe(1);
+  });
+
+  it('credits nothing while no teacher is at the school', () => {
+    const target = school([900]);
+    const kid = pupilAt(target);
+    recordChildSchoolTick(kid, target, 10, false, classTick());
+    expect(kid.schoolTicksToday ?? 0).toBe(0);
+  });
+
+  it('credits nothing for a child who is not at the school', () => {
+    const target = school([900]);
+    const kid = child({ x: 900, y: 900 });
+    recordChildSchoolTick(kid, target, 10, true, classTick());
+    expect(kid.schoolTicksToday ?? 0).toBe(0);
+  });
+
+  it('credits nothing outside the class hours', () => {
+    const target = school([900]);
+    const kid = pupilAt(target);
+    recordChildSchoolTick(kid, target, 20, true, classTick());
+    expect(kid.schoolTicksToday ?? 0).toBe(0);
   });
 });

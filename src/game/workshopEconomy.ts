@@ -51,10 +51,10 @@ export function estimateWorkshopGold(
 
   // Production counts a workshop's workers by their live work assignment, not by occupancy
   // (`dailyBuildingEconomy.tickBuildingProduction` keys `buildingWorkerStats` on
-  // `worker.homeBuildingId`), so the estimate has to use the same rule or it predicts output for a
+  // `worker.workerBuildingId`), so the estimate has to use the same rule or it predicts output for a
   // workshop that is standing idle (`LIVE-FINDINGS-STATUS.md`, L6).
   const assignedWorkers = state.entities.filter(
-    (entity) => entity.alive && isPlayerHuman(entity) && entity.homeBuildingId === building.id,
+    (entity) => entity.alive && isPlayerHuman(entity) && entity.workerBuildingId === building.id,
   );
   const actualWorkers = assignedWorkers.length;
   if (actualWorkers === 0 && !options.previewUnstaffed) {

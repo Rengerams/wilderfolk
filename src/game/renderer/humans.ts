@@ -216,7 +216,7 @@ function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatus
     isPregnant: !!human.pregnant,
     isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay),
     isAtHome: shouldBeAtHome(ctx.hourOfDay),
-    isWorking: isWorkHour(ctx.hourOfDay) && !!(human.homeBuildingId || ctx.constructionWorkerIds.has(human.id)),
+    isWorking: isWorkHour(ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
     isMarried: human.relationshipStatus === 'married' && !!human.partnerId,
   };
 }

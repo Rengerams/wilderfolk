@@ -1,3 +1,5 @@
+import { applyLeaderHousePhase } from './leaderHouse';
+import { moveResident } from './residencyReconciliation';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
@@ -55,6 +57,7 @@ import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint } from './pathfinding';
+import { retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
 
@@ -108,6 +111,16 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
     if (value !== undefined) {
       (entity as unknown as Record<string, unknown>)[key] = value;
     }
+  }
+  for (const assignment of [entity, entity.moonHowlerSaved]) {
+    if (!assignment) continue;
+    const legacy = assignment as typeof assignment & { homeBuildingId?: unknown };
+    if (!Object.hasOwn(assignment, 'workerBuildingId')
+      && typeof legacy.homeBuildingId === 'number'
+      && Number.isSafeInteger(legacy.homeBuildingId) && legacy.homeBuildingId >= 0) {
+      assignment.workerBuildingId = legacy.homeBuildingId;
+    }
+    delete legacy.homeBuildingId;
   }
   ensureEntitySkills(entity);
 }
@@ -602,7 +615,7 @@ export function migrateLegacySecurityRoles(world: WorldState): void {
   const buildingsById = new Map((world.buildings ?? []).map((building) => [building.id, building]));
   for (const entity of world.entities ?? []) {
     if (entity.type !== EntityType.Human || entity.job !== JobType.Guard) continue;
-    const workplace = entity.homeBuildingId == null ? undefined : buildingsById.get(entity.homeBuildingId);
+    const workplace = entity.workerBuildingId == null ? undefined : buildingsById.get(entity.workerBuildingId);
     if (workplace?.type === BuildingType.Barracks) {
       entity.job = JobType.Soldier;
       continue;
@@ -746,7 +759,7 @@ export function clearAutoFilledChurches(world: WorldState): number {
   for (const church of churches) {
     for (const occupantId of [...church.occupants]) {
       const human = world.entities.find((e) => e.id === occupantId);
-      if (human && human.alive && human.homeBuildingId === church.id) {
+      if (human && human.alive && human.workerBuildingId === church.id) {
         removeWorkerTransition(human, world.buildings);
       } else {
         church.occupants = church.occupants.filter((id) => id !== occupantId);
@@ -851,16 +864,30 @@ function isFiniteWithin(limit: number): (value: unknown) => boolean {
   return (value) => isFiniteNumber(value) && value >= 0 && value <= limit;
 }
 
+/** The highest id an allocator can advance past: one at `Number.MAX_SAFE_INTEGER` leaves no successor. */
+const MAX_USABLE_ID = Number.MAX_SAFE_INTEGER - 1;
+
 /**
- * An id the rest of the engine can actually key on.
+ * An id the rest of the engine can key on, and one a later spawn can be numbered past.
  *
  * `isFiniteNumber` accepted `1.5` and `-4`, so a payload could restore entities the code looks up by
- * integer equality and never finds. Every id in the save is produced by the allocators, which only
- * ever emit non-negative safe integers, so nothing a current build writes is refused by this.
+ * integer equality and never finds; an id at the top of the range would leave the next one unusable.
  */
 function isUsableId(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_USABLE_ID;
 }
+
+/** The highest id an allocator may hand out: the value it leaves behind (`id + 1`) stays usable. */
+const MAX_EMITTED_ID = MAX_USABLE_ID - 2;
+
+/** The highest allocator value: the id it hands out stays usable in the range, and so does the value it becomes. */
+const MAX_ALLOCATOR_ID = MAX_EMITTED_ID;
+
+/** The highest id a save may carry: the allocator floored from it (`id + 1`) stays within the allocator ceiling. */
+const MAX_SAVED_ID = MAX_ALLOCATOR_ID - 1;
+
+/** An id a payload may carry — above it, the allocator floored from the id would pass the allocator ceiling. */
+const isPersistedId = (value: unknown): value is number => isUsableId(value) && value <= MAX_SAVED_ID;
 
 /** An id the engine keys on by string equality — every camp, event and route id is a string. */
 function isStringId(value: unknown): value is string {
@@ -874,7 +901,7 @@ function isAnyArray(value: unknown): value is unknown[] {
 
 /** An array of ids, for the nested lists an entity or building carries. */
 function isIdArray(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every(isUsableId);
+  return Array.isArray(value) && value.every((id: unknown) => isPersistedId(id));
 }
 
 /** One nested id array on an entity or building, checked only when the payload carries it. */
@@ -885,7 +912,7 @@ interface ElementIdRule {
 
 /** Any id an element carries: numeric for entities and buildings, string for camps and events. */
 function isEntityOrBuildingId(value: unknown): boolean {
-  return isUsableId(value) || isStringId(value);
+  return isPersistedId(value) || isStringId(value);
 }
 
 /** The nested id arrays an element carries, checked on a present value only. */
@@ -940,7 +967,7 @@ const FOOD_HISTORY_ELEMENT_RULES: readonly ElementFieldRule[] = [
  * A chronicle entry's id is **numeric**, unlike the string ids the other containers carry: the
  * allocator is `Math.max(…ids) + 1`, so one non-numeric string makes every later id `NaN`.
  */
-const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isUsableId }];
+const EVENT_LOG_ELEMENT_RULES: readonly ElementFieldRule[] = [{ field: 'id', isValid: isPersistedId }];
 
 /** The `kind` values `tickVisitorGroups` switches on — it is the same `as const` list as the type. */
 const VISITOR_KIND_VALUES: ReadonlySet<unknown> = new Set(['traders', 'pilgrims', 'scholars', 'hunters', 'nomads', 'refugees', 'performers']);
@@ -1051,7 +1078,7 @@ function isSafeIntegerWithin(limit: number): (value: unknown) => boolean {
  */
 function entityFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isUsableId },
+    { field: 'id', isValid: isPersistedId },
     { field: 'type', isValid: isMemberOf(ENTITY_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -1063,7 +1090,7 @@ function entityFieldRules(width: number, height: number): readonly ElementFieldR
 
 function buildingFieldRules(width: number, height: number): readonly ElementFieldRule[] {
   return [
-    { field: 'id', isValid: isUsableId },
+    { field: 'id', isValid: isPersistedId },
     { field: 'type', isValid: isMemberOf(BUILDING_TYPE_VALUES) },
     { field: 'x', isValid: isFiniteWithin(width) },
     { field: 'y', isValid: isFiniteWithin(height) },
@@ -1086,8 +1113,8 @@ function worldScalarRules(): readonly ElementFieldRule[] {
     // exceeds its own maximum is refused by name instead of allocating a surface no map has.
     { field: 'width', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('width')) },
     { field: 'height', isValid: isFiniteWithin(maxSavedMapPixelsForAxis('height')) },
-    { field: 'nextEntityId', isValid: isFiniteNumber },
-    { field: 'nextBuildingId', isValid: isFiniteNumber },
+    { field: 'nextEntityId', isValid: isSafeIntegerWithin(MAX_ALLOCATOR_ID) },
+    { field: 'nextBuildingId', isValid: isSafeIntegerWithin(MAX_ALLOCATOR_ID) },
     // The persisted leadership years. `1e999` parses to `Infinity`, and an infinite election date is
     // never reached — so a corrupt slot would leave the colony permanently headless.
     { field: 'leaderSinceYear', isValid: isFiniteNumber },
@@ -1224,11 +1251,11 @@ function reconcileDanglingReferencesOnLoad(world: WorldState): void {
   }
 
   for (const entity of world.entities ?? []) {
-    if (entity.homeBuildingId != null && !buildingIds.has(entity.homeBuildingId)) {
-      entity.homeBuildingId = undefined;
+    if (entity.workerBuildingId != null && !buildingIds.has(entity.workerBuildingId)) {
+      entity.workerBuildingId = undefined;
     }
     if (entity.residenceBuildingId != null && !buildingIds.has(entity.residenceBuildingId)) {
-      entity.residenceBuildingId = undefined;
+      moveResident(entity, undefined, 'load', { buildings: world.buildings });
     }
     if (entity.prisonBuildingId != null && !buildingIds.has(entity.prisonBuildingId)) {
       entity.prisonBuildingId = undefined;
@@ -1256,11 +1283,21 @@ function floorIdAllocators(world: WorldState): void {
   };
   let highestEntity = 0;
   for (const entity of world.entities ?? []) {
-    if (Number.isSafeInteger(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+    if (isPersistedId(entity.id) && entity.id > highestEntity) highestEntity = entity.id;
+  }
+  // The genealogy registry keeps a settler after they leave `entities`, so their id retires with them.
+  for (const person of Object.values(world.genealogyRegistry?.people ?? {})) {
+    if (isPersistedId(person.id) && person.id > highestEntity) highestEntity = person.id;
   }
   let highestBuilding = 0;
   for (const building of world.buildings ?? []) {
-    if (Number.isSafeInteger(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+    if (isPersistedId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
+  }
+  // A rival row names camp structures that left the map, so those ids retire with the row's history.
+  for (const rival of world.rivalSettlements ?? []) {
+    for (const id of rival.buildingIds ?? []) {
+      if (isPersistedId(id) && id > highestBuilding) highestBuilding = id;
+    }
   }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
   world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);
@@ -1283,6 +1320,14 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     const detail = `${unrestorableField} is missing or unusable`;
     console.error('Save load refused:', detail);
     return { ok: false, reason: 'unrestorable', detail };
+  }
+  // Absent identity counters are refused rather than inferred: no surviving id says which retired
+  // ones the allocator must still avoid.
+  for (const field of ['nextEntityId', 'nextBuildingId']) {
+    if (parsed[field] === undefined) {
+      return { ok: false, reason: 'unrestorable',
+        detail: `${field} is missing: retired building identities or citizen identities cannot be recovered safely. Use an intact save with its original identity counters.` };
+    }
   }
   // Work on a copy, so this reads as the pure function its signature promises.
   //
@@ -1492,21 +1537,39 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         ? { ...b, workshopRecipeId: DEFAULT_WORKSHOP_RECIPE_ID }
         : b,
     );
-    repairLoadedHumanGround(world);
-    reconcileDanglingReferencesOnLoad(world);
-
-    migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
-    rebuildChildrenIds(world.entities);
-    migrateLegacySecurityRoles(world);
-    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities);
-    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
-
     const applySaveMigration = (id: string, message: string) => {
       if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
       if (world.appliedSaveMigrations.includes(id)) return;
       world.appliedSaveMigrations.push(id);
       logEvent(world, 'event', message);
     };
+
+    // A save written while village camps existed can hold camp structures the day pulse never reached,
+    // because it retires only what a rival row still lists. Runs before the dangling references below,
+    // which then clear the homes those structures were.
+    const campMigrationDone = (world.appliedSaveMigrations ?? []).includes('legacy-village-camps');
+    if (!campMigrationDone) {
+      const retiredCampStructures = retireLegacyCampStructures(world.buildings);
+      if (retiredCampStructures.size > 0) {
+        applySaveMigration(
+          'legacy-village-camps',
+          `Save migrated — ${retiredCampStructures.size} legacy rival camp structure(s) removed from the map.`,
+        );
+      } else {
+        if (!world.appliedSaveMigrations) world.appliedSaveMigrations = [];
+        world.appliedSaveMigrations.push('legacy-village-camps');
+      }
+    }
+
+    repairLoadedHumanGround(world);
+    reconcileDanglingReferencesOnLoad(world);
+
+    migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
+    rebuildChildrenIds(world.entities);
+    migrateLegacySecurityRoles(world);
+    assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry,
+      (ledger) => applyLeaderHousePhase(world, ledger));
+    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
 
     const churchMigrationDone = (world.appliedSaveMigrations ?? []).includes('church-manual-staffing');
     const clearedChurchSeats = churchMigrationDone ? 0 : clearAutoFilledChurches(world);

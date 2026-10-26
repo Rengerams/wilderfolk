@@ -63,15 +63,12 @@ describe('a refused load leaves the running session exactly as it was', () => {
 });
 
 describe('the id allocators are made safe to consume', () => {
-  it('repairs an absent allocator to one past the highest live id', () => {
+  it('refuses absent retirement history instead of inferring it from surviving ids', () => {
     const payload = realPayload();
     delete payload.nextEntityId;
-
-    const world = buildWorld(payload)!;
-
-    const highest = Math.max(...world.entities.map((entity) => entity.id));
-    expect(Number.isSafeInteger(world.nextEntityId)).toBe(true);
-    expect(world.nextEntityId).toBeGreaterThan(highest);
+    const outcome = loadGameFromParsedOutcome(payload);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.detail).toContain('identity counters');
   });
 
   it('repairs a rewound allocator that would collide with a live id', () => {
@@ -92,6 +89,109 @@ describe('the id allocators are made safe to consume', () => {
     const world = buildWorld(payload)!;
 
     expect(world.nextEntityId).toBe(generous);
+  });
+
+  it('retires the id of a settler the genealogy registry still keeps', () => {
+    const payload = realPayload();
+    const entities = payload.entities as { id: number }[];
+    if (entities.length === 0) throw new Error('fixture needs entities');
+    const deadSettlerId = Math.max(...entities.map((entity) => entity.id)) + 10;
+    payload.genealogyRegistry = {
+      people: {
+        [String(deadSettlerId)]: {
+          id: deadSettlerId,
+          name: 'Forgotten',
+          birthSurname: '',
+          surname: '',
+          alive: false,
+          partners: [],
+          childrenIds: [],
+        },
+      },
+    };
+    payload.nextEntityId = 1;
+
+    const world = buildWorld(payload)!;
+
+    expect(world.nextEntityId).toBeGreaterThan(deadSettlerId);
+  });
+
+  it('refuses a stored allocator that has no usable successor left', () => {
+    const payload = realPayload();
+    payload.nextEntityId = Number.MAX_SAFE_INTEGER - 1;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('ignores a remembered id with no usable successor, so the floored allocator can still advance', () => {
+    const payload = realPayload();
+    payload.genealogyRegistry = {
+      people: {
+        [`${Number.MAX_SAFE_INTEGER - 1}`]: {
+          id: Number.MAX_SAFE_INTEGER - 1,
+          name: 'Forgotten',
+          birthSurname: '',
+          surname: '',
+          alive: false,
+          partners: [],
+          childrenIds: [],
+        },
+      },
+    };
+    payload.nextEntityId = 1;
+
+    const world = buildWorld(payload)!;
+
+    expect(Number.isSafeInteger(world.nextEntityId + 1)).toBe(true);
+    expect(world.nextEntityId).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER - 2);
+  });
+
+  it('ignores a retired id no allocator could advance past, instead of flooring onto it', () => {
+    const payload = realPayload();
+    payload.genealogyRegistry = {
+      people: {
+        [`${Number.MAX_SAFE_INTEGER}`]: {
+          id: Number.MAX_SAFE_INTEGER,
+          name: 'Forgotten',
+          birthSurname: '',
+          surname: '',
+          alive: false,
+          partners: [],
+          childrenIds: [],
+        },
+      },
+    };
+    payload.nextEntityId = 1;
+
+    const world = buildWorld(payload)!;
+
+    expect(Number.isSafeInteger(world.nextEntityId)).toBe(true);
+  });
+
+  it('retires a camp structure id a rival row still names', () => {
+    const payload = realPayload();
+    // A young colony may hold no buildings yet, so the live floor can legitimately be zero.
+    const buildings = payload.buildings as { id: number }[];
+    const retiredCampId = Math.max(0, ...buildings.map((building) => building.id)) + 10;
+    payload.rivalSettlements = [{
+      id: 'rival_camp',
+      name: 'FoxGlen',
+      campX: 10,
+      campY: 10,
+      population: 1,
+      entityIds: [],
+      buildingIds: [retiredCampId],
+      relationship: 'tense',
+      foundedYear: 1,
+      daysUntilAction: 0,
+      raidCooldownDays: 0,
+      peaceTreatyDays: 0,
+    }];
+    payload.nextBuildingId = 1;
+
+    const world = buildWorld(payload)!;
+
+    expect(world.nextBuildingId).toBeGreaterThan(retiredCampId);
   });
 });
 
@@ -125,6 +225,39 @@ describe('entity ids must be integers, non-negative and unique', () => {
     firstTwoEntities(payload)[0].id = -4;
 
     expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('refuses an id with no successor, which would leave the allocator unable to advance', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('refuses an id whose floored allocator could no longer hand out a usable successor', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 1;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('refuses the top id an allocator could hand out, which leaves the allocator nothing to hand out', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 3;
+
+    expect(loadGameFromParsedOutcome(payload).ok).toBe(false);
+  });
+
+  it('loads the highest id a save keeps, leaving an allocator the next save still accepts', () => {
+    const payload = realPayload();
+    firstTwoEntities(payload)[0].id = Number.MAX_SAFE_INTEGER - 4;
+    payload.nextEntityId = 1;
+
+    const world = buildWorld(payload)!;
+
+    // The floor is the highest allocator value a save may carry, so the state the load produced is savable.
+    expect(world.nextEntityId).toBe(Number.MAX_SAFE_INTEGER - 3);
+    expect(loadGameFromParsedOutcome(buildSaveData(world, createInitialView(world.width, world.height))).ok).toBe(true);
   });
 
   it('still loads the uncorrupted payload, so those refusals are about the corruption', () => {

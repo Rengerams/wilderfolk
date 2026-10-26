@@ -1,0 +1,23 @@
+name: Housing 90-day targeted regression
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "tests/longRunStallVerdict.test.ts"
+      - "src/game/residencySelection.ts"
+      - "src/game/residencyReconciliation.ts"
+      - "src/game/residencyOccupancy.ts"
+      - ".github/workflows/housing-90-day-targeted.yml"
+
+jobs:
+  housing-90-day:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - run: npm test -- unit tests/longRunStallVerdict.test.ts

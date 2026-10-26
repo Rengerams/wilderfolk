@@ -390,26 +390,34 @@ function hasLineOfSight(grid: PathGrid, x0: number, y0: number, x1: number, y1: 
   return true;
 }
 
-/** A* over the grid — returns tile path (start..goal inclusive) or null. */
-export function findPath(
+/** The A* core: the cheapest route's tile path (start..goal inclusive) and its cost, or null. */
+/** A route search's verdict; `hitNodeCap` separates a spent node budget from a finished no-route search. */
+interface RouteSearchResult {
+  path: { x: number; y: number }[] | null;
+  cost: number | null;
+  hitNodeCap: boolean;
+}
+
+function searchRoute(
   grid: PathGrid,
   sx: number,
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
-): { x: number; y: number }[] | null {
+  maxNodes: number,
+): RouteSearchResult {
   const pathProfileStart = profileStart();
   try {
   const { cols, rows, blocked, elevation, road } = grid;
   recordFindPathCall();
+  const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
   if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   // Resolve walkable neighbors if either endpoint falls on an obstacle
@@ -417,7 +425,7 @@ export function findPath(
   const goalPt = findNearestWalkable(grid, tx, ty);
   if (!startPt || !goalPt) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   const actualSx = startPt.x;
@@ -427,7 +435,7 @@ export function findPath(
 
   if (actualSx === actualTx && actualSy === actualTy) {
     recordPathEarlyReject();
-    return null;
+    return rejected;
   }
 
   const start = actualSy * cols + actualSx;
@@ -435,11 +443,13 @@ export function findPath(
 
   const { scores, parents, stamps, generation } = beginPathSearch(cols * rows);
 
-  // Octile distance heuristic for 8-direction grids
+  // Octile distance heuristic for 8-direction grids, scaled by the cheapest step: a road costs
+  // `ROAD_STEP_COST`, so an unscaled octile would overestimate and return a slower route's cost.
+  const cheapestStep = road ? ROAD_STEP_COST : 1;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);
-    return Math.max(adx, ady) + 0.4142 * Math.min(adx, ady);
+    return (Math.max(adx, ady) + 0.4142 * Math.min(adx, ady)) * cheapestStep;
   };
 
   const open = new OpenSetMinHeap();
@@ -481,7 +491,7 @@ export function findPath(
 
       recordPathNodes(nodes);
       recordPathFound();
-      return simplified;
+      return { path: simplified, cost: scores[goal], hitNodeCap: false };
     }
 
     const cx = cur % cols;
@@ -521,10 +531,47 @@ export function findPath(
   recordPathNodes(nodes);
   recordPathFailed();
   if (hitNodeCap) recordPathMaxNodesExceeded();
-  return null;
+  return { path: null, cost: null, hitNodeCap };
   } finally {
     profileEnd('pathfinding.findPath', pathProfileStart);
   }
+}
+
+/** A* over the grid — returns tile path (start..goal inclusive) or null. */
+export function findPath(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): { x: number; y: number }[] | null {
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes).path;
+}
+
+/** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
+export function findRouteCost(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): number | null {
+  return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
+}
+
+/** The same cost search with its budget verdict, so a caller can tell no-route from a spent budget. */
+export function findRouteCostOutcome(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes = 6000,
+): { cost: number | null; budgetExhausted: boolean } {
+  const result = searchRoute(grid, sx, sy, tx, ty, maxNodes);
+  return { cost: result.cost, budgetExhausted: result.hitNodeCap };
 }
 
 /** Tile path → world-coordinate waypoints (tile centers). */
@@ -624,6 +671,11 @@ export function setCurrentPathMap(map: WorldMap | null, buildings?: Building[]):
     currentGrid = next;
     pathCache.clear();
   }
+}
+
+/** The grid the sim last handed the path owner; null before the first tick or in a bare fixture. */
+export function getCurrentPathGrid(): PathGrid | null {
+  return currentGrid;
 }
 
 /** What the path owner has to say about one leg of a walk. */

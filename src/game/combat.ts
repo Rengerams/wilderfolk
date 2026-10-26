@@ -373,8 +373,8 @@ export function getHumanStatusCombatIconFromFlags(
 ): string | null {
   if (
     human.job === JobType.Soldier &&
-    human.homeBuildingId != null &&
-    flags.barracksGuardKeys.has(`${human.id}:${human.homeBuildingId}`)
+    human.workerBuildingId != null &&
+    flags.barracksGuardKeys.has(`${human.id}:${human.workerBuildingId}`)
   ) {
     return '🪖';
   }

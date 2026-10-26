@@ -188,10 +188,10 @@ function makeWorld(
   // its assertions name, so it stays free for the step under test.
   const crew = options.foodProducer === false
     ? []
-    : entities.filter((entity) => entity.homeBuildingId == null).slice(-farmPosts);
+    : entities.filter((entity) => entity.workerBuildingId == null).slice(-farmPosts);
   const crewIds = new Set(crew.map((entity) => entity.id));
   const worldEntities = entities.map((entity) =>
-    crewIds.has(entity.id) ? { ...entity, homeBuildingId: FARM_ID } : entity,
+    crewIds.has(entity.id) ? { ...entity, workerBuildingId: FARM_ID } : entity,
   );
   // And it stands *in* the village — beside the houses, or a short walk from the
   // camp when the fixture has none. `getPlayerCampCenter` reads exactly those two,
@@ -405,7 +405,7 @@ function unbuildableWorldMap(): WorldMap {
 function settledVillage(settlerCount: number, overrides: Partial<WorldState> = {}): WorldState {
   const ids = Array.from({ length: settlerCount }, (_, index) => index + 1);
   return makeWorld(
-    ids.map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 2 })),
+    ids.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 2 })),
     [
       building(1, BuildingType.House, { occupants: ids }),
       building(2, BuildingType.LumberMill, { occupants: ids }),
@@ -420,7 +420,7 @@ function settledVillage(settlerCount: number, overrides: Partial<WorldState> = {
  */
 function tunableVillage(overrides: Partial<WorldState> = {}): WorldState {
   return makeWorld(
-    [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+    [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
     [
       building(1, BuildingType.House, { occupants: [1] }),
       building(2, BuildingType.LumberMill, { occupants: [1] }),
@@ -793,15 +793,15 @@ describe('virtual player decision engine', () => {
     // the same no-op command every in-game hour, with every later step waiting behind it.
     const world = makeWorld(
       [
-        human(1, { residenceBuildingId: 1, homeBuildingId: 2 }),
-        human(2, { residenceBuildingId: 1, homeBuildingId: 2 }),
-        human(3, { residenceBuildingId: 1, homeBuildingId: 3 }),
-        human(4, { residenceBuildingId: 1, homeBuildingId: 4 }),
+        human(1, { residenceBuildingId: 1, workerBuildingId: 2 }),
+        human(2, { residenceBuildingId: 1, workerBuildingId: 2 }),
+        human(3, { residenceBuildingId: 1, workerBuildingId: 3 }),
+        human(4, { residenceBuildingId: 1, workerBuildingId: 4 }),
         // Employed, so nobody is idle: pregnancy stopped being an exclusion on 2026-09-17 (owner
         // ruling, `LIVE-FINDINGS-STATUS.md` L4), so the previous "a pregnant settler is not a worker"
         // fixture no longer leaves the colony without an assignable settler. The point of this case is
         // the transfer path, and employment is what makes a transfer the only way to fill the post.
-        human(5, { residenceBuildingId: 1, homeBuildingId: 4 }),
+        human(5, { residenceBuildingId: 1, workerBuildingId: 4 }),
       ],
       [
         building(1, BuildingType.House, { occupants: [1, 2, 3, 4, 5] }),
@@ -1048,7 +1048,7 @@ describe('virtual player decision engine', () => {
 describe('virtual player remaining action surface', () => {
   it('repairs multiple eligible buildings with one command and pays for each', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1], health: 30 }),
         building(2, BuildingType.Farm, { occupants: [1], health: 70 }),
@@ -1073,7 +1073,7 @@ describe('virtual player remaining action surface', () => {
       building(10 + i, BuildingType.Road, { health: 30 }),
     );
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1] }),
@@ -1105,7 +1105,7 @@ describe('virtual player remaining action surface', () => {
 
   it('queues the best forge order a staffed Blacksmith can start', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
@@ -1131,7 +1131,7 @@ describe('virtual player remaining action surface', () => {
 
   it('never re-queues a forged order and waits for the research behind the next one', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Blacksmith, { occupants: [1] }),
@@ -1151,7 +1151,7 @@ describe('virtual player remaining action surface', () => {
 
   it('proposes no forge order for an unstaffed Blacksmith', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 1 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 1 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Blacksmith),
@@ -1257,8 +1257,8 @@ describe('virtual player remaining action surface', () => {
     // (`getOpenPlayerBeds` excludes it), so there is no bed for a newcomer.
     const world = makeWorld(
       [
-        human(1, { residenceBuildingId: LEADER_HOUSE_ID, homeBuildingId: 2 }),
-        human(2, { residenceBuildingId: LEADER_HOUSE_ID, homeBuildingId: 2 }),
+        human(1, { residenceBuildingId: LEADER_HOUSE_ID, workerBuildingId: 2 }),
+        human(2, { residenceBuildingId: LEADER_HOUSE_ID, workerBuildingId: 2 }),
       ],
       [building(2, BuildingType.LumberMill, { occupants: [1, 2] })],
       { tick: RECRUIT_MORNING_TICK },
@@ -1307,7 +1307,7 @@ describe('virtual player remaining action surface', () => {
   it('buys food from a caravan when the stores are short', () => {
     const ids = [1, 2];
     const world = makeWorld(
-      ids.map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 2 })),
+      ids.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 2 })),
       [
         building(1, BuildingType.House, { occupants: ids }),
         building(2, BuildingType.LumberMill, { occupants: ids }),
@@ -1385,7 +1385,7 @@ describe('virtual player remaining action surface', () => {
     // number that affected nothing. `buildingTypeHasLevelBenefit` is the single rule for that, and
     // the same one the panel uses to hide the button — so the bot must not buy it either.
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1 }), human(2, { homeBuildingId: 3 })],
+      [human(1, { residenceBuildingId: 1 }), human(2, { workerBuildingId: 3 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(3, BuildingType.Church, { occupants: [2], staffingMode: 'manual' }),
@@ -1450,7 +1450,7 @@ describe('virtual player remaining action surface', () => {
 
   it('opens a trade route once a completed Market stands', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Market, { occupants: [1] }),
@@ -1478,8 +1478,8 @@ describe('virtual player remaining action surface', () => {
     // (`SETTLERS_PER_FOOD_PRODUCER`), and adding one is food work, not rival policy.
     const crowded = (food: number) => makeWorld(
       [
-        ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 1, job: JobType.Soldier })),
-        ...ids.slice(6).map((id) => human(id, { residenceBuildingId: 2, homeBuildingId: 2, job: JobType.Soldier })),
+        ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 1, job: JobType.Soldier })),
+        ...ids.slice(6).map((id) => human(id, { residenceBuildingId: 2, workerBuildingId: 2, job: JobType.Soldier })),
       ],
       [
         building(1, BuildingType.House, { occupants: ids.slice(0, 6) }),
@@ -1508,7 +1508,7 @@ describe('virtual player remaining action surface', () => {
   });
   it('never resets empty or staffed manual workplaces to automatic', () => {
     const empty = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 3 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 3 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(3, BuildingType.Store, { occupants: [1] }),
@@ -1519,7 +1519,7 @@ describe('virtual player remaining action surface', () => {
     expect(empty.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
 
     const staffed = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 2 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 2 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1], staffingMode: 'manual' }),
@@ -1532,9 +1532,9 @@ describe('virtual player remaining action surface', () => {
     // The fixture's own farm is the over-crewed workplace under test.
     const world = makeWorld(
       [
-        human(1, { residenceBuildingId: 1, homeBuildingId: 2, skills: { [JobType.Farmer]: 10 } }),
-        human(2, { residenceBuildingId: 1, homeBuildingId: 2, skills: { [JobType.Farmer]: 80 } }),
-        human(3, { residenceBuildingId: 1, homeBuildingId: 2, skills: { [JobType.Farmer]: 45 } }),
+        human(1, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 10 } }),
+        human(2, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 80 } }),
+        human(3, { residenceBuildingId: 1, workerBuildingId: 2, skills: { [JobType.Farmer]: 45 } }),
       ],
       [
         building(1, BuildingType.House, { occupants: [1, 2, 3] }),
@@ -1556,7 +1556,7 @@ describe('virtual player remaining action surface', () => {
     expect(decision.reason).toContain('3 hands for 2 posts');
 
     const applied = applyWorkerCommand(world, decision.command);
-    expect(applied.entities.find((entity) => entity.id === 1)?.homeBuildingId).toBeUndefined();
+    expect(applied.entities.find((entity) => entity.id === 1)?.workerBuildingId).toBeUndefined();
     // The crew now fits its posts, so the step retires.
     expect(decideVirtualPlayerAction(applied)?.command ?? null).not.toMatchObject({
       op: 'removeWorker',
@@ -1618,7 +1618,7 @@ describe('virtual player remaining action surface', () => {
 
   it('lays a short road chain to a production building that stands a real walk away', () => {
     const world = makeWorld(
-      [human(1, { residenceBuildingId: 1, homeBuildingId: 1 })],
+      [human(1, { residenceBuildingId: 1, workerBuildingId: 1 })],
       [
         building(1, BuildingType.House, { occupants: [1] }),
         building(3, BuildingType.LumberMill, { x: 900, y: 700 }),
@@ -1656,8 +1656,8 @@ describe('virtual player remaining action surface', () => {
     const occupants = [1, 2, 3, 4, 5, 6];
     const world = makeWorld(
       [
-        ...occupants.map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 1 })),
-        human(7, { homeBuildingId: 1 }),
+        ...occupants.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 1 })),
+        human(7, { workerBuildingId: 1 }),
       ],
       [
         building(1, BuildingType.House, { occupants }),
@@ -1710,7 +1710,7 @@ describe('virtual player remaining action surface', () => {
   it('shows the militia when a tense neighbour cannot be bought off', () => {
     const ids = [1, 2, 3, 4, 5, 6];
     const world = makeWorld(
-      ids.map((id) => human(id, { residenceBuildingId: 1, homeBuildingId: 1 })),
+      ids.map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 1 })),
       [
         building(1, BuildingType.House, { occupants: ids }),
         // A Farm on the way keeps the food step from proposing instead.

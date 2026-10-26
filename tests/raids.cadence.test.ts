@@ -176,7 +176,7 @@ describe('incoming raid cadence', () => {
     state.buildings.push(orphan);
     rival.buildingIds = [];
     const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
-    settler.homeBuildingId = orphan.id;
+    settler.workerBuildingId = orphan.id;
     settler.residenceBuildingId = orphan.id;
     settler.job = JobType.Farmer;
     settler.occupation = JobType.Farmer;
@@ -184,7 +184,7 @@ describe('incoming raid cadence', () => {
     tickRivalSettlements(state, allAlive, callbacks);
 
     expect(state.buildings.map((entry) => entry.id)).toEqual([1]);
-    expect(settler.homeBuildingId).toBeUndefined();
+    expect(settler.workerBuildingId).toBeUndefined();
     expect(settler.residenceBuildingId).toBeUndefined();
     expect(settler.job).toBe(JobType.Settler);
     expect(settler.occupation).toBe(JobType.Settler);

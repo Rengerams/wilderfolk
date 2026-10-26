@@ -61,7 +61,7 @@ function deer(id: number, overrides: Partial<Entity> = {}): Entity {
  * The references a permanently removed settler must stop appearing in.
  *
  * These are the fields `collectSimulationInvariantErrors` does not check: it validates the
- * building mirrors (`homeBuildingId`/`residenceBuildingId`/`prisonBuildingId`), pregnancy
+ * building mirrors (`workerBuildingId`/`residenceBuildingId`/`prisonBuildingId`), pregnancy
  * *progress*, youth-love mutuality and the leader's residency — not whether a surviving settler
  * still points at an id that is gone from the world.
  */
@@ -124,7 +124,7 @@ function buildRemovalFixture(): RemovalFixture {
     lastAffairSiteDay: 12,
     lastAffairSiteX: 300,
     lastAffairSiteY: 400,
-    homeBuildingId: FARM_ID,
+    workerBuildingId: FARM_ID,
     residenceBuildingId: HOUSE_ID,
   });
   const spouse = human(SPOUSE_ID, {

@@ -27,7 +27,7 @@ function world(): { state: WorldState; shop: Building; worker: Entity } {
   worker.isJuvenile = false;
   worker.age = 30;
   // Assigned to the shop the way production counts it — occupation and occupancy both follow from this.
-  worker.homeBuildingId = SHOP_ID;
+  worker.workerBuildingId = SHOP_ID;
   // A worker completed the actual scheduled shift; assignment alone earns no output.
   worker.scheduleLastWorkedHours = 9;
   const shop: Building = {
@@ -47,7 +47,7 @@ function world(): { state: WorldState; shop: Building; worker: Entity } {
  * assembly is `(1 + workers×0.5) × totalMult × goldMult × globalEff` (`dailyBuildingEconomy.ts:742`),
  * where `totalMult` carries level · terrain · adjacency · festival · skill · **fatigue** ·
  * **work-window** and `globalEff` carries global efficiency · **Town-Hall governance**; the estimate
- * omitted the last three and counted workers by `occupants.length` rather than by `homeBuildingId`.
+ * omitted the last three and counted workers by `occupants.length` rather than by `workerBuildingId`.
  *
  * These cases drive the two omitted factors that can be set up without a whole civic apparatus:
  * a tired crew and a short configured work day. Both are asserted as a *band* on the ratio rather than
@@ -80,7 +80,7 @@ describe('the workshop gold estimate tracks production (L6)', () => {
     const { state, shop, worker } = world();
     // Listed as an occupant but not assigned: production reads `workers === 0` and says "Needs
     // worker", so the estimate must not predict output for it.
-    worker.homeBuildingId = undefined;
+    worker.workerBuildingId = undefined;
 
     expect(estimateWorkshopGold(state, shop)).toBe(0);
     expect(estimateWorkshopGold(state, shop, { previewUnstaffed: true })).toBeGreaterThan(0);
@@ -99,8 +99,8 @@ function workshopWorld(gold: number): WorldState {
   worker.alive = true;
   worker.isJuvenile = false;
   worker.age = 30;
-  // Assigned to the shop the way production counts workers (`homeBuildingId`).
-  worker.homeBuildingId = SHOP_ID;
+  // Assigned to the shop the way production counts workers (`workerBuildingId`).
+  worker.workerBuildingId = SHOP_ID;
   // A worker completed the actual scheduled shift; assignment alone earns no output.
   worker.scheduleLastWorkedHours = 9;
   const shop: Building = {

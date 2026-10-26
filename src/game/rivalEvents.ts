@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { getColonyDay } from './dayCycle';
@@ -5,7 +6,7 @@ import { canRivalCampGrow, getRivalGrowthFoodCost, isRivalGrowthDay, maybeQueueR
 import { isRivalAtPeace } from './rivalPeace';
 import { applyRivalDailyAction, ensureRivalProfile, selectRivalDailyAction } from './rivalProfiles';
 import { getSimRng } from './simRng';
-import { removeWorkerTransition } from './workforce';
+import { clearWorkerAssignment } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
@@ -38,8 +39,8 @@ export function makeNextAliveDeer(allAlive: Entity[]): () => Entity | undefined 
   };
 }
 
-/** Rival camps are simulated off-map, so any `faction: 'rival'` building is an older save's leftover. */
-function retireLegacyCampStructures(buildings: Building[]): Set<number> {
+/** Retires every rival-faction camp building in place; returns the ids that left the map. */
+export function retireLegacyCampStructures(buildings: Building[]): Set<number> {
   const retired = new Set<number>();
   for (let index = buildings.length - 1; index >= 0; index--) {
     const building = buildings[index];
@@ -56,11 +57,11 @@ function releaseRetiredStructureReferences(
   retired: Set<number>,
   buildings: Building[],
 ): void {
-  if (entity.homeBuildingId != null && retired.has(entity.homeBuildingId)) {
-    removeWorkerTransition(entity, buildings);
+  if (entity.workerBuildingId != null && retired.has(entity.workerBuildingId)) {
+    clearWorkerAssignment(entity, buildings);
   }
   if (entity.residenceBuildingId != null && retired.has(entity.residenceBuildingId)) {
-    entity.residenceBuildingId = undefined;
+    moveResident(entity, undefined, 'demolition', { buildings });
   }
   if (entity.prisonBuildingId != null && retired.has(entity.prisonBuildingId)) {
     entity.prisonBuildingId = undefined;

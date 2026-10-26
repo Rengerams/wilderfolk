@@ -97,6 +97,7 @@ import {
   WORK_SKILL_PER_SHIFT,
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
+import { isImprisoned } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
@@ -431,7 +432,9 @@ function tickBuildingProduction(
     // was a second definition of the rule (and it disagreed with the owner on the `'player'`
     // marker the fixtures use). `LIVE-FINDINGS-STATUS.md`, duplication A3.
     if (!h.alive) continue;
-    const siteId = h.homeBuildingId;
+    // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
+    if (isImprisoned(h)) continue;
+    const siteId = h.workerBuildingId;
     if (siteId == null) continue;
 
     const current = buildingWorkerStats.get(siteId)

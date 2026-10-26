@@ -177,7 +177,7 @@ describe('farm yield responds to weather (integration)', () => {
     const human = w.entities.find((e) => e.alive && e.type === EntityType.Human && !e.faction);
     if (!human) throw new Error('farm production fixture needs a living player settler');
     // Assign a real farmer before the shift begins, with a workplace they can reach.
-    human.homeBuildingId = farm.id;
+    human.workerBuildingId = farm.id;
     human.job = JobType.Farmer;
     human.x = farm.x + farm.width / 2;
     human.y = farm.y + farm.height / 2;

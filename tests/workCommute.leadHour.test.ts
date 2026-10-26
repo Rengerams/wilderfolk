@@ -46,7 +46,7 @@ function workerAtHome(state: WorldState): { person: Entity; mill: Building; stan
   const person = state.entities.find((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
   if (!person) throw new Error('no settler');
   const mill = workplace(state, person.x + 240, person.y + 120);
-  person.homeBuildingId = mill.id;
+  person.workerBuildingId = mill.id;
   person.job = JobType.Lumberjack;
   mill.occupants.push(person.id);
   return { person, mill, stand: humanBuildingTarget(mill, person.id, false) };

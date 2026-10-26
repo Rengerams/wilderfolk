@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { Relationship } from '../src/game/gameConstants';
 import { isEligibleForLeadership } from '../src/game/villageLeadership';
 import { isEligibleToCourt, isValidAffairTarget } from '../src/game/simulation/humanRelationships';
-import { ensureOrphanAdoption } from '../src/game/residencySelection';
+import { ensureOrphanAdoption } from '../src/game/residencyReconciliation';
 import { EntityType, BuildingType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 

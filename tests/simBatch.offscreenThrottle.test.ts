@@ -51,7 +51,7 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     faction: undefined,
     occupation: 'settler',
     job: JobType.Settler,
-    homeBuildingId: undefined,
+    workerBuildingId: undefined,
     residenceBuildingId: HOME_ID,
     prisonBuildingId: undefined,
     partnerId: undefined,

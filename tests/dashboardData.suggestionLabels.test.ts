@@ -19,7 +19,7 @@ describe('settler explanation labels', () => {
     const state = initGame({ seed: 20_260_917 });
     const settler = state.entities.find((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
     expect(settler, 'fixture premise: an adult settler exists').toBeTruthy();
-    settler!.homeBuildingId = undefined; // no workplace
+    settler!.workerBuildingId = undefined; // no workplace
     settler!.residenceBuildingId = undefined; // and no home
 
     const labels = explainSettler(state, settler!.id).map((l) => l.label);

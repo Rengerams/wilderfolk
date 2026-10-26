@@ -1,5 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
+import { BUILDING_TYPE_CODES } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 
 
@@ -7,8 +8,16 @@ export function isResidenceBuilding(b: Building): boolean {
   return b.completed && isResidenceBuildingType(b.type);
 }
 
+/** The type codes that are homes — filters match on the code, never on the type name. */
+const RESIDENCE_TYPE_CODES: ReadonlySet<number> = new Set<number>([
+  BUILDING_TYPE_CODES[BuildingType.House],
+  BUILDING_TYPE_CODES[BuildingType.Mansion],
+  BUILDING_TYPE_CODES[BuildingType.Villa],
+  BUILDING_TYPE_CODES[BuildingType.LeaderHouse],
+]);
+
 export function isResidenceBuildingType(type: BuildingType): boolean {
-  return type === BuildingType.House || type === BuildingType.Mansion || type === BuildingType.Villa || type === BuildingType.LeaderHouse;
+  return RESIDENCE_TYPE_CODES.has(BUILDING_TYPE_CODES[type]);
 }
 
 export function isLeaderHouseResidence(b: Building): boolean {
@@ -18,7 +27,9 @@ export function isLeaderHouseResidence(b: Building): boolean {
 /** Base occupants + bonus from house/mansion upgrades (+2 slots per level above 1). */
 export function getResidenceCapacity(residence: Building): number {
   const base = BUILDING_CONFIGS[residence.type].maxOccupants;
-  if (!isResidenceBuildingType(residence.type)) return base;
+  // The Leader's House is out of the level rule: its beds are fixed, and a save made before that
+  // rule can still carry a level it can no longer use.
+  if (!isResidenceBuildingType(residence.type) || isLeaderHouseResidence(residence)) return base;
   const level = residence.level || 1;
   return base + (level - 1) * 2;
 }
@@ -29,7 +40,7 @@ export function getResidenceUpgradeSlotGain(type: BuildingType): number {
 
 /** Building id 0 is valid — never use bare !id for assignment checks. */
 export function hasWorkAssignment(human: Entity): boolean {
-  return human.homeBuildingId != null;
+  return human.workerBuildingId != null;
 }
 
 export function hasResidenceAssignment(human: Entity): boolean {

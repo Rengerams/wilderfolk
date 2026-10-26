@@ -78,7 +78,7 @@ function founders(world: JsonWorld): Entity[] {
 const ENTITY_FIELDS = [
   'id', 'type', 'alive', 'faction', 'isJuvenile', 'age', 'birthYear', 'birthDay',
   // assignment fields (both directions)
-  'homeBuildingId', 'residenceBuildingId', 'prisonBuildingId',
+  'workerBuildingId', 'residenceBuildingId', 'prisonBuildingId',
   // settler-relationship identity
   'moonHowlerCursed',
   // youth love
@@ -100,7 +100,7 @@ function pick<T extends object>(source: T, fields: readonly string[]): Record<st
   for (const field of fields) {
     const value = (source as Record<string, unknown>)[field];
     // `undefined` is dropped: on the GDScript side the key is then simply absent,
-    // which is what `entity.homeBuildingId == null` already covers.
+    // which is what `entity.workerBuildingId == null` already covers.
     if (value !== undefined) out[field] = value;
   }
   return out;
@@ -132,7 +132,7 @@ function projectWorld(world: JsonWorld): JsonWorld {
     byId.set((entity as unknown as Record<string, unknown>).id, entity as unknown as Record<string, unknown>);
   }
   const referenceFields = [
-    'youthLovePartnerId', 'partnerId', 'homeBuildingId', 'residenceBuildingId', 'prisonBuildingId',
+    'youthLovePartnerId', 'partnerId', 'workerBuildingId', 'residenceBuildingId', 'prisonBuildingId',
   ];
   let grew = true;
   while (grew) {
@@ -253,11 +253,11 @@ add('occupants_dead_entity', 'A workplace lists a dead entity.', (w) => {
 
 // ---- workplace ----------------------------------------------------------
 
-add('workplace_home_mismatch', 'Listed in a workplace but homeBuildingId points elsewhere.', (w) => {
+add('workplace_home_mismatch', 'Listed in a workplace but workerBuildingId points elsewhere.', (w) => {
   const worker = baselineFounders[0];
   const farm = withFarm(w, 9000);
   farm.occupants.push(worker.id);
-  human(w, worker.id).homeBuildingId = 12345;
+  human(w, worker.id).workerBuildingId = 12345;
 });
 
 add('workplace_two_workplaces', 'One human listed in two different workplaces.', (w) => {
@@ -266,7 +266,7 @@ add('workplace_two_workplaces', 'One human listed in two different workplaces.',
   const farmB = withFarm(w, 9001, 60, 60);
   farmA.occupants.push(worker.id);
   farmB.occupants.push(worker.id);
-  human(w, worker.id).homeBuildingId = farmA.id;
+  human(w, worker.id).workerBuildingId = farmA.id;
 });
 
 add('workplace_same_id_twice', 'The same human listed twice in ONE workplace — the oracle accepts this.', (w) => {
@@ -274,7 +274,7 @@ add('workplace_same_id_twice', 'The same human listed twice in ONE workplace —
   const farm = withFarm(w, 9000);
   farm.occupants.push(worker.id);
   farm.occupants.push(worker.id);
-  human(w, worker.id).homeBuildingId = farm.id;
+  human(w, worker.id).workerBuildingId = farm.id;
 });
 
 // ---- crew ---------------------------------------------------------------
@@ -288,7 +288,7 @@ add('crew_holds_workplace', 'On a construction crew while also holding a workpla
     health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
   };
   w.buildings.push(site);
-  human(w, worker.id).homeBuildingId = farm.id;
+  human(w, worker.id).workerBuildingId = farm.id;
 });
 
 add('crew_two_crews', 'On two different construction crews.', (w) => {
@@ -347,7 +347,7 @@ add('prison_valid_prisoner_and_guard', 'A valid prisoner and a valid guard — e
   };
   w.buildings.push(prison);
   human(w, prisoner.id).prisonBuildingId = prison.id;
-  human(w, guard.id).homeBuildingId = prison.id;
+  human(w, guard.id).workerBuildingId = prison.id;
 });
 
 // ---- no-occupant buildings ---------------------------------------------
@@ -364,17 +364,17 @@ add('none_role_has_occupant', 'A road lists an occupant; roads must be empty.', 
 
 // ---- reverse references -------------------------------------------------
 
-add('home_missing_building', 'homeBuildingId references a demolished/missing building.', (w) => {
-  human(w, baselineFounders[0].id).homeBuildingId = 987654;
+add('home_missing_building', 'workerBuildingId references a demolished/missing building.', (w) => {
+  human(w, baselineFounders[0].id).workerBuildingId = 987654;
 });
 
-add('home_not_a_workplace', 'homeBuildingId points at a completed House — not a workplace.', (w) => {
+add('home_not_a_workplace', 'workerBuildingId points at a completed House — not a workplace.', (w) => {
   const person = baselineFounders[0];
   const house = withHouse(w, 9000);
-  human(w, person.id).homeBuildingId = house.id;
+  human(w, person.id).workerBuildingId = house.id;
 });
 
-add('home_incomplete_workplace', 'homeBuildingId points at an incomplete Farm.', (w) => {
+add('home_incomplete_workplace', 'workerBuildingId points at an incomplete Farm.', (w) => {
   const person = baselineFounders[0];
   const site: Building = {
     id: 9000, type: BuildingType.Farm, x: 30, y: 30, width: 3, height: 2,
@@ -382,13 +382,13 @@ add('home_incomplete_workplace', 'homeBuildingId points at an incomplete Farm.',
     health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
   };
   w.buildings.push(site);
-  human(w, person.id).homeBuildingId = site.id;
+  human(w, person.id).workerBuildingId = site.id;
 });
 
-add('home_missing_from_occupants', 'homeBuildingId is a real workplace that does not list the worker.', (w) => {
+add('home_missing_from_occupants', 'workerBuildingId is a real workplace that does not list the worker.', (w) => {
   const person = baselineFounders[0];
   const farm = withFarm(w, 9000);
-  human(w, person.id).homeBuildingId = farm.id;
+  human(w, person.id).workerBuildingId = farm.id;
 });
 
 add('residence_missing_building', 'residenceBuildingId references a demolished/missing building.', (w) => {
@@ -656,7 +656,7 @@ add('stacked_violations', 'Several unrelated violations at once, to pin the repo
   house.occupants.push(a.id);
   a.residenceBuildingId = 987654;
   farm.occupants.push(b.id);
-  a.homeBuildingId = 987655;
+  a.workerBuildingId = 987655;
   a.pregnant = true;
   a.pregnancyDueProgress = undefined;
   a.moonHowlerCursed = true;

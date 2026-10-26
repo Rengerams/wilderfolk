@@ -1,4 +1,5 @@
 import type { Building, WorldState } from './gameTypes';
+import { canBuildLeaderHouse, leaderHouseBuildings } from './leaderHouseExpansion';
 import {
   BuildingType,
   BUILDING_CONFIGS,
@@ -72,6 +73,7 @@ export function canPlaceBuilding(
  * `buildingPlacementLabels.PLACEMENT_FAILURE_LABELS.unique`.
  */
 export function isUniqueBuildingAlreadyBuilt(state: WorldState, type: BuildingType): boolean {
+  if (type === BuildingType.LeaderHouse) return !canBuildLeaderHouse(state.buildings);
   const config = BUILDING_CONFIGS[type];
   return !!config.unique && state.buildings.some((building) => building.type === type);
 }
@@ -223,6 +225,21 @@ export function startBuilding(
   }
 
   const building = createBuilding(type, x, y, state.nextBuildingId++, rotation);
+  if (type === BuildingType.LeaderHouse) {
+    const main = leaderHouseBuildings(state.buildings)[0];
+    if (main) {
+      building.groupId = `leader-house:${main.id}`;
+    } else {
+      // Replacement main: preserve the surviving annex and its occupied beds.
+      for (const annex of state.buildings) {
+        if (annex.type !== BuildingType.LeaderHouse || annex.faction === 'rival') continue;
+        if (!annex.groupId?.startsWith('leader-house:')) continue;
+        const formerId = Number(annex.groupId.slice('leader-house:'.length));
+        if (state.buildings.some((candidate) => candidate.id === formerId)) continue;
+        annex.groupId = `leader-house:${building.id}`;
+      }
+    }
+  }
   building.spriteScale = 0;
   state.buildings.push(building);
 

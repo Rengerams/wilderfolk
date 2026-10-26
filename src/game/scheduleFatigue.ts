@@ -26,6 +26,8 @@ export function getScheduleProductivityMultiplier(entity: Pick<Entity, 'schedule
  */
 export function recordScheduleWorkTick(entity: Entity, step = 1): void {
   if (!entity.alive || entity.isJuvenile || entity.faction) return;
+  // A jailed settler keeps the reserved post but earns no attendance: a cell is not a shift.
+  if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
   entity.scheduleWorkedTicksToday = (entity.scheduleWorkedTicksToday ?? 0) + step;
 }

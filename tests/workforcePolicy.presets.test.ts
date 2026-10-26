@@ -97,7 +97,7 @@ describe('workforce policy — assignment order', () => {
       expect(receiver?.type, `preset "${preset}" must staff its first-choice workplace`).toBe(
         expected[preset],
       );
-      expect(settler.homeBuildingId, `preset "${preset}" home assignment`).toBe(receiver?.id);
+      expect(settler.workerBuildingId, `preset "${preset}" home assignment`).toBe(receiver?.id);
     }
   });
 
@@ -131,12 +131,12 @@ describe('workforce policy — manual assignment stays authoritative', () => {
         humanId: 1,
       });
       const manualWorker = assigned.entities.find((e) => e.id === 1)!;
-      expect(manualWorker.homeBuildingId, `preset "${preset}" manual assign`).toBe(14);
+      expect(manualWorker.workerBuildingId, `preset "${preset}" manual assign`).toBe(14);
       expect(manualWorker.job).toBe(JobType.Innkeeper);
 
       assignMissingWorkers(assigned.entities, assigned.buildings, policySlices(preset));
 
-      expect(manualWorker.homeBuildingId, `preset "${preset}" must not move a manual assignment`).toBe(14);
+      expect(manualWorker.workerBuildingId, `preset "${preset}" must not move a manual assignment`).toBe(14);
       expect(assigned.buildings.find((b) => b.id === 14)!.occupants).toEqual([1]);
     }
   });
@@ -144,10 +144,10 @@ describe('workforce policy — manual assignment stays authoritative', () => {
   it('never donates a hand-placed worker during rebalance under any preset', () => {
     for (const preset of WORKFORCE_PRESETS) {
       const farmCrew = [
-        human(1, { homeBuildingId: 11, job: JobType.Farmer }),
-        human(2, { homeBuildingId: 11, job: JobType.Farmer }),
+        human(1, { workerBuildingId: 11, job: JobType.Farmer }),
+        human(2, { workerBuildingId: 11, job: JobType.Farmer }),
       ];
-      const manual = human(3, { homeBuildingId: 14, job: JobType.Merchant });
+      const manual = human(3, { workerBuildingId: 14, job: JobType.Merchant });
       const farm = building(11, BuildingType.Farm, { occupants: [1, 2] });
       // A single hand-placed worker in a manual-staffing Store — a rebalance donor must skip it.
       const store = building(14, BuildingType.Store, { occupants: [3], staffingMode: 'manual' });
@@ -156,7 +156,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
       rebalanceJobWorkers([...farmCrew, manual], [farm, store, empty], preset);
 
       expect(store.occupants, `preset "${preset}" store`).toEqual([3]);
-      expect(manual.homeBuildingId, `preset "${preset}" manual home`).toBe(14);
+      expect(manual.workerBuildingId, `preset "${preset}" manual home`).toBe(14);
       // ...and the rebalance still did its real work, or this test would pass vacuously.
       expect(empty.occupants.length, `preset "${preset}" empty target`).toBe(1);
     }
@@ -167,7 +167,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
       // A house so the released settler has a residence to fall back on.
       const house = building(1, BuildingType.House);
       const farmBuilding = building(11, BuildingType.Farm, { occupants: [1] });
-      const farmWorker = human(1, { homeBuildingId: 11, job: JobType.Farmer });
+      const farmWorker = human(1, { workerBuildingId: 11, job: JobType.Farmer });
       const farmWorld = makeWorld([farmWorker], [house, farmBuilding], preset);
 
       const afterFarmRemoval = applyWorkerCommand(farmWorld, {
@@ -179,7 +179,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
       const releasedFromFarm = afterFarmRemoval.entities.find((e) => e.id === 1)!;
       // Explicit removal switches the workplace to manual staffing, preventing the
       // immediately following auto pass from undoing the player's decision.
-      expect(releasedFromFarm.homeBuildingId, `preset "${preset}" removal`).toBeUndefined();
+      expect(releasedFromFarm.workerBuildingId, `preset "${preset}" removal`).toBeUndefined();
       expect(releasedFromFarm.job, `preset "${preset}" removal job`).toBe(JobType.Settler);
       expect(afterFarmRemoval.buildings.find((b) => b.id === 11)!.occupants, `preset "${preset}" removal`).toEqual([]);
       expect(afterFarmRemoval.buildings.find((b) => b.id === 11)!.staffingMode).toBe('manual');
@@ -187,7 +187,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
       // A manual-staffing workplace proves the removal end state in isolation: the auto pass
       // skips it under every preset, so the settler stays released.
       const church = building(4, BuildingType.Church, { occupants: [2], staffingMode: 'manual' });
-      const priest = human(2, { homeBuildingId: 4, job: JobType.Priest });
+      const priest = human(2, { workerBuildingId: 4, job: JobType.Priest });
       const churchWorld = makeWorld([priest], [house, church], preset);
 
       const afterChurchRemoval = applyWorkerCommand(churchWorld, {
@@ -198,7 +198,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
       });
       const releasedPriest = afterChurchRemoval.entities.find((e) => e.id === 2)!;
 
-      expect(releasedPriest.homeBuildingId, `preset "${preset}" church removal`).toBeUndefined();
+      expect(releasedPriest.workerBuildingId, `preset "${preset}" church removal`).toBeUndefined();
       expect(releasedPriest.job, `preset "${preset}" job`).toBe(JobType.Settler);
       expect(afterChurchRemoval.buildings.find((b) => b.id === 4)!.occupants, `preset "${preset}" church occupants`).toEqual([]);
       expect(getWorkforcePolicy(afterChurchRemoval), `preset "${preset}" is not a removal decision`).toBe(preset);

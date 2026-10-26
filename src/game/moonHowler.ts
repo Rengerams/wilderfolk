@@ -1,3 +1,4 @@
+import { moveResident } from './residencyReconciliation';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
@@ -31,7 +32,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
-import { assignMissingWorkers } from './workforce';
+import { assignMissingWorkers, detachWorkplaceReference } from './workforce';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
@@ -215,7 +216,7 @@ export function forceMoonHowlerOutside(
   rng: () => number = getSimRng('moonHowler'),
 ): void {
   const saved = entity.moonHowlerSaved;
-  const jobId = entity.homeBuildingId ?? saved?.homeBuildingId;
+  const jobId = entity.workerBuildingId ?? saved?.workerBuildingId;
   const residenceId = entity.residenceBuildingId ?? saved?.residenceBuildingId;
   const prisonId = entity.prisonBuildingId ?? saved?.prisonBuildingId;
 
@@ -223,8 +224,8 @@ export function forceMoonHowlerOutside(
   detachEntityFromBuildingOccupants(buildings, residenceId, entity.id);
   detachEntityFromBuildingOccupants(buildings, prisonId, entity.id);
 
-  if (entity.homeBuildingId != null) entity.homeBuildingId = undefined;
-  if (entity.residenceBuildingId != null) entity.residenceBuildingId = undefined;
+  if (entity.workerBuildingId != null) detachWorkplaceReference(entity);
+  if (entity.residenceBuildingId != null) moveResident(entity, undefined, 'moon-form');
 
   if (
     entity.prisonBuildingId != null
@@ -250,7 +251,7 @@ export function forceMoonHowlerOutside(
 
 export function transformToWerewolfForm(human: Entity, buildings: Building[]): void {
   const cfg = WEREWOLF_FORM;
-  const liveJobId = human.homeBuildingId;
+  const liveJobId = human.workerBuildingId;
   const liveResidenceId = human.residenceBuildingId;
   const livePrisonId = human.prisonBuildingId;
 
@@ -261,7 +262,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     size: human.size,
     job: human.job,
     occupation: human.occupation,
-    homeBuildingId: liveJobId,
+    workerBuildingId: liveJobId,
     residenceBuildingId: liveResidenceId,
     prisonBuildingId: livePrisonId,
     prisonerUntilTick: human.prisonerUntilTick,
@@ -309,8 +310,8 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   human.speed = cfg.speed;
   human.size = cfg.size;
   human.flash = 12;
-  human.homeBuildingId = undefined;
-  human.residenceBuildingId = undefined;
+  detachWorkplaceReference(human);
+  moveResident(human, undefined, 'moon-form');
   human.prisonBuildingId = undefined;
   human.prisonerUntilTick = undefined;
   human.prisonSentenceCrime = undefined;
@@ -382,7 +383,7 @@ function guardsNearPriest(priest: Entity, entities: Entity[], buildings: Buildin
   const guards: Entity[] = [];
   for (const e of entities) {
     if (!e.alive || e.type !== EntityType.Human || e.job !== JobType.Soldier) continue;
-    if (!isBarracksGuard(e.id, e.homeBuildingId, buildings)) continue;
+    if (!isBarracksGuard(e.id, e.workerBuildingId, buildings)) continue;
     const dx = e.x - priest.x;
     const dy = e.y - priest.y;
     if (dx * dx + dy * dy <= rangeSq) guards.push(e);
@@ -447,8 +448,8 @@ export function tryMoonHowlerChurchCures(
   state.lastMoonHowlerExorcismTick = state.tick;
 
   church.occupants = church.occupants.filter((id) => id !== priest.id);
-  if (priest.homeBuildingId === church.id) {
-    priest.homeBuildingId = undefined;
+  if (priest.workerBuildingId === church.id) {
+    detachWorkplaceReference(priest);
   }
   const approachAngle = Math.atan2(howler.y - priest.y, howler.x - priest.x);
   priest.vx = 0;
@@ -514,7 +515,7 @@ export function tryMoonHowlerChurchCures(
     priest.x = church.x;
     priest.y = church.y + church.height / 2 + 10;
     if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
-    priest.homeBuildingId = church.id;
+    priest.workerBuildingId = church.id;
     priest.job = JobType.Priest;
     priest.occupation = 'priest';
     return result;
@@ -568,7 +569,7 @@ export function tryMoonHowlerChurchCures(
   priest.x = church.x + church.width / 2 + (rng() - 0.5) * 10;
   priest.y = church.y + church.height * 0.95;
   if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
-  priest.homeBuildingId = church.id;
+  priest.workerBuildingId = church.id;
   priest.job = JobType.Priest;
   priest.occupation = 'priest';
   priest.flash = 8;

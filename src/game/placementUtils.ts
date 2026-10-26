@@ -1,3 +1,4 @@
+import { canBuildLeaderHouse } from './leaderHouseExpansion';
 import { type BuildingRotation, getBuildingFootprintForType } from './buildingRotation';
 import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
@@ -277,7 +278,7 @@ export function canPlaceBuildingSnapshot(
   ) {
     return false;
   }
-  if (config.unique && snapshot.buildings.some((b) => b.type === type)) return false;
+  if (type === BuildingType.LeaderHouse ? !canBuildLeaderHouse(snapshot.buildings) : config.unique && snapshot.buildings.some((b) => b.type === type)) return false;
   if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
   // The renderer lattice calls this per candidate cell, so the overlap check goes through the cached
   // spatial index; `overlapsAnyBuilding` (the authoritative, single-call path) is the exact same rule.

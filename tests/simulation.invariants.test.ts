@@ -78,37 +78,44 @@ function state(entities: Entity[], buildings: Building[], leaderId: number | nul
 
 describe('workforce invariants', () => {
   it('accepts a settler assigned to one residence and one workplace', () => {
-    const settler = human(1, { homeBuildingId: 2, residenceBuildingId: 10 });
+    const settler = human(1, { workerBuildingId: 2, residenceBuildingId: 10 });
     const house = building(10, BuildingType.House, { occupants: [1] });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     expect(collectSimulationInvariantErrors(state([settler], [house, farm]))).toEqual([]);
   });
 
   it('reports a human assigned to two workplaces', () => {
-    const settler = human(1, { homeBuildingId: 2 });
+    const settler = human(1, { workerBuildingId: 2 });
     const farmA = building(2, BuildingType.Farm, { occupants: [1] });
     const farmB = building(3, BuildingType.Farm, { occupants: [1] });
     const errors = collectSimulationInvariantErrors(state([settler], [farmA, farmB]));
     expect(errors.some((e) => e.includes('multiple workplaces'))).toBe(true);
   });
 
-  it('reports homeBuildingId missing from the workplace occupants list', () => {
-    const settler = human(1, { homeBuildingId: 2 });
+  it('reports workerBuildingId missing from the workplace occupants list', () => {
+    const settler = human(1, { workerBuildingId: 2 });
     const farm = building(2, BuildingType.Farm, { occupants: [] });
     const errors = collectSimulationInvariantErrors(state([settler], [farm]));
     expect(errors.some((e) => e.includes('missing from that workplace'))).toBe(true);
   });
 
-  it('reports a human listed in workplace occupants without the matching homeBuildingId', () => {
-    const worker = human(1, { homeBuildingId: 3 });
+  it("accepts a prisoner's reserved post while the workplace roster omits them", () => {
+    const prisoner = human(1, { workerBuildingId: 2, prisonBuildingId: 3, prisonerUntilTick: 100 });
+    const farm = building(2, BuildingType.Farm, { occupants: [] });
+    const prison = building(3, BuildingType.Prison, { occupants: [1] });
+    expect(collectSimulationInvariantErrors(state([prisoner], [farm, prison]))).toEqual([]);
+  });
+
+  it('reports a human listed in workplace occupants without the matching workerBuildingId', () => {
+    const worker = human(1, { workerBuildingId: 3 });
     const farmA = building(2, BuildingType.Farm, { occupants: [1] });
     const farmB = building(3, BuildingType.Farm, { occupants: [] });
     const errors = collectSimulationInvariantErrors(state([worker], [farmA, farmB]));
-    expect(errors.some((e) => e.includes('homeBuildingId is 3'))).toBe(true);
+    expect(errors.some((e) => e.includes('workerBuildingId is 3'))).toBe(true);
   });
 
-  it('reports a stale homeBuildingId pointing at a demolished building', () => {
-    const settler = human(1, { homeBuildingId: 99 });
+  it('reports a stale workerBuildingId pointing at a demolished building', () => {
+    const settler = human(1, { workerBuildingId: 99 });
     expect(
       collectSimulationInvariantErrors(state([settler], [])).some((e) =>
         e.includes('references demolished or missing building'),
@@ -160,7 +167,7 @@ describe('workforce invariants', () => {
   });
 
   it('reports a construction crew member who also holds a workplace', () => {
-    const builder = human(1, { homeBuildingId: 2 });
+    const builder = human(1, { workerBuildingId: 2 });
     const site = building(5, BuildingType.House, { completed: false, occupants: [1] });
     const farm = building(2, BuildingType.Farm, { occupants: [] });
     const errors = collectSimulationInvariantErrors(state([builder], [site, farm]));
@@ -178,7 +185,7 @@ describe('workforce invariants', () => {
   });
 
   it('accepts a prison holding one guard and one prisoner', () => {
-    const guard = human(1, { homeBuildingId: 8 });
+    const guard = human(1, { workerBuildingId: 8 });
     const prisoner = human(2, { prisonBuildingId: 8 });
     const prison = building(8, BuildingType.Prison, { occupants: [1, 2] });
     expect(collectSimulationInvariantErrors(state([guard, prisoner], [prison]))).toEqual([]);
@@ -331,7 +338,7 @@ describe('assertion wrapper and purity', () => {
   });
 
   it('assertSimulationInvariants passes on a clean state', () => {
-    const settler = human(1, { homeBuildingId: 2, residenceBuildingId: 10 });
+    const settler = human(1, { workerBuildingId: 2, residenceBuildingId: 10 });
     const house = building(10, BuildingType.House, { occupants: [1] });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
     expect(() =>
@@ -340,7 +347,7 @@ describe('assertion wrapper and purity', () => {
   });
 
   it('collector never mutates state (pure function)', () => {
-    const settler = human(1, { homeBuildingId: 2 });
+    const settler = human(1, { workerBuildingId: 2 });
     const farmA = building(2, BuildingType.Farm, { occupants: [1] });
     const farmB = building(3, BuildingType.Farm, { occupants: [1] });
     const world = state([settler], [farmA, farmB]);

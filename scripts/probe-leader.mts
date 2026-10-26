@@ -45,8 +45,8 @@ building(state, BuildingType.House, 460, 470);
 
 const settlers = () => state.entities.filter((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
 
-const describe = (e: { id: number; occupation?: string; job?: string; homeBuildingId?: number; residenceBuildingId?: number }) =>
-  `#${e.id} occ=${e.occupation ?? '-'} job=${e.job ?? '-'} work=${e.homeBuildingId ?? '-'} home=${e.residenceBuildingId ?? '-'}`;
+const describe = (e: { id: number; occupation?: string; job?: string; workerBuildingId?: number; residenceBuildingId?: number }) =>
+  `#${e.id} occ=${e.occupation ?? '-'} job=${e.job ?? '-'} work=${e.workerBuildingId ?? '-'} home=${e.residenceBuildingId ?? '-'}`;
 
 function report(label: string): void {
   const leaderId = state.villageLeaderId;

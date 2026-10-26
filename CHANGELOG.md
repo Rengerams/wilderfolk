@@ -2,12 +2,139 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** The targeted 90-day housing gate uses the game's residence selectors and distinguishes independent homeless adults from custodians of dependent minors, while checking entire households and capacity.
+
+- **Fixed:** Imprisoned blacksmiths keep reserved jobs but no longer contribute to operational production bonuses; regression coverage added.
+
+- **Fixed:** The 90-day colony gate now checks every home's occupancy against its bed limit and forbids homelessness while beds remain free, rather than requiring zero homelessness after population outgrows fixed starter housing.
+
+- **Fixed:** Release of a surviving parent restores temporary child custody even when the other biological parent died during imprisonment.
+
+- **Changed:** Replaced the duplicate 100-day endurance simulation with an independent restocked scenario (seed 67890); the producers comparison retains seed 12345.
+
+- **Fixed:** Adoption now reports success only after household relocation succeeds; failed placements leave custody and surnames unchanged.
+
+- **Fixed:** Adoption capacity now counts jailed residents' reserved beds without making them eligible to move; regression coverage prevents overcrowding.
+
+- **Fixed:** Manual staffing now counts imprisoned workers' reserved posts, preventing overstaffing after release; added a regression test.
+
+- **Docs:** Housing architecture now diagrams move validation, refusal and rollback and provides eight worked relocation examples.
+
+- **Changed:** PR40 housing endurance comparison now runs 100 days instead of 600 to reduce CI duration; the baseline and optimized scenarios retain the same seed and checks.
+
+- **Changed:** Leader's House has 20 fixed beds (was 12), no upgrades, and one linked annex unlocked above 20 occupants (40 beds combined). The leader stays in the original; an orphan annex cannot replace it.
+
+- **Changed:** Load, immigration and player residence actions now supply the mandatory leader-house phase to the shared housing ledger, while immediate leadership events still reconcile through the same housing move rules.
+
+- **Fixed:** Capacity rebalancing counts imprisoned settlers' reserved beds before selecting movable resident groups, preventing overcrowded houses from retaining too many free residents.
+
+- **Added:** Regression coverage for the manor annex and orphan linkage, prisoner-bed rebalance, and fixed 20-slot upgrade refusal; the housing architecture document now describes these policies.
+
+- **Fixed:** A new leader's household takes the manor as one unit, so the outgoing household leaves together and a minor child is never left behind while their parents are moved out.
+
+- **Fixed:** A child whose parents are both serving a sentence is now placed with a guardian instead of being left unplaced, and custody returns to the parent once the sentence ends.
+
+- **Fixed:** The simulation check no longer reports a jailed settler's reserved job post as a missing worker while the workplace roster omits them.
+
+- **Fixed:** A jail sentence no longer costs a member of the leader's household their manor bed: the house they are away from is theirs until release, exactly as for any other home.
+
+- **Fixed:** An adult child no longer trades the family home for a house whose beds a jailed settler still reserves, so the custody move cannot fill a home past the beds a prison sentence already holds.
+
+- **Fixed:** Relieving an overcrowded home no longer rehouses a jailed settler, so a prisoner keeps the bed reserved for their return while the family they share the home with carries the move.
+
+- **Fixed:** The Leader's House again seats the leader's own dependent children when they share a house with a grown child's family, while that grown child's partner and children keep their own home.
+
+
+- **Changed:** The Leader's House hold now runs as the pipeline's first phase: household move-ins and manor evictions pass the same whole-household check and ledger as every other housing decision, while the manor retains its mandatory household assignment regardless of its fixed capacity.
+
+- **Added:** A housing architecture note explains the single ordered decision pipeline: which phase owns which question, how a run's ledger protects a household a mandatory phase settled, and how to add a rule without a second scheduler.
+
+- **Changed:** Housing decisions now run as one ordered process — repairs, guardianship, seating and capacity before the optional adult-child and commute moves — so a household a mandatory step settled is no longer moved again by a later pass, and the whole household moves or none of it does.
+
+- **Changed:** Every household relocation now passes one whole-household check before anyone moves: overcrowding rehousing, sibling guardianship and couple formation no longer move residents one at a time, so a refused destination leaves the family where it was.
+
+- **Fixed:** An overcrowded home only rehouses a settler into a home the household can actually occupy, and unhouses the surplus instead of staying over its beds when the only free homes are a manor or unfinished site.
+
+- **Fixed:** A jailed settler leaves the construction crew they were on, so a building site no longer counts a prisoner as a builder, while their home and job post stay reserved.
+
+- **Fixed:** A jailed settler is no longer moved to another workplace or credited with worked hours and output while serving their sentence, so a reserved post stays theirs and pays nothing.
+
+- **Fixed:** A married adult child of the leader who already holds a home keeps their partner and dependent children with them, instead of the manor taking the children from their parents.
+
+- **Changed:** A prison sentence holds the settler's home and job: they stay off shift while jailed and keep their post, so the colony no longer refills it, and their bed stays reserved.
+
+- **Fixed:** A household is no longer moved to a nearer home when the household total improves but one member's own daily trip lengthens, and a colony makes at most eight moves a day.
+
+- **Fixed:** A save carrying an identity at the very top of the range is refused, and an accepted save always floors its identity counters to values the next save still accepts, so one spawn can no longer make a colony unsavable.
+
+- **Fixed:** A settler born on January 1 keeps that birthday when a save is opened, instead of having the date rebuilt from a whole-year age because the day and month are both zero.
+
+- **Fixed:** The Leader's House keeps its fixed beds in a save written while it still carried an upgrade level, rather than reporting two extra beds for every stored level.
+
+- **Fixed:** The auto-play ladder staffs an empty Quarry by moving a hand from an over-crewed producer instead of only naming the shortage, so a colony short of stone recovers on its own.
+
+- **Fixed:** Housing capacity now counts every resident, including settlers the pass may not move, and the Leader's House protects its household only while a manor stands, so a house can no longer be filled past its beds.
+
+- **Changed:** A couple no longer shares a house with another, unrelated couple: with no home of its own free it moves in with its own family, and single settlers keep to singles' houses.
+
+- **Fixed:** Two settlers who pair up are no longer left without a bed when no home has room for both of them, and a child with no bed left stays with the parent who still has one.
+
+- **Fixed:** Housing changes now use one residence writer, keeping assignment counts, household traits and resident rosters consistent across marriage, divorce, births, deaths, demolition, leadership and Moon Howler transitions.
+
+- **Fixed:** Growing families first reclaim space from unrelated residents, then seek a larger home together. During shortages children stay with their guardian, a family warning remains visible, and the household reunites when space opens.
+
+- **Fixed:** Orphans consider grandparents on both sides, including grandfathers, and siblings receive a shared guardian and home whenever possible. Historical family records retain custody links after parents leave the living population.
+
+- **Fixed:** The Leader's House admits the leader's married children and their spouses, but an adult child settled in a home of their own is no longer moved out of it into the manor. Grandchild eligibility and succession protection are unchanged.
+
+- **Fixed:** An orphan's guardian is never taken from the Leader's House, so placing a child can no longer move the leader's family out of the manor.
+
+- **Changed:** Saves missing identity counters are explicitly refused because retired identities cannot safely be inferred from surviving records. Intact saves retain their counters and existing identities.
+
+- **Changed:** Daily commute relocation skips work without vacant homes and indexes candidate homes, destinations and roads. Benchmarked work-and-school outcomes remain identical while large-colony sweep time falls substantially.
+
+- **Fixed:** Opening a save keeps each settler's own birth date instead of restamping it from a whole-year age, so a citizen's birthday no longer moves every time the colony is loaded.
+
+- **Fixed:** A search for the cheapest walk now scales its estimate by the cheaper road step, so a paved detour that is longer on the map but quicker to walk is priced as the better route instead of the plainer ground line.
+
+- **Fixed:** A settler who graduates releases the school seat they held as a pupil, so neither the school roster nor a housing move treats an adult as a daily walker to their old school.
+
+- **Fixed:** A household no longer trades its home for one that shortens the parents' commute while leaving a child more than two hours from school; a move now checks every pupil's school reach first.
+
+- **Changed:** A household's trip to work and school is now measured along the route settlers really walk — around rivers, mountains and detours — instead of the straight line through them; each route is priced once and a daily sweep stops searching once its budget is spent.
+
+- **Fixed:** The auto-play status line names an unmanned producer before any other shortage, so an empty Quarry reads as a building waiting for a hand instead of its neighbour's low shelf.
+
+- **Added:** The daily council lists every village building in one table with its building type number and its unique building ID, sorted by type and number, so two buildings of the same kind are told apart at a glance.
+
+- **Changed:** A school day is now earned in the classroom: a pupil credits school days only while a teacher stands at the school, and each teacher seats ten pupils, so a fully staffed school holds twenty.
+
+- **Fixed:** The Leader's House can no longer be upgraded: its beds stay at 12, as the original design has it, and the building inspector no longer offers the button. A level an older save already carries still counts.
+
+- **Added:** A household may trade its home for a vacant one that meaningfully shortens the family's commute and school trip, checked once a day with a margin that stops near-equal homes swapping them. The Leader's House stays exempt.
+
+- **Fixed:** Settlers no longer walk on open water at the spawn: the founding camp is placed on buildable ground instead of the map centre, a camp clearing no longer fills sea with walkable land, and the opening view starts at the camp.
+
+- **Fixed:** A colony loaded from a save with no identity counters no longer re-issues the number of a settler the family tree still remembers, or of a camp structure a rival settlement still names. An id so high that no next number exists is refused rather than loaded.
+
+- **Fixed:** The identity numbers a save may carry now leave two numbers of headroom below the ceiling, so the allocator a saved id floors to can always hand out one more usable number; an allocator saved that high is refused.
+
+- **Added:** The building inspector now labels every structure with its building type number and its unique building ID, so two buildings of the same kind are told apart.
+
+- **Changed:** Workplace assignments use workerBuildingId throughout simulation, UI, diagnostics and worker transfers. Older saves translate the previous field once on load, including saved Moon Howler forms, without changing building IDs.
+
+- **Fixed:** Legacy rival camp buildings left over from an older save — a house, farm or well that no rival settlement still listed — are removed when that save loads, and the daily rival pulse now retires any of them it finds. They no longer linger on the map as a camp you cannot interact with.
+
+- **Fixed:** A cursed Moon Howler in the leader's household no longer unseats the family from the Leader's House every full moon; the nightly relocation and move-in chronicle pair is gone.
+
+- **Added:** Base44 sandbox development environment — a Linux compose setup that serves the game's development server from the mounted clone on port 3000, with a lockfile-synced dependency install and a service healthcheck.
+
+- **Fixed:** Raid victory decisions now reach the simulation worker, restoring mercy, tribute and raze choices after a defeated settlement surrenders.
 - **Fixed:** Residents reserve a free hotel bed before walking there. Reservations count toward capacity, survive saving, and release when the stay ends, preventing overbooking by residents still en route.
 
 - **Added:** A short runbook beside the repository facts now describes the sandbox preview: one Vite dev service runs from the mounted clone on port 3000, so edits stay live without rebuilding an image.
 
 - **Changed:** The strategic map is drawn as an antique survey sheet — parchment, engraved relief, compass rose and scale rule — and the raid, war and recall controls now sit once, in the rival roster beneath it.
-
 - **Fixed:** Auto-play no longer repeatedly issues the persistent Auto-fill command for an empty producer; normal workforce assignment retains ownership.
 
 - **Fixed:** Short dialogue bubbles remain readable for at least four simulation ticks after the new clock pacing.

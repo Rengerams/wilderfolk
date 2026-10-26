@@ -153,7 +153,7 @@ function resolveShift(
       && !isInnkeeper
       && (ordinaryWorkplace
         || (entity.job === JobType.Soldier
-          && isBarracksGuard(entity.id, entity.homeBuildingId, state.buildings))))
+          && isBarracksGuard(entity.id, entity.workerBuildingId, state.buildings))))
     || (entity.job === JobType.Official
       && workplace?.type === BuildingType.TownHall
       && completed

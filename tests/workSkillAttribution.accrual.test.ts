@@ -63,7 +63,7 @@ function staffedWorld(
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(worker, 'fixture premise: the colony starts with a settler').toBeTruthy();
   worker!.faction = undefined;
-  worker!.homeBuildingId = SITE_ID;
+  worker!.workerBuildingId = SITE_ID;
   worker!.job = job;
   // The shift is settled before the daily layer reads attendance, so the fixture states it directly.
   worker!.scheduleLastWorkedHours = getScheduleTargetHours(state);

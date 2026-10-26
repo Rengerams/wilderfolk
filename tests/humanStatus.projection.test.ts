@@ -29,7 +29,7 @@ describe('selected human activity projection', () => {
     if (!child) throw new Error('Expected a human');
     child.age = 1;
     child.isJuvenile = true;
-    child.homeBuildingId = undefined;
+    child.workerBuildingId = undefined;
     child.residenceBuildingId = undefined;
     child.huntTargetId = undefined;
     const spot = {
@@ -55,7 +55,7 @@ describe('selected human activity projection', () => {
     const world = initGame({ villageName: 'No Proximity Jobs', size: MapSize.Medium, seed: 105 });
     const adult = world.entities.find((e) => e.alive && e.type === EntityType.Human);
     if (!adult) throw new Error('Expected a human');
-    adult.homeBuildingId = undefined;
+    adult.workerBuildingId = undefined;
     adult.residenceBuildingId = undefined;
     adult.huntTargetId = undefined;
     const spot = {
@@ -103,7 +103,7 @@ describe('selected human activity projection', () => {
     const world = initGame({ villageName: 'Projection', size: MapSize.Medium, seed: 404 });
     const human = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
     if (!human) throw new Error('Expected an initial human');
-    human.homeBuildingId = undefined;
+    human.workerBuildingId = undefined;
     human.residenceBuildingId = undefined;
 
     const eveningTick = Array.from({ length: 100 }, (_, day) => day * TICKS_PER_DAY + 19 * TICKS_PER_HOUR)
@@ -140,7 +140,7 @@ describe('selected human activity projection', () => {
     };
     world.buildings.push(home);
     human.residenceBuildingId = home.id;
-    human.homeBuildingId = 999_999;
+    human.workerBuildingId = 999_999;
 
     const projection = getHumanActivityProjection(world, human);
 

@@ -38,7 +38,7 @@ describe('workplace staffing choice', () => {
     const next = autoStaffAllWorkers(world);
     expect(next.buildings[0].occupants).toEqual([1]);
     expect(next.buildings[0].staffingMode).toBe('auto');
-    expect(next.entities[0].homeBuildingId).toBe(7);
+    expect(next.entities[0].workerBuildingId).toBe(7);
     expect(next.notifications.at(-1)?.title).toContain('Auto-staff');
     expect(world.buildings[0].staffingMode).toBe('manual');
   });
