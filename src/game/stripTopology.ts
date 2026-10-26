@@ -453,10 +453,20 @@ export function buildStripPlanFromStroke(
     if (dx === 0 && dy === 0) continue;
     const rotation: BuildingRotation = Math.abs(dx) >= Math.abs(dy) ? 0 : 90;
     const snapped = snapStripDragEndpoints(state.buildings, type, start.x, start.y, end.x, end.y);
-    const centers = computeStripSegmentCenters(
-      type, snapped.startX, snapped.startY, snapped.endX, snapped.endY, rotation,
+    const cornerX = rotation === 0 ? snapped.endX : snapped.startX;
+    const cornerY = rotation === 0 ? snapped.startY : snapped.endY;
+    const first = computeStripSegmentCenters(
+      type, snapped.startX, snapped.startY, cornerX, cornerY, rotation,
     );
-    for (const piece of resolveStripPlan(state, type, centers, rotation)) emit(piece);
+    for (const piece of resolveStripPlan(state, type, first, rotation)) emit(piece);
+    if (plan.length >= MAX_STRIP_SEGMENTS) break;
+    if (cornerX !== snapped.endX || cornerY !== snapped.endY) {
+      const turnRotation: BuildingRotation = rotation === 0 ? 90 : 0;
+      const second = computeStripSegmentCenters(
+        type, cornerX, cornerY, snapped.endX, snapped.endY, turnRotation,
+      );
+      for (const piece of resolveStripPlan(state, type, second, turnRotation)) emit(piece);
+    }
   }
   const enclosedAreas = isWallStripType(type)
     ? findEnclosedWallAreas(state, plan.map((piece) => ({ x: piece.x, y: piece.y }))) : [];
