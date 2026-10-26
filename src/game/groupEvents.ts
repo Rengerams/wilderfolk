@@ -1518,7 +1518,6 @@ export type WorldEventId =
   | 'nomad_hunters'
   | 'refugee_family'
   | 'wandering_performers'
-  | 'rival_settlement'
   | 'surveyors_crown'
   | 'deer_migration'
   | 'generous_neighbors';
@@ -1534,7 +1533,6 @@ const WORLD_EVENTS: { id: WorldEventId; weight: number; minHumans?: number; maxR
   { id: 'nomad_hunters', weight: 6, minHumans: 4, requiresNoVisitors: true },
   { id: 'refugee_family', weight: 5, minHumans: 3, requiresNoVisitors: true },
   { id: 'wandering_performers', weight: 7, minHumans: 4, requiresNoVisitors: true },
-  { id: 'rival_settlement', weight: 6, minHumans: 6, maxRivals: 2 },
   { id: 'surveyors_crown', weight: 5, minHumans: 5 },
   { id: 'deer_migration', weight: 8 },
   { id: 'generous_neighbors', weight: 6, minHumans: 4 },
@@ -1571,7 +1569,6 @@ export function rollYearlyWorldEvent(
   const humans = playerHumanCount(allAlive);
   const pool = WORLD_EVENTS.filter((e) => {
     if (e.minHumans && humans < e.minHumans) return false;
-    if (e.maxRivals !== undefined && state.rivalSettlements.length >= e.maxRivals && e.id === 'rival_settlement') return false;
     if (e.requiresNoVisitors && state.visitorGroups.length > 0) return false;
     return true;
   });
@@ -1634,8 +1631,6 @@ export function rollYearlyWorldEvent(
       return { event: spawnVisitorGroup(state, allAlive, buildings, 'refugees', ctx), bountifulHarvest };
     case 'wandering_performers':
       return { event: spawnVisitorGroup(state, allAlive, buildings, 'performers', ctx), bountifulHarvest };
-    case 'rival_settlement':
-      return { event: spawnRivalSettlement(state, buildings), bountifulHarvest };
     case 'surveyors_crown':
       addReputation(state, 5);
       return {
@@ -1781,5 +1776,5 @@ export function tryFrontierSettlement(
   );
   if (!hasPlayerHouse) return null;
 
-  return spawnRivalSettlement(state, buildings, 'competitive');
+  return null;
 }
