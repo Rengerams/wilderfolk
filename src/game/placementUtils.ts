@@ -136,6 +136,29 @@ export function overlapsAnyBuilding(
   return false;
 }
 
+/** The only overlap exception: perpendicular strips of the same road or solid-wall type. */
+export function stripCrossingIsTheOnlyOverlap(
+  buildings: readonly Building[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  type: BuildingType,
+): boolean {
+  if (type !== BuildingType.Road && type !== BuildingType.Wall) return false;
+  let crossed = false;
+  for (const building of buildings) {
+    const overlaps = x + width / 2 > building.x - building.width / 2
+      && x - width / 2 < building.x + building.width / 2
+      && y + height / 2 > building.y - building.height / 2
+      && y - height / 2 < building.y + building.height / 2;
+    if (!overlaps) continue;
+    if (building.type !== type || (width > height) === (building.width > building.height)) return false;
+    crossed = true;
+  }
+  return crossed;
+}
+
 /**
  * Renderer-only spatial index over building footprints.
  *
@@ -282,7 +305,8 @@ export function canPlaceBuildingSnapshot(
   if (!isFootprintOnBuildableTerrain(snapshot, width, height, x, y, type)) return false;
   // The renderer lattice calls this per candidate cell, so the overlap check goes through the cached
   // spatial index; `overlapsAnyBuilding` (the authoritative, single-call path) is the exact same rule.
-  if (overlapsAnyBuildingIndexed(snapshot.buildings, snapshot.width, snapshot.height, width, height, x, y)) {
+  if (overlapsAnyBuildingIndexed(snapshot.buildings, snapshot.width, snapshot.height, width, height, x, y)
+    && !stripCrossingIsTheOnlyOverlap(snapshot.buildings, x, y, width, height, type)) {
     return false;
   }
   return true;
