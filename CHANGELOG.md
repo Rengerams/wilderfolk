@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Roads and walls can now be painted freehand with a single drag across multiple bends; a continuous preview tracks the stroke, and the release sends one bounded placement command.
+
 - **Fixed:** CC0 pavement aligns across joints using a stable texture phase and scale. Masonry repeats upright along either wall axis, gates stay upright, and merged demolition uses the authoritative batch cleanup owner.
 
 - **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
