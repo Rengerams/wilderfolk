@@ -105,6 +105,16 @@ describe('pathfinding', () => {
     expect(findPath(grid, 0, 0, 2, 2)).toBeNull();
   });
 
+  it('keeps distant-road movement detours inside the default node budget', () => {
+    const grid = getPathGrid(makeMap(400, 400, 20261026, (x, y) => x === 102 && y === 100));
+    // A single far-away road must not weaken all movement searches on the map.
+    grid.road = new Uint8Array(grid.cols * grid.rows);
+    grid.road[0] = 1;
+    const path = findPath(grid, 100, 100, 250, 100);
+    expect(path).not.toBeNull();
+    expect(path?.at(-1)).toEqual({ x: 250, y: 100 });
+  });
+
   it('respects the bounded-search guard on an otherwise open grid', () => {
     const grid = getPathGrid(makeMap(10, 10, 7, () => false));
     expect(findPath(grid, 0, 0, 9, 9, 5)).toBeNull();
