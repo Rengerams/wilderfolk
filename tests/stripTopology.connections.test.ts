@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
-import { collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
+import { buildStripPlanFromDrag, collectStripDemolitionIds, resolveRoadStripPlan, resolveWallStripPlan } from '../src/game/stripTopology';
 
 function strip(type: typeof BuildingType.Road | typeof BuildingType.Wall, rotation: 0 | 90): Building {
   const { width, height } = getBuildingFootprintForType(type, rotation);
@@ -39,6 +39,14 @@ describe('connected strip planning', () => {
     const pieces = resolveWallStripPlan(stateWith(wall), BuildingType.WallGate, origin, 0);
     expect(pieces).toHaveLength(1);
     expect(pieces[0]).toMatchObject({ x: 14, y: 0, rotation: 0, replacesBuildingId: 10 });
+  });
+
+  it('builds an L-shaped path with both horizontal and vertical pieces', () => {
+    const empty = { buildings: [], width: 800, height: 800 } as unknown as WorldState;
+    const { plan } = buildStripPlanFromDrag(empty, BuildingType.Road, 100, 100, 300, 300, 0);
+    expect(plan.some((piece) => piece.rotation === 0)).toBe(true);
+    expect(plan.some((piece) => piece.rotation === 90)).toBe(true);
+    expect(plan.length).toBeGreaterThan(3);
   });
 
   it('selects only player roads touched by a demolition drag', () => {
