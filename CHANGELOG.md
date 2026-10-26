@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Worker render sidecars and reconstructed human views retain detached nutrition, rest and stamina values instead of silently omitting new physiology from worker-facing inspectors.
+
 - **Tested:** Deterministic 7/30-day physiological budgets now cover regular and night shifts, idle food demand, delayed starvation and snapshot equivalence. Full-colony balance remains a separate merge gate.
 
 - **Changed:** Work output and workshop estimates apply a bounded physiological impairment alongside roster fatigue without stacking two full fatigue penalties. Attendance hours remain authoritative.

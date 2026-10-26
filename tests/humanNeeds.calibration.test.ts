@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { packEntityRenderMeta } from '../src/game/simBuffers/entityRenderMeta';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
 import { advanceHumanNeeds, hasFatalStarvation, initialHumanNeeds, normalizeHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
@@ -61,6 +62,15 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
     expect(after.firstFatalHour).not.toBeNull();
     expect(after.firstFatalHour!).toBeGreaterThan(90);
     expect(after.needs.nutrition).toBe(0);
+  });
+
+  it('exports detached physiology values through the worker render sidecar', () => {
+    const e = { id: 1, type: EntityType.Human, energy: 400, maxEnergy: 500,
+      needs: initialHumanNeeds(400, 500) } as Entity;
+    const meta = packEntityRenderMeta(e);
+    expect(meta.needs).toEqual(e.needs);
+    e.needs!.nutrition = 0;
+    expect(meta.needs?.nutrition).toBe(80);
   });
 
   it('preserves exact needs and tick stamps across structured save/worker snapshots', () => {
