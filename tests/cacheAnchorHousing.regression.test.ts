@@ -51,6 +51,18 @@ describe('unambiguous housing units', () => {
     expect(new Set(units.flat().map((entry) => entry.id)).size).toBe(3);
   });
 
+  it('does not separate a descendant couple when only one partner has an independent home', () => {
+    const leader = person(1, { residenceBuildingId: 1, childrenIds: [2] });
+    const descendant = person(2, { motherId: 1, partnerId: 3, residenceBuildingId: 10 });
+    const spouse = person(3, { partnerId: 2 });
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse]).map((member) => member.id))
+      .toEqual([1]);
+    descendant.residenceBuildingId = undefined;
+    spouse.residenceBuildingId = 10;
+    expect(collectLeaderDescendants(leader, [leader, descendant, spouse]).map((member) => member.id))
+      .toEqual([1]);
+  });
+
   it('keeps a blended descendant household independent when the spouse has dependent minors', () => {
     const leader = person(1, { childrenIds: [2] });
     const descendant = person(2, { motherId: 1, partnerId: 3 });
