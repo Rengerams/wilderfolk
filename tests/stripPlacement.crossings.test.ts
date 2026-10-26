@@ -4,6 +4,8 @@ import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
 import { getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
+import { canPlaceBuildingSnapshot } from '../src/game/placementUtils';
+import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
 function worldFor(type: BuildingType): WorldState {
   const world = initGame({ size: MapSize.Medium, seed: 20261026 });
@@ -46,7 +48,9 @@ describe('crossing construction', () => {
       const { x, y } = crossingSpot(world, type);
       completedStrip(world, type, x, y);
       expect(getPlaceBuildingFailureReason(world, type, x, y, 90)).toBeNull();
+      expect(canPlaceBuildingSnapshot(world as unknown as RenderSnapshot, type, x, y, 90)).toBe(true);
       expect(getPlaceBuildingFailureReason(world, type, x, y, 0)).toBe('blocked');
+      expect(canPlaceBuildingSnapshot(world as unknown as RenderSnapshot, type, x, y, 0)).toBe(false);
     });
   }
 });
