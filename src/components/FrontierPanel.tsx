@@ -21,6 +21,7 @@ import { BuildingType } from '../game/gameTypes';
 import { computeMilitiaBreakdown, getMilitiaArmamentLabel } from '../game/militiaBalance';
 import { normalizeRivalProfile, getRivalProfileLabel } from '../game/rivalProfiles';
 import { getRivalPresenceSummary } from '../game/rivalPresence';
+import { MAX_STRATEGIC_SETTLEMENTS, MIN_RIVAL_FOUNDING_POPULATION, RIVAL_FOUNDING_START_DAY, RIVAL_FOUNDING_INTERVAL_DAYS } from '../game/rivalSettlements';
 
 /**
  * The frontier view's props — exported so the lazy wrapper (`tabPanels/FrontierTabPanel`) reuses
@@ -69,7 +70,6 @@ function FrontierPanel({
   const armament = getMilitiaArmamentLabel(state) ?? 'Unarmed adults';
 
   if (!hasNeighbors && pendingRaidCount === 0 && pendingOutgoingRaidCount === 0 && !(state.raidBattleReports?.length)) {
-    const year = state.year ?? 0;
     return (
       <div className="space-y-3">
         <StrategicWorldMap state={state} selectedRivalId={selectedRivalId} onSelectRival={setSelectedRivalId} />
@@ -78,14 +78,11 @@ function FrontierPanel({
         <p className="mt-1 text-[13px] text-stone-300">
           Grow your village — trade caravans arrive as reputation spreads.
         </p>
-        {/* The rival-camp trigger is population, not the year: `groupEvents`' `WORLD_EVENTS` entry for
-            `rival_settlement` is `minHumans: 6, maxRivals: 2` in the yearly pool and carries no year
-            condition. That table is module-private, so the 6 is restated here and must track it. */}
-        {year < 2 && (
-          <p className="mt-2 text-[13px] text-amber-400/90">
-            Rival camps can appear once your village reaches 6 population — they arrive with the yearly events.
-          </p>
-        )}
+        <p className="mt-2 text-[13px] text-amber-400/90">
+          From day {RIVAL_FOUNDING_START_DAY}, settlements can appear on the world map every{' '}
+          {RIVAL_FOUNDING_INTERVAL_DAYS} days once your village reaches{' '}
+          {MIN_RIVAL_FOUNDING_POPULATION} population, up to {MAX_STRATEGIC_SETTLEMENTS} friends and rivals combined.
+        </p>
       </div>
       </div>
     );

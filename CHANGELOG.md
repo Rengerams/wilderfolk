@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** World-map settlements now appear from day 10 at 30-day intervals, up to six friends and rivals combined. No rival buildings or settlers enter the village map; existing saved settlements and diplomacy are preserved.
+
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.
 - **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
 

@@ -11,6 +11,7 @@ import { clearWorkerAssignment } from './workforce';
 import { addCappedResource } from './resourceUtils';
 import { addReputation } from './simHelpers';
 import { adjustPollutionLevel } from './dailyEcology';
+import { maybeFoundRivalSettlement } from './rivalSettlements';
 
 /** Reputation all tense camps together may drain per day, however many roll. */
 const MAX_TENSE_REP_DRAIN_PER_DAY = 2;
@@ -89,6 +90,7 @@ export function tickRivalSettlements(
   // Runs once a day from tickDailyWorldEvents at 18:00, not only at the calendar boundary —
   // a midnight-only guard stalled peace treaties, raid cooldowns and growth.
   callbacks.tickPendingDiplomacyEvents(state);
+  maybeFoundRivalSettlement(state, allAlive);
 
   // Camp structures never stand on the player's map; older saves may still carry them.
   const retiredStructures = retireLegacyCampStructures(state.buildings);

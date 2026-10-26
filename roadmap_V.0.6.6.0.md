@@ -27,6 +27,18 @@ Each raid progresses through explicit states:
 - The final outcome is resolved once by the combat owner and written to the Chronicle. Do not reapply casualties, loot or rewards when loading or reopening an interface.
 - Battles need not become tactical minigames; the existing simulation decides combat, while the UI explains it.
 
+### 2.1 Strategic neighbors — confirmed scope (26 October 2026)
+
+- Settlements belong only to the world map. Founding must never add rival buildings or settlers to the player's village map.
+- Allow at most **six friends and rivals combined** through one authoritative creation guard. Friendly diplomacy does not free a slot.
+- The existing daily rival owner supplies founding opportunities from colony day 10, every 30 days, when at least six player settlers are alive. Keep the general yearly event pool separate.
+- Existing saves retain settlement IDs, populations, relationships, treaties and pending outcomes. Colonies without neighbors can acquire them on a future founding opportunity without restarting.
+- Preserve older saves with more than six settlements; block additional founding instead of deleting existing neighbors.
+- [x] Implement strategic-only founding and the combined cap; cover daily game-tick integration, capacity and real save/load regression cases.
+- [ ] Verify the live world-map UI in browser and Windows desktop builds; automated checks alone do not complete this gameplay gate.
+- [ ] Advance active battles on **game-hour ticks**, independently of daily rival growth/diplomacy/cooldowns. Battle duration is a separate named tuning value; six game hours is proposed for playtesting, not implemented by the founding change.
+- [ ] Repair deployment cleanup when an expedition is cancelled or its rival is razed, and clear declared-war state when peace is signed. These remain separate audit findings.
+
 ## 3. Battle outcomes and settlement survival
 
 Treat **military outcome** and **settlement fate** as separate decisions. A lost battle does not necessarily destroy a settlement.

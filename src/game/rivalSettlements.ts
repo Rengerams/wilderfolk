@@ -1,10 +1,17 @@
-import type { WorldState, Building, GameEvent, RivalSettlement } from './gameTypes';
+import type { WorldState, Building, Entity, GameEvent, RivalSettlement } from './gameTypes';
 import { getSimRng } from './simRng';
 import { pickSite } from './worldEventSites';
 import { getPlayerCampCenter, rollFoundingRaidCooldownDays } from './frontierCombat';
 import { createRivalProfile } from './rivalProfiles';
 import { addBigNews } from './simEffects';
 import { logEvent } from './eventLog';
+import { getColonyDay } from './dayCycle';
+import { playerHumanCount } from './playerHuman';
+
+export const MAX_STRATEGIC_SETTLEMENTS = 6;
+export const MIN_RIVAL_FOUNDING_POPULATION = 6;
+export const RIVAL_FOUNDING_START_DAY = 10;
+export const RIVAL_FOUNDING_INTERVAL_DAYS = 30;
 
 const RIVAL_PREFIXES = ['Oak', 'Mist', 'Iron', 'Silver', 'Ash', 'Cedar', 'Stone', 'Willow', 'Fox', 'Raven'];
 const RIVAL_SUFFIXES = ['Hollow', 'Reach', 'Ford', 'Glen', 'Creek', 'Ridge', 'Crossing', 'Haven'];
@@ -20,7 +27,8 @@ export function spawnRivalSettlement(
   buildings: Building[],
   /** Scripted founding state; the pool draws its own when this is omitted. */
   foundingRelationship?: RivalSettlement['relationship'],
-): GameEvent {
+): GameEvent | null {
+  if (state.rivalSettlements.length >= MAX_STRATEGIC_SETTLEMENTS) return null;
   const name = randomRivalName();
   const center = getPlayerCampCenter(state, buildings);
   const avoid = [
@@ -72,3 +80,11 @@ export function spawnRivalSettlement(
   };
 }
 
+/** Establish strategic neighbors on the daily pulse without creating village-map objects. */
+export function maybeFoundRivalSettlement(state: WorldState, allAlive: Entity[]): void {
+  const day = getColonyDay(state);
+  if (day < RIVAL_FOUNDING_START_DAY
+    || (day - RIVAL_FOUNDING_START_DAY) % RIVAL_FOUNDING_INTERVAL_DAYS !== 0) return;
+  if (playerHumanCount(allAlive) < MIN_RIVAL_FOUNDING_POPULATION) return;
+  spawnRivalSettlement(state, state.buildings);
+}
