@@ -7,6 +7,24 @@ import { isActiveMoonHowler } from '../moonHowler';
 import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
 import { faceVelocity } from './movementSteering';
 
+/** Outdoor sites have no interior; construction crews stay visible until completion. */
+const OUTDOOR_BUILDINGS = new Set<Building['type']>([
+  BuildingType.Farm, BuildingType.Quarry, BuildingType.Market, BuildingType.Graveyard,
+  BuildingType.Square, BuildingType.Well, BuildingType.TamingPost, BuildingType.Road,
+  BuildingType.Wall, BuildingType.WallGate, BuildingType.Watchtower, BuildingType.HuntingSpot,
+  BuildingType.FishingSpot, BuildingType.WildlifePreserve, BuildingType.Bridge,
+  BuildingType.GroundReinforcement, BuildingType.Garden, BuildingType.Statue,
+  BuildingType.Lamp, BuildingType.Fence,
+]);
+
+/** Arrival changes presentation only; the settler remains in the simulation and building roster. */
+export function enterHumanBuilding(entity: Entity, building: Building): void {
+  if (!building.completed || OUTDOOR_BUILDINGS.has(building.type)) return;
+  entity.indoorBuildingId = building.id;
+  entity.vx = 0;
+  entity.vy = 0;
+}
+
 // ============ COMMUTE HELPERS ============
 
 /** Cells probed for a blocked stand point, nearest ring first and south before north. */
@@ -318,6 +336,7 @@ export function commuteHumanToBuilding(
   arrivingHome: boolean,
   rush = 1,
 ): boolean {
+  entity.indoorBuildingId = undefined;
   const target = humanBuildingTarget(building, entity.id, arrivingHome);
   const dx = target.x - entity.x;
   const dy = target.y - entity.y;
@@ -327,6 +346,7 @@ export function commuteHumanToBuilding(
   if (dist <= COMMUTE_CONFIG.ARRIVAL_DIST) {
     entity.vx = 0;
     entity.vy = 0;
+    enterHumanBuilding(entity, building);
     return true;
   }
 
@@ -356,7 +376,10 @@ export function commuteHumanToBuilding(
   // 'path' only sets the velocity along the route; the human loop's movement apply at the end of
   // the tick is the single integration (the stepper must not move the entity as well).
   if (handled === 'path') return false;
-  if (handled === 'arrived') return true;
+  if (handled === 'arrived') {
+    enterHumanBuilding(entity, building);
+    return true;
+  }
   if (handled === 'blocked') return false;
 
   if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST

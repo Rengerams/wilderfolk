@@ -460,14 +460,14 @@ export default function SelectedBuildingPanel({
       {building.type === BuildingType.Graveyard && (
         <section className="mb-3 rounded-lg border border-stone-600 bg-stone-900/70 p-3">
           <h3 className="text-sm font-bold text-stone-100">Graveyard memorial</h3>
-          <p className="mt-1 text-xs text-stone-400">Graves: {(state.graveRecords ?? []).filter((grave) => grave.graveyardId === building.id).length} / 50 · One gravekeeper per graveyard</p>
+          <p className="mt-1 text-xs text-stone-400">Graves: {(state.graveRecords ?? []).filter((grave) => grave.faction === 'player' && grave.graveyardId === building.id).length} / 50 · One gravekeeper per graveyard</p>
           <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
-            {(state.graveRecords ?? []).filter((grave) => grave.graveyardId === building.id).slice(0, 50).map((grave, index) => (
+            {(state.graveRecords ?? []).filter((grave) => grave.faction === 'player' && grave.graveyardId === building.id).slice(0, 50).map((grave, index) => (
               <p key={index} className={`text-xs ${grave.faction === 'enemy' ? 'text-red-400' : 'text-green-400'}`}>
                 {grave.faction === 'enemy' ? 'Enemy' : 'Village'} — {grave.name}
               </p>
             ))}
-            {!(state.graveRecords ?? []).some((grave) => grave.graveyardId === building.id) && <p className="text-xs text-stone-500">No burials recorded in this graveyard.</p>}
+            {!(state.graveRecords ?? []).some((grave) => grave.faction === 'player' && grave.graveyardId === building.id) && <p className="text-xs text-stone-500">No burials recorded in this graveyard.</p>}
           </div>
         </section>
       )}
@@ -929,7 +929,7 @@ export default function SelectedBuildingPanel({
               const daysLeft = p.prisonerUntilTick ? daysUntilTick(state.tick, p.prisonerUntilTick) : 0;
               return (
                 <p key={p.id} className="text-[11px] text-slate-300">
-                  ⛓️ {citizenFullName(p)} · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
+                  ⛓️ {citizenFullName(p)} · {p.warCaptive ? 'Enemy captive — awaiting a prisoner decision' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
                 </p>
               );
             })}

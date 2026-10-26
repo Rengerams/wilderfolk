@@ -418,7 +418,11 @@ export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]
   /** Prison: `workerBuildingId === id || prisonBuildingId === id` (the original union, deduped). */
   const prisonOccupantIds = new Map<number, number[]>();
   for (const h of humans) {
-    if (!h.alive || !isPlayerHuman(h)) continue;
+    if (!h.alive) continue;
+    if (!isPlayerHuman(h)) {
+      if (h.warCaptive && h.prisonBuildingId != null) pushId(prisonOccupantIds, h.prisonBuildingId, h.id);
+      continue;
+    }
     const homeId = h.workerBuildingId;
     const prisonId = h.prisonBuildingId;
     if (homeId != null) {

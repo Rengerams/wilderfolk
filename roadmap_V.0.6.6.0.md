@@ -27,6 +27,18 @@ Each raid progresses through explicit states:
 - The final outcome is resolved once by the combat owner and written to the Chronicle. Do not reapply casualties, loot or rewards when loading or reopening an interface.
 - Battles need not become tactical minigames; the existing simulation decides combat, while the UI explains it.
 
+### 2.1 Strategic neighbors — confirmed scope (26 October 2026)
+
+- Settlements belong only to the world map. Founding must never add rival buildings or settlers to the player's village map.
+- Allow at most **six friends and rivals combined** through one authoritative creation guard. Friendly diplomacy does not free a slot.
+- The existing daily rival owner supplies founding opportunities from colony day 10, every 30 days, when at least six player settlers are alive. Keep the general yearly event pool separate.
+- Existing saves retain settlement IDs, populations, relationships, treaties and pending outcomes. Colonies without neighbors can acquire them on a future founding opportunity without restarting.
+- Preserve older saves with more than six settlements; block additional founding instead of deleting existing neighbors.
+- [x] Implement strategic-only founding and the combined cap; cover daily game-tick integration, capacity and real save/load regression cases.
+- [ ] Verify the live world-map UI in browser and Windows desktop builds; automated checks alone do not complete this gameplay gate.
+- [x] Advance incoming and outgoing battles on game-hour ticks over six game hours, independently of daily rival growth and diplomacy; persist midpoint casualties and reserved troops.
+- [x] Release deployments when expeditions are cancelled or their rival is razed; peace clears declared-war state.
+
 ## 3. Battle outcomes and settlement survival
 
 Treat **military outcome** and **settlement fate** as separate decisions. A lost battle does not necessarily destroy a settlement.
@@ -181,6 +193,18 @@ Implement inside the existing game owners where possible; avoid parallel raid or
 8. **Chronicle/alerts:** log events once, distinguish raid phases and consequences, make crucial decisions persistent and visible.
 9. **Save migration:** consider saves containing enemy graves or already-pending raid outcomes and design safe defaults rather than silently erasing records.
 10. **Versioning/docs:** ship this only when verified; move future features from this roadmap into v0.6.6.0 release notes once working.
+
+### Implementation checkpoint — 26 October 2026
+
+The existing combat, prison, election, worker and save owners now handle hourly incoming/outgoing battles, durable reports and victory decisions, bounded leadership rewards, recovery and terminal settlement state. Recovery requires actual food and repair progress; destruction requires a razing intent and a breached last defense, not strength ratio alone.
+
+Only identifiable adult enemy soldiers can become prisoners, subject to real cells and escorts. Release and escape preserve living identities; recruitment requires consent, capacity and housing; execution requires confirmation and does not create player graves. Mercy, tribute and razing retain their existing consequences and add bounded witnessed diplomatic memory. Legacy saves receive safe defaults while retaining old grave history.
+
+Audit corrections preserve midpoint casualties in surrender choices and final announcements after normal tick cleanup and reload. Overlapping defeats retain the highest outstanding repair and food targets; completing repairs early does not cancel the seven-day raid protection. Natural captive deaths close custody history and never create village graves, while executions remain distinct.
+
+Mass destruction uses one building-removal batch and one housing/staffing/storage reconciliation, with bounded visual effects. The live troop count uses a single cached population pass, and captive housing availability is calculated once per world update. An opt-in lifecycle benchmark (`WARFARE_PERF_OUTPUT`) exercises 100/400/1,000 damaged structures through the real raid owner. A local 12-inhabitant run reduced 1,000-structure destruction from about 167 ms to under 3 ms; this is a focused measurement, not a large-colony or Windows acceptance result. These changes do not complete the large-colony performance gate.
+
+Automated lifecycle and migration checks cover these transitions. Browser checks exercise recovery, terminal export and captive decisions through the normal load interface. The checklist below remains the release acceptance gate: Windows desktop playthroughs and large-colony performance/soak validation are still outstanding.
 
 ## 9. Test and acceptance checklist
 

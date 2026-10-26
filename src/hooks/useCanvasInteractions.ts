@@ -245,7 +245,7 @@ export function useCanvasInteractions({
       // Pass 1: Humans
       for (let i = 0; i < clickEntities.length; i++) {
         const ent = clickEntities[i];
-        if (ent.type !== EntityType.Human) continue;
+        if (ent.type !== EntityType.Human || ent.indoorBuildingId != null) continue;
         const bounds = getHumanSelectionBounds(ent, camera.zoom);
         const dx = worldX - bounds.cx;
         const dy = worldY - bounds.cy;

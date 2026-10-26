@@ -720,7 +720,7 @@ export function drawLeaderAuraOverlay(
   const cam = state.camera;
   if (cam.zoom <= 0.22 || state.villageLeaderId == null) return;
   const leader = _cachedHumans.find((h) => h.id === state.villageLeaderId && !h.faction);
-  if (!leader) return;
+  if (!leader || leader.indoorBuildingId != null) return;
 
   const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
   if (!isSel) {
@@ -799,11 +799,8 @@ export function drawHumans(
 
   for (const human of _cachedHumans) {
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
-    // Asleep at home means indoors: hide the body and its bubble for the night. The
-    // simulation still owns the settler — only the presentation drops them, which is
-    // what keeps a large village readable after dark. A selected settler stays visible
-    // so the inspector keeps pointing at somebody.
-    if (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay)) continue;
+    // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
+    if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
 
     const pos = presentationPosition(human);
     const sx = (pos.x - cam.x) * cam.zoom + cw / 2;

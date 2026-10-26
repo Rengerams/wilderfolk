@@ -2,6 +2,25 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
+- **Fixed:** Captive deaths close custody history without creating village graves; confirmed executions retain their distinct outcome.
+- **Changed:** Mass raid destruction reconciles housing, staffing and storage once per batch with bounded effects. Warfare panels cache troop, captive and repair lookups between world updates.
+
+- **Tested:** Added a browser check for cancelling and confirming settlement razing, then verifying permanent removal and cleared decisions in the exported save.
+
+- **Fixed:** Raid reports retain a fallen starting leader after population cleanup, and removing a prison resolves enemy captives as living escapees instead of leaving inaccessible custody.
+
+- **Changed:** Incoming defenses and outgoing battles advance hourly over six game hours; saved milestones prevent repeated casualties, and truce or razing cleanup releases deployed soldiers.
+- **Added:** Defeated villages enter repair and food recovery. Explicit razing intent, failed last resistance and devastated shelter can end a settlement; final reports remain exportable and cannot resume simulation.
+- **Added:** Real adult enemy fighters can be held in existing prison cells, released, voluntarily recruited or executed after confirmation. Abstract world-map populations never become fabricated captives.
+- **Fixed:** Warfare outcomes, graves, custody, diplomatic memory and leadership awards survive saves and worker rollback; repeated trivial victories no longer duplicate election merit or mercy rewards.
+
+- **Fixed:** World-map settlements now appear from day 10 at 30-day intervals, up to six friends and rivals combined. No rival buildings or settlers enter the village map; existing saved settlements and diplomacy are preserved.
+
+- **Fixed:** Indoor workers can leave for secret meetings without being pinned at work; the browser smoke now requires an observed living patient inside a completed hospital.
+
+- **Fixed:** Settlers disappear while inside completed workplaces, homes, schools, hospitals, prisons and indoor venues, including selected occupants and hotel guests; travel, construction and outdoor work remain visible.
+
 - **Fixed:** Long road routes preserve corners while coalescing straight waypoints; fast commuters clamp their steps before applying the road multiplier to prevent waypoint oscillation.
 
 - **Changed:** Road runs and intersections now use Drummyfish's CC0 cobblestone tile; walls and gates use matching original top-down PNG art, vendored locally for offline rendering with attribution and fallback assets.

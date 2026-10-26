@@ -95,7 +95,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, humanEnergyLoss, tryEatColonyMeal, killFromExhaustion } from './simulation/humanNeeds';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
@@ -382,7 +382,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       });
     }
     tryEatColonyMeal(entity, state, hourOfDay);
-    if (isPlayerHuman(entity) && entity.energy <= 0) {
+    if ((isPlayerHuman(entity) || entity.warCaptive) && entity.energy <= 0) {
       killFromExhaustion(entity, state, updatedBuildings, entityById);
     }
   };
@@ -402,6 +402,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
   for (const entity of allHumans) {
     if (!entity.alive) continue;
+    const previousIndoorBuildingId = entity.indoorBuildingId;
+    entity.indoorBuildingId = undefined;
     reconcileAffairPartner(entity, entityById);
 
     // Common updates
@@ -627,6 +629,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dx = prison.x - entity.x;
         const dy = prison.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
+        if (dist <= 14) enterHumanBuilding(entity, prison);
         if (dist > 14) {
           entity.vx = (dx / dist) * Math.min(dist, 1.2);
           entity.vy = (dy / dist) * Math.min(dist, 1.2);
@@ -681,6 +684,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     if (!active) {
+      if (previousIndoorBuildingId != null && buildingById.get(previousIndoorBuildingId)?.completed) {
+        entity.indoorBuildingId = previousIndoorBuildingId;
+      }
       applySettlerUpkeep(entity, asleepAtHome);
       syncEntityGrids(ctx, entity);
       continue;
@@ -1280,6 +1286,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const intimate = isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
 
         if (!intimate) {
+          entity.indoorBuildingId = undefined;
           entity.vx = (dx / dist) * config.speed * 0.38;
           entity.vy = (dy / dist) * config.speed * 0.38;
           faceVelocity(entity);
@@ -1351,6 +1358,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dist = Math.hypot(dx, dy) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
         if (!tryst && dist > 14) {
+          entity.indoorBuildingId = undefined;
           entity.vx = (dx / dist) * config.speed * 0.32;
           entity.vy = (dy / dist) * config.speed * 0.32;
           faceVelocity(entity);
@@ -1394,13 +1402,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onDayJobShift: onDayJobShift || onOfficialShift,
       onHotelShift,
     });
-    tickHumanHospitalPatientCare({
-      state,
-      entity,
-      staffedHospitals,
-      onJobShift,
-      speed: config.speed,
-    });
+    if (!huntingWere && !inElectionCeremony && !festivalGathering) {
+      tickHumanHospitalPatientCare({
+        state,
+        entity,
+        staffedHospitals,
+        onJobShift,
+        speed: config.speed,
+      });
+    }
+
+    if (entity.indoorBuildingId != null) suppressIdle = true;
 
     // Morning greetings
     if (allowFreeRoam && isPlayerHuman(entity) && !entity.isJuvenile && hourOfDay >= 6 && hourOfDay <= 9) {
@@ -1457,11 +1469,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       let idleVx = 0;
       let idleVy = 0;
 
-      const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14): boolean => {
+      const steerTo = (tx: number, ty: number, speedMult: number, arrive = 14, destination?: Building): boolean => {
         const dx = tx - entity.x;
         const dy = ty - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
         if (dist <= arrive) {
+          if (destination) enterHumanBuilding(entity, destination);
           idleVx = Math.sin(tick * 0.04 + entity.id) * config.speed * 0.08;
           idleVy = Math.cos(tick * 0.035 + entity.id) * config.speed * 0.08;
           return true;
@@ -1565,7 +1578,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             } else {
               const steerToShop = (): void => {
                 const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-                if (shop) steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.42, 20);
+                if (shop) steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.42, 20, shop);
                 else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
               };
 
@@ -1573,7 +1586,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               if (shared <= 1) {
                 const tavern = pickCompleted([BuildingType.Tavern]);
                 if (tavern) {
-                  steerTo(tavern.x + tavern.width / 2, tavern.y + tavern.height * 0.92, 0.45, 20);
+                  steerTo(tavern.x + tavern.width / 2, tavern.y + tavern.height * 0.92, 0.45, 20, tavern);
                 } else {
                   steerToShop();
                 }
@@ -1585,7 +1598,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               } else if (shared === 4) {
                 const hall = pickCompleted([BuildingType.TownHall]);
                 if (hall) {
-                  steerTo(hall.x + hall.width / 2, hall.y + hall.height + 8, 0.42, 22);
+                  steerTo(hall.x + hall.width / 2, hall.y + hall.height + 8, 0.42, 22, hall);
                 }
               } else {
                 idleVx = Math.sin(tick * 0.025 + entity.id) * config.speed * 0.12;
@@ -1611,6 +1624,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               tavern.y + tavern.height * 0.92,
               0.5,
               18,
+              tavern,
             );
             if (arrived) {
               entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.45 * PER_TICK_RATE_SCALE);
@@ -1622,7 +1636,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else {
             const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
             if (shop) {
-              steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.48, 16);
+              steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.48, 16, shop);
             } else {
               steerTo(width * 0.5, height * 0.55, 0.4);
             }
@@ -1644,14 +1658,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (leisureKind === 4) {
           const church = pickCompleted([BuildingType.Church]);
           if (church) {
-            steerTo(church.x + church.width / 2, church.y + church.height * 0.95, 0.42, 18);
+            steerTo(church.x + church.width / 2, church.y + church.height * 0.95, 0.42, 18, church);
           } else {
             steerTo(width * 0.45, height * 0.45, 0.38);
           }
         } else if (leisureKind === 5) {
           const hall = pickCompleted([BuildingType.TownHall]);
           if (hall) {
-            steerTo(hall.x + hall.width / 2 + ((entity.id % 5) - 2) * 8, hall.y + hall.height + 6, 0.44, 20);
+            steerTo(hall.x + hall.width / 2 + ((entity.id % 5) - 2) * 8, hall.y + hall.height + 6, 0.44, 20, hall);
           } else {
             steerTo(width * 0.5, height * 0.5, 0.4);
           }
@@ -1739,7 +1753,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (hasResidenceAssignment(entity)) {
             const home = buildingById.get(entity.residenceBuildingId!);
             if (home?.completed) {
-              steerTo(home.x + home.width / 2 + ((entity.id % 5) - 2) * 6, home.y + home.height * 0.95, 0.4, 12);
+              steerTo(home.x + home.width / 2 + ((entity.id % 5) - 2) * 6, home.y + home.height * 0.95, 0.4, 12, home);
             }
           } else {
             steerTo(width * 0.5, height * 0.5, 0.38);
@@ -1769,6 +1783,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // The single integration for every walk, and the only place water and walls are enforced: the
     // steerers set a velocity without checking what it points into (see `applyHumanWalkStep`).
+    if (entity.indoorBuildingId != null) {
+      entity.vx = 0;
+      entity.vy = 0;
+    }
     applyHumanWalkStep(entity, roadMult);
 
     clampToMapBounds(entity, width, height);

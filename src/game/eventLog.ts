@@ -74,10 +74,11 @@ export function logDeath(
   addNotification(state, 'Death', message, 'warning', focus);
 
   if (!entityName || faction === 'enemy') return;
-  const graves = state.graveRecords ?? (state.graveRecords = []);
   const deceased = state.entities.find((entity) =>
-    !entity.alive && formatCitizenName(entity) === entityName && isPlayerHuman(entity)
+    !entity.alive && formatCitizenName(entity) === entityName
   );
+  if (deceased && !isPlayerHuman(deceased)) return;
+  const graves = state.graveRecords ?? (state.graveRecords = []);
   // Death may be reported by more than one system. Each villager gets one grave,
   // even if no completed graveyard exists yet.
   if (deceased && graves.some((grave) => grave.deceasedId === deceased.id)) return;
@@ -106,7 +107,7 @@ export function assignPendingGraves(state: WorldState): void {
   }
   if (capacity.size === 0) return;
   for (const grave of graves) {
-    if (grave.graveyardId != null && capacity.has(grave.graveyardId)) {
+    if (grave.faction === 'player' && grave.graveyardId != null && capacity.has(grave.graveyardId)) {
       capacity.set(grave.graveyardId, Math.max(0, capacity.get(grave.graveyardId)! - 1));
     }
   }

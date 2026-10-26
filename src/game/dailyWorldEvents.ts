@@ -14,7 +14,6 @@ import { rollYearlyWorldEvent, tryFirstWeekVisitor, tryMidYearVisitorEvent, tick
 import { tickWorldRivalSettlements } from './rivalWorldTick';
 import { tickVisitorQuest } from './visitorQuest';
 import { tickLeaderPromise } from './villageLeadership';
-import { tickPendingOutgoingRaidEvents, tickPendingRaidEvents } from './frontierCombat';
 import { maybeOfferWelcome, maybeOfferWolfChoice, maybeOfferRangerVisit, maybeOfferGriefBeat, maybeOfferHowlerRumor, maybeOfferWinterPrep, tickWinterFreezeCheck, tickPendingStoryEvents, maybeOfferChildrenShelter, tickChildrenShelter } from './storyEvents';
 import { maybeOfferTravelingTheatre, tickTravelingTheatre } from './travelingTheatre';
 import { maybeOfferDeerParliament, tickDeerParliament } from './deerParliament';
@@ -156,8 +155,6 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   tickVillageRequests(state);
   tickVisitorQuest(state);
   tickLeaderPromise(state);
-  tickPendingRaidEvents(state, allAlive, ctx.updatedBuildings);
-  tickPendingOutgoingRaidEvents(state);
   // First-session arc (year 0 only — zero cost in later years): the welcome
   // beat, the wolf choice (first two months), the ranger's memory of it, and
   // Old Kaia's first-winter quest with its freeze-day resolution.

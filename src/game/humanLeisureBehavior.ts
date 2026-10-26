@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
+import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
@@ -256,6 +256,7 @@ export function tickAdultLeisureMotive(args: {
        */
       const spot = venueGatherPosition(b, entity.id);
       const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
+      if (arrived) enterHumanBuilding(entity, b);
       if (!arrived) steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
       else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
       else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }

@@ -1,3 +1,4 @@
+import { departWarPrisoner } from './warPrisonerCustody';
 import { moveResident } from './residencyReconciliation';
 import { isStripBuildType, MAX_STRIP_SEGMENTS } from './stripBuild';
 import type { Building, WorldState } from './gameTypes';
@@ -14,6 +15,7 @@ import { invalidatePopulationSnapshotCache } from './populationGrowth';
 /** The repair owner's materials. Exported so a spender can leave the price of one repair behind. */
 export const REPAIR_COST = { wood: 10, stone: 5 } as const;
 const BUILDING_REFUND_RATIO = 0.5;
+const MAX_DEMOLITION_EFFECTS = 8;
 /** Upgrade ceiling: a completed building may reach this level, no further. */
 const MAX_BUILDING_LEVEL = 3;
 
@@ -237,12 +239,16 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 }
 
 /** Clear every assignment which references a building before it leaves authoritative state. */
-function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: number): void {
+function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingIds: ReadonlySet<number>): void {
   for (const entity of state.entities) {
     // Workforce cleanup through the owner's transition keeps work fields consistent.
-    if (entity.workerBuildingId === buildingId) removeWorkerTransition(entity, state.buildings);
-    if (entity.residenceBuildingId === buildingId) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
-    if (entity.prisonBuildingId === buildingId) {
+    if (entity.workerBuildingId != null && buildingIds.has(entity.workerBuildingId)) removeWorkerTransition(entity, state.buildings);
+    if (entity.residenceBuildingId != null && buildingIds.has(entity.residenceBuildingId)) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
+    if (entity.prisonBuildingId != null && buildingIds.has(entity.prisonBuildingId)) {
+      if (entity.alive && entity.warCaptive) {
+        departWarPrisoner(state, entity, 'escaped');
+        continue;
+      }
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;
@@ -253,17 +259,25 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingId: nu
 /** The one owner of "a building leaves authoritative state": the completed-building counter, the
  *  adjacency index, its `state.adjacency` shadow and the road cache. Callers own why + assignments. */
 export function removeBuildingFromState(state: WorldState, building: Building): void {
-  unindexAdjacency(state, building.id);
+  removeBuildingsFromState(state, [building]);
+}
+
+/** Remove a batch through the same topology and completed-building counter owner. */
+function removeBuildingsFromState(state: WorldState, buildings: readonly Building[]): void {
+  const removedIds = new Set<number>();
+  let completed = 0;
+  for (const building of buildings) {
+    removedIds.add(building.id);
+    unindexAdjacency(state, building.id);
+    if (building.type === BuildingType.Road) {
+      state.roadAvoidance = undefined;
+      state.roadAvoidanceStamp = undefined;
+    }
+    if (building.completed && building.faction !== 'rival') completed++;
+  }
   state.adjacency = undefined;
-  if (building.type === BuildingType.Road) {
-    state.roadAvoidance = undefined;
-    state.roadAvoidanceStamp = undefined;
-  }
-  state.buildings = state.buildings.filter((candidate) => candidate.id !== building.id);
-  // Keep the denormalized completed-building counter consistent with load-time recomputation.
-  if (building.completed && building.faction !== 'rival') {
-    state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - 1);
-  }
+  state.buildings = state.buildings.filter((candidate) => !removedIds.has(candidate.id));
+  state.totalBuildingsCompleted = Math.max(0, state.totalBuildingsCompleted - completed);
 }
 
 /**
@@ -295,28 +309,26 @@ export function refundBuildingCost(
  * the entire save (entities, world map and all) for one building is unnecessary.
  * Keep the immutable wrapper below for direct callers and tests.
  */
-export function demolishBuildingInPlace(state: WorldState, buildingId: number): WorldState {
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building) return state;
+export function demolishBuildingInPlace(state: WorldState, buildingId: number, cause: 'demolition' | 'raid' = 'demolition'): WorldState {
+  return demolishBuildingsInPlace(state, [buildingId], cause);
+}
 
-  // The refund is capped by the storage owner, so report what was actually added rather than the
-  // nominal refund (a full store used to announce a refund it never received).
-  const { wood: gotWood, stone: gotStone } = refundBuildingCost(state, building.type);
-
-  clearAssignmentsForDemolishedBuilding(state, buildingId);
-  createDeathParticles(
-    state,
-    building.x,
-    building.y,
-    '#71717a',
-    25,
-    'smoke',
-  );
-  addFloatingText(state, building.x, building.y - 10, `Refunded: ${gotWood}w ${gotStone}s`, '#eab308');
+/** Batch destruction clears assignments once and reconciles only after every structure is gone. */
+export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonly number[], cause: 'demolition' | 'raid' = 'demolition'): WorldState {
+  if (buildingIds.length === 0) return state;
+  const requested = new Set(buildingIds);
+  const buildings = state.buildings.filter((building) => requested.has(building.id));
+  if (buildings.length === 0) return state;
+  clearAssignmentsForDemolishedBuilding(state, new Set(buildings.map((building) => building.id)));
+  for (const [index, building] of buildings.entries()) {
+    const refund = cause === 'raid' ? { wood: 0, stone: 0 } : refundBuildingCost(state, building.type);
+    if (index >= MAX_DEMOLITION_EFFECTS) continue;
+    createDeathParticles(state, building.x, building.y, '#71717a', 25, 'smoke');
+    addFloatingText(state, building.x, building.y - 10, cause === 'raid' ? 'Destroyed in battle'
+      : `Refunded: ${refund.wood}w ${refund.stone}s`, '#eab308');
+  }
   impulseScreenShake(state, 4);
-
-  removeBuildingFromState(state, building);
-  // Demolition changes authoritative capacity immediately, even while paused.
+  removeBuildingsFromState(state, buildings);
   updateStorageCaps(state);
   invalidatePopulationSnapshotCache(state);
   reconcileAssignmentsAfterBuildingRemoval(state);

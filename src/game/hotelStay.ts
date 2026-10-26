@@ -3,6 +3,7 @@
  * the hours left before their sleep hour. Lodging is free of charge (the hotelier gains work
  * experience for tending guests; nothing is charged).
  */
+import { enterHumanBuilding } from './simulation/humanMovement';
 import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
@@ -480,6 +481,7 @@ export function steerVisitorToHotel(
   buildings: readonly Building[],
   speed: number,
 ): boolean {
+  visitor.indoorBuildingId = undefined;
   if (visitor.hotelStayBuildingId == null) return false;
   const hotel = buildings.find((b) => b.id === visitor.hotelStayBuildingId);
   if (!hotel?.completed) {
@@ -502,7 +504,10 @@ export function steerVisitorToHotel(
       applyHumanWalkStep(visitor, 1);
       return true;
     }
-    if (handled === 'arrived') return true;
+    if (handled === 'arrived') {
+      enterHumanBuilding(visitor, hotel);
+      return true;
+    }
     visitor.vx = (dx / dist) * speed * 0.7;
     visitor.vy = (dy / dist) * speed * 0.7;
     applyHumanWalkStep(visitor, 1);
@@ -510,6 +515,7 @@ export function steerVisitorToHotel(
   } else {
     visitor.vx = 0;
     visitor.vy = 0;
+    enterHumanBuilding(visitor, hotel);
     restAtHotel(visitor);
   }
   return true;

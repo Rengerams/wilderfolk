@@ -1,3 +1,4 @@
+import { observeIndoorPatients } from '../game/virtualPlayer';
 import type { RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import Emoji from './Emoji';
@@ -156,7 +157,8 @@ tutorialsEnabled,
       ].join('\n')
     : 'Virtual player — an in-app auto-player that plays the real game on screen (one command per in-game hour)';
   return (
-    <header className="game-header flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-b border-stone-700/90 px-3 py-1 shadow-lg">
+    <header data-indoor-patients={import.meta.env.DEV && new URLSearchParams(window.location.search).has('indoorSmoke')
+      ? JSON.stringify(observeIndoorPatients(world)) : undefined} className="game-header flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-b border-stone-700/90 px-3 py-1 shadow-lg">
       <div
         className="flex min-w-0 items-center gap-2"
         title={`${gameTitle} · v${gameVersion}`}

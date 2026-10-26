@@ -9,12 +9,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, JobType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { tickRivalSettlements, type RivalEventCallbacks } from '../src/game/rivalEvents';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 import { building, human } from '../src/test/factories';
 import { hitTestCamp } from '../src/game/groupEvents';
-import { spawnRivalSettlement } from '../src/game/rivalSettlements';
+import { maybeFoundRivalSettlement, spawnRivalSettlement } from '../src/game/rivalSettlements';
+import { initGame } from '../src/game/worldGen';
+import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
 
 /** First tick of a calendar day, i.e. one `isNewCalendarDayTick` sees. */
 const FIRST_DAY_TICK = TICKS_PER_DAY;
@@ -233,5 +236,78 @@ describe('incoming raid cadence', () => {
     expect(state.pendingRaidEvents[0].rivalId).toBe('rival-stonefall');
     expect(state.eventLog.filter((e) => e.combatStage === 'dispatched')).toHaveLength(1);
     expect(state.rivalSettlements[0].raidCooldownDays).toBe(21);
+  });
+});
+
+
+describe('world-map settlement founding and saved games', () => {
+  it('founds neighbors through the daily rival pulse, up to six without village objects', () => {
+    setSimSeed(12345);
+    const { state, allAlive } = makeState();
+    state.rivalSettlements = [];
+    state.entities = allAlive.filter((person) => person.faction !== 'rival');
+    const buildings = [...state.buildings];
+    const people = [...state.entities];
+    for (const [day, expected] of [[9, 0], [10, 1], [11, 1], [39, 1], [40, 2],
+      [70, 3], [100, 4], [130, 5], [160, 6], [190, 6]]) {
+      state.year = 0;
+      state.dayInYear = day;
+      state.tick = day * TICKS_PER_DAY;
+      tickRivalSettlements(state, state.entities, callbacks);
+      expect(state.rivalSettlements, `day ${day}`).toHaveLength(expected);
+    }
+    expect(state.buildings).toEqual(buildings);
+    expect(state.entities).toEqual(people);
+    expect(state.rivalSettlements.every((camp) => camp.entityIds.length === 0
+      && camp.buildingIds.length === 0)).toBe(true);
+  });
+
+  it('requires six living player settlers and counts friendly neighbors toward the limit', () => {
+    const { state, allAlive } = makeState();
+    state.rivalSettlements = [];
+    state.year = 0;
+    state.dayInYear = 10;
+    maybeFoundRivalSettlement(state, allAlive.filter((person) => person.faction !== 'rival').slice(0, 5));
+    expect(state.rivalSettlements).toHaveLength(0);
+    for (let index = 0; index < 6; index++) {
+      expect(spawnRivalSettlement(state, state.buildings, 'friendly')).not.toBeNull();
+    }
+    const before = structuredClone(state);
+    expect(spawnRivalSettlement(state, state.buildings, 'tense')).toBeNull();
+    maybeFoundRivalSettlement(state, allAlive);
+    expect(state).toEqual(before);
+  });
+
+  it.each([0, 3, 7])('preserves an older save with %i strategic settlements', (count) => {
+    const world = initGame({ seed: 4242 });
+    world.rivalSettlements = Array.from({ length: count }, (_, index) => ({
+      ...rivalCamp(), id: `saved-neighbor-${index}`, relationship: 'friendly' as const,
+      buildingIds: [], entityIds: [], peaceTreatyDays: 45, giftsGiven: 4,
+    }));
+    const expected = world.rivalSettlements.map((camp) => ({
+      id: camp.id, relationship: camp.relationship, population: camp.population,
+      peaceTreatyDays: camp.peaceTreatyDays, giftsGiven: camp.giftsGiven,
+    }));
+    const payload = buildSaveData(world, createInitialView(world.width, world.height));
+    if (count === 0) delete payload.rivalSettlements;
+    const parsed = parseSaveJson(JSON.stringify(payload));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) throw new Error('Save payload refused');
+    const outcome = loadGameFromParsedOutcome(parsed.parsed);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error(outcome.detail ?? outcome.reason);
+    const loaded = outcome.world;
+    expect(loaded.rivalSettlements).toMatchObject(expected);
+    loaded.year = 8;
+    loaded.dayInYear = 10;
+    // Advance to a founding day in an established save without any new saved field.
+    while ((loaded.year * DAYS_PER_YEAR + loaded.dayInYear - 10) % 30 !== 0) loaded.dayInYear++;
+    loaded.tick += TICKS_PER_DAY;
+    const settlers = Array.from({ length: 6 }, (_, index) => human(900000 + index));
+    maybeFoundRivalSettlement(loaded, settlers);
+    expect(loaded.rivalSettlements).toHaveLength(count < 6 ? count + 1 : count);
+    expect(loaded.rivalSettlements.slice(0, count)).toMatchObject(expected);
+    expect(loaded.buildings.some((entry) => entry.faction === 'rival')).toBe(false);
+    expect(loaded.entities.some((entry) => entry.alive && entry.faction === 'rival')).toBe(false);
   });
 });
