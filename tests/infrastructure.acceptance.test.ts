@@ -12,6 +12,7 @@ import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { estimatedCommuteHours, isWithinAssignableCommute } from '../src/game/commuteReach';
+import { applyWorkerCommand, isWorkerCommand } from '../src/game/simWorker/commands';
 
 describe('infrastructure acceptance boundaries', () => {
   for (const terrain of [TerrainType.Mountains, TerrainType.Snow, TerrainType.RiverBank]) {
@@ -202,6 +203,35 @@ describe('infrastructure acceptance boundaries', () => {
     demolishStripBuildingsInPlace(placed, [gate.id, house.id]);
     expect(placed.buildings.some((entry) => entry.id === gate.id)).toBe(false);
     expect(placed.buildings.some((entry) => entry.id === house.id)).toBe(true);
+  });
+
+  it('toggles a complete gate through worker commands, re-prices routes and persists closure', () => {
+    const world = initGame({ seed: 20261026 });
+    const map = testWorldMap({ tilesX: 20, tilesY: 20 });
+    world.worldMap = map;
+    const gate = building(9050, BuildingType.WallGate, {
+      x: 105, y: 100, width: 10, height: 200, completed: true,
+    });
+    world.buildings = [gate];
+    const cmd = { proto: 1, op: 'toggleWallGate', buildingId: gate.id } as const;
+    expect(isWorkerCommand(cmd)).toBe(true);
+    expect(findPath(getPathGrid(map, world.buildings), 2, 10, 17, 10)).not.toBeNull();
+    const closed = applyWorkerCommand(world, cmd);
+    expect(closed.buildings[0].gateClosed).toBe(true);
+    expect(world.buildings[0].gateClosed).toBeUndefined();
+    expect(findPath(getPathGrid(map, closed.buildings), 2, 10, 17, 10)).toBeNull();
+
+    const save = buildSaveData(closed, createInitialView(closed.width, closed.height));
+    const parsed = parseSaveJson(JSON.stringify(save));
+    if (!parsed.valid || !parsed.parsed) throw new Error('gate fixture save rejected');
+    const loaded = loadGameFromParsed(parsed.parsed)!.world;
+    expect(loaded.buildings[0].gateClosed).toBe(true);
+    expect(findPath(getPathGrid(map, loaded.buildings), 2, 10, 17, 10)).toBeNull();
+    const reopened = applyWorkerCommand(loaded, cmd);
+    expect(reopened.buildings[0].gateClosed).toBe(false);
+    expect(findPath(getPathGrid(map, reopened.buildings), 2, 10, 17, 10)).not.toBeNull();
+    expect(applyWorkerCommand(reopened, { ...cmd, buildingId: 123456 })).toBe(reopened);
+    expect(isWorkerCommand({ ...cmd, buildingId: -1 })).toBe(false);
   });
 
   it('preserves mixed legacy infrastructure across three supported save round trips', () => {
