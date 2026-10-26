@@ -7,7 +7,7 @@ import type {
 import { EntityType, BuildingType, JobType } from './gameTypes';
 import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
-import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
+import { indexLivingEntity } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';
 import type { TickContext } from './simulation/simulationTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -25,7 +25,7 @@ import { getPlayerCampCenter } from './frontierCombat';
 import { clearFactionWanderState } from './factionWander';
 import { getRefugeeWelcomeBonus } from './townHall';
 import { addBigNews, addFloatingText, addNotification } from './simEffects';
-import { makeNextAliveDeer } from './rivalEvents';
+import { killWildGameForPoach, makeNextAliveDeer } from './rivalEvents';
 import { addReputation, getReputationBand } from './simHelpers';
 import { grantResearchProgress } from './research';
 import { formatResourceAmounts, RESOURCE_METAS, type ResourceKey } from './resourceTypes';
@@ -190,15 +190,6 @@ import { getSimRng, seededRandomForRun } from './simRng';
 
 function cloneWorldStateForAction(originalState: WorldState): WorldState {
   return structuredClone(originalState);
-}
-
-function killWildGameForPoach(state: WorldState, animal: Entity): void {
-  if (!animal.alive) return;
-  animal.alive = false;
-  unindexEntityFromState(state, animal.id);
-  for (const e of state.entities) {
-    if (e.huntTargetId === animal.id) e.huntTargetId = undefined;
-  }
 }
 
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
