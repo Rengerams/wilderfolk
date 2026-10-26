@@ -538,6 +538,16 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   partner and minor children moves with their own dependent household. The optional adult-child phase can
   use a genuinely vacant home, subject to normal capacity, protection and eligibility checks. Do not
   equate a family-tree relationship with one indivisible housing unit.
+* **Divorce custody — owner policy confirmed; code audit identifies a mismatch.** Minor children
+  remain with or move to their living, available mother (including an adoptive mother where applicable),
+  regardless of which partner initiated the divorce or committed adultery. The father is the departing
+  parent when the couple separates; try to find him a suitable residence without displacing the
+  mother and children. If the mother is deceased or genuinely unavailable, invoke the established
+  fallback guardianship rules rather than assigning children to an absent parent. The sitting leader
+  retains the manor entitlement, but that must not silently override maternal custody: reconcile
+  housing without splitting mother and minors. Custody and relocation must be consistent across
+  divorce handling and the subsequent housing sweep. This is a required code change/verification,
+  not a claim about currently shipped behavior.
 * **Oversized households — owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
