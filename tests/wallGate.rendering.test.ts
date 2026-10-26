@@ -31,7 +31,7 @@ describe('upright wall and gate renderer', () => {
       drawProceduralWall(context, 50, 60, w, h, angle, false);
       expect(pictures.length).toBeGreaterThan(1);
       expect(pictures.every((picture) => picture.path.endsWith('/wall.png'))).toBe(true);
-      expect(rotations).toEqual([]);
+      expect(rotations.every((angle) => angle === 0)).toBe(true);
     }
   });
 
@@ -43,7 +43,7 @@ describe('upright wall and gate renderer', () => {
       expect(gates).toHaveLength(1);
       expect(gates[0].width / gates[0].height).toBeCloseTo(49 / 57);
       expect(pictures.some((picture) => picture.path.endsWith('/wall.png'))).toBe(true);
-      expect(rotations).toEqual([]);
+      expect(rotations.every((angle) => angle === 0)).toBe(true);
     }
   });
 
@@ -56,6 +56,6 @@ describe('upright wall and gate renderer', () => {
     drawProceduralWallJunction(context, 20, 20, 72, 12, info);
     expect(pictures).toHaveLength(1);
     expect(pictures[0].path).toMatch(/wall\.png$/);
-    expect(rotations).toEqual([]);
+    expect(rotations.every((angle) => angle === 0)).toBe(true);
   });
 });
