@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Overnight workers schedule daytime sleep after their shift; saved recovery intent lasts until genuine residential sleep restores rest. Status reads no longer mutate break state.
+
 - **Changed:** Off-duty settlers now take actual stamina recovery breaks, retain break intent across saves and resume activity after recovery.
 
 - **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
