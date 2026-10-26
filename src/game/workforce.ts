@@ -813,7 +813,7 @@ export function releasePrisoners(state: WorldState): void {
     if (state.tick < entity.prisonerUntilTick) continue;
 
     const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
-    if (prison) {
+    if (prison && entity.workerBuildingId !== prison.id) {
       prison.occupants = prison.occupants.filter((id) => id !== entity.id);
     }
 
