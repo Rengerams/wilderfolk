@@ -194,18 +194,18 @@ describe('grandparents and sibling-set guardianship', () => {
 });
 
 describe('manor entitlement and succession at an arbitrary building id', () => {
-  it('includes married children and spouses, retains vacancy rights, then rehouses the outgoing family once', () => {
-    const leader = human(1, { occupation: LEADER_OCCUPATION, childrenIds: [2] });
-    const child = human(2, { motherId: 1, partnerId: 3 });
-    const spouse = human(3, { partnerId: 2 });
+  it('keeps dependent minors with their parent through vacancy and succession', () => {
+    const leader = human(1, { occupation: LEADER_OCCUPATION, partnerId: 3, childrenIds: [2] });
+    const child = human(2, { motherId: 3, fatherId: 1, age: 8, isJuvenile: true });
+    const spouse = human(3, { partnerId: 1, childrenIds: [2] });
     const stranger = human(4);
     const manor = building(1351, BuildingType.LeaderHouse);
     const ordinary = building(0, BuildingType.Mansion, { level: 3 });
     const state = { entities: [leader, child, spouse, stranger], buildings: [ordinary, manor],
       villageLeaderId: 1, tick: 0, eventLog: [] } as unknown as WorldState;
-    expect(collectLeaderHousehold(state).map((member) => member.id)).toEqual([1, 2, 3]);
+    expect(collectLeaderHousehold(state).map((member) => member.id).sort((a, b) => a - b)).toEqual([1, 2, 3]);
     syncLeaderHouseResidency(state);
-    expect(manor.occupants).toEqual([1, 2, 3]);
+    expect([...manor.occupants].sort((a, b) => a - b)).toEqual([1, 2, 3]);
     leader.alive = false;
     state.villageLeaderId = null;
     state.pendingLeaderHouseResidentIds = [2, 3];

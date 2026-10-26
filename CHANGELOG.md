@@ -3,8 +3,11 @@
 ## 0.6.6.0[Unreleased]
 
 - **Fixed:** Leader House entitlement still recognizes adult children while allowing established adult households to remain independent.
-
 - **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
+- **Fixed:** camera zoom-out now reaches the overview and LOD presets (minimum 0.2); rabbits and deer replenish in bounded 16-animal batches instead of large single-tick bursts; a reverting sitting Moon Howler leader regains their Leader House entitlement immediately even at generic capacity.
+
+- **Changed:** Auto-play now prioritizes wood, stone and iron recovery equally and can reassign workers to their producers. Food and housing remain higher priorities.
+
 
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.

@@ -969,6 +969,19 @@ describe('virtual player decision engine', () => {
     expect(decision!.reason).toContain('wood');
   });
 
+  it.each([
+    ['wood', BuildingType.LumberMill],
+    ['stone', BuildingType.Quarry],
+    ['iron', BuildingType.Mine],
+  ] as const)('gives low %s the same producer-build priority', (resource, type) => {
+    const resources = { wood: 500, stone: 500, food: 500, gold: 500, iron: 500 };
+    resources[resource] = 0;
+    const world = makeWorld([human(1, { residenceBuildingId: 1 })], [], { resources });
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type });
+    expect(decision?.reason).toContain(resource);
+  });
+
   it('mines iron without waiting for a Blacksmith — the Mine has no unlock requirement', () => {
     // The owner data is the authority: `BUILDING_CONFIGS.Mine` carries no
     // `unlockRequirement` (the game lets a Mine dig gold as well as iron), so the
@@ -1078,6 +1091,8 @@ describe('virtual player remaining action surface', () => {
         building(1, BuildingType.House, { occupants: [1] }),
         building(2, BuildingType.Farm, { occupants: [1] }),
         building(3, BuildingType.LumberMill),
+        // Keep spare housing from pre-empting the repairs this fixture is isolating.
+        building(4, BuildingType.Mansion, { level: 3 }),
         ...roads,
       ],
       { resources: { wood: 35, stone: 15, food: 500, gold: 500, iron: 150 } },

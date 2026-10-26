@@ -15,7 +15,7 @@ describe('housing regressions: married descendants and cursed residents', () => 
     const child = human(2, { motherId: 1, childrenIds: [3] });
     const grandchild = human(3, { motherId: 2, age: 22, partnerId: 4 });
     const spouse = human(4, { partnerId: 3 });
-    expect(collectLeaderDescendants(leader, [leader, child, grandchild, spouse]).map((p) => p.id)).toEqual([1, 2]);
+    expect(collectLeaderDescendants(leader, [leader, child, grandchild, spouse]).map((p) => p.id)).toEqual([1]);
   });
 
   it('keeps a cursed Moon Howler bed occupied until their human form returns', () => {
