@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Adoption now reports success only after household relocation succeeds; failed placements leave custody and surnames unchanged.
+
 - **Fixed:** Adoption capacity now counts jailed residents' reserved beds without making them eligible to move; regression coverage prevents overcrowding.
 
 - **Fixed:** Manual staffing now counts imprisoned workers' reserved posts, preventing overstaffing after release; added a regression test.
