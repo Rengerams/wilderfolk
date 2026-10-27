@@ -46,11 +46,11 @@ export function isMealCheckHour(hourOfDay: number): boolean {
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
  * applies before it drains a unit of food.
  */
-export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: number): boolean {
+export function canEatColonyMeal(state: WorldState, entity: Entity, hourOfDay: number): boolean {
   if (!entity.alive || state.resources.food <= 0) return false;
   if (!isStartOfClockHour(state.tick)) return false;
   if (entity.warCaptive && !isPlayerHuman(entity)) {
-    return isMealCheckHour(_hourOfDay) && entity.energy < entity.maxEnergy * Human.HUNGER_MEAL_THRESHOLD;
+    return isMealCheckHour(hourOfDay) && entity.energy < entity.maxEnergy * Human.HUNGER_MEAL_THRESHOLD;
   }
   return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
@@ -60,7 +60,7 @@ export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: n
   const amount = spendFood(state, 'meals', Math.min(1, state.resources.food));
   if (amount <= 0) return false;
   if (entity.warCaptive && !isPlayerHuman(entity)) {
-    entity.energy = Math.min(entity.maxEnergy, entity.energy + (Human.MEAL_ENERGY_RESTORE ?? 65) * amount);
+    entity.energy = Math.min(entity.maxEnergy, entity.energy + Human.MEAL_ENERGY_RESTORE * amount);
     return true;
   }
   creditHumanNutritionFromFood(entity, amount);
