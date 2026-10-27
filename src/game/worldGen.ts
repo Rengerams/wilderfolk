@@ -778,7 +778,8 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       }
     }
 
-    }  }
+    }
+  }
 
   // 5. Initial Wildlife Fauna
   spawnWildlifeAtRandomPassable(state, EntityType.Rabbit, 42);
