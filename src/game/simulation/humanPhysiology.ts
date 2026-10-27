@@ -135,11 +135,7 @@ export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: numbe
   entity.energy = entity.maxEnergy * needs.stamina / 100;
 }
 
-/**
- * Resume the human clock when a Moon Howler returns from the nonhuman
- * metabolism. The current transition tick is still processed normally; the
- * hours spent transformed must not be retroactively charged as human needs.
- */
+/** Resume at the human-form tick, without charging the Moon Howler night again. */
 export function rebaseHumanNeedsClockAfterFormRestore(entity: Entity, tick?: number): void {
   if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
