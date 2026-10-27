@@ -1,29 +1,23 @@
-
-name: Node.js CI
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [26.12.1]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
-    - uses: actions/checkout@v4.4.0
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4.4.0
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-    - run: npm ci
-    - run: npm run test:standard && npm run build 
-    
+      - uses: actions/checkout@v4.4.0
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Verbeterde caching: onthoudt downloads, zelfs als package-lock.json licht verandert
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # Supersnelle installatie zonder onnodige netwerk-audits
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Run Tests and Build
+        run: npm run test:standard && npm run build
