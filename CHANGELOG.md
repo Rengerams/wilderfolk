@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed (#62):** The Virtual Player now attempts real workforce staffing of completed idle food producers before proposing additional Farms in a measured food shortage. It refuses to multiply unstaffed Farms when nobody can transfer; targeted regressions cover the action and refusal.
+
 - **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added focused/offscreen meal equivalence, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
 
 - **Changed (#62):** Auto-play now reads a contiguous 3–7-day actual food-production/consumption trend before increasing agricultural capacity or voluntarily recruiting more settlers; a sustained deficit prioritizes conservative food production and suspends discretionary recruitment. Separate tests prove stale/missing history cannot masquerade as a measured shortage.
