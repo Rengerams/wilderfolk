@@ -238,38 +238,16 @@ export {
   readSavePayload,
   describeSaveReadFailure,
 } from './saveLoad';
-export {
-  isFootprintOnBuildableTerrain,
-  canPlaceBuilding,
-  getPlaceBuildingFailureReason,
-  startBuilding,
-  isOnConstructionCrew,
-  pickAdultSettler,
-  assignBuilderToBuilding,
-  assignResidentToBuilding,
-  removeResidentFromBuilding,
-  assignIdleWorkerToBuilding,
-  fillBuildingWorkers,
-  autoStaffAllWorkers,
-  removeWorkerFromBuilding,
-  listAssignableWorkersForBuilding,
-  canAssignWorkerToBuilding,
-  repairBuilding,
-  getBuildingUpgradeCost,
-  upgradeBuilding,
-  recruitSettler,
-  estimateWorkshopGold,
-  setWorkshopRecipe,
-  setHuntingSpotPrey,
-  setMineMode,
-  setBuildingStaffingMode,
-  demolishBuilding,
-  spawnMoonHowlerDebug,
-  getTameFoodCost,
-  tameEntity,
-  buildStripPreview,
-  placeStripChain,
-} from './buildingActions';
+export { isFootprintOnBuildableTerrain } from './placementUtils';
+export { canPlaceBuilding, getPlaceBuildingFailureReason, startBuilding, buildStripPreview, placeStripChain } from './buildingPlacementActions';
+export { isOnConstructionCrew } from './workforce';
+export { pickAdultSettler, assignBuilderToBuilding, fillBuildingWorkers, autoStaffAllWorkers, listAssignableWorkersForBuilding, canAssignWorkerToBuilding } from './buildingStaffingActions';
+export { assignResidentToBuilding, removeResidentFromBuilding } from './buildingResidencyActions';
+export { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from './buildingActionRouting';
+export { repairBuilding, getBuildingUpgradeCost, upgradeBuilding, demolishBuilding } from './buildingMaintenanceActions';
+export { recruitSettler, spawnMoonHowlerDebug, getTameFoodCost, tameEntity } from './settlerInteractionActions';
+export { estimateWorkshopGold } from './workshopEconomy';
+export { setWorkshopRecipe, setHuntingSpotPrey, setMineMode, setBuildingStaffingMode } from './buildingConfigurationActions';
 export { isStripBuildType, inferStripRotation } from './stripBuild';
 export {
   addResource,

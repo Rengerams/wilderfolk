@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize, BuildingType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
-import {
-  listAssignableWorkersForBuilding,
-  setBuildingStaffingMode,
-} from '../src/game/buildingActions';
+import { listAssignableWorkersForBuilding } from '../src/game/buildingStaffingActions';
+import { setBuildingStaffingMode } from '../src/game/buildingConfigurationActions';
 import { assignWorkerInPlace } from '../src/game/workforce';
 import { building as buildingFixture, human } from '../src/test/factories';
 
