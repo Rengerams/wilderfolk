@@ -10,6 +10,7 @@ import { getVillageLeader } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_NEEDS, creditHumanNutritionFromFood, creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
   return ticksForDays(50);
@@ -155,7 +156,8 @@ export function wantsCivicAudience(entity: Entity, state: WorldState): boolean {
   if (!isPlayerHuman(entity) || entity.isJuvenile) return false;
   if (entity.job === JobType.Official) return false;
   if ((entity.griefUntilTick ?? 0) > state.tick) return true;
-  if (state.resources.food < Math.max(40, state.humanPopulation * 2) && entity.energy < entity.maxEnergy * 0.55) {
+  if (state.resources.food < Math.max(40, state.humanPopulation * 2)
+    && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION) {
     return true;
   }
   if ((entity.scandalCooldownUntilTick ?? 0) > state.tick) return true;
@@ -207,20 +209,21 @@ export function resolveCivicPetition(
   if (
     state.resources.food >= 8
     && state.resources.food < state.humanPopulation * 3
-    && petitioner.energy < petitioner.maxEnergy * 0.5
+    && (petitioner.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION
     && personDayRoll(petitioner.id, state.tick, 822) < 0.45
   ) {
     const amount = Math.min(4, Math.floor(state.resources.food * 0.02) + 1);
-    spendFood(state, 'petition', amount);
-    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 12 + amount * 4);
-    addFloatingText(state, petitioner.x, petitioner.y - 14, `+${amount} food (aid)`, '#86efac', 'brief');
+    const spent = spendFood(state, 'petition', amount);
+    if (spent <= 0) return { kind: 'none' };
+    creditHumanNutritionFromFood(petitioner, spent);
+    addFloatingText(state, petitioner.x, petitioner.y - 14, `+${spent} food (aid)`, '#86efac', 'brief');
     sayHumanChatPhrase(
       petitioner,
       personDayRoll(petitioner.id, state.tick, 831) < 0.5 ? 'The hall will help us.' : 'Thank the officials.',
       50,
     );
     addReputation(state, 1);
-    return { kind: 'aid_food', amount };
+    return { kind: 'aid_food', amount: spent };
   }
 
   // Scandal / grief → being heard
@@ -229,7 +232,7 @@ export function resolveCivicPetition(
       || (petitioner.scandalCooldownUntilTick ?? 0) > state.tick)
     && personDayRoll(petitioner.id, state.tick, 823) < 0.55
   ) {
-    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 6);
+    creditHumanStaminaFromEnergy(petitioner, 6);
     sayHumanChatPhrase(
       petitioner,
       personDayRoll(petitioner.id, state.tick, 832) < 0.5 ? 'They listened…' : 'The record is noted.',
