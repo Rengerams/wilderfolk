@@ -27,6 +27,7 @@ import { assignMissingResidences } from '../src/game/dayCycle';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';
+import { getRecentFoodFlow } from '../src/game/economyLedger';
 import {
   assignWorkerTransition,
   countWorkingAndIdleSettlers,
@@ -774,12 +775,7 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     }
     const staffedJobBuildings = staffable.filter((building) => (assignedByBuilding.get(building.id) ?? 0) > 0).length;
     const ledger = world.economyLedger;
-    const foodDays = (world.foodHistory ?? []).slice(-30);
-    const sumFoodDay = (part: 'produced' | 'consumed'): number =>
-      foodDays.reduce((sum, sample) =>
-        sum + Object.values(sample[part]).reduce((total, value) => total + value, 0), 0);
-    const producedLast30Days = sumFoodDay('produced');
-    const consumedLast30Days = sumFoodDay('consumed');
+    const recentFoodFlow = getRecentFoodFlow(world, 30);
     const campaign = getGuidedCampaignProgress(world);
     const promiseStatus = getActiveElectionPromises(world);
     const leader = world.villageLeaderId == null
@@ -801,10 +797,10 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
         netToday: (ledger?.producedTotal ?? 0) - (ledger?.consumedTotal ?? 0),
         ledgerDay: ledger?.day ?? null,
         last30Days: {
-          sampledDays: foodDays.length,
-          produced: producedLast30Days,
-          consumed: consumedLast30Days,
-          net: producedLast30Days - consumedLast30Days,
+          sampledDays: recentFoodFlow?.days ?? 0,
+          produced: (recentFoodFlow?.producedPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
+          consumed: (recentFoodFlow?.consumedPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
+          net: (recentFoodFlow?.netPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
         },
       },
       housing: { ...housing, healthy: isHousingDiagnosticsHealthy(housing) },
