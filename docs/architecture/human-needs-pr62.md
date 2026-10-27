@@ -1,6 +1,6 @@
 # Wilderfolk — Human Needs Architecture (PR #62)
 
-**Status:** architecture of the implementation on the PR branch, 27 October 2026. This is not a claim that issue #61's end-to-end acceptance criteria have passed.
+**Status:** implementation merged into `main` and accepted as PR #62 on 27 October 2026. The historical validation limitations below still describe checks not evidenced by this document; they do not reverse acceptance.
 
 **Scope:** player-controlled human settlers. Wildlife, animals, visitors, rivals, caravans and Moon Howler forms keep their existing energy and economy contracts except where an explicit transformation or captive transition applies.
 
@@ -92,7 +92,7 @@ Standard project commands (run in the repository's supported PowerShell environm
 - `npm run build` — type checks, lint, duplicate-code checks and production build.
 - `npm run test:full-year` — full-year invariant run; inspect the dedicated seeded-colony workflow for measured demand/production, not merely a healthy verdict.
 
-**Still not verified by this documentation:** sustainable 7/30/360-day food balance, every remaining human `energy` reader/writer, a full current-head CI run, real bed occupancy in each sleep path, and worker on-screen/off-screen equivalence. Previous PR notes report a day-120 food stockout and a day-330 workforce invariant failure; those reports are historical evidence, not current-head verification. Keep PR #62 a draft until the issue #61 acceptance matrix and fresh checks pass.
+**Still not verified by this documentation:** sustainable 7/30/360-day food balance, every remaining human `energy` reader/writer, a full current-head CI run, real bed occupancy in each sleep path, and worker on-screen/off-screen equivalence. Previous PR notes report a day-120 food stockout and a day-330 workforce invariant failure; those reports are historical evidence, not current-head verification. PR #62 is **merged and accepted**; complete the remaining matrix and fresh current-`main` checks as post-merge release-hardening work.
 
 ## 8. Maintenance rules
 
