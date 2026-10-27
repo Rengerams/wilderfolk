@@ -89,7 +89,7 @@ describe('simulation decision registry', () => {
 
     for (const [key, path] of owners) {
       const source = readFileSync(resolve(process.cwd(), path), 'utf8');
-      const names = [...source.matchAll(/export function\\s+([A-Za-z_$][\\w$]*)\\s*\\(/g)]
+      const names = [...source.matchAll(/export function\s+([A-Za-z_$][\w$]*)\s*\(/g)]
         .map((match) => match[1]);
       expect(names.length, `No exported functions found in ${path}`).toBeGreaterThan(0);
       const registration = SIMULATION_DECISIONS[key].owner;
