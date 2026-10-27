@@ -304,6 +304,14 @@ export const VirtualPlayer = {
    */
   SETTLERS_PER_FOOD_PRODUCER: 9,
   /**
+   * A genuinely shrinking food store needs a more conservative planning ratio:
+   * 5 adults per producer assumes roughly one staffed 17-food Farm, not a
+   * permanently perfect three-person crew. Only used after a measured deficit.
+   */
+  DEFICIT_SETTLERS_PER_FOOD_PRODUCER: 5,
+  /** Ignore daily food swings under 5% until a three-day history confirms them. */
+  FOOD_DEFICIT_TOLERANCE_RATIO: 0.05,
+  /**
    * 12 = settlers one wood, stone or iron producer serves. Bot policy, not a yield: building spend
    * scales with the village, so one producer per dozen adults keeps the shelves level with growth.
    */
