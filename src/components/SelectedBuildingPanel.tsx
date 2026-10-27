@@ -177,6 +177,7 @@ export interface SelectedBuildingPanelProps {
   onRepair: () => void;
   onUpgrade: () => void;
   onDemolish: () => void;
+  onToggleGate?: () => void;
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
   onSetMineMode?: (mode: MineMode) => void;
@@ -189,7 +190,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
@@ -484,6 +485,15 @@ export default function SelectedBuildingPanel({
         </div>
       </div>
 
+      {building.type === BuildingType.WallGate && building.completed && (
+        <div className="mb-2 rounded border border-amber-700/40 p-2 text-xs text-amber-100">
+          <p>Gate: {building.gateClosed === true ? 'Closed — passage blocked' : 'Open — passage allowed'}</p>
+          <button type="button" onClick={onToggleGate} disabled={!onToggleGate}
+            className="mt-1 rounded bg-amber-800 px-3 py-1 font-semibold hover:bg-amber-700 disabled:opacity-50">
+            {building.gateClosed === true ? 'Open gate' : 'Close gate'}
+          </button>
+        </div>
+      )}
       <CollapsibleSection title="Overview" defaultOpen storageKey={`building-overview-${building.id}`}>
         <div className="space-y-0.5 text-xs text-amber-200">
           <p>Health: {Math.round(building.health)} / {building.maxHealth}</p>
@@ -553,9 +563,8 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
-          const guardIds = staffRosterIds;
-          const roster = prisonRoster(guardIds, state.tick);
-          const resting = offDutyPrisonGuards(guardIds, state.tick);
+          const roster = prisonRoster(staffRosterIds, state.tick);
+          const resting = offDutyPrisonGuards(staffRosterIds, state.tick);
           const vacant = vacantPrisonShifts(roster);
           const onPostNow = prisonShiftsAtHour(getHourOfDay(state.tick));
           return (
@@ -1058,12 +1067,11 @@ export default function SelectedBuildingPanel({
             // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
             // listing it here announced prisoners as its "Current workers" — the owner's eight-row
             // roster of seven guards and a cellmate. Only the posts are staff.
-            const staffedIds = staffRosterIds;
-            if (staffedIds.length === 0) return null;
+            if (staffRosterIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
-              {staffedIds.map((occupantId) => {
+              {staffRosterIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (
                   <div key={occupantId} className="flex items-center justify-between gap-2 rounded bg-stone-700/40 px-2 py-1">

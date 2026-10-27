@@ -1,4 +1,5 @@
 import { getOutgoingBattleProgressPercent } from './game/frontierCombat';
+import { isStripBuildType } from './game/stripBuild';
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   initGame,
@@ -94,7 +95,7 @@ import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
 import {
-  TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
+  TUTORIAL_DONE_STORAGE_KEY,
   overviewNavFromState,
   sidebarTabForOverviewNav,
   useGameShellState,
@@ -491,7 +492,7 @@ export default function App() {
     saveTutorialsEnabled(false);
     setTutorialsEnabled(false);
     try {
-      localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+      localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
     } catch { /* ignore */ }
     setShowTutorial(false);
     setTutorialStep(0);
@@ -511,7 +512,7 @@ export default function App() {
     setTutorialsEnabled(next);
     if (!next) {
       try {
-        localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+        localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
       } catch { /* ignore */ }
       setShowTutorial(false);
       dismissContextualTip();
@@ -555,7 +556,7 @@ export default function App() {
 
   const finishTutorial = useCallback(() => {
     try {
-      localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+      localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
     } catch { /* ignore */ }
     setShowTutorial(false);
     setTutorialStep(0);
@@ -1038,7 +1039,7 @@ export default function App() {
       // get the "how to place buildings" overlay again on a new game.
       let tutorialDone = false;
       try {
-        tutorialDone = localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+        tutorialDone = localStorage.getItem(TUTORIAL_DONE_STORAGE_KEY) === '1';
       } catch { /* ignore */ }
       const showQuickStart = tutorialsEnabled && !tutorialDone;
       s.paused = showQuickStart;
@@ -1236,7 +1237,7 @@ export default function App() {
           setTutorialsEnabled(enabled);
           if (!enabled) {
             try {
-              localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+              localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
             } catch { /* ignore */ }
             setShowTutorial(false);
             dismissContextualTip();
@@ -1405,8 +1406,12 @@ export default function App() {
         
 
           <div className="pointer-events-none absolute inset-0 z-10">
-          {/* Build mode is shown by the building ghost following the cursor —
-              no banner. Esc / right-click exits placement; R rotates. */}
+          {/* Strip gestures: a contextual hint makes bulk demolition discoverable. */}
+          {selectedBuildingType && isStripBuildType(selectedBuildingType) && (
+            <div className="absolute left-3 top-3 rounded bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-md">
+              Hold and draw paths or walls · Alt + drag to remove
+            </div>
+          )}
           
           {/* Notification setting affects display only; the Chronicle remains unchanged. */}
           <div className="pointer-events-auto absolute right-3 top-3 z-[40] w-[min(20rem,calc(100vw-8rem))]">
@@ -2000,6 +2005,7 @@ export default function App() {
                 onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
                 onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
                 onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
+                onToggleGate={() => applyGameAction({ proto: 1, op: 'toggleWallGate', buildingId: selectedBuilding.id })}
                 onSetWorkshopRecipe={(recipeId: string) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setWorkshopRecipe', buildingId: selectedBuilding.id, recipeId });

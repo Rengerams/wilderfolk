@@ -12,14 +12,12 @@ export {
   buildStripPreview,
   canPlaceBuilding,
   getPlaceBuildingFailureReason,
-  isFootprintOnBuildableTerrain,
   placeStripChain,
   startBuilding,
 } from './buildingPlacementActions';
 
-// The bounds rule is re-exported from its owner: `buildingPlacementActions` only passed it through,
-// which advertised a second import path for one rule (nothing else read that re-export either).
-export { isFootprintWithinMapBounds } from './placementUtils';
+// Legacy footprint exports resolve directly to the placement owner.
+export { isFootprintOnBuildableTerrain, isFootprintWithinMapBounds } from './placementUtils';
 
 // ---------------------------------------------------------------------------
 // Staffing & Workforce

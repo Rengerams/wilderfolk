@@ -18,6 +18,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
 import { createSimFocus } from '../src/game/simFocus';
 import { getWorkSchedule, isOnWorkCommuteHours } from '../src/game/workSchedule';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, getWeekday } from '../src/game/dayCycleClock';
@@ -45,11 +46,23 @@ function tickAtHourOnWorkDay(state: WorldState, hour: number): number {
 function workerAtHome(state: WorldState): { person: Entity; mill: Building; stand: { x: number; y: number } } {
   const person = state.entities.find((e) => e.alive && e.type === EntityType.Human && isPlayerHuman(e));
   if (!person) throw new Error('no settler');
-  const mill = workplace(state, person.x + 240, person.y + 120);
-  person.workerBuildingId = mill.id;
-  person.job = JobType.Lumberjack;
-  mill.occupants.push(person.id);
-  return { person, mill, stand: humanBuildingTarget(mill, person.id, false) };
+  const grid = getPathGrid(state.worldMap!, state.buildings);
+  // This test verifies scheduling, not movement through rivers: pick a reachable worksite.
+  const offsets = [[240, 120], [160, 80], [120, 0], [80, 0], [60, 0], [0, 60], [-60, 0], [0, -60]];
+  for (const [dx, dy] of offsets) {
+    const mill = workplace(state, person.x + dx, person.y + dy);
+    const stand = humanBuildingTarget(mill, person.id, false);
+    if (lineCrossesBlocked(grid, person.x, person.y, stand.x, stand.y)) {
+      state.buildings.pop();
+      state.nextBuildingId--;
+      continue;
+    }
+    person.workerBuildingId = mill.id;
+    person.job = JobType.Lumberjack;
+    mill.occupants.push(person.id);
+    return { person, mill, stand };
+  }
+  throw new Error('fixture could not find a reachable worksite');
 }
 
 describe('work-commute departure window', () => {

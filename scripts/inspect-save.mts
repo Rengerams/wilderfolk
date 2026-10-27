@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { describeSaveReadFailure, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from '../src/game/saveSchema';
 import { BuildingType, EntityType, JobType, PATH_CELL } from '../src/game/gameTypes';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import {
   getAbsoluteCalendarDay,
