@@ -355,7 +355,8 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     const decision = decideVirtualPlayerAction(world);
     expect(decision?.command.op).toBe('upgradeBuilding');
     if (!decision || decision.command.op !== 'upgradeBuilding') throw new Error('expected a farm upgrade');
-    const target = world.buildings.find((site) => site.id === decision.command.buildingId);
+    const upgradedBuildingId = decision.command.buildingId;
+    const target = world.buildings.find((site) => site.id === upgradedBuildingId);
     expect(target?.type).toBe(BuildingType.Farm);
     expect(target?.occupants.length).toBeGreaterThan(0);
     expect(decision.reason).toContain('measured food production does not cover consumption');
