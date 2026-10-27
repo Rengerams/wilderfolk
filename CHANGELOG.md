@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **CI:** Bound seeded human-needs PR runs to 7/30/90 days and fail the full-year producer harness at the first exhausted checkpoint instead of timing out.
+- **CI:** Bound pull-request colony calibration to short and medium scenarios; full-year runs now stop at the first exhausted-food checkpoint instead of continuing after failure.
 
 - **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
 
