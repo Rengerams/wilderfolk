@@ -7,6 +7,7 @@ import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
+import { creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { sayHumanChatPhrase } from './humanChat';
 
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
@@ -228,7 +229,7 @@ export function tickAdultLeisureMotive(args: {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
         commuteHumanToBuilding(entity, home, speed * (impulse.motive === 'sick_day' ? 0.7 : 0.9), true, 1);
-        if (impulse.motive === 'sick_day') entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.25 * PER_TICK_RATE_SCALE);
+        if (impulse.motive === 'sick_day') creditHumanStaminaFromEnergy(entity, 0.25 * PER_TICK_RATE_SCALE);
         suppressIdle = true;
       }
     } else if (impulse.company?.alive && impulse.building) {
@@ -239,7 +240,7 @@ export function tickAdultLeisureMotive(args: {
     } else if (impulse.company?.alive) {
       const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
       if (dist > 16) { steerEntityToward(entity, c.x, c.y, speed, 0.5); }
-      else if (impulse.motive === 'comfort_neighbor') { settlerPairChat(entity, c, 'social', 0.12); c.energy = Math.min(c.maxEnergy, c.energy + 0.15 * PER_TICK_RATE_SCALE); }
+      else if (impulse.motive === 'comfort_neighbor') { settlerPairChat(entity, c, 'social', 0.12); if (isPlayerHuman(c)) creditHumanStaminaFromEnergy(c, 0.15 * PER_TICK_RATE_SCALE); }
       else if (impulse.motive === 'care_pregnant') settlerPairChat(entity, c, 'home', 0.12);
       suppressIdle = true;
     } else if (impulse.building) {
@@ -259,7 +260,7 @@ export function tickAdultLeisureMotive(args: {
       if (arrived) enterHumanBuilding(entity, b);
       if (!arrived) steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
       else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
-      else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
+      else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { creditHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
       suppressIdle = true;
     }
   }
