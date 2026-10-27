@@ -859,7 +859,8 @@ export function bakeWhittakerGround(
       const hn = aboveSea / landRange;
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
-      const rd = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL) - edgeJit * RIVER_EDGE_JITTER;
+      const coverage = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
+      const rd = map.generationVersion === 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
       const isWater = aboveSea < 0 || (map.generationVersion === 3 && rd > 0.55);
 
       let [r, g, b] = groundColor(
@@ -981,8 +982,8 @@ export function bakeWhittakerGround(
         r *= 1 - wetBank * 0.22;
         g *= 1 - wetBank * 0.16;
         b *= 1 - wetBank * 0.11;
-        if (rd > 0.51) {
-          const waterBlend = clamp((rd - 0.51) / 0.14, 0, 1);
+        if (rd > 0.47) {
+          const waterBlend = clamp((rd - 0.47) / 0.08, 0, 1);
           const core = clamp((rd - 0.62) / 0.37, 0, 1);
           const river = lc(RIVER_EDGE, RIVER_CORE, core);
           const surface = (valueNoise(wx * 0.08 + wy * 0.018, wy * 0.09 - wx * 0.02, seed + 6060) - 0.5) * 9;
