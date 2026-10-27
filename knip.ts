@@ -37,9 +37,9 @@ import type { KnipConfig } from 'knip';
  * (`node_modules/knip/dist/IssueCollector.js` → `shouldIgnoreIssue(filePath, issueType)`); the
  * `file#symbol` form of `ignore` was a knip 5 feature and no longer suppresses anything. The only
  * per-symbol mechanism knip 6 has left is a `@public` JSDoc tag in the declaring file, which would
- * mean ~91 edits in files owned by other lanes of the running fix campaign.
+ * mean ~90 edits in files owned by other lanes of the running fix campaign.
  *
- * The three tolerated groups, with counts (80 `exports` + 11 `types` = 91 symbols, 48 files):
+ * The three tolerated groups, with counts (79 `exports` + 11 `types` = 90 symbols, 47 files):
  *
  *   [A] 16 symbols — **declared owner-module surface**. These are named in `OWNERSHIP_OVERVIEW.md`
  *       as the module's public API (`getDecisionOwner`, `generateWorldMap`, `getSpeciesConfig`, …),
@@ -49,7 +49,7 @@ import type { KnipConfig } from 'knip';
  *       by 12 test files for `building`/`human`/`byType`/`finishedBuilding`; `stubHuman` is the
  *       factory's human-shaped helper that six test files currently re-implement locally, and the
  *       recovered test copies in `tmp/recovered/tests/` import it. Intentional test surface.
- *   [C] 74 symbols — **unreferenced exports whose file this lane does not own**. Deleting them is
+ *   [C] 73 symbols — **unreferenced exports whose file this lane does not own**. Deleting them is
  *       their owning lane's call (the campaign's one-writer-per-file rule), so they are listed here
  *       as named debt rather than removed: 29 have no reference anywhere in `src/`, `tests/`,
  *       `scripts/` or the docs, and the rest appear only in the audit/bug narrative that found them
@@ -111,7 +111,6 @@ const config: KnipConfig = {
     'src/game/electionPromises.ts': ['types'], // [C] PromiseCode (1)
     'src/game/forge.ts': ['exports'], // [C] hasAnyForgeUpgrade (1)
     'src/game/frontierCombat.ts': ['types'], // [C] RaidChoice, OutgoingRaidEvent (2)
-    'src/game/gameConstants.ts': ['exports'], // [C] DAYS_PER_YEAR (1) — second home; dayCycleClock.ts is the live one
     'src/game/humanSchedule.ts': ['exports'], // [C] isOnWorkShiftFor (1)
     'src/game/humanSprites.ts': ['exports'], // [A] getHumanSpritePath (1) — named in OWNERSHIP_OVERVIEW.md
     'src/game/huntingSpots.ts': ['exports'], // [A] getHuntingSpotPreyOption | [C] DEFAULT_HUNTING_SPOT_PREY (2)
