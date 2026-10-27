@@ -300,10 +300,10 @@ export const VirtualPlayer = {
    */
   SPARE_BED_RATIO: 0.25,
   /**
-   * 5 = conservative adults per single-worker Farm: 12 + 5 = 17 food/day
-   * before attendance, season and spoilage, against about 3 food/adult/day.
+   * 9 = a fully staffed Farm's nominal 27 food/day divided by roughly 3
+   * food/adult/day. Actual throughput must still account for attendance.
    */
-  SETTLERS_PER_FOOD_PRODUCER: 5,
+  SETTLERS_PER_FOOD_PRODUCER: 9,
   /**
    * 12 = settlers one wood, stone or iron producer serves. Bot policy, not a yield: building spend
    * scales with the village, so one producer per dozen adults keeps the shelves level with growth.
