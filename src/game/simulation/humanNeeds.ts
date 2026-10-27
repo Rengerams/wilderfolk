@@ -13,7 +13,7 @@ import { createDeathParticles } from '../simEffects';
 import { logDeath } from '../eventLog';
 import { formatCitizenName, formatDeathLog } from '../citizenId';
 import { spendFood } from '../economyLedger';
-import { HUMAN_NEEDS, resolveHumanNeedsIntent } from './humanPhysiology';
+import { resolveHumanNeedsIntent, creditHumanNutritionFromFood } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import type { SpeciesConfig } from '../speciesConfig';
 import { Human } from '../gameConstants';
@@ -67,10 +67,8 @@ export function tryEatColonyMeal(entity: Entity, state: WorldState, hourOfDay: n
     entity.energy = Math.min(entity.maxEnergy, entity.energy + (Human.MEAL_ENERGY_RESTORE ?? 65) * amount);
     return true;
   }
-  const needs = entity.needs!;
-  needs.nutrition = Math.min(100, needs.nutrition + amount * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT);
-  if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
-  needs.lastMealTick = state.tick;
+  creditHumanNutritionFromFood(entity, amount);
+  entity.needs!.lastMealTick = state.tick;
   return true;
 }
 
