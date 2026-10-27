@@ -572,10 +572,23 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   if (unstaffedFoodProducer) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
-  // Advanced agriculture offers a better-performing alternative to yet another
-  // Farm, when the player has actually unlocked the Greenhouse.
-  const foodCandidates = measuredDeficit && built > 0
-    ? [BuildingType.Greenhouse, ...FOOD_PRODUCER_TYPES.filter((type) => type !== BuildingType.Greenhouse)]
+  // In a prolonged deficit, exploit different sustainable food sources instead
+  // of building only Farms: greenhouses where research permits, river fishing
+  // where the placement owner finds water, and one Hunting Spot only when there
+  // is safe reachable prey and the ecosystem is healthy. Farm remains the
+  // reliable fallback; no invented fish/wildlife supplies are created.
+  const diversify = measuredDeficit && built > 0;
+  const healthyWildlife = getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD;
+  const foodCandidates: readonly BuildingType[] = diversify
+    ? [
+      BuildingType.Greenhouse,
+      ...(completedProducerCount(state, BuildingType.FishingSpot) === 0 ? [BuildingType.FishingSpot] : []),
+      ...(healthyWildlife && completedProducerCount(state, BuildingType.HuntingSpot) === 0
+        ? [BuildingType.HuntingSpot] : []),
+      BuildingType.Farm,
+      BuildingType.FishingSpot,
+      ...(healthyWildlife ? [BuildingType.HuntingSpot] : []),
+    ]
     : FOOD_PRODUCER_TYPES;
   for (const type of foodCandidates) {
     if (!shortOnFood && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
