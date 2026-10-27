@@ -5,11 +5,7 @@ import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
-function creditRelationshipStamina(entity: Entity, amount: number): void {
-  adjustHumanStaminaFromEnergy(entity, amount);
-}
-
-const FRIEND_PREFIX = 'friend_';
+ const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
 
 const RELATIONSHIP_RNG_OWNER = 'relationships';
@@ -385,7 +381,7 @@ export function advanceSocialRelationships(
     const strongCount = friendCount(p);
     if (strongCount === 0) continue;
     const boost = Math.min(2, strongCount * 0.8);
-    creditRelationshipStamina(p, boost);
+    adjustHumanStaminaFromEnergy(p, boost);
   }
 }
 
