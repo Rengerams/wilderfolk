@@ -294,6 +294,8 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall:
     `food=${health.food.stored}/${health.food.storageMax}`,
     `producedToday=${health.food.producedToday}`,
     `consumedToday=${health.food.consumedToday}`,
+    `food30d=${health.food.last30Days.produced}-${health.food.last30Days.consumed}=${health.food.last30Days.net}`,
+    `foodDays=${health.food.last30Days.sampledDays}`,
     `beds=${health.housing.occupiedBeds}/${health.housing.totalBeds}`,
     `homeless=${health.housing.homelessPlayerHumans}`,
     `relocations=${counters.housingRelocations}`,
