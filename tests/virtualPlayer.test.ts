@@ -42,7 +42,7 @@ import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
 import { getVisitorTradeEligibility } from '../src/game/groupEvents';
 import { TOWN_HALL_FESTIVAL_COST } from '../src/game/townHall';
-import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 900;
@@ -1262,6 +1262,24 @@ describe('virtual player remaining action surface', () => {
     expect(applied.entities.length).toBe(world.entities.length + 1);
   });
 
+  it('does not recruit from a stocked but persistently shrinking larder', () => {
+    const world = settledVillage(2, {
+      tick: 4 * TICKS_PER_DAY + RECRUIT_MORNING_TICK,
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 7 }, consumed: { meals: 14 },
+      })),
+    });
+    // Stock is deep, but recorded harvest covers only half of food demand.
+    expect(world.resources.food).toBe(500);
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command.op).not.toBe('recruitSettler');
+
+    world.foodHistory = [1, 2, 3].map((day) => ({
+      day, produced: { farms: 15 }, consumed: { meals: 14 },
+    }));
+    expect(decideVirtualPlayerAction(world)?.command.op).toBe('recruitSettler');
+  });
+
   it('buys settlers only in its morning window, not every hour', () => {
     const world = settledVillage(2, { tick: 0 });
 
@@ -1340,6 +1358,11 @@ describe('virtual player remaining action surface', () => {
         villageReputation: 50,
       },
     );
+
+    // An already-staffed Farm leaves the emergency caravan trade as the next action.
+    world.entities.find((entity) => entity.id === 2)!.workerBuildingId = FARM_ID;
+    world.buildings.find((site) => site.id === FARM_ID)!.occupants = [2];
+    world.buildings.find((site) => site.id === 2)!.occupants = [1];
 
     const decision = decideVirtualPlayerAction(world)!;
 
@@ -1433,6 +1456,51 @@ describe('virtual player remaining action surface', () => {
 
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.entities.find((entity) => entity.id === 5)?.tamedBy).toBe(1);
+  });
+
+  it('does not tame animals while measured food production is below demand', () => {
+    const deer = { ...human(5), type: EntityType.Deer, x: 300, y: 300 } as Entity;
+    const state = makeWorld(
+      [human(1, { residenceBuildingId: 1 }), deer],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(3, BuildingType.TamingPost, { x: 300, y: 300 }),
+      ],
+    );
+    state.tick = 4 * TICKS_PER_DAY;
+    state.foodHistory = [1, 2, 3].map((day) => ({
+      day, produced: { farms: 1 }, consumed: { meals: 10 },
+    }));
+    expect(state.resources.food).toBeGreaterThan(100);
+    expect(decideVirtualPlayerAction(state)?.command.op).not.toBe('tameEntity');
+  });
+
+  it('does not worsen a damaged ecosystem by auto-taming more wildlife', () => {
+    const deer = { ...human(5), type: EntityType.Deer, x: 300, y: 300 } as Entity;
+    const state = makeWorld(
+      [human(1, { residenceBuildingId: 1 }), deer],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(3, BuildingType.TamingPost, { x: 300, y: 300 }),
+      ],
+      { ecosystemHealth: 30 },
+    );
+    expect(decideVirtualPlayerAction(state)?.command.op).not.toBe('tameEntity');
+  });
+
+  it('keeps the tame-food reserve after paying the full species cost', () => {
+    const deer = { ...human(5), type: EntityType.Deer, x: 300, y: 300 } as Entity;
+    const state = makeWorld(
+      [human(1, { residenceBuildingId: 1 }), deer],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(3, BuildingType.TamingPost, { x: 300, y: 300 }),
+      ],
+      { resources: { food: 34, wood: 500, stone: 500, gold: 500, iron: 30 } },
+    );
+    // Thirty food can afford a deer, but would leave fewer than five days'
+    // provisions for the settler; the bot must not spend the reserve.
+    expect(decideVirtualPlayerAction(state)?.command.op).not.toBe('tameEntity');
   });
 
   it('sends food to a tense neighbour only while the larder is deep', () => {
@@ -1762,6 +1830,12 @@ describe('virtual player remaining action surface', () => {
     });
     // A Farm on the way keeps the food step from proposing instead.
     world.buildings.push(building(9, BuildingType.Farm, { completed: false, constructionProgress: 10 }));
+
+    // The setup's canonical Farm is already staffed; a completed unstaffed Farm
+    // correctly takes precedence over optional trades in the bot's survival ladder.
+    world.entities.find((entity) => entity.id === 2)!.workerBuildingId = FARM_ID;
+    world.buildings.find((site) => site.id === FARM_ID)!.occupants = [2];
+    world.buildings.find((site) => site.id === 2)!.occupants = [1];
 
     const decision = decideVirtualPlayerAction(world)!;
 

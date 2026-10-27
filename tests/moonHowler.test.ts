@@ -57,6 +57,7 @@ import {
 } from '../src/game/moonHowler';
 import type { MoonHowlerSyncResult } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
+import { advanceHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import type { RevertToHumanFormOptions } from '../src/game/moonHowlerForm';
 import { buildEntityByType } from '../src/game/simFocus';
 import { isInsideCompletedBuilding } from '../src/game/terrainSystems';
@@ -64,6 +65,32 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createSeededRng, getSimRng, setSimSeed } from '../src/game/simRng';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+
+describe('Moon Howler restored physiology clock', () => {
+  it('does not debit a full werewolf night as human nutrition after dawn', () => {
+    const state = initGame({ size: MapSize.Medium, seed: 61 });
+    const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
+    const transformTick = 23 * TICKS_PER_HOUR;
+    const dawnTick = 30 * TICKS_PER_HOUR;
+    settler.needs = {
+      nutrition: 80, rest: 85, stamina: 60,
+      severeHungerTicks: 0, lastAdvancedTick: transformTick,
+    };
+    settler.moonHowlerCursed = true;
+    transformToWerewolfForm(settler, state.buildings);
+    expect(settler.needs).toBeUndefined();
+
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: dawnTick });
+    expect(settler.needs?.lastAdvancedTick).toBe(dawnTick - 1);
+    expect(settler.needs?.nutrition).toBe(80);
+    advanceHumanNeeds(settler, {
+      tick: dawnTick, sleeping: false, working: false, moving: false,
+    });
+    expect(settler.needs?.nutrition).toBeGreaterThan(79);
+    expect(settler.needs?.severeHungerTicks).toBe(0);
+    expect(settler.needs?.lastAdvancedTick).toBe(dawnTick);
+  });
+});
 
 /**
  * Regression: tickMoonHowlerCycle must reuse the caller's byType index instead
@@ -307,6 +334,34 @@ describe('moonHowler.exorcism.test.ts', () => {
       );
       expect(res.outcome).toBe('cured');
       expect(f.priest.title).toBe('Howlerbane');
+    });
+
+    it('a priest who holds elected office retains the leader title after a cured rite', () => {
+      const f = exorcismFixture(150);
+      f.state.villageLeaderId = f.priest.id;
+      f.priest.occupation = LEADER_OCCUPATION;
+      const res = tryMoonHowlerChurchCures(
+        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        new Map(f.entities.map((e) => [e.id, e])), () => 0.1,
+      );
+      expect(res.outcome).toBe('cured');
+      expect(f.priest.job).toBe(JobType.Priest);
+      expect(f.priest.workerBuildingId).toBe(f.church.id);
+      expect(f.priest.occupation).toBe(LEADER_OCCUPATION);
+    });
+
+    it('a priest who holds elected office retains the leader title after a failed rite', () => {
+      const f = exorcismFixture(150);
+      f.state.villageLeaderId = f.priest.id;
+      f.priest.occupation = LEADER_OCCUPATION;
+      const res = tryMoonHowlerChurchCures(
+        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        new Map(f.entities.map((e) => [e.id, e])), () => 0.9,
+      );
+      expect(res.outcome).toBe('priest_fled');
+      expect(f.priest.alive).toBe(true);
+      expect(f.priest.workerBuildingId).toBe(f.church.id);
+      expect(f.priest.occupation).toBe(LEADER_OCCUPATION);
     });
 
     it('a nearby Barracks Soldier rolls to save the priest (extra roll, not guaranteed)', () => {
@@ -1333,3 +1388,23 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   });
 });
 
+describe('moon-form construction ownership', () => {
+  it('retires a builder from an unfinished site before changing their species', () => {
+    const state = initGame({ seed: 20261027 });
+    const settler = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human)!;
+    const construction = createBuilding(BuildingType.Farm, 300, 300, 9901);
+    construction.completed = false;
+    construction.occupants = [settler.id];
+    state.buildings = [construction];
+    settler.workerBuildingId = undefined;
+    settler.moonHowlerCursed = true;
+
+    transformToWerewolfForm(settler, state.buildings);
+
+    expect(settler.type).toBe(EntityType.Werewolf);
+    expect(construction.occupants).toEqual([]);
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: 1000 });
+    expect(settler.type).toBe(EntityType.Human);
+    expect(construction.occupants).toEqual([]);
+  });
+});

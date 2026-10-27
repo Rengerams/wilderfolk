@@ -1,0 +1,36 @@
+name: Human needs colony calibration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/game/**'
+      - 'tests/humanNeeds*.test.ts'
+      - 'scripts/run-full-year.mts'
+      - '.github/workflows/human-needs-calibration.yml'
+  workflow_dispatch:
+
+jobs:
+  seeded-colony:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        days: [7, 30, 360]
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - name: Run seeded food-producing colony without restocking
+        run: npx tsx scripts/run-full-year.mts --scenario=producers --days=${{ matrix.days }} --seed=12345 --bot
+      - name: Upload diagnostic colony logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: needs-colony-${{ matrix.days }}d
+          path: docs/log/**
+          if-no-files-found: ignore

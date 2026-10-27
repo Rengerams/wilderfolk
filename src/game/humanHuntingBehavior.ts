@@ -12,6 +12,7 @@ import { personDayRoll } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
+import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -21,6 +22,8 @@ import {
 } from './simulation/simulationEntities';
 import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
+
+const HUNTER_WORK_STAMINA_THRESHOLD = 85;
 
 const NORMAL_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Deer,
@@ -57,9 +60,11 @@ export function tickHumanHunting(
   // hunt when the colony has no food to feed them (famine) — a fed village
   // doesn't send settlers off to thin the wild herd for sport.
   const famine = (state.resources?.food ?? 0) <= 0;
+  // Assigned hunters retain their stamina-based job cadence; emergency hunting
+  // is triggered by nutrition, never by the unrelated stamina projection.
   const freeHuntHungry = isJobHunter
-    ? entity.energy < entity.maxEnergy * 0.85
-    : famine && entity.energy < entity.maxEnergy * 0.6;
+    ? (entity.needs?.stamina ?? entity.energy / Math.max(1, entity.maxEnergy) * 100) < HUNTER_WORK_STAMINA_THRESHOLD
+    : famine && (entity.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
 
   const blueberryForaging =
     !isJobHunter &&
@@ -140,7 +145,11 @@ export function tickHumanHunting(
       const energyBite =
         config.energyGain[closestPrey.type] ??
         (closestPrey.type === EntityType.Deer ? 350 : 150);
-      entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
+      if (entity.needs) {
+        adjustHumanStaminaFromEnergy(entity, energyBite);
+      } else {
+        entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
+      }
       entity.flash = 10;
       entity.combatTicks = 16;
       entity.huntTargetId = undefined;

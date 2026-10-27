@@ -6,6 +6,7 @@
  * did. An "escape" frees one prisoner early — the settler stays in the colony (no removal/cleanup).
  */
 import { departWarPrisoner } from './warPrisonerCustody';
+import { restoreWorkerRosterAfterCustody } from './workforce';
 import type { Entity, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
@@ -165,7 +166,10 @@ export function tickPrisonGuardDuty(state: WorldState): void {
       // Release clears the ownership field, so the prison's occupant list must drop the id in the same
       // step — the §5 invariant is "an occupant is a prisoner (prisonBuildingId) or a guard
       // (workerBuildingId)", and the next assign pulse is up to 18 ticks away.
-      prison.occupants = (prison.occupants ?? []).filter((id) => id !== escapee.id);
+      if (escapee.workerBuildingId !== prison.id) {
+        prison.occupants = (prison.occupants ?? []).filter((id) => id !== escapee.id);
+      }
+      restoreWorkerRosterAfterCustody(escapee, state.buildings);
       const cx = prison.x + prison.width / 2;
       const cy = prison.y + prison.height / 2;
       addFloatingText(state, cx, cy - 14, 'A prisoner slipped out!', '#f59e0b');

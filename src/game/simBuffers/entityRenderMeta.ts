@@ -31,6 +31,7 @@ export interface EntityRenderMeta {
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
 
+  needs?: Entity['needs'];
   job?: Entity['job'];
   occupation?: string;
   generation?: number;
@@ -66,6 +67,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     hiddenFromPlayer: entity.hiddenFromPlayer,
     detectedByPatrol: entity.detectedByPatrol,
 
+    needs: entity.needs ? { ...entity.needs } : undefined,
     job: entity.job,
     occupation: entity.occupation,
     generation: entity.generation,
@@ -145,6 +147,7 @@ export function buildRenderEntityShim(
     hiddenFromPlayer: meta?.hiddenFromPlayer,
     detectedByPatrol: meta?.detectedByPatrol,
 
+    needs: meta?.needs ? { ...meta.needs } : undefined,
     job: meta?.job,
     occupation: meta?.occupation,
     generation: meta?.generation ?? 0,

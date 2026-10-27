@@ -99,6 +99,7 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isImprisoned } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
+import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
   getScheduleLastWorkedHours,
@@ -440,7 +441,7 @@ function tickBuildingProduction(
     const current = buildingWorkerStats.get(siteId)
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
     current.count += 1;
-    current.fatigueSum += getScheduleProductivityMultiplier(h);
+    current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
     const lastWorkedHours = getScheduleLastWorkedHours(h);
     current.workedHoursSum += lastWorkedHours;
     if (lastWorkedHours > 0) current.workedCount += 1;
@@ -640,10 +641,12 @@ function tickBuildingProduction(
           }
 
   const mauled = fate === 'mauled';
-          hunter.energy = Math.max(
-            0,
-            hunter.energy - HUNTING_FIGHT_BACK_BITE_ENERGY - (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0),
-          );
+          const damage = HUNTING_FIGHT_BACK_BITE_ENERGY + (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0);
+          if (hunter.needs) {
+            adjustHumanStaminaFromEnergy(hunter, -damage);
+          } else {
+            hunter.energy = Math.max(0, hunter.energy - damage);
+          }
           hunter.combatTicks = 14;
           hunter.flash = 10;
           addFloatingText(

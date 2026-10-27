@@ -1,3 +1,4 @@
+import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { moveResident } from './residencyReconciliation';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
@@ -1525,6 +1526,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
         if (entity.type === EntityType.Human) entity.generation ??= 0;
         if (TICKED_SPECIES.has(entity.type)) entity.animFrame ??= 0;
         migrateEntityPersistedFields(entity, e);
+        if (isPlayerHuman(entity)) normalizeHumanNeeds(entity);
         if (entity.type === EntityType.Human && entity.spriteVariant === undefined && entity.gender) {
           entity.spriteVariant = pickHumanVariant(entity.id, entity.gender);
         }

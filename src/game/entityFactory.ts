@@ -1,3 +1,4 @@
+import { initialHumanNeeds } from './simulation/humanPhysiology';
 import type { Entity, SettlerTrait, WorldState } from './gameTypes';
 import { EntityType, JobType } from './gameTypes';
 import {
@@ -112,6 +113,7 @@ export function createEntity(
     y,
     energy: energy ?? config.spawnEnergy,
     maxEnergy: config.maxEnergy,
+    needs: isHuman ? initialHumanNeeds(energy ?? config.spawnEnergy, config.maxEnergy) : undefined,
     age: isHuman
       ? opts?.ageYears ?? 0
       : effectiveJuvenile

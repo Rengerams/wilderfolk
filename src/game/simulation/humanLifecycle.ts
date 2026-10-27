@@ -21,6 +21,8 @@ import { logWildkinBirth } from '../wildkinChronicle';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
+import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
+import { isPlayerHuman } from '../playerHuman';
 import { seededRandomForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
 import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../residencyOccupancy';
@@ -110,10 +112,15 @@ export function tickPregnancyAndBirth(
   const biologicalFather = biologicalFatherIdAtBirth != null ? livingHumanAt(biologicalFatherIdAtBirth) : undefined;
 
   //Mother recovery & status reset
-  entity.energy = Math.max(
+  const recoveredEnergy = Math.max(
     entity.maxEnergy * LIFECYCLE_CONFIG.MATERNAL_ENERGY_MIN_RATIO,
     entity.energy - LIFECYCLE_CONFIG.MATERNAL_ENERGY_COST,
   );
+  if (isPlayerHuman(entity)) {
+    adjustHumanStaminaFromEnergy(entity, recoveredEnergy - entity.energy);
+  } else {
+    entity.energy = recoveredEnergy;
+  }
   recordRelationshipDiagnostic('birthsCompletedThisInterval');
   entity.pregnant = false;
   entity.pregnancyProgress = 0;

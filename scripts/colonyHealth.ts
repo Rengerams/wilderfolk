@@ -27,6 +27,7 @@ import { assignMissingResidences } from '../src/game/dayCycle';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';
+import { getRecentFoodFlow } from '../src/game/economyLedger';
 import {
   assignWorkerTransition,
   countWorkingAndIdleSettlers,
@@ -48,6 +49,24 @@ import {
 } from '../src/game/relationshipDiagnostics';
 import { BASE_TICKS_PER_SECOND } from '../src/game/gameLoop';
 import { setSimSeed } from '../src/game/simRng';
+import { applyWorkerCommand } from '../src/game/simWorker/commands';
+import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+
+/** Apply the real Virtual Player command, retaining cloned worker command results. */
+export function applyColonyBotAction(world: WorldState): string | null {
+  const decision = decideVirtualPlayerAction(world);
+  if (!decision) return null;
+  const applied = applyWorkerCommand(world, decision.command);
+  if (applied !== world) {
+    const target = world as unknown as Record<string, unknown>;
+    const source = applied as unknown as Record<string, unknown>;
+    for (const key of Object.keys(target)) {
+      if (!(key in source)) delete target[key];
+    }
+    Object.assign(target, source);
+  }
+  return decision.command.op;
+}
 
 /**
  * One in-game tick's real-time budget at 1× speed, taken from the loop's own pacing constant rather
@@ -580,6 +599,8 @@ export interface ColonyHealthReport {
     consumedToday: number;
     netToday: number;
     ledgerDay: number | null;
+    last30Days: { sampledDays: number; produced: number; consumed: number; net: number };
+    last7Days: { sampledDays: number; produced: number; consumed: number; net: number };
   };
   /** `healthy` is the housing owner's own verdict (`isHousingDiagnosticsHealthy`): data consistency, not bed supply. */
   housing: HousingDiagnosticsSnapshot & { healthy: boolean };
@@ -591,6 +612,9 @@ export interface ColonyHealthReport {
     unstaffedJobBuildings: number;
     workerSlots: number;
     filledWorkerSlots: number;
+    farmBuildings: number;
+    staffedFarms: number;
+    assignedFarmWorkers: number;
   };
   /**
    * The four lifecycle numbers the roadmap requires to stay distinct: a conception is a pregnancy
@@ -751,6 +775,9 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     }
     const staffedJobBuildings = staffable.filter((building) => (assignedByBuilding.get(building.id) ?? 0) > 0).length;
     const ledger = world.economyLedger;
+    const recentFoodFlow = getRecentFoodFlow(world, 30);
+    const weeklyFoodFlow = getRecentFoodFlow(world, 7);
+    const farms = staffable.filter((building) => building.type === BuildingType.Farm);
     const campaign = getGuidedCampaignProgress(world);
     const promiseStatus = getActiveElectionPromises(world);
     const leader = world.villageLeaderId == null
@@ -771,6 +798,18 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
         consumedToday: ledger?.consumedTotal ?? 0,
         netToday: (ledger?.producedTotal ?? 0) - (ledger?.consumedTotal ?? 0),
         ledgerDay: ledger?.day ?? null,
+        last30Days: {
+          sampledDays: recentFoodFlow?.days ?? 0,
+          produced: (recentFoodFlow?.producedPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
+          consumed: (recentFoodFlow?.consumedPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
+          net: (recentFoodFlow?.netPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
+        },
+        last7Days: {
+          sampledDays: weeklyFoodFlow?.days ?? 0,
+          produced: (weeklyFoodFlow?.producedPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+          consumed: (weeklyFoodFlow?.consumedPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+          net: (weeklyFoodFlow?.netPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+        },
       },
       housing: { ...housing, healthy: isHousingDiagnosticsHealthy(housing) },
       workforce: {
@@ -783,6 +822,9 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
         filledWorkerSlots: [...assignedByBuilding.entries()]
           .filter(([buildingId]) => jobBuildings.some((building) => building.id === buildingId))
           .reduce((total, [, count]) => total + count, 0),
+        farmBuildings: farms.length,
+        staffedFarms: farms.filter((farm) => (assignedByBuilding.get(farm.id) ?? 0) > 0).length,
+        assignedFarmWorkers: farms.reduce((total, farm) => total + (assignedByBuilding.get(farm.id) ?? 0), 0),
       },
       lifecycle: {
         conceptionsLogged: events.conceptions,

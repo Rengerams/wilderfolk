@@ -273,10 +273,13 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
   if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
-  if (building.occupants.includes(human.id)) return true; // Idempotent
+  const alreadyListed = building.occupants.includes(human.id);
+  // A stale roster entry is not a completed assignment: repair the worker
+  // pointer and job fields instead of returning with an invariant violation.
+  if (alreadyListed && human.workerBuildingId === building.id) return true;
 
   const keepOffice = human.occupation === LEADER_OCCUPATION;
-  building.occupants.push(human.id);
+  if (!alreadyListed) building.occupants.push(human.id);
   human.workerBuildingId = building.id;
   if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
@@ -297,6 +300,29 @@ export function clearWorkerAssignment(human: Entity, buildings?: readonly Buildi
   human.workerBuildingId = undefined;
   human.occupation = human.occupation === LEADER_OCCUPATION ? LEADER_OCCUPATION : 'settler';
   human.job = JobType.Settler;
+}
+
+/**
+ * A sentence reserves a worker's post but excludes them from a normal workplace's
+ * active occupants. When custody ends, restore the reserved roster atomically;
+ * waiting for the next workforce pulse breaks the worker/occupants invariant.
+ * This is idempotent for prison guards (where the same prison holds both roles).
+ */
+export function restoreWorkerRosterAfterCustody(human: Entity, buildings: readonly Building[]): void {
+  if (!human.alive || !isPlayerHuman(human) || human.prisonBuildingId != null) return;
+  const workplaceId = human.workerBuildingId;
+  if (workplaceId == null) return;
+  const workplace = buildings.find((building) => building.id === workplaceId);
+  if (!workplace || !workplace.completed || workplace.faction === 'rival' ||
+      BUILDING_JOB_TYPES[workplace.type] == null) return;
+  // Custody restoration must also retire stale prison and construction memberships.
+  for (const building of buildings) {
+    if (building.id === workplaceId || !building.occupants.includes(human.id)) continue;
+    if (!building.completed || building.type === BuildingType.Prison) {
+      building.occupants = building.occupants.filter((id) => id !== human.id);
+    }
+  }
+  if (!workplace.occupants.includes(human.id)) workplace.occupants.push(human.id);
 }
 
 /** Drops the workplace pointer alone; the moon forms keep their saved trade and re-attach it. */
@@ -622,6 +648,22 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     }
   }
 
+  // Keep incomplete crews limited to unique living, idle, unjailed settlers.
+  const eligibleBuilders = new Set(
+    alive.filter((human) => !human.isJuvenile && !isImprisoned(human) && !hasWorkAssignment(human))
+      .map((human) => human.id),
+  );
+  const rosteredBuilders = new Set<number>();
+  for (const site of buildings) {
+    if (site.completed || site.occupants.length === 0) continue;
+    const cleaned = site.occupants.filter((id) => {
+      if (!eligibleBuilders.has(id) || rosteredBuilders.has(id)) return false;
+      rosteredBuilders.add(id);
+      return true;
+    });
+    if (cleaned.length !== site.occupants.length) site.occupants = cleaned;
+  }
+
   syncJobBuildingOccupants(alive, buildings);
   // Repair old saves affected by zero-capacity construction crew transfers.
   // Only completed, non-residential buildings with no job may be cleared;
@@ -813,13 +855,14 @@ export function releasePrisoners(state: WorldState): void {
     if (state.tick < entity.prisonerUntilTick) continue;
 
     const prison = state.buildings.find((b) => b.id === entity.prisonBuildingId);
-    if (prison) {
+    if (prison && entity.workerBuildingId !== prison.id) {
       prison.occupants = prison.occupants.filter((id) => id !== entity.id);
     }
 
     entity.prisonBuildingId = undefined;
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
+    restoreWorkerRosterAfterCustody(entity, state.buildings);
     entity.flash = 8;
 
     if (entity.id === state.villageLeaderId) {

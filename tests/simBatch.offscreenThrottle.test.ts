@@ -136,6 +136,27 @@ afterEach(() => {
 });
 
 describe('the off-screen human throttle', () => {
+  it('advances and feeds human physiology identically on and off camera', () => {
+    const onScreen = nightWorld(NO_THROTTLE_ID);
+    const offScreen = nightWorld(NO_THROTTLE_ID);
+    for (const state of [onScreen, offScreen]) {
+      state.resources.food = 10;
+      state.entities[0].needs = { nutrition: 40, rest: 50, stamina: 65, severeHungerTicks: 0 };
+      state.entities[0].energy = state.entities[0].maxEnergy * 0.65;
+    }
+
+    setSimSeed(TEST_SEED);
+    tickHumans(onScreen, contextFor(onScreen, ON_SCREEN));
+    setSimSeed(TEST_SEED);
+    tickHumans(offScreen, contextFor(offScreen, OFF_SCREEN));
+
+    expect(onScreen.entities[0].needs).toEqual(offScreen.entities[0].needs);
+    expect(onScreen.entities[0].energy).toBe(offScreen.entities[0].energy);
+    expect(onScreen.resources.food).toBe(offScreen.resources.food);
+    expect(onScreen.resources.food).toBe(9);
+    expect(onScreen.entities[0].needs!.lastMealTick).toBe(NIGHT_TICK);
+  });
+
   it('pins the fixture: one id the throttle opens for, one it skips', () => {
     expect((NIGHT_TICK + THROTTLE_ID) % OFFSCREEN_HUMAN_THROTTLE).toBe(0);
     expect((NIGHT_TICK + NO_THROTTLE_ID) % OFFSCREEN_HUMAN_THROTTLE).not.toBe(0);

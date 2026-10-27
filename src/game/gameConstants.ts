@@ -47,24 +47,22 @@ export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 /** Human needs & consumption tuning. */
 export const Human = {
   /**
-   * 3 = one meal per meal-check window across the waking day (08:00/12:00/16:00
-   * checks in the default window); a family of ~3 eats ~9/day, which farms of
-   * the default cadence are tuned to cover.
+   * Roughly 3 food/adult/day follows 24h × 1.2 nutrition/h, modest
+   * work/walking extras, and 10 nutrition restored per food in the needs owner.
    */
   DAILY_FOOD_CONSUMPTION: 3,
   /**
-   * 4 = hunger is re-evaluated every 4 clock hours (6 checks/day); only 3 of
-   * them fall inside the standard 07–16 work window, matching DAILY_FOOD_CONSUMPTION.
+   * Foreign war captives retain the legacy four-hour meal check.
+   * Player settlers use the nutrition intent and cooldown in humanPhysiology.ts.
    */
   MEAL_CHECK_INTERVAL_HOURS: 4,
   /**
-   * 0.9 = eat only when energy has dipped below 90% max; stops settlers from
-   * grazing food the moment they lose a single point.
+   * Energy threshold only for foreign captive meals; not used for player nutrition.
    */
   HUNGER_MEAL_THRESHOLD: 0.9,
   /**
-   * 65 = one larder meal restores 65 of a settler's 500 max energy (about 13%
-   * of the bar, or ~46 ticks / 15 h of unmodified metabolism at 1.4/tick).
+   * Legacy foreign captive energy restoration. Player meals credit nutrition via
+   * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT.
    */
   MEAL_ENERGY_RESTORE: 65,
 } as const;
@@ -155,8 +153,7 @@ export const ValleyEcology = {
  * neighbour's foot.
  */
 export const Famine = {
-  /** Only a settler this far below max energy is desperate enough to try a bite. */
-  BITE_DESPERATE_ENERGY_RATIO: 0.3,
+  // The nutrition threshold for famine desperation is owned by HUMAN_NEEDS.
   /** Daily chance (per desperate settler) of attempting a foot-bite while stores are empty. */
   BITE_ATTEMPT_CHANCE: 0.15,
   /** Given an attempt, chance it actually lands (still comedy, still no harm). */
@@ -301,10 +298,14 @@ export const VirtualPlayer = {
    */
   SPARE_BED_RATIO: 0.25,
   /**
-   * 9 = settlers one full-crew Farm feeds. The economy owner's own arithmetic: a 3-crew Farm
-   * yields `12 + 3 × 5 = 27` food a day against `Human.DAILY_FOOD_CONSUMPTION` of 3 per settler.
+   * 9 = a fully staffed Farm's nominal 27 food/day divided by roughly 3
+   * food/adult/day. Actual throughput must still account for attendance.
    */
   SETTLERS_PER_FOOD_PRODUCER: 9,
+  /** Five adults per partially staffed Farm when measured production is inadequate. */
+  DEFICIT_SETTLERS_PER_FOOD_PRODUCER: 5,
+  /** Ignore daily food swings under 5% until a three-day history confirms them. */
+  FOOD_DEFICIT_TOLERANCE_RATIO: 0.05,
   /**
    * 12 = settlers one wood, stone or iron producer serves. Bot policy, not a yield: building spend
    * scales with the village, so one producer per dozen adults keeps the shelves level with growth.

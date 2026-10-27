@@ -10,6 +10,29 @@
 - **Fixed:** Removed redundant renderer aliases and unused world-generation forwarding exports while preserving compatibility for existing entity creation scripts.
 - **Fixed:** Roads snapped to building entrances now align the whole straight drag to the safe road row, including drags starting at the entrance.
 
+- **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
+- **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
+
+
+- **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
+- **Fixed (#62):** Restoring human form after a Moon Howler night rebases the needs clock. Time spent transformed no longer counts as missed human meals, rest or stamina.
+
+- **Fixed (#62):** The Virtual Player now attempts real workforce staffing of completed idle food producers before proposing additional Farms in a measured food shortage. It refuses to multiply unstaffed Farms when nobody can transfer; targeted regressions cover the action and refusal.
+
+- **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added equivalent meal accounting for focused and background settlers, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
+
+- **Changed (#62):** Auto-play uses three to seven consecutive days of recorded food supply and demand to decide farm expansion. Persistent deficits pause optional recruitment; sparse or stale data is not treated as evidence.
+
+- **Changed (#62):** Removed redundant physiology wrappers and meal aliases, registered sole function owners, and documented the human-needs pipeline and acceptance gates.
+
+- **Fixed:** Physiological stamina now retains leisure, sick-day, graduation, birth recovery, hunting and disaster effects instead of losing legacy energy writes on the next human tick; hospital medicine spends through the one food ledger.
+
+- **Fixed:** Releasing or escaping prisoners who also guard their Prison retains the staff roster and job link. Long-run colony tests now share the live Virtual Player action path so health checks use sustained food production.
+
+- **Changed:** Overnight workers schedule daytime sleep after their shift; saved recovery intent lasts until genuine residential sleep restores rest. Status reads no longer mutate break state.
+
+- **Changed:** Off-duty settlers now take actual stamina recovery breaks, retain break intent across saves and resume activity after recovery.
+
 - **Changed:** Small building settings copy only the changed building; optimistic assignments reuse their isolated display world. Worker ticks compare saved fingerprints and omit unchanged histories, and save export avoids an extra world copy.
 - **Added:** Rollback snapshot timing in the performance profiler, preserving the full recovery contract.
 - **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
@@ -43,6 +66,20 @@
 - **Fixed:** CC0 pavement aligns across joints using a stable texture phase and scale. Masonry repeats upright along either wall axis, gates stay upright, and merged demolition uses the authoritative batch cleanup owner.
 
 - **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
+
+- **Fixed:** Failed worker ticks now roll back nested human and Moon-form needs exactly. Foreign captives retain their legacy exhaustion death while player settlers require prolonged starvation; attendance reasons use nutrition instead of combat energy.
+
+- **Fixed:** Worker render sidecars and reconstructed human views retain detached nutrition, rest and stamina values instead of silently omitting new physiology from worker-facing inspectors.
+
+- **Tested:** Deterministic short- and medium-term physiological budgets cover regular and night shifts, idle food demand, delayed starvation and snapshot equivalence. Full-colony balance remains a separate merge gate.
+
+- **Changed:** Work output and workshop estimates apply a bounded physiological impairment alongside roster fatigue without stacking two full fatigue penalties. Attendance hours remain authoritative.
+
+- **Changed:** Recovery sleep can be pursued at home off-shift when critically sleep-deprived; a bounded persisted sleep plan prevents tick-to-tick priority jitter. Prisoners can rest at night in their actual cell.
+
+- **Changed:** Settlers advance physiology once per tick before camera throttling, eat against nutrition thresholds with ledger-backed food debit, and face delayed starvation rather than zero-energy death.
+
+- **Changed:** Player-human nutrition, rest and stamina now persist separately, including Moon-form recovery; the settler inspector displays all three (#61).
 
 - **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
 - **Fixed:** Captive deaths close custody history without creating village graves; confirmed executions retain their distinct outcome.

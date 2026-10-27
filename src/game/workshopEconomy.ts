@@ -5,6 +5,7 @@ import { ensureAdjacencyIndex, getAdjacencyMultiplierFromIndex } from './adjacen
 import { getTerrainEfficiencyMultiplier } from './terrainSystems';
 import { getMultiplier } from './simHelpers';
 import { isPlayerHuman } from './playerHuman';
+import { getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import {
   getScheduleLastWorkedHours,
   getScheduleProductivityMultiplier,
@@ -78,7 +79,8 @@ export function estimateWorkshopGold(
   // governance efficiency, which production folds into its `globalEff`
   // (`LIVE-FINDINGS-STATUS.md`, L6).
   const fatigueMultiplier = actualWorkers > 0
-    ? assignedWorkers.reduce((sum, worker) => sum + getScheduleProductivityMultiplier(worker), 0) / actualWorkers
+    ? assignedWorkers.reduce((sum, worker) => sum + Math.min(
+        getScheduleProductivityMultiplier(worker), getHumanNeedsWorkMultiplier(worker)), 0) / actualWorkers
     : 1.0;
   // Attendance through the same `getWorkplacePresenceShare` rule production uses, so the estimate
   // cannot drift from real output. An unstaffed preview (`previewUnstaffed`) and a world that has no

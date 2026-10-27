@@ -18,6 +18,7 @@ import { isPlayerHuman } from './playerHuman';
 import { getSimRng, randomBool, randomChoice } from './simRng';
 import { hurtFriendship, startFeud } from './relationships';
 import { Famine } from './gameConstants';
+import { HUMAN_NEEDS } from './simulation/humanPhysiology';
 import { formatCitizenName } from './citizenId';
 
 /** Domain-isolated RNG stream: deterministic per run seed, separate from other systems. */
@@ -31,20 +32,20 @@ function starvingCandidates(allAlive: readonly Entity[]): Entity[] {
   return adults;
 }
 
-/** The most desperate attacker: lowest energy ratio among the starving adults. */
+/** The most desperate attacker: lowest nutrition reserve among the starving adults. */
 function pickDesperateAttacker(adults: readonly Entity[]): Entity | null {
   if (adults.length < 2) return null;
   let best: Entity | null = null;
   let bestRatio = Infinity;
   for (const e of adults) {
-    const ratio = e.maxEnergy > 0 ? e.energy / e.maxEnergy : 1;
+    const ratio = e.needs?.nutrition ?? 100;
     if (ratio < bestRatio) {
       bestRatio = ratio;
       best = e;
     }
   }
   // Not actually desperate yet — don't bite over a half-empty belly.
-  if (bestRatio > Famine.BITE_DESPERATE_ENERGY_RATIO) return null;
+  if (bestRatio > HUMAN_NEEDS.NUTRITION_FAMINE_BITE_THRESHOLD) return null;
   return best;
 }
 

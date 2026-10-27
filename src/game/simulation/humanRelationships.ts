@@ -1256,6 +1256,13 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     return;
   }
 
+  // Arrest vacates construction and active work rosters without losing a reserved post.
+  for (const site of state.buildings) {
+    if ((!site.completed || (site.id === offender.workerBuildingId && site.id !== prison.id))
+      && site.occupants.includes(offender.id)) {
+      site.occupants = site.occupants.filter((id) => id !== offender.id);
+    }
+  }
   // The sentence holds the settler's bed and post; only attendance stops while they are jailed.
   offender.prisonBuildingId = prison.id;
   offender.prisonSentenceCrime = 'scandal';

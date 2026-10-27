@@ -1,5 +1,5 @@
 import { moveResident } from './residencyReconciliation';
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
   WEREWOLF_ATTACK_LINES,
@@ -32,7 +32,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
-import { assignMissingWorkers, detachWorkplaceReference } from './workforce';
+import { assignMissingWorkers, detachWorkplaceReference, removeWorkerTransition } from './workforce';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
@@ -256,6 +256,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   const livePrisonId = human.prisonBuildingId;
 
   human.moonHowlerSaved = {
+    needs: human.needs ? { ...human.needs } : undefined,
     energy: human.energy,
     maxEnergy: human.maxEnergy,
     speed: human.speed,
@@ -290,6 +291,10 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     combatTicks: human.combatTicks,
   };
 
+  // A moon form must vacate construction rosters as well as regular jobs and prison.
+  if (buildings.some((building) => !building.completed && building.occupants.includes(human.id))) {
+    removeWorkerTransition(human, buildings);
+  }
   detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
   detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
   detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
@@ -300,6 +305,7 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   releaseDialogueSession(human);
 
   human.type = EntityType.Werewolf;
+  human.needs = undefined;
   human.huntTargetId = undefined;
   human.combatTicks = 0;
   if (human.combatRollSeed == null) {
@@ -517,7 +523,7 @@ export function tryMoonHowlerChurchCures(
     if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
     priest.workerBuildingId = church.id;
     priest.job = JobType.Priest;
-    priest.occupation = 'priest';
+    priest.occupation = priest.id === state.villageLeaderId ? LEADER_OCCUPATION : 'priest';
     return result;
   }
 
@@ -571,7 +577,7 @@ export function tryMoonHowlerChurchCures(
   if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
   priest.workerBuildingId = church.id;
   priest.job = JobType.Priest;
-  priest.occupation = 'priest';
+  priest.occupation = priest.id === state.villageLeaderId ? LEADER_OCCUPATION : 'priest';
   priest.flash = 8;
   howler.moonHowlerCursed = true;
   howler.flash = 8;

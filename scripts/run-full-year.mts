@@ -46,8 +46,6 @@ import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { applyWorkerCommand } from '../src/game/simWorker/commands';
-import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
@@ -68,6 +66,7 @@ import {
   PACING_TICK_BUDGET_MS,
   SCENARIOS,
   SERIALIZATION_SPIKE_MS,
+  applyColonyBotAction,
   assessColonyStall,
   assertColonyNotStalled,
   captureConsoleVolume,
@@ -295,6 +294,8 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall:
     `food=${health.food.stored}/${health.food.storageMax}`,
     `producedToday=${health.food.producedToday}`,
     `consumedToday=${health.food.consumedToday}`,
+    `food30d=${health.food.last30Days.produced}-${health.food.last30Days.consumed}=${health.food.last30Days.net}`,
+    `foodDays=${health.food.last30Days.sampledDays}`,
     `beds=${health.housing.occupiedBeds}/${health.housing.totalBeds}`,
     `homeless=${health.housing.homelessPlayerHumans}`,
     `relocations=${counters.housingRelocations}`,
@@ -378,27 +379,15 @@ function writeCheckpoint(
   );
 }
 
-/**
- * One bot act through the command door `GameLoop` uses. A cloning owner (venue schedules, trade
- * routes) returns a new world object, so the clone is copied back into the object the observer holds.
- */
+/** Count a bot decision using the same executor as the seeded non-vacuity test. */
 function applyBotDecision(world: WorldState): void {
-  const decision = decideVirtualPlayerAction(world);
-  if (!decision) {
+  const operation = applyColonyBotAction(world);
+  if (operation == null) {
     counters.botIdleHours += 1;
     return;
   }
   counters.botActs += 1;
-  counters.botByOp[decision.command.op] = (counters.botByOp[decision.command.op] ?? 0) + 1;
-
-  const applied = applyWorkerCommand(world, decision.command);
-  if (applied === world) return;
-  const target = world as unknown as Record<string, unknown>;
-  const source = applied as unknown as Record<string, unknown>;
-  for (const key of Object.keys(target)) {
-    if (!(key in source)) delete target[key];
-  }
-  Object.assign(target, source);
+  counters.botByOp[operation] = (counters.botByOp[operation] ?? 0) + 1;
 }
 
 /** The world's own `eventLog`, unfiltered, one entry per line in the order the world holds it. */
@@ -448,6 +437,7 @@ function run(): void {
   const observer = createColonyObserver(world);
   const initialBuildingIds = new Set(world.buildings.map((building) => building.id));
   const healthObserved: ColonyHealthReport[] = [];
+  const foodExhaustionCheckpointDays: number[] = [];
   let lastBotActedTick: number | null = null;
   let previousResidences = new Map<number, number | undefined>(
     world.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).map((entity) => [entity.id, entity.residenceBuildingId]),
@@ -532,6 +522,9 @@ function run(): void {
       final: health,
       newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id) && building.faction !== 'rival').length,
     });
+    if (options.scenario === 'producers' && provisional.reasons.includes('food-exhausted')) {
+      foodExhaustionCheckpointDays.push(day);
+    }
     writeCheckpoint(day, world, startedAt, health, provisional);
   }
 
@@ -648,6 +641,7 @@ function run(): void {
     console: consoleVolume,
     health: finalHealth,
     stall,
+    foodExhaustionCheckpointDays,
     build: {
       standingAtEnd: world.buildings.length,
       standingByType,
@@ -713,6 +707,10 @@ function run(): void {
       + (stall.stalled ? ` reasons=${stall.reasons.join(',')}\n[colony] stall ${stall.evidence.join(' | ')}\n` : '\n'),
   );
   assertColonyNotStalled(stall, `the ${TOTAL_DAYS}-day ${options.scenario} run`);
+  assert(
+    foodExhaustionCheckpointDays.length === 0,
+    `Producer-colony food exhaustion at days ${foodExhaustionCheckpointDays.join(', ')}; last-day recovery cannot pass the full-run supply gate`,
+  );
 }
 
 mkdirSync(logDirectory, { recursive: true });

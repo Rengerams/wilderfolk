@@ -3,8 +3,9 @@ import { JobType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
+import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
-const FRIEND_PREFIX = 'friend_';
+ const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
 
 const RELATIONSHIP_RNG_OWNER = 'relationships';
@@ -340,8 +341,8 @@ export function advanceSocialRelationships(
         other.feuds = other.feuds || {};
         other.feuds[otherKey] = next;
 
-        p.energy = Math.max(0, (p.energy ?? 0) - FEUD_ENERGY_DRAIN);
-        other.energy = Math.max(0, (other.energy ?? 0) - FEUD_ENERGY_DRAIN);
+        adjustHumanStaminaFromEnergy(p, -FEUD_ENERGY_DRAIN);
+        adjustHumanStaminaFromEnergy(other, -FEUD_ENERGY_DRAIN);
       }
     }
   }
@@ -379,9 +380,8 @@ export function advanceSocialRelationships(
   for (const p of people) {
     const strongCount = friendCount(p);
     if (strongCount === 0) continue;
-    const maxEnergy = p.maxEnergy ?? 100;
     const boost = Math.min(2, strongCount * 0.8);
-    p.energy = Math.min(maxEnergy, (p.energy ?? 0) + boost);
+    adjustHumanStaminaFromEnergy(p, boost);
   }
 }
 

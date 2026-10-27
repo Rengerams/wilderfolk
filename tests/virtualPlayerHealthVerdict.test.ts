@@ -30,6 +30,7 @@ import { decideVirtualPlayerAction, virtualPlayerWaitingReason } from '../src/ga
 import { VIRTUAL_PLAYER_IDLE_STATUS, virtualPlayerStatusText } from '../src/hooks/useVirtualPlayer';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { canAfford, isFoodAlert } from '../src/game/resourceUtils';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { formatResourceCostNeed } from '../src/game/resourceCost';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { countHomelessSettlers } from '../src/game/residencyOccupancy';
@@ -235,6 +236,30 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision!.reason).toContain('food');
   });
 
+  it('plans farms for all mouths, not just adults who can staff them', () => {
+    // Eighteen working-age people and twelve children consume food, even though
+    // only adults can take a Farm assignment. Three farms satisfy the old
+    // adult-only target (18 / 9), but not the real thirty-person food need.
+    const colony = ownerColony(30, {}, { mills: 0, farms: 3 });
+    for (const person of colony.entities.slice(18)) person.isJuvenile = true;
+
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('upgrades staffed farm production instead of constructing unstaffable farms when food flow is negative', () => {
+    const colony = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 25 }, consumed: { meals: 90 },
+      })),
+    }, { mills: 0, farms: 2 });
+
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'upgradeBuilding', buildingId: 300 });
+    expect(decision?.reason).toContain('food production');
+  });
+
   it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
     // Owner report 1: ~18 settlers, 0 stone, wood and gold in store, beds free.
     const unmanned = ownerColony(18, {
@@ -315,6 +340,60 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
 
     expect(decision).not.toBeNull();
     expect(decision!.command).toMatchObject({ op: 'startBuilding', type: BuildingType.House });
+  });
+
+  it('upgrades an occupied Farm first when measured food losses persist', () => {
+    const world = ownerColony(24, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 40 }, consumed: { meals: 66, spoilage: 4 },
+      })),
+    }, { mills: 1, farms: 4 });
+
+    // The deficit response must improve a staffed producer before creating an idle site.
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command.op).toBe('upgradeBuilding');
+    if (!decision || decision.command.op !== 'upgradeBuilding') throw new Error('expected a farm upgrade');
+    const upgradedBuildingId = decision.command.buildingId;
+    const target = world.buildings.find((site) => site.id === upgradedBuildingId);
+    expect(target?.type).toBe(BuildingType.Farm);
+    expect(target?.occupants.length).toBeGreaterThan(0);
+    expect(decision.reason).toContain('measured food production does not cover consumption');
+  });
+
+  it('staffs an idle Farm before ordering another during a measured deficit', () => {
+    const world = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 150, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 20 }, consumed: { meals: 40 },
+      })),
+    }, {
+      mills: 3, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+    });
+
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command.op).toBe('autoStaffWorkers');
+    expect(decision?.reason).toContain('food production needs workers');
+    const staffed = applyWorkerCommand(world, decision!.command);
+    expect(staffed.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
+  });
+
+  it('does not keep building idle Farms when no worker can be reassigned', () => {
+    const world = ownerColony(2, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 0, wood: 500, stone: 500, gold: 500, iron: 30 },
+    }, {
+      mills: 0, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+    });
+    // The two existing workers have just transferred, so the workforce owner
+    // cannot legally move either to the idle Farm for sixty days.
+    for (const entity of world.entities) entity.lastAutoJobTransferTick = world.tick;
+    expect(decideVirtualPlayerAction(world)?.command)
+      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
   it('keeps adding producers as the village grows instead of stopping at the first', () => {

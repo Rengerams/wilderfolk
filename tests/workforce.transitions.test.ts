@@ -31,6 +31,7 @@ import {
   getSmithBonus,
   prepareWorkforce,
   removeWorkerTransition,
+  restoreWorkerRosterAfterCustody,
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
@@ -124,6 +125,87 @@ describe('workforce named transitions', () => {
     expect(settler.workerBuildingId).toBe(2);
     expect(settler.occupation).toBe(JOB_LABELS[JobType.Farmer]);
     expect(settler.job).toBe(JobType.Farmer);
+  });
+
+  it('repairs a pre-existing roster entry with an unset worker pointer without adding a duplicate', () => {
+    const settler = human(1);
+    const mill = building(2, BuildingType.LumberMill, { occupants: [1] });
+    const state = makeWorld([settler], [mill]);
+
+    expect(assignWorkerTransition(settler, mill)).toBe(true);
+    expect(mill.occupants).toEqual([1]);
+    expect(settler.workerBuildingId).toBe(2);
+    expect(settler.job).toBe(JobType.Lumberjack);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('repairs an established worker whose workplace roster entry disappeared', () => {
+    const settler = human(1, { workerBuildingId: 2, job: JobType.Lumberjack });
+    const mill = building(2, BuildingType.LumberMill);
+
+    expect(assignWorkerTransition(settler, mill)).toBe(true);
+    expect(mill.occupants).toEqual([1]);
+    expect(settler.workerBuildingId).toBe(2);
+  });
+
+  it('restores a freed worker without leaving prison or construction crew membership', () => {
+    const settler = human(4137, { workerBuildingId: 110, job: JobType.Lumberjack });
+    const prison = building(9, BuildingType.Prison, { occupants: [settler.id] });
+    const mill = building(110, BuildingType.LumberMill);
+    const unfinished = building(156, BuildingType.Farm, { completed: false, occupants: [settler.id] });
+
+    restoreWorkerRosterAfterCustody(settler, [prison, mill, unfinished]);
+
+    expect(prison.occupants).toEqual([]);
+    expect(unfinished.occupants).toEqual([]);
+    expect(mill.occupants).toEqual([settler.id]);
+    expect(settler.workerBuildingId).toBe(mill.id);
+    expect(collectSimulationInvariantErrors(makeWorld([settler], [prison, mill, unfinished]))).toEqual([]);
+  });
+
+  it('reconciles stale prison and construction rosters even without a release event', () => {
+    const returned = human(4137, { workerBuildingId: 110, job: JobType.Lumberjack });
+    const prison = building(9, BuildingType.Prison, { occupants: [returned.id] });
+    const mill = building(110, BuildingType.LumberMill);
+    const unfinished = building(156, BuildingType.Farm, { completed: false, occupants: [returned.id] });
+    const state = makeWorld([returned], [prison, mill, unfinished]);
+
+    prepareWorkforce(state.entities, state.buildings);
+    expect(prison.occupants).toEqual([]);
+    expect(unfinished.occupants).toEqual([]);
+    expect(mill.occupants).toEqual([returned.id]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('reconciles orphan, incarcerated, duplicate and employed builders before assigning crews', () => {
+    const unemployed = human(1);
+    const employed = human(2, { workerBuildingId: 20, job: JobType.Farmer });
+    const prisoner = human(3, { prisonBuildingId: 30 });
+    const farm = building(20, BuildingType.Farm, { occupants: [2] });
+    const prison = building(30, BuildingType.Prison, { occupants: [3] });
+    const first = building(40, BuildingType.House, { completed: false, occupants: [1, 2, 3, 999] });
+    const second = building(41, BuildingType.Farm, { completed: false, occupants: [1, 2] });
+    const state = makeWorld([unemployed, employed, prisoner], [farm, prison, first, second]);
+
+    prepareWorkforce(state.entities, state.buildings);
+    expect(first.occupants).toEqual([1]);
+    expect(second.occupants).toEqual([]);
+    expect(farm.occupants).toEqual([2]);
+    expect(prison.occupants).toEqual([3]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('reconciles a completed lumber mill crew already listed in the roster', () => {
+    const settler = human(6565);
+    const lumberMill = building(154, BuildingType.LumberMill, { occupants: [settler.id] });
+
+    expect(assignWorkerTransition(settler, lumberMill)).toBe(true);
+    expect(lumberMill.occupants).toEqual([settler.id]);
+    expect(settler.workerBuildingId).toBe(lumberMill.id);
+    expect(settler.job).toBe(JobType.Lumberjack);
+    expect(settler.occupation).toBe(JOB_LABELS[JobType.Lumberjack]);
+    expect(assignWorkerTransition(settler, lumberMill)).toBe(true);
+    expect(lumberMill.occupants).toEqual([settler.id]);
   });
 
   it('assigns the leader via the manual command without losing office or manor residency', () => {

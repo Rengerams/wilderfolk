@@ -10,7 +10,7 @@ import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { getResidenceCapacity } from '../src/game/residencyOccupancy';
 import { assignMissingResidences, restoreCustodyAfterRelease } from '../src/game/residencyReconciliation';
-import { assignMissingWorkers, prepareWorkforce, releasePrisoners } from '../src/game/workforce';
+import { assignMissingWorkers, prepareWorkforce, releasePrisoners, syncJobBuildingOccupants } from '../src/game/workforce';
 import { exposeAffair } from '../src/game/simulation/humanRelationships';
 import { setSimSeed } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -157,14 +157,41 @@ describe('a release is uneventful', () => {
     prison.occupants = [settler.id];
     state.entities = [settler];
     state.buildings = [prison, house, farm];
+    // The normal sync excludes prisoners from an active job roster, preserving only
+    // their reserved workerBuildingId. Release must restore that roster immediately.
+    syncJobBuildingOccupants(state.entities, state.buildings);
+    expect(farm.occupants).not.toContain(settler.id);
 
     releasePrisoners(state);
 
+    expect(farm.occupants).toEqual([settler.id]);
     expect(settler.prisonBuildingId).toBeUndefined();
     expect(settler.residenceBuildingId).toBe(HOUSE_ID);
     expect(settler.workerBuildingId).toBe(FARM_ID);
     expect(house.occupants).toContain(settler.id);
     expect(prison.occupants).not.toContain(settler.id);
+  });
+});
+
+describe('release of a guard imprisoned at their own workplace', () => {
+  it('keeps the staff roster entry while clearing the prisoner state', () => {
+    const state = initGame({ seed: FIXTURE_SEED });
+    const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
+    const guard = human(7411, {
+      job: JobType.PrisonGuard,
+      workerBuildingId: prison.id,
+      prisonBuildingId: prison.id,
+      prisonerUntilTick: state.tick - 1,
+    });
+    prison.occupants = [guard.id];
+    state.entities = [guard];
+    state.buildings = [prison];
+
+    releasePrisoners(state);
+
+    expect(guard.prisonBuildingId).toBeUndefined();
+    expect(guard.workerBuildingId).toBe(prison.id);
+    expect(prison.occupants).toContain(guard.id);
   });
 });
 
