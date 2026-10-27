@@ -95,7 +95,7 @@ import { useGamePersistence, type SaveToast } from './hooks/useGamePersistence';
 import { useTransientGameFeedback } from './hooks/useTransientGameFeedback';
 import { useGameSession } from './hooks/useGameSession';
 import {
-  TUTORIAL_DONE_STORAGE_KEY as TUTORIAL_DONE_KEY,
+  TUTORIAL_DONE_STORAGE_KEY,
   overviewNavFromState,
   sidebarTabForOverviewNav,
   useGameShellState,
@@ -492,7 +492,7 @@ export default function App() {
     saveTutorialsEnabled(false);
     setTutorialsEnabled(false);
     try {
-      localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+      localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
     } catch { /* ignore */ }
     setShowTutorial(false);
     setTutorialStep(0);
@@ -512,7 +512,7 @@ export default function App() {
     setTutorialsEnabled(next);
     if (!next) {
       try {
-        localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+        localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
       } catch { /* ignore */ }
       setShowTutorial(false);
       dismissContextualTip();
@@ -556,7 +556,7 @@ export default function App() {
 
   const finishTutorial = useCallback(() => {
     try {
-      localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+      localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
     } catch { /* ignore */ }
     setShowTutorial(false);
     setTutorialStep(0);
@@ -1039,7 +1039,7 @@ export default function App() {
       // get the "how to place buildings" overlay again on a new game.
       let tutorialDone = false;
       try {
-        tutorialDone = localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+        tutorialDone = localStorage.getItem(TUTORIAL_DONE_STORAGE_KEY) === '1';
       } catch { /* ignore */ }
       const showQuickStart = tutorialsEnabled && !tutorialDone;
       s.paused = showQuickStart;
@@ -1237,7 +1237,7 @@ export default function App() {
           setTutorialsEnabled(enabled);
           if (!enabled) {
             try {
-              localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+              localStorage.setItem(TUTORIAL_DONE_STORAGE_KEY, '1');
             } catch { /* ignore */ }
             setShowTutorial(false);
             dismissContextualTip();
