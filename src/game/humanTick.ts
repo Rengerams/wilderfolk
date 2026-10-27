@@ -98,7 +98,7 @@ import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, humanEnergyLoss, killForeignCaptiveFromExhaustion, killFromStarvation } from './simulation/humanNeeds';
-import { advanceHumanNeeds, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { advanceHumanNeeds, creditHumanStaminaFromEnergy, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
@@ -1577,7 +1577,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               );
               steerTo(pretty.x, pretty.y, 0.42, 14);
               if (beautyAt(state.beautyGrid, entity.x, entity.y) >= 3 && getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
-                entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.4 * PER_TICK_RATE_SCALE);
+                creditHumanStaminaFromEnergy(entity, 0.4 * PER_TICK_RATE_SCALE);
                 addFloatingText(state, entity.x, entity.y - 26, '💐', '#f9a8d4', 'brief');
               }
             } else {
@@ -1632,7 +1632,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               tavern,
             );
             if (arrived) {
-              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.45 * PER_TICK_RATE_SCALE);
+              creditHumanStaminaFromEnergy(entity, 0.45 * PER_TICK_RATE_SCALE);
               settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
               if (getSimRng('humanTick')() < 0.04 * PER_TICK_RATE_SCALE) {
                 addFloatingText(state, entity.x, entity.y - 14, '🍺', '#fbbf24');
@@ -1651,7 +1651,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (well) {
             const arrived = steerTo(well.x + well.width / 2, well.y + well.height / 2, 0.45, 12);
             if (arrived) {
-              entity.energy = Math.min(entity.maxEnergy, entity.energy + 0.35 * PER_TICK_RATE_SCALE);
+              creditHumanStaminaFromEnergy(entity, 0.35 * PER_TICK_RATE_SCALE);
             }
           } else {
             steerTo(
