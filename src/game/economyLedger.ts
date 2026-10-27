@@ -114,14 +114,7 @@ export function refreshFoodLedgerTotals(state: WorldState): DailyEconomyLedger |
   return ledger;
 }
 
-/**
- * Measured, contiguous completed-day supply and demand.
- *
- * The player bot uses the exact economy history shown to players: farms and
- * other real producers on one side, meals, spoilage and explicit spends on the
- * other. The current partial day is excluded, as is stale or sparse history.
- * Missing history is *unknown*, never an invented zero-production day.
- */
+/** Continuous completed-day food flow; missing history is unknown, not zero. */
 export function getRecentFoodFlow(
   state: Pick<WorldState, 'foodHistory' | 'tick'>,
   maxDays = 7,
