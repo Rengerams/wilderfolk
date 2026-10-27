@@ -258,12 +258,12 @@ def run_warfare_smoke(args) -> int:
             fate.wait_for(state="visible", timeout=90000)
             fate.click()
             dialog = page.get_by_role("dialog", name="Battle report", exact=True)
-            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Raze settlement", exact=True).click()
             dialog.get_by_role("button", name="Confirm raze", exact=True).wait_for(state="visible")
             dialog.get_by_role("button", name="Cancel", exact=True).click()
             if dialog.get_by_role("button", name="Confirm raze", exact=True).count():
                 raise RuntimeError("Cancel did not dismiss raze confirmation")
-            dialog.get_by_role("button", name="Raze settlement…", exact=True).click()
+            dialog.get_by_role("button", name="Raze settlement", exact=True).click()
             dialog.get_by_role("button", name="Confirm raze", exact=True).click()
             dialog.wait_for(state="hidden")
             fate.wait_for(state="hidden")
@@ -288,7 +288,7 @@ def run_warfare_smoke(args) -> int:
             dialog.get_by_role("button", name="Execute", exact=True).click()
             dialog.get_by_role("button", name="Confirm", exact=True).wait_for(state="visible")
             dialog.get_by_role("button", name="Cancel", exact=True).click()
-            dialog.get_by_role("button", name="Release · mercy +3 reputation", exact=True).click()
+            dialog.get_by_role("button", name="Release", exact=True).click()
             dialog.get_by_text("No identifiable combatants remain in captivity.", exact=True).wait_for(state="visible")
             observed = {"heading": dialog.get_by_role("heading", level=2).inner_text(), "execution_confirmation": "shown and cancelled",
                 "release": dialog.get_by_text("No identifiable combatants remain in captivity.", exact=True).inner_text()}
