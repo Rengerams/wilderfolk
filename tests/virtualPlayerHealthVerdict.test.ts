@@ -30,6 +30,7 @@ import { decideVirtualPlayerAction, virtualPlayerWaitingReason } from '../src/ga
 import { VIRTUAL_PLAYER_IDLE_STATUS, virtualPlayerStatusText } from '../src/hooks/useVirtualPlayer';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { canAfford, isFoodAlert } from '../src/game/resourceUtils';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { formatResourceCostNeed } from '../src/game/resourceCost';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { countHomelessSettlers } from '../src/game/residencyOccupancy';
@@ -319,15 +320,14 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
 
   it('uses measured food losses to build ahead of the ordinary farm count', () => {
     const world = ownerColony(24, {
-      tick: 4 * 288,
+      tick: 4 * TICKS_PER_DAY,
       resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
       foodHistory: [1, 2, 3].map((day) => ({
         day, produced: { farms: 40 }, consumed: { meals: 66, spoilage: 4 },
       })),
     }, { mills: 1, farms: 4 });
 
-    // Four farms are more than the nominal 24/9 target, but the last
-    // three *completed* days prove those farms cannot meet real demand.
+    // Four farms satisfy nominal planning; actual output does not.
     const decision = decideVirtualPlayerAction(world);
     expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
     expect(decision?.reason).toContain('actual food production trails consumption');
