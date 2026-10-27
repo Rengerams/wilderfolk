@@ -35,6 +35,7 @@ import { canStartResearch } from './research';
 import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
 import { Human, VirtualPlayer } from './gameConstants';
+import { getRecentFoodFlow } from './economyLedger';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';
 import {
@@ -166,6 +167,17 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return false;
   return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
+}
+
+/**
+ * An enduring shortage according to the same recorded food flow as the economy UI.
+ * A fresh world/old save with no continuous history is unknown, not "short".
+ * The percentage band absorbs harmless production fluctuations.
+ */
+function isMeasuredFoodDeficit(state: WorldState): boolean {
+  const flow = getRecentFoodFlow(state);
+  return flow != null && flow.consumedPerDay > 0
+    && flow.netPerDay < -flow.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO;
 }
 
 /** Spare assignable beds the village keeps ahead of need (`VirtualPlayer.SPARE_BED_*`). */
@@ -453,7 +465,14 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     (total, type) => total + completedProducerCount(state, type),
     0,
   );
-  const wantMore = built >= 1 && built < wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
+  const measuredDeficit = isMeasuredFoodDeficit(state);
+  const target = wantedProducerCount(
+    state,
+    measuredDeficit
+      ? VirtualPlayer.DEFICIT_SETTLERS_PER_FOOD_PRODUCER
+      : VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER,
+  );
+  const wantMore = built >= 1 && built < target;
   if (!shortOnFood && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
@@ -468,7 +487,9 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
         ? `build a ${BUILDING_CONFIGS[type].label} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} of food left`
         : !hasFoodProducer(state)
           ? `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`
-          : `build a ${BUILDING_CONFIGS[type].label} — ${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers`,
+          : measuredDeficit
+            ? `build a ${BUILDING_CONFIGS[type].label} — actual food production trails consumption`
+            : `build a ${BUILDING_CONFIGS[type].label} — ${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers`,
     };
   }
 
@@ -807,6 +828,9 @@ function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
   if (playerHumanCount(state.entities) <= 0) return null;
   if (countHomelessSettlers(state) > 0) return null;
   if (!hasFoodMargin(state, VirtualPlayer.RECRUIT_FOOD_RESERVE_DAYS)) return null;
+  // A stocked larder is not proof of self-sufficiency. Do not grow voluntary
+  // demand while a continuous series of real harvests fails to feed the village.
+  if (isMeasuredFoodDeficit(state)) return null;
 
   const openBeds = getOpenPlayerBeds(state);
   if (openBeds < VirtualPlayer.RECRUIT_MIN_OPEN_BEDS) return null;
