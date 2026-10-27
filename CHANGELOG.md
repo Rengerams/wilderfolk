@@ -7,6 +7,7 @@
 - **Changed:** Terrain now uses a shared biome-edge rule for gameplay tiles and scenery, places vegetation by habitat, and renders connected river masks without duplicate water strokes.
 - **Changed:** Ground rendering adds cached horizon shading for stronger 2.5D relief and paints uniquely owned decor after the terrain chunks to avoid seam overlaps.
 - **Fixed:** Removed redundant renderer aliases and unused world-generation forwarding exports while preserving compatibility for existing entity creation scripts.
+- **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
 
 - **Changed:** Consolidated strip rotation helpers and documented construction, navigation, and function ownership without introducing another implementation path.
 
