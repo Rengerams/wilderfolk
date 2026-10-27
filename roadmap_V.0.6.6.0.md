@@ -101,8 +101,8 @@ Suggested dialog:
 | Choice | Result | Reputation and future implications |
 |---|---|---|
 | **Show mercy / Withdraw** | Rival survives; end the assault and withdraw, with any already-earned lawful loot defined by battle terms | Positive mercy/reputation, possible diplomatic opening; rival may recover |
-| **Demand tribute / Terms** | Rival survives under a defined agreement, resources or truce; refusal may be possible if the terms are unreasonable | Mixed reputation; potential ongoing revenue, resentment and future instability |
-| **Raze the settlement** | Rival is permanently eliminated, its remaining structures/events are removed; survivor/refugee outcome must be handled explicitly | Strong negative mercy/diplomacy effect, fear in hostile camps, increased tension or retaliation |
+| **Demand tribute / Terms** | Rival survives under a defined agreement, resources or truce; refusal may be possible if the terms are unreasonable | Civic response depends on residents and war history; rival resentment or future bargaining remains possible |
+| **Raze the settlement** | Rival is permanently eliminated, its remaining structures/events are removed; survivor/refugee outcome must be handled explicitly | Local support is situational; nearby settlements remember the destruction and can react through fear, tension or retaliation |
 
 Optional *occupation / vassalage* is **out of scope** unless a persistent control/tribute implementation is also designed and tested. Do not display an option that does nothing.
 
@@ -166,9 +166,9 @@ Successfully defending the village should be a **major achievement** for its lea
 | Spare a surrendered rival | **Contextual civic response** | Villager traits and the recent conflict can raise, lower or leave leadership standing unchanged; no second victory award |
 | Reckless offensive defeat | **−20 to −40** | Significant avoidable losses |
 | Devastating failed defense | **−25** | Unless circumstances merit a different assessment |
-| Raze a surrendered rival | **No automatic civic bonus** | Military success already scored; valley reputation receives the consequence |
+| Raze a surrendered rival | **Contextual civic response** | Local support can rise, fall or remain neutral; neighbors retain independent fear and grievance |
 
-These numbers are **proposals**, not current game mechanics. The current election-merit model already combines career, leadership record and other factors, so add these through the established election owner instead of creating a parallel uncapped score.
+The numerical battle awards above are **initial balancing proposals**. Settlement-fate civic responses are implemented as bounded, contextual reactions rather than automatic ethical rewards or penalties; they feed the existing election score, not a second unlimited tally.
 
 ### 7.2 Guardrails
 
