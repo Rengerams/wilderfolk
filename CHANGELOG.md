@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Roads snapped to building entrances now align the whole straight drag to the safe road row, including drags starting at the entrance.
+
 - **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
 
 - **Changed:** Consolidated strip rotation helpers and documented construction, navigation, and function ownership without introducing another implementation path.
