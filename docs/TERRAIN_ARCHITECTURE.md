@@ -1,6 +1,6 @@
 # Wilderfolk terrain architecture
 
-**Scope:** the current terrain pipeline and rendering on the `fix/terrain-preset-identity-20261026` branch. This is an engineering description, not a claim that the new artwork has passed a visual playtest.
+**Scope and acceptance:** terrain-preset implementation PR #63 merged into `main` and was accepted on 27 October 2026. This is an engineering description, not a claim that all new artwork/biomes have passed visual playtests.
 
 **Authority:** `AGENTS.md` governs changes; `OWNERSHIP_OVERVIEW.md` registers each function with one owning module. `src/game/terrain/terrainGrid.ts` owns the tile projection, `src/game/terrain/terragen.ts` owns generation, and the renderer owns presentation. Do not introduce another terrain classifier, save generator or convenience re-export.
 
@@ -108,7 +108,7 @@ Relevant regression coverage includes `tests/terragen.riverGeneration.test.ts`, 
 2. Sparse terrain overrides are authoritative for gameplay, but the continuous colour shader primarily reads underlying climate/height fields. A cleared campsite or edited tile may need a separate blended surface treatment to match its new gameplay label perfectly; avoid changing hydrology simply to paint an override.
 3. Static decor is baked from generation-time points. Building placement and later landscaping need explicit decor invalidation/removal if persistent ground props are found under new structures.
 4. Per-preset weather and daily ambient temperature are outside this rendering/generator change.
-5. Actual readability, chunk-seam quality and framerate still require in-game visual inspection on representative seeds, zoom levels and map sizes before merging.
+5. Actual readability, chunk-seam quality and framerate remain recommended **post-merge** in-game visual checks on representative seeds, zoom levels and map sizes.
 
 ## 8. Extension checklist
 
