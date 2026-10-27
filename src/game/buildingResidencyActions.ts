@@ -28,8 +28,8 @@ function applyResidentAssignment(state: WorldState, buildingId: number): WorldSt
 }
 
 /** Re-run automatic housing assignment (settlers pick homes by themselves). */
-export function assignResidentToBuilding(originalState: WorldState, buildingId: number): WorldState {
-  return applyResidentAssignment(structuredClone(originalState), buildingId);
+export function assignResidentToBuilding(originalState: WorldState, buildingId: number, ownership: 'isolated' | 'owned' = 'isolated'): WorldState {
+  return applyResidentAssignment(ownership === 'owned' ? originalState : structuredClone(originalState), buildingId);
 }
 
 /** Remove a resident, then immediately restore housing and workforce consistency. */

@@ -55,7 +55,7 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     expect(delta1.buildings).toBeUndefined();
 
     // A stable tick with an up-to-date snapshot ships no buildings at all.
-    const snapshot = new Map(world.buildings.map((b) => [b.id, structuredClone(b)]));
+    const snapshot = new Map(world.buildings.map((b) => [b.id, JSON.stringify(b)]));
     const delta2 = extractSimTickDelta(world, undefined, {
       headless: true,
       cloneMode: 'isolated',
@@ -81,5 +81,39 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
     applySimTickDelta(target, delta3, { cloneMode: 'isolated' });
     expect(target.buildings.find((b) => b.id === removedId)).toBeUndefined();
     expect(target.buildings.find((b) => b.id === world.buildings[0].id)?.health).toBe(42);
+  });
+});
+
+describe('history delta fingerprints', () => {
+  it('preserves omitted histories, detects in-place edits and transports clears', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 123 });
+    const target = structuredClone(world);
+    const baseline = new Map<string, string | undefined>();
+    const first = extractSimTickDelta(world, [], { headless: true, nextHistories: baseline });
+    applySimTickDelta(target, structuredClone(first));
+    const retained = target.populationHistory;
+    const unchanged = extractSimTickDelta(world, [], { headless: true, prevHistories: baseline });
+    expect(Object.hasOwn(unchanged, 'populationHistory')).toBe(false);
+    expect(Object.hasOwn(unchanged, 'genealogyRegistry')).toBe(false);
+    applySimTickDelta(target, structuredClone(unchanged));
+    expect(target.populationHistory).toBe(retained);
+
+    world.populationHistory.push({ tick: 1, year: 9, grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, humans: 42, werewolves: 0, wildkin: 0, buildings: 0 });
+    const nextBaseline = new Map<string, string | undefined>();
+    const changed = extractSimTickDelta(world, [], {
+      headless: true, prevHistories: baseline, nextHistories: nextBaseline,
+    });
+    expect(changed.populationHistory).toEqual(world.populationHistory);
+    applySimTickDelta(target, structuredClone(changed));
+    expect(target.populationHistory).toEqual(world.populationHistory);
+    expect(baseline.get('populationHistory')).not.toBe(nextBaseline.get('populationHistory'));
+
+    world.populationHistory.length = 0;
+    world.genealogyRegistry = undefined;
+    const cleared = extractSimTickDelta(world, [], { headless: true, prevHistories: nextBaseline });
+    applySimTickDelta(target, structuredClone(cleared));
+    expect(target.populationHistory).toEqual([]);
+    expect(target.genealogyRegistry).toBeUndefined();
+    expect(extractSimTickDelta(world, [], { headless: true }).populationHistory).toEqual([]);
   });
 });

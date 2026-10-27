@@ -256,8 +256,9 @@ export function assignStaffWorkerToBuilding(
   originalState: WorldState,
   buildingId: number,
   preferredHumanId?: number,
+  ownership: 'isolated' | 'owned' = 'isolated',
 ): WorldState {
-  return _assignIdleWorkerToBuildingMut(structuredClone(originalState), buildingId, preferredHumanId);
+  return _assignIdleWorkerToBuildingMut(ownership === 'owned' ? originalState : structuredClone(originalState), buildingId, preferredHumanId);
 }
 
 /** Fill every open worker/builder slot on one building (one click). */

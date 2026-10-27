@@ -37,13 +37,12 @@ export function setWorkshopRecipe(
     return originalState;
   }
 
-  const state = structuredClone(originalState);
-  const mutatedBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (mutatedBuilding) {
-    mutatedBuilding.workshopRecipeId = recipeId;
-  }
-
-  return state;
+  if (building.workshopRecipeId === recipeId) return originalState;
+  return {
+    ...originalState,
+    buildings: originalState.buildings.map((candidate) =>
+      candidate === building ? { ...building, workshopRecipeId: recipeId } : candidate),
+  };
 }
 
 /** Set automatic/manual staffing only for a player-owned building with a job type. */
@@ -59,13 +58,12 @@ export function setBuildingStaffingMode(
     return originalState;
   }
 
-  const state = structuredClone(originalState);
-  const mutatedBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (mutatedBuilding) {
-    mutatedBuilding.staffingMode = mode;
-  }
-
-  return state;
+  if (building.staffingMode === mode) return originalState;
+  return {
+    ...originalState,
+    buildings: originalState.buildings.map((candidate) =>
+      candidate === building ? { ...building, staffingMode: mode } : candidate),
+  };
 }
 
 /** Set a player-owned Mine to a supported extraction mode. */
@@ -81,13 +79,12 @@ export function setMineMode(
     return originalState;
   }
 
-  const state = structuredClone(originalState);
-  const mutatedBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (mutatedBuilding) {
-    mutatedBuilding.mineMode = mode;
-  }
-
-  return state;
+  if (building.mineMode === mode) return originalState;
+  return {
+    ...originalState,
+    buildings: originalState.buildings.map((candidate) =>
+      candidate === building ? { ...building, mineMode: mode } : candidate),
+  };
 }
 
 /** Set Hunting Spot prey only when the option and player-owned target are valid. */
@@ -103,11 +100,10 @@ export function setHuntingSpotPrey(
     return originalState;
   }
 
-  const state = structuredClone(originalState);
-  const mutatedBuilding = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (mutatedBuilding) {
-    mutatedBuilding.huntingSpotPrey = prey;
-  }
-
-  return state;
+  if (building.huntingSpotPrey === prey) return originalState;
+  return {
+    ...originalState,
+    buildings: originalState.buildings.map((candidate) =>
+      candidate === building ? { ...building, huntingSpotPrey: prey } : candidate),
+  };
 }

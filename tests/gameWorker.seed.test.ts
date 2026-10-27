@@ -8,7 +8,7 @@
  * worker draws the same streams the world was created with instead of silently using seed 1.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { WORKER_PROTO, type WorkerRequest } from '../src/game/simWorker/protocol';
+import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
 import { initGame } from '../src/game/gameEngine';
 import { createSeededRng, getSimRng, getSimSeed, resetSimRng } from '../src/game/simRng';
 import { MapSize } from '../src/game/gameTypes';
@@ -85,5 +85,47 @@ describe('sim worker realm adopts the world seed', () => {
     expect(posted.at(-1)).toMatchObject({ type: 'worldUploaded', proto: WORKER_PROTO, uploadId: 42 });
     expect(getSimSeed()).toBe(222);
     expect(getSimRng('entityFactory')()).toBe(createSeededRng(222, 'entityFactory')());
+  });
+});
+describe('worker copy boundaries', () => {
+  it('does not commit delta baselines when posting fails and resets them on upload', async () => {
+    const { shim } = await workerWithSelfShim();
+    const world = initGame({ size: MapSize.Medium, seed: 71 });
+    const initialTick = world.tick;
+    const received: WorkerResponse[] = [];
+    const originalPost = shim.postMessage;
+    let failTick = true;
+    shim.postMessage = (message) => {
+      const response = message as WorkerResponse;
+      if (response.type === 'tickResult' && failTick) throw new Error('serialization failed');
+      received.push(structuredClone(response));
+    };
+    try {
+      shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [] } });
+      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      expect(received.at(-1)).toMatchObject({ type: 'error', source: 'tick' });
+      expect(world.tick).toBe(initialTick);
+      failTick = false;
+      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      const result = received.at(-1);
+      expect(result?.type).toBe('tickResult');
+      if (result?.type !== 'tickResult') throw new Error('missing tick result');
+      expect(result.delta).toHaveProperty('populationHistory');
+      expect(result.delta).toHaveProperty('genealogyRegistry');
+      if (result.renderBuffer && result.bufferIndex !== undefined) {
+        shim.onmessage!({ data: {
+          type: 'returnBuffer', proto: WORKER_PROTO,
+          bufferIndex: result.bufferIndex, buffer: result.renderBuffer,
+        } });
+      }
+      const replacement = initGame({ size: MapSize.Medium, seed: 72 });
+      shim.onmessage!({ data: { type: 'syncWorld', proto: WORKER_PROTO, world: replacement, uploadId: 5 } });
+      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      const synced = received.at(-1);
+      if (synced?.type !== 'tickResult') throw new Error('missing synced tick result');
+      expect(synced.delta).toHaveProperty('populationHistory');
+    } finally {
+      shim.postMessage = originalPost;
+    }
   });
 });

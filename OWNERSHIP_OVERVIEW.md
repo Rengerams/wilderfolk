@@ -485,3 +485,12 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/wallGate.rendering.test.ts` | `spyCanvas` |
 | `tests/workCommute.leadHour.test.ts` | `workplace`, `tickAtHourOnWorkDay`, `workerAtHome` |
 | `scripts/autoplay_playwright_probe.py` | `selected_preset_label`, `choose_preset`, `set_camera_zoom`, `run_ground_look`, `click_text`, `wait_for` |
+
+### World-copy optimization ownership
+
+| Function | Sole owning module | Responsibility |
+| --- | --- | --- |
+| `setBuildingStaffingMode`, `setHuntingSpotPrey` | `game/buildingConfigurationActions.ts` | Validate and copy only the changed building; unchanged settings return the input. |
+| `assignResidentToBuilding` | `game/buildingResidencyActions.ts` | Isolated or explicitly owned residency command transition. |
+| `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
+| `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |
