@@ -9,8 +9,8 @@ import { addReputation } from './simHelpers';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
-import { recordFoodConsumed } from './economyLedger';
-import { normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { spendFood } from './economyLedger';
+import { creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -187,15 +187,12 @@ export function treatPatientAtHospital(
   // Light medicine cost occasionally — spend through the day ledger so the
   // "why is my food low?" view sees the medicine line like every other meal.
   if (state.resources.food >= 1 && personDayRoll(patient.id, state.tick, 902) < 0.25) {
-    state.resources.food -= 1;
-    recordFoodConsumed(state, 'medicine', 1);
+    spendFood(state, 'medicine', 1);
   }
 
   // Medical recovery is stamina in the new physiology model. Keep the legacy
   // projection in sync so the next metabolism tick cannot erase paid treatment.
-  const needs = normalizeHumanNeeds(patient);
-  needs.stamina = Math.min(100, needs.stamina + heal / Math.max(1, patient.maxEnergy) * 100);
-  patient.energy = patient.maxEnergy * needs.stamina / 100;
+  creditHumanStaminaFromEnergy(patient, heal);
   // Pregnancy progress is owned only by humanLifecycle.tickPregnancyAndBirth.
 
   for (const id of hospital.occupants) {
