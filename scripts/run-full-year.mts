@@ -526,6 +526,12 @@ function run(): void {
       foodExhaustionCheckpointDays.push(day);
     }
     writeCheckpoint(day, world, startedAt, health, provisional);
+    // Any exhausted checkpoint already fails the final supply gate. Report it now,
+    // preserving the checkpoint log, rather than simulating months of an invalid run.
+    assert(
+      foodExhaustionCheckpointDays.length === 0,
+      `Producer-colony food exhaustion at day ${day}; see the checkpoint log`,
+    );
   }
 
   // Written before any assertion below: a run that breaks still leaves its trace on disk.
