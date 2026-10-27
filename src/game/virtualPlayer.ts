@@ -1294,7 +1294,10 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
   // Taming is discretionary: a stocked larder alone is not a food surplus.
   // A sustained production deficit forbids spending down the initial reserve,
   // even when the village still has several days of food in storage.
-  if (!isMeasuredFoodDeficit(state) && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
+  if (!isMeasuredFoodDeficit(state)
+    && (state.ecosystemHealth == null
+      || getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD)
+    && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
     const humans = state.entities.filter(isPlayerHuman);
     const tamer = humans.find((human) => !human.isJuvenile);
     if (tamer) {
