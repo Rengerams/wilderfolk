@@ -10,7 +10,7 @@ import { getVillageLeader } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isPlayerHuman } from './playerHuman';
-import { HUMAN_NEEDS, creditHumanNutritionFromFood, creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 export function getTownHallFestivalCooldownTicks(): number {
   return ticksForDays(50);
@@ -232,7 +232,7 @@ export function resolveCivicPetition(
       || (petitioner.scandalCooldownUntilTick ?? 0) > state.tick)
     && personDayRoll(petitioner.id, state.tick, 823) < 0.55
   ) {
-    creditHumanStaminaFromEnergy(petitioner, 6);
+    adjustHumanStaminaFromEnergy(petitioner, 6);
     sayHumanChatPhrase(
       petitioner,
       personDayRoll(petitioner.id, state.tick, 832) < 0.5 ? 'They listened…' : 'The record is noted.',
@@ -275,7 +275,7 @@ export function resolveCivicPetition(
   ) {
     const amount = 1;
     state.resources.gold -= amount;
-    creditHumanStaminaFromEnergy(petitioner, 5);
+    adjustHumanStaminaFromEnergy(petitioner, 5);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
     sayHumanChatPhrase(petitioner, 'A coin for the road.', 40);
     return { kind: 'aid_gold', amount };
