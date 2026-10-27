@@ -315,6 +315,13 @@ export function restoreWorkerRosterAfterCustody(human: Entity, buildings: readon
   const workplace = buildings.find((building) => building.id === workplaceId);
   if (!workplace || !workplace.completed || workplace.faction === 'rival' ||
       BUILDING_JOB_TYPES[workplace.type] == null) return;
+  // Custody restoration must also retire stale prison and construction memberships.
+  for (const building of buildings) {
+    if (building.id === workplaceId || !building.occupants.includes(human.id)) continue;
+    if (!building.completed || building.type === BuildingType.Prison) {
+      building.occupants = building.occupants.filter((id) => id !== human.id);
+    }
+  }
   if (!workplace.occupants.includes(human.id)) workplace.occupants.push(human.id);
 }
 
