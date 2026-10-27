@@ -525,14 +525,16 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // upgrade command retains ownership of costs, caps and validation.
   if (measuredDeficit) {
     const farm = state.buildings
-      .filter((building) =>
-        building.type === BuildingType.Farm && building.completed && building.faction !== 'rival'
-        && countWorkersAtBuilding(state.entities, building.id) > 0
+      .filter((building) => building.type === BuildingType.Farm
+        && building.completed && building.faction !== 'rival')
+      .map((building) => ({
+        building, workers: countWorkersAtBuilding(state.entities, building.id),
+      }))
+      .filter(({ building, workers }) => workers > 0
         && getBuildingUpgradeEligibility(state, building.id).ok
         && canAffordKeepingRepair(state, getBuildingUpgradeCost(building)))
-      .sort((a, b) => a.level - b.level
-        || countWorkersAtBuilding(state.entities, b.id) - countWorkersAtBuilding(state.entities, a.id)
-        || a.id - b.id)[0];
+      .sort((a, b) => a.building.level - b.building.level
+        || b.workers - a.workers || a.building.id - b.building.id)[0]?.building;
     if (farm) {
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: farm.id },
