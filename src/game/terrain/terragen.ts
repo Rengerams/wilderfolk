@@ -20,7 +20,7 @@ import {
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
 import { isUnbuildableTerrainType } from './terrainTraits';
-import { B, BIOME_BY_IDX, TREE_SPRITE_TYPES, type SpriteType } from './biomes';
+import { B, BIOME_BY_IDX, BIOMES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
   Buildability,
@@ -28,6 +28,7 @@ import {
   WATER_CELL,
   Walkability,
   classifyTile,
+  biomeEdgeDither,
   sampleElev,
 } from './terrainGrid';
 import {
@@ -253,6 +254,150 @@ const PRESET_SETTINGS: Record<MapPreset, TerrainSettings> = {
 };
 
 const idx = (x: number, y: number, w: number) => y * w + x;
+
+// Distances and coordinates are normalized; elevations use the [0,1] height field.
+// Frequencies are radians per normalized map axis unless marked per cell.
+const PRESET_RELIEF_TUNING = {
+  detail: { cyclesPerCell: 0.07, seedOffset: 15551, octaves: 3 },
+  arabianSprings: {
+    count: 4, minPositionFraction: 0.16, positionSpanFraction: 0.68,
+    seedOffset: 13031, xHashOffset: 11, xHashRow: 17, yHashOffset: 29, yHashRow: 13,
+    poolRadiusShortSide: 0.035, poolFalloffExponent: 4,
+    bottomBelowSea: 0.045, landRecoveryElevation: 0.95,
+  },
+  coastal: {
+    coastThresholdX: 0.43, oceanThresholdX: 0.09, noiseOffsetFraction: 0.12,
+    noiseCenter: 0.5, incisionElevation: 0.30,
+    bottomBelowSea: 0.02, landRecoveryElevation: 0.70,
+  },
+  islands: {
+    ridgeElevation: 0.18, xHalfTurnCount: 7, yHalfTurnCount: 5,
+    noisePhaseRadians: 2, baseElevationOffset: 0.09,
+  },
+  highland: {
+    ridgeElevation: 0.20, ridgeAngleX: 18, ridgeAngleY: 9,
+    noisePhaseRadians: 2, sharpnessExponent: 4,
+  },
+  scandinavia: {
+    westStartX: 0.60, westFinishX: 0.14,
+    eastStartX: 0.40, eastFinishX: 0.86,
+    westCenterY: 0.33, eastCenterY: 0.68,
+    fjordMeanderFraction: 0.10, westWaveRadians: 8, eastWaveRadians: 7,
+    westWidthFraction: 0.06, eastWidthFraction: 0.065,
+    fjordFalloffExponent: 2, incisionElevation: 0.30,
+    bottomBelowSea: 0.02, landRecoveryElevation: 0.70,
+  },
+  meadows: { reliefScale: 0.75 },
+  oasis: {
+    springRadiusShortSide: 0.11, springFalloffExponent: 4,
+    bottomBelowSea: 0.06, landRecoveryElevation: 0.85,
+  },
+} as const;
+
+/** Deterministic spring locations shared by Arabian relief and moisture. */
+function arabianSpringCenters(cols: number, rows: number, seed: number): { x: number; y: number }[] {
+  const t = PRESET_RELIEF_TUNING.arabianSprings;
+  return Array.from({ length: t.count }, (_, i) => ({
+    x: (t.minPositionFraction + t.positionSpanFraction
+      * hash2(i + t.xHashOffset, t.xHashRow, seed + t.seedOffset)) * (cols - 1),
+    y: (t.minPositionFraction + t.positionSpanFraction
+      * hash2(i + t.yHashOffset, t.yHashRow, seed + t.seedOffset)) * (rows - 1),
+  }));
+}
+
+/** Distinct landscape signatures for new games; legacy compact saves use revision 1. */
+function shapePresetRelief(
+  elevation: Float32Array, cols: number, rows: number,
+  seaLevel: number, preset: MapPreset, seed: number,
+  arabianSprings: readonly { x: number; y: number }[],
+): void {
+  if (preset === MapPreset.BlackForest
+      || preset === MapPreset.Rivers || preset === MapPreset.Continental) return;
+  const shortSide = Math.min(cols, rows);
+  const detailTuning = PRESET_RELIEF_TUNING.detail;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = idx(x, y, cols);
+      const nx = x / Math.max(1, cols - 1);
+      const ny = y / Math.max(1, rows - 1);
+      const detail = fbm(
+        x * detailTuning.cyclesPerCell,
+        y * detailTuning.cyclesPerCell,
+        seed + detailTuning.seedOffset,
+        { octaves: detailTuning.octaves },
+      );
+      const distance = Math.hypot(x - (cols - 1) / 2, y - (rows - 1) / 2) / shortSide;
+      let e = elevation[i]!;
+      switch (preset) {
+        case MapPreset.Arabia: {
+          const t = PRESET_RELIEF_TUNING.arabianSprings;
+          let nearest = Infinity;
+          for (const spring of arabianSprings) {
+            nearest = Math.min(nearest, Math.hypot(x - spring.x, y - spring.y) / shortSide);
+          }
+          const pool = Math.exp(-Math.pow(nearest / t.poolRadiusShortSide, t.poolFalloffExponent));
+          e = Math.min(e, seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - pool));
+          break;
+        }
+        case MapPreset.Coastal: {
+          const t = PRESET_RELIEF_TUNING.coastal;
+          const ocean = smoothRange(
+            t.coastThresholdX, t.oceanThresholdX, nx + (detail - t.noiseCenter) * t.noiseOffsetFraction,
+          );
+          e = Math.min(e - t.incisionElevation * ocean,
+            seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - ocean));
+          break;
+        }
+        case MapPreset.Islands: {
+          const t = PRESET_RELIEF_TUNING.islands;
+          e += t.ridgeElevation * Math.sin(nx * Math.PI * t.xHalfTurnCount + detail * t.noisePhaseRadians)
+            * Math.sin(ny * Math.PI * t.yHalfTurnCount - detail * t.noisePhaseRadians) - t.baseElevationOffset;
+          break;
+        }
+        case MapPreset.Highland: {
+          const t = PRESET_RELIEF_TUNING.highland;
+          e += t.ridgeElevation * Math.pow(
+            Math.abs(Math.sin(nx * t.ridgeAngleX + ny * t.ridgeAngleY
+              + detail * t.noisePhaseRadians)), t.sharpnessExponent,
+          );
+          break;
+        }
+        case MapPreset.Scandinavia: {
+          const t = PRESET_RELIEF_TUNING.scandinavia;
+          const west = smoothRange(t.westStartX, t.westFinishX, nx)
+            * Math.exp(-Math.pow(
+              (ny - t.westCenterY - t.fjordMeanderFraction * Math.sin(nx * t.westWaveRadians))
+                / t.westWidthFraction, t.fjordFalloffExponent,
+            ));
+          const east = smoothRange(t.eastStartX, t.eastFinishX, nx)
+            * Math.exp(-Math.pow(
+              (ny - t.eastCenterY - t.fjordMeanderFraction * Math.sin(nx * t.eastWaveRadians))
+                / t.eastWidthFraction, t.fjordFalloffExponent,
+            ));
+          const fjord = Math.max(west, east);
+          e = Math.min(e - t.incisionElevation * fjord,
+            seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - fjord));
+          break;
+        }
+        case MapPreset.Meadows: {
+          e = seaLevel + (e - seaLevel) * PRESET_RELIEF_TUNING.meadows.reliefScale;
+          break;
+        }
+        case MapPreset.Oasis: {
+          const t = PRESET_RELIEF_TUNING.oasis;
+          const spring = Math.exp(-Math.pow(
+            distance / t.springRadiusShortSide, t.springFalloffExponent,
+          ));
+          e = Math.min(e, seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - spring));
+          break;
+        }
+        default:
+          break;
+      }
+      elevation[i] = clamp(e, 0, 1);
+    }
+  }
+}
 
 /* ===== Height ===== */
 
@@ -555,7 +700,7 @@ function carveRivers(
  * a channel and 0 is dry, which is why nothing here takes a square root of it.
  */
 function buildWaterField(
-  rivers: RiverPoint[][], cols: number, rows: number,
+  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2,
 ): { coverage: Float32Array; wCols: number; wRows: number } {
   const cell = WATER_CELL;
   const wCols = Math.ceil((cols * TERRAIN_CELL) / cell);
@@ -563,6 +708,33 @@ function buildWaterField(
   const coverage = new Float32Array(wCols * wRows);
 
   for (const path of rivers) {
+    if (generationVersion === 2) {
+      for (let point = 1; point < path.length; point++) {
+        const a = path[point - 1]!;
+        const b = path[point]!;
+        const ax = a.x * TERRAIN_CELL, ay = a.y * TERRAIN_CELL;
+        const bx = b.x * TERRAIN_CELL, by = b.y * TERRAIN_CELL;
+        const vx = bx - ax, vy = by - ay;
+        const lengthSq = vx * vx + vy * vy;
+        const radius = (Math.max(a.w, b.w) + 0.5) * TERRAIN_CELL + cell;
+        const x0 = Math.max(0, Math.floor((Math.min(ax, bx) - radius) / cell));
+        const x1 = Math.min(wCols - 1, Math.ceil((Math.max(ax, bx) + radius) / cell));
+        const y0 = Math.max(0, Math.floor((Math.min(ay, by) - radius) / cell));
+        const y1 = Math.min(wRows - 1, Math.ceil((Math.max(ay, by) + radius) / cell));
+        for (let y = y0; y <= y1; y++) {
+          for (let x = x0; x <= x1; x++) {
+            const wx = (x + 0.5) * cell, wy = (y + 0.5) * cell;
+            const t = lengthSq > 0 ? clamp(((wx - ax) * vx + (wy - ay) * vy) / lengthSq, 0, 1) : 0;
+            const distance = Math.hypot(wx - ax - t * vx, wy - ay - t * vy);
+            const halfWidth = (a.w + (b.w - a.w) * t + 0.5) * TERRAIN_CELL;
+            const strength = clamp(1 - distance / (halfWidth + cell), 0, 1);
+            const i = y * wCols + x;
+            if (strength > coverage[i]) coverage[i] = strength;
+          }
+        }
+      }
+      continue;
+    }
     for (const p of path) {
       const cx = p.x * TERRAIN_CELL;
       const cy = p.y * TERRAIN_CELL;
@@ -694,10 +866,32 @@ function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
   return table[table.length - 1][0];
 }
 
+
+/** Align static props to the same tile classifier used by pathfinding and buildings. */
+function decorBiomeForTile(type: TerrainType, coarse: BiomeDef): BiomeDef {
+  switch (type) {
+    case TerrainType.DeepWater:
+    case TerrainType.ShallowWater:
+    case TerrainType.River:
+      return BIOMES.water;
+    case TerrainType.RiverBank: return BIOMES.swamp;
+    case TerrainType.Beach: return BIOMES.sand;
+    case TerrainType.Desert: return BIOMES.desert;
+    case TerrainType.Grassland: return coarse.id === 'meadow' ? BIOMES.meadow : BIOMES.grass;
+    case TerrainType.Forest: return BIOMES.forest;
+    case TerrainType.DarkForest: return BIOMES.dense_forest;
+    case TerrainType.Hills: return BIOMES.dirt;
+    case TerrainType.Rocky:
+    case TerrainType.Mountains: return BIOMES.rock;
+    case TerrainType.Snow: return BIOMES.snow;
+  }
+}
+
 /** Biome-density + clump-noise decor placement (Teraforge), trees excluded. */
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
+  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -707,7 +901,10 @@ function placeDecorations(
       const def = BIOME_BY_IDX[terrain[idx(x, y, cols)]];
       if (!def.decor.length) continue;
       const clumpNoise = fbm(x * 0.17, y * 0.17, seed + 1777, { octaves: 3 });
-      const count = def.density * DECOR_DENSITY * (0.35 + clumpNoise * 1.5);
+      const densityScale = generationVersion === 2
+        ? (def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga' ? 0.38 : 0.62)
+        : 1;
+      const count = def.density * DECOR_DENSITY * densityScale * (0.35 + clumpNoise * 1.5);
       let n = Math.floor(count);
       if (rand() < count - n) n++;
 
@@ -719,7 +916,11 @@ function placeDecorations(
         const pi = gy * pCols + gx;
         if (pathGrid[pi] !== 0) continue;
 
-        const type = pickDecor(def.decor, rand());
+        const site = generationVersion === 2 ? decorBiomeForTile(tileType(gx, gy), def) : def;
+        if (generationVersion === 2 && (
+          site.id === 'water' || site.id === 'river' || site.id === 'deep_water'
+        )) continue;
+        const type = pickDecor(site.decor, rand());
         if (TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
 
         decorations.push({
@@ -775,8 +976,12 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
   /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
   terrainSeed?: number,
+  generationVersion: 1 | 2 = 2,
 ): WorldMap {
-  const s = PRESET_SETTINGS[preset];
+  const settings = PRESET_SETTINGS[preset];
+  const s = generationVersion === 2 && preset === MapPreset.Rivers
+    ? { ...settings, rivers: 7, riverWidth: 3.2 }
+    : settings;
   const tseed = terrainSeedFor(seed, size, terrainSeed);
 
   const tileW = Math.ceil(width / 10);
@@ -794,6 +999,11 @@ export function generateRawTerrain(
   // Spread the height field before anything reads it, so the biome bands, the river
   // gradient walk and the rendered hillshade all see the same relief.
   const { heights: elevation, seaLevel } = spreadHeights(rawElevation, configuredSeaLevel);
+  const arabianSprings = generationVersion === 2 && preset === MapPreset.Arabia
+    ? arabianSpringCenters(cols, rows, tseed) : [];
+  if (generationVersion === 2) {
+    shapePresetRelief(elevation, cols, rows, seaLevel, preset, tseed, arabianSprings);
+  }
 
   const moisture = new Float32Array(cols * rows);
   const temperature = new Float32Array(cols * rows);
@@ -817,6 +1027,21 @@ export function generateRawTerrain(
         0,
         1,
       );
+      if (arabianSprings.length) {
+        let nearest = Infinity;
+        for (const spring of arabianSprings) {
+          nearest = Math.min(
+            nearest, Math.hypot(x - spring.x, y - spring.y) / Math.min(cols, rows),
+          );
+        }
+        mo = clamp(mo + 0.48 * Math.exp(-Math.pow(nearest / 0.09, 4)), 0, 1);
+      }
+      if (generationVersion === 2 && preset === MapPreset.Oasis) {
+        const distance = Math.hypot(
+          x - (cols - 1) / 2, y - (rows - 1) / 2,
+        ) / Math.min(cols, rows);
+        mo = clamp(mo + 0.65 * Math.exp(-Math.pow(distance / 0.20, 4)), 0, 1);
+      }
       moisture[i] = mo;
       // `s.temperature` keeps its long-standing `× 1.1` amplifier, and latitude is removed
       // *before* it so the equator row is exactly the temperature this preset had before the
@@ -833,7 +1058,7 @@ export function generateRawTerrain(
   // The water layer lives on its own, finer lattice. Everything downstream that cares about
   // *where the water is* reads this field; the coarse `riverFlag` below only decides which
   // biome cells the river turns to swamp and meadow.
-  const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows);
+  const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows, generationVersion);
   const riverFlag = flagRiverCells(riverDist, wCols, wRows, cols, rows);
 
   for (let i = 0; i < riverFlag.length; i++)
@@ -861,14 +1086,18 @@ export function generateRawTerrain(
     const wy = y * PATH_CELL + PATH_CELL / 2;
     const cx = wx / TERRAIN_CELL;
     const cy = wy / TERRAIN_CELL;
+    const tileElevation = sampleElev(elevation, cols, rows, cx, cy);
     return classifyTile(
-      sampleElev(elevation, cols, rows, cx, cy),
+      tileElevation,
       sampleElev(moisture, cols, rows, cx, cy),
       sampleElev(temperature, cols, rows, cx, cy),
       sampleElev(riverDist, wCols, wRows, wx / WATER_CELL, wy / WATER_CELL),
       seaLevel,
       cuts.forest,
       cuts.darkForest,
+      generationVersion === 2
+        ? biomeEdgeDither(tileElevation, seaLevel)
+        : 0,
     );
   };
   for (let y = 0; y < pRows; y++)
@@ -877,7 +1106,9 @@ export function generateRawTerrain(
     }
 
   // L3 decorations (biome-density-driven; trees excluded)
-  const decorations = placeDecorations(tseed, cols, rows, terrain, pathGrid, pCols, pRows);
+  const decorations = placeDecorations(
+    tseed, cols, rows, terrain, pathGrid, pCols, pRows, pathTileType, generationVersion,
+  );
 
   // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads
   // the same projection `terrainGrid.isTileBuildable` uses, so the L1 grid and
@@ -949,6 +1180,7 @@ export function generateRawTerrain(
     moistureBias: s.moisture,
     /** Recorded so a save can regenerate this exact valley — see `terrainSeedFor`. */
     terrainSeed: tseed,
+    generationVersion,
     moistureForestThreshold: cuts.forest,
     moistureDarkForestThreshold: cuts.darkForest,
     waterfalls,

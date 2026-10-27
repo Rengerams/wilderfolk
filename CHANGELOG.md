@@ -2,6 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Map presets now keep recognizable coastlines, islands, highlands, Nordic fjords and a central oasis; founding clearings preserve neighboring forests. Generation revisions preserve old compact saves.
+- **Fixed:** Production buildings retain the biome bonus from their original site after construction removes the underlying forest.
+- **Changed:** Terrain now uses a shared biome-edge rule for gameplay tiles and scenery, places vegetation by habitat, and renders connected river masks without duplicate water strokes.
+- **Changed:** Ground rendering adds cached horizon shading for stronger 2.5D relief and paints uniquely owned decor after the terrain chunks to avoid seam overlaps.
+- **Fixed:** Removed redundant renderer aliases and unused world-generation forwarding exports while preserving compatibility for existing entity creation scripts.
 - **Fixed:** Roads snapped to building entrances now align the whole straight drag to the safe road row, including drags starting at the entrance.
 
 - **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
