@@ -477,6 +477,82 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
   });
 });
 
+describe('food-chain decisions under a recorded deficit', () => {
+  const deficit = [1, 2, 3].map((day) => ({
+    day, produced: { farms: 20 }, consumed: { meals: 55 },
+  }));
+
+  function deficitVillage(overrides: Partial<WorldState> = {}): WorldState {
+    const state = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      foodHistory: deficit,
+      ...overrides,
+    }, { mills: 0, farms: 2 });
+    // The staffed farms are already fully upgraded. The bot must now use
+    // other food-chain mechanics rather than repeatedly proposing upgrades.
+    for (const site of state.buildings) {
+      if (site.type === BuildingType.Farm) site.level = 3;
+    }
+    return state;
+  }
+
+  it('builds a Mill when its research is available to amplify existing farms', () => {
+    const state = deficitVillage({
+      researchNodes: [researchNode({ id: 'agriculture_2', researched: true })],
+      unlockedTechs: ['agriculture_2'],
+    });
+    const choice = decideVirtualPlayerAction(state);
+    expect(choice?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Mill });
+    expect(choice?.reason).toContain('Mill');
+  });
+
+  it('builds a Silo when spoilage persists and mill research is not available', () => {
+    const state = deficitVillage({ foodSpoilageRate: 0.008 });
+    expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Silo,
+    });
+  });
+
+  it('builds an unlocked Greenhouse rather than another Farm when shortages persist', () => {
+    const state = deficitVillage({
+      foodSpoilageRate: 0,
+      researchNodes: [researchNode({ researched: true })],
+      unlockedTechs: ['agriculture_1'],
+    });
+    expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Greenhouse,
+    });
+  });
+
+  it('can choose a Hunting Spot with safe nearby prey and a healthy ecosystem', () => {
+    const state = deficitVillage({ foodSpoilageRate: 0, ecosystemHealth: 90 });
+    state.entities.push(human(991, { type: EntityType.Deer, x: CAMP_X, y: CAMP_Y }));
+    const choice = decideVirtualPlayerAction(state);
+    expect(choice?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.HuntingSpot,
+    });
+  });
+
+  it('avoids a wildlife-only solution when no safe prey is available', () => {
+    const state = deficitVillage({ foodSpoilageRate: 0, ecosystemHealth: 90 });
+    expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('postpones spare housing during food losses without neglecting actual homelessness', () => {
+    const state = ownerColony(36, {
+      tick: 4 * TICKS_PER_DAY,
+      foodHistory: deficit,
+    }, { mills: 0, farms: 3, spareHouses: 0 });
+    expect(countHomelessSettlers(state)).toBe(0);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+    expect(decideVirtualPlayerAction(state)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.House,
+    });
+  });
+});
+
 describe('the storage buildings the owner reported missing', () => {
   it('builds a Silo when the store it widens — food — is nearly full', () => {
     // The storage owner's own table (`computeStorageMax`): a Silo adds 600 food and cuts spoilage,
