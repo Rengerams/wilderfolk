@@ -131,13 +131,15 @@ function jobBuildingId(key: BuildingType): BuildingType {
  * priority; every preset's spillover tail is the unranked rule above. There is deliberately
  * no per-preset branch anywhere — `jobBuildingPriorityForPolicy` walks this table.
  *
- * `survival` is the historical auto-staff order (`workforce.AUTO_JOB_BUILDING_PRIORITY`),
- * kept verbatim so the default preset is behaviour-preserving.
+ * `survival` follows the historical auto-staff order while also prioritising
+ * Fishing Spots alongside other food jobs (previously left unranked despite
+ * having an explicit Hunter job).
  */
 const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingType[]>> = {
   survival: [
     jobBuildingId('farm'),
     jobBuildingId('greenhouse'),
+    jobBuildingId('fishingSpot'),
     jobBuildingId('huntingSpot'),
     jobBuildingId('lumberMill'),
     jobBuildingId('quarry'),
@@ -163,6 +165,7 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('market'),
     jobBuildingId('greenhouse'),
     jobBuildingId('farm'),
+    jobBuildingId('fishingSpot'),
     jobBuildingId('huntingSpot'),
     jobBuildingId('school'),
     jobBuildingId('hospital'),
@@ -180,6 +183,7 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('hospital'),
     jobBuildingId('farm'),
     jobBuildingId('greenhouse'),
+    jobBuildingId('fishingSpot'),
     jobBuildingId('huntingSpot'),
     jobBuildingId('store'),
     jobBuildingId('market'),
@@ -204,6 +208,7 @@ const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingT
     jobBuildingId('school'),
     jobBuildingId('townHall'),
     jobBuildingId('farm'),
+    jobBuildingId('fishingSpot'),
     jobBuildingId('huntingSpot'),
     jobBuildingId('lumberMill'),
     jobBuildingId('quarry'),
