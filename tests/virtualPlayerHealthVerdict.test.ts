@@ -342,7 +342,7 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     expect(decision!.command).toMatchObject({ op: 'startBuilding', type: BuildingType.House });
   });
 
-  it('uses measured food losses to build ahead of the ordinary farm count', () => {
+  it('upgrades an occupied Farm first when measured food losses persist', () => {
     const world = ownerColony(24, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
@@ -351,10 +351,14 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
       })),
     }, { mills: 1, farms: 4 });
 
-    // Four farms satisfy nominal planning; actual output does not.
+    // The deficit response must improve a staffed producer before creating an idle site.
     const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
-    expect(decision?.reason).toContain('actual food production trails consumption');
+    expect(decision?.command.op).toBe('upgradeBuilding');
+    if (decision?.command.op !== 'upgradeBuilding') throw new Error('expected a farm upgrade');
+    const target = world.buildings.find((site) => site.id === decision.command.buildingId);
+    expect(target?.type).toBe(BuildingType.Farm);
+    expect(target?.occupants.length).toBeGreaterThan(0);
+    expect(decision.reason).toContain('measured food production does not cover consumption');
   });
 
   it('staffs an idle Farm before ordering another during a measured deficit', () => {
