@@ -86,17 +86,18 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     || playerHumanCount(original.entities) >= original.maxHumanPopulation || getOpenPlayerBeds(original) <= 0)) return original;
   const state = structuredClone(original);
   const person = state.entities.find((entry) => entry.id === entityId)!;
-  const rival = state.rivalSettlements.find((entry) => entry.id === person.warCaptive!.originRivalId);
+  const originRivalId = person.warCaptive!.originRivalId;
+  const rival = state.rivalSettlements.find((entry) => entry.id === originRivalId);
   if (choice === 'release') {
     departWarPrisoner(state, person, 'released');
-    applyCaptiveCommunityReaction(state, 'release', person.warCaptive!.originRivalId);
+    applyCaptiveCommunityReaction(state, 'release', originRivalId);
     if (rival) rememberRivalDisposition(state, rival, 'release');
   } else if (choice === 'execute_confirmed') {
     recordWarPrisonerOutcome(state, person, 'executed');
     killHuman(person, state.buildings, ensureEntityByIdMap(state), state.tick, state);
     logDeath(state, `${formatCitizenName(person)} executed after capture`, formatCitizenName(person),
       { x: person.x, y: person.y }, 'enemy');
-    applyCaptiveCommunityReaction(state, 'execution', person.warCaptive!.originRivalId);
+    applyCaptiveCommunityReaction(state, 'execution', originRivalId);
     if (rival) rememberRivalDisposition(state, rival, 'execution');
     for (const building of state.buildings) building.occupants = building.occupants.filter((id) => id !== person.id);
   } else {
