@@ -53,18 +53,17 @@ export const Human = {
    */
   DAILY_FOOD_CONSUMPTION: 3,
   /**
-   * 4 = hunger is re-evaluated every 4 clock hours (6 checks/day); only 3 of
-   * them fall inside the standard 07–16 work window, matching DAILY_FOOD_CONSUMPTION.
+   * Foreign war captives retain the legacy four-hour meal check.
+   * Player settlers use the nutrition intent and cooldown in humanPhysiology.ts.
    */
   MEAL_CHECK_INTERVAL_HOURS: 4,
   /**
-   * 0.9 = eat only when energy has dipped below 90% max; stops settlers from
-   * grazing food the moment they lose a single point.
+   * Energy threshold only for foreign captive meals; not used for player nutrition.
    */
   HUNGER_MEAL_THRESHOLD: 0.9,
   /**
-   * 65 = one larder meal restores 65 of a settler's 500 max energy (about 13%
-   * of the bar, or ~46 ticks / 15 h of unmodified metabolism at 1.4/tick).
+   * Legacy foreign captive energy restoration. Player meals credit nutrition via
+   * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT.
    */
   MEAL_ENERGY_RESTORE: 65,
 } as const;
