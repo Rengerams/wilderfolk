@@ -52,6 +52,7 @@ import { getWorkshopRecipe, canAffordWorkshopRecipe, WORKSHOP_RECIPES, type Work
 import {
   getRecruitSettlerEligibility,
   getTameEntityEligibility,
+  getTameFoodCost,
 } from './settlerInteractionActions';
 import { getVisitorQuest } from './visitorQuest';
 import { canEstablishTradeRoute } from './tradeCaravans';
@@ -184,7 +185,14 @@ function spareBedReserve(state: WorldState): number {
   );
 }
 
-/** Producers the village wants as it grows: one per `perProducer` adults, never fewer than one. */
+/** Food demand includes children (whose physiology consumes 85% of adult nutrition).
+ * Industry demand continues to use the adult workforce, not all mouths.
+ */
+function wantedFoodProducerCount(state: WorldState, perProducer: number): number {
+  return Math.max(1, Math.ceil(playerHumanCount(state.entities) / perProducer));
+}
+
+/** Industrial production scales with the available adult labor pool. */
 function wantedProducerCount(state: WorldState, perProducer: number): number {
   return Math.max(1, Math.ceil(adultSettlerCount(state) / perProducer));
 }
@@ -503,7 +511,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // Another empty Farm cannot fix the shortage while existing auto-managed
   // harvest sites remain unstaffed. Staffing is considered first in the ladder.
   if ((shortOnFood || measuredDeficit) && firstUnstaffedFoodProducer(state)) return null;
-  const target = wantedProducerCount(
+  const target = wantedFoodProducerCount(
     state,
     measuredDeficit
       ? VirtualPlayer.DEFICIT_SETTLERS_PER_FOOD_PRODUCER
@@ -1258,12 +1266,19 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  if (hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
+  // Taming is discretionary: a stocked larder alone is not a food surplus.
+  // A sustained production deficit forbids spending down the initial reserve,
+  // even when the village still has several days of food in storage.
+  if (!isMeasuredFoodDeficit(state) && hasFoodMargin(state, VirtualPlayer.TAME_FOOD_RESERVE_DAYS)) {
     const humans = state.entities.filter(isPlayerHuman);
     const tamer = humans.find((human) => !human.isJuvenile);
     if (tamer) {
       for (const entity of state.entities) {
         if (!getTameEntityEligibility(state, entity.id, tamer.id).ok) continue;
+        const price = getTameFoodCost(entity.type);
+        if (price == null ||
+          (state.resources.food ?? 0) - price <
+          foodNeedPerDay(playerHumanCount(state.entities)) * VirtualPlayer.TAME_FOOD_RESERVE_DAYS) continue;
         return {
           command: { proto: WORKER_CMD_PROTO, op: 'tameEntity', entityId: entity.id, humanId: tamer.id },
           reason: `tame the ${entity.type} — a Taming Post is in reach and the larder is deep`,
