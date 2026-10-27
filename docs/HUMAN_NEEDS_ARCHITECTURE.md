@@ -29,7 +29,7 @@ Replace the single human energy bar with independent, serialized **nutrition**, 
 | `nightDutyRecoveryPending` | overnight duty completed and owed daytime recovery |
 | `sleepRecoveryUntilTick` | bounded recovery attempt deadline |
 
-**One authoritative rule owner:** `src/game/simulation/humanPhysiology.ts`, exporting `HUMAN_NEEDS`, `HumanNeedsObservation`, `HumanNeedsIntent`, `initialHumanNeeds`, `normalizeHumanNeeds`, `advanceHumanNeeds`, `resolveHumanNeedsIntent`, `getHumanNeedsWorkMultiplier`, `hasFatalStarvation`, `creditHumanNutritionFromFood`, and `adjustHumanStaminaFromEnergy`.
+**One authoritative rule owner:** `src/game/simulation/humanPhysiology.ts`, exporting `HUMAN_NEEDS`, `HumanNeedsObservation`, `HumanNeedsIntent`, `initialHumanNeeds`, `normalizeHumanNeeds`, `advanceHumanNeeds`, `resolveHumanNeedsIntent`, `getHumanNeedsWorkMultiplier`, `hasFatalStarvation`, `creditHumanNutritionFromFood`, `adjustHumanStaminaFromEnergy`, and `rebaseHumanNeedsClockAfterFormRestore`.
 
 | Owner | Responsibilities |
 | --- | --- |
@@ -95,7 +95,7 @@ The Virtual Player now checks for a **completed, auto-managed food producer with
 
 ## 6. Persistence and compatibility
 
-Older saves are normalized with `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
+Older saves are normalized with `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
 
 Foreign `warCaptive` feeding intentionally remains on legacy energy and canonical `gameConstants.Human` constants. Visitor/rival humans without custody do not use colony food. Other human legacy-energy consumers remain an explicit migration audit area.
 
