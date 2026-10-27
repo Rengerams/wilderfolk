@@ -7,7 +7,6 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, unlinkS
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const SOURCE_DIRS = ['src', 'tests', 'scripts', 'config'];
 const CODE_EXTENSIONS = /\.(?:ts|tsx|mts|cts|js|mjs)$/;
 const REEXPORT = /\bexport\s+(type\s+)?\{([^{}]+)\}\s+from\s+(['"])([^'"]+)\3\s*;?/g;
 const FORWARD = /\b(import|export)\s+(type\s+)?\{([^{}]+)\}\s+from\s+(['"])([^'"]+)\4\s*;?/g;
@@ -95,7 +94,9 @@ function main() {
   if (target === '--scan') {
     for (const file of sourceFiles(path.join(ROOT, 'src'))) {
       const source = readFileSync(file, 'utf8');
-      if (facadeExports(file, source)) console.log(path.relative(ROOT, file).replaceAll('\\', '/'));
+      try {
+        if (facadeExports(file, source)) console.log(path.relative(ROOT, file).replaceAll('\\', '/'));
+      } catch { /* An unresolved barrel is not a safe migration candidate. */ }
     }
     return;
   }
