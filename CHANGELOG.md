@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed (#62):** Auto-play now reads a contiguous 3–7-day actual food-production/consumption trend before increasing agricultural capacity or voluntarily recruiting more settlers; a sustained deficit prioritizes conservative food production and suspends discretionary recruitment. Separate tests prove stale/missing history cannot masquerade as a measured shortage.
+
 - **Changed (#62):** Audited redundant physiology wrappers and meal-constant aliases, registered the needs schema/config and public owners, and documented the single-authority pipeline and acceptance matrix in `docs/HUMAN_NEEDS_ARCHITECTURE.md`.
 
 - **Fixed:** Physiological stamina now retains leisure, sick-day, graduation, birth recovery, hunting and disaster effects instead of losing legacy energy writes on the next human tick; hospital medicine spends through the one food ledger.
