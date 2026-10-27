@@ -654,7 +654,7 @@ function main() {
     decision.modules = [...new Set(modulesIn(ownerHead))].sort();
   }
 
-  const moduleOwnsFile = (moduleName, file) => file.endsWith(`/${moduleName}`);
+  const moduleOwnsFile = (moduleName, file) => file === moduleName || file.endsWith(`/${moduleName}`);
 
   const ownerForFunction = (fn) => {
     for (const decision of decisions) {
