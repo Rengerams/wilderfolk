@@ -135,11 +135,6 @@ export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: numbe
   entity.energy = entity.maxEnergy * needs.stamina / 100;
 }
 
-/** Positive-only treatment, comfort or relationship benefit. */
-export function creditHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
-  if (energyPoints > 0) adjustHumanStaminaFromEnergy(entity, energyPoints);
-}
-
 export type HumanNeedsIntent = 'eat' | 'sleep' | 'takeBreak' | 'continueActivity';
 
 export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: boolean): HumanNeedsIntent {
