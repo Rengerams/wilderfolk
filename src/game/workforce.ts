@@ -479,6 +479,7 @@ export function assignWorkerInPlace(
   humans: Entity[],
   buildings: Building[],
   venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
+  constructionWorkerIds?: ReadonlySet<number>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
@@ -498,14 +499,16 @@ export function assignWorkerInPlace(
   let bestNear = false;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
-  const constructionWorkerIds = new Set<number>();
-  for (const site of buildings) {
-    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  const crewIds = constructionWorkerIds ?? new Set<number>();
+  if (!constructionWorkerIds) {
+    for (const site of buildings) {
+      if (!site.completed) for (const id of site.occupants) crewIds.add(id);
+    }
   }
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
-      || constructionWorkerIds.has(candidate.id)) continue;
+      || crewIds.has(candidate.id)) continue;
     const near = isWithinAssignableCommute(candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
     const dx = candidate.x - buildingX;
     const dy = candidate.y - buildingY;
@@ -535,6 +538,8 @@ export function assignBuilderInPlace(
   allBuildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
+  constructionWorkerIds?: Set<number>,
+  buildingById?: ReadonlyMap<number, Building>,
 ): boolean {
   if (building.completed || building.faction === 'rival') return false;
 
@@ -549,11 +554,14 @@ export function assignBuilderInPlace(
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
-      !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id)),
+      (constructionWorkerIds
+        ? !constructionWorkerIds.has(h.id)
+        : !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id))),
   );
 
   if (freeBuilder) {
     building.occupants.push(freeBuilder.id);
+    constructionWorkerIds?.add(freeBuilder.id);
     return true;
   }
 
@@ -568,21 +576,23 @@ export function assignBuilderInPlace(
         canAutoChangeWorkplace(h, currentTick) &&
         !isImprisoned(h) &&
         !building.occupants.includes(h.id) &&
-        !isOnConstructionCrew(allBuildings, h.id),
+        !(constructionWorkerIds
+          ? constructionWorkerIds.has(h.id)
+          : isOnConstructionCrew(allBuildings, h.id)),
     )
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === a.workerBuildingId)?.type ?? BuildingType.Farm,
+        (buildingById?.get(a.workerBuildingId!) ?? allBuildings.find((x) => x.id === a.workerBuildingId))?.type ?? BuildingType.Farm,
         policy,
       );
       const bPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === b.workerBuildingId)?.type ?? BuildingType.Farm,
+        (buildingById?.get(b.workerBuildingId!) ?? allBuildings.find((x) => x.id === b.workerBuildingId))?.type ?? BuildingType.Farm,
         policy,
       );
       return bPri - aPri;
     })
     .find((h) => {
-      const site = allBuildings.find((b) => b.id === h.workerBuildingId);
+      const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
       if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       if ((site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse) && staffed <= 1) {
@@ -595,6 +605,7 @@ export function assignBuilderInPlace(
   clearJobAssignment(jobHolder, allBuildings);
   if (currentTick != null) jobHolder.lastAutoJobTransferTick = currentTick;
   building.occupants.push(jobHolder.id);
+  constructionWorkerIds?.add(jobHolder.id);
   return true;
 }
 
@@ -626,15 +637,8 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
-    // A sentence keeps the post, but a construction crew has no post to hold: free the crew slot.
-    if (isImprisoned(human)) {
-      for (const building of buildings) {
-        if (!building.completed && building.occupants.includes(human.id)) {
-          building.occupants = building.occupants.filter((id) => id !== human.id);
-        }
-      }
-      continue;
-    }
+    // The single crew-normalization pass below removes jailed builders.
+    if (isImprisoned(human)) continue;
     // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
     if (!hasWorkAssignment(human) || human.workerBuildingId == null) continue;
     const workplace = buildingById.get(human.workerBuildingId);
@@ -695,11 +699,18 @@ export function staffConstructionCrews(
       return a.id - b.id;
     });
 
+  const constructionWorkerIds = new Set<number>();
+  const buildingById = new Map<number, Building>();
+  for (const site of buildings) {
+    buildingById.set(site.id, site);
+    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  }
+
   // Pass 1: ensure every active site has at least one builder
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
     if (building.occupants.length === 0) {
-      assignBuilderInPlace(building, alive, buildings, policy, currentTick);
+      assignBuilderInPlace(building, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById);
     }
   }
 
@@ -717,7 +728,7 @@ export function staffConstructionCrews(
   // Pass 2: fill remaining slots
   for (let i = 0; i < incomplete.length; i++) {
     const building = incomplete[i];
-    while (assignBuilderInPlace(building, alive, buildings, policy, currentTick)) {
+    while (assignBuilderInPlace(building, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById)) {
       // Fill crew capacity
     }
   }
@@ -731,11 +742,15 @@ export function staffJobBuildings(
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
+  const constructionWorkerIds = new Set<number>();
+  for (const site of buildings) {
+    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  }
 
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
-    while (assignWorkerInPlace(building, alive, buildings, worldSlices)) {
+    while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds)) {
       // Fill job slots
     }
   }

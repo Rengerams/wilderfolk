@@ -26,6 +26,8 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   addToConstructionCrew,
   assignWorkerInPlace,
+  staffConstructionCrews,
+  staffJobBuildings,
   assignWorkerTransition,
   countWorkingAndIdleSettlers,
   getSmithBonus,
@@ -190,6 +192,34 @@ describe('workforce named transitions', () => {
     expect(farm.occupants).toEqual([2]);
     expect(prison.occupants).toEqual([3]);
     expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('keeps construction assignments distinct in the shared crew-index staffing pass', () => {
+    const firstWorker = human(1);
+    const secondWorker = human(2);
+    const jailed = human(3, { prisonBuildingId: 90 });
+    const first = building(10, BuildingType.House, { completed: false });
+    const second = building(11, BuildingType.House, { completed: false });
+
+    staffConstructionCrews([firstWorker, secondWorker, jailed], [first, second]);
+
+    expect(first.occupants).toEqual([1]);
+    expect(second.occupants).toEqual([2]);
+    expect(new Set([...first.occupants, ...second.occupants]).size).toBe(2);
+  });
+
+  it('keeps builders out of job vacancies when sharing the crew index across hires', () => {
+    const builder = human(1);
+    const freeWorker = human(2);
+    const site = building(10, BuildingType.House, { completed: false, occupants: [builder.id] });
+    const farm = building(20, BuildingType.Farm);
+
+    staffJobBuildings([builder, freeWorker], [site, farm], true);
+
+    expect(site.occupants).toEqual([builder.id]);
+    expect(farm.occupants).toEqual([freeWorker.id]);
+    expect(builder.workerBuildingId).toBeUndefined();
+    expect(freeWorker.workerBuildingId).toBe(farm.id);
   });
 
   it('reconciles a completed lumber mill crew already listed in the roster', () => {
