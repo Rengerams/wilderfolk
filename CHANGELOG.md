@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Physiological stamina now retains leisure, sick-day, graduation, birth recovery, hunting and disaster effects instead of losing legacy energy writes on the next human tick; hospital medicine spends through the one food ledger.
+
 - **Fixed:** Releasing or escaping prisoners who also guard their Prison retains the staff roster and job link. Long-run colony tests now share the live Virtual Player action path so health checks use sustained food production.
 
 - **Changed:** Overnight workers schedule daytime sleep after their shift; saved recovery intent lasts until genuine residential sleep restores rest. Status reads no longer mutate break state.
