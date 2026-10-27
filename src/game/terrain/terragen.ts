@@ -20,7 +20,7 @@ import {
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
 import { isUnbuildableTerrainType } from './terrainTraits';
-import { B, BIOME_BY_IDX, TREE_SPRITE_TYPES, type SpriteType } from './biomes';
+import { B, BIOME_BY_IDX, BIOMES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
   Buildability,
@@ -627,7 +627,7 @@ function carveRivers(
  * a channel and 0 is dry, which is why nothing here takes a square root of it.
  */
 function buildWaterField(
-  rivers: RiverPoint[][], cols: number, rows: number,
+  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2,
 ): { coverage: Float32Array; wCols: number; wRows: number } {
   const cell = WATER_CELL;
   const wCols = Math.ceil((cols * TERRAIN_CELL) / cell);
@@ -635,6 +635,33 @@ function buildWaterField(
   const coverage = new Float32Array(wCols * wRows);
 
   for (const path of rivers) {
+    if (generationVersion === 2) {
+      for (let point = 1; point < path.length; point++) {
+        const a = path[point - 1]!;
+        const b = path[point]!;
+        const ax = a.x * TERRAIN_CELL, ay = a.y * TERRAIN_CELL;
+        const bx = b.x * TERRAIN_CELL, by = b.y * TERRAIN_CELL;
+        const vx = bx - ax, vy = by - ay;
+        const lengthSq = vx * vx + vy * vy;
+        const radius = (Math.max(a.w, b.w) + 0.5) * TERRAIN_CELL + cell;
+        const x0 = Math.max(0, Math.floor((Math.min(ax, bx) - radius) / cell));
+        const x1 = Math.min(wCols - 1, Math.ceil((Math.max(ax, bx) + radius) / cell));
+        const y0 = Math.max(0, Math.floor((Math.min(ay, by) - radius) / cell));
+        const y1 = Math.min(wRows - 1, Math.ceil((Math.max(ay, by) + radius) / cell));
+        for (let y = y0; y <= y1; y++) {
+          for (let x = x0; x <= x1; x++) {
+            const wx = (x + 0.5) * cell, wy = (y + 0.5) * cell;
+            const t = lengthSq > 0 ? clamp(((wx - ax) * vx + (wy - ay) * vy) / lengthSq, 0, 1) : 0;
+            const distance = Math.hypot(wx - ax - t * vx, wy - ay - t * vy);
+            const halfWidth = (a.w + (b.w - a.w) * t + 0.5) * TERRAIN_CELL;
+            const strength = clamp(1 - distance / (halfWidth + cell), 0, 1);
+            const i = y * wCols + x;
+            if (strength > coverage[i]) coverage[i] = strength;
+          }
+        }
+      }
+      continue;
+    }
     for (const p of path) {
       const cx = p.x * TERRAIN_CELL;
       const cy = p.y * TERRAIN_CELL;
@@ -766,10 +793,32 @@ function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
   return table[table.length - 1][0];
 }
 
+
+/** Align static props to the same tile classifier used by pathfinding and buildings. */
+function decorBiomeForTile(type: TerrainType, coarse: BiomeDef): BiomeDef {
+  switch (type) {
+    case TerrainType.DeepWater:
+    case TerrainType.ShallowWater:
+    case TerrainType.River:
+      return BIOMES.water;
+    case TerrainType.RiverBank: return BIOMES.swamp;
+    case TerrainType.Beach: return BIOMES.sand;
+    case TerrainType.Desert: return BIOMES.desert;
+    case TerrainType.Grassland: return coarse.id === 'meadow' ? BIOMES.meadow : BIOMES.grass;
+    case TerrainType.Forest: return BIOMES.forest;
+    case TerrainType.DarkForest: return BIOMES.dense_forest;
+    case TerrainType.Hills: return BIOMES.dirt;
+    case TerrainType.Rocky:
+    case TerrainType.Mountains: return BIOMES.rock;
+    case TerrainType.Snow: return BIOMES.snow;
+  }
+}
+
 /** Biome-density + clump-noise decor placement (Teraforge), trees excluded. */
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
+  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -779,7 +828,10 @@ function placeDecorations(
       const def = BIOME_BY_IDX[terrain[idx(x, y, cols)]];
       if (!def.decor.length) continue;
       const clumpNoise = fbm(x * 0.17, y * 0.17, seed + 1777, { octaves: 3 });
-      const count = def.density * DECOR_DENSITY * (0.35 + clumpNoise * 1.5);
+      const densityScale = generationVersion === 2
+        ? (def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga' ? 0.38 : 0.62)
+        : 1;
+      const count = def.density * DECOR_DENSITY * densityScale * (0.35 + clumpNoise * 1.5);
       let n = Math.floor(count);
       if (rand() < count - n) n++;
 
@@ -791,7 +843,11 @@ function placeDecorations(
         const pi = gy * pCols + gx;
         if (pathGrid[pi] !== 0) continue;
 
-        const type = pickDecor(def.decor, rand());
+        const site = generationVersion === 2 ? decorBiomeForTile(tileType(gx, gy), def) : def;
+        if (generationVersion === 2 && (
+          site.id === 'water' || site.id === 'river' || site.id === 'deep_water'
+        )) continue;
+        const type = pickDecor(site.decor, rand());
         if (TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
 
         decorations.push({
@@ -929,7 +985,7 @@ export function generateRawTerrain(
   // The water layer lives on its own, finer lattice. Everything downstream that cares about
   // *where the water is* reads this field; the coarse `riverFlag` below only decides which
   // biome cells the river turns to swamp and meadow.
-  const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows);
+  const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows, generationVersion);
   const riverFlag = flagRiverCells(riverDist, wCols, wRows, cols, rows);
 
   for (let i = 0; i < riverFlag.length; i++)
@@ -973,7 +1029,9 @@ export function generateRawTerrain(
     }
 
   // L3 decorations (biome-density-driven; trees excluded)
-  const decorations = placeDecorations(tseed, cols, rows, terrain, pathGrid, pCols, pRows);
+  const decorations = placeDecorations(
+    tseed, cols, rows, terrain, pathGrid, pCols, pRows, pathTileType, generationVersion,
+  );
 
   // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads
   // the same projection `terrainGrid.isTileBuildable` uses, so the L1 grid and
