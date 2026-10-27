@@ -262,9 +262,16 @@ describe('long-run non-vacuity verdict', () => {
         );
         for (const human of homeless) {
           if (isMinorChild(human) || dependentIds.has(human.id)) continue;
+          const availableHome = pickResidenceForHuman(human, residents, possibleHomes, occupancy);
+          const target = possibleHomes.find((home) => home.id === availableHome);
+          const household = unit.map((member) =>
+            `${member.id}:${member.age}:${member.residenceBuildingId ?? 'homeless'}:${isMinorChild(member) ? 'minor' : 'adult'}`,
+          ).join(',');
+          const occupants = residents.filter((member) => member.residenceBuildingId === availableHome)
+            .map((member) => member.id).join(',');
           expect(
-            pickResidenceForHuman(human, residents, possibleHomes, occupancy),
-            `homeless independent adult ${human.id} can be placed by the game's selection rule`,
+            availableHome,
+            `homeless independent adult ${human.id} can be placed by the game's selection rule; household=[${household}], candidate=${availableHome}, occupants=[${occupants}], capacity=${target ? getResidenceCapacity(target) : 'unknown'}`,
           ).toBeUndefined();
         }
       }
