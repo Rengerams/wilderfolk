@@ -604,6 +604,7 @@ export interface ColonyHealthReport {
     netToday: number;
     ledgerDay: number | null;
     last30Days: { sampledDays: number; produced: number; consumed: number; net: number };
+    last7Days: { sampledDays: number; produced: number; consumed: number; net: number };
   };
   /** `healthy` is the housing owner's own verdict (`isHousingDiagnosticsHealthy`): data consistency, not bed supply. */
   housing: HousingDiagnosticsSnapshot & { healthy: boolean };
@@ -615,6 +616,9 @@ export interface ColonyHealthReport {
     unstaffedJobBuildings: number;
     workerSlots: number;
     filledWorkerSlots: number;
+    farmBuildings: number;
+    staffedFarms: number;
+    assignedFarmWorkers: number;
   };
   /**
    * The four lifecycle numbers the roadmap requires to stay distinct: a conception is a pregnancy
@@ -776,6 +780,8 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     const staffedJobBuildings = staffable.filter((building) => (assignedByBuilding.get(building.id) ?? 0) > 0).length;
     const ledger = world.economyLedger;
     const recentFoodFlow = getRecentFoodFlow(world, 30);
+    const weeklyFoodFlow = getRecentFoodFlow(world, 7);
+    const farms = staffable.filter((building) => building.type === BuildingType.Farm);
     const campaign = getGuidedCampaignProgress(world);
     const promiseStatus = getActiveElectionPromises(world);
     const leader = world.villageLeaderId == null
@@ -802,6 +808,12 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
           consumed: (recentFoodFlow?.consumedPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
           net: (recentFoodFlow?.netPerDay ?? 0) * (recentFoodFlow?.days ?? 0),
         },
+        last7Days: {
+          sampledDays: weeklyFoodFlow?.days ?? 0,
+          produced: (weeklyFoodFlow?.producedPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+          consumed: (weeklyFoodFlow?.consumedPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+          net: (weeklyFoodFlow?.netPerDay ?? 0) * (weeklyFoodFlow?.days ?? 0),
+        },
       },
       housing: { ...housing, healthy: isHousingDiagnosticsHealthy(housing) },
       workforce: {
@@ -814,6 +826,9 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
         filledWorkerSlots: [...assignedByBuilding.entries()]
           .filter(([buildingId]) => jobBuildings.some((building) => building.id === buildingId))
           .reduce((total, [, count]) => total + count, 0),
+        farmBuildings: farms.length,
+        staffedFarms: farms.filter((farm) => (assignedByBuilding.get(farm.id) ?? 0) > 0).length,
+        assignedFarmWorkers: farms.reduce((total, farm) => total + (assignedByBuilding.get(farm.id) ?? 0), 0),
       },
       lifecycle: {
         conceptionsLogged: events.conceptions,
