@@ -17,8 +17,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep the PR regression under a bounded runtime; annual colony soak remains opt-in.
-        days: [7, 30, 90]
+        # Include the previous day-120 stockout while bounding every job to 12 minutes.
+        # The 360-day full-colony soak remains opt-in.
+        days: [7, 30, 120]
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-node@v4.4.0
