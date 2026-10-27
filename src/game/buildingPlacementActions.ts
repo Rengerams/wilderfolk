@@ -283,6 +283,7 @@ export function buildStripPreview(
     : buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
   const budgetState: WorldState = {
     ...state,
+    buildings: [...state.buildings],
     resources: { ...state.resources },
     lifetimeStats: {
       ...state.lifetimeStats,
@@ -296,40 +297,35 @@ export function buildStripPreview(
       const segmentRotation = piece.rotation;
       const placementRotation = placementRotationFor(segmentRotation);
       const replacing = piece.replacesBuildingId !== undefined
-        ? state.buildings.find((building) => building.id === piece.replacesBuildingId)
+        ? budgetState.buildings.find((building) => building.id === piece.replacesBuildingId)
         : undefined;
-      let reason = getPlaceBuildingFailureReason(
-        state,
+      const placementState = replacing
+        ? { ...budgetState, buildings: budgetState.buildings.filter((building) => building.id !== replacing.id) }
+        : budgetState;
+      const reason = getPlaceBuildingFailureReason(
+        placementState,
         piece.type,
         piece.x,
         piece.y,
         placementRotation,
       );
-      if (replacing !== undefined) {
-        const withoutReplacement: WorldState = {
-          ...state,
-          buildings: state.buildings.filter((building) => building.id !== replacing.id),
-        };
-        reason = getPlaceBuildingFailureReason(
-          withoutReplacement,
-          piece.type,
-          piece.x,
-          piece.y,
-          placementRotation,
-        );
-      }
-      if (!reason && !isStripSegmentTechUnlocked(type, piece.type, state)) reason = 'research';
+      const refusal = !reason && !isStripSegmentTechUnlocked(type, piece.type, state) ? 'research' : reason;
       const cost = BUILDING_CONFIGS[piece.type].cost;
-      const shortage = !reason && (ranOutOfResources
+      const shortage = !refusal && (ranOutOfResources
         || budgetState.resources.wood < cost.wood
         || budgetState.resources.stone < cost.stone
         || budgetState.resources.gold < cost.gold);
       if (shortage) ranOutOfResources = true;
-      if (!reason && !shortage) {
-        if (replacing) refundBuildingCost(budgetState, replacing.type);
+      if (!refusal && !shortage) {
+        // Carry accepted footprints into the next segment's authoritative overlap check.
+        if (replacing) {
+          budgetState.buildings = placementState.buildings;
+          refundBuildingCost(budgetState, replacing.type);
+        }
         budgetState.resources.wood -= cost.wood;
         budgetState.resources.stone -= cost.stone;
         budgetState.resources.gold -= cost.gold;
+        budgetState.buildings.push(createBuilding(piece.type, piece.x, piece.y, budgetState.nextBuildingId++, placementRotation));
       }
       return {
         x: piece.x,
@@ -338,8 +334,8 @@ export function buildStripPreview(
         rotation: segmentRotation,
         junctionInfo: piece.junctionInfo,
         replacesBuildingId: piece.replacesBuildingId,
-        valid: reason == null && !shortage,
-        reason: reason ?? undefined,
+        valid: refusal == null && !shortage,
+        reason: refusal ?? undefined,
         resourceShortage: shortage,
       };
     });
