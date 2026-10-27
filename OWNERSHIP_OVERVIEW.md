@@ -459,3 +459,24 @@ The functions below belong exclusively to the module shown. They supplement the 
 | `scripts/perf-at-pop.ts` | `change` |
 | `scripts/colonyHealth.ts` | `isScenarioName`, `createCompletedBuilding`, `placeStarterHousing`, `spoilageRateForSilos`, `placeStorage`, `placeProducers`, `prepareColonyWorld`, `livingHumans`, `countLivingEntitiesByType`, `summarizeLivingPopulation`, `countRelationships`, `emptyEventTotals`, `createEventCounter`, `sampleDelta`, `captureConsoleVolume`, `safeInspect`, `transitionKeys`, `countChanged`, `createColonyObserver`, `collectInvariantErrors`, `wrap`, `observe`, `sum` |
 | `scripts/inspect-save.mts` | `countType`, `livingSettlers`, `waterAt`, `footprintHasWater`, `blockerAt`, `blockedAt`, `distanceToCentre`, `unguardedReason`, `imprisonForWatch`, `reportPrisonEscapeWatch`, `prisons` | Save-inspection-only audit and prison-escape diagnostic helpers; never game-state authority |
+
+## PR #59 — scoped test fixture and browser-harness helper ownership
+
+Each helper below belongs to its **own test file or existing browser harness**. Repeated local fixture names (for example `makeMap`) are lexically scoped to separate tests, not shared production APIs; there is no forwarding helper or cross-file re-export.
+
+| Sole owning file | Locally defined named helper functions |
+|---|---|
+| `tests/fullYear.integration.test.ts` | `expectFiniteNumber`, `expectNonNegative`, `expectEntitySanity`, `expectBuildingSanity`, `summarizeRelationships` |
+| `tests/infrastructure.acceptance.test.ts` | `at` |
+| `tests/low-7-sim-geometry.test.ts` | `entity`, `militiaWorld`, `realtimeContext`, `keyOf` |
+| `tests/medium-A-movement.test.ts` | `makeMap`, `pixel`, `hotel`, `hospital`, `makeState`, `findQualifyingTreatmentDay` |
+| `tests/pathfinding.test.ts` | `makeMap` |
+| `tests/rpgArt.integration.test.ts` | `localAsset` |
+| `tests/stripDemolition.workerProtocol.test.ts` | `cmd` |
+| `tests/stripPlacement.crossings.test.ts` | `worldFor`, `crossingSpot`, `completedStrip` |
+| `tests/stripPreview.emptyGuard.test.ts` | `source` |
+| `tests/stripTopology.connections.test.ts` | `strip`, `stateWith` |
+| `tests/visualsAudit.renderWiring.test.ts` | `readSrc`, `child`, `snapshot`, `preFixKey` |
+| `tests/wallGate.rendering.test.ts` | `spyCanvas` |
+| `tests/workCommute.leadHour.test.ts` | `workplace`, `tickAtHourOnWorkDay`, `workerAtHome` |
+| `scripts/autoplay_playwright_probe.py` | `selected_preset_label`, `choose_preset`, `set_camera_zoom`, `run_ground_look`, `click_text`, `wait_for` |
