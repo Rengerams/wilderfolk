@@ -1,10 +1,10 @@
-    steps:
-      - uses: actions/checkout@v4.4.0
+name: Node.js CI
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4.4.0
-        with:
-          node-version: ${{ matrix.node-version }}
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
       # Verbeterde caching: onthoudt downloads, zelfs als package-lock.json licht verandert
       - name: Cache npm dependencies
@@ -15,9 +15,27 @@
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      # Supersnelle installatie zonder onnodige netwerk-audits
+    steps:
+      - uses: actions/checkout@v4.4.0
+
+      - name: Use Node.js 26.12.1
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+
+      # Snelle caching van de npm-pakketten
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # Installeer pakketten zonder trage audits
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      # Voer tests en de build uit
       - name: Run Tests and Build
         run: npm run test:standard && npm run build

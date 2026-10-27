@@ -8,10 +8,9 @@ import type { BuildingType } from './gameTypes';
  * over an existing assignment:
  *
  * - A preset never takes a worker away from a manual assignment. The auto-staff pass
- *   (`workforce.assignMissingWorkers`) only *adds* idle settlers to open slots — it has
- *   no removal path at all — and the one transfer path (`rebalanceJobWorkers`) only
- *   donors from a building holding two or more workers, so a hand-placed worker is
- *   never moved by a preset.
+ *   (`workforce.assignMissingWorkers`) fills from idle settlers first. The limited
+ *   transfer fallback only opens an empty post with one eligible donor, keeping
+ *   the worker cooldown and avoiding repeated top-ups of an occupied workplace.
  * - `removeWorkerFromBuilding` keeps working: it is a player-command removal that runs
  *   through `workforce.removeWorkerTransition`, which does not read this module. Changing
  *   the preset cannot refuse or reroute that removal.
