@@ -8,7 +8,7 @@ Base: main f34c5ecac7db9d65b0c61517dbc685eda6572611.
 - Venue schedule changes copy the world shell only. Explicit owned assignment mode reuses the already isolated optimistic display or worker-owned state; default callers retain isolation. Routing and eligibility remain with the existing staffing and residency owners.
 - Building delta baselines store JSON fingerprints. Extraction computes each current fingerprint once. The next baseline is published locally only after postMessage succeeds. Failed packing/posting retains the previous baseline and the existing rollback.
 - Normal worker ticks omit unchanged grave records, population history, yearly stats, chronicle chapters, village request history and genealogy. Property absence means retain; explicit empty arrays or undefined clear. Nested edits are detected by content, not identity. Session uploads and successful commands reset baselines; headless and standalone extraction retain full slices.
-- Save export relies on synchronous postMessage serialization rather than a preliminary deep clone. Runtime hydration and scent restoration run in finally, including serialization failure.
+- Save export copies only the world shell, strips runtime cache fields from that shell, and stamps its RNG snapshot there. Synchronous postMessage serialization copies the nested state. Live simulation caches, scent state and RNG stamp remain untouched, including when serialization fails.
 - Rollback content is unchanged. The existing opt-in profiler now measures simulation.rollbackSnapshot in both worker and main-thread paths.
 
 ## Measurement and next rollback gate
