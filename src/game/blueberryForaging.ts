@@ -6,6 +6,7 @@
  */
 
 import { addResource } from './economy';
+import { recordFoodProduced } from './economyLedger';
 import { getAbsoluteCalendarDay } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { faceVelocity } from './simulation/movementSteering';
