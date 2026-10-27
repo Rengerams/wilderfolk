@@ -80,10 +80,6 @@ export function straightRotationFromConnections(c: JunctionConnections): Buildin
 
 type StripCenter = { x: number; y: number; width?: number; height?: number };
 
-function buildingStripRotation(b: Building): BuildingRotation {
-  return normalizeBuildingRotation(b.rotation);
-}
-
 export function cornerArms(rotation: CornerRotation): JunctionConnections {
   const r = normalizeCornerRotation(rotation);
   return {
@@ -126,7 +122,7 @@ export function collectStripCenters(
 
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival' || !familyMembers(b.type)) continue;
-    const list = buildingStripRotation(b) === 0 ? hList : vList;
+    const list = normalizeBuildingRotation(b.rotation) === 0 ? hList : vList;
     list.push({ x: b.x, y: b.y, width: b.width, height: b.height });
   }
 
