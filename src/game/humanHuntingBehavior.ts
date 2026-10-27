@@ -12,7 +12,7 @@ import { personDayRoll } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
-import { HUMAN_NEEDS } from './simulation/humanPhysiology';
+import { HUMAN_NEEDS, creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { tryTickBlueberryForaging } from './blueberryForaging';
 import {
   clearHuntersTargetingPrey,
@@ -146,9 +146,7 @@ export function tickHumanHunting(
         config.energyGain[closestPrey.type] ??
         (closestPrey.type === EntityType.Deer ? 350 : 150);
       if (entity.needs) {
-        entity.needs.stamina = Math.min(100, entity.needs.stamina
-          + energyBite / Math.max(1, entity.maxEnergy) * 100);
-        entity.energy = entity.maxEnergy * entity.needs.stamina / 100;
+        creditHumanStaminaFromEnergy(entity, energyBite);
       } else {
         entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBite);
       }
