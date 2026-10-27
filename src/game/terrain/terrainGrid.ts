@@ -161,6 +161,11 @@ export const LAND_BANDS = {
  */
 export const BIOME_EDGE_DITHER = 0.055;
 
+/** Shared biome-edge offset for L0/L1 projection and static scenery placement. */
+export function biomeEdgeDither(e: number, seaLevel: number): number {
+  return e >= seaLevel ? (e - seaLevel - (1 - seaLevel) * 0.5) * BIOME_EDGE_DITHER : 0;
+}
+
 /**
  * `dither` shifts every band at once. Callers pass a coherent zero-mean noise sample
  * (`terrainGrid` uses the cell's own elevation, which is already a smooth field at exactly the
@@ -313,7 +318,7 @@ function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undef
   // varies across the cell grid rather than per tile, which is what keeps an edge ragged
   // instead of noisy. Underwater cells keep a straight shoreline: a dithered coast reads as a
   // ragged delta at low zoom, and the water/land boundary is the one a player navigates by.
-  const dither = e >= seaLevel ? (e - seaLevel - (1 - seaLevel) * 0.5) * BIOME_EDGE_DITHER : 0;
+  const dither = biomeEdgeDither(e, seaLevel);
 
   return {
     type: classifyTile(
