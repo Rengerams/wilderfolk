@@ -563,9 +563,8 @@ export default function SelectedBuildingPanel({
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
-          const guardIds = staffRosterIds;
-          const roster = prisonRoster(guardIds, state.tick);
-          const resting = offDutyPrisonGuards(guardIds, state.tick);
+          const roster = prisonRoster(staffRosterIds, state.tick);
+          const resting = offDutyPrisonGuards(staffRosterIds, state.tick);
           const vacant = vacantPrisonShifts(roster);
           const onPostNow = prisonShiftsAtHour(getHourOfDay(state.tick));
           return (
@@ -1068,12 +1067,11 @@ export default function SelectedBuildingPanel({
             // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
             // listing it here announced prisoners as its "Current workers" — the owner's eight-row
             // roster of seven guards and a cellmate. Only the posts are staff.
-            const staffedIds = staffRosterIds;
-            if (staffedIds.length === 0) return null;
+            if (staffRosterIds.length === 0) return null;
             return (
             <div className="col-span-2 space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
-              {staffedIds.map((occupantId) => {
+              {staffRosterIds.map((occupantId) => {
                 const worker = state.entities.find((e) => e.id === occupantId);
                 return (
                   <div key={occupantId} className="flex items-center justify-between gap-2 rounded bg-stone-700/40 px-2 py-1">
