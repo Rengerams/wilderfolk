@@ -1470,6 +1470,19 @@ describe('virtual player remaining action surface', () => {
     expect(decideVirtualPlayerAction(state)?.command.op).not.toBe('tameEntity');
   });
 
+  it('does not worsen a damaged ecosystem by auto-taming more wildlife', () => {
+    const deer = { ...human(5), type: EntityType.Deer, x: 300, y: 300 } as Entity;
+    const state = makeWorld(
+      [human(1, { residenceBuildingId: 1 }), deer],
+      [
+        building(1, BuildingType.House, { occupants: [1] }),
+        building(3, BuildingType.TamingPost, { x: 300, y: 300 }),
+      ],
+      { ecosystemHealth: 30 },
+    );
+    expect(decideVirtualPlayerAction(state)?.command.op).not.toBe('tameEntity');
+  });
+
   it('keeps the tame-food reserve after paying the full species cost', () => {
     const deer = { ...human(5), type: EntityType.Deer, x: 300, y: 300 } as Entity;
     const state = makeWorld(
