@@ -179,8 +179,6 @@ export const VirtualPlayer = {
    * (`settlers × Human.DAILY_FOOD_CONSUMPTION`).
    */
   FOOD_BUFFER_DAYS: 2,
-  /** Proactively expand food production when the observed weekly balance is negative and stores cover fewer than 14 days. */
-  FOOD_DEFICIT_RESPONSE_RUNWAY_DAYS: 14,
   /**
    * 8 = footprint-sized rings the placement search walks outward from the camp
    * centre before giving up.
