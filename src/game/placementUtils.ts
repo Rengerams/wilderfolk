@@ -34,12 +34,11 @@ export function isFootprintWithinMapBounds(
   mapHeight: number,
 ): boolean {
   if (width <= 0 || height <= 0) return false;
-  const inset = MAP_EDGE_INSET;
   return (
-    x - width / 2 >= inset
-    && y - height / 2 >= inset
-    && x + width / 2 <= mapWidth - inset
-    && y + height / 2 <= mapHeight - inset
+    x - width / 2 >= MAP_EDGE_INSET
+    && y - height / 2 >= MAP_EDGE_INSET
+    && x + width / 2 <= mapWidth - MAP_EDGE_INSET
+    && y + height / 2 <= mapHeight - MAP_EDGE_INSET
   );
 }
 
