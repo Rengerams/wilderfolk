@@ -2,7 +2,11 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Documentation (27 October 2026):** Reconciled the canonical and `docs/` v0.6.6.0 roadmaps against the merged code. Recorded accepted housing (#40/#56), warfare (#58), indoor rendering (#60), roads/gates (#59/#65/#66), human needs (#62), terrain (#63), world-copy optimization (#64) and function-ownership/compatibility cleanups (#67/#68), while separating remaining release-hardening tasks from PR acceptance (`merged = accepted`). Corrected stale pre-merge statuses in overhaul architecture notes.
+- **CI:** Bound pull-request colony calibration to short and medium scenarios; full-year runs now stop at the first exhausted-food checkpoint instead of continuing after failure.
+
+- **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
+
+- **Documentation (27 October 2026):** Reconciled the v0.6.6.0 roadmap and architecture notes with merged PRs, separating accepted changes from broader release-hardening work.
 
 - **Changed:** Migrated building-action imports to their owning modules and removed obsolete building-action and renderer-loader TypeScript facades; added a guarded migration script.
 

@@ -235,6 +235,61 @@ describe('real raid captives', () => {
     expect(resolveWarPrisoner(executed, 910000, 'execute_confirmed')).toBe(executed);
   });
 
+  it.each([
+    { response: 'supports execution', fierce: 8, empathetic: 1, expected: 3 },
+    { response: 'opposes execution', fierce: 1, empathetic: 8, expected: -3 },
+    { response: 'is divided', fierce: 4, empathetic: 4, expected: 0 },
+    { response: 'has no outspoken opinion', fierce: 0, empathetic: 0, expected: 0 },
+  ])('lets the village $response without an automatic execution penalty', ({ fierce, empathetic, expected }) => {
+    const world = captiveColony();
+    world.villageLeaderId = world.entities[0].id;
+    const initialReputation = world.villageReputation;
+    world.entities.slice(0, 12).forEach((person, index) => {
+      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+    });
+    const executed = resolveWarPrisoner(world, 910000, 'execute_confirmed');
+    expect(executed.entities[0].battleLeadershipMerit ?? 0).toBe(expected);
+    expect(executed.villageReputation).toBe(Math.max(0, Math.min(100, initialReputation + expected)));
+    const loaded = reload(executed);
+    expect(loaded.entities[0].battleLeadershipMerit ?? 0).toBe(expected);
+    expect(resolveWarPrisoner(loaded, 910000, 'execute_confirmed')).toBe(loaded);
+  });
+
+  it('reflects ongoing war or a recent village defense without forcing a negative score', () => {
+    const atWar = captiveColony();
+    atWar.villageLeaderId = atWar.entities[0].id;
+    atWar.rivalSettlements[0].atWarWithPlayer = true;
+    const executedDuringWar = resolveWarPrisoner(atWar, 910000, 'execute_confirmed');
+    expect(executedDuringWar.entities[0].battleLeadershipMerit).toBe(1);
+
+    const recentlyAttacked = captiveColony();
+    recentlyAttacked.villageLeaderId = recentlyAttacked.entities[0].id;
+    recentlyAttacked.raidBattleReports = [{
+      raidId: 'defense-raid', rivalId: 'enemy', rivalName: 'Enemy', side: 'defense',
+      outcome: 'victory', resolvedAtTick: 0, leaderId: recentlyAttacked.villageLeaderId,
+      leadershipMerit: 0, playerDeaths: 0, enemyDeaths: 0, damagedBuildings: 0,
+      suppliesLost: { food: 0, wood: 0, stone: 0, gold: 0 },
+      playerFallen: [], enemyFallen: [],
+    }];
+    const executedAfterAttack = resolveWarPrisoner(recentlyAttacked, 910000, 'execute_confirmed');
+    expect(executedAfterAttack.entities[0].battleLeadershipMerit).toBe(1);
+  });
+
+  it.each([
+    { response: 'welcome a release', fierce: 1, empathetic: 8, expected: 3 },
+    { response: 'oppose a release', fierce: 8, empathetic: 1, expected: -3 },
+    { response: 'be neutral on release', fierce: 4, empathetic: 4, expected: 0 },
+  ])('allows villagers to $response', ({ fierce, empathetic, expected }) => {
+    const world = captiveColony();
+    world.villageLeaderId = world.entities[0].id;
+    world.entities.slice(0, 12).forEach((person, index) => {
+      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+    });
+    const resolved = resolveWarPrisoner(world, 910000, 'release');
+    expect(resolved.entities[0].battleLeadershipMerit ?? 0).toBe(expected);
+    expect(resolved.raidPrisonerHistory?.[0].status).toBe('released');
+  });
+
   it('allows refusal and applies a persisted recruitment cooldown', () => {
     const world = captiveColony();
     const person = world.entities.find((entry) => entry.id === 910000)!;
