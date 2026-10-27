@@ -32,7 +32,7 @@ import {
   impulseScreenShake,
 } from './simEffects';
 import { logDeath, logEvent } from './eventLog';
-import { assignMissingWorkers, detachWorkplaceReference } from './workforce';
+import { assignMissingWorkers, detachWorkplaceReference, removeWorkerTransition } from './workforce';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from './leaderHouse';
 import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
@@ -291,6 +291,10 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
     combatTicks: human.combatTicks,
   };
 
+  // A moon form must vacate construction rosters as well as regular jobs and prison.
+  if (buildings.some((building) => !building.completed && building.occupants.includes(human.id))) {
+    removeWorkerTransition(human, buildings);
+  }
   detachEntityFromBuildingOccupants(buildings, liveJobId, human.id);
   detachEntityFromBuildingOccupants(buildings, liveResidenceId, human.id);
   detachEntityFromBuildingOccupants(buildings, livePrisonId, human.id);
