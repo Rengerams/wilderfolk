@@ -428,3 +428,12 @@ If two modules export the same function name with the same responsibility:
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
 | `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |
+
+### World-copy optimization ownership
+
+| Function | Sole owning module | Responsibility |
+| --- | --- | --- |
+| `setBuildingStaffingMode`, `setHuntingSpotPrey` | `game/buildingConfigurationActions.ts` | Validate and copy only the changed building; unchanged settings return the input. |
+| `assignResidentToBuilding` | `game/buildingResidencyActions.ts` | Isolated or explicitly owned residency command transition. |
+| `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
+| `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |

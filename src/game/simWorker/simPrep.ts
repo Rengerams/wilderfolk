@@ -1,3 +1,4 @@
+import { profileEnd, profileStart } from '../performanceProfiler';
 import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
@@ -136,7 +137,8 @@ type SimPrepKeys =
 export type SimPrepPayload = Pick<WorldState, SimPrepKeys>;
 
 export function extractSimPrep(state: WorldState): SimPrepPayload {
-  return {
+  const start = profileStart();
+  const prep: SimPrepPayload = {
     tick: state.tick,
     year: state.year,
     dayInYear: state.dayInYear,
@@ -295,6 +297,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       : undefined,
     simRng: snapshotSimRng(),
   };
+  profileEnd('simulation.rollbackSnapshot', start);
+  return prep;
 }
 
 export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {

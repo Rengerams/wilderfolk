@@ -314,7 +314,7 @@ export function isWorkerCommand(cmd: unknown): cmd is WorkerCommand {
 }
 
 /** Apply a versioned command on the worker-authoritative world. */
-export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): WorldState {
+export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, ownership: 'isolated' | 'owned' = 'isolated'): WorldState {
   if (world.raidRecovery?.status === 'destroyed') return world;
   if (!isWorkerCommand(cmd)) {
     console.warn('[WorkerCommand] Invalid command', (cmd as { op?: string })?.op ?? '?');
@@ -330,7 +330,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand): World
       return placeStripChain(world, cmd.type, cmd.segments, cmd.rotation ?? 0);
     case 'assignWorker':
       return cmd.humanId != null
-        ? assignIdleWorkerToBuilding(world, cmd.buildingId, cmd.humanId)
+        ? assignIdleWorkerToBuilding(world, cmd.buildingId, cmd.humanId, ownership)
         : fillBuildingWorkers(world, cmd.buildingId);
     case 'autoStaffWorkers':
       return autoStaffAllWorkers(world);

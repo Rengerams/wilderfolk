@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Small building settings copy only the changed building; optimistic assignments reuse their isolated display world. Worker ticks compare saved fingerprints and omit unchanged histories, and save export avoids an extra world copy.
+- **Added:** Rollback snapshot timing in the performance profiler, preserving the full recovery contract.
+
 - **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
 
 - **Fixed:** Raid surrender decisions and final announcements retain midpoint casualties after population cleanup and reload. Recovery retains cumulative repair and food goals and its full seven-day protection window.
