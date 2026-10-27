@@ -16,11 +16,8 @@ import {
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
   getRaidChoiceEligibility,
 } from './game/gameEngine';
-import {
-  canAssignWorkerToBuilding,
-  getPlaceBuildingFailureReason,
-  listAssignableWorkersForBuilding,
-} from './game/buildingActions';
+import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './game/buildingStaffingActions';
+import { getPlaceBuildingFailureReason } from './game/buildingPlacementActions';
 import {
   NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
 } from './game/dayCycle';
@@ -64,7 +61,6 @@ import GameMapStage from './components/GameMapStage';
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
-import { preloadRenderer } from './game/rendererLoader';
 const IntroScreen = lazy(() => import('./game/IntroScreen'));
 const MapSetupScreen = lazy(() => import('./game/MapSetupScreen'));
 const CombatPreviewPanel = lazy(() => import('./game/CombatPreviewPanel'));
@@ -397,7 +393,7 @@ export default function App() {
 
   // Preload sprites, names, and the canonical split dialogue bank.
   useEffect(() => {
-    Promise.all([preloadAllSprites(), loadNames(), preloadDialogueBank(), preloadRenderer()])
+    Promise.all([preloadAllSprites(), loadNames(), preloadDialogueBank()])
       .then(() => {
         setWorld((prev) => {
           const next = structuredClone(prev) as WorldState;

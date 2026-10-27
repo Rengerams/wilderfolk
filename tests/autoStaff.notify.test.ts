@@ -7,7 +7,8 @@ import { building, human } from '../src/test/factories';
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
-import { autoStaffAllWorkers, startBuilding } from '../src/game/buildingActions';
+import { autoStaffAllWorkers } from '../src/game/buildingStaffingActions';
+import { startBuilding } from '../src/game/buildingPlacementActions';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 

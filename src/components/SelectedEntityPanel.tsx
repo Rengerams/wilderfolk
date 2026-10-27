@@ -16,7 +16,7 @@ import {
 } from '../game/dayCycle';
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
-import { getTameFoodCost } from '../game/buildingActions';
+import { getTameFoodCost } from '../game/settlerInteractionActions';
 import { hasNearbyPlayerTamingPost, listTamingCandidates, getTameEntityEligibility } from '../game/settlerInteractionActions';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { useEffect, useState } from 'react';

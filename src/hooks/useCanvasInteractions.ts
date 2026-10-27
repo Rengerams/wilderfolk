@@ -8,11 +8,7 @@ import {
   hitTestCamp,
   EntityType,
 } from '../game/gameEngine';
-import {
-  canPlaceBuilding,
-  buildStripPreview,
-  getPlaceBuildingFailureReason,
-} from '../game/buildingActions';
+import { canPlaceBuilding, buildStripPreview, getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
 import {
   screenToWorld,
   focusCameraOn,

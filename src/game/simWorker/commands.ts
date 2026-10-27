@@ -17,24 +17,12 @@ import {
   setWorkforcePolicy,
   type WorkforcePreset,
 } from '../workforcePolicy';
-import {
-  startBuilding,
-  placeStripChain,
-  assignIdleWorkerToBuilding,
-  fillBuildingWorkers,
-  autoStaffAllWorkers,
-  removeWorkerFromBuilding,
-  repairBuilding,
-  repairBuildings,
-  upgradeBuilding,
-  setWorkshopRecipe,
-  setHuntingSpotPrey,
-  setMineMode,
-  setBuildingStaffingMode,
-  recruitSettler,
-  tameEntity,
-  spawnMoonHowlerDebug,
-} from '../buildingActions';
+import { startBuilding, placeStripChain } from '../buildingPlacementActions';
+import { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from '../buildingActionRouting';
+import { fillBuildingWorkers, autoStaffAllWorkers } from '../buildingStaffingActions';
+import { repairBuilding, repairBuildings, upgradeBuilding } from '../buildingMaintenanceActions';
+import { setWorkshopRecipe, setHuntingSpotPrey, setMineMode, setBuildingStaffingMode } from '../buildingConfigurationActions';
+import { recruitSettler, tameEntity, spawnMoonHowlerDebug } from '../settlerInteractionActions';
 import { FORGE_ORDERS, queueForgeOrder } from '../forge';
 import { notifyBuildingLocked, startResearch } from '../research';
 import { establishTradeRoute } from '../tradeCaravans';
