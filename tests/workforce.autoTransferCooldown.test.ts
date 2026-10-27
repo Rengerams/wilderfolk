@@ -13,17 +13,66 @@ import {
 import { building, human } from '../src/test/factories';
 
 describe('two-month automatic job stability', () => {
-  it('updates donor counts and cooldown eligibility after every transfer in one pass', () => {
+  it('borrows only one worker for an empty post and retains stable assignments', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3, 4] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [] });
     const workers = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: 10 }));
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 100);
+    expect(farm.occupants).toHaveLength(3);
+    expect(barracks.occupants).toHaveLength(1);
+    expect(workers.filter((worker) => worker.workerBuildingId === 11)).toHaveLength(1);
+    expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(1);
+    // Guard coverage ramps up one eligible worker per staffing pass.
+    rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
+    expect(farm.occupants).toHaveLength(2);
+    expect(barracks.occupants).toHaveLength(2);
+    rebalanceJobWorkers(workers, [farm, barracks], undefined, 102);
     expect(farm.occupants).toHaveLength(1);
     expect(barracks.occupants).toHaveLength(3);
-    expect(workers.filter((worker) => worker.workerBuildingId === 11)).toHaveLength(3);
-    expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(3);
+
+    // Once safe coverage is reached, later passes must not shuffle the crew.
     const assignments = workers.map((worker) => worker.workerBuildingId);
-    rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
+    for (const tick of [103, 104, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
+      rebalanceJobWorkers(workers, [farm, barracks], undefined, tick);
+      expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+    }
+  });
+
+  it('keeps an already staffed nonessential workplace stable instead of topping it off', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
+    const market = building(11, BuildingType.Market, { occupants: [4] });
+    const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: 10 }));
+    workers.push(human(4, { workerBuildingId: 11 }));
+    const original = workers.map((worker) => worker.workerBuildingId);
+
+    for (const tick of [100, 101, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
+      rebalanceJobWorkers(workers, [farm, market], undefined, tick);
+      expect(workers.map((worker) => worker.workerBuildingId)).toEqual(original);
+    }
+  });
+
+  it('protects a staffed Quarry and fills minimal emergency guard coverage once', () => {
+    const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2, 3] });
+    const barracks = building(11, BuildingType.Barracks, { occupants: [4] });
+    const farm = building(12, BuildingType.Farm, { occupants: [5, 6, 7] });
+    const workers = [
+      ...[1, 2, 3].map((id) => human(id, { workerBuildingId: 10 })),
+      human(4, { workerBuildingId: 11 }),
+      ...[5, 6, 7].map((id) => human(id, { workerBuildingId: 12 })),
+    ];
+
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 100);
+    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(barracks.occupants).toHaveLength(2);
+    expect(farm.occupants).toHaveLength(2);
+    const newWorker = workers.find((worker) => worker.workerBuildingId === 11 && worker.id !== 4);
+    expect(newWorker?.lastAutoJobTransferTick).toBe(100);
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 101);
+    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(barracks.occupants).toHaveLength(3);
+    expect(farm.occupants).toHaveLength(1);
+    const assignments = workers.map((worker) => worker.workerBuildingId);
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 102);
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 

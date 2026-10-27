@@ -72,16 +72,20 @@ function runDays(world: WorldState, days: number): WorldState {
 }
 
 /** The app's own autoplay cadence: one ladder decision per in-game hour, dispatched like a click. */
-function runAutoplay(world: WorldState, days: number): WorldState {
+function runAutoplay(world: WorldState, days: number): { world: WorldState; peakStone: number } {
   let next = world;
+  let peakStone = next.resources.stone;
   for (let tick = 0; tick < days * TICKS_PER_DAY; tick++) {
     if (next.tick % TICKS_PER_HOUR === 0) {
       const decision = decideVirtualPlayerAction(next);
       if (decision) next = applyWorkerCommand(next, decision.command);
     }
     next = gameTick(next);
+    // A functioning Quarry can refill stone that the bot spends on the next build.
+    // Track the recovered stock before later purchases use it up again.
+    peakStone = Math.max(peakStone, next.resources.stone);
   }
-  return next;
+  return { world: next, peakStone };
 }
 
 describe('zero stone with an unmanned Quarry', () => {
@@ -134,10 +138,12 @@ describe('zero stone with an unmanned Quarry', () => {
       settler.job = JobType.Settler;
     }
 
-    world = runAutoplay(world, AUTOPLAY_DAYS);
+    const result = runAutoplay(world, AUTOPLAY_DAYS);
+    world = result.world;
 
-    // The bot's own build program takes the founders first, so recovery waits for the next free hand.
+    // The bot's build program can use every stone it mines. Final inventory is not
+    // cumulative production: a zero ending stock does not mean the Quarry never recovered.
     expect(countWorkersAtBuilding(world.entities, quarryId), 'a hand must work the Quarry').toBeGreaterThan(0);
-    expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
+    expect(Math.floor(result.peakStone), 'the Quarry must replenish stone during autoplay').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 });

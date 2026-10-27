@@ -1127,7 +1127,13 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
  * One release per act leaves the building exactly at its cap, retiring the step.
  */
 function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
-  const humans = state.entities.filter(isPlayerHuman);
+  const crewsByBuilding = new Map<number, WorldState['entities']>();
+  for (const human of state.entities) {
+    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile || human.workerBuildingId == null) continue;
+    const crew = crewsByBuilding.get(human.workerBuildingId);
+    if (crew) crew.push(human);
+    else crewsByBuilding.set(human.workerBuildingId, [human]);
+  }
 
   for (const building of state.buildings) {
     if (!building.completed || building.faction === 'rival' || isManualStaffingBuilding(building)) continue;
@@ -1135,10 +1141,8 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
     if (!job) continue;
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
 
-    const crew = humans.filter(
-      (human) => human.alive && !human.isJuvenile && human.workerBuildingId === building.id,
-    );
-    if (crew.length <= cap) continue;
+    const crew = crewsByBuilding.get(building.id);
+    if (!crew || crew.length <= cap) continue;
 
     let surplus = crew[0];
     let lowestSkill = readSkill(surplus, job);
