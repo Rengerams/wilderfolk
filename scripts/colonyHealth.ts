@@ -602,6 +602,7 @@ export interface ColonyHealthReport {
     consumedToday: number;
     netToday: number;
     ledgerDay: number | null;
+    last30Days: { sampledDays: number; produced: number; consumed: number; net: number };
   };
   /** `healthy` is the housing owner's own verdict (`isHousingDiagnosticsHealthy`): data consistency, not bed supply. */
   housing: HousingDiagnosticsSnapshot & { healthy: boolean };
@@ -773,6 +774,12 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
     }
     const staffedJobBuildings = staffable.filter((building) => (assignedByBuilding.get(building.id) ?? 0) > 0).length;
     const ledger = world.economyLedger;
+    const foodDays = (world.foodHistory ?? []).slice(-30);
+    const sumFoodDay = (part: 'produced' | 'consumed'): number =>
+      foodDays.reduce((sum, sample) =>
+        sum + Object.values(sample[part]).reduce((total, value) => total + value, 0), 0);
+    const producedLast30Days = sumFoodDay('produced');
+    const consumedLast30Days = sumFoodDay('consumed');
     const campaign = getGuidedCampaignProgress(world);
     const promiseStatus = getActiveElectionPromises(world);
     const leader = world.villageLeaderId == null
@@ -793,6 +800,12 @@ export function createColonyObserver(world: WorldState): ColonyObserver {
         consumedToday: ledger?.consumedTotal ?? 0,
         netToday: (ledger?.producedTotal ?? 0) - (ledger?.consumedTotal ?? 0),
         ledgerDay: ledger?.day ?? null,
+        last30Days: {
+          sampledDays: foodDays.length,
+          produced: producedLast30Days,
+          consumed: consumedLast30Days,
+          net: producedLast30Days - consumedLast30Days,
+        },
       },
       housing: { ...housing, healthy: isHousingDiagnosticsHealthy(housing) },
       workforce: {
