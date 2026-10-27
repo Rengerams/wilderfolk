@@ -1359,6 +1359,11 @@ describe('virtual player remaining action surface', () => {
       },
     );
 
+    // An already-staffed Farm leaves the emergency caravan trade as the next action.
+    world.entities.find((entity) => entity.id === 2)!.workerBuildingId = FARM_ID;
+    world.buildings.find((site) => site.id === FARM_ID)!.occupants = [2];
+    world.buildings.find((site) => site.id === 2)!.occupants = [1];
+
     const decision = decideVirtualPlayerAction(world)!;
 
     expect(decision.command).toMatchObject({
@@ -1825,6 +1830,12 @@ describe('virtual player remaining action surface', () => {
     });
     // A Farm on the way keeps the food step from proposing instead.
     world.buildings.push(building(9, BuildingType.Farm, { completed: false, constructionProgress: 10 }));
+
+    // The setup's canonical Farm is already staffed; a completed unstaffed Farm
+    // correctly takes precedence over optional trades in the bot's survival ladder.
+    world.entities.find((entity) => entity.id === 2)!.workerBuildingId = FARM_ID;
+    world.buildings.find((site) => site.id === FARM_ID)!.occupants = [2];
+    world.buildings.find((site) => site.id === 2)!.occupants = [1];
 
     const decision = decideVirtualPlayerAction(world)!;
 
