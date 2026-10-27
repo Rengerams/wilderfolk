@@ -169,11 +169,7 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
   return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
 }
 
-/**
- * An enduring shortage according to the same recorded food flow as the economy UI.
- * A fresh world/old save with no continuous history is unknown, not "short".
- * The percentage band absorbs harmless production fluctuations.
- */
+/** Sustained shortage according to the economy's own completed-day records. */
 function isMeasuredFoodDeficit(state: WorldState): boolean {
   const flow = getRecentFoodFlow(state);
   return flow != null && flow.consumedPerDay > 0
