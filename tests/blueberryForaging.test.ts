@@ -93,6 +93,7 @@ describe('blueberry foraging', () => {
     expect(active).toBe(true);
     expect(tree.blueberryYield).toBe(1);
     expect(state.resources.food).toBe(foodBefore + BLUEBERRY_FOOD_PER_PICK);
+    expect(state.economyLedger?.produced.foraging).toBe(BLUEBERRY_FOOD_PER_PICK);
     expect(human.energy).toBe(80 + BLUEBERRY_ENERGY_PER_PICK);
     expect(human.needs?.stamina).toBeCloseTo(20 + BLUEBERRY_ENERGY_PER_PICK / 400 * 100);
     // The next tick may recover stamina while idle; it must not erase the reward.
