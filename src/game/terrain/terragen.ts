@@ -271,7 +271,7 @@ const PRESET_RELIEF_TUNING = {
     bottomBelowSea: 0.02, landRecoveryElevation: 0.70,
   },
   islands: {
-    ridgeElevation: 0.18, xWaveRadians: Math.PI * 7, yWaveRadians: Math.PI * 5,
+    ridgeElevation: 0.18, xHalfTurnCount: 7, yHalfTurnCount: 5,
     noisePhaseRadians: 2, baseElevationOffset: 0.09,
   },
   highland: {
@@ -350,8 +350,8 @@ function shapePresetRelief(
         }
         case MapPreset.Islands: {
           const t = PRESET_RELIEF_TUNING.islands;
-          e += t.ridgeElevation * Math.sin(nx * t.xWaveRadians + detail * t.noisePhaseRadians)
-            * Math.sin(ny * t.yWaveRadians - detail * t.noisePhaseRadians) - t.baseElevationOffset;
+          e += t.ridgeElevation * Math.sin(nx * Math.PI * t.xHalfTurnCount + detail * t.noisePhaseRadians)
+            * Math.sin(ny * Math.PI * t.yHalfTurnCount - detail * t.noisePhaseRadians) - t.baseElevationOffset;
           break;
         }
         case MapPreset.Highland: {
