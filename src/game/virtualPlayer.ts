@@ -458,11 +458,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
 
 
 
-/**
- * A completed food producer with no assigned worker cannot produce a harvest.
- * Only auto-managed buildings can be rescued by the bot; manual staffing remains
- * the player's explicit choice. Inspect assignments, not occupant presentation.
- */
+/** Find a completed auto-managed food producer with no assigned worker. */
 function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   return state.buildings.find((building) =>
     building.completed && building.faction !== 'rival'
@@ -472,11 +468,7 @@ function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   );
 }
 
-/**
- * Repair existing food capacity before spending resources on another Farm.
- * Uses the real workforce owner's donor/transfer eligibility and auto-staff
- * command; never proposes a command when it cannot move an eligible worker.
- */
+/** Recover eligible food staffing via the workforce owner before building more. */
 function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
@@ -508,8 +500,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     0,
   );
   const measuredDeficit = isMeasuredFoodDeficit(state);
-  // Another empty Farm cannot fix the shortage while existing auto-managed
-  // harvest sites remain unstaffed. Staffing is considered first in the ladder.
+  // Staffing an existing Farm precedes proposing another unstaffed building.
   if ((shortOnFood || measuredDeficit) && firstUnstaffedFoodProducer(state)) return null;
   const target = wantedFoodProducerCount(
     state,
