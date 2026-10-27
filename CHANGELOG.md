@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed (#62):** Audited redundant physiology wrappers and meal-constant aliases, registered the needs schema/config and public owners, and documented the single-authority pipeline and acceptance matrix in `docs/HUMAN_NEEDS_ARCHITECTURE.md`.
+
 - **Fixed:** Physiological stamina now retains leisure, sick-day, graduation, birth recovery, hunting and disaster effects instead of losing legacy energy writes on the next human tick; hospital medicine spends through the one food ledger.
 
 - **Fixed:** Releasing or escaping prisoners who also guard their Prison retains the staff roster and job link. Long-run colony tests now share the live Virtual Player action path so health checks use sustained food production.
