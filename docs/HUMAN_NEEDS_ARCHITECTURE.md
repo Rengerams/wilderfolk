@@ -123,3 +123,21 @@ Foreign `warCaptive` feeding intentionally remains on legacy energy and canonica
 **No merge until the evidence is complete.** Do not conceal starvation with artificial food replenishment, weaken invariant checks or claim success based on a previous commit. Re-run acceptance against the latest head after any change.
 
 **References:** `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, `docs/plans/human-needs-issue-61-2026-10-26.md`, `CHANGELOG.md`, `roadmap_V.0.6.6.0.md`.
+## 9. Producer-colony remediation and measured failures (27 October 2026)
+
+GitHub Actions job `121955079228`, seed 12345, 30 simulated days, **before** the remediation:
+- 47 settlers (32 working), 9 Farms, 6 unstaffed job buildings, food **0**.
+- Completed-day food history: **1,569 produced** versus **2,757 consumed** (net **-1,188**).
+- The event trace shows a discretionary taming burst (20 animals, days 15–19) and ecosystem collapse at day 23; the first extra Farm was placed on day 18.
+- The assertion correctly failed with `stalled(food-exhausted)`. Zero invariant violations do not mean an economically viable colony.
+
+The 360-day run on the same older head (job `121955079542`) also failed, at **day 240**, because a human was listed in Lumber Mill `occupants` with an unset `workerBuildingId`. Its intermediate food balances were negative for days 30, 60, 90, 120 and 210, despite a temporary recovery during days 150–180. These are observed failures, not a passing acceptance baseline.
+
+**Source changes committed since that run:**
+- `virtualPlayer.ts` targets food producers against the **entire player-human population**; the old adult-only numerator understated demand from children.
+- When recorded food flow shows sustained deficit, the bot prefers a genuinely staffed and eligible Farm upgrade to another potentially unstaffable building. Upgrade prices and bounds still belong to `buildingMaintenanceActions.ts`.
+- Optional taming is suppressed when measured food flow is negative or known ecology is under the existing healthy threshold. The bot also verifies the canonical species food cost will leave its configured meal reserve **after** payment.
+- `workforce.assignWorkerTransition` no longer treats an occupant-list entry alone as idempotence: it repairs the worker pointer/job if those fields were unset, rather than accepting an inconsistent workplace roster.
+- `colonyHealth.ts` checkpoints now include completed-day seven-day food flow, count of completed Farms, staffed Farms and assigned farmhands. These complement the existing thirty-day flow and colony invariant checks, without changing the food ledger or artificial restocking.
+
+**New regression coverage:** `tests/virtualPlayerHealthVerdict.test.ts`, `tests/virtualPlayer.test.ts`, `tests/workforce.transitions.test.ts`. New code has not yet passed a full current-head Node.js CI or 7/30/360-day producer-colony suite. Do not remove the original strict food-stockout or workplace-roster assertions; **keep PR #62 as draft until all acceptance gates pass**.
