@@ -12,6 +12,7 @@ import { faceVelocity } from './simulation/movementSteering';
 import { EntityType, Season, MapSize } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { findClosestEntityInRadius } from './simQueries';
 import type { TickContext } from './simulation/simulationTypes';
 import { createEntity } from './entityFactory';
@@ -137,7 +138,7 @@ export function tryTickBlueberryForaging(
   settler: Entity,
   options: BlueberryForagingOptions,
 ): boolean {
-  const hungry = settler.energy < settler.maxEnergy * 0.72;
+  const hungry = (settler.needs?.nutrition ?? 100) < HUMAN_NEEDS.EAT_ENTER_NUTRITION;
   if (
     !options.freeTime
     || options.ateMeal
@@ -203,8 +204,9 @@ export function tryTickBlueberryForaging(
     target.blueberryNextRegrowthDay = currentDay + BLUEBERRY_REGROWTH_DAYS;
   }
 
-  // Settler eats the berries and restores energy
-  settler.energy = Math.min(settler.maxEnergy, settler.energy + BLUEBERRY_ENERGY_PER_PICK);
+  // The gathering recovery belongs to stamina, not the derived human energy projection.
+  // The food reaches the shared larder below and can fund an ordinary nutrition meal.
+  adjustHumanStaminaFromEnergy(settler, BLUEBERRY_ENERGY_PER_PICK);
   settler.vx = 0;
   settler.vy = 0;
   clearBlueberryTarget(settler);
