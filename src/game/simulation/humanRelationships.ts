@@ -1256,6 +1256,15 @@ function arrestForScandal(state: WorldState, offender: Entity): void {
     return;
   }
 
+  // Arrest is a synchronous membership transition, not a deferred workforce repair:
+  // a sentenced builder immediately vacates unfinished sites. A reserved regular
+  // post keeps its pointer but no longer counts as an active workplace occupant.
+  for (const site of state.buildings) {
+    if ((!site.completed || (site.id === offender.workerBuildingId && site.id !== prison.id))
+      && site.occupants.includes(offender.id)) {
+      site.occupants = site.occupants.filter((id) => id !== offender.id);
+    }
+  }
   // The sentence holds the settler's bed and post; only attendance stops while they are jailed.
   offender.prisonBuildingId = prison.id;
   offender.prisonSentenceCrime = 'scandal';

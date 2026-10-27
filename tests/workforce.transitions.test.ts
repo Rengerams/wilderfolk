@@ -163,6 +163,38 @@ describe('workforce named transitions', () => {
     expect(collectSimulationInvariantErrors(makeWorld([settler], [prison, mill, unfinished]))).toEqual([]);
   });
 
+  it('reconciles stale prison and construction rosters even without a release event', () => {
+    const returned = human(4137, { workerBuildingId: 110, job: JobType.Lumberjack });
+    const prison = building(9, BuildingType.Prison, { occupants: [returned.id] });
+    const mill = building(110, BuildingType.LumberMill);
+    const unfinished = building(156, BuildingType.Farm, { completed: false, occupants: [returned.id] });
+    const state = makeWorld([returned], [prison, mill, unfinished]);
+
+    prepareWorkforce(state.entities, state.buildings);
+    expect(prison.occupants).toEqual([]);
+    expect(unfinished.occupants).toEqual([]);
+    expect(mill.occupants).toEqual([returned.id]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('reconciles orphan, incarcerated, duplicate and employed builders before assigning crews', () => {
+    const unemployed = human(1);
+    const employed = human(2, { workerBuildingId: 20, job: JobType.Farmer });
+    const prisoner = human(3, { prisonBuildingId: 30 });
+    const farm = building(20, BuildingType.Farm, { occupants: [2] });
+    const prison = building(30, BuildingType.Prison, { occupants: [3] });
+    const first = building(40, BuildingType.House, { completed: false, occupants: [1, 2, 3, 999] });
+    const second = building(41, BuildingType.Farm, { completed: false, occupants: [1, 2] });
+    const state = makeWorld([unemployed, employed, prisoner], [farm, prison, first, second]);
+
+    prepareWorkforce(state.entities, state.buildings);
+    expect(first.occupants).toEqual([1]);
+    expect(second.occupants).toEqual([]);
+    expect(farm.occupants).toEqual([2]);
+    expect(prison.occupants).toEqual([3]);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
   it('reconciles a completed lumber mill crew already listed in the roster', () => {
     const settler = human(6565);
     const lumberMill = building(154, BuildingType.LumberMill, { occupants: [settler.id] });

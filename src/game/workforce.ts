@@ -648,6 +648,25 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
     }
   }
 
+  // Incomplete sites have no persistent worker pointer. A completed job, an arrest,
+  // or a death can make a previously valid builder stale between assignment pulses.
+  // Reconcile all crews against the authoritative human fields before the next
+  // construction staffing pass. Also remove duplicate crews deterministically.
+  const eligibleBuilders = new Set(
+    alive.filter((human) => !human.isJuvenile && !isImprisoned(human) && !hasWorkAssignment(human))
+      .map((human) => human.id),
+  );
+  const rosteredBuilders = new Set<number>();
+  for (const site of buildings) {
+    if (site.completed || site.occupants.length === 0) continue;
+    const cleaned = site.occupants.filter((id) => {
+      if (!eligibleBuilders.has(id) || rosteredBuilders.has(id)) return false;
+      rosteredBuilders.add(id);
+      return true;
+    });
+    if (cleaned.length !== site.occupants.length) site.occupants = cleaned;
+  }
+
   syncJobBuildingOccupants(alive, buildings);
   // Repair old saves affected by zero-capacity construction crew transfers.
   // Only completed, non-residential buildings with no job may be cleared;
