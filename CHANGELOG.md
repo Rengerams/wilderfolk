@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Changed:** Consolidated strip rotation helpers and documented construction, navigation, and function ownership without introducing another implementation path.
+
 - **Fixed:** Repeated wall-to-gate construction previews no longer alter lifetime resource-gathering statistics before placement.
 
 - **Fixed:** Virtual player postpones road construction during food shortages and budgets multi-leg road projects across the full stroke instead of reusing the starting funds for each leg.
