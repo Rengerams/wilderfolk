@@ -80,8 +80,10 @@ function seedThatLandsBite(): number {
 function makeState(seedForBite: () => number = seedThatFiresBite): { state: WorldState; attacker: Entity; victim: Entity } {
   seedForBite();
   const attackerId = 1;
-  const attacker = human(attackerId, 0.1); // starving
-  const victim = human(9001, 0.9); // comfortable
+  const attacker = human(attackerId, 0.9); // rested, but starving
+  const victim = human(9001, 0.1); // tired, but well-fed
+  attacker.needs = { nutrition: 10, rest: 85, stamina: 90, severeHungerTicks: 0 };
+  victim.needs = { nutrition: 90, rest: 85, stamina: 10, severeHungerTicks: 0 };
   // They are friends before the bite (score 60).
   attacker.friendships = { [`friend_${victim.id}`]: 60 };
   victim.friendships = { [`friend_${attacker.id}`]: 60 };
@@ -191,6 +193,14 @@ describe('famine desperation bite (joke)', () => {
     const after = friendshipScore(attacker, victim.id);
     expect(after).toBeLessThan(before);
     expect(after).toBeGreaterThanOrEqual(0);
+  });
+
+  it('stamina depletion without hunger does not trigger a famine bite', () => {
+    const { state, attacker, victim } = makeState();
+    attacker.needs!.nutrition = 85;
+    victim.needs!.nutrition = 90;
+    tickFamineDesperation(state, state.entities);
+    expect(state.eventLog).toHaveLength(0);
   });
 
   it('a landed bite opens a feud between the victim and the biter', () => {
