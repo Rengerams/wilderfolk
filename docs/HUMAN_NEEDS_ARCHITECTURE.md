@@ -1,6 +1,6 @@
 # Wilderfolk — Human Needs Architecture
 
-**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** draft, acceptance incomplete.
+**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** merged into `main` and accepted on 2026-10-27; additional verification is tracked as post-merge hardening.
 
 ## 1. Purpose and invariants
 
@@ -120,7 +120,7 @@ Foreign `warCaptive` feeding intentionally remains on legacy energy and canonica
 | Food supply/demand, spoilage and attendance | checkpoints days 7, 30, 120, 180, 330, 360 | Prior food zero at day 120; not accepted |
 | Final typecheck, lint, build and CI | Node.js + human needs calibration + housing CI | Await final-head checks |
 
-**No merge until the evidence is complete.** Do not conceal starvation with artificial food replenishment, weaken invariant checks or claim success based on a previous commit. Re-run acceptance against the latest head after any change.
+**Historical pre-merge gate:** this section records verification that was requested before PR #62 was merged. **PR #62 is now merged and accepted.** Continue these tests as post-merge release-hardening checks. Do not conceal starvation with artificial replenishment, weaken invariant checks or claim a passing current run based on an earlier commit.
 
 **References:** `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, `docs/plans/human-needs-issue-61-2026-10-26.md`, `CHANGELOG.md`, `roadmap_V.0.6.6.0.md`.
 ## 9. Producer-colony remediation and measured failures (27 October 2026)
@@ -140,4 +140,4 @@ The 360-day run on the same older head (job `121955079542`) also failed, at **da
 - `workforce.assignWorkerTransition` no longer treats an occupant-list entry alone as idempotence: it repairs the worker pointer/job if those fields were unset, rather than accepting an inconsistent workplace roster.
 - `colonyHealth.ts` checkpoints now include completed-day seven-day food flow, count of completed Farms, staffed Farms and assigned farmhands. These complement the existing thirty-day flow and colony invariant checks, without changing the food ledger or artificial restocking.
 
-**New regression coverage:** `tests/virtualPlayerHealthVerdict.test.ts`, `tests/virtualPlayer.test.ts`, `tests/workforce.transitions.test.ts`. New code has not yet passed a full current-head Node.js CI or 7/30/360-day producer-colony suite. Do not remove the original strict food-stockout or workplace-roster assertions; **keep PR #62 as draft until all acceptance gates pass**.
+**New regression coverage:** `tests/virtualPlayerHealthVerdict.test.ts`, `tests/virtualPlayer.test.ts`, `tests/workforce.transitions.test.ts`. At the time of this recorded remediation, the new code had not yet passed a full current-head Node.js CI or 7/30/360-day producer-colony suite. PR #62 subsequently **merged and was accepted on 27 October 2026**. Keep the strict food-stockout and workplace-roster assertions, and obtain fresh current-`main` evidence as a separate follow-up.
