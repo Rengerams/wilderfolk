@@ -437,6 +437,7 @@ function run(): void {
   const observer = createColonyObserver(world);
   const initialBuildingIds = new Set(world.buildings.map((building) => building.id));
   const healthObserved: ColonyHealthReport[] = [];
+  const foodExhaustionCheckpointDays: number[] = [];
   let lastBotActedTick: number | null = null;
   let previousResidences = new Map<number, number | undefined>(
     world.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).map((entity) => [entity.id, entity.residenceBuildingId]),
@@ -521,6 +522,9 @@ function run(): void {
       final: health,
       newBuildingsAtEnd: world.buildings.filter((building) => !initialBuildingIds.has(building.id) && building.faction !== 'rival').length,
     });
+    if (options.scenario === 'producers' && provisional.reasons.includes('food-exhausted')) {
+      foodExhaustionCheckpointDays.push(day);
+    }
     writeCheckpoint(day, world, startedAt, health, provisional);
   }
 
@@ -637,6 +641,7 @@ function run(): void {
     console: consoleVolume,
     health: finalHealth,
     stall,
+    foodExhaustionCheckpointDays,
     build: {
       standingAtEnd: world.buildings.length,
       standingByType,
@@ -702,6 +707,10 @@ function run(): void {
       + (stall.stalled ? ` reasons=${stall.reasons.join(',')}\n[colony] stall ${stall.evidence.join(' | ')}\n` : '\n'),
   );
   assertColonyNotStalled(stall, `the ${TOTAL_DAYS}-day ${options.scenario} run`);
+  assert(
+    foodExhaustionCheckpointDays.length === 0,
+    `Producer-colony food exhaustion at days ${foodExhaustionCheckpointDays.join(', ')}; last-day recovery cannot pass the full-run supply gate`,
+  );
 }
 
 mkdirSync(logDirectory, { recursive: true });
