@@ -33,7 +33,7 @@ describe('new-game preset landscape contracts', () => {
       const maps = new Map<MapPreset, WorldMap>();
       for (const preset of Object.values(MapPreset)) {
         const map = make(preset, seed);
-        expect(map.generationVersion).toBe(2);
+        expect(map.generationVersion).toBe(3);
         maps.set(preset, map);
       }
       const get = (preset: MapPreset) => maps.get(preset)!;
@@ -94,7 +94,7 @@ describe('new-game preset landscape contracts', () => {
       );
       const fresh = make(MapPreset.Oasis, seed);
       expect(old.generationVersion).toBe(1);
-      expect(fresh.generationVersion).toBe(2);
+      expect(fresh.generationVersion).toBe(3);
       const center = Math.floor(old.rows! / 2) * old.cols! + Math.floor(old.cols! / 2);
       expect(old.elevation![center]).not.toBe(fresh.elevation![center]);
     }
