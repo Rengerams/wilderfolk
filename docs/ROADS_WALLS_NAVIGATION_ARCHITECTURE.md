@@ -116,3 +116,22 @@ Validate on the final commit with `npm run test:types`, `npm run lint`, `npm run
 * Prefer direct imports from the implementation owner. Avoid unnecessary import renaming, mirrored constants, forwarding functions and re-export barrels.
 * Keep named nontrivial thresholds in the owning module; do not create drawing-only approximations of collision, affordability or speed rules.
 * Add focused regression tests for each new contract risk and record meaningful gameplay or workflow changes in `CHANGELOG.md`.
+
+## 9. Alias and ownership audit — 27 October 2026
+
+### Forwarding and compatibility
+
+- Removed the duplicated local `buildingStripRotation` adapters in `stripTopology.ts` and `stripJunction.ts`. Both call the pre-existing authoritative `normalizeBuildingRotation` helper directly. This avoids two locally owned names implementing the same one-line transformation.
+- Removed the unnecessary `isFootprintOnBuildableTerrain` re-export from `buildingPlacementActions.ts`; `buildingActions.ts`, a documented legacy public façade, now resolves it **directly** from its actual owner `placementUtils.ts`.
+- Retained the deliberate `buildingActions.ts` / `gameEngine.ts` legacy API boundaries, because deleting those exports would break established consumers without improving the underlying ownership. The pre-existing geometry re-exports from `placementUtils.ts` similarly remain as compatibility paths for existing callers, but **do not** contain alternative implementations.
+- `walkRoute`, `stripChainCommand` and the strip-demolition selection path were not classified as aliases: they each add a distinct retry policy, validated command construction or domain validation on top of another owner, rather than merely renaming a function.
+
+### Function registration
+
+The `OWNERSHIP_OVERVIEW.md` **PR #59 function-level ownership supplement** records named declarations and named arrow helpers missing from the existing index in PR-touched production, UI and tooling modules. It does not reassign functions previously owned elsewhere. Inline anonymous callbacks remain implementation details of the containing function. This targeted inventory is **not** a whole-repository proof of every historical helper in unrelated modules.
+
+### Read-only preview accounting
+
+`buildStripPreview` estimates wall replacement refunds using a temporary budget with its **own** `resources` and `lifetimeStats.totalResourcesGathered` objects. The refund owner calls `addResource`, which normally records accepted additions as resources gathered. Sharing that nested lifetime-statistics object with the real `WorldState` previously inflated gathered totals on repeated cursor previews, even after cancel. The isolated copy prevents this side effect; the worker's authoritative placement/refund behavior is unchanged. A regression test invokes the same valid gate preview twice and checks original resource balances and lifetime statistics stay unchanged.
+
+**Verification rule:** findings above describe reviewed code changes, not a passing final CI run. Check the latest PR head's GitHub Actions and typecheck/lint/build before merging.
