@@ -114,6 +114,44 @@ export function refreshFoodLedgerTotals(state: WorldState): DailyEconomyLedger |
   return ledger;
 }
 
+/**
+ * Measured, contiguous completed-day supply and demand.
+ *
+ * The player bot uses the exact economy history shown to players: farms and
+ * other real producers on one side, meals, spoilage and explicit spends on the
+ * other. The current partial day is excluded, as is stale or sparse history.
+ * Missing history is *unknown*, never an invented zero-production day.
+ */
+export function getRecentFoodFlow(
+  state: Pick<WorldState, 'foodHistory' | 'tick'>,
+  maxDays = 7,
+): { days: number; producedPerDay: number; consumedPerDay: number; netPerDay: number } | null {
+  const samples = state.foodHistory ?? [];
+  let expectedDay = getAbsoluteCalendarDay(state.tick) - 1;
+  let days = 0;
+  let produced = 0;
+  let consumed = 0;
+  for (let i = samples.length - 1; i >= 0 && days < maxDays; i--) {
+    const sample = samples[i];
+    if (sample.day !== expectedDay) break;
+    const dailyProduced = Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0);
+    const dailyConsumed = Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    if (!Number.isFinite(dailyProduced) || !Number.isFinite(dailyConsumed)) return null;
+    produced += dailyProduced;
+    consumed += dailyConsumed;
+    days++;
+    expectedDay--;
+  }
+  // A single harvest/meal day cannot establish a sustainable production trend.
+  if (days < 3) return null;
+  return {
+    days,
+    producedPerDay: produced / days,
+    consumedPerDay: consumed / days,
+    netPerDay: (produced - consumed) / days,
+  };
+}
+
 /** The current day's ledger, or null when nothing has happened yet today. */
 export function getEconomyLedger(state: WorldState): DailyEconomyLedger | null {
   const ledger = state.economyLedger;
