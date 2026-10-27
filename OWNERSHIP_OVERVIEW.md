@@ -443,3 +443,10 @@ The functions below belong exclusively to the module shown. They supplement the 
 | `src/game/stripTopology.ts` | `isWallStripType`, `isRoadStripType`, `stripFamilyFor`, `cellKey`, `getStripSegmentEndpoints`, `collectSnapPoints`, `nearestSnapPoint`, `snapStripDragEndpoints`, `findEnclosedWallAreas`, `markBlocked`, `push`, `emit` |
 | `src/game/stripJunction.ts` | `dist`, `countConnections`, `cornerRotationFromConnections`, `straightRotationFromConnections`, `resolveJunctionCenter`, `findStripBuildingNear`, `familyMembers`, `pushBuilding` |
 | `src/game/stripRender.ts` | `paintPavementPattern`, `seeded`, `beginRotatedStripFrame`, `strokePalisadeRails`, `drawPalisadeArm`, `drawProceduralFence`, `drawPalisadePosts`, `drawProceduralWallCorner`, `drawProceduralRoadJunction`, `drawProceduralWallJunction`, `drawProceduralStripBuilding` |
+| `src/game/gameLoop.ts` | `catchUpBudgetFor`, `pageHidden`, `extractUiPatch`, `idsPatchChanged`, `uiPatchChanged` |
+| `src/game/hotelStay.ts` | `buildingFrom`, `centreDistance`, `hoursUntilSleep`, `findStaffedHotels`, `isHotelierAtHotel`, `findGuest`, `isLiveVisitor`, `guestCount`, `pruneHotelGuests`, `hotelCheckoutTick`, `hotelierGreetGuests` |
+| `src/game/humanTick.ts` | `getAffairTrystTarget`, `livingHumanAt`, `playerResidencesFor`, `completedPoolOf`, `pickSocialBuilding`, `resolveChatPartner`, `ambientChatNeighbors`, `getCampAnchor`, `advancePregnancy`, `steerTo`, `pickCompleted`, `steerToShop` |
+| `src/game/renderer/buildPreview.ts` | `previewGlowGradient`, `drawStripBuildPreview` |
+| `src/game/renderer/buildings.ts` | `completedDepthSortedBuildings`, `getBuildingScreenRect` |
+| `src/game/simWorker/commands.ts` | `getBuildingTypeValues`, `getForgeOrderIds`, `getVisitorTradeActions`, `isFiniteNumber`, `isNonEmptyString`, `isBuildingType`, `isBuildingRotation`, `isStripSegment`, `validateWorkerCommandShape`, `extractCommandDelta`, `safeExtractCommandDelta` |
+| `src/game/simulation/humanMovement.ts` | `walkableStandPoint`, `crowdGatherPosition`, `venueGatherPosition`, `homeStandPosition`, `commuteDistanceToBuilding`, `commuteDistanceFromResidence`, `commutePathCacheKey`, `nearestActiveMoonHowler` |
