@@ -1,5 +1,6 @@
 import { departWarPrisoner } from './warPrisonerCustody';
 import { moveResident } from './residencyReconciliation';
+import { isStripBuildType, MAX_STRIP_SEGMENTS } from './stripBuild';
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
 import { addResource, updateStorageCaps } from './economy';
@@ -308,6 +309,18 @@ export function refundBuildingCost(
  * the entire save (entities, world map and all) for one building is unnecessary.
  * Keep the immutable wrapper below for direct callers and tests.
  */
+/** A completed player gate toggles between an open passage and a solid obstacle. */
+export function toggleWallGate(originalState: WorldState, buildingId: number): WorldState {
+  const gate = originalState.buildings.find((building) => building.id === buildingId);
+  if (!gate || gate.type !== BuildingType.WallGate || gate.faction === 'rival' || !gate.completed) {
+    return originalState;
+  }
+  const state = structuredClone(originalState);
+  const replacement = state.buildings.find((building) => building.id === buildingId)!;
+  replacement.gateClosed = replacement.gateClosed !== true;
+  return state;
+}
+
 export function demolishBuildingInPlace(state: WorldState, buildingId: number, cause: 'demolition' | 'raid' = 'demolition'): WorldState {
   return demolishBuildingsInPlace(state, [buildingId], cause);
 }
@@ -337,4 +350,13 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
 /** Immutable public API used outside the worker-command owner. */
 export function demolishBuilding(originalState: WorldState, buildingId: number): WorldState {
   return demolishBuildingInPlace(structuredClone(originalState), buildingId);
+}
+/** Strip selection delegates demolition, assignment cleanup, and refunds to the shared batch owner. */
+export function demolishStripBuildingsInPlace(state: WorldState, buildingIds: readonly number[]): WorldState {
+  if (buildingIds.length === 0 || buildingIds.length > MAX_STRIP_SEGMENTS) return state;
+  const wanted = new Set(buildingIds);
+  if (wanted.size !== buildingIds.length) return state;
+  const selected = state.buildings.filter((building) => wanted.has(building.id)
+    && building.faction !== 'rival' && isStripBuildType(building.type));
+  return demolishBuildingsInPlace(state, selected.map((building) => building.id));
 }

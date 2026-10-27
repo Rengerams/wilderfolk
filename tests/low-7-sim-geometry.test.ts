@@ -267,10 +267,10 @@ describe('L63 clearHuntersTargetingPrey', () => {
 });
 
 describe('L71 lone-crossing junction', () => {
-  it('coerces a lone H/V crossing to an elbow instead of zero connections', () => {
+  it('classifies a lone H/V crossing by all four physical arms', () => {
     const conn = connectionsAt(100, 100, [{ x: 100, y: 100 }], [{ x: 100, y: 100 }], 40);
-    expect(conn).toEqual({ north: true, south: false, east: true, west: false });
-    expect(classifyJunction(conn)).toBe('elbow');
+    expect(conn).toEqual({ north: true, south: true, east: true, west: true });
+    expect(classifyJunction(conn)).toBe('cross');
   });
 });
 

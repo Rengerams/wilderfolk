@@ -62,6 +62,22 @@ describe('pathfinding', () => {
     expect(path!.some((p) => p.y === 3)).toBe(false);
   });
 
+  it('selects a faster paved detour without a blocking obstacle', () => {
+    const map = makeMap(22, 8, 420, () => false);
+    const road: Building = {
+      id: 44, type: BuildingType.Road,
+      x: 11 * PATH_CELL, y: 2.5 * PATH_CELL,
+      width: 19 * PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [road]);
+    const route = findPath(grid, 2, 3, 19, 3);
+    expect(lineCrossesBlocked(grid, 2.5 * PATH_CELL, 3.5 * PATH_CELL, 19.5 * PATH_CELL, 3.5 * PATH_CELL)).toBe(false);
+    expect(route).not.toBeNull();
+    expect(route!.some((tile) => tile.y === 2)).toBe(true);
+  });
+
   it('routes around a vertical river that does not span the whole map', () => {
     // River column 5, rows 1..8 — a path exists around the top or bottom end.
     const grid = getPathGrid(makeMap(10, 10, 2, (x, y) => x === 5 && y >= 1 && y <= 8));
@@ -127,6 +143,19 @@ describe('pathfinding', () => {
     const ex = 18 * PATH_CELL;
     expect(lineCrossesBlocked(grid, sx, sy, ex, sy)).toBe(true);
     expect(lineCrossesBlocked(grid, sx, sy, 8 * PATH_CELL, sy)).toBe(false);
+  });
+
+  it('treats completed rival or legacy walls as impassable terrain', () => {
+    const map = makeMap(8, 8, 431, () => false);
+    const wall: Building = {
+      id: 900, type: BuildingType.Wall, faction: 'rival', x: 3.5 * PATH_CELL, y: 3.5 * PATH_CELL,
+      width: PATH_CELL, height: PATH_CELL,
+      occupants: [], level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [wall]);
+    expect(grid.blocked[3 * grid.cols + 3]).toBe(1);
+    expect(findPath(grid, 1, 3, 6, 3)?.some((tile) => tile.x === 3 && tile.y === 3)).toBe(false);
   });
 
   it('opens the water a bridge spans, so the deck is a crossing and not decoration', () => {
