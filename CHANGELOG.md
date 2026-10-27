@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **CI:** Bound seeded human-needs PR runs to 7/30/90 days and fail the full-year producer harness at the first exhausted checkpoint instead of timing out.
+
 - **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
 
 - **Documentation (27 October 2026):** Reconciled the v0.6.6.0 roadmap and architecture notes with merged PRs, separating accepted changes from broader release-hardening work.
