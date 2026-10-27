@@ -1210,8 +1210,8 @@ export interface WorldMap {
    * travel with it — tuning the per-size offset otherwise repainted every existing settlement.
    */
   terrainSeed?: number;
-  /** Version 1 reproduces existing compact saves; version 2 uses preset-specific relief. */
-  generationVersion?: 1 | 2;
+  /** Versioned procedural recipes keep compact saves visually identical across upgrades. */
+  generationVersion?: 1 | 2 | 3;
   /**
    * Per-map biome cuts for the moisture field, derived by the generator from that map's own
    * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
