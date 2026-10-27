@@ -1,4 +1,4 @@
-import { normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { normalizeHumanNeeds, rebaseHumanNeedsClockAfterFormRestore } from './simulation/humanPhysiology';
 import { moveResident } from './residencyReconciliation';
 /**
  * Moon Howler **form state** — the human form snapshot, the restore that puts a cursed settler back
@@ -73,6 +73,7 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.energy = Math.min(were.maxEnergy, saved?.energy ?? cfg.maxEnergy * 0.55);
   were.needs = saved?.needs ? { ...saved.needs } : undefined;
   normalizeHumanNeeds(were);
+  rebaseHumanNeedsClockAfterFormRestore(were, tick);
   were.energy = were.maxEnergy * were.needs!.stamina / 100;
   were.speed = saved?.speed ?? cfg.speed;
   were.size = saved?.size ?? cfg.size;
