@@ -822,7 +822,15 @@ export function bakeWhittakerGround(
       const terrainHeight = sampleF(elevation, cols, rows, tcx, tcy);
       // Water must remain water wherever the canonical terrain tiles classify it as such.
       const e = terrainHeight < sea ? Math.min(visualHeight, terrainHeight - 0.001) : visualHeight;
-      const mo = clamp(sampleF(moisture, cols, rows, tcx, tcy) + moistureBias, 0, 1);
+      const mo = clamp(
+        sampleF(moisture, cols, rows, tcx, tcy)
+          + (map.generationVersion === 2 ? 0 : moistureBias),
+        0, 1,
+      );
+      const visualMo = map.generationVersion === 2
+        ? clamp(mo + DEFAULT_MOISTURE_FOREST
+          - (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST), 0, 1)
+        : mo;
       const te = sampleF(temperature, cols, rows, tcx, tcy);
       // Four octaves across four scales, collapsed to a **0-mean deviation** (`dv`) because every
       // consumer below multiplies it by a per-channel amplitude while adding it to a mean colour.
@@ -854,7 +862,7 @@ export function bakeWhittakerGround(
       const isWater = aboveSea < 0;
 
       let [r, g, b] = groundColor(
-        e, sea, landRange, mo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
+        e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
       );
 
       // Seabed grain: the floor's own variation *inside* each tint band, so a band is a surface and not
