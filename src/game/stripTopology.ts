@@ -141,23 +141,28 @@ export function snapStripDragEndpoints(
   const entrances = family === 'road' ? collectRoadEntranceSnapPoints(buildings) : [];
   if (snaps.length === 0 && entrances.length === 0) return { startX, startY, endX, endY };
 
-  const startStrip = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
-  const endStrip = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
-  const startEntrance = startStrip ? null : nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
-  const endEntrance = endStrip ? null : nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
-  const startSnap = startStrip ?? startEntrance;
-  const endSnap = endStrip ?? endEntrance;
-  const horizontal = family === 'road'
-    && Math.abs(endX - startX) >= STRIP_BEND_MIN_DISTANCE_PX
-    && Math.abs(endY - startY) < STRIP_BEND_MIN_DISTANCE_PX;
-  // A cleared entrance snap must lift the entire straight road, not just its endpoint.
-  const startAlignedY = horizontal && !startSnap && endEntrance ? endEntrance.y : startSnap?.y ?? startY;
-  const endAlignedY = horizontal && !endSnap && startEntrance ? startEntrance.y : endSnap?.y ?? endY;
+  const startStripSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
+  const endStripSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
+  const startEntrance = startStripSnap ? null : nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
+  const endEntrance = endStripSnap ? null : nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
+  const startSnap = startStripSnap ?? startEntrance;
+  const endSnap = endStripSnap ?? endEntrance;
+  const snappedStartX = startSnap?.x ?? startX;
+  const snappedEndX = endSnap?.x ?? endX;
+  let snappedStartY = startSnap?.y ?? startY;
+  let snappedEndY = endSnap?.y ?? endY;
+
+  // Straight drags must use the snapped entrance's row at both ends of the strip.
+  if (Math.abs(snappedEndX - snappedStartX) >= Math.abs(snappedEndY - snappedStartY)
+    && Math.abs(snappedEndY - snappedStartY) < STRIP_BEND_MIN_DISTANCE_PX) {
+    if (endEntrance && !startSnap) snappedStartY = snappedEndY;
+    if (startEntrance && !endSnap) snappedEndY = snappedStartY;
+  }
   return {
-    startX: startSnap?.x ?? startX,
-    startY: startAlignedY,
-    endX: endSnap?.x ?? endX,
-    endY: endAlignedY,
+    startX: snappedStartX,
+    startY: snappedStartY,
+    endX: snappedEndX,
+    endY: snappedEndY,
   };
 }
 
