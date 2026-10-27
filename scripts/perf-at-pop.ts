@@ -65,7 +65,6 @@ const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 /** Print every measured tick, with its position in the in-game day — a spike is either a daily layer
  *  (`tick % TICKS_PER_DAY === 0`) or something that happens at any tick. */
 const TRACE = process.env.PERF_TRACE === '1';
-const TICKS_PER_DAY_TRACE = TICKS_PER_DAY;
 const REPORT = process.env.PERF_REPORT;
 const BASELINE = process.env.PERF_BASELINE;
 const INFRASTRUCTURE_VISUAL_SAVE = process.env.PERF_INFRASTRUCTURE_VISUAL_SAVE;
@@ -142,7 +141,7 @@ function bench(
       cpuMs.push(cpuForTick);
       hourMs[getHourOfDay(state.tick)]?.push(dt);
       if (TRACE) {
-        const dayTick = state.tick % TICKS_PER_DAY_TRACE === 0;
+        const dayTick = state.tick % TICKS_PER_DAY === 0;
         console.log(
           `  tick ${state.tick} (day-boundary=${dayTick ? 'yes' : 'no'}) wall=${dt.toFixed(1)}ms cpu=${cpuForTick.toFixed(1)}ms`,
         );
@@ -305,7 +304,7 @@ async function main() {
     // `PERF_DAY_ONE=1` parks the clock one tick before a day boundary, so the first measured tick is
     // the daily one. Profiling the spike then costs one tick instead of waiting up to 72 for it.
     if (process.env.PERF_DAY_ONE === '1') {
-      state.tick = Math.ceil(state.tick / TICKS_PER_DAY_TRACE) * TICKS_PER_DAY_TRACE - 1;
+      state.tick = Math.ceil(state.tick / TICKS_PER_DAY) * TICKS_PER_DAY - 1;
     }
     console.log(
       `Ticks=${TICKS} warmup=${WARMUP} | focus=${fullSim ? 'OFF (full sim)' : 'ON (viewport throttle)'} | save=${basename(savePath)} tick=${state.tick}`,
