@@ -1,5 +1,7 @@
 # World-copy optimization
 
+**Acceptance:** optimization PR #64 merged into `main` on 27 October 2026 and is accepted. The performance measurements and further rollback-design conditions below remain future evidence, not unfulfilled conditions on the accepted merge.
+
 Base: main f34c5ecac7db9d65b0c61517dbc685eda6572611.
 
 ## Implemented contracts
