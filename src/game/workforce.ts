@@ -273,10 +273,13 @@ export function assignWorkerTransition(human: Entity, building: Building, curren
   if (!human.alive || !isPlayerHuman(human) || human.isJuvenile) return false;
   if (human.prisonBuildingId != null) return false;
   if (human.workerBuildingId != null && human.workerBuildingId !== building.id) return false;
-  if (building.occupants.includes(human.id)) return true; // Idempotent
+  const alreadyListed = building.occupants.includes(human.id);
+  // A stale roster entry is not a completed assignment: repair the worker
+  // pointer and job fields instead of returning with an invariant violation.
+  if (alreadyListed && human.workerBuildingId === building.id) return true;
 
   const keepOffice = human.occupation === LEADER_OCCUPATION;
-  building.occupants.push(human.id);
+  if (!alreadyListed) building.occupants.push(human.id);
   human.workerBuildingId = building.id;
   if (currentTick != null) human.lastAutoJobTransferTick = currentTick;
   human.occupation = keepOffice ? LEADER_OCCUPATION : getOccupationForBuilding(building.type);
