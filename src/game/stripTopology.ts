@@ -63,17 +63,13 @@ export function getStripSegmentEndpoints(
   return [{ x: cx, y: cy - along }, { x: cx, y: cy + along }];
 }
 
-function buildingStripRotation(b: Building): BuildingRotation {
-  return normalizeBuildingRotation(b.rotation);
-}
-
 function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
   const types = family === 'wall' ? null : ROAD_STRIP_TYPES;
   for (const b of buildings) {
     const member = family === 'wall' ? isWallStripType(b.type) : types!.has(b.type);
     if (!b.completed || b.faction === 'rival' || !member) continue;
-    const rot = buildingStripRotation(b);
+    const rot = normalizeBuildingRotation(b.rotation);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
     // The two ends and the centre leave a gap of half a tile on each side that the snap radius does
@@ -187,7 +183,7 @@ export function resolveWallStripPlan(
     if (existing && isWallStripType(existing.type)) {
       // A perpendicular wall can intersect an existing wall; both arms must remain physical.
       if (stripType === BuildingType.Wall && existing.type === BuildingType.Wall
-        && buildingStripRotation(existing) !== stripRotation) {
+        && normalizeBuildingRotation(existing.rotation) !== stripRotation) {
         pieces.push({ type: stripType, x: snapped.x, y: snapped.y, rotation: stripRotation });
         emitted.add(key);
         continue;
@@ -202,7 +198,7 @@ export function resolveWallStripPlan(
           type: stripType,
           x: existing.x,
           y: existing.y,
-          rotation: buildingStripRotation(existing),
+          rotation: normalizeBuildingRotation(existing.rotation),
           replacesBuildingId: existing.id,
         });
       }
@@ -243,7 +239,7 @@ export function resolveRoadStripPlan(
     // A repeated stroke must not create another building over an existing road segment.
     const existing = state.buildings.some((b) => b.type === BuildingType.Road
       && b.faction !== 'rival' && b.x === snapped.x && b.y === snapped.y
-      && buildingStripRotation(b) === stripRotation);
+      && normalizeBuildingRotation(b.rotation) === stripRotation);
     if (existing) return [];
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
     const info = analyzeStripJunction(junctionPt.x, junctionPt.y, hList, vList, along);
