@@ -255,11 +255,53 @@ const PRESET_SETTINGS: Record<MapPreset, TerrainSettings> = {
 
 const idx = (x: number, y: number, w: number) => y * w + x;
 
+// Distances and coordinates are normalized; elevations use the [0,1] height field.
+// Frequencies are radians per normalized map axis unless marked per cell.
+const PRESET_RELIEF_TUNING = {
+  detail: { cyclesPerCell: 0.07, seedOffset: 15551, octaves: 3 },
+  arabianSprings: {
+    count: 4, minPositionFraction: 0.16, positionSpanFraction: 0.68,
+    seedOffset: 13031, xHashOffset: 11, xHashRow: 17, yHashOffset: 29, yHashRow: 13,
+    poolRadiusShortSide: 0.035, poolFalloffExponent: 4,
+    bottomBelowSea: 0.045, landRecoveryElevation: 0.95,
+  },
+  coastal: {
+    coastThresholdX: 0.43, oceanThresholdX: 0.09, noiseOffsetFraction: 0.12,
+    noiseCenter: 0.5, incisionElevation: 0.30,
+    bottomBelowSea: 0.02, landRecoveryElevation: 0.70,
+  },
+  islands: {
+    ridgeElevation: 0.18, xWaveRadians: Math.PI * 7, yWaveRadians: Math.PI * 5,
+    noisePhaseRadians: 2, baseElevationOffset: 0.09,
+  },
+  highland: {
+    ridgeElevation: 0.20, ridgeAngleX: 18, ridgeAngleY: 9,
+    noisePhaseRadians: 2, sharpnessExponent: 4,
+  },
+  scandinavia: {
+    westStartX: 0.60, westFinishX: 0.14,
+    eastStartX: 0.40, eastFinishX: 0.86,
+    westCenterY: 0.33, eastCenterY: 0.68,
+    fjordMeanderFraction: 0.10, westWaveRadians: 8, eastWaveRadians: 7,
+    westWidthFraction: 0.06, eastWidthFraction: 0.065,
+    fjordFalloffExponent: 2, incisionElevation: 0.30,
+    bottomBelowSea: 0.02, landRecoveryElevation: 0.70,
+  },
+  meadows: { reliefScale: 0.75 },
+  oasis: {
+    springRadiusShortSide: 0.11, springFalloffExponent: 4,
+    bottomBelowSea: 0.06, landRecoveryElevation: 0.85,
+  },
+} as const;
+
 /** Deterministic spring locations shared by Arabian relief and moisture. */
 function arabianSpringCenters(cols: number, rows: number, seed: number): { x: number; y: number }[] {
-  return [0, 1, 2, 3].map(i => ({
-    x: (0.16 + 0.68 * hash2(i + 11, 17, seed + 13031)) * (cols - 1),
-    y: (0.16 + 0.68 * hash2(i + 29, 13, seed + 13031)) * (rows - 1),
+  const t = PRESET_RELIEF_TUNING.arabianSprings;
+  return Array.from({ length: t.count }, (_, i) => ({
+    x: (t.minPositionFraction + t.positionSpanFraction
+      * hash2(i + t.xHashOffset, t.xHashRow, seed + t.seedOffset)) * (cols - 1),
+    y: (t.minPositionFraction + t.positionSpanFraction
+      * hash2(i + t.yHashOffset, t.yHashRow, seed + t.seedOffset)) * (rows - 1),
   }));
 }
 
@@ -272,51 +314,81 @@ function shapePresetRelief(
   if (preset === MapPreset.BlackForest
       || preset === MapPreset.Rivers || preset === MapPreset.Continental) return;
   const shortSide = Math.min(cols, rows);
+  const detailTuning = PRESET_RELIEF_TUNING.detail;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const i = idx(x, y, cols);
       const nx = x / Math.max(1, cols - 1);
       const ny = y / Math.max(1, rows - 1);
-      const detail = fbm(x * 0.07, y * 0.07, seed + 15551, { octaves: 3 });
+      const detail = fbm(
+        x * detailTuning.cyclesPerCell,
+        y * detailTuning.cyclesPerCell,
+        seed + detailTuning.seedOffset,
+        { octaves: detailTuning.octaves },
+      );
       const distance = Math.hypot(x - (cols - 1) / 2, y - (rows - 1) / 2) / shortSide;
       let e = elevation[i]!;
       switch (preset) {
         case MapPreset.Arabia: {
+          const t = PRESET_RELIEF_TUNING.arabianSprings;
           let nearest = Infinity;
           for (const spring of arabianSprings) {
             nearest = Math.min(nearest, Math.hypot(x - spring.x, y - spring.y) / shortSide);
           }
-          const pool = Math.exp(-Math.pow(nearest / 0.035, 4));
-          e = Math.min(e, seaLevel - 0.045 + 0.95 * (1 - pool));
+          const pool = Math.exp(-Math.pow(nearest / t.poolRadiusShortSide, t.poolFalloffExponent));
+          e = Math.min(e, seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - pool));
           break;
         }
         case MapPreset.Coastal: {
-          const ocean = smoothRange(0.43, 0.09, nx + (detail - 0.5) * 0.12);
-          e = Math.min(e - 0.30 * ocean, seaLevel - 0.02 + 0.70 * (1 - ocean));
+          const t = PRESET_RELIEF_TUNING.coastal;
+          const ocean = smoothRange(
+            t.coastThresholdX, t.oceanThresholdX, nx + (detail - t.noiseCenter) * t.noiseOffsetFraction,
+          );
+          e = Math.min(e - t.incisionElevation * ocean,
+            seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - ocean));
           break;
         }
-        case MapPreset.Islands:
-          e += 0.18 * Math.sin(nx * Math.PI * 7 + detail * 2)
-            * Math.sin(ny * Math.PI * 5 - detail * 2) - 0.09;
+        case MapPreset.Islands: {
+          const t = PRESET_RELIEF_TUNING.islands;
+          e += t.ridgeElevation * Math.sin(nx * t.xWaveRadians + detail * t.noisePhaseRadians)
+            * Math.sin(ny * t.yWaveRadians - detail * t.noisePhaseRadians) - t.baseElevationOffset;
           break;
-        case MapPreset.Highland:
-          e += 0.20 * Math.pow(Math.abs(Math.sin(nx * 18 + ny * 9 + detail * 2)), 4);
+        }
+        case MapPreset.Highland: {
+          const t = PRESET_RELIEF_TUNING.highland;
+          e += t.ridgeElevation * Math.pow(
+            Math.abs(Math.sin(nx * t.ridgeAngleX + ny * t.ridgeAngleY
+              + detail * t.noisePhaseRadians)), t.sharpnessExponent,
+          );
           break;
+        }
         case MapPreset.Scandinavia: {
-          const west = smoothRange(0.60, 0.14, nx)
-            * Math.exp(-Math.pow((ny - 0.33 - 0.10 * Math.sin(nx * 8)) / 0.06, 2));
-          const east = smoothRange(0.40, 0.86, nx)
-            * Math.exp(-Math.pow((ny - 0.68 - 0.10 * Math.sin(nx * 7)) / 0.065, 2));
+          const t = PRESET_RELIEF_TUNING.scandinavia;
+          const west = smoothRange(t.westStartX, t.westFinishX, nx)
+            * Math.exp(-Math.pow(
+              (ny - t.westCenterY - t.fjordMeanderFraction * Math.sin(nx * t.westWaveRadians))
+                / t.westWidthFraction, t.fjordFalloffExponent,
+            ));
+          const east = smoothRange(t.eastStartX, t.eastFinishX, nx)
+            * Math.exp(-Math.pow(
+              (ny - t.eastCenterY - t.fjordMeanderFraction * Math.sin(nx * t.eastWaveRadians))
+                / t.eastWidthFraction, t.fjordFalloffExponent,
+            ));
           const fjord = Math.max(west, east);
-          e = Math.min(e - 0.30 * fjord, seaLevel - 0.02 + 0.70 * (1 - fjord));
+          e = Math.min(e - t.incisionElevation * fjord,
+            seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - fjord));
           break;
         }
-        case MapPreset.Meadows:
-          e = seaLevel + (e - seaLevel) * 0.75;
+        case MapPreset.Meadows: {
+          e = seaLevel + (e - seaLevel) * PRESET_RELIEF_TUNING.meadows.reliefScale;
           break;
+        }
         case MapPreset.Oasis: {
-          const spring = Math.exp(-Math.pow(distance / 0.11, 4));
-          e = Math.min(e, seaLevel - 0.06 + 0.85 * (1 - spring));
+          const t = PRESET_RELIEF_TUNING.oasis;
+          const spring = Math.exp(-Math.pow(
+            distance / t.springRadiusShortSide, t.springFalloffExponent,
+          ));
+          e = Math.min(e, seaLevel - t.bottomBelowSea + t.landRecoveryElevation * (1 - spring));
           break;
         }
         default:
