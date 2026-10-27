@@ -28,6 +28,7 @@ import {
   getPlayerSettlerCenter,
 } from '../src/game/frontierCombat';
 import { clearAllFactionWanderStates } from '../src/game/factionWander';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 import { getCalendarDay, getColonyDay, setHumanBirthFromAge, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
@@ -159,7 +160,11 @@ interface Fixture {
  * anchor answers.
  */
 function anchorFixture(withHall: boolean): Fixture {
-  const world = initGame({ villageName: 'Anchor', size: MapSize.Medium, seed: FIXTURE_SEED });
+  const world = initGame({
+    villageName: 'Anchor', size: MapSize.Medium, seed: FIXTURE_SEED, skipTerrain: true,
+  });
+  // The anchor test needs flat walkable ground, not a particular random biome.
+  world.worldMap = testWorldMap({ tilesX: 128, tilesY: 96, seed: FIXTURE_SEED });
   world.tick = WORK_TICK;
   world.dayInYear = getCalendarDay(WORK_TICK);
 
