@@ -764,7 +764,16 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const centerX = camp.x;
   const centerY = camp.y;
 
-  spawnBlueberryTrees(state, size, centerX, centerY, isPassableWildlifePosition);
+  spawnBlueberryTrees(
+    state, size, centerX, centerY,
+    (world, x, y, margin) => {
+      if (!isPassableWildlifePosition(world, x, y, margin)) return false;
+      if (world.worldMap?.generationVersion !== 2) return true;
+      const biome = getTileAtWorld(world, x, y)?.type;
+      return biome === TerrainType.Forest || biome === TerrainType.DarkForest
+        || biome === TerrainType.Grassland;
+    },
+  );
 
   const surname = getRandomSurname();
   const motherMaidenSurname = getRandomSurname();
