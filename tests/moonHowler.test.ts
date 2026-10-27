@@ -309,6 +309,34 @@ describe('moonHowler.exorcism.test.ts', () => {
       expect(f.priest.title).toBe('Howlerbane');
     });
 
+    it('a priest who holds elected office retains the leader title after a cured rite', () => {
+      const f = exorcismFixture(150);
+      f.state.villageLeaderId = f.priest.id;
+      f.priest.occupation = LEADER_OCCUPATION;
+      const res = tryMoonHowlerChurchCures(
+        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        new Map(f.entities.map((e) => [e.id, e])), () => 0.1,
+      );
+      expect(res.outcome).toBe('cured');
+      expect(f.priest.job).toBe(JobType.Priest);
+      expect(f.priest.workerBuildingId).toBe(f.church.id);
+      expect(f.priest.occupation).toBe(LEADER_OCCUPATION);
+    });
+
+    it('a priest who holds elected office retains the leader title after a failed rite', () => {
+      const f = exorcismFixture(150);
+      f.state.villageLeaderId = f.priest.id;
+      f.priest.occupation = LEADER_OCCUPATION;
+      const res = tryMoonHowlerChurchCures(
+        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        new Map(f.entities.map((e) => [e.id, e])), () => 0.9,
+      );
+      expect(res.outcome).toBe('priest_fled');
+      expect(f.priest.alive).toBe(true);
+      expect(f.priest.workerBuildingId).toBe(f.church.id);
+      expect(f.priest.occupation).toBe(LEADER_OCCUPATION);
+    });
+
     it('a nearby Barracks Soldier rolls to save the priest (extra roll, not guaranteed)', () => {
       const f = exorcismFixture(150);
       // Soldier within MOON_HOWLER_GUARD_PROTECT_RANGE of the priest at (100,100).
