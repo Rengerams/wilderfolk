@@ -37,8 +37,6 @@ import { logEvent } from './eventLog';
 // The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
 // leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
 
-export { isFootprintOnBuildableTerrain } from './placementUtils';
-
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
   placeType: BuildingType,
