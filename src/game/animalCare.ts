@@ -12,6 +12,8 @@ import { addNotification } from './simEffects';
 import { spendFood } from './economyLedger';
 import { ensureEntityByIdMap } from './entityIndex';
 import { Human, Animal } from './gameConstants';
+import { isPlayerHuman } from './playerHuman';
+import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 const FLAG_FED_DAY = 'animal_care_fed_day';
 const FLAG_STATUS = 'animal_care_status';
@@ -102,7 +104,12 @@ export function tickAnimalCare(state: WorldState): void {
         entityById.get(animal.tamedBy) ??
         state.entities.find((h) => h.alive && h.type === EntityType.Human && h.id === animal.tamedBy);
       if (owner?.alive && owner.type === EntityType.Human) {
-        owner.energy = Math.min(owner.maxEnergy, owner.energy + TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+        if (isPlayerHuman(owner)) {
+          adjustHumanStaminaFromEnergy(owner, TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+        } else {
+          // Preserve legacy energy semantics for foreign owners.
+          owner.energy = Math.min(owner.maxEnergy, owner.energy + TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+        }
       }
     }
     return;
