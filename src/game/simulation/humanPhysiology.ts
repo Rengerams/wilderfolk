@@ -126,12 +126,17 @@ export function creditHumanNutritionFromFood(entity: Entity, foodUnits: number):
   if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
 }
 
-/** Convert a legacy-sized stamina benefit without writing a second energy owner. */
-export function creditHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
-  if (!Number.isFinite(energyPoints) || energyPoints <= 0) return;
+/** Convert a legacy-sized stamina effect without writing a second energy owner. */
+export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
+  if (!Number.isFinite(energyPoints) || energyPoints === 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
   needs.stamina = bounded(needs.stamina + energyPoints / Math.max(1, entity.maxEnergy) * 100, 0);
   entity.energy = entity.maxEnergy * needs.stamina / 100;
+}
+
+/** Positive-only treatment, comfort or relationship benefit. */
+export function creditHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
+  if (energyPoints > 0) adjustHumanStaminaFromEnergy(entity, energyPoints);
 }
 
 export type HumanNeedsIntent = 'eat' | 'sleep' | 'takeBreak' | 'continueActivity';
