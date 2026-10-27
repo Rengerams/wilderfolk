@@ -267,6 +267,11 @@ export function spawnGrassPatch(
 
     if (gx < 0 || gx > width || gy < 0 || gy > height) continue;
     if (state.worldMap && !isPassableWildlifePosition(state, gx, gy, 4)) continue;
+    if (state.worldMap?.generationVersion === 2) {
+      const biome = getTileAtWorld(state, gx, gy)?.type;
+      if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+          && biome !== TerrainType.Grassland && biome !== TerrainType.RiverBank) continue;
+    }
 
     const grass = createEntity(
       EntityType.Grass,
@@ -712,6 +717,11 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       const tx = cx + Math.cos(angle) * dist;
       const ty = cy + Math.sin(angle) * dist;
       if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
+      if (state.worldMap?.generationVersion === 2) {
+        const biome = getTileAtWorld(state, tx, ty)?.type;
+        if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+            && biome !== TerrainType.Grassland) continue;
+      }
       const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
       state.entities.push(tree);
       indexLivingEntity(state, tree);
