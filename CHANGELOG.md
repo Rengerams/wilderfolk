@@ -9,9 +9,9 @@
 
 - **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added focused/offscreen meal equivalence, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
 
-- **Changed (#62):** Auto-play now reads a contiguous 3–7-day actual food-production/consumption trend before increasing agricultural capacity or voluntarily recruiting more settlers; a sustained deficit prioritizes conservative food production and suspends discretionary recruitment. Separate tests prove stale/missing history cannot masquerade as a measured shortage.
+- **Changed (#62):** Auto-play uses three to seven consecutive days of recorded food supply and demand to decide farm expansion. Persistent deficits pause optional recruitment; sparse or stale data is not treated as evidence.
 
-- **Changed (#62):** Audited redundant physiology wrappers and meal-constant aliases, registered the needs schema/config and public owners, and documented the single-authority pipeline and acceptance matrix in `docs/HUMAN_NEEDS_ARCHITECTURE.md`.
+- **Changed (#62):** Removed redundant physiology wrappers and meal aliases, registered sole function owners, and documented the human-needs pipeline and acceptance gates.
 
 - **Fixed:** Physiological stamina now retains leisure, sick-day, graduation, birth recovery, hunting and disaster effects instead of losing legacy energy writes on the next human tick; hospital medicine spends through the one food ledger.
 
