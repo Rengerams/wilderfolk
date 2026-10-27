@@ -13,6 +13,7 @@ import {
 import { getMultiplier, hasTech } from './simHelpers';
 import { getSimRng } from './simRng';
 import { spendFood } from './economyLedger';
+import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
 type DisasterType = 'fire' | 'flood' | 'plague' | 'tornado' | 'earthquake';
 
@@ -365,8 +366,7 @@ export function updateDisasters(state: WorldState): void {
           }
         } else {
           if (e.needs) {
-            e.needs.stamina = Math.max(0, e.needs.stamina - 100 / Math.max(1, e.maxEnergy) * 100);
-            e.energy = e.maxEnergy * e.needs.stamina / 100;
+            adjustHumanStaminaFromEnergy(e, -100);
           } else {
             e.energy = Math.max(0, e.energy - 100);
           }
