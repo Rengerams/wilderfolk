@@ -247,6 +247,19 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
+  it('upgrades staffed farm production instead of constructing unstaffable farms when food flow is negative', () => {
+    const colony = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 25 }, consumed: { meals: 90 },
+      })),
+    }, { mills: 0, farms: 2 });
+
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'upgradeBuilding', buildingId: 300 });
+    expect(decision?.reason).toContain('food production');
+  });
+
   it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
     // Owner report 1: ~18 settlers, 0 stone, wood and gold in store, beds free.
     const unmanned = ownerColony(18, {
