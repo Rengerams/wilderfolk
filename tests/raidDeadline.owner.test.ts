@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { formatRaidDeadline, getRaidExpiresAtTick, resolveRaidVictory, provokeRival } from '../src/game/frontierCombat';
 import { initGame } from '../src/game/worldGen';
+import { human } from '../src/test/factories';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import type { RaidEvent } from '../src/game/gameTypes';
 
@@ -85,6 +86,42 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
     }];
     return world;
   }
+
+  it.each([
+    { choice: 'mercy', fierce: 8, empathetic: 1, expected: -4 },
+    { choice: 'raze', fierce: 8, empathetic: 1, expected: 4 },
+    { choice: 'tribute', fierce: 8, empathetic: 1, expected: 2 },
+    { choice: 'mercy', fierce: 1, empathetic: 8, expected: 2 },
+    { choice: 'raze', fierce: 1, empathetic: 8, expected: -2 },
+    { choice: 'tribute', fierce: 1, empathetic: 8, expected: -1 },
+  ] as const)('evaluates $choice from village context rather than assigning a moral reward', ({ choice, fierce, empathetic, expected }) => {
+    const world = victoriousWorld();
+    world.entities = Array.from({ length: 12 }, (_, index) => human(940000 + index));
+    world.humanPopulation = world.entities.length;
+    world.villageLeaderId = world.entities[0].id;
+    world.rivalSettlements[0].atWarWithPlayer = true;
+    world.entities.forEach((person, index) => {
+      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+    });
+    const startingReputation = world.villageReputation;
+    const settled = resolveRaidVictory(world, 'unique-raid', choice);
+    expect(settled.entities[0].battleLeadershipMerit ?? 0).toBe(expected);
+    expect(settled.villageReputation).toBe(Math.max(0, Math.min(100, startingReputation + expected)));
+    expect(resolveRaidVictory(settled, 'unique-raid', choice)).toBe(settled);
+  });
+
+  it('disallows repeat or trivial-camp election farming for all settlement dispositions', () => {
+    const world = victoriousWorld();
+    world.entities = [human(940000, { traits: ['fierce'] })];
+    world.humanPopulation = 1;
+    world.villageLeaderId = 940000;
+    world.rivalSettlements[0].atWarWithPlayer = true;
+    world.pendingRaidVictories![0].credibleThreat = false;
+    const oldReputation = world.villageReputation;
+    const resolved = resolveRaidVictory(world, 'unique-raid', 'raze');
+    expect(resolved.entities[0].battleLeadershipMerit ?? 0).toBe(0);
+    expect(resolved.villageReputation).toBe(oldReputation);
+  });
 
   it('declares a persistent war and ends it when the defeated camp is spared', () => {
     const state = victoriousWorld();
