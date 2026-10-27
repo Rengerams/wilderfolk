@@ -544,6 +544,11 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // The Mill is a passive boost to *all* food producers. Its tech, materials
   // and placement still go through the respective game owners.
   if (measuredDeficit && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
+    && isBuildingTechUnlocked(
+      BUILDING_CONFIGS[BuildingType.Mill].unlockRequirement!,
+      state.unlockedTechs,
+      state.researchNodes,
+    )
     && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Mill].cost)) {
     const spot = findPlacementSpot(state, BuildingType.Mill, 0);
     if (spot) {
@@ -591,6 +596,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     ]
     : FOOD_PRODUCER_TYPES;
   for (const type of foodCandidates) {
+    const requirement = BUILDING_CONFIGS[type].unlockRequirement;
+    if (requirement && !isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) continue;
     if (!shortOnFood && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
