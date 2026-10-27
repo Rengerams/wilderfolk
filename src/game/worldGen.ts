@@ -710,25 +710,25 @@ export function initGame(options: InitGameOptions = {}): WorldState {
 
   // 4. Tree Clusters & Forest Fills
   if (state.worldMap?.generationVersion !== 3) {
-  for (let c = 0; c < 12; c++) {
-    const cx = width * 0.12 + simRandom() * width * 0.76;
-    const cy = height * 0.12 + simRandom() * height * 0.76;
-    for (let i = 0; i < 14; i++) {
-      const angle = simRandom() * Math.PI * 2;
-      const dist = simRandom() * 72;
-      const tx = cx + Math.cos(angle) * dist;
-      const ty = cy + Math.sin(angle) * dist;
-      if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
-      if ((state.worldMap?.generationVersion ?? 1) >= 2) {
-        const biome = getTileAtWorld(state, tx, ty)?.type;
-        if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
-            && biome !== TerrainType.Grassland) continue;
+    for (let c = 0; c < 12; c++) {
+      const cx = width * 0.12 + simRandom() * width * 0.76;
+      const cy = height * 0.12 + simRandom() * height * 0.76;
+      for (let i = 0; i < 14; i++) {
+        const angle = simRandom() * Math.PI * 2;
+        const dist = simRandom() * 72;
+        const tx = cx + Math.cos(angle) * dist;
+        const ty = cy + Math.sin(angle) * dist;
+        if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
+        if ((state.worldMap?.generationVersion ?? 1) >= 2) {
+          const biome = getTileAtWorld(state, tx, ty)?.type;
+          if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+              && biome !== TerrainType.Grassland) continue;
+        }
+        const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
+        state.entities.push(tree);
+        indexLivingEntity(state, tree);
       }
-      const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
-      state.entities.push(tree);
-      indexLivingEntity(state, tree);
     }
-  }
   }
 
   if (state.worldMap) {
@@ -761,22 +761,22 @@ export function initGame(options: InitGameOptions = {}): WorldState {
         }
       }
     } else {
-    for (let ty = 0; ty < map.height; ty += 2) {
-      for (let tx = 0; tx < map.width; tx += 2) {
-        const t = tileAt(map, tx, ty);
-        if (!t) continue;
-        const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
-        if (!isForest || simRandom() > 0.22) continue;
-
-        const px = (tx + 0.35 + simRandom() * 0.3) * tw;
-        const py = (ty + 0.35 + simRandom() * 0.3) * th;
-        if (!isPassableWildlifePosition(state, px, py, 4)) continue;
-
-        const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
-        state.entities.push(tree);
-        indexLivingEntity(state, tree);
+      for (let ty = 0; ty < map.height; ty += 2) {
+        for (let tx = 0; tx < map.width; tx += 2) {
+          const t = tileAt(map, tx, ty);
+          if (!t) continue;
+          const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
+          if (!isForest || simRandom() > 0.22) continue;
+  
+          const px = (tx + 0.35 + simRandom() * 0.3) * tw;
+          const py = (ty + 0.35 + simRandom() * 0.3) * th;
+          if (!isPassableWildlifePosition(state, px, py, 4)) continue;
+  
+          const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
+          state.entities.push(tree);
+          indexLivingEntity(state, tree);
+        }
       }
-    }
 
     }
   }
