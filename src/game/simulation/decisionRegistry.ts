@@ -46,6 +46,8 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'humanPhysiology'
+  | 'humanMeals'
   | 'workforce'
   | 'housing'
   | 'construction'
@@ -61,6 +63,39 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  humanPhysiology: {
+    owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy',
+    cadence: 'realtime',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection.',
+    writes: [
+      'human.needs',
+      'human.needs.nutrition',
+      'human.needs.rest',
+      'human.needs.stamina',
+      'human.needs.severeHungerTicks',
+      'human.needs.lastAdvancedTick',
+      'human.needs.sleepRecoveryUntilTick',
+      'human.needs.breakUntilRecovered',
+      'human.needs.nightDutyRecoveryPending',
+      'human.energy (derived projection)',
+    ],
+    scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts',
+  },
+  humanMeals: {
+    owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killForeignCaptiveFromExhaustion, killFromStarvation, fract, freeHuntFoodGain, humanEnergyLoss',
+    cadence: 'realtime',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner.',
+    writes: [
+      'resources.food',
+      'economyLedger.consumed.meals',
+      'human.needs.lastMealTick',
+      'foreignCaptive.energy',
+      'human.alive (via delegated death action)',
+    ],
+    scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killForeignCaptiveFromExhaustion / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain',
+    testFile: 'tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.calibration.test.ts',
+  },
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActions.assignIdleWorkerToBuilding',
     cadence: 'assignment',
