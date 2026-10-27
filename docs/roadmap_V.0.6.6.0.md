@@ -3,6 +3,8 @@
 **Target version:** 0.6.6.0  
 **Scope:** Raid gameplay, settlement destruction and recovery, player choices, valley diplomacy, named battle casualties, and leadership merit.
 
+**Acceptance policy (27 October 2026): merged = accepted** in Wilderfolk. A merged PR is accepted work, even when broader release-level testing or further enhancements remain. See [§23](#23-overhaul-acceptance-register--27-october-2026) for the actual merged code and additions.
+
 ## 1. Design goals
 
 A raid should create a story rather than merely subtract resources. Players should understand why they won or lost, know who died, make consequential decisions after winning, and have meaningful recovery choices after a defeat.
@@ -26,6 +28,18 @@ Each raid progresses through explicit states:
 - The live raid overview gives readable phase-by-phase updates, current estimated strength, defending forces, fortifications, losses and stakes.
 - The final outcome is resolved once by the combat owner and written to the Chronicle. Do not reapply casualties, loot or rewards when loading or reopening an interface.
 - Battles need not become tactical minigames; the existing simulation decides combat, while the UI explains it.
+
+### 2.1 Strategic neighbors — confirmed scope (26 October 2026)
+
+- Settlements belong only to the world map. Founding must never add rival buildings or settlers to the player's village map.
+- Allow at most **six friends and rivals combined** through one authoritative creation guard. Friendly diplomacy does not free a slot.
+- The existing daily rival owner supplies founding opportunities from colony day 10, every 30 days, when at least six player settlers are alive. Keep the general yearly event pool separate.
+- Existing saves retain settlement IDs, populations, relationships, treaties and pending outcomes. Colonies without neighbors can acquire them on a future founding opportunity without restarting.
+- Preserve older saves with more than six settlements; block additional founding instead of deleting existing neighbors.
+- [x] Implement strategic-only founding and the combined cap; cover daily game-tick integration, capacity and real save/load regression cases.
+- [ ] Verify the live world-map UI in browser and Windows desktop builds; automated checks alone do not complete this gameplay gate.
+- [x] Advance incoming and outgoing battles on game-hour ticks over six game hours, independently of daily rival growth and diplomacy; persist midpoint casualties and reserved troops.
+- [x] Release deployments when expeditions are cancelled or their rival is razed; peace clears declared-war state.
 
 ## 3. Battle outcomes and settlement survival
 
@@ -182,7 +196,21 @@ Implement inside the existing game owners where possible; avoid parallel raid or
 9. **Save migration:** consider saves containing enemy graves or already-pending raid outcomes and design safe defaults rather than silently erasing records.
 10. **Versioning/docs:** ship this only when verified; move future features from this roadmap into v0.6.6.0 release notes once working.
 
+### Implementation checkpoint — 26 October 2026
+
+The existing combat, prison, election, worker and save owners now handle hourly incoming/outgoing battles, durable reports and victory decisions, bounded leadership rewards, recovery and terminal settlement state. Recovery requires actual food and repair progress; destruction requires a razing intent and a breached last defense, not strength ratio alone.
+
+Only identifiable adult enemy soldiers can become prisoners, subject to real cells and escorts. Release and escape preserve living identities; recruitment requires consent, capacity and housing; execution requires confirmation and does not create player graves. Mercy, tribute and razing retain their existing consequences and add bounded witnessed diplomatic memory. Legacy saves receive safe defaults while retaining old grave history.
+
+Audit corrections preserve midpoint casualties in surrender choices and final announcements after normal tick cleanup and reload. Overlapping defeats retain the highest outstanding repair and food targets; completing repairs early does not cancel the seven-day raid protection. Natural captive deaths close custody history and never create village graves, while executions remain distinct.
+
+Mass destruction uses one building-removal batch and one housing/staffing/storage reconciliation, with bounded visual effects. The live troop count uses a single cached population pass, and captive housing availability is calculated once per world update. An opt-in lifecycle benchmark (`WARFARE_PERF_OUTPUT`) exercises 100/400/1,000 damaged structures through the real raid owner. A local 12-inhabitant run reduced 1,000-structure destruction from about 167 ms to under 3 ms; this is a focused measurement, not a large-colony or Windows acceptance result. These changes do not complete the large-colony performance gate.
+
+Automated lifecycle and migration checks cover these transitions. Browser checks exercise recovery, terminal export and captive decisions through the normal load interface. The checklist below remains the release acceptance gate: Windows desktop playthroughs and large-colony performance/soak validation are still outstanding.
+
 ## 9. Test and acceptance checklist
+
+**PR #58 merged and is accepted (26 October 2026).** The still-open entries in this checklist are release-wide verification goals (including Windows and large-colony testing), not a claim that the merged raid overhaul was rejected.
 
 - [ ] Incoming raid repelled: appropriate losses and supplies; no settlement destruction.
 - [ ] Incoming defeat: village survives with persistent, recoverable damage.
@@ -376,6 +404,8 @@ The valley remembers **how a victory was handled**, not just who won:
 
 The player should be able to build an attractive, connected settlement where roads genuinely guide travel and walls and towers genuinely defend it. Construction must feel precise and rewarding: visually connected pieces, useful previews, understandable costs, and predictable behavior after placement.
 
+**PR #59 merged and is accepted (27 October 2026), with corrective PRs #65 and #66 also merged.** Road terrain policy, physical junction footprints, bridge-only water clearance, exact road-surface speed, gate replacement accounting and legacy infrastructure round trips are implemented. The annual check, scripts typecheck and three-zoom browser inspection now pass; full responsiveness at 1,800 settlers and a real historical save are not required for this PR; test evidence is recorded in the infrastructure implementation brief.
+
 ### 13.1 Road building and editing
 
 - Support intuitive **click-and-drag road painting** with straight runs, corners and optional route preview; avoid having to place every individual tile.
@@ -550,12 +580,12 @@ Suggested implementation sequence to reduce integration risk:
 
 1. **Foundation:** benchmarks, event IDs, stable save migrations and shared typed APIs for traits, pathfinding and outcomes.
 2. **Simulation reliability:** incremental caches, performance profiling and save/load regression coverage.
-3. **Infrastructure:** road construction, connections, gates, walls and tower interactions.
-4. **Village life:** districts, logistics, careers and personality-driven priorities.
+3. **Infrastructure:** road construction, connections, gates, walls and tower interactions (issue #49).
+4. **Village life:** human physiology and food-economy balance (issue #61), districts, logistics, careers and personality-driven priorities.
 5. **Warfare:** raid states, prisoner decisions, diplomacy, leadership merit and consequences.
 6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
 
-Split these milestones into independently testable changes with regression coverage and save compatibility checks.
+Split these milestones into independently testable changes with regression coverage and save compatibility checks. **Accepted foundation PRs:** #40 (housing), #58 (warfare), #59/#65/#66 (roads, walls and gates), #62 (human needs), #63 (terrain), #64 (state-copy performance), #67 (ownership cleanup), #68 (compatibility migration). Later release goals are distinct from acceptance of these merged PRs.
 
 
 ## 21. Code-audited performance targets and developer-only diagnostics
@@ -617,4 +647,103 @@ Split these milestones into independently testable changes with regression cover
 - [x] **21.5 (bundling):** conditionally import developer panels only in development. Verify production output contains neither panel's unique UI strings.
 - [ ] Remaining: browser/Windows timing profiles, production `?debug=1` live smoke test, long-run raid/school benchmarks, incremental terrain topology updates, worker transfer profiling, and remaining staffing/housing spikes. These are not marked complete by this checkpoint.
 
+**Accepted PR #64 (merged 27 October 2026):** configuration updates avoid whole-world clones, worker deltas omit unchanged history slices based on fingerprints, saves avoid an extra world copy and rollback has a profiler stage. These are verified implementation locations, **not** a measured FPS gain. Match small/large/history-heavy saved colonies and compare p50/p95/p99, payload size and command latency before changing rollback architecture. See `docs/plans/world-copy-optimization-2026-10-27.md`.
+
 Measurements and limitations: `docs/plans/performance-roadmap-2026-10-20.md`.
+
+
+### Housing architecture checkpoint — 25 October 2026 (PR #40)
+
+This is a cross-cutting housing dependency for the release, not a new warfare feature. The implementation contract and detailed rules live in [docs/HOUSING_ARCHITECTURE.md](docs/HOUSING_ARCHITECTURE.md); do not duplicate the full design in this roadmap.
+
+- [x] Consolidate ordinary housing decisions into the ordered `assignMissingResidences` pipeline with a shared `HousingLedger`: leader hold, integrity, guardianship, capacity, homeless placement, adult-child independence and commute optimization. Immediate leadership transitions retain a dedicated leader-only entry through the same move owner.
+- [x] Route load, immigration and player residence reconciliation through the leader phase within the full housing ledger. Preserve prisoners' beds when capacity is rebalanced.
+- [x] Set the original Leader's House to 20 fixed beds and allow at most one explicitly linked overflow annex after the main residence exceeds 20 occupants; do not promote an orphan annex to primary. The elected leader remains assigned to the original building.
+- [x] Add targeted regression coverage for prisoner-bed retention, fixed manor capacity, overflow-annex eligibility and orphan-link handling; register helper ownership and update architectural documentation/changelog.
+- [ ] **Post-merge regression confidence:** rerun current-`main` Node.js CI, housing performance, the 100-day producer scenario (seed 12345) and restocked scenario (seed 67890), and verify zero housing invariants. These are evidence follow-ups, not conditions that reverse acceptance of merged PR #40.
+- [ ] **Integration proof:** exercise primary + linked annex at 21+ occupants across construction/completion, leader succession, demolition/orphan handling, and full game save/load (not only a JSON object roundtrip). Verify the leader retains the primary home, guardianship and occupancy remain consistent.
+- [ ] **Architecture enforcement:** verify every production residence writer is owned by the housing layer, and add regression/static coverage for unintended direct `residenceBuildingId` writes or duplicate housing schedulers. Do not equate passing unit tests with a completed repository-wide writer audit.
+
+**Accepted:** PR #40 merged into `main` on 26 October 2026 (with follow-up #56 merged the same day). The housing overhaul is accepted; unchecked items above are extra verification or refinement targets, not an unmerged PR.
+
+
+### High priority — Roads, walls, gates and navigation overhaul (Issue #49; 26 October 2026)
+
+**Status: [x] MERGED AND ACCEPTED (27 October 2026; PR #59).** Follow-up fixes #65/#66 are also merged. The recorded PR validation includes 2,436 passing tests, annual integration and three-zoom visual checks; this is historical PR evidence, not a new current-main CI claim. [Issue #49](https://github.com/Rengerams/wilderfolk/issues/49) is the authoritative technical audit and implementation contract, with the owner-approved scope changes recorded in the implementation brief. One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
+
+- [x] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
+- [x] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.
+- [x] **Terrain:** permit roads on ordinarily walkable ground without treating them as building foundations; retain impassable cliffs and water restrictions and explicit bridge rules.
+- [x] **Wall construction and gates:** easy continuous drag walls with exact visual/logical connections; insert gates into existing wall segments without manual demolition. Invalid insertion leaves the original wall intact.
+- [x] **Navigation correctness:** completed walls are impassable except through genuine openings/gates; no diagonal clipping, smoothing shortcuts or blocked-path straight-line fallback. No-path cases must stop or use established unreachable-target recovery.
+- [x] **Road travel benefit:** existing `ROAD_SPEED_MULT` applies only while traversing roads/bridges. Choose the fastest valid route using actual traversal costs, not simply the geometrically shortest line; preserve bounded-search performance, caching and determinism.
+- [x] **Bulk demolition:** single drag for many road/wall segments; one authoritative batch operation with accurate refunds, affected topology/collision/routes updated and ordinary buildings protected.
+- [x] **Rendering and assets:** topology-driven natural paths and connected defensive walls, including all corner/junction/end forms. Investigate current sprites first; any replacement assets must cost €0 and have verified commercial/redistribution licenses and appropriate registration.
+- [x] **Compatibility and scale:** keep older infrastructure saves loadable and IDs stable; validate deterministic rebuilding and repeat save/load, without requiring a real historical save or a full responsiveness benchmark at 1,800 settlers for this PR. Preserve established performance budgets and avoid new global per-tick A* scans.
+- [x] **Single validation/merge gate:** test drag building/demolition, junctions, wall enclosure and gate traversal, road speed/path choices, worker commands, refunds, saves, simulation invariants, performance and full required CI. Update ownership docs, changelog and asset register where applicable.
+
+**Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
+
+**Definition of done:** connected roads work visually and logically; enclosed walls actually block movement; gates are passable; roads provide measured travel benefits; click-and-drag build and demolition are responsive; saves and performance remain sound. PR #59 and fixes #65/#66 are accepted; see the implementation brief for validation. The larger §13 aspirations, including richer tower/raid interactions and full 1,800-settler responsiveness, remain separate work.
+
+## 22. Human needs and food economy — Issue #61 (26 October 2026)
+
+**Priority:** high. **Status: [x] MERGED AND ACCEPTED (27 October 2026; PR #62).** [Issue #61](https://github.com/Rengerams/wilderfolk/issues/61) preserves the original design and [PR #62](https://github.com/Rengerams/wilderfolk/pull/62) contains the accepted implementation. Unchecked items below are post-merge validation/extension targets, **not** an unaccepted or draft PR.
+
+**Goal:** replace the combined player-human `energy` hunger/exhaustion model with three independent, serialized needs (**nutrition**, **rest**, **stamina**) integrated into existing health, activity, attendance, work output, food, death, persistence and UI. Preserve nonhuman energy rules and prevent visitors/rivals from charging the player's larder.
+
+### 22.1 One authoritative physiology and behavior pipeline
+
+- [x] **Audit and mini-RFC:** inspect active owners and every player-human `energy` writer/reader, meal rule, sleep condition, attendance/production effect, `scheduleFatigue`, worker boundary and save migration. Register each owner in the ownership overview. No parallel needs engine.
+- [x] **Canonical saved state:** bounded, normalized 0–100 nutrition/rest/stamina with old-save migration, deterministic worker delta/save round-trip and explicit Moonhowler/human transformation behavior. Do not save redundant derived statuses or keep two writable stamina representations.
+- [x] **Exactly one update per interval:** advance physiology from observed elapsed sim time, duty, activity/movement and *verified* sleep once per player human before offscreen throttling. Ensure fast-forward, camera visibility, save/reload and worker execution cannot change physiological or food outcomes.
+- [x] **Distinct effects:** nutrition drains over time and effort, food restores only nutrition; rest drains while awake and recovers only during eligible sleep, including off-shift sleep; stamina drains with exertion and recovers through actual breaks/inactivity/sleep. No instant death from one missed meal, zero stamina, or lack of sleep.
+- [x] **Decision/action split:** deterministic nutrition, sleep and break intents with enter/exit thresholds and hysteresis; existing movement, emergency, labor, housing/hotel occupancy, ledger, hospital and death owners enforce feasible actions. Avoid repeated eating, fake sleep, flickering intents and lost emergency priorities.
+- [x] **Work/health integration (implemented; further long-run tuning remains):** retain real attendance, `scheduleFatigue` as a distinct workload measure, and appropriate health/production consequences without stacking duplicate fatigue penalties. Reconcile legacy perks, wounds, exposure, wells and activity modifiers.
+- [ ] **Additional edge-case regression coverage:** test children, adult/aging changes, shifts (tavern, hotel, hospital, guard, prison, moon priest), school, sickness, combat, long routes, sleeping without beds, transformed humans and offscreen workers; existing nonhuman systems must remain unchanged.
+
+### 22.2 Food economy and quantitative calibration
+
+- [x] **Atomic meals:** one successful inventory debit in the existing food ledger restores nutrition exactly once; failed meals do nothing. Replace the legacy energy-threshold meal rule, prevent repeated per-tick consumption and eliminate duplicate daily food charges.
+- [ ] **Further long-run quantitative calibration:** tune nutrition consumption, meal quantities, sleep loss/recovery, stamina cost/recovery and prolonged deprivation together using actual simulated schedules. Treat roughly three food units per ordinary adult per day as a hypothesis to measure, never a disguised fixed tax.
+- [x] **Production and forecast reconciliation:** derive colony food demand, production, spoilage, stock depletion, reserve-days forecast and automated farm planning from consistent parameters and observed worker output, for adults/children and special duties. Update planning/UI assumptions if actual demand differs.
+- [ ] **Publish fresh post-merge evidence:** reproducible 7-day, 30-day and full-year (360-day) scenarios for normal/rested/long-shift/night workers, families/farms, no-food, poor-sleep, travel/combat, and on/offscreen plus save/reload equivalence. Record starting/ending needs, hours worked, food stocks and flows, sickness, starvation/deaths and deviations.
+
+### 22.3 Acceptance and merge gate
+
+- [x] Present three independent needs and grounded reasons for eat/sleep/break/work interruptions in the settler inspector/status; UI must not mutate authoritative needs.
+- [x] Replace outdated energy-based meal tests with observable nutrition and ledger assertions. Add deterministic tests for worker/saves, life-form restoration, roles/shifts, bed eligibility, starvation and health progression, production/attendance, compatibility and nonhuman isolation.
+- [ ] **Post-merge current-main verification:** rerun typecheck, lint, build, source/document checks, seeded colony scenarios, performance comparisons and CI on one current `main` SHA. Do not weaken tests.
+- [x] **PR acceptance:** #62 merged into `main` on 27 October 2026 and is accepted by the project owner.
+- [ ] **Broader release hardening:** current-head 7/30/360-day food balance, remaining human-energy writer/reader audit, bed occupancy and worker/on/offscreen equivalence should still be evidenced. Historical failures do not undo acceptance.
+
+**Definition of done:** villagers eat, sleep and rest for different reasons; starvation is gradual and meaningful; work and health respond coherently; food consumed matches food planned and produced; old saves, worker mode, offscreen simulation and nonhuman energy retain their established behavior. Issue #61 is the detailed specification where this roadmap is a summary.
+
+## 23. Overhaul acceptance register — 27 October 2026
+
+**Project rule: merged = accepted.** This register describes **merged code on `main`**, not stale draft language in earlier technical briefs. The entire 0.6.6.0 release still has separate requirements; accepted PRs are not automatically evidence of unrun scenarios or performance improvements.
+
+| Area | Merged and accepted PRs | Added/changed behavior in current code | Primary references |
+| --- | --- | --- | --- |
+| Housing and families | [#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56) | Ordered housing ledger and phase pipeline; protected prisoner beds; 20-bed leader home and one linked annex; adult-child independence, deterministic divorce custody and distance-aware family relocation | [Housing architecture](docs/HOUSING_ARCHITECTURE.md), `residencyReconciliation.ts`, `leaderHouseExpansion.ts` |
+| Raids, strategic rivals, prisoners | [#58](https://github.com/Rengerams/wilderfolk/pull/58) | Up to six strategic-only rivals, six-hour incoming/outgoing battles, durable casualties, victory choice/mercy/tribute/razing, settlement recovery/destruction, captive outcomes, diplomatic memory and bounded leadership merit | `frontierCombat.ts`, `raidAftermath.ts`, `rivalSettlements.ts`, `warPrisoners.ts` |
+| Roads, walls, gates and navigation | [#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66) | Drag road/wall build and demolition, geometry-aware joins and building-entrance snapping, gate open/close and collision, A* road-cost preference and speed only on real road surfaces; corrected previews and legacy save tests | [Brief](docs/plans/roads-walls-navigation-overhaul.md), [Architecture](docs/ROADS_WALLS_NAVIGATION_ARCHITECTURE.md), `stripTopology.ts`, `pathfinding.ts` |
+| Human needs and food | [#62](https://github.com/Rengerams/wilderfolk/pull/62) | Serialized nutrition/rest/stamina for player humans, one physiology update before offscreen branching, meal ledger integration, gradual deprivation, shift/rest behavior, Moon Howler restoration, UI readouts, food-production bot/staffing fixes and regressions | [Needs architecture](docs/HUMAN_NEEDS_ARCHITECTURE.md), [PR mapping](docs/architecture/human-needs-pr62.md), `simulation/humanPhysiology.ts`, `simulation/humanNeeds.ts` |
+| Map terrain/biomes | [#63](https://github.com/Rengerams/wilderfolk/pull/63) | Map presets with distinct relief, habitats and scenery; connected waterways, consistent terrain classification, original-site production bonuses, versioned generator/save behavior, terrain regressions | [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md), `terrain/terragen.ts`, `terrain/terrainGrid.ts`, `renderer/terrain.ts` |
+| World-copy overhead | [#64](https://github.com/Rengerams/wilderfolk/pull/64) | Narrower world/building copying, fingerprinted and omitted unchanged worker histories, leaner save serialization, rollback snapshot profiling | [Optimization note](docs/plans/world-copy-optimization-2026-10-27.md), `simBuffers/simDelta.ts`, `simWorker/simPrep.ts` |
+| Canonical names, ownership, compatibility | [#67](https://github.com/Rengerams/wilderfolk/pull/67), [#68](https://github.com/Rengerams/wilderfolk/pull/68) | Removed redundant aliases, strengthened ownership/decision checks, introduced a guarded facade migration script, removed the `buildingActions.ts` and `rendererLoader.ts` compatibility-only files, rewired imports directly to owners | [Migration](docs/COMPATIBILITY_FACADE_MIGRATION.md), `OWNERSHIP_OVERVIEW.md`, `scripts/migrate-compat-facades.mjs` |
+| Indoor settler rendering | [#60](https://github.com/Rengerams/wilderfolk/pull/60) | No outdoor settler sprite while inside a building, without pausing work, healthcare or other simulation progression | `humanTick.ts` and related renderer tests |
+
+### 23.1 Remaining goals and confidence work (not reversals of acceptance)
+
+- **Human needs:** earlier PR #62 colony runs documented depleted food and workplace roster mismatch; fixes were later merged. A new *current-main* 7/30/360-day run, quantitative production/consumption balance, comprehensive legacy human-energy audit, actual bed occupancy and worker/on-screen/off-screen equivalence remain worthwhile. Keep the historical failure evidence in the architecture docs; do not claim it is a current failure or a passing latest run. Do not weaken starvation checks.
+- **Housing:** full 21+ leader/annex playthrough and save/load proof, blended-family guardianship and multistep overcrowding recovery, plus long-run relocation/churn benchmarks. PR #40/#56 stay accepted.
+- **Roads/fortifications:** issue #49 expressly removed the real historical save and 1,800-settler responsiveness as mandatory PR #59 merge gates. Large-scale route performance, detailed tower/raid-breach behavior, route-debug UX and broader §13 visual features can progress separately from its accepted scope.
+- **Terrain:** accepted map preset identity is not a claim that all seed/zoom visual playthroughs, chunk seam tests, vegetation invalidation after landscaping or renderer framerate measurement have been performed.
+- **Performance:** #64's selective copy/worker delta changes are accepted, but no measured FPS gain is claimed. Measure matched saved colonies (small, large and history-heavy) and p50/p95/p99 for rollbackSnapshot, worker extraction, frame time, transfer size and command latency before attempting a new rollback journal or changing worker parallelism.
+- **Warfare:** #58 is accepted. Full Windows/browser battle playthroughs, large-colony battle profiling, fortification interplay and the rest of §9's broader release checks remain future work.
+- **Architecture:** #67/#68 are accepted targeted cleanups, not a proof of every unnamed helper in unrelated code. Retain real logic in `buildingActionRouting.ts` and established public `gameEngine.ts`, with one canonical implementation owner for each function.
+
+### 23.2 Canonical document and audit boundary
+
+The root `roadmap_V.0.6.6.0.md` is canonical. The old `docs/roadmap_V.0.6.6.0.md` copy is synchronized with it to remove contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.

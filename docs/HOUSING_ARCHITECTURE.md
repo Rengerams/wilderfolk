@@ -1,5 +1,7 @@
 # Housing architecture — one authority, one order
 
+**Accepted implementation:** housing overhaul PR #40 merged into `main` on 26 October 2026; divorce/custody follow-up #56 also merged. Unverified long-run or edge-case work listed below is post-merge improvement, not an indication that the PR is unaccepted.
+
 The single reference for how the colony decides **who sleeps where**: the model, the pipeline, the
 relocation rules, the decisions the owner confirmed, and what is still open.
 Owner module: `src/game/residencyReconciliation.ts`.

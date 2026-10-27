@@ -1,6 +1,6 @@
 # Roads, Walls, Gates & Navigation Overhaul — implementation brief
 
-Status: implemented in PR #59; local validation passed in the owner-adjusted scope. Verification details and scope limits are recorded below.
+Status: **merged and accepted** in PR #59 (27 October 2026), followed by merged #65/#66 preview/snapping fixes. Local validation passed in the owner-adjusted scope; scope limits and historical verification details remain below.
 
 ## Required outcome
 - Click-and-drag roads and walls with seamless, deterministic connections and clear previews.

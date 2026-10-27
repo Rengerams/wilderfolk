@@ -1,5 +1,7 @@
 # Mini-RFC — Human needs overhaul (#61)
 
+**Current status (27 October 2026):** implementation PR #62 merged into `main` and is accepted. This mini-RFC preserves pre-implementation risks and tuning proposals; any remaining verification is post-merge follow-up, not a draft PR gate.
+
 **Problem:** Meals and sleep currently share the energy bar, and active/offscreen branches independently mutate it.
 
 **Minimal change:** Player humans own `Entity.needs`; a single physiology owner advances it once before per-entity simulation branches. Nonhuman `energy` remains unchanged; human `energy` is a temporary one-way compatibility projection until all downstream readers are migrated. `tryEatColonyMeal` remains the single food ledger transaction. `scheduleFatigue` remains roster fatigue, not sleep debt.
@@ -12,4 +14,4 @@
 
 **Recovery:** A critically tired off-duty settler has a eight-simulation-hour recovery window. Home rest is credited only when physically back at a completed assigned residence; a prisoner requires an actual completed prison cell. Recovery ends at 85 rest, even if the window remains. Overnight work schedules a daytime recovery intent after the shift; only actual time at an assigned, completed residence credits sleep. Night work is never itself credited as sleep.
 
-**Merge requirements still outstanding:** full energy reference migration, viable day sleep for night workers, health and productivity effects, real task-based need intents, 7/30-day and full-year measured economy balance, verified type/lint/build/tests.
+**Post-merge verification and refinements:** complete the remaining human-energy reference audit; verify day sleep for night workers, health/productivity effects and task-based intents on current code; measure 7/30/360-day economy balance and final-main type/lint/build/tests. These are not an assertion that already merged PR #62 was unaccepted.

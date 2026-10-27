@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Documentation (27 October 2026):** Reconciled the canonical and `docs/` v0.6.6.0 roadmaps against the merged code. Recorded accepted housing (#40/#56), warfare (#58), indoor rendering (#60), roads/gates (#59/#65/#66), human needs (#62), terrain (#63), world-copy optimization (#64) and function-ownership/compatibility cleanups (#67/#68), while separating remaining release-hardening tasks from PR acceptance (`merged = accepted`). Corrected stale pre-merge statuses in overhaul architecture notes.
+
 - **Changed:** Migrated building-action imports to their owning modules and removed obsolete building-action and renderer-loader TypeScript facades; added a guarded migration script.
 
 - **Fixed:** Removed redundant audio, calendar, combat and food-ration aliases; corrected module owner matching and decision-write scopes.
