@@ -181,7 +181,12 @@ describe('infrastructure acceptance boundaries', () => {
     wall.completed = true;
     wall.constructionProgress = 1;
     world.buildings.push(wall);
+    const resourcesBeforePreview = { ...world.resources };
+    const statsBeforePreview = structuredClone(world.lifetimeStats);
     const preview = buildStripPreview(world, BuildingType.WallGate, wall.x, wall.y, wall.x, wall.y, 0);
+    buildStripPreview(world, BuildingType.WallGate, wall.x, wall.y, wall.x, wall.y, 0);
+    expect(world.resources).toEqual(resourcesBeforePreview);
+    expect(world.lifetimeStats).toEqual(statsBeforePreview);
     expect(preview.segments).toHaveLength(1);
     expect(preview.segments[0]).toMatchObject({ valid: true, rotation: 90, replacesBuildingId: wall.id });
     const blocked = structuredClone(world);
