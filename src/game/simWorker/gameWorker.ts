@@ -3,10 +3,8 @@ import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTr
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 import {
-  captureSimulationState,
   hydrateWorldRuntimeCaches,
   invalidateWorldRuntimeCaches,
-  restoreSimulationState,
 } from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
 import { areNamesLoaded, loadNames } from '../nameLoader';
@@ -228,20 +226,18 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
 
-        const liveSimulationState = captureSimulationState(world);
-        invalidateWorldRuntimeCaches(world);
-        try {
-          stampWorldSimRng(world);
-          const response: WorkerResponse = {
-            type: 'exportSaveResult',
-            proto: WORKER_PROTO,
-            world,
-          };
-          self.postMessage(response);
-        } finally {
-          hydrateWorldRuntimeCaches(world);
-          restoreSimulationState(world, liveSimulationState);
-        }
+        // Only copy the shell: postMessage synchronously snapshots nested data.
+        // Never strip caches or stamp RNG on the live simulation world: a save
+        // (including a failed serialization) must not change its runtime state.
+        const exportWorld = { ...world };
+        invalidateWorldRuntimeCaches(exportWorld);
+        stampWorldSimRng(exportWorld);
+        const response: WorkerResponse = {
+          type: 'exportSaveResult',
+          proto: WORKER_PROTO,
+          world: exportWorld,
+        };
+        self.postMessage(response);
         break;
       }
 
