@@ -222,7 +222,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   if (hasContinuousFields(map)) {
     const targetStep = targetGroundStep(state.camera.zoom);
     const chunkWorld = WHITTAKER_CHUNK_SIZE;
-    const mapKey = `${map.seed}|${map.preset}|${state.width}x${state.height}|r${getTerrainRevision()}`;
+    const mapKey = `${map.seed}|${map.terrainSeed ?? ''}|v${map.generationVersion ?? 1}|${map.preset}|${state.width}x${state.height}|r${getTerrainRevision()}`;
     const key = mapKey;
     if (whittakerCacheKey !== key) {
       // A different world: the old surfaces have the wrong geometry, so they go — with their surfaces
