@@ -151,6 +151,73 @@ describe('infrastructure acceptance boundaries', () => {
     }
   });
 
+  it('keeps looping wall previews consistent with sequential placement and material costs', () => {
+    const world = initGame({ seed: 20261027 });
+    world.worldMap = testWorldMap({ tilesX: 120, tilesY: 120 });
+    world.buildings = [];
+    const tech = BUILDING_CONFIGS[BuildingType.Wall].unlockRequirement;
+    if (tech) {
+      world.unlockedTechs.push(tech);
+      world.researchNodes = world.researchNodes.map((node) => node.id === tech
+        ? { ...node, researched: true } : node);
+    }
+    world.storageMax = { ...world.storageMax, wood: 10000, stone: 10000, gold: 10000 };
+    world.resources.wood = 10000;
+    world.resources.stone = 10000;
+    world.resources.gold = 10000;
+    const stroke = [
+      { x: 120, y: 110 }, { x: 240, y: 110 },
+      { x: 240, y: 140 }, { x: 120, y: 140 },
+      { x: 120, y: 240 },
+    ];
+    const fullPreview = buildStripPreview(world, BuildingType.Wall, 120, 110, 120, 240, 0, stroke);
+    const validCount = fullPreview.segments.filter((segment) => segment.valid).length;
+    expect(validCount).toBeGreaterThan(1);
+    expect(fullPreview.segments.some((segment) => !segment.valid && segment.reason === 'blocked')).toBe(true);
+
+    const cost = BUILDING_CONFIGS[BuildingType.Wall].cost;
+    for (const resource of ['wood', 'stone', 'gold'] as const) {
+      world.resources[resource] = cost[resource] * validCount;
+    }
+    const startingResources = { ...world.resources };
+    const startingStats = structuredClone(world.lifetimeStats);
+    const preview = buildStripPreview(world, BuildingType.Wall, 120, 110, 120, 240, 0, stroke);
+    expect(preview.segments.filter((segment) => segment.valid)).toHaveLength(validCount);
+    expect(preview.segments.some((segment) => segment.resourceShortage)).toBe(false);
+    expect(world.buildings).toEqual([]);
+    expect(world.resources).toEqual(startingResources);
+    expect(world.lifetimeStats).toEqual(startingStats);
+
+    const committed = placeStripChain(world, BuildingType.Wall, preview.segments, 0);
+    expect(committed.buildings.filter((building) => building.type === BuildingType.Wall)).toHaveLength(validCount);
+    for (const resource of ['wood', 'stone', 'gold'] as const) {
+      expect(startingResources[resource] - committed.resources[resource]).toBe(preview.cost?.[resource]);
+    }
+  });
+
+  it('keeps snapped Villa entrance roads outside the foundation through preview and commit', () => {
+    const world = initGame({ seed: 20261028 });
+    world.worldMap = testWorldMap({ tilesX: 120, tilesY: 120 });
+    world.buildings = [];
+    const villa = createBuilding(BuildingType.Villa, 300, 300, world.nextBuildingId++);
+    villa.completed = true;
+    villa.constructionProgress = 1;
+    world.buildings.push(villa);
+    world.resources.wood = 1000;
+    world.resources.stone = 1000;
+    world.resources.gold = 1000;
+    const roadHalfDepth = BUILDING_CONFIGS[BuildingType.Road].height / 2;
+    const foundationEdge = villa.y + villa.height / 2;
+    const rawEntranceY = foundationEdge + roadHalfDepth;
+    const preview = buildStripPreview(world, BuildingType.Road, 200, rawEntranceY, villa.x, rawEntranceY, 0);
+    expect(preview.segments.length).toBeGreaterThan(0);
+    expect(preview.segments.every((segment) => segment.valid)).toBe(true);
+    expect(preview.segments.every((segment) => segment.y - roadHalfDepth >= foundationEdge)).toBe(true);
+    const placed = placeStripChain(world, BuildingType.Road, preview.segments, 0);
+    expect(placed.buildings.filter((building) => building.type === BuildingType.Road))
+      .toHaveLength(preview.segments.length);
+  });
+
   it('does not classify an off-grid trip as reachable from a single short road segment', () => {
     setCurrentPathMap(null);
     const home = building(801, BuildingType.House, { x: 50, y: 100 });
