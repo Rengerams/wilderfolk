@@ -271,11 +271,11 @@ export function resolveCivicPetition(
   if (
     state.resources.gold >= 5
     && personDayRoll(petitioner.id, state.tick, 825) < 0.2
-    && petitioner.energy < petitioner.maxEnergy * 0.6
+    && (petitioner.needs?.stamina ?? petitioner.energy / Math.max(1, petitioner.maxEnergy) * 100) < 60
   ) {
     const amount = 1;
     state.resources.gold -= amount;
-    petitioner.energy = Math.min(petitioner.maxEnergy, petitioner.energy + 5);
+    creditHumanStaminaFromEnergy(petitioner, 5);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
     sayHumanChatPhrase(petitioner, 'A coin for the road.', 40);
     return { kind: 'aid_gold', amount };
