@@ -495,99 +495,29 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
 | `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |
 
-## Complete source-module owner coverage (27 October 2026)
 
-The canonical owner of each local function and class method is its defining source module. The rows below register previously unlisted modules, not second definitions or compatibility aliases. Qualified paths are intentional: `preferences.ts` and `buildings.ts` occur in more than one directory. Public façades remain routes, not competing decision owners. The call-graph ownership gate checks every `src/**/*.{ts,tsx}` function against these declarations and existing decision rows.
+## Missing source-module registrations (27 October 2026)
 
-| Source family | Sole owning module | Cadence | Local function ownership |
+The original owner tables cover 356 of 373 source modules.
+The entries below register only the 17 previously unlisted modules. Re-exports do not
+take ownership away from their leaf implementations. Module-qualified names keep same-basename files distinct.
+
+| Scope | Sole owning module | Cadence | Responsibility |
 |---|---|---|---|
-| Audio: ambient.ts | `src/audio/ambient.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: backgroundMusic.ts | `src/audio/backgroundMusic.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: bootstrap.ts | `src/audio/bootstrap.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: constants.ts | `src/audio/constants.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: director.ts | `src/audio/director.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: graph.ts | `src/audio/graph.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: htmlAudioSync.ts | `src/audio/htmlAudioSync.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: index.ts | `src/audio/index.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: interactionDetect.ts | `src/audio/interactionDetect.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: interactionSfx.ts | `src/audio/interactionSfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: introMusic.ts | `src/audio/introMusic.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: sampleLoader.ts | `src/audio/sampleLoader.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: scheduler.ts | `src/audio/scheduler.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: session.ts | `src/audio/session.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: sfx.ts | `src/audio/sfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: trackPlayer.ts | `src/audio/trackPlayer.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: tracks.ts | `src/audio/tracks.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: workDetect.ts | `src/audio/workDetect.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Audio: workSfx.ts | `src/audio/workSfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: GameWindow.tsx | `src/components/GameWindow.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: PerformanceProfilerPanel.tsx | `src/components/PerformanceProfilerPanel.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: SubjectWindow.tsx | `src/components/SubjectWindow.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: WarfareStatus.tsx | `src/components/WarfareStatus.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: WorkforcePolicyPanel.tsx | `src/components/WorkforcePolicyPanel.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: GameDashboard.tsx | `src/components/dashboard/GameDashboard.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| UI: useMapKeyboardCursor.ts | `src/components/useMapKeyboardCursor.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: buildings.ts | `src/game/buildings.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: introTimeline.ts | `src/game/introTimeline.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: performanceProfiler.ts | `src/game/performanceProfiler.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: preferences.ts | `src/game/preferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: animals.ts | `src/game/renderer/animals.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: decor.ts | `src/game/renderer/decor.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: entityCache.ts | `src/game/renderer/entityCache.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: entityComposite.ts | `src/game/renderer/entityComposite.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: grass.ts | `src/game/renderer/grass.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: humans.ts | `src/game/renderer/humans.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: logistics.ts | `src/game/renderer/logistics.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: markers.ts | `src/game/renderer/markers.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: miniMapFrame.ts | `src/game/renderer/miniMapFrame.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: motionInterpolation.ts | `src/game/renderer/motionInterpolation.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: nightEffects.ts | `src/game/renderer/nightEffects.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: overheadLayout.ts | `src/game/renderer/overheadLayout.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: overlay.ts | `src/game/renderer/overlay.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: particles.ts | `src/game/renderer/particles.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: scent.ts | `src/game/renderer/scent.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: shared.ts | `src/game/renderer/shared.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: spriteDrawing.ts | `src/game/renderer/spriteDrawing.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: terrain.ts | `src/game/renderer/terrain.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: trees.ts | `src/game/renderer/trees.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: weather.ts | `src/game/renderer/weather.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Renderer: whittakerTerrain.ts | `src/game/renderer/whittakerTerrain.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: applyKinematics.ts | `src/game/simBuffers/applyKinematics.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: entityRenderMeta.ts | `src/game/simBuffers/entityRenderMeta.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: entityTypeCodes.ts | `src/game/simBuffers/entityTypeCodes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: packRenderSoA.ts | `src/game/simBuffers/packRenderSoA.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: renderBufferPool.ts | `src/game/simBuffers/renderBufferPool.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: renderSoAEntities.ts | `src/game/simBuffers/renderSoAEntities.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: schema.ts | `src/game/simBuffers/schema.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation buffer: simDelta.ts | `src/game/simBuffers/simDelta.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: GameWorkerHost.ts | `src/game/simWorker/GameWorkerHost.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: gameWorker.node.ts | `src/game/simWorker/gameWorker.node.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: gameWorker.ts | `src/game/simWorker/gameWorker.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: protocol.ts | `src/game/simWorker/protocol.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: simPrep.ts | `src/game/simWorker/simPrep.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Worker: uiPatch.ts | `src/game/simWorker/uiPatch.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation: humanNeeds.ts | `src/game/simulation/humanNeeds.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation: movementSteering.ts | `src/game/simulation/movementSteering.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation: simulationEntities.ts | `src/game/simulation/simulationEntities.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Simulation: simulationTypes.ts | `src/game/simulation/simulationTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: biomes.ts | `src/game/terrain/biomes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: hydrology.ts | `src/game/terrain/hydrology.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: noise.ts | `src/game/terrain/noise.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: rainShadow.ts | `src/game/terrain/rainShadow.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: terragen.ts | `src/game/terrain/terragen.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: terrainGrid.ts | `src/game/terrain/terrainGrid.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Terrain: terrainTraits.ts | `src/game/terrain/terrainTraits.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: version.ts | `src/game/version.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: weatherVisualPreferences.ts | `src/game/weatherVisualPreferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Game: weeklyGazette.ts | `src/game/weeklyGazette.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| React hook: useModalFocus.ts | `src/hooks/useModalFocus.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| React hook: useOverlayKeyboard.ts | `src/hooks/useOverlayKeyboard.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Application: main.tsx | `src/main.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
-| Test support: setup.ts | `src/test/setup.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: constants.ts | `src/audio/constants.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: buildingActions.ts | `src/game/buildingActions.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
+| Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
+| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: introTimeline.ts | `src/game/introTimeline.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: moonHowlerForm.ts | `src/game/moonHowlerForm.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Simulation: simulationTypes.ts | `src/game/simulation/simulationTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Terrain: biomes.ts | `src/game/terrain/biomes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: version.ts | `src/game/version.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: weatherVisualPreferences.ts | `src/game/weatherVisualPreferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Application: main.tsx | `src/main.tsx` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Test support: setup.ts | `src/test/setup.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
