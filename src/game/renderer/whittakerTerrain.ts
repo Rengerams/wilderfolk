@@ -859,7 +859,8 @@ export function bakeWhittakerGround(
       const hn = aboveSea / landRange;
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
-      const isWater = aboveSea < 0;
+      const rd = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL) - edgeJit * RIVER_EDGE_JITTER;
+      const isWater = aboveSea < 0 || (map.generationVersion === 3 && rd > 0.55);
 
       let [r, g, b] = groundColor(
         e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
@@ -973,8 +974,23 @@ export function bakeWhittakerGround(
 
       // River. The distance field is smooth, so the blend is curved rather than clamped, and its
       // core is deeper and darker than its shoulder — a channel with banks, not a flat sticker.
-      const rd = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL) - edgeJit * RIVER_EDGE_JITTER;
-      if (rd > 0.03) {
+      if (map.generationVersion === 3 && rd > 0.05) {
+        // Exposed banks stay soil; the visible channel starts at the classifier's water threshold.
+        const wetBank = clamp((rd - 0.05) / 0.28, 0, 1)
+          * (1 - clamp((rd - 0.44) / 0.13, 0, 1));
+        r *= 1 - wetBank * 0.22;
+        g *= 1 - wetBank * 0.16;
+        b *= 1 - wetBank * 0.11;
+        if (rd > 0.51) {
+          const waterBlend = clamp((rd - 0.51) / 0.14, 0, 1);
+          const core = clamp((rd - 0.62) / 0.37, 0, 1);
+          const river = lc(RIVER_EDGE, RIVER_CORE, core);
+          const surface = (valueNoise(wx * 0.08 + wy * 0.018, wy * 0.09 - wx * 0.02, seed + 6060) - 0.5) * 9;
+          r = r * (1 - waterBlend) + (river[0] + surface) * waterBlend;
+          g = g * (1 - waterBlend) + (river[1] + surface * 1.1) * waterBlend;
+          b = b * (1 - waterBlend) + (river[2] + surface * 1.4) * waterBlend;
+        }
+      } else if (map.generationVersion !== 3 && rd > 0.03) {
         const str = clamp((rd - 0.03) / 0.55, 0, 1) ** 0.75;
         const core = clamp((rd - 0.42) / 0.5, 0, 1);
         const river = lc(RIVER_EDGE, RIVER_CORE, core);
