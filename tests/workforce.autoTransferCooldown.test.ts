@@ -22,9 +22,20 @@ describe('two-month automatic job stability', () => {
     expect(barracks.occupants).toHaveLength(1);
     expect(workers.filter((worker) => worker.workerBuildingId === 11)).toHaveLength(1);
     expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(1);
-    const assignments = workers.map((worker) => worker.workerBuildingId);
+    // Guard coverage ramps up one eligible worker per staffing pass.
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
-    expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+    expect(farm.occupants).toHaveLength(2);
+    expect(barracks.occupants).toHaveLength(2);
+    rebalanceJobWorkers(workers, [farm, barracks], undefined, 102);
+    expect(farm.occupants).toHaveLength(1);
+    expect(barracks.occupants).toHaveLength(3);
+
+    // Once safe coverage is reached, later passes must not shuffle the crew.
+    const assignments = workers.map((worker) => worker.workerBuildingId);
+    for (const tick of [103, 104, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
+      rebalanceJobWorkers(workers, [farm, barracks], undefined, tick);
+      expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+    }
   });
 
   it('keeps an already staffed nonessential workplace stable instead of topping it off', () => {
