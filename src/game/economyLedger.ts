@@ -144,6 +144,7 @@ export function foodSharePct(amount: number, total: number): number {
 /** The named sinks the player or the world can spend food on. */
 export type FoodSink =
   | 'meals'
+  | 'medicine'
   | 'trade'
   | 'tribute'
   | 'gift'
