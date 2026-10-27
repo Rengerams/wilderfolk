@@ -28,6 +28,7 @@ import {
   WATER_CELL,
   Walkability,
   classifyTile,
+  biomeEdgeDither,
   sampleElev,
 } from './terrainGrid';
 import {
@@ -1021,6 +1022,9 @@ export function generateRawTerrain(
       seaLevel,
       cuts.forest,
       cuts.darkForest,
+      generationVersion === 2
+        ? biomeEdgeDither(sampleElev(elevation, cols, rows, cx, cy), seaLevel)
+        : 0,
     );
   };
   for (let y = 0; y < pRows; y++)
