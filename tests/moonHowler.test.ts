@@ -1388,3 +1388,23 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   });
 });
 
+describe('moon-form construction ownership', () => {
+  it('retires a builder from an unfinished site before changing their species', () => {
+    const state = initGame({ seed: 20261027 });
+    const settler = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human)!;
+    const construction = createBuilding(BuildingType.Farm, 300, 300, 9901);
+    construction.completed = false;
+    construction.occupants = [settler.id];
+    state.buildings = [construction];
+    settler.workerBuildingId = undefined;
+    settler.moonHowlerCursed = true;
+
+    transformToWerewolfForm(settler, state.buildings);
+
+    expect(settler.type).toBe(EntityType.Werewolf);
+    expect(construction.occupants).toEqual([]);
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: 1000 });
+    expect(settler.type).toBe(EntityType.Human);
+    expect(construction.occupants).toEqual([]);
+  });
+});
