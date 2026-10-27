@@ -57,6 +57,7 @@ import {
 } from '../src/game/moonHowler';
 import type { MoonHowlerSyncResult } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
+import { advanceHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import type { RevertToHumanFormOptions } from '../src/game/moonHowlerForm';
 import { buildEntityByType } from '../src/game/simFocus';
 import { isInsideCompletedBuilding } from '../src/game/terrainSystems';
@@ -64,6 +65,32 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, parseSaveJson } from '../src/game/saveLoad';
 import { createSeededRng, getSimRng, setSimSeed } from '../src/game/simRng';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+
+describe('Moon Howler restored physiology clock', () => {
+  it('does not debit a full werewolf night as human nutrition after dawn', () => {
+    const state = initGame({ size: MapSize.Medium, seed: 61 });
+    const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
+    const transformTick = 23 * TICKS_PER_HOUR;
+    const dawnTick = 30 * TICKS_PER_HOUR;
+    settler.needs = {
+      nutrition: 80, rest: 85, stamina: 60,
+      severeHungerTicks: 0, lastAdvancedTick: transformTick,
+    };
+    settler.moonHowlerCursed = true;
+    transformToWerewolfForm(settler, state.buildings);
+    expect(settler.needs).toBeUndefined();
+
+    revertToHumanForm(settler, { buildings: state.buildings, humans: state.entities, tick: dawnTick });
+    expect(settler.needs?.lastAdvancedTick).toBe(dawnTick - 1);
+    expect(settler.needs?.nutrition).toBe(80);
+    advanceHumanNeeds(settler, {
+      tick: dawnTick, sleeping: false, working: false, moving: false,
+    });
+    expect(settler.needs?.nutrition).toBeGreaterThan(79);
+    expect(settler.needs?.severeHungerTicks).toBe(0);
+    expect(settler.needs?.lastAdvancedTick).toBe(dawnTick);
+  });
+});
 
 /**
  * Regression: tickMoonHowlerCycle must reuse the caller's byType index instead
