@@ -16,7 +16,7 @@ import {
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
 import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { unindexEntityFromState } from './entityIndex';
-import { captureRaidPrisoners } from './warPrisoners';
+import { applyWarCommunityReaction, captureRaidPrisoners } from './warPrisoners';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
 
@@ -43,8 +43,6 @@ export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, Outgoing
 
 export const RAID_BATTLE_HOURS = 6;
 const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
-const MERCY_REPUTATION_REWARD = 12;
-const MERCY_CIVIC_MERIT = 10;
 const RIVAL_RAZE_INTENT_CHANCE = 0.15;
 const RIVAL_MEMORY_RAID_CHANCE_FLOOR = 0.25;
 const RIVAL_MEMORY_RAID_SCALE = 200;
@@ -1970,6 +1968,13 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
   const witnesses = state.rivalSettlements.filter((neighbor) =>
     neighbor.id !== rival.id && Math.hypot(neighbor.campX - rival.campX, neighbor.campY - rival.campY) <= 750);
   rememberRivalDisposition(state, rival, choice as 'mercy' | 'tribute' | 'raze');
+  // One bounded civic response per credible encounter, not predetermined good/evil points.
+  const eligibleForCivicResponse = pending.credibleThreat !== false && (rival.lastDispositionRewardTick == null
+    || state.tick - rival.lastDispositionRewardTick >= RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY);
+  if (eligibleForCivicResponse) {
+    applyWarCommunityReaction(state, choice as 'mercy' | 'tribute' | 'raze', rival.id);
+    rival.lastDispositionRewardTick = state.tick;
+  }
   const report = state.raidBattleReports?.find((entry) => entry.raidId === pending.raidId);
   if (report) report.disposition = choice as 'mercy' | 'tribute' | 'raze';
   if (choice === 'mercy') {
@@ -1982,15 +1987,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 30);
     applyTruceToRival(state, rival.id, 30);
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 30);
-    const rewardEligible = pending.credibleThreat !== false && (rival.lastDispositionRewardTick == null
-      || state.tick - rival.lastDispositionRewardTick >= RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY);
-    const reputation = addReputation(state, rewardEligible ? MERCY_REPUTATION_REWARD : 0);
-    if (rewardEligible) {
-      rival.lastDispositionRewardTick = state.tick;
-      const leader = state.entities.find((person) => person.id === state.villageLeaderId && person.alive);
-      if (leader) leader.battleLeadershipMerit = Math.min(100, (leader.battleLeadershipMerit ?? 0) + MERCY_CIVIC_MERIT);
-    }
-    logEvent(state, 'combat', `Spared ${rival.name} after victory — ${rival.population} survivors, 30-day truce, +${reputation} reputation${rewardEligible ? ', civic mercy recognized' : ', no repeat or trivial-victory reward'}`, rival.name, 'outgoing_raid', 'resolved');
+    logEvent(state, 'combat', `Spared ${rival.name} after victory — ${rival.population} survivors, 30-day truce.`, rival.name, 'outgoing_raid', 'resolved');
   } else if (choice === 'tribute') {
     // A one-off settlement of terms, not an invented recurring tribute agreement.
     const offer = rollRivalPayoffOffer(rival, Math.max(1, pending.enemyDead + pending.enemySurvivors), Math.max(1, pending.enemySurvivors));
@@ -1998,7 +1995,6 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     rival.raidCooldownDays = Math.max(rival.raidCooldownDays, 21);
     rival.peaceTreatyDays = Math.max(rival.peaceTreatyDays, 21);
     applyTruceToRival(state, rival.id, 21);
-    addReputation(state, -3);
     logEvent(state, 'combat', `Terms imposed on ${rival.name} — one-time tribute ${formatLootParts(gained)}; 21-day truce`, rival.name, 'outgoing_raid', 'resolved');
   } else {
     for (const neighbor of witnesses) {
@@ -2027,8 +2023,7 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
     state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
     state.rivalSettlements = state.rivalSettlements.filter((entry) => entry.id !== rival.id);
     state.pendingRaidVictories = state.pendingRaidVictories?.filter((entry) => entry.rivalId !== rival.id);
-    addReputation(state, -30);
-    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants fled as displaced people; -30 reputation. ${witnesses.length} neighboring settlements witnessed the destruction and may respond.`, rival.name, 'outgoing_raid', 'resolved');
+    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants fled as displaced people; ${witnesses.length} neighboring settlements witnessed the destruction.`, rival.name, 'outgoing_raid', 'resolved');
   }
   return state;
 }
