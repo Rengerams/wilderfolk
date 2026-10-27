@@ -2262,14 +2262,14 @@ export default function App() {
                   <p className="font-bold text-amber-200">{battleReport.rivalName} has surrendered. Choose its fate.</p>
                   <p className="text-sm text-stone-300">Its remaining population is {pending.enemySurvivors}. The decision is saved until you make it.</p>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rounded bg-emerald-800 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'mercy' }); setBattleReport(null); }}>Show mercy — 30-day truce</button>
-                    <button type="button" className="rounded bg-amber-800 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'tribute' }); setBattleReport(null); }}>Demand one-time tribute</button>
-                    <button type="button" className="rounded bg-rose-900 px-3 py-2" onClick={() => setRazeConfirmationId(pending.raidId)}>Raze settlement…</button>
+                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'mercy' }); setBattleReport(null); }}>Withdraw</button>
+                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'tribute' }); setBattleReport(null); }}>Demand one-time tribute</button>
+                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(pending.raidId)}>Raze settlement</button>
                   </div>
                   {razeConfirmationId === pending.raidId && (
-                    <div className="space-y-2 rounded border border-rose-500 p-3">
-                      <p className="text-rose-200">Permanently destroy {battleReport.rivalName}? The settlement will be removed and its remaining inhabitants displaced; reputation −30. This cannot be undone.</p>
-                      <button type="button" className="mr-2 rounded bg-rose-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' }); setRazeConfirmationId(null); setBattleReport(null); }}>Confirm raze</button>
+                    <div className="space-y-2 rounded border border-stone-600 p-3">
+                      <p className="text-stone-200">Raze {battleReport.rivalName}?</p>
+                      <button type="button" className="mr-2 rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' }); setRazeConfirmationId(null); setBattleReport(null); }}>Confirm raze</button>
                       <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(null)}>Cancel</button>
                     </div>
                   )}

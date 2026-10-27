@@ -62,15 +62,15 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
           <p>Origin: {world.rivalSettlements.find((rival) => rival.id === person.warCaptive!.originRivalId)?.name ?? 'Former settlement'} · prison #{person.prisonBuildingId}</p>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => onPrisonerDecision(person.id, 'keep')} className="rounded bg-stone-700 p-2">Keep imprisoned</button>
-            <button onClick={() => onPrisonerDecision(person.id, 'release')} className="rounded bg-emerald-900 p-2">Release · mercy +3 reputation</button>
+            <button onClick={() => onPrisonerDecision(person.id, 'release')} className="rounded bg-stone-700 p-2">Release</button>
             <button disabled={world.tick < person.warCaptive!.recruitAfterTick || openBeds <= 0} onClick={() => onPrisonerDecision(person.id, 'recruit')} className="rounded bg-amber-900 p-2 disabled:opacity-40">Offer to join</button>
-            <button onClick={() => setConfirmExecution(person.id)} className="rounded bg-rose-950 p-2">Execute…</button>
+            <button onClick={() => setConfirmExecution(person.id)} className="rounded bg-stone-700 p-2">Execute</button>
           </div>
           {openBeds <= 0 && <p>No free village housing is available for a recruit.</p>}
           {world.tick < person.warCaptive!.recruitAfterTick && <p>Another recruitment offer is available in {daysUntilTick(world.tick, person.warCaptive!.recruitAfterTick)} days.</p>}
-          {confirmExecution === person.id && <div className="rounded border border-rose-500 p-3">
-            <p>Execute {formatCitizenName(person)} after surrender? This permanently kills the captive, costs 20 reputation and increases the home settlement’s fear and grievance.</p>
-            <button onClick={() => { onPrisonerDecision(person.id, 'execute_confirmed'); setConfirmExecution(null); }} className="mr-3 rounded bg-rose-800 p-2">Confirm execution</button>
+          {confirmExecution === person.id && <div className="rounded border border-stone-600 p-3">
+            <p>Execute {formatCitizenName(person)}?</p>
+            <button onClick={() => { onPrisonerDecision(person.id, 'execute_confirmed'); setConfirmExecution(null); }} className="mr-3 rounded bg-stone-700 p-2">Confirm</button>
             <button onClick={() => setConfirmExecution(null)}>Cancel</button>
           </div>}
         </div>)}

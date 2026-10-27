@@ -101,8 +101,8 @@ Suggested dialog:
 | Choice | Result | Reputation and future implications |
 |---|---|---|
 | **Show mercy / Withdraw** | Rival survives; end the assault and withdraw, with any already-earned lawful loot defined by battle terms | Positive mercy/reputation, possible diplomatic opening; rival may recover |
-| **Demand tribute / Terms** | Rival survives under a defined agreement, resources or truce; refusal may be possible if the terms are unreasonable | Mixed reputation; potential ongoing revenue, resentment and future instability |
-| **Raze the settlement** | Rival is permanently eliminated, its remaining structures/events are removed; survivor/refugee outcome must be handled explicitly | Strong negative mercy/diplomacy effect, fear in hostile camps, increased tension or retaliation |
+| **Demand tribute / Terms** | Rival survives under a defined agreement, resources or truce; refusal may be possible if the terms are unreasonable | Civic response depends on residents and war history; rival resentment or future bargaining remains possible |
+| **Raze the settlement** | Rival is permanently eliminated, its remaining structures/events are removed; survivor/refugee outcome must be handled explicitly | Local support is situational; nearby settlements remember the destruction and can react through fear, tension or retaliation |
 
 Optional *occupation / vassalage* is **out of scope** unless a persistent control/tribute implementation is also designed and tested. Do not display an option that does nothing.
 
@@ -163,12 +163,12 @@ Successfully defending the village should be a **major achievement** for its lea
 | Repel overwhelming odds | **+60** | Exceptional defense with real risks |
 | Win a costly defense | **+20** | Defense succeeds but village suffers substantial losses |
 | Successful offensive raid | **+15 to +30** | Scaled by relative strength, objective completed and losses |
-| Spare a surrendered rival | **+10 civic prestige** | Additional diplomacy/reputation gain, not a second military victory |
+| Spare a surrendered rival | **Contextual civic response** | Villager traits and the recent conflict can raise, lower or leave leadership standing unchanged; no second victory award |
 | Reckless offensive defeat | **−20 to −40** | Significant avoidable losses |
 | Devastating failed defense | **−25** | Unless circumstances merit a different assessment |
-| Raze a surrendered rival | **No automatic civic bonus** | Military success already scored; valley reputation receives the consequence |
+| Raze a surrendered rival | **Contextual civic response** | Local support can rise, fall or remain neutral; neighbors retain independent fear and grievance |
 
-These numbers are **proposals**, not current game mechanics. The current election-merit model already combines career, leadership record and other factors, so add these through the established election owner instead of creating a parallel uncapped score.
+The numerical battle awards above are **initial balancing proposals**. Settlement-fate civic responses are implemented as bounded, contextual reactions rather than automatic ethical rewards or penalties; they feed the existing election score, not a second unlimited tally.
 
 ### 7.2 Guardrails
 
@@ -347,22 +347,22 @@ After a raid, the victor may capture surviving enemy combatants instead of autom
 
 ### 12.2 What to do with prisoners
 
-At the end of a raid, present a **Prisoners of War** decision showing how many identifiable captives were taken, their condition, available prison space and the diplomatic consequences of each action. Allow an action for each individual or a confirmed group action when appropriate.
+At the end of a raid, present a **Prisoners of War** decision showing identifiable captives, their condition and available prison space. Provide actions without previews of reputation, election scores or moral judgements. Allow an action for each individual or a confirmed group action when appropriate.
 
 | Choice | Gameplay outcome | Likely valley reaction |
 |---|---|---|
 | **Keep imprisoned** | Captives remain in secure cells, consuming food and guard capacity; possible escape, bargaining or future release | Hostile camps may see it as a threat; long or cruel detention damages trust |
-| **Release / Show mercy** | Let captives return to their settlement, or depart as free people if their camp no longer exists | Increases mercy and trust, may improve relations, but former enemies could return later |
+| **Release** | Let captives return to their settlement, or depart as free people if their camp no longer exists | Village support may rise, fall or remain unchanged; rival relationships and future encounters still respond |
 | **Offer to join the village** | Try to persuade an individual captive to settle voluntarily; joining is **not guaranteed** | Can improve standing when genuinely voluntary, but rivals may distrust recruitment of their people |
-| **Execute** | Permanently kill selected captives after explicit confirmation and record the deaths in the battle/Chronicle | Major negative effect on trust and mercy, increases fear, may trigger resentment, retaliation or diplomatic isolation |
+| **Execute** | Permanently kill selected captives after a neutral confirmation and record the deaths in the battle/Chronicle | Villagers may support, oppose or ignore the decision; rival camps remember the killing and may respond through fear or grievance |
 
-**Recruitment must be a choice made by the captive**, not an automatic conversion of enemy units into player settlers. Consider existing loyalty to home, bonds, conditions in custody, demonstrated mercy, personality, village attractiveness, and the history of the conflict. A refusal leaves the captive eligible for release or continued detention; repeated attempts must have cooldowns and diminishing chances. Never present execution as the most efficient universal choice.
+**Recruitment must be a choice made by the captive**, not an automatic conversion of enemy units into player settlers. Consider existing loyalty to home, bonds, conditions in custody, demonstrated mercy, personality, village attractiveness, and the history of the conflict. A refusal leaves the captive eligible for release or continued detention; repeated attempts must have cooldowns and diminishing chances. No prisoner decision should be universally optimal; outcomes depend on village composition and events.
 
 ### 12.3 Individual and community consequences
 
 - Friends and relatives may care about a captured or executed character; releasing a known captive can change diplomatic relations and future encounters.
 - The player's villagers should react to cruelty or generosity, influenced by their DNA traits, personal priorities and existing social bonds. Not everyone agrees with the leader's decision.
-- **Executing a prisoner is different from killing an armed opponent during combat** and should carry a distinctly greater reputation penalty.
+- **Executing a prisoner is different from killing an armed opponent during combat**, but it carries no automatic local reputation or election penalty: public reaction depends on villagers, active war and recent raids. The origin settlement retains separate diplomatic memory.
 - Taking civilians or children prisoner is **out of scope** for this feature; restrict capture to eligible surviving enemy combatants and guard against age-inappropriate actions.
 - Captured enemies and executed prisoners **are not buried in the player's Graveyard**. Their names remain in the raid overview and Chronicle, with enemy labels distinct from villagers.
 - Prisoners may have an opportunity to join the player's settlement only as **adult, willing recruits**; on joining, carefully migrate faction, occupancy, employer eligibility, relationship links, and village citizenship without cloning the entity.
@@ -374,8 +374,8 @@ The valley remembers **how a victory was handled**, not just who won:
 - **Capture rather than kill in battle:** a modest mercy signal when real surrender was accepted.
 - **Humane custody / later release:** improved trust and potential diplomatic openings.
 - **Voluntary integration:** potential goodwill among some settlements and resentment among others, based on prior relationships and whether the recruit chose freely.
-- **Execution after surrender:** strong fear and severe negative trust, with possible revenge or coalition behavior by other camps.
-- **Repeated prisoner abuse:** escalating, cumulative consequences; prevent reputation laundering through trivial releases after repeated executions.
+- **Execution after surrender:** rival fear and grievances can increase, while local civic standing may rise, fall or stay neutral depending on current threats and resident traits.
+- **Repeated executions:** persistent rival history can increase retaliation risk; later releases cannot erase existing diplomatic memories.
 - Reactions should be mediated by witnesses, reputation propagation and each rival's relationship with the player, rather than changing every faction uniformly or instantly.
 - Leadership merit and election support must reflect villagers' reactions, not simply award positive points for capturing or killing opponents.
 
@@ -383,7 +383,7 @@ The valley remembers **how a victory was handled**, not just who won:
 
 - Include a **post-raid outcome panel** with casualty lists (player names green, enemy names red) and a separate **Captured** section for survivors; never render a captured or released character as dead.
 - Provide **Keep**, **Release**, **Offer to Join** and **Execute** actions with clear availability rules and visible consequences.
-- Require a **second irreversible-action confirmation for execution**, including the character's name and likely reputation impact.
+- Require a **neutral confirmation for execution** that identifies the captive without outcome predictions, penalties or moral commentary.
 - Show why a recruit refuses, why no prison place exists, or why an option is unavailable.
 - Do not force players to resolve every captive immediately if the game can persist a pending choice; however, ensure a sensible, safe custody default.
 - Avoid breaking the game when a captured character's home settlement is destroyed in the same raid; release, recruitment and imprisonment must still remain logically consistent.

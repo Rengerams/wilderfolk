@@ -13,11 +13,12 @@ on:
 jobs:
   seeded-colony:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
-        days: [7, 30, 360]
+        # Keep the PR regression under a bounded runtime; annual colony soak remains opt-in.
+        days: [7, 30, 90]
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-node@v4.4.0

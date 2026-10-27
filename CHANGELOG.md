@@ -3,10 +3,13 @@
 ## 0.6.6.0[Unreleased]
 
 - **Workforce stability (27 October 2026):** Construction borrows at most one worker per empty site, after idle and existing crews. Job rebalance opens empty posts only; staffing never shuffles workers to top up partially staffed posts.
-
 - **Performance (27 October 2026):** Reused construction-crew and building indexes across staffing passes, removed redundant prisoner scans, and bucketed Virtual Player surplus workers once.
 
-- **Documentation (27 October 2026):** Updated the v0.6.6.0 roadmaps to reflect merged overhauls and outstanding release-hardening checks.
+- **CI:** Bound pull-request colony calibration to short and medium scenarios; full-year runs now stop at the first exhausted-food checkpoint instead of continuing after failure.
+
+- **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
+
+- **Documentation (27 October 2026):** Reconciled the v0.6.6.0 roadmap and architecture notes with merged PRs, separating accepted changes from broader release-hardening work.
 
 - **Changed:** Migrated building-action imports to their owning modules and removed obsolete building-action and renderer-loader TypeScript facades; added a guarded migration script.
 

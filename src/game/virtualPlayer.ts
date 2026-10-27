@@ -429,6 +429,9 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   } else {
     if (openBeds >= spareBedReserve(state)) return null;
     if (collectHousingDiagnostics(state).housingPressure === 'comfortable') return null;
+    // Empty beds attract arrivals. Stop speculative housing while residents
+    // cannot eat; homeless villagers are still housed by the branch above.
+    if (isMeasuredFoodDeficit(state) || !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) return null;
     // Housing is survival, so the reserve applies to the *ahead-of-need* half only: a homeless
     // village still raises a House on its last 40 wood.
     if (!canSpendKeepingReserve(state, BUILDING_CONFIGS[BuildingType.House].cost)) return null;
@@ -500,8 +503,11 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     0,
   );
   const measuredDeficit = isMeasuredFoodDeficit(state);
-  // Staffing an existing Farm precedes proposing another unstaffed building.
-  if ((shortOnFood || measuredDeficit) && firstUnstaffedFoodProducer(state)) return null;
+  // Consider staff-free output improvements even when the workforce cannot
+  // yet crew an existing food site. Do not build another unstaffable farm.
+  const unstaffedFoodProducer = (shortOnFood || measuredDeficit)
+    ? firstUnstaffedFoodProducer(state)
+    : undefined;
   const target = wantedFoodProducerCount(
     state,
     measuredDeficit
@@ -534,10 +540,44 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
+  // Fix a structural food deficit with multipliers before adding more workplaces.
+  // The Mill is a passive boost to *all* food producers. Its tech, materials
+  // and placement still go through the respective game owners.
+  if (measuredDeficit && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
+    && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Mill].cost)) {
+    const spot = findPlacementSpot(state, BuildingType.Mill, 0);
+    if (spot) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: BuildingType.Mill, x: spot.x, y: spot.y, rotation: 0 },
+        reason: 'build a Mill — improve existing food production without needing more farmhands',
+      };
+    }
+  }
+
+  // A Silo lowers spoilage and contributes food without extra farmhands.
+  // Stop adding silos once the authoritative economy has no spoilage left.
+  if (measuredDeficit && (state.foodSpoilageRate ?? 0) > 0
+    && !isUnderConstruction(state, BuildingType.Silo)
+    && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Silo].cost)) {
+    const spot = findPlacementSpot(state, BuildingType.Silo, 0);
+    if (spot) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: BuildingType.Silo, x: spot.x, y: spot.y, rotation: 0 },
+        reason: 'build a Silo — reduce food spoilage and preserve the harvest',
+      };
+    }
+  }
+
   if (!shortOnFood && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
+  if (unstaffedFoodProducer) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
-  for (const type of FOOD_PRODUCER_TYPES) {
+  // Advanced agriculture offers a better-performing alternative to yet another
+  // Farm, when the player has actually unlocked the Greenhouse.
+  const foodCandidates = measuredDeficit && built > 0
+    ? [BuildingType.Greenhouse, ...FOOD_PRODUCER_TYPES.filter((type) => type !== BuildingType.Greenhouse)]
+    : FOOD_PRODUCER_TYPES;
+  for (const type of foodCandidates) {
     if (!shortOnFood && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
