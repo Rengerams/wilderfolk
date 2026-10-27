@@ -323,11 +323,14 @@ describe('systems introduced through consequences', () => {
     human.childrenIds = [9999];
     maybeOfferGriefBeat(state);
     const repBefore = state.villageReputation;
+    human.needs = { nutrition: 80, rest: 85, stamina: 40, severeHungerTicks: 0 };
+    human.energy = human.maxEnergy * 0.4;
     const energyBefore = human.energy;
     const next = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'comfort');
     expect(next.villageReputation).toBeGreaterThan(repBefore);
     const mourner = next.entities.find((e) => e.id === human.id)!;
     expect(mourner.energy).toBeGreaterThan(energyBefore);
+    expect(mourner.needs?.stamina).toBeGreaterThan(human.needs.stamina);
   });
 
   it('howler rumor: only after the ranger visit, late in the first year', () => {
