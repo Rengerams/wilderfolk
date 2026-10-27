@@ -27,7 +27,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Economy / resources | `resourceUtils.ts` (add), `economy.ts` (caps/spoilage), `dailyBuildingEconomy.ts` (production) | daily / command | `addResource`, `updateStorageCaps`, `tickWinterHeating` |
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
-| Building type identity: the name shown and persisted, and its stable number | `buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
+| Building type identity: the name shown and persisted, and its stable number | `game/buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `rivalDiplomacy.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
@@ -155,7 +155,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Spatial-query metrics and grid A/B switch | `spatialQueryMetrics.ts` | dev-only | `setSpatialQueryMetricsEnabled`, `setSpatialQueryGridMode`, `isSpatialQueryMetricsEnabled` |
 | Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `observeIndoorPatients` (read-only live patient state), `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount` |
 | Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
-| Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
+| Player preferences | `game/preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
 | Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `createInitialViewForWorld`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
 | Building rotation rules | `buildingRotation.ts` | player-command (placement) | `isRotatableBuildingType`, `toggleBuildingRotation` |
 | Sprite metrics and class-ladder variants | `humanSprites.ts` | spawn (variant pick) + render pass | `pickHumanVariant`, `getHumanSpritePath`, `getHumanSpriteMetrics`, `getHumanSelectionBounds` |
@@ -209,7 +209,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| App shell, layout and menu composition | `App.tsx` + `GamePlayLayout.tsx` + `GameSidebar.tsx` + `GameHeader.tsx` + `GameOverlays.tsx` + `GameBuildRail.tsx` + `GameInspector.tsx` + `GameMapStage.tsx` + `GameMenu.tsx` + `ShortcutsOverlay.tsx` + `CollapsibleSection.tsx` + `Emoji.tsx` | UI (composition/wiring only) | `App`, `GamePlayLayout`, `GameSidebar`, `GameHeader`, `GameMapStage`, `GameMenu` |
+| App shell, layout and menu composition | `App.tsx` + `GamePlayLayout.tsx` + `GameHeader.tsx` + `GameOverlays.tsx` + `GameBuildRail.tsx` + `GameInspector.tsx` + `GameMapStage.tsx` + `GameMenu.tsx` + `ShortcutsOverlay.tsx` + `CollapsibleSection.tsx` + `Emoji.tsx` | UI (composition/wiring only) | `App`, `GamePlayLayout`, `GameHeader`, `GameMapStage`, `GameMenu` |
 | HUD badges, banners and alerts | `AlertBar.tsx` + `ActiveEventBanner.tsx` + `BigNewsBanner.tsx` + `MomentTitleCard.tsx` + `ResourceBadge.tsx` + `ResourceIcons.tsx` + `ResourceCost.tsx` + `VillageRequestCard.tsx` | UI (read-only presentation) | `AlertBar`, `ActiveEventBanner`, `BigNewsBanner`, `ResourceBadge`, `ResourceCost` |
 | Sidebar tabs and read-only panels | `DynastyPanel.tsx` + `FrontierTabPanel.tsx` + `LogTabPanel.tsx` + `MoreTabPanel.tsx` + `NatureTabPanel.tsx` + `ProgressTabPanel.tsx` + `ValleyChroniclePanel.tsx` + `VillageTabPanel.tsx` + `PopulationPanel.tsx` + `StatisticsPanel.tsx` + `VillageLeadershipPanel.tsx` + `FocusPanel.tsx` + `CitizenOverviewScreen.tsx` + `CombatPreviewPanel.tsx` + `CombatLogPanel.tsx` + `VisitorCampPanel.tsx` + `BlacksmithForgePanel.tsx` + `BuildCatalogPanel.tsx` + `WorkSchedulePanel.tsx` + `VenueSchedulePanel.tsx` + `WorkHoursWindow.tsx` + `FamilyTreeWindow.tsx` + `SimulationDiagnosticsPanel.tsx` + `GuidedCampaignPanel.tsx` + `SelectedBuildingPanel.tsx` + `SelectedEntityPanel.tsx` + `MapSetupScreen.tsx` + `IntroScreen.tsx` + `MiniMap.tsx` + `ChallengesPanel.tsx` + `FrontierPanel.tsx` + `StrategicWorldMap.tsx` + `TutorialOverlay.tsx` + `TutorialCampaignBanner.tsx` + `ContextualTutorialCard.tsx` | UI (read-only projections; commands go through `App`) | `ProgressTabPanel`, `VillageTabPanel`, `NatureTabPanel`, `MoreTabPanel`, `PopulationPanel`, `SelectedBuildingPanel`, `SelectedEntityPanel`, `MapSetupScreen`, `IntroScreen`, `computeMiniMapViewportRect` |
 | Village dashboard projection | `dashboard/GameDashboard.tsx` | UI (read-only) | `GameDashboard`, `BuildingsTable` (the building list's rows and header) |
@@ -228,7 +228,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Spatial grids (mobile, grass, social) and their invariants | `spatialGrid.ts` | realtime (rebuild/reconcile per tick) + query helpers | `syncMobileSimGrid`, `syncSpatialGridEntity`, `assertSpatialGridInvariants`, `EntitySpatialGrid`, `isHumanSocialGridEntity` |
 | Systems tick layer | `tickLayerSystems.ts` | systems pulse (`LAYER_SYSTEMS_INTERVAL`) | `tickLayerSystems`, `tickWildlife`, `tickWolfRecruitment`, `isWildlifePredator` |
 | Resource types, costs and build catalogue | `resourceTypes.ts` + `resourceCost.ts` + `buildCatalog.ts` | — (data + formatting, no state) | `formatResourceAmount`, `formatResourceAmounts`, `formatResourceCost`, `canAffordResourceCost`, `missingResourceCost`, `categoryForBuildingType` |
-| Building configs and mine-mode helper | `buildings.ts` | — / player-command | `mineOreForMode` |
+| Building configs and mine-mode helper | `game/buildings.ts` | — / player-command | `mineOreForMode` |
 | Daily village schedule fatigue | `scheduleFatigue.ts` + `dailyScheduleFatigue.ts` | realtime record + daily resolve (`tickLayerDaily`) | `recordScheduleWorkTick`, `resolveDailyVillageScheduleFatigue`, `getScheduleProductivityMultiplier` |
 | Village challenges | `challenges.ts` + `dailyChallenges.ts` | daily (`tickLayerDaily`) | `tickDailyChallenges`, `isChallengeComplete`, `getChallengeProgress` |
 | Grass ecology day pulse | `dailyGrassEcology.ts` | daily (`tickLayerDaily`) | `tickGrassDaily` |
@@ -494,3 +494,100 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `assignResidentToBuilding` | `game/buildingResidencyActions.ts` | Isolated or explicitly owned residency command transition. |
 | `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
 | `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |
+
+## Complete source-module owner coverage (27 October 2026)
+
+The canonical owner of each local function and class method is its defining source module. The rows below register previously unlisted modules, not second definitions or compatibility aliases. Qualified paths are intentional: `preferences.ts` and `buildings.ts` occur in more than one directory. Public façades remain routes, not competing decision owners. The call-graph ownership gate checks every `src/**/*.{ts,tsx}` function against these declarations and existing decision rows.
+
+| Source family | Sole owning module | Cadence | Local function ownership |
+|---|---|---|---|
+| Audio: ambient.ts | `src/audio/ambient.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: backgroundMusic.ts | `src/audio/backgroundMusic.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: bootstrap.ts | `src/audio/bootstrap.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: constants.ts | `src/audio/constants.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: director.ts | `src/audio/director.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: graph.ts | `src/audio/graph.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: htmlAudioSync.ts | `src/audio/htmlAudioSync.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: index.ts | `src/audio/index.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: interactionDetect.ts | `src/audio/interactionDetect.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: interactionSfx.ts | `src/audio/interactionSfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: introMusic.ts | `src/audio/introMusic.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: sampleLoader.ts | `src/audio/sampleLoader.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: scheduler.ts | `src/audio/scheduler.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: session.ts | `src/audio/session.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: sfx.ts | `src/audio/sfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: trackPlayer.ts | `src/audio/trackPlayer.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: tracks.ts | `src/audio/tracks.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: workDetect.ts | `src/audio/workDetect.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Audio: workSfx.ts | `src/audio/workSfx.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: GameWindow.tsx | `src/components/GameWindow.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: PerformanceProfilerPanel.tsx | `src/components/PerformanceProfilerPanel.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: SubjectWindow.tsx | `src/components/SubjectWindow.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: WarfareStatus.tsx | `src/components/WarfareStatus.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: WorkforcePolicyPanel.tsx | `src/components/WorkforcePolicyPanel.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: GameDashboard.tsx | `src/components/dashboard/GameDashboard.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| UI: useMapKeyboardCursor.ts | `src/components/useMapKeyboardCursor.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: buildings.ts | `src/game/buildings.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: introTimeline.ts | `src/game/introTimeline.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: performanceProfiler.ts | `src/game/performanceProfiler.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: preferences.ts | `src/game/preferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: animals.ts | `src/game/renderer/animals.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: decor.ts | `src/game/renderer/decor.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: entityCache.ts | `src/game/renderer/entityCache.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: entityComposite.ts | `src/game/renderer/entityComposite.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: grass.ts | `src/game/renderer/grass.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: humans.ts | `src/game/renderer/humans.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: logistics.ts | `src/game/renderer/logistics.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: markers.ts | `src/game/renderer/markers.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: miniMapFrame.ts | `src/game/renderer/miniMapFrame.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: motionInterpolation.ts | `src/game/renderer/motionInterpolation.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: nightEffects.ts | `src/game/renderer/nightEffects.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: overheadLayout.ts | `src/game/renderer/overheadLayout.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: overlay.ts | `src/game/renderer/overlay.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: particles.ts | `src/game/renderer/particles.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: scent.ts | `src/game/renderer/scent.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: shared.ts | `src/game/renderer/shared.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: spriteDrawing.ts | `src/game/renderer/spriteDrawing.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: terrain.ts | `src/game/renderer/terrain.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: trees.ts | `src/game/renderer/trees.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: weather.ts | `src/game/renderer/weather.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Renderer: whittakerTerrain.ts | `src/game/renderer/whittakerTerrain.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: applyKinematics.ts | `src/game/simBuffers/applyKinematics.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: entityRenderMeta.ts | `src/game/simBuffers/entityRenderMeta.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: entityTypeCodes.ts | `src/game/simBuffers/entityTypeCodes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: packRenderSoA.ts | `src/game/simBuffers/packRenderSoA.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: renderBufferPool.ts | `src/game/simBuffers/renderBufferPool.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: renderSoAEntities.ts | `src/game/simBuffers/renderSoAEntities.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: schema.ts | `src/game/simBuffers/schema.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation buffer: simDelta.ts | `src/game/simBuffers/simDelta.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: GameWorkerHost.ts | `src/game/simWorker/GameWorkerHost.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: gameWorker.node.ts | `src/game/simWorker/gameWorker.node.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: gameWorker.ts | `src/game/simWorker/gameWorker.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: protocol.ts | `src/game/simWorker/protocol.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: simPrep.ts | `src/game/simWorker/simPrep.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Worker: uiPatch.ts | `src/game/simWorker/uiPatch.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation: humanNeeds.ts | `src/game/simulation/humanNeeds.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation: movementSteering.ts | `src/game/simulation/movementSteering.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation: simulationEntities.ts | `src/game/simulation/simulationEntities.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Simulation: simulationTypes.ts | `src/game/simulation/simulationTypes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: biomes.ts | `src/game/terrain/biomes.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: hydrology.ts | `src/game/terrain/hydrology.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: noise.ts | `src/game/terrain/noise.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: rainShadow.ts | `src/game/terrain/rainShadow.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: terragen.ts | `src/game/terrain/terragen.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: terrainGrid.ts | `src/game/terrain/terrainGrid.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Terrain: terrainTraits.ts | `src/game/terrain/terrainTraits.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: version.ts | `src/game/version.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: weatherVisualPreferences.ts | `src/game/weatherVisualPreferences.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Game: weeklyGazette.ts | `src/game/weeklyGazette.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| React hook: useModalFocus.ts | `src/hooks/useModalFocus.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| React hook: useOverlayKeyboard.ts | `src/hooks/useOverlayKeyboard.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Application: main.tsx | `src/main.tsx` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
+| Test support: setup.ts | `src/test/setup.ts` | module-local | Functions and methods defined in this file; imports and re-exports do not transfer ownership |
