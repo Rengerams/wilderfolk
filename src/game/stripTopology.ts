@@ -141,15 +141,23 @@ export function snapStripDragEndpoints(
   const entrances = family === 'road' ? collectRoadEntranceSnapPoints(buildings) : [];
   if (snaps.length === 0 && entrances.length === 0) return { startX, startY, endX, endY };
 
-  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS)
-    ?? nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
-  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS)
-    ?? nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
+  const startStrip = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
+  const endStrip = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
+  const startEntrance = startStrip ? null : nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
+  const endEntrance = endStrip ? null : nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
+  const startSnap = startStrip ?? startEntrance;
+  const endSnap = endStrip ?? endEntrance;
+  const horizontal = family === 'road'
+    && Math.abs(endX - startX) >= STRIP_BEND_MIN_DISTANCE_PX
+    && Math.abs(endY - startY) < STRIP_BEND_MIN_DISTANCE_PX;
+  // A cleared entrance snap must lift the entire straight road, not just its endpoint.
+  const startAlignedY = horizontal && !startSnap && endEntrance ? endEntrance.y : startSnap?.y ?? startY;
+  const endAlignedY = horizontal && !endSnap && startEntrance ? startEntrance.y : endSnap?.y ?? endY;
   return {
     startX: startSnap?.x ?? startX,
-    startY: startSnap?.y ?? startY,
+    startY: startAlignedY,
     endX: endSnap?.x ?? endX,
-    endY: endSnap?.y ?? endY,
+    endY: endAlignedY,
   };
 }
 
