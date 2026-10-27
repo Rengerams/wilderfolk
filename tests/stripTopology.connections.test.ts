@@ -36,6 +36,29 @@ describe('connected strip planning', () => {
     expect(walls.endY).toBe(entranceY + 2);
   });
 
+  it('keeps near-horizontal Villa entrance drags on the safe road row from either direction', () => {
+    const footprint = getBuildingFootprintForType(BuildingType.Villa, 0);
+    const villa = {
+      ...strip(BuildingType.Road, 0), id: 91, type: BuildingType.Villa,
+      x: 300, y: 300, width: footprint.width, height: footprint.height,
+    };
+    const roadHalfDepth = getBuildingFootprintForType(BuildingType.Road, 0).height / 2;
+    const edge = villa.y + villa.height / 2;
+    const requestedY = edge + roadHalfDepth;
+    const toVilla = snapStripDragEndpoints([villa], BuildingType.Road, 200, requestedY, villa.x, requestedY);
+    const fromVilla = snapStripDragEndpoints([villa], BuildingType.Road, villa.x, requestedY, 200, requestedY);
+    expect(toVilla.startY).toBe(toVilla.endY);
+    expect(fromVilla.startY).toBe(fromVilla.endY);
+    expect(toVilla.endY - roadHalfDepth).toBeGreaterThanOrEqual(edge);
+    expect(fromVilla.startY - roadHalfDepth).toBeGreaterThanOrEqual(edge);
+    const world = { buildings: [villa], width: 1000, height: 1000 } as unknown as WorldState;
+    for (const [startX, endX] of [[200, villa.x], [villa.x, 200]]) {
+      const { plan } = buildStripPlanFromDrag(world, BuildingType.Road, startX, requestedY, endX, requestedY, 0);
+      expect(plan.length).toBeGreaterThan(0);
+      expect(plan.every((piece) => piece.y - roadHalfDepth >= edge)).toBe(true);
+    }
+  });
+
   it('keeps the perpendicular road at an existing road junction', () => {
     const pieces = resolveRoadStripPlan(stateWith(strip(BuildingType.Road, 0)), origin, 90);
     expect(pieces).toHaveLength(1);

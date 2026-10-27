@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Roads snapped to building entrances now align the whole straight drag to the safe road row, including drags starting at the entrance.
+
 - **Changed:** Small building settings copy only the changed building; optimistic assignments reuse their isolated display world. Worker ticks compare saved fingerprints and omit unchanged histories, and save export avoids an extra world copy.
 - **Added:** Rollback snapshot timing in the performance profiler, preserving the full recovery contract.
 - **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
