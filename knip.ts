@@ -37,9 +37,9 @@ import type { KnipConfig } from 'knip';
  * (`node_modules/knip/dist/IssueCollector.js` → `shouldIgnoreIssue(filePath, issueType)`); the
  * `file#symbol` form of `ignore` was a knip 5 feature and no longer suppresses anything. The only
  * per-symbol mechanism knip 6 has left is a `@public` JSDoc tag in the declaring file, which would
- * mean ~92 edits in files owned by other lanes of the running fix campaign.
+ * mean ~91 edits in files owned by other lanes of the running fix campaign.
  *
- * The three tolerated groups, with counts (80 `exports` + 12 `types` = 92 symbols, 49 files):
+ * The three tolerated groups, with counts (80 `exports` + 11 `types` = 91 symbols, 48 files):
  *
  *   [A] 16 symbols — **declared owner-module surface**. These are named in `OWNERSHIP_OVERVIEW.md`
  *       as the module's public API (`getDecisionOwner`, `generateWorldMap`, `getSpeciesConfig`, …),
@@ -49,7 +49,7 @@ import type { KnipConfig } from 'knip';
  *       by 12 test files for `building`/`human`/`byType`/`finishedBuilding`; `stubHuman` is the
  *       factory's human-shaped helper that six test files currently re-implement locally, and the
  *       recovered test copies in `tmp/recovered/tests/` import it. Intentional test surface.
- *   [C] 75 symbols — **unreferenced exports whose file this lane does not own**. Deleting them is
+ *   [C] 74 symbols — **unreferenced exports whose file this lane does not own**. Deleting them is
  *       their owning lane's call (the campaign's one-writer-per-file rule), so they are listed here
  *       as named debt rather than removed: 29 have no reference anywhere in `src/`, `tests/`,
  *       `scripts/` or the docs, and the rest appear only in the audit/bug narrative that found them
@@ -102,7 +102,6 @@ const config: KnipConfig = {
     'src/audio/interactionSfx.ts': ['exports'], // [C] playFailSfx (1)
     'src/audio/sampleLoader.ts': ['exports'], // [C] clearSampleCache (1)
     'src/audio/session.ts': ['exports'], // [C] isGameplayAudioActive (1)
-    'src/audio/tracks.ts': ['types'], // [C] TrackId (1)
     'src/game/apprenticeships.ts': ['exports'], // [A] apprenticeSkill (1)
     'src/game/canvasLayer.ts': ['exports'], // [C] resizeCanvasSurface (1)
     'src/game/citizenId.ts': ['exports'], // [A] findCitizenByQuery (1)
