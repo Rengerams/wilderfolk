@@ -333,6 +333,40 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     expect(decision?.reason).toContain('actual food production trails consumption');
   });
 
+  it('staffs an idle Farm before ordering another during a measured deficit', () => {
+    const world = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 150, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 20 }, consumed: { meals: 40 },
+      })),
+    }, {
+      mills: 3, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+    });
+
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command.op).toBe('autoStaffWorkers');
+    expect(decision?.reason).toContain('food production needs workers');
+    const staffed = applyWorkerCommand(world, decision!.command);
+    expect(staffed.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
+  });
+
+  it('does not keep building idle Farms when no worker can be reassigned', () => {
+    const world = ownerColony(2, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 0, wood: 500, stone: 500, gold: 500, iron: 30 },
+    }, {
+      mills: 0, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+    });
+    // The two existing workers have just transferred, so the workforce owner
+    // cannot legally move either to the idle Farm for sixty days.
+    for (const entity of world.entities) entity.lastAutoJobTransferTick = world.tick;
+    expect(decideVirtualPlayerAction(world)?.command)
+      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
   it('keeps adding producers as the village grows instead of stopping at the first', () => {
     // One Lumber Mill for 24 settlers is under the ladder's own one-per-12 line, so the village has
     // outgrown what it built — the state the trigger-only ladder sat in.
