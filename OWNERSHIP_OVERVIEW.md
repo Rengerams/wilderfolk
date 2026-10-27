@@ -255,7 +255,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Worker UI-patch merge | `simWorker/uiPatch.ts` | worker boundary (`patchUi`) | `applyWorkerUiPatch` |
 | Renderer facade and entity-layer compositing | `renderer.ts` + `renderer/entityComposite.ts` + `renderer/buildings.ts` + `renderer/animals.ts` + `renderer/trees.ts` + `renderer/grass.ts` + `renderer/particles.ts` + `renderer/markers.ts` + `renderer/scent.ts` + `renderer/nightEffects.ts` + `renderer/overlay.ts` + `renderer/buildPreview.ts` | render pass | `renderGame`, `compositeCachedEntityLayer`, `drawBuildings`, `drawAnimals`, `drawTrees`, `drawGrass`, `drawParticles`, `drawCampMarkers`, `drawScentOverlay`, `drawGameOverlay`, `drawBuildPreview`, `footprintGroundRise`, `isHighlightableBuilding`, `getBuildingFootprintScreenRect`, `drawBuildingHighlightRing` |
 | Animal sprite metrics | `entitySprites.ts` | render pass | `getAnimalSpriteMetrics` |
-| Renderer preload, buffer pool and wire-type codes | `rendererLoader.ts` + `simBuffers/renderBufferPool.ts` + `simBuffers/entityTypeCodes.ts` | boot + worker buffer lifecycle | `preloadRenderer`, `entityTypeToCode`, `isKnownEntityTypeCode`, `codeToEntityType` |
+| Render buffer pool and wire-type codes | `simBuffers/renderBufferPool.ts` + `simBuffers/entityTypeCodes.ts` | worker buffer lifecycle | `entityTypeToCode`, `isKnownEntityTypeCode`, `codeToEntityType` |
 | Node/Tauri runtime helpers | `nodeRuntime.ts` | boot (`nameLoader`, `dialogueTrees`) | `isNodeRuntime`, `readUtf8RelativeToModule` |
 | Audio bootstrap, activity detection and HTML sync | `audio/bootstrap.ts` + `audio/interactionDetect.ts` + `audio/interactionSfx.ts` + `audio/workDetect.ts` + `audio/workSfx.ts` + `audio/tracks.ts` + `audio/htmlAudioSync.ts` | UI/audio events | `bootstrapIntroAudio`, `detectInteractionSounds`, `detectWorkActivity`, `playFootstepSfx`, `syncHtmlAudioMute`, `htmlAudioVolumeForPreset`, `syncHtmlAudioVolume` |
 
@@ -375,7 +375,6 @@ reported as stalled — never softened until it passes.
 | Facade | May do | Must not do |
 |---|---|---|
 | `dayCycle.ts` | re-export clock/schedule/residency | new lifecycle/economy rules |
-| `buildingActions.ts` | re-export focused action owners | new command policy |
 | `tickLayerRealtime.ts` | ordered realtime schedule | own movement / moon-howler / grid rules |
 | `tickLayerAssign.ts` | ordered assignment schedule | own housing / workforce rules |
 | `tickLayerDaily.ts` | ordered daily schedule | own winter heating / domain rules |

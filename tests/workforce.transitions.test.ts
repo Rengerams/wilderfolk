@@ -34,10 +34,7 @@ import {
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
-import {
-  assignIdleWorkerToBuilding,
-  removeWorkerFromBuilding,
-} from '../src/game/buildingActions';
+import { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';

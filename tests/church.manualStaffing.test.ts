@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, JOB_LABELS, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { assignMissingWorkers, rebalanceJobWorkers } from '../src/game/workforce';
-import { assignIdleWorkerToBuilding } from '../src/game/buildingActions';
+import { assignIdleWorkerToBuilding } from '../src/game/buildingActionRouting';
 import { clearAutoFilledChurches } from '../src/game/saveLoad';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { building, human } from '../src/test/factories';

@@ -9,7 +9,7 @@ import {
 import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEngine';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
-import { renderGame, resetRendererCaches } from './rendererLoader';
+import { renderGame, resetRendererCaches } from './renderer';
 import { getRenderDpr } from './canvasLayer';
 import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
