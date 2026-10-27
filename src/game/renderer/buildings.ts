@@ -133,10 +133,26 @@ function drawStripBuilding(
     : building.type === BuildingType.Road ? ROAD_STRIP_ALPHA : WALL_PANEL_ALPHA;
   const rot = effectiveBuildingRotation(building.type, building.rotation);
   drawProceduralStripBuilding(ctx, building.type, sx, sy, w, h, rot, alpha);
-  if (building.type !== BuildingType.Road || !strips) return;
-  const roadJunction = analyzeStripJunction(building.x, building.y, strips.hList, strips.vList, strips.along);
-  if (roadJunction.kind !== 'end' && roadJunction.kind !== 'straight') {
-    drawStripJunctionOverlay(ctx, building.type, sx, sy, w, h, roadJunction, alpha);
+  if (building.type === BuildingType.WallGate && building.gateClosed === true) {
+    // Mark the sealed opening on the same axis as the gate's physical footprint.
+    ctx.save();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.22);
+    ctx.beginPath();
+    if (w >= h) {
+      ctx.moveTo(sx - w * 0.34, sy);
+      ctx.lineTo(sx + w * 0.34, sy);
+    } else {
+      ctx.moveTo(sx, sy - h * 0.34);
+      ctx.lineTo(sx, sy + h * 0.34);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (!strips) return;
+  const junction = analyzeStripJunction(building.x, building.y, strips.hList, strips.vList, strips.along);
+  if (junction.kind !== 'end' && junction.kind !== 'straight') {
+    drawStripJunctionOverlay(ctx, building.type, sx, sy, w, h, junction, alpha);
   }
 }
 
@@ -219,12 +235,14 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   }
   lastBakedRoadStrips = roadStrips;
 
+  let wallStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
     if (!ISO_PANEL_BUILDINGS.has(b.type) || !b.completed) continue;
     const rect = getBuildingScreenRect(b, state, cam, cw, ch);
     if (rect.sx + rect.w < -20 || rect.sx - rect.w > cw + 20) continue;
     if (rect.sy + rect.h < -20 || rect.sy - rect.h > ch + 20) continue;
-    drawStripBuilding(ctx, b, rect, null, false);
+    wallStrips ??= collectStripCenters(state.buildings, 'wall');
+    drawStripBuilding(ctx, b, rect, wallStrips, false);
   }
 
   for (const b of state.buildings) {

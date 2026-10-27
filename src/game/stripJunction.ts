@@ -4,7 +4,6 @@ import {
   getBuildingFootprintForType,
   normalizeBuildingRotation,
   normalizeCornerRotation,
-  snapBuildingCenter,
   type BuildingRotation,
   type CornerRotation,
 } from './buildingRotation';
@@ -59,9 +58,9 @@ export function cornerRotationFromConnections(c: JunctionConnections): CornerRot
 
   // T-junctions — rotation points arms toward the three connected sides
   if (c.north && c.east && c.west && !c.south) return 0;
-  if (c.south && c.east && c.west && !c.north) return 90;
   if (c.north && c.south && c.east && !c.west) return 90;
-  if (c.north && c.south && c.west && !c.east) return 180;
+  if (c.south && c.east && c.west && !c.north) return 180;
+  if (c.north && c.south && c.west && !c.east) return 270;
 
   // Cross — default NE corner frame
   if (c.north && c.south && c.east && c.west) return 0;
@@ -79,11 +78,7 @@ export function straightRotationFromConnections(c: JunctionConnections): Buildin
   return 0;
 }
 
-type StripCenter = { x: number; y: number };
-
-function buildingStripRotation(b: Building): BuildingRotation {
-  return normalizeBuildingRotation(b.rotation);
-}
+type StripCenter = { x: number; y: number; width?: number; height?: number };
 
 export function cornerArms(rotation: CornerRotation): JunctionConnections {
   const r = normalizeCornerRotation(rotation);
@@ -119,15 +114,16 @@ export function collectStripCenters(
   const vList: StripCenter[] = [];
 
   const pushBuilding = (type: BuildingType, x: number, y: number, rot: BuildingRotation) => {
-    const snapped = snapBuildingCenter(type, x, y, rot);
-    if (rot === 0) hList.push(snapped);
-    else vList.push(snapped);
+    const footprint = getBuildingFootprintForType(type, rot);
+    const center = { x, y, ...footprint };
+    if (rot === 0) hList.push(center);
+    else vList.push(center);
   };
 
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival' || !familyMembers(b.type)) continue;
-    const t = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
-    pushBuilding(t, b.x, b.y, buildingStripRotation(b));
+    const list = normalizeBuildingRotation(b.rotation) === 0 ? hList : vList;
+    list.push({ x: b.x, y: b.y, width: b.width, height: b.height });
   }
 
   for (const e of extra) {
@@ -145,32 +141,26 @@ export function connectionsAt(
   vList: StripCenter[],
   along: number,
 ): JunctionConnections {
-  const tol = JUNCTION_PROXIMITY * 0.75;
-  const rowMatch = (p: StripCenter) => Math.abs(p.y - y) <= tol;
-  const colMatch = (p: StripCenter) => Math.abs(p.x - x) <= tol;
-
-  const west = hList.some((p) => rowMatch(p) && p.x < x - along * 0.35);
-  const east = hList.some((p) => rowMatch(p) && p.x > x + along * 0.35);
-  const north = vList.some((p) => colMatch(p) && p.y < y - along * 0.35);
-  const south = vList.some((p) => colMatch(p) && p.y > y + along * 0.35);
-
-  const hAt = hList.some((p) => rowMatch(p) && Math.abs(p.x - x) <= tol);
-  const vAt = vList.some((p) => colMatch(p) && Math.abs(p.y - y) <= tol);
-
-  // Perpendicular strips can snap to the same center (H/V grids differ). Both pieces then sit
-  // on the anchor, so no arm is detected; the coercions below promote a missing vertical arm
-  // to north and a missing horizontal arm to east, so a lone crossing always reads as at
-  // least an elbow instead of zero connections (which would skip corners).
-  if (hAt && vAt) {
-    return {
-      north: north || (!south && !north),
-      south,
-      east: east || (!west && !east),
-      west,
-    };
+  const connections: JunctionConnections = { north: false, south: false, east: false, west: false };
+  for (const [list, horizontal] of [[hList, true], [vList, false]] as const) {
+    for (const p of list) {
+      const width = p.width ?? (horizontal ? along : 0);
+      const height = p.height ?? (horizontal ? 0 : along);
+      const left = p.x - width / 2;
+      const right = p.x + width / 2;
+      const top = p.y - height / 2;
+      const bottom = p.y + height / 2;
+      if (x < left || x > right || y < top || y > bottom) continue;
+      if (horizontal) {
+        connections.west ||= left < x;
+        connections.east ||= right > x;
+      } else {
+        connections.north ||= top < y;
+        connections.south ||= bottom > y;
+      }
+    }
   }
-
-  return { north, south, east, west };
+  return connections;
 }
 
 /** Merge H/V snap grids to one junction anchor (grids use different axes). */

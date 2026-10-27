@@ -11,7 +11,7 @@ import {
   snapBuildingCenter,
   type BuildingRotation,
 } from './buildingRotation';
-import { canAfford } from './resourceUtils';
+import { canAfford, consumeResources } from './resourceUtils';
 import { formatResourceCostNeed } from './resourceCost';
 import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
@@ -1201,11 +1201,12 @@ function buildRoadChain(
 
   const corners = pathWaypoints(corridorCorners(path));
   const segments: StripSegment[] = [];
+  const budget = { ...state, resources: { ...state.resources } };
   for (let i = 0; i + 1 < corners.length; i++) {
     const from = corners[i];
     const to = corners[i + 1];
     const preview = buildStripPreview(
-      state,
+      budget,
       BuildingType.Road,
       from.x,
       from.y,
@@ -1215,6 +1216,7 @@ function buildRoadChain(
     );
     for (const segment of preview.segments) {
       if (!segment.valid) continue;
+      if (!consumeResources(budget, BUILDING_CONFIGS[segment.placeType].cost)) return segments;
       segments.push(segment);
       if (segments.length >= VirtualPlayer.ROAD_MAX_SEGMENTS_PER_ACT) return segments;
     }
@@ -1234,6 +1236,7 @@ function buildRoadChain(
  * `ROAD_MIN_WOOD` so paving never outranks the colony's real needs.
  */
 function decideRoads(state: WorldState): VirtualPlayerDecision | null {
+  if (!hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) return null;
   if ((state.resources.wood ?? 0) < VirtualPlayer.ROAD_MIN_WOOD) return null;
 
   const camp = getPlayerCampCenter(state, state.buildings);

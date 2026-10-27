@@ -21,7 +21,7 @@ import {
 } from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
 import { getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
-import { buildStripPlanFromDrag } from './stripTopology';
+import { buildStripPlanFromDrag, buildStripPlanFromStroke } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
   getBuildingFootprintRect,
@@ -29,14 +29,13 @@ import {
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
   overlapsAnyBuilding,
+  stripCrossingIsTheOnlyOverlap,
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
 
 // The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
 // leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
-
-export { isFootprintOnBuildableTerrain } from './placementUtils';
 
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
@@ -96,7 +95,9 @@ export function getPlaceBuildingFailureReason(
   }
   if (isUniqueBuildingAlreadyBuilt(state, type)) return 'unique';
   if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
-  if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
+  if (overlapsAnyBuilding(state.buildings, width, height, x, y)
+    && !((type === BuildingType.Road || type === BuildingType.Wall)
+      && stripCrossingIsTheOnlyOverlap(state.buildings, x, y, width, height, type))) return 'blocked';
   return null;
 }
 
@@ -275,38 +276,56 @@ export function buildStripPreview(
   endX: number,
   endY: number,
   rotation: BuildingRotation,
+  stroke?: readonly { x: number; y: number }[],
 ): StripBuildPreview {
-  const { plan, enclosedAreas } = buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
-  return {
-    rotation,
-    enclosedAreas,
-    segments: plan.map((piece) => {
+  const { plan, enclosedAreas } = stroke && stroke.length > 1
+    ? buildStripPlanFromStroke(state, type, stroke)
+    : buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
+  const budgetState: WorldState = {
+    ...state,
+    buildings: [...state.buildings],
+    resources: { ...state.resources },
+    lifetimeStats: {
+      ...state.lifetimeStats,
+      totalResourcesGathered: { ...state.lifetimeStats.totalResourcesGathered },
+    },
+  };
+  let ranOutOfResources = false;
+  const segments = plan.map((piece): StripSegment => {
       // The raw plan rotation is what the renderer reads for junction topology; validity is always
       // asked with the normalised form, which is the only one the footprint owner accepts.
       const segmentRotation = piece.rotation;
       const placementRotation = placementRotationFor(segmentRotation);
       const replacing = piece.replacesBuildingId !== undefined
-        ? state.buildings.find((building) => building.id === piece.replacesBuildingId)
+        ? budgetState.buildings.find((building) => building.id === piece.replacesBuildingId)
         : undefined;
-      let reason = getPlaceBuildingFailureReason(
-        state,
+      const placementState = replacing
+        ? { ...budgetState, buildings: budgetState.buildings.filter((building) => building.id !== replacing.id) }
+        : budgetState;
+      const reason = getPlaceBuildingFailureReason(
+        placementState,
         piece.type,
         piece.x,
         piece.y,
         placementRotation,
       );
-      if (replacing !== undefined) {
-        const withoutReplacement: WorldState = {
-          ...state,
-          buildings: state.buildings.filter((building) => building.id !== replacing.id),
-        };
-        reason = getPlaceBuildingFailureReason(
-          withoutReplacement,
-          piece.type,
-          piece.x,
-          piece.y,
-          placementRotation,
-        );
+      const refusal = !reason && !isStripSegmentTechUnlocked(type, piece.type, state) ? 'research' : reason;
+      const cost = BUILDING_CONFIGS[piece.type].cost;
+      const shortage = !refusal && (ranOutOfResources
+        || budgetState.resources.wood < cost.wood
+        || budgetState.resources.stone < cost.stone
+        || budgetState.resources.gold < cost.gold);
+      if (shortage) ranOutOfResources = true;
+      if (!refusal && !shortage) {
+        // Carry accepted footprints into the next segment's authoritative overlap check.
+        if (replacing) {
+          budgetState.buildings = placementState.buildings;
+          refundBuildingCost(budgetState, replacing.type);
+        }
+        budgetState.resources.wood -= cost.wood;
+        budgetState.resources.stone -= cost.stone;
+        budgetState.resources.gold -= cost.gold;
+        budgetState.buildings.push(createBuilding(piece.type, piece.x, piece.y, budgetState.nextBuildingId++, placementRotation));
       }
       return {
         x: piece.x,
@@ -315,10 +334,26 @@ export function buildStripPreview(
         rotation: segmentRotation,
         junctionInfo: piece.junctionInfo,
         replacesBuildingId: piece.replacesBuildingId,
-        valid: reason == null,
-        reason: reason ?? undefined,
+        valid: refusal == null && !shortage,
+        reason: refusal ?? undefined,
+        resourceShortage: shortage,
       };
-    }),
+    });
+  return {
+    rotation,
+    // An incomplete stroke must never advertise a sealed wall enclosure.
+    enclosedAreas: segments.every((piece) => piece.valid) ? enclosedAreas : [],
+    segments,
+    cost: {
+      wood: state.resources.wood - budgetState.resources.wood,
+      stone: state.resources.stone - budgetState.resources.stone,
+      gold: state.resources.gold - budgetState.resources.gold,
+    },
+    available: {
+      wood: state.resources.wood,
+      stone: state.resources.stone,
+      gold: state.resources.gold,
+    },
   };
 }
 

@@ -7,6 +7,12 @@ import { getSpriteFrame } from './spriteLoader';
 
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
 const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
+// CC0 original sprites by Drummyfish: https://opengameart.org/content/top-down-rpg-mockup-scene
+const RPG_PAVEMENT_SPRITE = '/sprites/oga_drummyfish/tile_pavement.png';
+const RPG_WALL_SPRITE = '/sprites/oga_drummyfish/wall.png';
+const RPG_GATE_SPRITE = '/sprites/oga_drummyfish/gate.png';
+const WALL_STRAIGHT_FALLBACK = '/sprites/walls/wall_straight.svg';
+const WALL_GATE_FALLBACK = '/sprites/walls/wall_gate.svg';
 const ROAD_STRAIGHT_VERTICAL = '/sprites/roads/road_straight_2.png';
 const ROAD_CROSS = '/sprites/roads/road_cross.png';
 const ROAD_TEE = ['/sprites/roads/road_tee_1.png', '/sprites/roads/road_tee_2.png'] as const;
@@ -40,6 +46,34 @@ function paintPavementPattern(
   // Subtle depth overlay so the strip still reads as a built road.
   ctx.fillStyle = 'rgba(0,0,0,0.10)';
   ctx.fillRect(x0, y0, rw, rh);
+  return true;
+}
+
+/** Seamless CC0 cobblestone, used for straight runs and every junction shape. */
+function paintRpgPavementPattern(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  tileDepth = height,
+  phaseX = 0,
+  phaseY = 0,
+): boolean {
+  const sprite = getSpriteFrame(RPG_PAVEMENT_SPRITE);
+  if (!sprite?.image || sprite.sh <= 0 || tileDepth <= 0) return false;
+  const pattern = ctx.createPattern(sprite.image as CanvasImageSource, 'repeat');
+  if (!pattern) return false;
+  const scale = tileDepth / sprite.sh;
+  const offsetX = (phaseX + x) / scale;
+  const offsetY = (phaseY + y) / scale;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = pattern;
+  ctx.translate(-offsetX, -offsetY);
+  ctx.fillRect(offsetX, offsetY, width / scale, height / scale);
+  ctx.restore();
   return true;
 }
 
@@ -99,8 +133,8 @@ function drawPalisadeArm(
   strokePalisadeRails(ctx, ax, ay, aw, ah);
 }
 
-/** Draw one of the user's hand-made road pieces, falling back when not loaded. */
-function paintRoadSprite(
+/** Draw an authored road or wall asset, falling back when it has not loaded. */
+function paintStripSprite(
   ctx: CanvasRenderingContext2D,
   spritePath: string,
   x: number,
@@ -120,6 +154,46 @@ function paintRoadSprite(
   return true;
 }
 
+/** Repeats upright stone facades along the construction axis without rotating the art. */
+function paintRpgStoneStrip(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  w: number,
+  h: number,
+  rotation: BuildingRotation,
+  isGate: boolean,
+  alpha: number,
+): boolean {
+  const wall = getSpriteFrame(RPG_WALL_SPRITE);
+  const gate = isGate ? getSpriteFrame(RPG_GATE_SPRITE) : null;
+  if (!wall || (isGate && !gate)) return false;
+  const run = Math.max(w, h);
+  const depth = Math.max(1, Math.min(w, h));
+  const count = Math.max(1, Math.ceil(run / (depth * 1.8)));
+  const pitch = run / count;
+  const wallHeight = depth * 3;
+  const gateWidth = Math.min(run, depth * 2.8);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(sx, sy);
+  for (let i = 0; i < count; i++) {
+    const along = -run / 2 + (i + 0.5) * pitch;
+    if (isGate && Math.abs(along) < gateWidth / 2) continue;
+    const x = rotation === 90 ? 0 : along;
+    const y = rotation === 90 ? along : 0;
+    paintStripSprite(ctx, RPG_WALL_SPRITE, x, y - wallHeight / 2 + depth / 2,
+      rotation === 90 ? depth * 2 : pitch + 1, wallHeight, 0);
+  }
+  if (isGate) {
+    const gateHeight = gateWidth * (gate!.sh / gate!.sw);
+    paintStripSprite(ctx, RPG_GATE_SPRITE, 0, depth / 2 - gateHeight / 2,
+      gateWidth, gateHeight, 0);
+  }
+  ctx.restore();
+  return true;
+}
+
 /** Top-down cobble road — uses the hand-made path pieces with procedural fallback. */
 export function drawProceduralRoad(
   ctx: CanvasRenderingContext2D,
@@ -133,7 +207,10 @@ export function drawProceduralRoad(
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
 
   const roadSprite = rotation === 0 ? ROAD_STRAIGHT_HORIZONTAL : ROAD_STRAIGHT_VERTICAL;
-  if (!paintRoadSprite(ctx, roadSprite, 0, 0, rw, rh, 0) && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
+  const authoredRoad = paintRpgPavementPattern(ctx, x0, y0, rw, rh, rh,
+    rotation === 90 ? sy : sx, rotation === 90 ? -sx : sy)
+    || paintStripSprite(ctx, roadSprite, 0, 0, rw, rh, 0);
+  if (!authoredRoad && !paintPavementPattern(ctx, x0, y0, rw, rh)) {
     // Fallback flat road (tile not loaded yet)
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(x0, y0, rw, rh);
@@ -156,9 +233,11 @@ export function drawProceduralRoad(
     }
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x0 + 0.5, y0 + 0.5, rw - 1, rh - 1);
+  if (!authoredRoad) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, rw - 1, rh - 1);
+  }
   ctx.restore();
 }
 
@@ -185,7 +264,12 @@ export function drawProceduralWall(
   isGate: boolean,
   alpha = 1,
 ): void {
+  if (paintRpgStoneStrip(ctx, sx, sy, w, h, rotation, isGate, alpha)) return;
   const { rw, rh, x0, y0 } = beginRotatedStripFrame(ctx, sx, sy, w, h, rotation, alpha);
+  if (paintStripSprite(ctx, isGate ? WALL_GATE_FALLBACK : WALL_STRAIGHT_FALLBACK, 0, 0, rw, rh, 0)) {
+    ctx.restore();
+    return;
+  }
 
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.fillRect(x0, y0 + rh * 0.55, rw, rh * 0.35);
@@ -325,10 +409,13 @@ export function drawProceduralRoadJunction(
   const spritePath = kind === 'cross'
     ? ROAD_CROSS
     : kind === 'tee'
-      ? ROAD_TEE[Math.abs(Math.round(rotation / 90)) % ROAD_TEE.length]
+      ? ROAD_TEE[0]
       : ROAD_CORNER[Math.abs(Math.round(rotation / 90)) % ROAD_CORNER.length];
 
-  if (!paintRoadSprite(ctx, spritePath, 0, 0, cap, cap, 0) && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
+  if (!paintRpgPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap,
+    Math.min(w, h), sx, sy)
+    && !paintStripSprite(ctx, spritePath, 0, 0, cap, cap, kind === 'tee' ? rotation : 0)
+    && !paintPavementPattern(ctx, -cap / 2, -cap / 2, cap, cap)) {
     ctx.fillStyle = '#3f3a33';
     ctx.fillRect(-cap / 2, -cap / 2, cap, cap);
     ctx.fillStyle = '#5c5346';
@@ -337,9 +424,11 @@ export function drawProceduralRoadJunction(
     ctx.fillRect(-cap * 0.28, -cap * 0.28, cap * 0.56, cap * 0.56);
   }
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(-cap / 2 + 0.5, -cap / 2 + 0.5, cap - 1, cap - 1);
+  if (!getSpriteFrame(RPG_PAVEMENT_SPRITE)) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-cap / 2 + 0.5, -cap / 2 + 0.5, cap - 1, cap - 1);
+  }
   ctx.restore();
 }
 
@@ -353,11 +442,18 @@ export function drawProceduralWallJunction(
   info: StripJunctionInfo,
   alpha = 1,
 ): void {
-  if (info.kind !== 'tee' && info.kind !== 'cross') return;
+  if (info.kind !== 'elbow' && info.kind !== 'tee' && info.kind !== 'cross') return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(sx, sy);
 
+  // A single upright cap seals the joint without covering the connected arms.
+  if (getSpriteFrame(RPG_WALL_SPRITE)) {
+    const depth = Math.min(w, h);
+    paintStripSprite(ctx, RPG_WALL_SPRITE, 0, -depth, depth * 2, depth * 3, 0);
+    ctx.restore();
+    return;
+  }
   const size = Math.max(w, h);
   const half = size / 2;
   const thick = size * 0.34;
@@ -409,5 +505,8 @@ export function drawStripJunctionOverlay(
   if (type === BuildingType.Road) {
     drawProceduralRoadJunction(ctx, sx, sy, w, h, info.kind, alpha, info.cornerRotation);
     return;
+  }
+  if (type === BuildingType.Wall) {
+    drawProceduralWallJunction(ctx, sx, sy, w, h, info, alpha);
   }
 }

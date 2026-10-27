@@ -27,14 +27,14 @@ import { isPlayerHuman } from './playerHuman';
 import { hasResidenceAssignment } from './residencyOccupancy';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
-import { steerWithPath } from './pathfinding';
+import { isOnWalkableRoadAt, steerWithPath } from './pathfinding';
 import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { gainSkill } from './skills';
 import { seededRandomForRun } from './simRng';
-import { faceVelocity } from './simulation/movementSteering';
+import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { isVenueServiceHour } from './venueSchedule';
 
 /** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
@@ -497,11 +497,15 @@ export function steerVisitorToHotel(
     // Route around water/mountains on the camp→hotel walk. Key on the visitor, not the moving
     // position: a position key changes every step, so A* re-ran per tick and the shared cache churned.
     const handled = steerWithPath(visitor, tx, ty, speed * 0.7, `h_${hotel.id}_${visitor.id}`);
-    // 'path' only sets the velocity — the stepper never moves an entity, so the walk applies this
-    // tick's step here (exactly once). Every human walk goes through the one grid-aware integration:
-    // this caller used to apply the velocity raw, so a guest waded a river or crossed a wall.
+    // The hotel owns this visitor's movement step: humanTick must not apply another one.
+    // Road route pricing and actual motion both use the same completed-road footprint.
     if (handled === 'path') {
-      applyHumanWalkStep(visitor, 1);
+      applyHumanWalkStep(visitor, isOnWalkableRoadAt(visitor.x, visitor.y) ? ROAD_SPEED_MULT : 1);
+      return true;
+    }
+    if (handled === 'blocked') {
+      visitor.vx = 0;
+      visitor.vy = 0;
       return true;
     }
     if (handled === 'arrived') {
@@ -510,7 +514,7 @@ export function steerVisitorToHotel(
     }
     visitor.vx = (dx / dist) * speed * 0.7;
     visitor.vy = (dy / dist) * speed * 0.7;
-    applyHumanWalkStep(visitor, 1);
+    applyHumanWalkStep(visitor, isOnWalkableRoadAt(visitor.x, visitor.y) ? ROAD_SPEED_MULT : 1);
     faceVelocity(visitor);
   } else {
     visitor.vx = 0;

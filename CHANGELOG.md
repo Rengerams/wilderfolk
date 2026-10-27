@@ -25,6 +25,36 @@
 
 - **Changed:** Off-duty settlers now take actual stamina recovery breaks, retain break intent across saves and resume activity after recovery.
 
+- **Fixed:** Looping construction previews now account for earlier placed footprints and real material costs; roads snapped to building entrances no longer overlap foundations.
+
+- **Changed:** Consolidated strip rotation helpers and documented construction, navigation, and function ownership without introducing another implementation path.
+
+- **Fixed:** Repeated wall-to-gate construction previews no longer alter lifetime resource-gathering statistics before placement.
+
+- **Fixed:** Virtual player postpones road construction during food shortages and budgets multi-leg road projects across the full stroke instead of reusing the starting funds for each leg.
+
+- **Added:** Completed wall gates can be opened or closed from their building panel; the saved state controls wall collision and invalidates route grids. Legacy gates remain open.
+
+- **Fixed:** Construction previews now show affordable pieces, net material costs, current stores and shortages. Blocked wall recoveries cannot teleport through obstacles.
+
+- **Fixed:** Commute eligibility no longer grants a whole-route speed bonus from a short road crossing; road drags can snap to the front approach of suitable buildings.
+
+- **Fixed:** Minor pointer drift no longer creates perpendicular road, wall or gate segments or extra construction costs; genuine freehand bends remain connected.
+
+- **Fixed:** Walkers consider faster road routes on short trips and for savings below five percent; bounded searches and route caching remain in use.
+
+- **Fixed:** The annual integration check counts only newly added chronicle entries instead of rescanning the entire history on every tick; simulation coverage and timeout remain unchanged.
+
+- **Fixed:** Save inspection and simulation tooling compile again after restoring a missing building type import and removing an unused assertion helper.
+
+- **Fixed:** Junctions use actual infrastructure footprints, preserving legacy positions and excluding disconnected nearby or distant strips.
+
+- **Fixed:** Roads accept passable rocky ground while rejecting water and reserved obstacles. Only bridges open blocked terrain; navigation refreshes when infrastructure dimensions or road or bridge type changes. Sprite provenance is registered.
+
+- **Changed:** Roads and walls can now be painted freehand with a single drag across multiple bends; a continuous preview tracks the stroke, and the release sends one bounded placement command.
+
+- **Fixed:** CC0 pavement aligns across joints using a stable texture phase and scale. Masonry repeats upright along either wall axis, gates stay upright, and merged demolition uses the authoritative batch cleanup owner.
+
 - **Planned:** Added the independent nutrition, rest and stamina overhaul with measured food-economy, save and simulation acceptance gates; linked the existing roads, walls and navigation work to its tracking issue.
 
 - **Fixed:** Failed worker ticks now roll back nested human and Moon-form needs exactly. Foreign captives retain their legacy exhaustion death while player settlers require prolonged starvation; attendance reasons use nutrition instead of combat energy.
@@ -60,10 +90,16 @@
 
 - **Fixed:** Settlers disappear while inside completed workplaces, homes, schools, hospitals, prisons and indoor venues, including selected occupants and hotel guests; travel, construction and outdoor work remain visible.
 
+- **Fixed:** Long road routes preserve corners while coalescing straight waypoints; fast commuters clamp their steps before applying the road multiplier to prevent waypoint oscillation.
+
+- **Changed:** Road runs and intersections now use Drummyfish's CC0 cobblestone tile; walls and gates use matching original top-down PNG art, vendored locally for offline rendering with attribution and fallback assets.
+
+- **Fixed:** Empty road and demolition previews no longer crash render frames; rejected road detours reuse negative cache results. Snapshot build-grid validation now shares perpendicular strip crossing rules with authoritative placement.
+
 - **Fixed:** Manor entitlement includes the leader, partner and dependent minors; unhoused adult descendants remain independent across housing reconciliation, worker transport and saved games.
 - **Changed:** Divorce custody now selects one parent consistently for shared minor children, and relocating ex-partners prefer the farthest suitable home while preserving existing remarriage restrictions.
 
-- **Planned:** Added the high-priority roads, walls, gates, navigation and drag-demolition overhaul to the v0.6.6.0 roadmap; implementation and validation remain pending.
+- **Changed:** Roads use time-aware routes and on-tile speed bonuses; unreachable journeys stop at barriers. L-shaped drags deduplicate sections and join perpendicular junctions, with aligned wall-to-gate replacement, wall art, and Alt-drag batch demolition.
 
 - **Fixed:** Oversized blended households split by each minor's actual custodian, and bounded movement pathfinding stays directed even when a distant road discounts commute costs.
 - **Refactored:** Rival diplomacy and strategic settlement handling now use dedicated owners; the obsolete frontier autospawn is removed.

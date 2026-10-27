@@ -1,4 +1,4 @@
-import { BuildingType } from './gameTypes';
+import { BUILDING_JOB_TYPES, BuildingType, GRID_SIZE } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
 import {
   getBuildingFootprintForType,
@@ -7,7 +7,7 @@ import {
   type CornerRotation,
   normalizeBuildingRotation,
 } from './buildingRotation';
-import { computeStripSegmentCenters, isStripBuildType, type EnclosedArea } from './stripBuild';
+import { computeStripSegmentCenters, isStripBuildType, MAX_STRIP_SEGMENTS, type EnclosedArea } from './stripBuild';
 import { isWallBuildingType } from './defenseStructures';
 import {
   analyzeStripJunction,
@@ -21,8 +21,12 @@ export const STRIP_SNAP_RADIUS = 38;
 
 /** Spacing of the snap samples taken along an existing strip, in world px. */
 const STRIP_SNAP_SAMPLE_PX = 12;
+const STRIP_BEND_MIN_DISTANCE_PX = 30;
 
 const ROAD_STRIP_TYPES = new Set<BuildingType>([BuildingType.Road]);
+const ROAD_ENTRANCE_HOUSING_TYPES = new Set<BuildingType>([
+  BuildingType.House, BuildingType.Villa, BuildingType.Mansion, BuildingType.LeaderHouse,
+]);
 
 /** Wall membership is `defenseStructures.isWallBuildingType`'s rule, not a second set here. */
 export function isWallStripType(type: BuildingType): boolean {
@@ -59,17 +63,13 @@ export function getStripSegmentEndpoints(
   return [{ x: cx, y: cy - along }, { x: cx, y: cy + along }];
 }
 
-function buildingStripRotation(b: Building): BuildingRotation {
-  return normalizeBuildingRotation(b.rotation);
-}
-
 function collectSnapPoints(buildings: Building[], family: 'wall' | 'road'): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
   const types = family === 'wall' ? null : ROAD_STRIP_TYPES;
   for (const b of buildings) {
     const member = family === 'wall' ? isWallStripType(b.type) : types!.has(b.type);
     if (!b.completed || b.faction === 'rival' || !member) continue;
-    const rot = buildingStripRotation(b);
+    const rot = normalizeBuildingRotation(b.rotation);
     const sampleType = b.type === BuildingType.WallGate ? BuildingType.WallGate : b.type;
     const [a, c] = getStripSegmentEndpoints(sampleType, b.x, b.y, rot);
     // The two ends and the centre leave a gap of half a tile on each side that the snap radius does
@@ -105,6 +105,27 @@ function nearestSnapPoint(
   return best;
 }
 
+/** South-facing building approaches, beyond foundations but within the road's footprint reach. */
+function collectRoadEntranceSnapPoints(buildings: readonly Building[]): { x: number; y: number }[] {
+  const roadHalfDepth = getBuildingFootprintForType(BuildingType.Road, 0).height / 2;
+  const entrances: { x: number; y: number }[] = [];
+  for (const building of buildings) {
+    if (!building.completed || building.faction === 'rival') continue;
+    if (!ROAD_ENTRANCE_HOUSING_TYPES.has(building.type) && !BUILDING_JOB_TYPES[building.type]) continue;
+    const foundationEdge = building.y + building.height / 2;
+    const approachY = foundationEdge + roadHalfDepth;
+    const snappedY = snapBuildingCenter(BuildingType.Road, building.x, approachY, 0).y;
+    // Validate clearance after the road's own grid snap, not only at the raw anchor.
+    entrances.push({
+      x: building.x,
+      y: snappedY - roadHalfDepth < foundationEdge
+        ? snappedY + GRID_SIZE
+        : approachY,
+    });
+  }
+  return entrances;
+}
+
 /** Snap drag endpoints to nearby strip chain endpoints. */
 export function snapStripDragEndpoints(
   buildings: Building[],
@@ -117,10 +138,13 @@ export function snapStripDragEndpoints(
   const family = stripFamilyFor(type);
   if (!family) return { startX, startY, endX, endY };
   const snaps = collectSnapPoints(buildings, family);
-  if (snaps.length === 0) return { startX, startY, endX, endY };
+  const entrances = family === 'road' ? collectRoadEntranceSnapPoints(buildings) : [];
+  if (snaps.length === 0 && entrances.length === 0) return { startX, startY, endX, endY };
 
-  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
-  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
+  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS)
+    ?? nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
+  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS)
+    ?? nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
   return {
     startX: startSnap?.x ?? startX,
     startY: startSnap?.y ?? startY,
@@ -166,6 +190,13 @@ export function resolveWallStripPlan(
     const existing = findStripBuildingAt(state, junctionPt.x, junctionPt.y, JUNCTION_PROXIMITY * 0.75, 'wall');
 
     if (existing && isWallStripType(existing.type)) {
+      // A perpendicular wall can intersect an existing wall; both arms must remain physical.
+      if (stripType === BuildingType.Wall && existing.type === BuildingType.Wall
+        && normalizeBuildingRotation(existing.rotation) !== stripRotation) {
+        pieces.push({ type: stripType, x: snapped.x, y: snapped.y, rotation: stripRotation });
+        emitted.add(key);
+        continue;
+      }
       emitted.add(key);
       // A WallGate run replaces the plain Wall it lands on — the placement owner
       // demolishes it and refunds half. Any other wall-family overlap (a Wall run
@@ -174,9 +205,9 @@ export function resolveWallStripPlan(
       if (stripType === BuildingType.WallGate && existing.type === BuildingType.Wall) {
         pieces.push({
           type: stripType,
-          x: snapped.x,
-          y: snapped.y,
-          rotation: stripRotation,
+          x: existing.x,
+          y: existing.y,
+          rotation: normalizeBuildingRotation(existing.rotation),
           replacesBuildingId: existing.id,
         });
       }
@@ -208,18 +239,27 @@ export function resolveRoadStripPlan(
   }));
   const { hList, vList, along } = collectStripCenters(state.buildings, 'road', extra);
 
-  return centers.map((c) => {
+  const emitted = new Set<string>();
+  return centers.flatMap((c): StripPlacementPiece[] => {
     const snapped = snapBuildingCenter(BuildingType.Road, c.x, c.y, stripRotation);
+    const key = cellKey(snapped.x, snapped.y);
+    if (emitted.has(key)) return [];
+    emitted.add(key);
+    // A repeated stroke must not create another building over an existing road segment.
+    const existing = state.buildings.some((b) => b.type === BuildingType.Road
+      && b.faction !== 'rival' && b.x === snapped.x && b.y === snapped.y
+      && normalizeBuildingRotation(b.rotation) === stripRotation);
+    if (existing) return [];
     const junctionPt = resolveJunctionCenter(snapped.x, snapped.y, hList, vList);
     const info = analyzeStripJunction(junctionPt.x, junctionPt.y, hList, vList, along);
     const junctionInfo = info.kind === 'end' || info.kind === 'straight' ? undefined : info;
-    return {
+    return [{
       type: BuildingType.Road,
       x: snapped.x,
       y: snapped.y,
       rotation: stripRotation,
       junctionInfo,
-    };
+    }];
   });
 }
 
@@ -263,6 +303,36 @@ export function findStripBuildingAt(
     if (Math.hypot(b.x - x, b.y - y) <= tolerance) return b;
   }
   return undefined;
+}
+
+/** Select only matching player-built strips intersecting the drag rectangle, in stable world order. */
+export function collectStripDemolitionIds(
+  buildings: readonly Building[],
+  type: BuildingType,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number[] {
+  const family = stripFamilyFor(type);
+  if (!family) return [];
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  const top = Math.min(startY, endY);
+  const bottom = Math.max(startY, endY);
+  const ids: number[] = [];
+  for (const building of buildings) {
+    if (building.faction === 'rival') continue;
+    const matching = type === BuildingType.Fence
+      ? building.type === BuildingType.Fence
+      : family === 'wall' ? isWallStripType(building.type) : isRoadStripType(building.type);
+    if (!matching) continue;
+    if (building.x + building.width / 2 < left || building.x - building.width / 2 > right
+      || building.y + building.height / 2 < top || building.y - building.height / 2 > bottom) continue;
+    ids.push(building.id);
+    if (ids.length >= MAX_STRIP_SEGMENTS) break;
+  }
+  return ids;
 }
 
 const ENCLOSURE_CELL = 24;
@@ -378,6 +448,59 @@ export function findEnclosedWallAreas(
   return areas;
 }
 
+/** Freehand strip stroke: preserve every mouse turn and create one bounded placement command. */
+export function buildStripPlanFromStroke(
+  state: WorldState,
+  type: BuildingType,
+  points: readonly { x: number; y: number }[],
+): { plan: StripPlacementPiece[]; enclosedAreas: EnclosedArea[] } {
+  if (points.length === 0) return { plan: [], enclosedAreas: [] };
+  if (points.length === 1) {
+    const p = points[0];
+    return buildStripPlanFromDrag(state, type, p.x, p.y, p.x, p.y, 0);
+  }
+  const plan: StripPlacementPiece[] = [];
+  const seen = new Set<string>();
+  const emit = (piece: StripPlacementPiece) => {
+    const key = `${piece.type}:${piece.x}:${piece.y}:${piece.rotation}`;
+    if (!seen.has(key) && plan.length < MAX_STRIP_SEGMENTS) {
+      seen.add(key);
+      plan.push(piece);
+    }
+  };
+  let anchor = points[0];
+  for (let i = 1; i < points.length && plan.length < MAX_STRIP_SEGMENTS; i++) {
+    const start = anchor;
+    const end = points[i];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    if (dx === 0 && dy === 0) continue;
+    if (plan.length > 0 && Math.max(Math.abs(dx), Math.abs(dy)) < STRIP_BEND_MIN_DISTANCE_PX) continue;
+    const rotation: BuildingRotation = Math.abs(dx) >= Math.abs(dy) ? 0 : 90;
+    const snapped = snapStripDragEndpoints(state.buildings, type, start.x, start.y, end.x, end.y);
+    const cornerX = rotation === 0 ? snapped.endX : snapped.startX;
+    const cornerY = rotation === 0 ? snapped.startY : snapped.endY;
+    const first = computeStripSegmentCenters(
+      type, snapped.startX, snapped.startY, cornerX, cornerY, rotation,
+    );
+    for (const piece of resolveStripPlan(state, type, first, rotation)) emit(piece);
+    if (plan.length >= MAX_STRIP_SEGMENTS) break;
+    const bend = Math.min(Math.abs(snapped.endX - snapped.startX), Math.abs(snapped.endY - snapped.startY))
+      >= STRIP_BEND_MIN_DISTANCE_PX;
+    anchor = bend ? end : { x: cornerX, y: cornerY };
+    if (bend) {
+      const turnRotation: BuildingRotation = rotation === 0 ? 90 : 0;
+      const second = computeStripSegmentCenters(
+        type, cornerX, cornerY, snapped.endX, snapped.endY, turnRotation,
+      );
+      for (const piece of resolveStripPlan(state, type, second, turnRotation)) emit(piece);
+    }
+  }
+  const enclosedAreas = isWallStripType(type)
+    ? findEnclosedWallAreas(state, plan.map((piece) => ({ x: piece.x, y: piece.y }))) : [];
+  return { plan, enclosedAreas };
+}
+
 export function buildStripPlanFromDrag(
   state: WorldState,
   type: BuildingType,
@@ -391,15 +514,26 @@ export function buildStripPlanFromDrag(
   enclosedAreas: EnclosedArea[];
 } {
   const snapped = snapStripDragEndpoints(state.buildings, type, startX, startY, endX, endY);
-  const centers = computeStripSegmentCenters(
-    type,
-    snapped.startX,
-    snapped.startY,
-    snapped.endX,
-    snapped.endY,
+  // A diagonal drag becomes one L-shaped stroke instead of silently discarding an axis.
+  const bend = Math.min(Math.abs(snapped.endX - snapped.startX), Math.abs(snapped.endY - snapped.startY))
+    >= STRIP_BEND_MIN_DISTANCE_PX;
+  const cornerX = rotation === 0 ? snapped.endX : snapped.startX;
+  const cornerY = rotation === 0 ? snapped.startY : snapped.endY;
+  const first = computeStripSegmentCenters(
+    type, snapped.startX, snapped.startY,
+    bend ? cornerX : snapped.endX,
+    bend ? cornerY : snapped.endY,
     rotation,
   );
-  const plan = resolveStripPlan(state, type, centers, rotation);
+  const plan = resolveStripPlan(state, type, first, rotation);
+  if (bend && plan.length < MAX_STRIP_SEGMENTS) {
+    const turnRotation: BuildingRotation = rotation === 0 ? 90 : 0;
+    const second = computeStripSegmentCenters(
+      type, cornerX, cornerY, snapped.endX, snapped.endY, turnRotation,
+    );
+    const turnPlan = resolveStripPlan(state, type, second, turnRotation);
+    plan.push(...turnPlan.slice(0, MAX_STRIP_SEGMENTS - plan.length));
+  }
   const enclosedAreas = isWallStripType(type)
     ? findEnclosedWallAreas(state, plan.map((p) => ({ x: p.x, y: p.y })))
     : [];

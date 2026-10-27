@@ -331,7 +331,7 @@ function runFullYear(seed: number): {
   let storyCardsQueued = 0;
   let birthsLogged = 0;
   let marriagesLogged = 0;
-  const countedEventIds = new Set<number>();
+  let lastCountedEventId = 0;
   const debug: FullYearDebugState = {
     previous: fullYearResidentRecords(world), history: [], deaths: 0, removalsUnconfirmed: 0, moves: 0,
   };
@@ -347,11 +347,11 @@ function runFullYear(seed: number): {
     if (DEBUG) traceFullYearTick(world, debug, seed);
     if (world.pendingStoryEvents?.length) storyCardsQueued += 1;
     for (const event of world.eventLog) {
-      if (countedEventIds.has(event.id)) continue;
-      countedEventIds.add(event.id);
+      if (event.id <= lastCountedEventId) break;
       if (event.type === 'birth') birthsLogged += 1;
       if (event.type === 'marriage') marriagesLogged += 1;
     }
+    lastCountedEventId = world.eventLog[0]?.id ?? lastCountedEventId;
     if (DEBUG && tick % (DEBUG_PROGRESS_DAYS * TICKS_PER_DAY) === 0) {
       writeFullYearDebug('progress', {
         day: tick / TICKS_PER_DAY, tick: world.tick, food: world.resources.food,

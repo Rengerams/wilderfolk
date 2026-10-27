@@ -116,12 +116,12 @@ describe('D12 — one terrain palette owner', () => {
   });
 });
 
-describe('D14 — the road strip index is collected once per repaint', () => {
+describe('D14 — road and wall indexes are each collected once per repaint', () => {
   it('does not re-derive the junction index per road', () => {
     const src = readSrc('game/renderer/buildings.ts');
     // A call, not the word: the doc comment above the loop names what it replaced.
     expect(src).not.toMatch(PER_ROAD_JUNCTION);
-    expect((src.match(/collectStripCenters\(/g) ?? []).length).toBe(1);
+    expect((src.match(/collectStripCenters\(/g) ?? []).length).toBe(2);
   });
 });
 

@@ -32,7 +32,7 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 **287 KiB**, and the drawn result at 256 px differs from the original by at most 13.6 levels of 255
 (mean 0.20).
 
-## Shipped files (`public/sprites/`, 219 files)
+## Shipped files (`public/sprites/`, 224 files)
 
 | Path | Loaded by | Origin |
 |---|---|---|
@@ -206,6 +206,11 @@ loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon an
 | `new_terrain_tiles/Tiles/ts_shallow0/straight/225/0.png` | **no code path** | imported tileset for the retired painted-tile ground |
 | `new_terrain_tiles/Tiles/ts_shallow0/straight/315/0.png` | **no code path** | imported tileset for the retired painted-tile ground |
 | `new_terrain_tiles/Tiles/ts_shallow0/straight/45/0.png` | **no code path** | imported tileset for the retired painted-tile ground |
+| `oga_drummyfish/tile_pavement.png` | `stripRender.ts`, `spriteLoader.ts` | Drummyfish, top-down RPG mockup scene; CC0 1.0; see Third-Party Notices |
+| `oga_drummyfish/wall.png` | `stripRender.ts`, `spriteLoader.ts` | Drummyfish, original wall_4; CC0 1.0; see Third-Party Notices |
+| `oga_drummyfish/gate.png` | `stripRender.ts`, `spriteLoader.ts` | Drummyfish, original gate_1; CC0 1.0; see Third-Party Notices |
+| `walls/wall_straight.svg` | `stripRender.ts`, `spriteLoader.ts` | original in-repo authored fallback art |
+| `walls/wall_gate.svg` | `stripRender.ts`, `spriteLoader.ts` | original in-repo authored fallback art |
 | `ocean.png` | `generate-water-sprites.mjs` (tool) | earlier in-repo art pass — origin not recorded |
 | `prison.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |
 | `quarry.png` | `buildings.ts` | earlier in-repo art pass — origin not recorded |

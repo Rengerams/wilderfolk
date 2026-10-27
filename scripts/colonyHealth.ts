@@ -20,7 +20,7 @@
  * `SCENARIOS` names it explicitly.
  */
 import { createHash } from 'node:crypto';
-import { serialize as v8Serialize } from 'node:v8';
+import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
 import { assignMissingResidences } from '../src/game/dayCycle';
@@ -310,10 +310,6 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
   };
 }
 
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Population / relationship summaries (moved here from run-full-year.mts so P2 shares them)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -508,7 +504,7 @@ export function sampleDelta(world: WorldState): DeltaSample {
   const delta = simTickDeltaFromWorld(world);
   const json = JSON.stringify(delta);
   const startedAt = performance.now();
-  const v8Bytes = v8Serialize(delta).byteLength;
+  const v8Bytes = serialize(delta).byteLength;
   return {
     jsonBytes: json.length,
     v8Bytes,
