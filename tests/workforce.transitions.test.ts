@@ -126,6 +126,27 @@ describe('workforce named transitions', () => {
     expect(settler.job).toBe(JobType.Farmer);
   });
 
+  it('repairs a pre-existing roster entry with an unset worker pointer without adding a duplicate', () => {
+    const settler = human(1);
+    const mill = building(2, BuildingType.LumberMill, { occupants: [1] });
+    const state = makeWorld([settler], [mill]);
+
+    expect(assignWorkerTransition(settler, mill)).toBe(true);
+    expect(mill.occupants).toEqual([1]);
+    expect(settler.workerBuildingId).toBe(2);
+    expect(settler.job).toBe(JobType.Lumberjack);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
+  });
+
+  it('repairs an established worker whose workplace roster entry disappeared', () => {
+    const settler = human(1, { workerBuildingId: 2, job: JobType.Lumberjack });
+    const mill = building(2, BuildingType.LumberMill);
+
+    expect(assignWorkerTransition(settler, mill)).toBe(true);
+    expect(mill.occupants).toEqual([1]);
+    expect(settler.workerBuildingId).toBe(2);
+  });
+
   it('assigns the leader via the manual command without losing office or manor residency', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
