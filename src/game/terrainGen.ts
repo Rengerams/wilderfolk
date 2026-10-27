@@ -214,7 +214,7 @@ export function generateWorldMap(
   preset?: MapPreset,
   /** The noise seed a save recorded — see `terrainSeedFor`. Wins over `seed` + `size`. */
   terrainSeed?: number,
-  generationVersion?: 1 | 2,
+  generationVersion?: 1 | 2 | 3,
 ): WorldMap;
 export function generateWorldMap(
   widthOrSize: number | MapSize = 1200,
