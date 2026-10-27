@@ -2,7 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Fixed (#62):** Blueberry gathering, fed-animal owner bonuses and grief comfort update authoritative stamina instead of the disposable human energy projection. Foraging eligibility now reads nutrition. Restoring Moon Howler human form rebases its advancement clock so the werewolf night is not charged again as human hunger or exhaustion; regressions cover the transition and rewards.
+- **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
+- **Fixed (#62):** Restoring human form after a Moon Howler night rebases the needs clock. Time spent transformed no longer counts as missed human meals, rest or stamina.
 
 - **Fixed (#62):** The Virtual Player now attempts real workforce staffing of completed idle food producers before proposing additional Farms in a measured food shortage. It refuses to multiply unstaffed Farms when nobody can transfer; targeted regressions cover the action and refusal.
 
