@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Repeated wall-to-gate construction previews no longer alter lifetime resource-gathering statistics before placement.
+
 - **Fixed:** Virtual player postpones road construction during food shortages and budgets multi-leg road projects across the full stroke instead of reusing the starting funds for each leg.
 
 - **Added:** Completed wall gates can be opened or closed from their building panel; the saved state controls wall collision and invalidates route grids. Legacy gates remain open.
