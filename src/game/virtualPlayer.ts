@@ -518,6 +518,29 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       : VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER,
   );
   const wantMore = built >= 1 && built < target;
+
+  // In a measured shortage, improve the output of existing farmhands before
+  // constructing another workplace that may have no eligible workers. Level
+  // multiplies actual farm production in dailyBuildingEconomy, and the normal
+  // upgrade command retains ownership of costs, caps and validation.
+  if (measuredDeficit) {
+    const farm = state.buildings
+      .filter((building) =>
+        building.type === BuildingType.Farm && building.completed && building.faction !== 'rival'
+        && countWorkersAtBuilding(state.entities, building.id) > 0
+        && getBuildingUpgradeEligibility(state, building.id).ok
+        && canAffordKeepingRepair(state, getBuildingUpgradeCost(building)))
+      .sort((a, b) => a.level - b.level
+        || countWorkersAtBuilding(state.entities, b.id) - countWorkersAtBuilding(state.entities, a.id)
+        || a.id - b.id)[0];
+    if (farm) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: farm.id },
+        reason: 'upgrade a staffed Farm — measured food production does not cover consumption',
+      };
+    }
+  }
+
   if (!shortOnFood && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
