@@ -199,13 +199,17 @@ function pickOverstaffedDonor(
   jobBuildings: Building[],
   index: WorkforceAssignmentIndex,
   excludeBuildingId: number,
+  preserveEssentialCoverage = false,
 ): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
     if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
     const count = index.counts.get(building.id) ?? 0;
-    if (count < 2 || (index.movable.get(building.id) ?? 0) === 0) continue;
+    const essential = building.type === BuildingType.Quarry
+      || building.type === BuildingType.Barracks || building.type === BuildingType.Prison;
+    const keep = preserveEssentialCoverage && essential ? 3 : 1;
+    if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
     if (count < smallestCount) {
       best = building;
       smallestCount = count;
@@ -397,10 +401,12 @@ export function rebalanceJobWorkers(
       const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans).cap;
       if (staffed >= capacity) continue;
-      // Borrow only to open an unstaffed workplace; idle people fill later slots.
-      if (staffed > 0) continue;
+      // Essential stone and guard coverage may grow to three posts; others only start.
+      const essential = needy.type === BuildingType.Quarry
+        || needy.type === BuildingType.Barracks || needy.type === BuildingType.Prison;
+      if (staffed >= (essential ? Math.min(3, capacity) : 1)) continue;
 
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id);
+      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
       if (!donor) continue;
 
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);

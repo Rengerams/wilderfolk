@@ -27,17 +27,38 @@ describe('two-month automatic job stability', () => {
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 
-  it('keeps an already staffed barracks stable instead of topping it off by transfers', () => {
+  it('keeps an already staffed nonessential workplace stable instead of topping it off', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
-    const barracks = building(11, BuildingType.Barracks, { occupants: [4] });
+    const market = building(11, BuildingType.Market, { occupants: [4] });
     const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: 10 }));
     workers.push(human(4, { workerBuildingId: 11 }));
     const original = workers.map((worker) => worker.workerBuildingId);
 
     for (const tick of [100, 101, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
-      rebalanceJobWorkers(workers, [farm, barracks], undefined, tick);
+      rebalanceJobWorkers(workers, [farm, market], undefined, tick);
       expect(workers.map((worker) => worker.workerBuildingId)).toEqual(original);
     }
+  });
+
+  it('protects a staffed Quarry and fills minimal emergency guard coverage once', () => {
+    const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2, 3] });
+    const barracks = building(11, BuildingType.Barracks, { occupants: [4] });
+    const farm = building(12, BuildingType.Farm, { occupants: [5, 6, 7] });
+    const workers = [
+      ...[1, 2, 3].map((id) => human(id, { workerBuildingId: 10 })),
+      human(4, { workerBuildingId: 11 }),
+      ...[5, 6, 7].map((id) => human(id, { workerBuildingId: 12 })),
+    ];
+
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 100);
+    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(barracks.occupants).toHaveLength(2);
+    expect(farm.occupants).toHaveLength(2);
+    const newWorker = workers.find((worker) => worker.workerBuildingId === 11 && worker.id !== 4);
+    expect(newWorker?.lastAutoJobTransferTick).toBe(100);
+    const assignments = workers.map((worker) => worker.workerBuildingId);
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 101);
+    expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 
   it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
