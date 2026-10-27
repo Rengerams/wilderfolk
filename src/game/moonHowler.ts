@@ -1,5 +1,5 @@
 import { moveResident } from './residencyReconciliation';
-import { BuildingType, EntityType, JobType } from './gameTypes';
+import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
   WEREWOLF_ATTACK_LINES,
@@ -519,7 +519,7 @@ export function tryMoonHowlerChurchCures(
     if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
     priest.workerBuildingId = church.id;
     priest.job = JobType.Priest;
-    priest.occupation = 'priest';
+    priest.occupation = priest.id === state.villageLeaderId ? LEADER_OCCUPATION : 'priest';
     return result;
   }
 
@@ -573,7 +573,7 @@ export function tryMoonHowlerChurchCures(
   if (!church.occupants.includes(priest.id)) church.occupants.push(priest.id);
   priest.workerBuildingId = church.id;
   priest.job = JobType.Priest;
-  priest.occupation = 'priest';
+  priest.occupation = priest.id === state.villageLeaderId ? LEADER_OCCUPATION : 'priest';
   priest.flash = 8;
   howler.moonHowlerCursed = true;
   howler.flash = 8;
