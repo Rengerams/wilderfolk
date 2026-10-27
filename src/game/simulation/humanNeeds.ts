@@ -18,9 +18,6 @@ import { isPlayerHuman } from '../playerHuman';
 import type { SpeciesConfig } from '../speciesConfig';
 import { Human } from '../gameConstants';
 
-export const MEAL_CHECK_INTERVAL_HOURS = Human?.MEAL_CHECK_INTERVAL_HOURS ?? 4;
-export const HUNGER_MEAL_THRESHOLD = Human?.HUNGER_MEAL_THRESHOLD ?? 0.8;
-
 const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
   [EntityType.Deer]: 52,
   [EntityType.Wolf]: 45,
@@ -41,9 +38,8 @@ const ENERGY_MODIFIERS = {
 
 /** Evaluates whether the current clock hour is a scheduled meal check (00:00, 04:00, 08:00, etc.). */
 export function isMealCheckHour(hourOfDay: number): boolean {
-  const interval = MEAL_CHECK_INTERVAL_HOURS > 0 ? MEAL_CHECK_INTERVAL_HOURS : 4;
   const normalizedHour = ((hourOfDay % 24) + 24) % 24;
-  return normalizedHour % interval === 0;
+  return normalizedHour % Human.MEAL_CHECK_INTERVAL_HOURS === 0;
 }
 
 /**
@@ -54,7 +50,7 @@ export function canEatColonyMeal(state: WorldState, entity: Entity, _hourOfDay: 
   if (!entity.alive || state.resources.food <= 0) return false;
   if (!isStartOfClockHour(state.tick)) return false;
   if (entity.warCaptive && !isPlayerHuman(entity)) {
-    return isMealCheckHour(_hourOfDay) && entity.energy < entity.maxEnergy * HUNGER_MEAL_THRESHOLD;
+    return isMealCheckHour(_hourOfDay) && entity.energy < entity.maxEnergy * Human.HUNGER_MEAL_THRESHOLD;
   }
   return isPlayerHuman(entity) && resolveHumanNeedsIntent(entity, state.tick, false) === 'eat';
 }
