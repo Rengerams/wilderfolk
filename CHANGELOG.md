@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Changed:** Prisoner release and execution now shift civic standing according to villagers' traits and recent threats, without fixed reputation rewards or penalties. Captive UI presents neutral choices without foretelling consequences.
+- **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
 
 - **Documentation (27 October 2026):** Reconciled the canonical and `docs/` v0.6.6.0 roadmaps against the merged code. Recorded accepted housing (#40/#56), warfare (#58), indoor rendering (#60), roads/gates (#59/#65/#66), human needs (#62), terrain (#63), world-copy optimization (#64) and function-ownership/compatibility cleanups (#67/#68), while separating remaining release-hardening tasks from PR acceptance (`merged = accepted`). Corrected stale pre-merge statuses in overhaul architecture notes.
 
