@@ -283,7 +283,14 @@ export function buildStripPreview(
   const { plan, enclosedAreas } = stroke && stroke.length > 1
     ? buildStripPlanFromStroke(state, type, stroke)
     : buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
-  const budgetState: WorldState = { ...state, resources: { ...state.resources } };
+  const budgetState: WorldState = {
+    ...state,
+    resources: { ...state.resources },
+    lifetimeStats: {
+      ...state.lifetimeStats,
+      totalResourcesGathered: { ...state.lifetimeStats.totalResourcesGathered },
+    },
+  };
   let ranOutOfResources = false;
   const segments = plan.map((piece): StripSegment => {
       // The raw plan rotation is what the renderer reads for junction topology; validity is always
