@@ -2,6 +2,10 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
+- **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's post/job when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and 7-day food / actual farm staffing diagnostics.
+
+
 - **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
 - **Fixed (#62):** Restoring human form after a Moon Howler night rebases the needs clock. Time spent transformed no longer counts as missed human meals, rest or stamina.
 
