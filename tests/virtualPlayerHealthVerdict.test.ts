@@ -354,7 +354,7 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     // The deficit response must improve a staffed producer before creating an idle site.
     const decision = decideVirtualPlayerAction(world);
     expect(decision?.command.op).toBe('upgradeBuilding');
-    if (decision?.command.op !== 'upgradeBuilding') throw new Error('expected a farm upgrade');
+    if (!decision || decision.command.op !== 'upgradeBuilding') throw new Error('expected a farm upgrade');
     const target = world.buildings.find((site) => site.id === decision.command.buildingId);
     expect(target?.type).toBe(BuildingType.Farm);
     expect(target?.occupants.length).toBeGreaterThan(0);
