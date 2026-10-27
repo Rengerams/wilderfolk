@@ -20,7 +20,7 @@ import {
   emptyEntityByType,
 } from './gameTypes';
 import { generateWorldMap } from './terrainGen';
-export { generateWorldMap } from './terrainGen';
+
 import { tileAt } from './terrain/terrainGrid';
 import {
   enableSeededGlobalRandom,
@@ -58,7 +58,7 @@ import { createGuidedCampaignState } from './guidedCampaign';
 import { spawnBlueberryTrees } from './blueberryForaging';
 import { computeStorageMax } from './economy';
 
-export { createEntity, finalizeSettlerAge } from './entityFactory';
+export { createEntity } from './entityFactory';
 
 export interface WildlifeSpawnOptions {
   recordBirthYear?: boolean;
