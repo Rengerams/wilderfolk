@@ -1014,8 +1014,9 @@ export function generateRawTerrain(
     const wy = y * PATH_CELL + PATH_CELL / 2;
     const cx = wx / TERRAIN_CELL;
     const cy = wy / TERRAIN_CELL;
+    const tileElevation = sampleElev(elevation, cols, rows, cx, cy);
     return classifyTile(
-      sampleElev(elevation, cols, rows, cx, cy),
+      tileElevation,
       sampleElev(moisture, cols, rows, cx, cy),
       sampleElev(temperature, cols, rows, cx, cy),
       sampleElev(riverDist, wCols, wRows, wx / WATER_CELL, wy / WATER_CELL),
@@ -1023,7 +1024,7 @@ export function generateRawTerrain(
       cuts.forest,
       cuts.darkForest,
       generationVersion === 2
-        ? biomeEdgeDither(sampleElev(elevation, cols, rows, cx, cy), seaLevel)
+        ? biomeEdgeDither(tileElevation, seaLevel)
         : 0,
     );
   };
