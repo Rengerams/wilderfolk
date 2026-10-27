@@ -1,4 +1,4 @@
-import { BUILDING_JOB_TYPES, BuildingType } from './gameTypes';
+import { BUILDING_JOB_TYPES, BuildingType, GRID_SIZE } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
 import {
   getBuildingFootprintForType,
@@ -112,7 +112,16 @@ function collectRoadEntranceSnapPoints(buildings: readonly Building[]): { x: num
   for (const building of buildings) {
     if (!building.completed || building.faction === 'rival') continue;
     if (!ROAD_ENTRANCE_HOUSING_TYPES.has(building.type) && !BUILDING_JOB_TYPES[building.type]) continue;
-    entrances.push({ x: building.x, y: building.y + building.height / 2 + roadHalfDepth });
+    const foundationEdge = building.y + building.height / 2;
+    const approachY = foundationEdge + roadHalfDepth;
+    const snappedY = snapBuildingCenter(BuildingType.Road, building.x, approachY, 0).y;
+    // Validate clearance after the road's own grid snap, not only at the raw anchor.
+    entrances.push({
+      x: building.x,
+      y: snappedY - roadHalfDepth < foundationEdge
+        ? snappedY + GRID_SIZE
+        : approachY,
+    });
   }
   return entrances;
 }
