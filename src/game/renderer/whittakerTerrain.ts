@@ -824,10 +824,10 @@ export function bakeWhittakerGround(
       const e = terrainHeight < sea ? Math.min(visualHeight, terrainHeight - 0.001) : visualHeight;
       const mo = clamp(
         sampleF(moisture, cols, rows, tcx, tcy)
-          + (map.generationVersion === 2 ? 0 : moistureBias),
+          + ((map.generationVersion ?? 1) >= 2 ? 0 : moistureBias),
         0, 1,
       );
-      const visualMo = map.generationVersion === 2
+      const visualMo = (map.generationVersion ?? 1) >= 2
         ? clamp(mo + DEFAULT_MOISTURE_FOREST
           - (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST), 0, 1)
         : mo;
