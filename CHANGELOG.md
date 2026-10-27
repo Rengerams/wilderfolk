@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Older revision-1/-2 saves retain their generators.
+
 - **CI:** Bound pull-request colony calibration to short and medium scenarios; full-year runs now stop at the first exhausted-food checkpoint instead of continuing after failure.
 
 - **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
