@@ -214,6 +214,7 @@ export function tryTickBlueberryForaging(
 
   // Surplus goes to colony storage if space permits
   const addedFood = addResource(state, 'food', BLUEBERRY_FOOD_PER_PICK);
+  recordFoodProduced(state, 'foraging', addedFood);
 
   const label = addedFood > 0
     ? `Picked blueberries +${addedFood}`
