@@ -21,7 +21,8 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/humanSchedule';
-import { officialHandlePetitioners, tickTownHallAudiences } from '../src/game/townHall';
+import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences } from '../src/game/townHall';
+import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 const OFFICIAL_ID = 1;
 const PETITIONER_ID = 2;
@@ -108,6 +109,47 @@ function makeWorld(): { state: WorldState; hall: Building; official: Entity; pet
 }
 
 describe('civic petitions resolve at the daily cadence only', () => {
+  it('food relief credits nutrition exactly once, not a disposable legacy energy projection', () => {
+    const { state, hall, petitioner } = makeWorld();
+    // The actual petition owner uses two independent deterministic rolls.
+    let served = false;
+    for (let day = 1; day <= 5000 && !served; day++) {
+      const tick = day * TICKS_PER_DAY + WORK_HOUR_TICK_OFFSET;
+      if (personDayRoll(PETITIONER_ID, tick, 821 + day) >= 0.4 ||
+          personDayRoll(PETITIONER_ID, tick, 822) >= 0.45) continue;
+      state.tick = tick;
+      state.humanPopulation = 100;
+      state.resources.food = 30;
+      petitioner.energy = 160;
+      petitioner.needs = initialHumanNeeds(160, 200);
+      petitioner.needs.nutrition = 5;
+      petitioner.needs.severeHungerTicks = 100;
+      const result = resolveCivicPetition(state, petitioner, hall);
+      expect(result).toEqual({ kind: 'aid_food', amount: 1 });
+      expect(state.resources.food).toBe(29);
+      expect(state.economyLedger?.consumed.petition).toBe(1);
+      expect(petitioner.needs.nutrition).toBe(15);
+      expect(petitioner.needs.severeHungerTicks).toBe(0);
+      expect(petitioner.needs.stamina).toBe(80);
+      expect(petitioner.energy).toBe(160);
+      advanceHumanNeeds(petitioner, { tick: tick + 1, sleeping: false, working: false, moving: false });
+      expect(petitioner.needs.nutrition).toBeGreaterThan(14);
+      served = true;
+    }
+    expect(served).toBe(true);
+  });
+
+  it('hearing a petitioner credits the stamina owner, surviving the next physiology tick', () => {
+    const { state, hall, petitioner } = makeWorld();
+    petitioner.needs = initialHumanNeeds(60, 200);
+    const before = petitioner.needs.stamina;
+    const result = resolveCivicPetition(state, petitioner, hall);
+    expect(result.kind).toBe('heard');
+    expect(petitioner.needs.stamina).toBeGreaterThan(before);
+    const credited = petitioner.needs.stamina;
+    advanceHumanNeeds(petitioner, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
+    expect(petitioner.needs.stamina).toBeGreaterThanOrEqual(credited);
+  });
   it('an official standing at the hall applies no petition effect per tick', () => {
     const { state, hall, official, petitioner } = makeWorld();
     const energyBefore = petitioner.energy;
