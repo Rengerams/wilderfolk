@@ -156,8 +156,7 @@ export const ValleyEcology = {
  * neighbour's foot.
  */
 export const Famine = {
-  /** Only a settler this far below max energy is desperate enough to try a bite. */
-  BITE_DESPERATE_ENERGY_RATIO: 0.3,
+  // The nutrition threshold for famine desperation is owned by HUMAN_NEEDS.
   /** Daily chance (per desperate settler) of attempting a foot-bite while stores are empty. */
   BITE_ATTEMPT_CHANCE: 0.15,
   /** Given an attempt, chance it actually lands (still comedy, still no harm). */
