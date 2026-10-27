@@ -4,6 +4,7 @@
 
 - **Changed:** Migrated building-action imports to their owning modules and removed obsolete building-action and renderer-loader TypeScript facades; added a guarded migration script.
 
+- **Fixed:** Removed redundant audio, calendar, combat and food-ration aliases; corrected module owner matching and decision-write scopes.
 - **Changed:** Map presets now keep recognizable coastlines, islands, highlands, Nordic fjords and a central oasis; founding clearings preserve neighboring forests. Generation revisions preserve old compact saves.
 - **Fixed:** Production buildings retain the biome bonus from their original site after construction removes the underlying forest.
 - **Changed:** Terrain now uses a shared biome-edge rule for gameplay tiles and scenery, places vegetation by habitat, and renders connected river masks without duplicate water strokes.

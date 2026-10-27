@@ -281,15 +281,9 @@ export function isPropertyWritePermitted(key: DecisionKey, fieldName: string): b
 
   const field = fieldName.trim().toLowerCase();
   if (!field) return false;
-  const normalize = (value: string): string =>
-    value.trim().toLowerCase().replace(/^(entity|human|building|residence)\./, '');
-  const cleanField = normalize(field);
-
   return decision.writes.some((permitted) => {
-    // Registry write entries may contain scope and a prose explanation in parentheses.
-    // Strip the annotation, not parts of the actual property name.
-    const token = permitted.split(/[\s(]/, 1)[0];
-    const normalizedToken = normalize(token);
-    return normalizedToken === cleanField;
+    const token = permitted.trim().toLowerCase().split(/[\s(]/, 1)[0];
+    if (field.includes('.')) return token === field;
+    return token === field || token.endsWith(`.${field}`);
   });
 }

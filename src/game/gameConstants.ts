@@ -41,7 +41,6 @@ export const Time = {
 } as const;
 
 // Convenience top-level exports for common calendar math
-export const DAYS_PER_YEAR = Time.DAYS_PER_YEAR;
 export const HOURS_PER_DAY = Time.HOURS_PER_DAY;
 export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 
