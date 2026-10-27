@@ -106,6 +106,7 @@ describe('A1 post-taming animal care', () => {
     setColonyDay(state, 10);
     tickAnimalCare(state);
     expect(state.entities.find((e) => e.id === ownerId)?.energy).toBe(58);
+    expect(state.entities.find((e) => e.id === ownerId)?.needs?.stamina).toBeCloseTo(58);
   });
 
   it('does nothing without tamed animals', () => {
