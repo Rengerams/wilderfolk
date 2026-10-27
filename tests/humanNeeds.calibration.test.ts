@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { human } from '../src/test/factories';
+import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
+import { initGame } from '../src/game/worldGen';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
@@ -120,4 +124,32 @@ describe('physiology only: reproducible 7/30-day calibration contracts', () => {
     advanceHumanNeeds(restored, { tick: 101, sleeping: false, working: true, moving: false });
     expect(restored.needs).toEqual(e.needs);
   });
+  it('round-trips exact fractional nutrition, recovery intents and meal ticks through the real save loader', () => {
+    const world = initGame({ seed: 12345 });
+    const settler = human(world.nextEntityId++, {
+      needs: {
+        nutrition: 58.75, rest: 34.25, stamina: 21.5,
+        lastMealTick: 115, lastAdvancedTick: 119,
+        severeHungerTicks: 0, nightDutyRecoveryPending: true,
+        sleepRecoveryUntilTick: 160,
+      },
+    });
+    world.tick = 120;
+    world.entities.push(settler);
+    const expected = structuredClone(settler.needs);
+    const payload = JSON.parse(JSON.stringify(
+      buildSaveData(world, createInitialView(world.width, world.height)),
+    )) as Record<string, unknown>;
+    const outcome = loadGameFromParsedOutcome(payload);
+    if (!outcome.ok) throw new Error(`Save load failed: ${outcome.reason}`);
+    const restored = outcome.world.entities.find((entity) => entity.id === settler.id);
+    expect(restored?.needs).toEqual(expected);
+    const nutritionBefore = restored!.needs!.nutrition;
+    advanceHumanNeeds(restored!, {
+      tick: 120, sleeping: false, working: false, moving: false,
+    });
+    expect(restored!.needs!.nutrition).toBeLessThan(nutritionBefore);
+    expect(restored!.needs!.lastMealTick).toBe(115);
+  });
+
 });
