@@ -450,6 +450,44 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
 
 
 
+/**
+ * A completed food producer with no assigned worker cannot produce a harvest.
+ * Only auto-managed buildings can be rescued by the bot; manual staffing remains
+ * the player's explicit choice. Inspect assignments, not occupant presentation.
+ */
+function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
+  return state.buildings.find((building) =>
+    building.completed && building.faction !== 'rival'
+    && FOOD_PRODUCER_TYPES.includes(building.type)
+    && !isManualStaffingBuilding(building)
+    && countWorkersAtBuilding(state.entities, building.id) === 0,
+  );
+}
+
+/**
+ * Repair existing food capacity before spending resources on another Farm.
+ * Uses the real workforce owner's donor/transfer eligibility and auto-staff
+ * command; never proposes a command when it cannot move an eligible worker.
+ */
+function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision | null {
+  const settlers = playerHumanCount(state.entities);
+  if (settlers <= 0) return null;
+  if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !isMeasuredFoodDeficit(state)) return null;
+  const producer = firstUnstaffedFoodProducer(state);
+  if (!producer) return null;
+  const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
+  const workplaces = state.buildings.filter((building) =>
+    building.completed && building.faction !== 'rival'
+    && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
+  );
+  const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick);
+  if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) return null;
+  return {
+    command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
+    reason: `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
+  };
+}
+
 function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
@@ -462,6 +500,9 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     0,
   );
   const measuredDeficit = isMeasuredFoodDeficit(state);
+  // Another empty Farm cannot fix the shortage while existing auto-managed
+  // harvest sites remain unstaffed. Staffing is considered first in the ladder.
+  if ((shortOnFood || measuredDeficit) && firstUnstaffedFoodProducer(state)) return null;
   const target = wantedProducerCount(
     state,
     measuredDeficit
@@ -1704,6 +1745,7 @@ export function decideVirtualPlayerAction(state: WorldState): VirtualPlayerDecis
     answerOpenCard(state)
     ?? decideLeaderHouse(state)
     ?? decideHousing(state)
+    ?? decideUnstaffedFoodProducer(state)
     ?? decideFood(state)
     ?? decideUnstaffedProducer(state)
     ?? decideIndustry(state)
