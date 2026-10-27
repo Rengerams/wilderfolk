@@ -236,6 +236,17 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision!.reason).toContain('food');
   });
 
+  it('plans farms for all mouths, not just adults who can staff them', () => {
+    // Eighteen working-age people and twelve children consume food, even though
+    // only adults can take a Farm assignment. Three farms satisfy the old
+    // adult-only target (18 / 9), but not the real thirty-person food need.
+    const colony = ownerColony(30, {}, { mills: 0, farms: 3 });
+    for (const person of colony.entities.slice(18)) person.isJuvenile = true;
+
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
   it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
     // Owner report 1: ~18 settlers, 0 stone, wood and gold in store, beds free.
     const unmanned = ownerColony(18, {
