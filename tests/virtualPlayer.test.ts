@@ -1269,8 +1269,7 @@ describe('virtual player remaining action surface', () => {
         day, produced: { farms: 7 }, consumed: { meals: 14 },
       })),
     });
-    // Stock would satisfy the old five-day check, but actual harvest is
-    // consistently half the consumption. The action owner must not grow demand.
+    // Stock is deep, but recorded harvest covers only half of food demand.
     expect(world.resources.food).toBe(500);
     const decision = decideVirtualPlayerAction(world);
     expect(decision?.command.op).not.toBe('recruitSettler');
