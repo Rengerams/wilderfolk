@@ -9,6 +9,7 @@ import { addNotification } from './simEffects';
 import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
+import { creditHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -448,7 +449,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
     skills[job] = Math.min(100, (skills[job] ?? 0) + skillBonus);
   }
   entity.maxEnergy = Math.min(500, entity.maxEnergy + energyBonus);
-  entity.energy = Math.min(entity.maxEnergy, entity.energy + energyBonus * 0.5);
+  creditHumanStaminaFromEnergy(entity, energyBonus * 0.5);
 
   const label = formatCitizenName(entity);
   const detail =
