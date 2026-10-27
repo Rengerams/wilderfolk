@@ -793,7 +793,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // not on the colony work day. Without this he still walked to the prison for `goWorkTime`, so an
     // off-duty guard stood on a post he was not rostered for and had no day off at all.
     const offDutyPrisonGuard = isPrisonGuardAtPost && prisonShift == null;
-    const shiftStartHour = prisonShiftStartHour;
 
     const stayIn =
       !festivalGathering &&
@@ -1061,7 +1060,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
       const needsToLeaveForWork = isPrisonGuardAtPost
         ? prisonCommuteDue
-        : isWorkDay(state.tick) && hourOfDay >= shiftStartHour - commuteLeadHours;
+        : isWorkDay(state.tick) && hourOfDay >= prisonShiftStartHour - commuteLeadHours;
       // A prison guard works his roster shift and nothing else: the colony window is not his day, so
       // `goWorkTime` must not put a resting guard back on the post he is taking the day off from.
       const wantsToWork = isPrisonGuardAtPost
