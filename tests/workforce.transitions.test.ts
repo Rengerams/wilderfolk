@@ -147,6 +147,19 @@ describe('workforce named transitions', () => {
     expect(settler.workerBuildingId).toBe(2);
   });
 
+  it('reconciles a completed lumber mill crew already listed in the roster', () => {
+    const settler = human(6565);
+    const lumberMill = building(154, BuildingType.LumberMill, { occupants: [settler.id] });
+
+    expect(assignWorkerTransition(settler, lumberMill)).toBe(true);
+    expect(lumberMill.occupants).toEqual([settler.id]);
+    expect(settler.workerBuildingId).toBe(lumberMill.id);
+    expect(settler.job).toBe(JobType.Lumberjack);
+    expect(settler.occupation).toBe(JOB_LABELS[JobType.Lumberjack]);
+    expect(assignWorkerTransition(settler, lumberMill)).toBe(true);
+    expect(lumberMill.occupants).toEqual([settler.id]);
+  });
+
   it('assigns the leader via the manual command without losing office or manor residency', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
