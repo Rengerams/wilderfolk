@@ -31,9 +31,9 @@ function previewGlowGradient(
   h: number,
   valid: boolean,
 ): CanvasGradient {
-  const cached = previewGlowCache;
-  if (cached && cached.ctx === ctx && cached.width === w && cached.height === h && cached.valid === valid) {
-    return cached.gradient;
+  if (previewGlowCache && previewGlowCache.ctx === ctx && previewGlowCache.width === w
+    && previewGlowCache.height === h && previewGlowCache.valid === valid) {
+    return previewGlowCache.gradient;
   }
   const gradient = ctx.createRadialGradient(0, 0, Math.min(w, h) * 0.2, 0, 0, Math.max(w, h) * 0.85);
   gradient.addColorStop(0, valid ? 'rgba(52, 211, 153, 1)' : 'rgba(248, 113, 113, 1)');
