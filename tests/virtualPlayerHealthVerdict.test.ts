@@ -317,6 +317,22 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
     expect(decision!.command).toMatchObject({ op: 'startBuilding', type: BuildingType.House });
   });
 
+  it('uses measured food losses to build ahead of the ordinary farm count', () => {
+    const world = ownerColony(24, {
+      tick: 4 * 288,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 40 }, consumed: { meals: 66, spoilage: 4 },
+      })),
+    }, { mills: 1, farms: 4 });
+
+    // Four farms are more than the nominal 24/9 target, but the last
+    // three *completed* days prove those farms cannot meet real demand.
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decision?.reason).toContain('actual food production trails consumption');
+  });
+
   it('keeps adding producers as the village grows instead of stopping at the first', () => {
     // One Lumber Mill for 24 settlers is under the ladder's own one-per-12 line, so the village has
     // outgrown what it built — the state the trigger-only ladder sat in.
