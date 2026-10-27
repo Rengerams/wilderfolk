@@ -115,6 +115,25 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   return needs;
 }
 
+/**
+ * Credit nutrition for food already paid through the economy ledger. Eating and
+ * civic food relief use the same conversion and severe-hunger reconciliation.
+ */
+export function creditHumanNutritionFromFood(entity: Entity, foodUnits: number): void {
+  if (!Number.isFinite(foodUnits) || foodUnits <= 0) return;
+  const needs = entity.needs ?? normalizeHumanNeeds(entity);
+  needs.nutrition = bounded(needs.nutrition + foodUnits * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT, 0);
+  if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
+}
+
+/** Convert a legacy-sized stamina benefit without writing a second energy owner. */
+export function creditHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
+  if (!Number.isFinite(energyPoints) || energyPoints <= 0) return;
+  const needs = entity.needs ?? normalizeHumanNeeds(entity);
+  needs.stamina = bounded(needs.stamina + energyPoints / Math.max(1, entity.maxEnergy) * 100, 0);
+  entity.energy = entity.maxEnergy * needs.stamina / 100;
+}
+
 export type HumanNeedsIntent = 'eat' | 'sleep' | 'takeBreak' | 'continueActivity';
 
 export function resolveHumanNeedsIntent(entity: Entity, tick: number, sleeping: boolean): HumanNeedsIntent {
