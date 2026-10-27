@@ -479,7 +479,7 @@ export function assignWorkerInPlace(
   humans: Entity[],
   buildings: Building[],
   venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
-  constructionWorkerIds?: ReadonlySet<number>,
+  constructionWorkerIds?: Set<number>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;

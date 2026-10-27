@@ -1087,7 +1087,7 @@ function decideVenueSchedules(state: WorldState): VirtualPlayerDecision | null {
  * One release per act leaves the building exactly at its cap, retiring the step.
  */
 function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
-  const crewsByBuilding = new Map<number, Entity[]>();
+  const crewsByBuilding = new Map<number, WorldState['entities']>();
   for (const human of state.entities) {
     if (!human.alive || !isPlayerHuman(human) || human.isJuvenile || human.workerBuildingId == null) continue;
     const crew = crewsByBuilding.get(human.workerBuildingId);
