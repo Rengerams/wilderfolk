@@ -15,6 +15,7 @@ export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
   farms: 'Farms',
   hunting: 'Hunting',
   fishing: 'Fishing',
+  foraging: 'Blueberry foraging',
   greenhouse: 'Greenhouses',
   silos: 'Silos',
   challenges: 'Challenges',
