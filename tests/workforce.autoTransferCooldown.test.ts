@@ -56,8 +56,12 @@ describe('two-month automatic job stability', () => {
     expect(farm.occupants).toHaveLength(2);
     const newWorker = workers.find((worker) => worker.workerBuildingId === 11 && worker.id !== 4);
     expect(newWorker?.lastAutoJobTransferTick).toBe(100);
-    const assignments = workers.map((worker) => worker.workerBuildingId);
     rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 101);
+    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(barracks.occupants).toHaveLength(3);
+    expect(farm.occupants).toHaveLength(1);
+    const assignments = workers.map((worker) => worker.workerBuildingId);
+    rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 102);
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 
