@@ -31,6 +31,7 @@ import {
   getSmithBonus,
   prepareWorkforce,
   removeWorkerTransition,
+  restoreWorkerRosterAfterCustody,
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
@@ -145,6 +146,21 @@ describe('workforce named transitions', () => {
     expect(assignWorkerTransition(settler, mill)).toBe(true);
     expect(mill.occupants).toEqual([1]);
     expect(settler.workerBuildingId).toBe(2);
+  });
+
+  it('restores a freed worker without leaving prison or construction crew membership', () => {
+    const settler = human(4137, { workerBuildingId: 110, job: JobType.Lumberjack });
+    const prison = building(9, BuildingType.Prison, { occupants: [settler.id] });
+    const mill = building(110, BuildingType.LumberMill);
+    const unfinished = building(156, BuildingType.Farm, { completed: false, occupants: [settler.id] });
+
+    restoreWorkerRosterAfterCustody(settler, [prison, mill, unfinished]);
+
+    expect(prison.occupants).toEqual([]);
+    expect(unfinished.occupants).toEqual([]);
+    expect(mill.occupants).toEqual([settler.id]);
+    expect(settler.workerBuildingId).toBe(mill.id);
+    expect(collectSimulationInvariantErrors(makeWorld([settler], [prison, mill, unfinished]))).toEqual([]);
   });
 
   it('reconciles a completed lumber mill crew already listed in the roster', () => {
