@@ -307,6 +307,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         map,
         { x: chunk.worldX - DECOR_CHUNK_MARGIN, y: chunk.worldY - DECOR_CHUNK_MARGIN, width: decorWorldW, height: decorWorldH },
         1,
+        { x: chunk.worldX, y: chunk.worldY, width: chunk.worldW, height: chunk.worldH },
       );
       chunk.decor = decor;
     };
@@ -608,23 +609,25 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
           chunk.worldW * cam.zoom,
           chunk.worldH * cam.zoom,
         );
-        // The chunk's rivers and props, blitted over its ground at the same world rect widened by the
-        // overhang margin those prop origins were baked against.
-        if (chunk.decor) {
-          const [decorSx, decorSy] = w2s(
-            chunk.worldX - DECOR_CHUNK_MARGIN,
-            chunk.worldY - DECOR_CHUNK_MARGIN,
-            cam, cw, ch,
-          );
-          ctx.drawImage(
-            chunk.decor as CanvasImageSource,
-            decorSx,
-            decorSy,
-            (chunk.worldW + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
-            (chunk.worldH + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
-          );
-        }
       }
+
+      // Ground from every chunk first; the next chunk must not erase props crossing its edge.
+      for (const chunk of whittakerChunks.values()) {
+        if (!chunk.decor) continue;
+        const [decorSx, decorSy] = w2s(
+          chunk.worldX - DECOR_CHUNK_MARGIN,
+          chunk.worldY - DECOR_CHUNK_MARGIN,
+          cam, cw, ch,
+        );
+        ctx.drawImage(
+          chunk.decor as CanvasImageSource,
+          decorSx,
+          decorSy,
+          (chunk.worldW + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
+          (chunk.worldH + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
+        );
+      }
+
     } else {
       for (const cache of terrainChunkCache.values()) {
         const [chunkSx, chunkSy] = w2s(cache.offsetX, cache.offsetY, cam, cw, ch);
