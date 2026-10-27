@@ -42,7 +42,7 @@ import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
 import { getVisitorTradeEligibility } from '../src/game/groupEvents';
 import { TOWN_HALL_FESTIVAL_COST } from '../src/game/townHall';
-import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 900;
@@ -1260,6 +1260,25 @@ describe('virtual player remaining action surface', () => {
 
     const applied = applyWorkerCommand(world, decision.command);
     expect(applied.entities.length).toBe(world.entities.length + 1);
+  });
+
+  it('does not recruit from a stocked but persistently shrinking larder', () => {
+    const world = settledVillage(2, {
+      tick: 4 * TICKS_PER_DAY + RECRUIT_MORNING_TICK,
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 7 }, consumed: { meals: 14 },
+      })),
+    });
+    // Stock would satisfy the old five-day check, but actual harvest is
+    // consistently half the consumption. The action owner must not grow demand.
+    expect(world.resources.food).toBe(500);
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command.op).not.toBe('recruitSettler');
+
+    world.foodHistory = [1, 2, 3].map((day) => ({
+      day, produced: { farms: 15 }, consumed: { meals: 14 },
+    }));
+    expect(decideVirtualPlayerAction(world)?.command.op).toBe('recruitSettler');
   });
 
   it('buys settlers only in its morning window, not every hour', () => {
