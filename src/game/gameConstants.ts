@@ -48,9 +48,8 @@ export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 /** Human needs & consumption tuning. */
 export const Human = {
   /**
-   * 3 = one meal per meal-check window across the waking day (08:00/12:00/16:00
-   * checks in the default window); a family of ~3 eats ~9/day, which farms of
-   * the default cadence are tuned to cover.
+   * Roughly 3 food/adult/day follows 24h × 1.2 nutrition/h, modest
+   * work/walking extras, and 10 nutrition restored per food in the needs owner.
    */
   DAILY_FOOD_CONSUMPTION: 3,
   /**
@@ -301,10 +300,10 @@ export const VirtualPlayer = {
    */
   SPARE_BED_RATIO: 0.25,
   /**
-   * 9 = settlers one full-crew Farm feeds. The economy owner's own arithmetic: a 3-crew Farm
-   * yields `12 + 3 × 5 = 27` food a day against `Human.DAILY_FOOD_CONSUMPTION` of 3 per settler.
+   * 5 = conservative adults per single-worker Farm: 12 + 5 = 17 food/day
+   * before attendance, season and spoilage, against about 3 food/adult/day.
    */
-  SETTLERS_PER_FOOD_PRODUCER: 9,
+  SETTLERS_PER_FOOD_PRODUCER: 5,
   /**
    * 12 = settlers one wood, stone or iron producer serves. Bot policy, not a yield: building spend
    * scales with the village, so one producer per dozen adults keeps the shelves level with growth.
