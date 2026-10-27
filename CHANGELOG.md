@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Workforce stability (27 October 2026):** Construction borrows at most one worker per empty site, after idle and existing crews. Job rebalance opens empty posts only; staffing never shuffles workers to top up partially staffed posts.
+
 - **Performance (27 October 2026):** Reused construction-crew and building indexes across staffing passes, removed redundant prisoner scans, and bucketed Virtual Player surplus workers once.
 
 - **Documentation (27 October 2026):** Updated the v0.6.6.0 roadmaps to reflect merged overhauls and outstanding release-hardening checks.

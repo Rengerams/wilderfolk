@@ -208,6 +208,38 @@ describe('workforce named transitions', () => {
     expect(new Set([...first.occupants, ...second.occupants]).size).toBe(2);
   });
 
+  it('reuses excess builders without taking another worker from a permanent job', () => {
+    const builders = [human(1), human(2)];
+    const employees = [human(3, { workerBuildingId: 20 }), human(4, { workerBuildingId: 20 })];
+    const first = building(10, BuildingType.House, { completed: false, occupants: [1, 2] });
+    const second = building(11, BuildingType.House, { completed: false });
+    const farm = building(20, BuildingType.Farm, { occupants: [3, 4] });
+
+    staffConstructionCrews([...builders, ...employees], [first, second, farm], undefined, 100);
+
+    expect(first.occupants).toEqual([1]);
+    expect(second.occupants).toEqual([2]);
+    expect(farm.occupants).toEqual([3, 4]);
+    expect(employees.map((person) => person.workerBuildingId)).toEqual([20, 20]);
+  });
+
+  it('borrows just one employee to start a site and does not top up using job transfers', () => {
+    const employees = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: 20 }));
+    const farm = building(20, BuildingType.Farm, { occupants: [1, 2, 3, 4] });
+    const site = building(10, BuildingType.House, { completed: false });
+    const buildings = [site, farm];
+
+    staffConstructionCrews(employees, buildings, undefined, 100);
+    const borrowed = site.occupants[0];
+    expect(site.occupants).toHaveLength(1);
+    expect(farm.occupants).toHaveLength(3);
+    expect(employees.find((person) => person.id === borrowed)?.workerBuildingId).toBeUndefined();
+
+    staffConstructionCrews(employees, buildings, undefined, 101);
+    expect(site.occupants).toEqual([borrowed]);
+    expect(farm.occupants).toHaveLength(3);
+  });
+
   it('keeps builders out of job vacancies when sharing the crew index across hires', () => {
     const builder = human(1);
     const freeWorker = human(2);

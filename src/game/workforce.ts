@@ -388,26 +388,17 @@ export function rebalanceJobWorkers(
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
   const index = buildWorkforceAssignmentIndex(humans, currentTick);
-  let changed = true;
-  let passes = 0;
-  const maxPasses = jobBuildings.length * 2;
 
-  while (changed && passes < maxPasses) {
-    changed = false;
-    passes++;
-    for (let i = 0; i < jobBuildings.length; i++) {
+  // Fill empty posts once; established workers keep their job when it already has coverage.
+  for (let i = 0; i < jobBuildings.length; i++) {
       const needy = jobBuildings[i];
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans).cap;
       if (staffed >= capacity) continue;
-      // The normal auto pass has already consumed all eligible idle settlers.
-      // A partially staffed Barracks (or Prison) still needs the same donor
-      // fallback as manual assignment. Never strip a donor's last worker and
-      // respect the existing transfer cooldown to avoid workforce ping-pong.
-      const defenseVacancy = needy.type === BuildingType.Barracks || needy.type === BuildingType.Prison;
-      if (staffed > 0 && !defenseVacancy) continue;
+      // Borrow only to open an unstaffed workplace; idle people fill later slots.
+      if (staffed > 0) continue;
 
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id);
       if (!donor) continue;
@@ -422,8 +413,6 @@ export function rebalanceJobWorkers(
       if (canAutoChangeWorkplace(worker, currentTick)) {
         index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
       }
-      changed = true;
-    }
   }
 }
 
@@ -540,6 +529,7 @@ export function assignBuilderInPlace(
   currentTick?: number,
   constructionWorkerIds?: Set<number>,
   buildingById?: ReadonlyMap<number, Building>,
+  allowJobTransfers = true,
 ): boolean {
   if (building.completed || building.faction === 'rival') return false;
 
@@ -565,7 +555,8 @@ export function assignBuilderInPlace(
     return true;
   }
 
-  // Soft-steal from lower priority jobs if needed
+  // Borrow from an established workplace only when starting an empty site.
+  if (!allowJobTransfers) return false;
   const jobHolder = humans
     .filter(
       (h) =>
@@ -706,30 +697,33 @@ export function staffConstructionCrews(
     if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
   }
 
-  // Pass 1: ensure every active site has at least one builder
-  for (let i = 0; i < incomplete.length; i++) {
-    const building = incomplete[i];
-    if (building.occupants.length === 0) {
-      assignBuilderInPlace(building, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById);
+  // Fill empty sites from unemployed builders before disturbing established jobs.
+  for (const site of incomplete) {
+    if (site.occupants.length === 0) {
+      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById, false);
     }
   }
 
-  // Rebalance: move builders from over-crewed sites to empty ones
-  for (let i = 0; i < incomplete.length; i++) {
-    const needy = incomplete[i];
+  // Share existing crews before considering a transfer out of a workplace.
+  for (const needy of incomplete) {
     if (needy.occupants.length > 0) continue;
     const donor = incomplete.find((b) => b.id !== needy.id && b.occupants.length > 1);
     if (!donor) break;
     const moved = donor.occupants.pop();
-    if (moved == null) continue;
-    needy.occupants.push(moved);
+    if (moved != null) needy.occupants.push(moved);
   }
 
-  // Pass 2: fill remaining slots
-  for (let i = 0; i < incomplete.length; i++) {
-    const building = incomplete[i];
-    while (assignBuilderInPlace(building, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById)) {
-      // Fill crew capacity
+  // At most one established worker is borrowed to start each still-empty project.
+  for (const site of incomplete) {
+    if (site.occupants.length === 0) {
+      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById);
+    }
+  }
+
+  // Extra construction places never trigger another workplace transfer.
+  for (const site of incomplete) {
+    while (assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById, false)) {
+      // Fill crew capacity with unemployed settlers only.
     }
   }
 }
