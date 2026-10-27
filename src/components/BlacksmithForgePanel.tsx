@@ -1,0 +1,100 @@
+import {
+  FORGE_ORDERS,
+  getForgeBlockReason,
+  getForgeOrder,
+  isForgeOrderComplete,
+} from '../game/forge';
+import type { ForgeOrderId } from '../game/gameTypes';
+import Emoji from './Emoji';
+import ResourceCost from './ResourceCost';
+import type { WorldState } from '../game/gameTypes';
+
+interface Props {
+  state: WorldState;
+  buildingId: number;
+  onQueueForge: (orderId: ForgeOrderId) => void;
+}
+
+export default function BlacksmithForgePanel({ state, buildingId, onQueueForge }: Props) {
+  const forge = state.villageForge;
+  if (!forge) return null;
+  const staffed = state.buildings.some(
+    (b) => b.id === buildingId && b.completed && (b.occupants?.length ?? 0) > 0,
+  );
+  const activeOrder = forge.activeOrder ? getForgeOrder(forge.activeOrder) : undefined;
+  const anyReady = FORGE_ORDERS.some((order) => isForgeOrderComplete(forge, order.id));
+
+  return (
+    <div className="mt-2 space-y-1.5 rounded-lg border border-orange-700/40 bg-orange-950/30 p-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-300">Village forge</p>
+      <p className="text-[11px] leading-relaxed text-stone-300">
+        Each order is a <strong className="text-stone-300">one-time village tier</strong> (not a stack of items). Research → staff smith → queue once. Higher weapons replace lower for all adults. Help: More → Guide → search &quot;forge&quot;.
+      </p>
+
+      {forge.activeOrder && activeOrder && (
+        <div className="rounded border border-orange-600/30 bg-stone-900/60 px-2 py-1.5">
+          <p className="text-xs font-bold text-amber-200">
+            🔨 Forging {activeOrder.label}
+          </p>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-700">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-orange-600 to-amber-400 transition-all"
+              style={{ width: `${forge.progress}%` }}
+            />
+          </div>
+          <p className="mt-0.5 text-[10px] text-stone-300">{Math.round(forge.progress)}% · progress only while staffed</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-1">
+        {FORGE_ORDERS.map((order) => {
+          const ready = isForgeOrderComplete(forge, order.id);
+          const active = forge.activeOrder === order.id;
+          const block = getForgeBlockReason(state, order.id);
+          const canQueue = block == null && !ready;
+          const epic = order.id === 'iron_swords' || order.id === 'scale_mail' || order.id === 'tower_ballistae';
+          return (
+            <button
+              key={order.id}
+              type="button"
+              disabled={active || !canQueue}
+              title={block ?? (ready ? 'Already forged' : order.description)}
+              onClick={() => onQueueForge(order.id)}
+              className={`rounded px-2 py-1.5 text-left text-[10px] transition-all ${
+                ready
+                  ? 'border border-emerald-600/40 bg-emerald-950/40 text-emerald-300'
+                  : active
+                    ? 'border border-orange-500/50 bg-orange-900/40 text-orange-100'
+                    : canQueue
+                      ? epic
+                        ? 'border border-amber-600/40 bg-amber-950/30 text-amber-100 hover:bg-amber-900/40'
+                        : 'bg-stone-800/80 text-stone-200 hover:bg-stone-700'
+                      : 'bg-stone-900/50 text-stone-400'
+              }`}
+            >
+              <span className="font-bold">
+                {ready ? '✓ ' : ''}<Emoji>{order.emoji}</Emoji> {order.label}
+                {epic && !ready ? <span className="ml-1 text-[10px] font-semibold text-amber-400/90">tier 5</span> : null}
+              </span>
+              <span className="block text-[10px] opacity-90">{order.description}</span>
+              <ResourceCost
+                cost={order.inputs}
+                className="mt-0.5"
+                iconClassName="h-2 w-2"
+                amountClassName="font-mono text-[10px] font-semibold leading-none"
+                emptyLabel="—"
+              />
+              {!ready && !active && block && (
+                <span className="block text-[10px] text-amber-500/90">{block}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {!staffed && !anyReady && (
+        <p className="text-[10px] text-amber-400">⚠️ Assign a worker — forge pauses when unstaffed.</p>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/main/cli/schemas/config-file.v1.json",
+  "nodeModulesLinker": "hoisted",
+  "nodeModulesDir": "manual",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "desktop": {
+    "app": {
+      "name": "Wilderfolk",
+      "identifier": "com.rengerams.wilderfolk",
+      "icons": {
+        "windows": "./src-tauri/icons/icon.ico"
+      }
+    },
+    "output": {
+      "windows": "./deno/wilderfolk",
+      "macos": "./deno/Wilderfolk.app",
+      "linux": "./deno/Wilderfolk.AppImage"
+    },
+    "backend": "webview"
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tmp",
+    "docs/archive",
+    "src-tauri/target"
+  ]
+}

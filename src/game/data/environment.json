@@ -1,0 +1,242 @@
+{
+  "version": "1.1",
+  "game": "Wilderfolk Sim",
+  "category": "environment",
+  "dialogue_trees": [
+    {
+      "id": "dt_indoor_weather",
+      "category": "environment",
+      "speakers": [
+        "npc_damp",
+        "npc_fixer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_damp",
+          "text": "It's raining inside my house again."
+        },
+        {
+          "speaker": "npc_fixer",
+          "text": "Have you tried fixing the roof?"
+        },
+        {
+          "speaker": "npc_damp",
+          "text": "It is simply my indoor weather now. I do not question it."
+        }
+      ]
+    },
+    {
+      "id": "dt_tornado",
+      "category": "environment",
+      "speakers": [
+        "npc_calm",
+        "npc_panicker"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_calm",
+          "text": "Saw a tornado coming. Made a sandwich instead."
+        },
+        {
+          "speaker": "npc_panicker",
+          "text": "You didn't go to the shelter?"
+        },
+        {
+          "speaker": "npc_calm",
+          "text": "It was a really good sandwich."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_cold",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Frost again."
+        },
+        {
+          "speaker": "settler",
+          "text": "Boots frozen."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_wood",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wood's low."
+        },
+        {
+          "speaker": "elder",
+          "text": "Heat the hall."
+        },
+        {
+          "speaker": "settler",
+          "text": "Spring feels far."
+        }
+      ]
+    },
+    {
+      "id": "wf_winter_snow",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Snow won't quit."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ice on the well."
+        },
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_rain",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wet boots."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Mud everywhere."
+        },
+        {
+          "speaker": "settler",
+          "text": "Rain'll pass."
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_snow",
+      "category": "environment",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Deep drifts."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Paths are buried."
+        },
+        {
+          "speaker": "settler",
+          "text": "Cold out."
+        }
+      ]
+    },
+    {
+      "id": "wf_weather_drought",
+      "category": "environment",
+      "speakers": [
+        "farmer",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Dust in the air."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Crops look thirsty."
+        },
+        {
+          "speaker": "farmer",
+          "text": "Hungry yet?"
+        }
+      ]
+    },
+    {
+      "id": "wf_environment_moon_rain",
+      "category": "environment",
+      "speakers": [
+        "npc_weatherwatcher",
+        "npc_practical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "The rain is falling upward tonight."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Then leave the washing on the ground."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "It is gathering in the clouds beneath us."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Good. The clouds can do the laundry."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "You are not frightened?"
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "I am frightened of many things. Wet clothes are not making the list."
+        }
+      ]
+    },
+    {
+      "id": "wf_funny_environment_frog",
+      "category": "environment",
+      "speakers": [
+        "rainwatcher",
+        "farmer"
+      ],
+      "lines": [
+        {
+          "speaker": "rainwatcher",
+          "text": "The frogs are singing again."
+        },
+        {
+          "speaker": "farmer",
+          "text": "That means rain."
+        },
+        {
+          "speaker": "rainwatcher",
+          "text": "Then they have better weather sense than the council."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "environment"
+  ]
+}

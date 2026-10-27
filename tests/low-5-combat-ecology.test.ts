@@ -1,0 +1,632 @@
+/**
+ * Low-severity simulation-audit fixes (2026-09-13) — combat, disasters, ecology,
+ * the daily economy ledger and yearly statistics.
+ *
+ * See BUG_REPORTS/2026-09-13-simulation-logic-audit.md: L17, L18, L19, L20, L26, L27,
+ * L56, L57, L69, L79 and the two cross-cutting frontierCombat items.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initGame } from '../src/game/worldGen';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import type { Building, GameEventLog, OutgoingRaidEvent, RivalSettlement, WorldState } from '../src/game/gameTypes';
+import {
+  countArmedMilitia,
+  respondToOutgoingRaidEvent,
+  tickPendingOutgoingRaidEvents,
+} from '../src/game/frontierCombat';
+import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
+import { applyEarthquakeDamageToBuildings } from '../src/game/worldEvents';
+import { computeRawEcologyStress, tickValleyEcologyStage } from '../src/game/ecologyStage';
+import { ValleyEcology } from '../src/game/gameConstants';
+import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { updateStorageCaps } from '../src/game/economy';
+import { ECONOMY_SOURCE_LABELS, recordFoodProduced, rollEconomyLedgerForDay } from '../src/game/economyLedger';
+import { recordYearlyStats } from '../src/game/stats';
+import { maybeOfferRumourLedger } from '../src/game/rumourLedger';
+import { storyFlag } from '../src/game/storyHelpers';
+import { applyRivalDailyAction, createRivalProfile, selectRivalDailyAction } from '../src/game/rivalProfiles';
+import { loadValleyStageWarnings, saveValleyStageWarnings } from '../src/game/preferences';
+import { buildSaveData } from '../src/game/saveLoad';
+import { createInitialView } from '../src/game/viewState';
+
+function world(seed = 7): WorldState {
+  return initGame({ villageName: 'Testholm', size: 'medium', seed });
+}
+
+/** Stand-in for the browser store, so a preference read is a real read. */
+function memoryStorage(): Storage {
+  const entries = new Map<string, string>();
+  return {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+    removeItem: (key: string) => {
+      entries.delete(key);
+    },
+    clear: () => entries.clear(),
+    key: (index: number) => [...entries.keys()][index] ?? null,
+    get length() {
+      return entries.size;
+    },
+  } as Storage;
+}
+
+function building(id: number, x: number, y: number, over: Partial<Building> = {}): Building {
+  return {
+    id,
+    type: BuildingType.House,
+    x,
+    y,
+    width: 60,
+    height: 48,
+    rotation: 0,
+    completed: true,
+    faction: 'player',
+    occupants: [],
+    constructionProgress: 100,
+    level: 1,
+    spriteScale: 1,
+    health: 100,
+    maxHealth: 100,
+    ...over,
+  } as never;
+}
+
+function rival(): RivalSettlement {
+  return {
+    id: 'rival-one',
+    name: 'North Camp',
+    campX: 50,
+    campY: 50,
+    population: 6,
+    entityIds: [],
+    buildingIds: [],
+    relationship: 'neutral',
+    foundedYear: 0,
+    daysUntilAction: 10,
+    raidCooldownDays: 10,
+    peaceTreatyDays: 0,
+  };
+}
+
+function outgoingEvent(over: Partial<OutgoingRaidEvent> = {}): OutgoingRaidEvent {
+  return {
+    id: 'out_1',
+    rivalId: 'rival-one',
+    rivalName: 'North Camp',
+    title: 'Raid',
+    description: 'Raid',
+    emoji: '🏹',
+    choices: [],
+    createdAtTick: 0,
+    expiresAtTick: 1000,
+    marchDistanceTiles: 10,
+    isCounterRaid: false,
+    rivalResponse: 'payoff_offer',
+    attackerStrength: 100,
+    defenderStrength: 50,
+    lootFood: 40,
+    lootGold: 10,
+    lootWood: 20,
+    lootStone: 5,
+    ...over,
+  };
+}
+
+describe('frontierCombat raid spoils (L26, cross-cutting storage-cap clamps)', () => {
+  it('never subtracts stores that already sit above the storage cap', () => {
+    const state = world();
+    state.rivalSettlements = [rival()];
+    state.resources.food = state.storageMax.food + 60;
+    state.resources.wood = state.storageMax.wood - 10;
+    const overCapFood = state.resources.food;
+    const event = outgoingEvent({ rivalResponse: 'payoff_offer' });
+    state.pendingOutgoingRaidEvents = [event];
+
+    const after = respondToOutgoingRaidEvent(state, event.id, 'accept_payoff');
+
+    // Over-cap stock is left untouched (the old Math.min(room, spoils) removed it)…
+    expect(after.resources.food).toBe(overCapFood);
+    // …while a capped store still takes only the headroom that exists.
+    expect(after.resources.wood).toBe(after.storageMax.wood);
+    expect(after.pendingOutgoingRaidEvents ?? []).toHaveLength(0);
+  });
+});
+
+describe('frontierCombat big news (L27)', () => {
+  it('mints unique big-news ids when two notices fire on one capped tick', () => {
+    const state = world();
+    state.tick = 500;
+    state.bigNews = Array.from({ length: 50 }, (_, i) => ({
+      id: `seed_${i}`,
+      title: 'Earlier news',
+      message: 'Earlier news',
+      type: 'neutral' as const,
+      createdAt: 0,
+      dismissed: false,
+    }));
+    state.pendingOutgoingRaidEvents = [
+      outgoingEvent({ id: 'expired_a', rivalId: 'absent_a', rivalName: 'Camp A', expiresAtTick: 500, rivalResponse: 'fight' }),
+      outgoingEvent({ id: 'expired_b', rivalId: 'absent_b', rivalName: 'Camp B', expiresAtTick: 500, rivalResponse: 'fight' }),
+    ];
+
+    tickPendingOutgoingRaidEvents(state);
+
+    const ids = state.bigNews.map((n) => n.id);
+    expect(ids).toHaveLength(50);
+    expect(new Set(ids).size).toBe(50);
+    expect(ids.filter((id) => id.startsWith('bn_'))).toHaveLength(2);
+  });
+});
+
+describe('frontierCombat militia count (cross-cutting dead militia rule)', () => {
+  it('counts militia through the militia owner instead of a local arming rule', () => {
+    const state = world();
+    for (const entity of state.entities) if (entity.alive && entity.type === EntityType.Human) entity.job = JobType.Soldier;
+    const ownerCount = computeMilitiaBreakdown(state, state.entities, { includeStructures: false }).adultCount;
+    expect(ownerCount).toBeGreaterThan(0);
+    expect(countArmedMilitia(state, state.entities)).toBe(ownerCount);
+  });
+});
+
+describe('worldEvents earthquake (L79)', () => {
+  it('damages only completed player buildings inside the quake radius', () => {
+    const inside = building(1, 100, 100);
+    const justInside = building(2, 140, 100);
+    const justOutside = building(3, 180, 100);
+    const rivalInside = building(4, 105, 100, { faction: 'rival' as never });
+    const unfinishedInside = building(5, 110, 100, { completed: false as never });
+
+    const damaged = applyEarthquakeDamageToBuildings(
+      [inside, justInside, justOutside, rivalInside, unfinishedInside],
+      100,
+      100,
+      60,
+      1,
+    );
+
+    expect(damaged).toEqual([inside, justInside]);
+    expect(inside.health).toBe(85);
+    expect(justInside.health).toBe(85);
+    expect(justOutside.health).toBe(100);
+    expect(rivalInside.health).toBe(100);
+    expect(unfinishedInside.health).toBe(100);
+  });
+});
+
+describe('valley ecology stage (L17, L18)', () => {
+  const valleySwitch = ValleyEcology as unknown as { ENABLED: boolean };
+  let valleyWasEnabled = false;
+
+  beforeEach(() => {
+    valleyWasEnabled = valleySwitch.ENABLED;
+    valleySwitch.ENABLED = true;
+  });
+
+  afterEach(() => {
+    valleySwitch.ENABLED = valleyWasEnabled;
+  });
+
+  function quietValley(state: WorldState): void {
+    state.buildings = [];
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 1, rabbits: 2, wolves: 3, wildkin: 0, grass: 120 };
+    state.pollutionLevel = 0;
+  }
+
+  it('suppresses a recovery notice inside the notify cooldown', () => {
+    const state = world();
+    quietValley(state);
+    state.ecosystemHealth = 10; // footprint driver is bad → raw stress 2
+    state.valleyStage = 'stable';
+    state.valleyStageSinceDay = 0;
+    state.valleyLastStageNotifyDay = -999;
+    state.valleyRawStressStreakDays = 3; // CONFIRM_UP_DAYS
+    state.valleyRawCalmStreakDays = 0;
+    state.tick = TICKS_PER_DAY * 20;
+    state.eventLog = [];
+    state.notifications = [];
+    expect(computeRawEcologyStress(state).stressLevel).toBe(2);
+
+    tickValleyEcologyStage(state);
+    expect(state.valleyStage).toBe('strained');
+    expect(state.valleyLastStageNotifyDay).toBe(20);
+    expect(state.notifications.length).toBeGreaterThan(0);
+
+    // Next day the valley recovers one step — one day after the notice, inside the 3-day cooldown.
+    state.tick = TICKS_PER_DAY * 21;
+    state.ecosystemHealth = 100;
+    state.valleyRawStressStreakDays = 0;
+    state.valleyRawCalmStreakDays = 2; // RECOVERY_LAG_DAYS
+    expect(computeRawEcologyStress(state).stressLevel).toBe(0);
+    const notificationsBefore = state.notifications.length;
+    const eventsBefore = state.eventLog.length;
+
+    tickValleyEcologyStage(state);
+
+    expect(state.valleyStage).toBe('stable');
+    expect(state.notifications.length).toBe(notificationsBefore);
+    expect(state.eventLog.length).toBe(eventsBefore);
+  });
+
+  it('keeps the grazing driver capped at bad under extreme pressure', () => {
+    const state = world();
+    state.entities = []; // no living grass to regrow
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 5000, rabbits: 0, wildkin: 0, wolves: 0, grass: 1 };
+
+    const grazing = computeRawEcologyStress(state).drivers.find((d) => d.id === 'grazing');
+
+    expect(grazing?.stress).toBe(2);
+    expect(grazing?.band).toBe('bad');
+  });
+
+  it('walks a stressed valley down to collapse and recovers it one step at a time', () => {
+    const state = world();
+    quietValley(state);
+    state.tick = TICKS_PER_DAY * 20;
+    state.ecosystemHealth = 10; // footprint driver bad → raw stress 2
+    state.eventLog = [];
+    state.notifications = [];
+    state.bigNews = [];
+    state.valleyStage = 'stable';
+    state.valleyStageSinceDay = 0;
+    state.valleyRawStressStreakDays = 0;
+    state.valleyRawCalmStreakDays = 0;
+    state.valleyLastStageNotifyDay = -999;
+    const reputationBefore = state.villageReputation ?? 0;
+
+    expect(computeRawEcologyStress(state).stressLevel).toBe(2);
+    for (let day = 20; day < 23; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    expect(state.valleyStage).toBe('strained');
+
+    for (let day = 23; day < 26; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    expect(state.valleyStage).toBe('damaged');
+
+    // Two bad drivers is raw stress 3, the only input that may reach collapse.
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 20, rabbits: 0, wolves: 0, grass: 1 };
+    expect(computeRawEcologyStress(state).stressLevel).toBe(3);
+    for (let day = 26; day < 29; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+    // Confirmed stress alone is not enough: damaged must dwell before the last step is allowed.
+    expect(state.valleyStage).toBe('damaged');
+
+    state.tick = TICKS_PER_DAY * 29;
+    tickValleyEcologyStage(state);
+    expect(state.valleyStage).toBe('collapse');
+    expect(state.villageReputation).toBe(reputationBefore - 4);
+
+    // Recovery steps back one stage per two calm days, so collapse is never a dead end.
+    quietValley(state);
+    state.ecosystemHealth = 100;
+    for (let day = 30; day <= 35; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+      if (day === 30) expect(state.valleyStage).toBe('collapse');
+      if (day === 31) expect(state.valleyStage).toBe('damaged');
+      if (day === 33) expect(state.valleyStage).toBe('strained');
+    }
+    expect(state.valleyStage).toBe('stable');
+  });
+
+  it('holds a healthy valley at stable across a year of daily ticks', () => {
+    const state = world();
+    quietValley(state);
+    state.tick = TICKS_PER_DAY * 20;
+    state.eventLog = [];
+    state.notifications = [];
+    state.bigNews = [];
+    expect(computeRawEcologyStress(state).stressLevel).toBe(0);
+
+    for (let day = 20; day < 380; day++) {
+      state.tick = TICKS_PER_DAY * day;
+      tickValleyEcologyStage(state);
+    }
+
+    expect(state.valleyStage).toBe('stable');
+    expect(state.notifications).toHaveLength(0);
+    expect(state.bigNews).toHaveLength(0);
+    expect(state.eventLog).toHaveLength(0);
+  });
+});
+
+describe('valley stage warnings setting', () => {
+  const valleySwitch = ValleyEcology as unknown as { ENABLED: boolean };
+  let valleyWasEnabled = false;
+
+  beforeEach(() => {
+    valleyWasEnabled = valleySwitch.ENABLED;
+    valleySwitch.ENABLED = true;
+    vi.stubGlobal('localStorage', memoryStorage());
+  });
+
+  afterEach(() => {
+    valleySwitch.ENABLED = valleyWasEnabled;
+    vi.unstubAllGlobals();
+  });
+
+  /** A quiet valley whose only bad driver is footprint (ecosystem health 10 → raw 2). */
+  function stressedValley(state: WorldState): void {
+    state.buildings = [];
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 1, rabbits: 2, wolves: 3, wildkin: 0, grass: 120 };
+    state.pollutionLevel = 0;
+    state.ecosystemHealth = 10;
+    state.valleyStage = 'stable';
+    state.valleyStageSinceDay = 0;
+    state.valleyRawStressStreakDays = 0;
+    state.valleyRawCalmStreakDays = 0;
+    state.valleyLastStageNotifyDay = -999;
+    state.tick = TICKS_PER_DAY * 20;
+    state.eventLog = [];
+    state.notifications = [];
+    state.bigNews = [];
+  }
+
+  /** One confirmed step up the ladder (stress streak already at the confirm dwell). */
+  function stepUp(state: WorldState, day: number): string | undefined {
+    state.valleyRawStressStreakDays = 3; // CONFIRM_UP_DAYS
+    state.tick = TICKS_PER_DAY * day;
+    tickValleyEcologyStage(state);
+    return state.eventLog[0]?.message;
+  }
+
+  /** One confirmed step back down (calm streak already at the recovery lag). */
+  function stepDown(state: WorldState, day: number): string | undefined {
+    state.valleyRawCalmStreakDays = 2; // RECOVERY_LAG_DAYS
+    state.tick = TICKS_PER_DAY * day;
+    tickValleyEcologyStage(state);
+    return state.eventLog[0]?.message;
+  }
+
+  /**
+   * The ladder walk the sibling suite already covers: Stable → Strained → Stable, then
+   * Stable → Strained → Damaged → Collapse → Damaged. Runs with whatever warnings setting is on.
+   */
+  function walkLadder(state: WorldState): {
+    stages: (string | undefined)[];
+    chronicle: (string | undefined)[];
+    notices: number;
+    news: number;
+  } {
+    const stages: (string | undefined)[] = [];
+    const chronicle: (string | undefined)[] = [];
+    const atStage = (stage: string) => {
+      expect(state.valleyStage).toBe(stage);
+      stages.push(state.valleyStage);
+    };
+    const step = (fn: (s: WorldState, d: number) => string | undefined, day: number) => {
+      chronicle.push(fn(state, day));
+    };
+
+    stressedValley(state);
+    expect(computeRawEcologyStress(state).stressLevel).toBe(2);
+    step(stepUp, 20);
+    atStage('strained');
+    // Day 24 clears the owner's 3-day re-notify cooldown, so the recovery step is announced too.
+    state.tick = TICKS_PER_DAY * 21;
+    state.ecosystemHealth = 100;
+    state.valleyRawCalmStreakDays = 2;
+    expect(computeRawEcologyStress(state).stressLevel).toBe(0);
+    step(stepDown, 24);
+    atStage('stable');
+
+    // One raise alone carries every interruptive surface: strained warns, damaged and collapse
+    // also raise big news.
+    stressedValley(state);
+    state.valleyRawStressStreakDays = 3;
+    step(stepUp, 20);
+    atStage('strained');
+    step(stepUp, 23);
+    atStage('damaged');
+    // Collapse needs Damaged dwell plus the two-bad-driver stress the ladder owner gates it on.
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 20, rabbits: 0, wolves: 0, grass: 1 };
+    state.ecosystemHealth = 10;
+    expect(computeRawEcologyStress(state).stressLevel).toBe(3);
+    step(stepUp, 30);
+    atStage('collapse');
+
+    // Recovery: collapse steps back to damaged on the first calm day.
+    state.ecosystemHealth = 100;
+    state.wildlifeCounts = { ...state.wildlifeCounts, deer: 1, rabbits: 2, wolves: 3, wildkin: 0, grass: 120 };
+    state.pollutionLevel = 0;
+    state.tick = TICKS_PER_DAY * 31;
+    expect(computeRawEcologyStress(state).stressLevel).toBe(0);
+    step(stepDown, 31);
+    atStage('damaged');
+
+    return {
+      stages,
+      chronicle,
+      notices: state.notifications.length,
+      news: state.bigNews.length,
+    };
+  }
+
+  it('defaults on, so a player who never touches it keeps the alerts', () => {
+    expect(loadValleyStageWarnings()).toBe(true);
+  });
+
+  it('raises the notification and big news on a real stage change while it is on', () => {
+    const state = world();
+    const walk = walkLadder(state);
+
+    expect(walk.stages).toEqual(['strained', 'stable', 'strained', 'damaged', 'collapse', 'damaged']);
+    expect(walk.notices).toBeGreaterThan(0);
+    expect(walk.news).toBeGreaterThan(0);
+  });
+
+  it('silences the interruptive surfaces but keeps the chronicle line while it is off', () => {
+    saveValleyStageWarnings(false);
+    expect(loadValleyStageWarnings()).toBe(false);
+    const state = world();
+    const walk = walkLadder(state);
+
+    expect(walk.stages).toEqual(['strained', 'stable', 'strained', 'damaged', 'collapse', 'damaged']);
+    expect(walk.notices).toBe(0);
+    expect(walk.news).toBe(0);
+    expect(walk.chronicle).toHaveLength(6);
+    for (const line of walk.chronicle) {
+      expect(line).toContain('Valley ecology:');
+    }
+    expect(walk.chronicle[0]).toContain('Stable → Strained');
+    expect(walk.chronicle[1]).toContain('Strained → Stable');
+    expect(walk.chronicle[4]).toContain('Damaged → Collapse');
+  });
+
+  it('still moves, persists and recovers with the warnings off', () => {
+    saveValleyStageWarnings(false);
+    const state = world();
+    stressedValley(state);
+    state.valleyRawStressStreakDays = 3;
+    state.tick = TICKS_PER_DAY * 20;
+    tickValleyEcologyStage(state);
+    expect(state.valleyStage).toBe('strained');
+
+    // Persistence: the moved ladder is in the save payload and survives the JSON round-trip.
+    const payload = JSON.parse(
+      JSON.stringify(buildSaveData(state, createInitialView(state.width, state.height))),
+    ) as { valleyStage?: string; valleyLastStageNotifyDay?: number };
+    expect(payload.valleyStage).toBe('strained');
+    expect(payload.valleyLastStageNotifyDay).toBe(20);
+
+    // Recovery: the calm streak still walks the stage back down, warning surfaces still silent.
+    state.ecosystemHealth = 100;
+    state.valleyRawCalmStreakDays = 2;
+    state.tick = TICKS_PER_DAY * 21;
+    tickValleyEcologyStage(state);
+    expect(state.valleyStage).toBe('stable');
+    expect(state.notifications).toHaveLength(0);
+    expect(state.bigNews).toHaveLength(0);
+
+    // A muted step still spends the cooldown, so turning warnings back on does not replay it.
+    expect(state.valleyLastStageNotifyDay).toBe(21);
+  });
+});
+
+describe('valley ecology ladder shipping state', () => {
+  it('ships enabled, so the ladder runs unless the owner parks it again', () => {
+    // Flipping this off is a deliberate owner decision; change this expectation with it.
+    expect(ValleyEcology.ENABLED).toBe(true);
+  });
+});
+
+describe('economy storage caps (L19)', () => {
+  function capsWorld(): WorldState {
+    return {
+      buildings: [],
+      storageMax: { wood: 0, stone: 0, food: 0, gold: 0, iron: 0 },
+      foodSpoilageRate: 0,
+    } as unknown as WorldState;
+  }
+
+  function capsBuilding(w: WorldState, type: BuildingType): void {
+    w.buildings.push({ id: w.buildings.length + 1, type, x: 0, y: 0, completed: true, faction: 'player', level: 1 } as never);
+  }
+
+  it('lets one Silo reach the formula 0.8% spoilage instead of clamping it to 1%', () => {
+    const w = capsWorld();
+    capsBuilding(w, BuildingType.Silo);
+    updateStorageCaps(w);
+    expect(w.foodSpoilageRate).toBeCloseTo(0.008, 5);
+  });
+});
+
+describe('economy ledger (L20 and source labels)', () => {
+  it('rolls the raw ledger field at the day boundary and archives the finished day', () => {
+    const state = world();
+    state.tick = TICKS_PER_DAY * 10;
+    recordFoodProduced(state, 'farms', 25);
+    expect(state.economyLedger?.day).toBe(10);
+    const historyBefore = state.foodHistory?.length ?? 0;
+
+    state.tick = TICKS_PER_DAY * 11;
+    rollEconomyLedgerForDay(state);
+
+    expect(state.economyLedger?.day).toBe(11);
+    expect(state.economyLedger?.produced).toEqual({});
+    expect(state.economyLedger?.consumed).toEqual({});
+    expect(state.foodHistory?.length).toBe(historyBefore + 1);
+    const history = state.foodHistory ?? [];
+    expect(history[history.length - 1]).toEqual({
+      day: 10,
+      produced: { farms: 25 },
+      consumed: {},
+    });
+
+    // Idempotent: a second call in the same day must not archive again.
+    rollEconomyLedgerForDay(state);
+    expect(state.foodHistory?.length).toBe(historyBefore + 1);
+  });
+
+  it('labels every food source the simulation records', () => {
+    // Sources passed to recordFoodProduced/recordFoodConsumed in src/game.
+    const recordedSources = ['farms', 'hunting', 'fishing', 'greenhouse', 'silos', 'challenges', 'meals', 'medicine'];
+    for (const source of recordedSources) {
+      expect(ECONOMY_SOURCE_LABELS[source], `missing ledger label for "${source}"`).toBeTruthy();
+    }
+  });
+});
+
+describe('yearly statistics (L69)', () => {
+  it('reports the per-year upgrade delta, not last year delta against the cumulative total', () => {
+    const state = world();
+    state.buildings = [building(1, 100, 100, { level: 3 })];
+
+    const year1 = recordYearlyStats(state, 1);
+    state.yearlyStats.push(year1);
+    const year2 = recordYearlyStats(state, 2);
+    state.yearlyStats.push(year2);
+    const year3 = recordYearlyStats(state, 3);
+
+    expect(year1.buildings.upgraded).toBe(2);
+    expect(year2.buildings.upgraded).toBe(0);
+    expect(year3.buildings.upgraded).toBe(0);
+    expect(year3.buildings.upgradedTotal).toBe(2);
+  });
+});
+
+describe('rumour ledger source scan (L57)', () => {
+  it('reads the newest matching event and records that event id', () => {
+    const state = world();
+    state.year = 2;
+    state.dayInYear = 0;
+    state.tick = TICKS_PER_DAY * 720;
+    state.buildings.push(building(1, 100, 100, { type: BuildingType.TownHall }));
+    state.pendingStoryEvents = [];
+    state.storyFlags = {};
+    const newest: GameEventLog = { id: 777, tick: 700, year: 2, day: 0, type: 'combat', message: 'Raiders repelled at the palisade' };
+    const middle: GameEventLog = { id: 500, tick: 400, year: 1, day: 40, type: 'trade', message: 'A caravan arrived' };
+    const oldest: GameEventLog = { id: 11, tick: 10, year: 0, day: 10, type: 'birth', message: 'A child was born' };
+    state.eventLog = [newest, middle, oldest];
+
+    maybeOfferRumourLedger(state);
+
+    // SOURCE_KINDS order: family, civic, ecology, frontier, scandal → frontier is 4.
+    expect(storyFlag(state, 'rumour_ledger_source_kind')).toBe(4);
+    expect(storyFlag(state, 'rumour_ledger_source_event')).toBe(777);
+  });
+});
+
+describe('rival daily actions (L56)', () => {
+  it('only chooses fortify for a shelter rival that can pay the 12 wood', () => {
+    const profile = createRivalProfile(2, 'neutral');
+    profile.priority = 'shelter';
+    profile.ledger.recovery = 100;
+    profile.ledger.food = 100;
+    profile.ledger.wood = 8;
+
+    // 8 wood cannot pay the action's 12-wood cost, so the rival must not waste the day.
+    expect(selectRivalDailyAction(profile, 'neutral', () => 0.99)).toBe('gather');
+
+    profile.ledger.wood = 12;
+    expect(selectRivalDailyAction(profile, 'neutral', () => 0.99)).toBe('fortify');
+    expect(applyRivalDailyAction(profile, 'fortify').changed).toBe(true);
+  });
+});

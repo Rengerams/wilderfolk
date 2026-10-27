@@ -1,0 +1,70 @@
+import { useState } from 'react';
+import Emoji from '../components/Emoji';
+import { getFocusHints, type FocusHintAction } from './focusHints';
+import type { Building, WorldState } from './gameTypes';
+
+interface Props {
+  state: WorldState;
+  buildings?: Building[];
+  onOpenGoals?: () => void;
+  onHintAction?: (action: FocusHintAction) => void;
+  /** Hint action ids to hide — the first-spring guide suppresses duplicate prompts. */
+  suppressHintIds?: string[];
+}
+
+export default function FocusPanel({ state, buildings, onOpenGoals, onHintAction, suppressHintIds = [] }: Props) {
+  const hints = getFocusHints(state, buildings ?? state.buildings)
+    .filter((h) => !(h.action && suppressHintIds.includes(h.action.id)));
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? hints.slice(0, 3) : hints.slice(0, 1);
+
+  if (hints.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/40 to-stone-800/50 p-2.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <h3 className="text-[13px] font-bold uppercase tracking-wide text-emerald-400">Next step</h3>
+        {onOpenGoals && (
+          <button
+            type="button"
+            onClick={onOpenGoals}
+            className="text-[13px] font-semibold text-stone-400 hover:text-emerald-300"
+          >
+            Goals →
+          </button>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {visible.map((hint) => (
+          <div key={hint.title} className="rounded-lg bg-stone-900/50 px-2 py-1.5 text-[13px]">
+            <div className="flex items-start gap-2">
+              <Emoji className="mt-0.5 shrink-0">{hint.icon}</Emoji>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-stone-200">{hint.title}</p>
+                <p className="mt-0.5 leading-relaxed text-stone-300">{hint.detail}</p>
+              </div>
+            </div>
+            {hint.action && onHintAction && (
+              <button
+                type="button"
+                onClick={() => onHintAction(hint.action!)}
+                className="mt-1.5 w-full rounded-md bg-emerald-700 px-3 py-2 text-[13px] font-bold text-white shadow-md hover:bg-emerald-600"
+              >
+                {hint.action.label} →
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {hints.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1.5 w-full text-[13px] font-semibold text-stone-400 hover:text-stone-300"
+        >
+          {expanded ? 'Show less' : `+${Math.min(hints.length, 3) - 1} more tips`}
+        </button>
+      )}
+    </div>
+  );
+}

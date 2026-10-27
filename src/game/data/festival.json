@@ -1,0 +1,142 @@
+{
+  "version": "1.1",
+  "game": "Wilderfolk Sim",
+  "category": "festival",
+  "dialogue_trees": [
+    {
+      "id": "wf_festival_home",
+      "category": "festival",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smell the pies?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_work",
+      "category": "festival",
+      "speakers": [
+        "laborer",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
+        },
+        {
+          "speaker": "friend",
+          "text": "Finish before the dance."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Good yield."
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_feast_scene",
+      "category": "festival",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Dance!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Music tonight!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_cheers_scene",
+      "category": "festival",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Cheers!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Harvest revel!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Flags up!"
+        }
+      ]
+    },
+    {
+      "id": "wf_festival_best_scene",
+      "category": "festival",
+      "speakers": [
+        "reveler",
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Visitors everywhere."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Best week of the year!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        }
+      ]
+    },
+    {
+      "id": "wf_funny_festival_turnip",
+      "category": "festival",
+      "speakers": [
+        "reveler",
+        "judge"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "I entered my turnip in the harvest contest."
+        },
+        {
+          "speaker": "judge",
+          "text": "It is very round."
+        },
+        {
+          "speaker": "reveler",
+          "text": "At last, a vegetable that understands presentation."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "festival"
+  ]
+}

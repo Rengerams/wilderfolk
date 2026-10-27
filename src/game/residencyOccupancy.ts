@@ -1,0 +1,138 @@
+import type { Building, Entity, WorldState } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
+import { BUILDING_TYPE_CODES } from './buildings';
+import { isPlayerHuman } from './playerHuman';
+
+
+export function isResidenceBuilding(b: Building): boolean {
+  return b.completed && isResidenceBuildingType(b.type);
+}
+
+/** The type codes that are homes — filters match on the code, never on the type name. */
+const RESIDENCE_TYPE_CODES: ReadonlySet<number> = new Set<number>([
+  BUILDING_TYPE_CODES[BuildingType.House],
+  BUILDING_TYPE_CODES[BuildingType.Mansion],
+  BUILDING_TYPE_CODES[BuildingType.Villa],
+  BUILDING_TYPE_CODES[BuildingType.LeaderHouse],
+]);
+
+export function isResidenceBuildingType(type: BuildingType): boolean {
+  return RESIDENCE_TYPE_CODES.has(BUILDING_TYPE_CODES[type]);
+}
+
+export function isLeaderHouseResidence(b: Building): boolean {
+  return b.type === BuildingType.LeaderHouse;
+}
+
+/** Base occupants + bonus from house/mansion upgrades (+2 slots per level above 1). */
+export function getResidenceCapacity(residence: Building): number {
+  const base = BUILDING_CONFIGS[residence.type].maxOccupants;
+  // The Leader's House is out of the level rule: its beds are fixed, and a save made before that
+  // rule can still carry a level it can no longer use.
+  if (!isResidenceBuildingType(residence.type) || isLeaderHouseResidence(residence)) return base;
+  const level = residence.level || 1;
+  return base + (level - 1) * 2;
+}
+
+export function getResidenceUpgradeSlotGain(type: BuildingType): number {
+  return isResidenceBuildingType(type) ? 2 : 0;
+}
+
+/** Building id 0 is valid — never use bare !id for assignment checks. */
+export function hasWorkAssignment(human: Entity): boolean {
+  return human.workerBuildingId != null;
+}
+
+export function hasResidenceAssignment(human: Entity): boolean {
+  return human.residenceBuildingId != null;
+}
+
+export function isImprisoned(human: Entity): boolean {
+  return human.prisonBuildingId != null;
+}
+
+/**
+ * A living player settler with no bed — the one definition of "homeless".
+ *
+ * Two rules meet here, and four surfaces used to disagree about them:
+ *
+ *  - **A prisoner is not homeless.** Imprisonment deliberately clears `residenceBuildingId`
+ *    (`humanLifecycleCleanup`), so a naive `residenceBuildingId == null` count reports every jailed
+ *    settler as unhoused — the mistake `LIVE-FINDINGS-STATUS.md` F10 recorded for the council report
+ *    and the priority strip, and that `housingDiagnostics.unassignedPlayerHumans` still made.
+ *  - **A child without a bed is homeless.** The People screen's Home card excluded juveniles, so a
+ *    child sleeping rough was counted by the dashboard and the alert strip but not by the card whose
+ * tone and "Housing is tight" mood depend on it.
+ */
+export function isHomelessSettler(entity: Entity): boolean {
+  return entity.alive
+    && isPlayerHuman(entity)
+    && !hasResidenceAssignment(entity)
+    && !isImprisoned(entity);
+}
+
+/** Homeless settlers, by the rule above — the owner every "without a home" surface reads. */
+export function countHomelessSettlers(world: Pick<WorldState, 'entities'>): number {
+  const entities = world.entities ?? [];
+  let homeless = 0;
+  for (let i = 0; i < entities.length; i++) {
+    if (isHomelessSettler(entities[i])) homeless += 1;
+  }
+  return homeless;
+}
+
+export function shareResidence(a: Entity, b: Entity): boolean {
+  return hasResidenceAssignment(a) && hasResidenceAssignment(b) && a.residenceBuildingId === b.residenceBuildingId;
+}
+
+export function isNearResidence(human: Entity, buildings: Building[] | ReadonlyMap<number, Building>, maxDist = 55): boolean {
+  if (!hasResidenceAssignment(human)) return false;
+  const id = human.residenceBuildingId!;
+  const residence = 'get' in buildings ? (buildings as ReadonlyMap<number, Building>).get(id) : (buildings as Building[]).find((b) => b.id === id);
+  if (!residence || !isResidenceBuilding(residence)) return false;
+  const cx = residence.x + residence.width / 2;
+  const cy = residence.y + residence.height / 2;
+  return Math.hypot(human.x - cx, human.y - cy) <= maxDist;
+}
+
+export type ResidenceOccupancy = Map<number, number>;
+
+/** One occupancy rule for living player settlers, including cursed Moon Howlers.
+ * The housing solver and occupant sync both use this leaf owner. */
+export function isResidenceOccupantEntity(entity: Entity): boolean {
+  if (!entity.alive) return false;
+  if (entity.type === EntityType.Human) return isPlayerHuman(entity);
+  return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed && !entity.faction;
+}
+
+export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
+  const occupancy: ResidenceOccupancy = new Map();
+  for (const h of humans) {
+    if (!isResidenceOccupantEntity(h)) continue;
+    const id = h.residenceBuildingId;
+    if (id == null) continue;
+    occupancy.set(id, (occupancy.get(id) ?? 0) + 1);
+  }
+  return occupancy;
+}
+
+export function occupancyMove(occupancy: ResidenceOccupancy, fromId: number | undefined, toId: number | undefined): void {
+  if (fromId === toId) return;
+  if (fromId != null) {
+    const next = (occupancy.get(fromId) ?? 0) - 1;
+    if (next <= 0) occupancy.delete(fromId);
+    else occupancy.set(fromId, next);
+  }
+  if (toId != null) occupancy.set(toId, (occupancy.get(toId) ?? 0) + 1);
+}
+
+export function countResidentsInBuilding(humans: Entity[], buildingId: number, occupancy?: ResidenceOccupancy): number {
+  if (occupancy) return occupancy.get(buildingId) ?? 0;
+  return humans.filter((h) => isResidenceOccupantEntity(h) && h.residenceBuildingId === buildingId).length;
+}
+
+export function residenceRoomFor(human: Entity, residence: Building, humans: Entity[], occupancy?: ResidenceOccupancy): boolean {
+  let count = countResidentsInBuilding(humans, residence.id, occupancy);
+  if (human.residenceBuildingId === residence.id) count--;
+  return count < getResidenceCapacity(residence);
+}

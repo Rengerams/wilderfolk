@@ -1,0 +1,267 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "family",
+  "dialogue_trees": [
+    {
+      "id": "wf_family_chore_negotiation",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "husband",
+        "wife"
+      ],
+      "lines": [
+        {
+          "speaker": "husband",
+          "text": "I'll sweep the hearth if you investigate the mysterious scratching under the porch."
+        },
+        {
+          "speaker": "wife",
+          "text": "Last time you investigated a scratching, you befriended a badger."
+        },
+        {
+          "speaker": "husband",
+          "text": "His name was Barnaby and he had excellent table manners."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_snoring_defense",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "wife",
+        "husband"
+      ],
+      "lines": [
+        {
+          "speaker": "wife",
+          "text": "You were snoring so loudly the ceiling rafters were vibrating."
+        },
+        {
+          "speaker": "husband",
+          "text": "I wasn't snoring. I was harmonizing with the wind in the chimney."
+        },
+        {
+          "speaker": "wife",
+          "text": "The wind doesn't gasp for air every thirty seconds."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_warm_spot",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner_a",
+        "partner_b"
+      ],
+      "lines": [
+        {
+          "speaker": "partner_a",
+          "text": "You stole my side of the bench by the fire."
+        },
+        {
+          "speaker": "partner_b",
+          "text": "I was merely keeping the cushion warm so you wouldn't suffer."
+        },
+        {
+          "speaker": "partner_a",
+          "text": "Such selfless devotion. Now scoot over."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_drawing_portrait",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "I drew our family with charcoal on this slate!"
+        },
+        {
+          "speaker": "parent",
+          "text": "Oh, that's lovely! Why does your father look like a hairy turnip with legs?"
+        },
+        {
+          "speaker": "child",
+          "text": "Because realism is important to my artistic vision."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_bedtime_excuses",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "I can't go to sleep yet. The shadow on the wall looks like a goblin with a fork."
+        },
+        {
+          "speaker": "parent",
+          "text": "That is literally just your coat hanging on the wooden peg."
+        },
+        {
+          "speaker": "child",
+          "text": "Then my coat has hostile intentions."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_dinner_vegetables",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "parent",
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Eat three more roasted carrots and you can go play in the yard."
+        },
+        {
+          "speaker": "child",
+          "text": "What if I eat two and compromise by looking very healthy?"
+        },
+        {
+          "speaker": "parent",
+          "text": "Three carrots, or I tell the village elder you hate farming."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_lost_boots",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "parent",
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Where are your second pair of wool socks?"
+        },
+        {
+          "speaker": "child",
+          "text": "They are currently serving as winter mittens for my pet frog."
+        },
+        {
+          "speaker": "parent",
+          "text": "The frog that lives outside in the mud?"
+        },
+        {
+          "speaker": "child",
+          "text": "He gets drafty toes!"
+        }
+      ]
+    },
+    {
+      "id": "wf_family_roommate_leftovers",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Someone ate the bowl of dried berries I left covered on the shelf."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "They were sitting there looking lonely and vulnerable to mold."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "I covered them with a wooden plate and wrote 'MINE' in chalk."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "I thought it said 'MINT'. I was testing for herbal freshness."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_roommate_window",
+      "category": "family",
+      "conversation_type": "two_way",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Why is the window shutter propped open when it's freezing outside?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "The cabin smelled like boiled cabbage."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Now it smells like boiled cabbage and frostbite."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_solo_blanket_monologue",
+      "category": "family",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Nobody here to steal the wool blanket. I am the undisputed emperor of this mattress."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_solo_pot_dining",
+      "category": "family",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Eating stew directly out of the cooking pot with a big spoon. Civilization has peaked."
+        }
+      ]
+    },
+    {
+      "id": "wf_family_solo_spider_truce",
+      "category": "family",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Spider in the corner: you eat the pantry moths, I don't crush you with a boot. An honorable treaty."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "family"
+  ]
+}

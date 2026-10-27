@@ -1,0 +1,92 @@
+{
+  "version": "1.2",
+  "game": "Wilderfolk Sim",
+  "category": "famine",
+  "dialogue_trees": [
+    {
+      "id": "wf_starving_hunt",
+      "category": "famine",
+      "conversation_type": "two_way",
+      "speakers": [
+        "hunter",
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "If we don't bag something before sundown, I'm starting to eye my own left boot."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "Leave the boot. Leather's apparently good for the joints."
+        },
+        {
+          "speaker": "hunter",
+          "text": "Stay sharp. Tracks fresh near the creek – probably just a hare, but my stomach doesn't discriminate."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "I miss the taste of anything that wasn't bark or regret."
+        }
+      ]
+    },
+    {
+      "id": "wf_foraging_blueberries",
+      "category": "famine",
+      "conversation_type": "two_way",
+      "speakers": [
+        "forager",
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Three berries. Three! A very determined squirrel could outpace this harvest."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "At least they're blue. Like the sky we're too hollow to appreciate."
+        },
+        {
+          "speaker": "forager",
+          "text": "I'm half-convinced blueberries are a village myth. Next you'll say hope is real."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "Don't jinx it. Hope's the only thing keeping us from gnawing the fence posts."
+        }
+      ]
+    },
+    {
+      "id": "wf_one_way_starving_monologue",
+      "category": "famine",
+      "conversation_type": "one_way",
+      "speakers": [
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "starving_villager",
+          "text": "My stomach's making sounds that would scare a ghost. I'd trade my left shoe for a rotten turnip."
+        }
+      ]
+    },
+    {
+      "id": "wf_one_way_blueberry_mutter",
+      "category": "famine",
+      "conversation_type": "one_way",
+      "speakers": [
+        "forager"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Picking berries is easy. Finding berries that aren't just sad and small… that's the real challenge."
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "famine"
+  ]
+}
