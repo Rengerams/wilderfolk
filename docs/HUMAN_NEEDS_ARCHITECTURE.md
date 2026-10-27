@@ -91,6 +91,8 @@ During imprisonment, a settler's bed and workplace pointer remain reserved, whil
 
 Production uses `getHumanNeedsWorkMultiplier` alongside schedule-fatigue factors without multiplying two full fatigue penalties. Food production, consumption, spoilage, attendance and replenishment remain separately auditable.
 
+The Virtual Player now checks for a **completed, auto-managed food producer with zero assigned workers** before ordering more Farms during a shortage. It proposes the existing `autoStaffWorkers` command only when the workforce owner identifies a legal donor and transferrable worker. If an existing auto-managed Farm has no such workers, additional idle food buildings are not proposed as a false solution. Manual staffing settings remain untouched. This fixes a construction/staffing feedback loop, **not** the still-unproven full-colony food balance.
+
 ## 6. Persistence and compatibility
 
 Older saves are normalized with `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
