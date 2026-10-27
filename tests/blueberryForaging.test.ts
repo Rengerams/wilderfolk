@@ -13,6 +13,7 @@ import {
   tryTickBlueberryForaging,
 } from '../src/game/blueberryForaging';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
+import { advanceHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 function blueberryTrees(state: WorldState): Entity[] {
   return state.entities.filter((entity) => entity.alive && entity.forageKind === 'blueberry');
@@ -76,6 +77,7 @@ describe('blueberry foraging', () => {
     const human = state.entities.find((entity) => entity.type === EntityType.Human)!;
     human.energy = 80;
     human.maxEnergy = 400;
+    human.needs = { nutrition: 50, rest: 85, stamina: 20, severeHungerTicks: 0 };
     const tree = nearbyBlueberry(state, human, 2);
     human.blueberryForageTargetId = tree.id;
     const foodBefore = state.resources.food;
@@ -92,6 +94,10 @@ describe('blueberry foraging', () => {
     expect(tree.blueberryYield).toBe(1);
     expect(state.resources.food).toBe(foodBefore + BLUEBERRY_FOOD_PER_PICK);
     expect(human.energy).toBe(80 + BLUEBERRY_ENERGY_PER_PICK);
+    expect(human.needs?.stamina).toBeCloseTo(20 + BLUEBERRY_ENERGY_PER_PICK / 400 * 100);
+    // The next tick may recover stamina while idle; it must not erase the reward.
+    advanceHumanNeeds(human, { tick: state.tick + 1, elapsedTicks: 1, sleeping: false, working: false, moving: false });
+    expect(human.energy).toBeGreaterThan(80 + BLUEBERRY_ENERGY_PER_PICK);
     expect(human.blueberryForageTargetId).toBeUndefined();
   });
 
