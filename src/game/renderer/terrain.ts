@@ -1,4 +1,4 @@
-import { Season, TerrainType, type MapPreset } from '../gameTypes';
+import { Season, TerrainType, PATH_CELL, type MapPreset } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { seasonBlendForDay } from '../simHelpers';
 import { getTerrainRevision } from '../terrainLayer';
