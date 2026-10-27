@@ -261,7 +261,9 @@ describe('long-run non-vacuity verdict', () => {
           unit.filter(isMinorChild).map((child) => getChildCustodian(child, residents)?.id),
         );
         for (const human of homeless) {
-          if (isMinorChild(human) || dependentIds.has(human.id)) continue;
+          // A partnered adult needs a household-sized home, not one spare single bed.
+          if (isMinorChild(human) || dependentIds.has(human.id)
+            || unit.some((member) => member.id === human.partnerId)) continue;
           const availableHome = pickResidenceForHuman(human, residents, possibleHomes, occupancy);
           const target = possibleHomes.find((home) => home.id === availableHome);
           const household = unit.map((member) =>
