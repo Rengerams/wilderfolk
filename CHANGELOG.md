@@ -3,7 +3,7 @@
 ## 0.6.6.0[Unreleased]
 
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
-- **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's post/job when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and 7-day food / actual farm staffing diagnostics.
+- **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and 7-day food / actual farm staffing diagnostics.
 
 
 - **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
@@ -11,7 +11,7 @@
 
 - **Fixed (#62):** The Virtual Player now attempts real workforce staffing of completed idle food producers before proposing additional Farms in a measured food shortage. It refuses to multiply unstaffed Farms when nobody can transfer; targeted regressions cover the action and refusal.
 
-- **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added focused/offscreen meal equivalence, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
+- **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added equivalent meal accounting for focused and background settlers, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
 
 - **Changed (#62):** Auto-play uses three to seven consecutive days of recorded food supply and demand to decide farm expansion. Persistent deficits pause optional recruitment; sparse or stale data is not treated as evidence.
 
