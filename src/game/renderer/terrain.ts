@@ -1,5 +1,4 @@
-import type { MapPreset, Season, TerrainType } from '../gameTypes';
-import { Season as SeasonEnum, TerrainType as TerrainTypeEnum } from '../gameTypes';
+import { Season, TerrainType, type MapPreset } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { seasonBlendForDay } from '../simHelpers';
 import { getTerrainRevision } from '../terrainLayer';
@@ -11,11 +10,10 @@ import {
 } from '../terrainLayer';
 import { bakeWhittakerGround, buildWhittakerFields, type WhittakerFields } from './whittakerTerrain';
 import { bakeDecorInRect } from './decor';
-import { worldToScreen as w2s, screenToWorld } from '../viewState';
+import { worldToScreen, screenToWorld } from '../viewState';
 import { TERRAIN_PALETTE } from '../terrainAtlas';
 import { createCanvasSurface, disposeCanvasSurface, getCanvasContext, type CanvasSurface } from '../canvasLayer';
 import { hasContinuousFields } from '../terrain/terrainGrid';
-import { PATH_CELL } from '../gameTypes';
 import { getSprite } from '../spriteLoader';
 
 // Terrain base palette lives in the terrain owner (`terrainAtlas.TERRAIN_PALETTE`) so the bake
@@ -24,49 +22,49 @@ import { getSprite } from '../spriteLoader';
 /** Per-preset palette overrides so coastal/arid/harsh maps read differently at a glance. */
 const PRESET_TERRAIN_COLORS: Partial<Record<MapPreset, Partial<Record<TerrainType, number>>>> = {
   arabia: {
-    [TerrainTypeEnum.Grassland]: 0xb8a068,
-    [TerrainTypeEnum.Forest]: 0x8a7a48,
-    [TerrainTypeEnum.DarkForest]: 0x6a5a38,
-    [TerrainTypeEnum.Hills]: 0xa09060,
-    [TerrainTypeEnum.Beach]: 0xd4b878,
-    [TerrainTypeEnum.Rocky]: 0x9a9080,
+    [TerrainType.Grassland]: 0xb8a068,
+    [TerrainType.Forest]: 0x8a7a48,
+    [TerrainType.DarkForest]: 0x6a5a38,
+    [TerrainType.Hills]: 0xa09060,
+    [TerrainType.Beach]: 0xd4b878,
+    [TerrainType.Rocky]: 0x9a9080,
   },
   black_forest: {
-    [TerrainTypeEnum.Grassland]: 0x4a6a3a,
-    [TerrainTypeEnum.Forest]: 0x2f5a2e,
-    [TerrainTypeEnum.DarkForest]: 0x1f4a1e,
+    [TerrainType.Grassland]: 0x4a6a3a,
+    [TerrainType.Forest]: 0x2f5a2e,
+    [TerrainType.DarkForest]: 0x1f4a1e,
   },
   coastal: {
-    [TerrainTypeEnum.Grassland]: 0x5a7a48,
-    [TerrainTypeEnum.ShallowWater]: 0x2e6a9e,
-    [TerrainTypeEnum.DeepWater]: 0x1a4a78,
-    [TerrainTypeEnum.Beach]: 0xd8c898,
-    [TerrainTypeEnum.RiverBank]: 0x6a8a58,
+    [TerrainType.Grassland]: 0x5a7a48,
+    [TerrainType.ShallowWater]: 0x2e6a9e,
+    [TerrainType.DeepWater]: 0x1a4a78,
+    [TerrainType.Beach]: 0xd8c898,
+    [TerrainType.RiverBank]: 0x6a8a58,
   },
   islands: {
-    [TerrainTypeEnum.Grassland]: 0x4a8a48,
-    [TerrainTypeEnum.ShallowWater]: 0x2e7aa8,
-    [TerrainTypeEnum.DeepWater]: 0x1a5a88,
-    [TerrainTypeEnum.Beach]: 0xd8c898,
+    [TerrainType.Grassland]: 0x4a8a48,
+    [TerrainType.ShallowWater]: 0x2e7aa8,
+    [TerrainType.DeepWater]: 0x1a5a88,
+    [TerrainType.Beach]: 0xd8c898,
   },
   highland: {
-    [TerrainTypeEnum.Grassland]: 0x5a6e42,
-    [TerrainTypeEnum.Hills]: 0x7a6848,
-    [TerrainTypeEnum.Mountains]: 0x5a544e,
-    [TerrainTypeEnum.Rocky]: 0x6e6860,
+    [TerrainType.Grassland]: 0x5a6e42,
+    [TerrainType.Hills]: 0x7a6848,
+    [TerrainType.Mountains]: 0x5a544e,
+    [TerrainType.Rocky]: 0x6e6860,
   },
   scandinavia: {
-    [TerrainTypeEnum.Grassland]: 0x6a8a72,
-    [TerrainTypeEnum.Forest]: 0x4a6a52,
-    [TerrainTypeEnum.Hills]: 0x8a8478,
-    [TerrainTypeEnum.Snow]: 0xe8eef4,
-    [TerrainTypeEnum.Mountains]: 0x6a6660,
+    [TerrainType.Grassland]: 0x6a8a72,
+    [TerrainType.Forest]: 0x4a6a52,
+    [TerrainType.Hills]: 0x8a8478,
+    [TerrainType.Snow]: 0xe8eef4,
+    [TerrainType.Mountains]: 0x6a6660,
   },
   oasis: {
-    [TerrainTypeEnum.Grassland]: 0xb8a068,
-    [TerrainTypeEnum.Forest]: 0x8a7a48,
-    [TerrainTypeEnum.Hills]: 0xa09060,
-    [TerrainTypeEnum.Beach]: 0xd4b878,
+    [TerrainType.Grassland]: 0xb8a068,
+    [TerrainType.Forest]: 0x8a7a48,
+    [TerrainType.Hills]: 0xa09060,
+    [TerrainType.Beach]: 0xd4b878,
   },
 };
 
@@ -83,8 +81,7 @@ const DECOR_CHUNK_MARGIN = 32;
  */
 const DECOR_BAKE_CHUNKS_PER_FRAME = 1;
 
-const GROUND_BAKE_PIXEL_BUDGET_PER_FRAME = 8192;
-export { GROUND_BAKE_PIXEL_BUDGET_PER_FRAME as GROUND_BAKE_PIXEL_BUDGET };
+export const GROUND_BAKE_PIXEL_BUDGET = 8192;
 const GROUND_PREVIEW_STEP_FACTOR = 4;
 const GROUND_REBAKE_CHUNKS_PER_FRAME = 1;
 /** World px per canvas px to bake the ground at for a camera zoom: nearest power of two to `1 / zoom`, clamped to 1–4. */
@@ -177,33 +174,33 @@ export function resetTerrainCaches(): void {
 /** Per-season shift on land tiles so spring/fall/winter aren't only a faint overlay. */
 function seasonTerrainShift(season: Season, type: TerrainType): { r: number; g: number; b: number } {
   const isWater =
-    type === TerrainTypeEnum.DeepWater
-    || type === TerrainTypeEnum.ShallowWater
-    || type === TerrainTypeEnum.River
-    || type === TerrainTypeEnum.RiverBank;
+    type === TerrainType.DeepWater
+    || type === TerrainType.ShallowWater
+    || type === TerrainType.River
+    || type === TerrainType.RiverBank;
   if (isWater) {
-    if (season === SeasonEnum.Winter) return { r: 12, g: 18, b: 28 };
-    if (season === SeasonEnum.Fall) return { r: 8, g: 4, b: -4 };
+    if (season === Season.Winter) return { r: 12, g: 18, b: 28 };
+    if (season === Season.Fall) return { r: 8, g: 4, b: -4 };
     return { r: 0, g: 0, b: 0 };
   }
   switch (season) {
-    case SeasonEnum.Spring:
+    case Season.Spring:
       return { r: -8, g: 22, b: -6 };
-    case SeasonEnum.Summer:
+    case Season.Summer:
       // Drier, yellower grass/dirt (distinct from spring green)
       return { r: 22, g: 8, b: -28 };
-    case SeasonEnum.Fall:
+    case Season.Fall:
       return { r: 28, g: -6, b: -22 };
-    case SeasonEnum.Winter:
+    case Season.Winter:
       return { r: 18, g: 22, b: 32 };
     default:
       return { r: 0, g: 0, b: 0 };
   }
 }
 
-function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset, season: Season = SeasonEnum.Spring): string {
+function getTerrainColor(type: TerrainType, variation: number, preset?: MapPreset, season: Season = Season.Spring): string {
   const presetHex = preset ? PRESET_TERRAIN_COLORS[preset]?.[type] : undefined;
-  const hex = presetHex ?? TERRAIN_PALETTE[type] ?? TERRAIN_PALETTE[TerrainTypeEnum.Grassland];
+  const hex = presetHex ?? TERRAIN_PALETTE[type] ?? TERRAIN_PALETTE[TerrainType.Grassland];
   let r = (hex >> 16) & 0xff;
   let g = (hex >> 8) & 0xff;
   let b = hex & 0xff;
@@ -223,13 +220,12 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     const targetStep = targetGroundStep(state.camera.zoom);
     const chunkWorld = WHITTAKER_CHUNK_SIZE;
     const mapKey = `${map.seed}|${map.terrainSeed ?? ''}|v${map.generationVersion ?? 1}|${map.preset}|${state.width}x${state.height}|r${getTerrainRevision()}`;
-    const key = mapKey;
-    if (whittakerCacheKey !== key) {
+    if (whittakerCacheKey !== mapKey) {
       // A different world: the old surfaces have the wrong geometry, so they go — with their surfaces
       // released — and the budgeted walk below re-fills from nothing.
       for (const chunk of whittakerChunks.values()) disposeGroundChunk(chunk);
       whittakerChunks.clear();
-      whittakerCacheKey = key;
+      whittakerCacheKey = mapKey;
     }
     if (whittakerFieldsKey !== mapKey) {
       whittakerFields = buildWhittakerFields(map);
@@ -250,7 +246,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     // drops what the camera has left behind.
     const keep = new Set<string>();
     for (const origin of plan) keep.add(`${origin.x},${origin.y}`);
-    let budget = GROUND_BAKE_PIXEL_BUDGET_PER_FRAME;
+    let budget = GROUND_BAKE_PIXEL_BUDGET;
 
     /** What a chunk at `origin` covers — sized without allocating, so a plan entry can be costed first. */
     const chunkGeometry = (origin: { x: number; y: number }) => {
@@ -418,7 +414,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
     return;
   }
 
-  const season = state.season ?? SeasonEnum.Spring;
+  const season = state.season ?? Season.Spring;
   // Higher bake resolution when zoomed in close so the ground isn't blocky.
   const lod = state.camera.zoom >= 3 ? 2 : 1;
   // Season transitions fade the palette over a few days instead of snapping.
@@ -489,8 +485,8 @@ function drawSimpleGreenGround(ctx: CanvasRenderingContext2D, state: RenderSnaps
   ctx.fillStyle = '#3f6f38';
   ctx.fillRect(0, 0, cw, ch);
 
-  const [tlx, tly] = w2s(0, 0, cam, cw, ch);
-  const [brx, bry] = w2s(worldW, worldH, cam, cw, ch);
+  const [tlx, tly] = worldToScreen(0, 0, cam, cw, ch);
+  const [brx, bry] = worldToScreen(worldW, worldH, cam, cw, ch);
   const mapW = brx - tlx;
   const mapH = bry - tly;
 
@@ -562,7 +558,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   ctx.fillRect(0, 0, cw, ch);
 
   if (state.worldMap && (whittakerChunks.size > 0 || terrainChunkCache.size > 0)) {
-    const [sx0, sy0] = w2s(0, 0, cam, cw, ch);
+    const [sx0, sy0] = worldToScreen(0, 0, cam, cw, ch);
     // Draw at WORLD scale — the baked surface may be lod× larger than the world.
     const drawW = state.width * cam.zoom;
     const drawH = state.height * cam.zoom;
@@ -599,7 +595,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
             ? chunk.preview
             : null;
         if (!source) continue;
-        const [chunkSx, chunkSy] = w2s(chunk.worldX, chunk.worldY, cam, cw, ch);
+        const [chunkSx, chunkSy] = worldToScreen(chunk.worldX, chunk.worldY, cam, cw, ch);
         // Drawn at the WORLD rect it covers (not its canvas size — those differ whenever the bake
         // sub-samples), so chunk seams line up exactly.
         ctx.drawImage(
@@ -614,7 +610,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       // Ground from every chunk first; the next chunk must not erase props crossing its edge.
       for (const chunk of whittakerChunks.values()) {
         if (!chunk.decor) continue;
-        const [decorSx, decorSy] = w2s(
+        const [decorSx, decorSy] = worldToScreen(
           chunk.worldX - DECOR_CHUNK_MARGIN,
           chunk.worldY - DECOR_CHUNK_MARGIN,
           cam, cw, ch,
@@ -630,7 +626,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 
     } else {
       for (const cache of terrainChunkCache.values()) {
-        const [chunkSx, chunkSy] = w2s(cache.offsetX, cache.offsetY, cam, cw, ch);
+        const [chunkSx, chunkSy] = worldToScreen(cache.offsetX, cache.offsetY, cam, cw, ch);
         ctx.drawImage(
           cache.surface as CanvasImageSource,
           chunkSx,
@@ -690,7 +686,7 @@ function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot
     if (!tile.reinforced) continue;
     const tx = index % mapWidth;
     const ty = Math.floor(index / mapWidth);
-    const [sx, sy] = w2s(tx * PATH_CELL, ty * PATH_CELL, state.camera, cw, ch);
+    const [sx, sy] = worldToScreen(tx * PATH_CELL, ty * PATH_CELL, state.camera, cw, ch);
     if (sx + size <= 0 || sy + size <= 0 || sx >= cw || sy >= ch) continue;
     ctx.drawImage(sprite, sx, sy, size, size);
   }
