@@ -141,15 +141,28 @@ export function snapStripDragEndpoints(
   const entrances = family === 'road' ? collectRoadEntranceSnapPoints(buildings) : [];
   if (snaps.length === 0 && entrances.length === 0) return { startX, startY, endX, endY };
 
-  const startSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS)
-    ?? nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
-  const endSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS)
-    ?? nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
+  const startStripSnap = nearestSnapPoint(snaps, startX, startY, STRIP_SNAP_RADIUS);
+  const endStripSnap = nearestSnapPoint(snaps, endX, endY, STRIP_SNAP_RADIUS);
+  const startEntrance = startStripSnap ? null : nearestSnapPoint(entrances, startX, startY, STRIP_SNAP_RADIUS);
+  const endEntrance = endStripSnap ? null : nearestSnapPoint(entrances, endX, endY, STRIP_SNAP_RADIUS);
+  const startSnap = startStripSnap ?? startEntrance;
+  const endSnap = endStripSnap ?? endEntrance;
+  const snappedStartX = startSnap?.x ?? startX;
+  const snappedEndX = endSnap?.x ?? endX;
+  let snappedStartY = startSnap?.y ?? startY;
+  let snappedEndY = endSnap?.y ?? endY;
+
+  // Straight drags must use the snapped entrance's row at both ends of the strip.
+  if (Math.abs(snappedEndX - snappedStartX) >= Math.abs(snappedEndY - snappedStartY)
+    && Math.abs(snappedEndY - snappedStartY) < STRIP_BEND_MIN_DISTANCE_PX) {
+    if (endEntrance && !startSnap) snappedStartY = snappedEndY;
+    if (startEntrance && !endSnap) snappedEndY = snappedStartY;
+  }
   return {
-    startX: startSnap?.x ?? startX,
-    startY: startSnap?.y ?? startY,
-    endX: endSnap?.x ?? endX,
-    endY: endSnap?.y ?? endY,
+    startX: snappedStartX,
+    startY: snappedStartY,
+    endX: snappedEndX,
+    endY: snappedEndY,
   };
 }
 
