@@ -99,7 +99,7 @@ import {
 import { assignMissingWorkers, getSmithBonus } from './workforce';
 import { isImprisoned } from './residencyOccupancy';
 import { isPlayerHuman } from './playerHuman';
-import { getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
+import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
   getScheduleLastWorkedHours,
@@ -643,9 +643,7 @@ function tickBuildingProduction(
   const mauled = fate === 'mauled';
           const damage = HUNTING_FIGHT_BACK_BITE_ENERGY + (mauled ? HUNTING_FIGHT_BACK_MAUL_ENERGY : 0);
           if (hunter.needs) {
-            hunter.needs.stamina = Math.max(0, hunter.needs.stamina
-              - damage / Math.max(1, hunter.maxEnergy) * 100);
-            hunter.energy = hunter.maxEnergy * hunter.needs.stamina / 100;
+            adjustHumanStaminaFromEnergy(hunter, -damage);
           } else {
             hunter.energy = Math.max(0, hunter.energy - damage);
           }
