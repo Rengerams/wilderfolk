@@ -79,6 +79,8 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
     const grid = ensureScentGrid(world);
     grid.values[3] = 11;
     const laidDown = Float32Array.from(grid.values);
+    const entityIndex = world.entityById;
+    const originalRngStamp = world.simRng;
 
     posted.length = 0;
     shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
@@ -88,9 +90,43 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
     // The save payload carries no runtime caches — the same set `stripRuntimeWorldFields` drops,
     // so the transient trail is not shipped to disk either.
     expect((result as { world: WorldState }).world.scentGrid).toBeUndefined();
-    // ...while the live worker keeps the trail it was midway through laying down.
+    expect((result as { world: WorldState }).world).not.toBe(world);
+    expect((result as { world: WorldState }).world.simRng?.seed).toBe(31);
+    // ...while the live worker keeps its runtime cache identity, RNG stamp
+    // and the trail it was midway through laying down.
+    expect(world.scentGrid).toBe(grid);
     expect(world.scentGrid?.values).toEqual(laidDown);
     expect(world.scentGrid?.values[3]).toBe(11);
+    expect(world.entityById).toBe(entityIndex);
+    expect(world.simRng).toBe(originalRngStamp);
+  });
+
+  it('keeps live state intact when save serialization throws', async () => {
+    const { shim, posted } = await workerWithSelfShim();
+    const world = initGame({ size: MapSize.Medium, seed: 37 });
+    shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true } });
+    const grid = ensureScentGrid(world);
+    grid.values[3] = 17;
+    const entityIndex = world.entityById;
+    const originalRngStamp = world.simRng;
+    const originalPost = shim.postMessage;
+    posted.length = 0;
+    shim.postMessage = (message) => {
+      if ((message as WorkerResponse).type === 'exportSaveResult') {
+        throw new Error('simulated serialization failure');
+      }
+      originalPost(message);
+    };
+    try {
+      shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
+      expect(posted.some((message) => message.type === 'error' && message.source === 'export')).toBe(true);
+      expect(world.scentGrid).toBe(grid);
+      expect(world.scentGrid?.values[3]).toBe(17);
+      expect(world.entityById).toBe(entityIndex);
+      expect(world.simRng).toBe(originalRngStamp);
+    } finally {
+      shim.postMessage = originalPost;
+    }
   });
 
   it('F-3 — rolls the ledger totals back with the maps they summarize', () => {

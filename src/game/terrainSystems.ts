@@ -59,7 +59,7 @@ export function getTerrainEfficiencyMultiplier(state: WorldState, building: Buil
   if (!state.worldMap) return 1;
   const tile = getTileAt(state, building.x, building.y);
   if (!tile) return 1;
-  const type = tile.type;
+  const type = building.siteTerrain ?? tile.type;
 
   switch (building.type) {
     case BuildingType.Farm:

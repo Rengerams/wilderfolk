@@ -94,6 +94,33 @@ function rgbOf(css: string): { r: number; g: number; b: number } {
 /** `bush`'s first green layer as authored. */
 const BUSH_LAYER = { r: 0x38, g: 0x74, b: 0x2e };
 
+describe('chunk decoration ownership and rivers', () => {
+  it('assigns an overhanging prop exactly once to its anchor chunk', () => {
+    const props: TerrainDecoration[] = [
+      { x: 251, y: 120, type: 'bush', scale: 1, variant: 0, flipX: false, tint: 0 },
+      { x: 260, y: 120, type: 'bush', scale: 1, variant: 0, flipX: false, tint: 0 },
+    ];
+    const map = mapWith(props);
+    const left = recordingCtx();
+    const right = recordingCtx();
+    expect(bakeDecorInRect(
+      left.ctx, map, { x: -32, y: -32, width: 320, height: 320 }, 1,
+      { x: 0, y: 0, width: 256, height: 256 },
+    )).toBe(1);
+    expect(bakeDecorInRect(
+      right.ctx, map, { x: 224, y: -32, width: 320, height: 320 }, 1,
+      { x: 256, y: 0, width: 256, height: 256 },
+    )).toBe(1);
+  });
+
+  it('never strokes a second river line over the shaded water surface', () => {
+    const sample = recordingCtx();
+    const map = { ...mapWith([]), rivers: [[{ x: 10, y: 10 }, { x: 200, y: 200 }]] };
+    expect(bakeDecorInRect(sample.ctx, map, CHUNK_RECT, 1)).toBe(0);
+    expect(sample.log.strokes).toEqual([]);
+  });
+});
+
 describe('L3 decor props — baked per chunk, tinted by shading, never by a canvas filter', () => {
   it('bakes the props in its rect without writing a canvas filter, and shades their colours', () => {
     const { ctx, log } = recordingCtx();

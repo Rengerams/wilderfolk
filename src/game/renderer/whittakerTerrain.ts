@@ -553,6 +553,8 @@ export interface WhittakerFields {
   relief: Float32Array;
   /** How much of the sun's path from the light to this cell is blocked, 0–1. */
   shadowMap: Float32Array;
+  /** Horizon occlusion adds heightmap-based depth without moving gameplay coordinates. */
+  skyOcclusion: Float32Array;
   /** How close each cell is to water — the damp verge along every shore. */
   waterProx: Float32Array;
   /**
@@ -660,6 +662,27 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
     }
   }
 
+  // Precompute a local horizon term once; no extra noise or ray marching in the pixel shader.
+  const skyOcclusion = new Float32Array(cols * rows);
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const center = shade[y * cols + x]!;
+      let occlusion = 0;
+      for (const [dx, dy] of directions) {
+        let horizon = 0;
+        for (const radius of [1, 2, 4, 7]) {
+          const nx = clamp(x + dx * radius, 0, cols - 1);
+          const ny = clamp(y + dy * radius, 0, rows - 1);
+          const rise = (shade[ny * cols + nx]! - center) / (radius * Math.hypot(dx, dy));
+          horizon = Math.max(horizon, rise);
+        }
+        occlusion += clamp((horizon - 0.008) * 10, 0, 1);
+      }
+      skyOcclusion[y * cols + x] = occlusion / directions.length;
+    }
+  }
+
   const waterProx = new Float32Array(cols * rows);
   const sea = map.seaLevel ?? DEFAULT_SEA_LEVEL;
   // The water ramp's far end, from this map's own depth distribution. A high percentile rather than
@@ -701,7 +724,7 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
     }
   }
 
-  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, waterProx, deepWaterDepth };
+  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, deepWaterDepth };
 }
 
 /** The world rectangle one bake covers. Omit to bake the whole map. */
@@ -784,7 +807,7 @@ export function bakeWhittakerGround(
   // caller builds them once and passes the same object to every chunk.
   const fields = precomputedFields ?? buildWhittakerFields(map);
   if (!fields) return null;
-  const { shade, slopeX, slopeY, relief, shadowMap, waterProx, deepWaterDepth } = fields;
+  const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, deepWaterDepth } = fields;
 
   const img = ctx.createImageData(W, H);
   const d = img.data;
@@ -795,8 +818,19 @@ export function bakeWhittakerGround(
       const tcx = wx / C;
       const tcy = wy / C;
       // The height the ground art reads is the smoothed field, not the raw one — see `WhittakerFields.shade`.
-      const e = sampleF(shade, cols, rows, tcx, tcy);
-      const mo = clamp(sampleF(moisture, cols, rows, tcx, tcy) + moistureBias, 0, 1);
+      const visualHeight = sampleF(shade, cols, rows, tcx, tcy);
+      const terrainHeight = sampleF(elevation, cols, rows, tcx, tcy);
+      // Water must remain water wherever the canonical terrain tiles classify it as such.
+      const e = terrainHeight < sea ? Math.min(visualHeight, terrainHeight - 0.001) : visualHeight;
+      const mo = clamp(
+        sampleF(moisture, cols, rows, tcx, tcy)
+          + (map.generationVersion === 2 ? 0 : moistureBias),
+        0, 1,
+      );
+      const visualMo = map.generationVersion === 2
+        ? clamp(mo + DEFAULT_MOISTURE_FOREST
+          - (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST), 0, 1)
+        : mo;
       const te = sampleF(temperature, cols, rows, tcx, tcy);
       // Four octaves across four scales, collapsed to a **0-mean deviation** (`dv`) because every
       // consumer below multiplies it by a per-channel amplitude while adding it to a mean colour.
@@ -828,7 +862,7 @@ export function bakeWhittakerGround(
       const isWater = aboveSea < 0;
 
       let [r, g, b] = groundColor(
-        e, sea, landRange, mo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
+        e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
       );
 
       // Seabed grain: the floor's own variation *inside* each tint band, so a band is a surface and not
@@ -981,6 +1015,11 @@ export function bakeWhittakerGround(
       // banks, so the trace reads a large height difference there and paints the channel — and every
       // river bend's inside corner — dark. That is what drew the hard dark outlines around rivers.
       if (!isWater) {
+        const ao = sampleF(skyOcclusion, cols, rows, tcx, tcy);
+        const ambientShade = ao * 0.32;
+        r *= 1 - ambientShade;
+        g *= 1 - ambientShade * 0.97;
+        b *= 1 - ambientShade * 0.90;
         const sh = sampleF(shadowMap, cols, rows, tcx, tcy);
         if (sh > 0.01) {
           const a = sh * SHADOW_STRENGTH;

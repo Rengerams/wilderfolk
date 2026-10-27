@@ -20,7 +20,7 @@ import {
   emptyEntityByType,
 } from './gameTypes';
 import { generateWorldMap } from './terrainGen';
-export { generateWorldMap } from './terrainGen';
+
 import { tileAt } from './terrain/terrainGrid';
 import {
   enableSeededGlobalRandom,
@@ -58,7 +58,7 @@ import { createGuidedCampaignState } from './guidedCampaign';
 import { spawnBlueberryTrees } from './blueberryForaging';
 import { computeStorageMax } from './economy';
 
-export { createEntity, finalizeSettlerAge } from './entityFactory';
+export { createEntity } from './entityFactory';
 
 export interface WildlifeSpawnOptions {
   recordBirthYear?: boolean;
@@ -267,6 +267,11 @@ export function spawnGrassPatch(
 
     if (gx < 0 || gx > width || gy < 0 || gy > height) continue;
     if (state.worldMap && !isPassableWildlifePosition(state, gx, gy, 4)) continue;
+    if (state.worldMap?.generationVersion === 2) {
+      const biome = getTileAtWorld(state, gx, gy)?.type;
+      if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+          && biome !== TerrainType.Grassland && biome !== TerrainType.RiverBank) continue;
+    }
 
     const grass = createEntity(
       EntityType.Grass,
@@ -712,6 +717,11 @@ export function initGame(options: InitGameOptions = {}): WorldState {
       const tx = cx + Math.cos(angle) * dist;
       const ty = cy + Math.sin(angle) * dist;
       if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
+      if (state.worldMap?.generationVersion === 2) {
+        const biome = getTileAtWorld(state, tx, ty)?.type;
+        if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+            && biome !== TerrainType.Grassland) continue;
+      }
       const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
       state.entities.push(tree);
       indexLivingEntity(state, tree);
@@ -754,7 +764,16 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   const centerX = camp.x;
   const centerY = camp.y;
 
-  spawnBlueberryTrees(state, size, centerX, centerY, isPassableWildlifePosition);
+  spawnBlueberryTrees(
+    state, size, centerX, centerY,
+    (world, x, y, margin) => {
+      if (!isPassableWildlifePosition(world, x, y, margin)) return false;
+      if (world.worldMap?.generationVersion !== 2) return true;
+      const biome = getTileAtWorld(world, x, y)?.type;
+      return biome === TerrainType.Forest || biome === TerrainType.DarkForest
+        || biome === TerrainType.Grassland;
+    },
+  );
 
   const surname = getRandomSurname();
   const motherMaidenSurname = getRandomSurname();

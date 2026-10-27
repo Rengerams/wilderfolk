@@ -214,6 +214,7 @@ export function generateWorldMap(
   preset?: MapPreset,
   /** The noise seed a save recorded — see `terrainSeedFor`. Wins over `seed` + `size`. */
   terrainSeed?: number,
+  generationVersion?: 1 | 2,
 ): WorldMap;
 export function generateWorldMap(
   widthOrSize: number | MapSize = 1200,
@@ -222,6 +223,7 @@ export function generateWorldMap(
   sizeArg?: MapSize,
   presetArg: MapPreset = 'continental',
   terrainSeedArg?: number,
+  generationVersion: 1 | 2 = 2,
 ): WorldMap {
   let width: number;
   let height: number;
@@ -253,7 +255,7 @@ export function generateWorldMap(
   }
 
   // Teraforge engine: 64px cells → 10px tiles + continuous fields + L0/L1 grids.
-  const map = generateRawTerrain(width, height, seed, size, preset, terrainSeedArg);
+  const map = generateRawTerrain(width, height, seed, size, preset, terrainSeedArg, generationVersion);
 
   // Carve a buildable camp clearing and strip the start-area forest so the founding pioneers and
   // first buildings have usable ground. The camp follows buildable ground, not the map centre —
@@ -273,13 +275,20 @@ export function generateWorldMap(
   const campY = camp.y;
 
   if (
-    isCoastalPreset(preset)
+    generationVersion === 2
+    || isCoastalPreset(preset)
     || !isFootprintBuildable(map, houseFootprint.w, houseFootprint.h, campX, campY)
   ) {
-    ensureCampClearing(map, campX, campY, isCoastalPreset(preset) ? 18 : 12, preset);
+    ensureCampClearing(
+      map, campX, campY,
+      generationVersion === 2 ? (isCoastalPreset(preset) ? 11 : 7) : (isCoastalPreset(preset) ? 18 : 12),
+      preset,
+    );
   }
 
-  const startForestRadius = Math.max(14, Math.round(Math.min(map.width, map.height) * 0.22));
+  const startForestRadius = generationVersion === 2
+    ? Math.min(16, Math.max(10, Math.round(Math.min(map.width, map.height) * 0.055)))
+    : Math.max(14, Math.round(Math.min(map.width, map.height) * 0.22));
   clearStartAreaForest(map, campX, campY, startForestRadius);
 
   return map;

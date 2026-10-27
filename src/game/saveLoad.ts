@@ -398,6 +398,7 @@ function compactWorldMapForSave(worldMap: WorldState['worldMap']) {
     _overrides: worldMap.overrides ? [...worldMap.overrides.entries()] : undefined,
     /** The resolved noise seed, so the valley regenerates exactly — see `terrainSeedFor`. */
     _terrainSeed: worldMap.terrainSeed,
+    _generationVersion: worldMap.generationVersion ?? 1,
     _compact: true as const,
   };
 }
@@ -473,7 +474,7 @@ function applySavedTerrainOverrides(
 }
 
 function restoreWorldMapFromSave(parsed: {
-  worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown; _terrainSeed?: unknown }) | null;
+  worldMap?: (WorldState['worldMap'] & { _compact?: boolean; _overrides?: unknown; _terrainSeed?: unknown; _generationVersion?: unknown }) | null;
   width?: unknown;
   height?: unknown;
   buildings?: unknown;
@@ -489,6 +490,7 @@ function restoreWorldMapFromSave(parsed: {
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
   const storedTerrainSeed = isFiniteNumber(wm._terrainSeed) ? wm._terrainSeed : undefined;
+  const generationVersion: 1 | 2 = wm._generationVersion === 2 ? 2 : 1;
   /** Regenerate the valley, with the save's recorded seed when it has one. */
   const regenerateTerrain = (terrainSeed?: number): WorldState['worldMap'] => {
     if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {
@@ -504,12 +506,17 @@ function restoreWorldMapFromSave(parsed: {
           wm.size ?? 'medium',
           wm.preset ?? 'continental',
           terrainSeed,
+          generationVersion,
         ),
         overrides,
       );
     }
     return applySavedTerrainOverrides(
-      generateWorldMap(wm.size ?? 'medium', wm.preset ?? 'continental', wm.seed),
+      generateWorldMap(
+        MAP_SIZE_DIMENSIONS[wm.size ?? 'medium'].width,
+        MAP_SIZE_DIMENSIONS[wm.size ?? 'medium'].height,
+        wm.seed, wm.size ?? 'medium', wm.preset ?? 'continental', terrainSeed, generationVersion,
+      ),
       overrides,
     );
   };

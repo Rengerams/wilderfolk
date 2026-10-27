@@ -3,10 +3,8 @@ import { canonicalDialogueBank, installDialogueBankPayload } from '../dialogueTr
 import { gameTick } from '../gameTick';
 import { GAME_VERSION } from '../version';
 import {
-  captureSimulationState,
   hydrateWorldRuntimeCaches,
   invalidateWorldRuntimeCaches,
-  restoreSimulationState,
 } from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
 import { areNamesLoaded, loadNames } from '../nameLoader';
@@ -15,7 +13,7 @@ import { repairJuvenileAssignmentsOnLoad } from '../dayCycle';
 installDialogueBankPayload(canonicalDialogueBank);
 
 /* Core runtime types */
-import type { Building, Entity, WorldState } from '../gameTypes';
+import type { Entity, WorldState } from '../gameTypes';
 
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
@@ -53,7 +51,8 @@ let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
-let prevBuildingsSnapshot: Map<number, Building> | null = null;
+let prevBuildingsSnapshot: Map<number, string> | null = null;
+let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
 
 /* -------------------------------------------------------------------------- */
 /*  Utility – error reporting                                                */
@@ -105,16 +104,18 @@ function packAndPostTickResult(
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
+    const nextBuildings = new Map<number, string>();
+    const nextHistories = new Map<string, string | undefined>();
     const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
       focus: lastFocus,
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
+      nextBuildings,
+      prevHistories: prevHistoriesSnapshot,
+      nextHistories,
     });
     profileEnd('worker.extractDelta', deltaStart);
-    const buildingsStart = profileStart();
-    prevBuildingsSnapshot = new Map((world.buildings ?? []).map((b) => [b.id, structuredClone(b)]));
-    profileEnd('worker.cloneBuildings', buildingsStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
     const transferables: ArrayBuffer[] = [pack.buffer];
@@ -136,6 +137,8 @@ function packAndPostTickResult(
       scentBuffer,
     };
     self.postMessage(response, transferables);
+    prevBuildingsSnapshot = nextBuildings;
+    prevHistoriesSnapshot = nextHistories;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
     throw err;
@@ -155,6 +158,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
+  prevHistoriesSnapshot = null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -222,17 +226,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
 
-        const liveSimulationState = captureSimulationState(world);
-        invalidateWorldRuntimeCaches(world);
-        const clonedWorld = structuredClone(world);
-        stampWorldSimRng(clonedWorld);
-        hydrateWorldRuntimeCaches(world);
-        restoreSimulationState(world, liveSimulationState);
-
+        // Only copy the shell: postMessage synchronously snapshots nested data.
+        // Never strip caches or stamp RNG on the live simulation world: a save
+        // (including a failed serialization) must not change its runtime state.
+        const exportWorld = { ...world };
+        invalidateWorldRuntimeCaches(exportWorld);
+        stampWorldSimRng(exportWorld);
         const response: WorkerResponse = {
           type: 'exportSaveResult',
           proto: WORKER_PROTO,
-          world: clonedWorld,
+          world: exportWorld,
         };
         self.postMessage(response);
         break;
@@ -258,7 +261,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const prepBackup = extractSimPrep(world);
         let delta;
         try {
-          world = applyWorkerCommand(world, msg.cmd);
+          world = applyWorkerCommand(world, msg.cmd, 'owned');
+          prevBuildingsSnapshot = null;
+          prevHistoriesSnapshot = null;
           delta = safeExtractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);

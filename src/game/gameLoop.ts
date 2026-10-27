@@ -627,7 +627,7 @@ export class GameLoop {
 
     for (const command of previews) {
       try {
-        display = applyWorkerCommand(display, command);
+        display = applyWorkerCommand(display, command, 'owned');
       } catch (err) {
         console.warn('[GameLoop] Optimistic command display failed; awaiting worker result', err);
         break;

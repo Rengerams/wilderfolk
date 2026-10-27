@@ -93,8 +93,8 @@ export interface SimTickDelta {
   removedBuildingIds?: number[];
   aliveEntities: Entity[];
   eventLogTail: WorldState['eventLog'];
-  graveRecords: WorldState['graveRecords'];
-  genealogyRegistry: WorldState['genealogyRegistry'];
+  graveRecords?: WorldState['graveRecords'];
+  genealogyRegistry?: WorldState['genealogyRegistry'];
   bigNews: WorldState['bigNews'];
   notifications: WorldState['notifications'];
   festival: WorldState['festival'];
@@ -102,7 +102,7 @@ export interface SimTickDelta {
   visitorGroups: WorldState['visitorGroups'];
   activeVillageRequest: WorldState['activeVillageRequest'];
   villageRequestCooldownUntilDay: number;
-  villageRequestHistory: NonNullable<WorldState['villageRequestHistory']>;
+  villageRequestHistory?: NonNullable<WorldState['villageRequestHistory']>;
   rivalSettlements: WorldState['rivalSettlements'];
   pendingRaidEvents: WorldState['pendingRaidEvents'];
   pendingOutgoingRaidEvents: WorldState['pendingOutgoingRaidEvents'];
@@ -126,8 +126,8 @@ export interface SimTickDelta {
   tradeRoutes: WorldState['tradeRoutes'];
   disasters: WorldState['disasters'];
   villageForge: WorldState['villageForge'];
-  populationHistory: WorldState['populationHistory'];
-  yearlyStats: WorldState['yearlyStats'];
+  populationHistory?: WorldState['populationHistory'];
+  yearlyStats?: WorldState['yearlyStats'];
   lifetimeStats: WorldState['lifetimeStats'];
   eventsThisYear: string[];
   activeEvent: WorldState['activeEvent'];
@@ -144,7 +144,7 @@ export interface SimTickDelta {
   deathsThisYear: WorldState['deathsThisYear'];
   lastMoonHowlerExorcismTick: WorldState['lastMoonHowlerExorcismTick'];
   moonHowlerPriestsFleeUntil: WorldState['moonHowlerPriestsFleeUntil'];
-  chronicleChapters: WorldState['chronicleChapters'];
+  chronicleChapters?: WorldState['chronicleChapters'];
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
@@ -167,7 +167,10 @@ export interface ExtractSimTickDeltaOptions {
   focus?: SimulationFocus;
   headless?: boolean;
   cloneMode?: SimDeltaCloneMode;
-  prevBuildings?: ReadonlyMap<number, Building> | null;
+  prevBuildings?: ReadonlyMap<number, string> | null;
+  nextBuildings?: Map<number, string>;
+  prevHistories?: ReadonlyMap<string, string | undefined> | null;
+  nextHistories?: Map<string, string | undefined>;
 }
 
 export interface ApplySimTickDeltaOptions {
@@ -232,18 +235,20 @@ export function extractSimTickDelta(
   let changedBuildings: Building[] | undefined;
   let removedBuildingIds: number[] | undefined;
 
-  if (prevBuildings) {
+  if (prevBuildings || options?.nextBuildings) {
     changedBuildings = [];
     removedBuildingIds = [];
     const currentIds = new Set<number>();
     for (const building of world.buildings) {
       currentIds.add(building.id);
-      const prev = prevBuildings.get(building.id);
-      if (!prev || buildingFingerprint(prev) !== buildingFingerprint(building)) {
+      const fingerprint = buildingFingerprint(building);
+      options?.nextBuildings?.set(building.id, fingerprint);
+      const prev = prevBuildings?.get(building.id);
+      if (prev !== fingerprint) {
         changedBuildings.push(building);
       }
     }
-    for (const id of prevBuildings.keys()) {
+    for (const id of prevBuildings?.keys() ?? []) {
       if (!currentIds.has(id)) removedBuildingIds.push(id);
     }
   }
@@ -384,6 +389,16 @@ export function extractSimTickDelta(
     delta.catalogEntities = deltaClone(aliveNow.filter((e) => e.type === EntityType.Human), cloneMode);
   }
 
+  if (options?.prevHistories || options?.nextHistories) {
+    for (const key of ['graveRecords', 'populationHistory', 'yearlyStats', 'chronicleChapters', 'villageRequestHistory', 'genealogyRegistry'] as const) {
+      const fingerprint = JSON.stringify(delta[key]);
+      options?.nextHistories?.set(key, fingerprint);
+      if (options?.prevHistories?.has(key) && options.prevHistories.get(key) === fingerprint) {
+        delete delta[key];
+      }
+    }
+  }
+
   return delta;
 }
 
@@ -432,8 +447,12 @@ export function applySimTickDelta(
   world.floatingTexts = deltaClone(delta.floatingTexts, cloneMode);
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
   world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
-  world.graveRecords = deltaClone(delta.graveRecords ?? [], cloneMode);
-  world.genealogyRegistry = deltaCloneOptional(delta.genealogyRegistry, cloneMode) ?? undefined;
+  if ('graveRecords' in delta) {
+    world.graveRecords = deltaClone(delta.graveRecords ?? [], cloneMode);
+  }
+  if ('genealogyRegistry' in delta) {
+    world.genealogyRegistry = deltaCloneOptional(delta.genealogyRegistry, cloneMode) ?? undefined;
+  }
 
   if (delta.changedBuildings) {
     const removed = new Set(delta.removedBuildingIds ?? []);
@@ -463,7 +482,9 @@ export function applySimTickDelta(
   world.visitorGroups = deltaClone(delta.visitorGroups, cloneMode);
   world.activeVillageRequest = deltaCloneOptional(delta.activeVillageRequest, cloneMode) ?? undefined;
   world.villageRequestCooldownUntilDay = delta.villageRequestCooldownUntilDay;
-  world.villageRequestHistory = deltaClone(delta.villageRequestHistory, cloneMode);
+  if ('villageRequestHistory' in delta) {
+    world.villageRequestHistory = deltaClone(delta.villageRequestHistory, cloneMode);
+  }
   world.rivalSettlements = deltaClone(delta.rivalSettlements, cloneMode);
   world.pendingRaidEvents = deltaClone(delta.pendingRaidEvents, cloneMode);
   world.pendingOutgoingRaidEvents = deltaClone(delta.pendingOutgoingRaidEvents, cloneMode);
@@ -492,8 +513,12 @@ export function applySimTickDelta(
   world.tradeRoutes = deltaClone(delta.tradeRoutes, cloneMode);
   world.disasters = deltaClone(delta.disasters, cloneMode);
   world.villageForge = deltaClone(delta.villageForge, cloneMode);
-  world.populationHistory = deltaClone(delta.populationHistory, cloneMode);
-  world.yearlyStats = deltaClone(delta.yearlyStats, cloneMode);
+  if ('populationHistory' in delta) {
+    world.populationHistory = deltaClone(delta.populationHistory ?? [], cloneMode);
+  }
+  if ('yearlyStats' in delta) {
+    world.yearlyStats = deltaClone(delta.yearlyStats ?? [], cloneMode);
+  }
   world.lifetimeStats = deltaClone(delta.lifetimeStats, cloneMode);
   world.eventsThisYear = cloneMode === 'isolated' ? [...delta.eventsThisYear] : delta.eventsThisYear;
 
@@ -515,7 +540,9 @@ export function applySimTickDelta(
   world.deathsThisYear = deltaCloneOptional(delta.deathsThisYear, cloneMode) ?? undefined;
   world.lastMoonHowlerExorcismTick = delta.lastMoonHowlerExorcismTick;
   world.moonHowlerPriestsFleeUntil = delta.moonHowlerPriestsFleeUntil;
-  world.chronicleChapters = deltaClone(delta.chronicleChapters ?? [], cloneMode);
+  if ('chronicleChapters' in delta) {
+    world.chronicleChapters = deltaClone(delta.chronicleChapters ?? [], cloneMode);
+  }
   world.renffrChatterUntilTick = delta.renffrChatterUntilTick;
   world.lastProcessedCalendarDay = delta.lastProcessedCalendarDay;
   world.lastWildlifeReplenishLogDay = delta.lastWildlifeReplenishLogDay;

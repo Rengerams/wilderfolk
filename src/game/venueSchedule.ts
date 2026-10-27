@@ -80,7 +80,7 @@ export function setVenueSchedule(state: WorldState, kind: VenueScheduleKind, sta
   const current = getVenueSchedule(state, kind);
   const result = validateVenueSchedule(startHour, endHour);
   if (!result.ok || (current.startHour === startHour && current.endHour === endHour)) return state;
-  const next = structuredClone(state);
+  const next = { ...state };
   if (kind === 'tavern') next.tavernSchedule = result.schedule;
   else next.hotelSchedule = result.schedule;
   return next;

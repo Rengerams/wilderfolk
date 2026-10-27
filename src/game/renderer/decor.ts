@@ -268,38 +268,11 @@ export function bakeDecorInRect(
   map: WorldMap,
   rect: { x: number; y: number; width: number; height: number },
   scale: number,
+  ownerRect: { x: number; y: number; width: number; height: number } = rect,
 ): number {
   if (scale <= 0) return 0;
 
-  // River courses. Stroked per chunk rather than onto one full-map surface — the canvas clips them to
-  // the chunk, so only the part that belongs here is painted, and the bounding-box test keeps a river
-  // that does not come near this chunk from being walked at all.
-  for (const river of map.rivers ?? []) {
-    if (river.length < 2) continue;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const p of river) {
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y > maxY) maxY = p.y;
-    }
-    if (maxX < rect.x || maxY < rect.y || minX > rect.x + rect.width || minY > rect.y + rect.height) continue;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(24, 54, 86, 0.16)';
-    ctx.lineWidth = 2 * scale;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo((river[0].x - rect.x) * scale, (river[0].y - rect.y) * scale);
-    for (let i = 1; i < river.length; i++) {
-      ctx.lineTo((river[i].x - rect.x) * scale, (river[i].y - rect.y) * scale);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
+  // Water is already drawn by the continuous terrain shader; no duplicate vector river stroke.
 
   const decorations = map.decorations;
   if (!decorations || decorations.length === 0) return 0;
@@ -308,8 +281,8 @@ export function bakeDecorInRect(
   const firstCellY = Math.floor(rect.y / DECOR_INDEX_CELL);
   const lastCellX = Math.floor((rect.x + rect.width) / DECOR_INDEX_CELL);
   const lastCellY = Math.floor((rect.y + rect.height) / DECOR_INDEX_CELL);
-  const right = rect.x + rect.width;
-  const bottom = rect.y + rect.height;
+  const right = ownerRect.x + ownerRect.width;
+  const bottom = ownerRect.y + ownerRect.height;
   let baked = 0;
   for (let cy = firstCellY; cy <= lastCellY; cy++) {
     for (let cx = firstCellX; cx <= lastCellX; cx++) {
@@ -318,7 +291,7 @@ export function bakeDecorInRect(
       for (const d of bucket) {
         // The prop's **origin** decides which chunk paints it (the margin above is what keeps its art
         // whole), so it is drawn exactly once even though neighbouring rects overlap.
-        if (d.x < rect.x || d.y < rect.y || d.x >= right || d.y >= bottom) continue;
+        if (d.x < ownerRect.x || d.y < ownerRect.y || d.x >= right || d.y >= bottom) continue;
         ctx.save();
         // Same shape as the live draw this replaces — translate to the prop, scale the canvas, draw
         // around the origin — so a scale of 1 bakes the art the frame used to draw directly.

@@ -138,6 +138,8 @@ export interface BuildingCost {
 export interface Building {
   id: number;
   type: BuildingType;
+  /** Original tile type sampled before the building footprint was cleared. */
+  siteTerrain?: string;
   x: number;
   y: number;
   width: number;

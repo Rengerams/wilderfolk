@@ -3,6 +3,8 @@
 Authority: `AGENTS.md` + `src/game/simulation/decisionRegistry.ts`  
 Purpose: one decision → one owner module → one definition of each function.
 
+Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md).
+
 ## Decision owners (authoritative)
 
 | Decision | True owner | Cadence | Key entry functions |
@@ -60,7 +62,7 @@ Purpose: one decision → one owner module → one definition of each function.
 | Leader residency | `leaderHouse.ts` | assignment pulse (first phase) + event | `applyLeaderHousePhase` — the `leader` phase's decision, which the sweep runs on its own ledger; `leaderHousingContext` (the phase's decision context, built from the manor's policy); `evictionHouseholds` (the manor's departing residents grouped as households, so a minor leaves with their custodian); `syncLeaderHouseResidency` runs that phase alone after an election, a succession, a Moon Howler reversion or a completed manor. Who holds the manor is decided through `relocateHousehold` (the manor never counts its bed cap) |
 | Leader household membership | `leaderHouse.ts` | daily / query | `collectLeaderHousehold` — who is entitled to the manor |
 | Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
-| Blueberry foraging | `blueberryForaging.ts` + `worldGen.ts` (spawn ≤3) | staggered / daily | pick / regrowth / spawn |
+| Blueberry foraging and rare-tree placement | `blueberryForaging.ts` | new-game spawn / staggered / daily | `isBlueberryTree`, `hasRipeBlueberries`, `clearBlueberryTarget`, `spawnBlueberryTrees`, `tickBlueberryRegrowth`, `tryTickBlueberryForaging` |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
 | Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |
 | RNG salt | `simRng.ts` | — | `hashSalt` |
@@ -78,7 +80,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Deaths and yearly statistics | `stats.ts` (the per-tick tally is written by `gameTick.ts`) | per-tick tally + year-rollover record | `recordYearlyStats`, `updateLifetimeStats`, `createEmptyLifetimeStats`, `normalizeLifetimeStats`, `recordResourcesGathered`; `gameTick`'s `deathsThisYear` tally and `largestPopulation` running peak |
 | Event log / Chronicle | `eventLog.ts` | event-driven | `logEvent`, `logDeath`, `syncEventLogIdFromState`, `repairEventLogOnLoad`, `resolveCombatLogKind`, `resolveCombatLogStage`, `summarizeCombatEvents` |
 | Big news, notifications, floating text | `simEffects.ts` | event-driven | `addBigNews`, `syncBigNewsIdFromState`, `addNotification`, `addFloatingText` |
-| Save / load, persisted-ID validation and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `buildSaveData`, `loadGameFromParsed`, `loadGameFromParsedOutcome`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `migrateEntityPersistedFields`, `clearAutoFilledChurches`, `isUsableId`, `isPersistedId` (saved identifiers must remain below the allocator ceiling), `floorIdAllocators` |
+| Save / load, persisted-ID validation and timeline migration | `saveLoad.ts` (allow-list: `saveSchema.ts`) | load / player-command | `compactWorldMapForSave`, `restoreWorldMapFromSave`, `applySavedTerrainOverrides`, `buildSaveData`, `loadGameFromParsed`, `loadGameFromParsedOutcome`, `parseSaveJson`, `loadGameFromFileTextOutcome`, `migrateTickTimeline`, `migrateEntityPersistedFields`, `clearAutoFilledChurches`, `isUsableId`, `isPersistedId` (saved identifiers must remain below the allocator ceiling), `floorIdAllocators` |
 | Worker transport (prep + tick delta) | `simWorker/simPrep.ts` + `simBuffers/simDelta.ts` | per-tick / per-command | `extractSimPrep`, `applySimPrep`, `extractSimTickDelta`, `applySimTickDelta` |
 | Session clock, command queue, worker fallback | `gameLoop.ts` | animation-frame / command | `frame`, `applyCommand`, `flushDeferredWorkerCommands`, `fallbackFromWorker` |
 | Trade caravans and routes | `tradeCaravans.ts` | systems layer + departure schedule | `tickTradeCaravans`, `spawnCaravan`, `scheduleTradeRouteDeparture`, `getCaravanMoveTarget` |
@@ -124,6 +126,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Player-settler identification | `playerHuman.ts` | — (predicate on every human query) | `isPlayerHuman`, `playerHumanCount` |
 | Entity construction and spawn defaults | `entityFactory.ts` | on spawn (world gen, birth, immigration, groups, foraging) | `createEntity`, `finalizeSettlerAge` |
 | Immigration party composition (lone youth 12–17, couple with children, single adult) | `worldGen.ts` | on arrival (daily immigration, `tickImmigration`) | `createImmigrantSettler` |
+| New-world spawn, site biome suitability and wildlife replenishment | `worldGen.ts` | world init and ecology events | `simRandom`, `getRandomInt`, `getTileAtWorld`, `isPassableWildlifePosition`, `registerSpawnedWildlife`, `maxRingRadiusFromCenter`, `spawnWildlifeAtRandomPassable`, `setEntityBirthDate`, `createBuilding`, `spawnGrassPatch`, `spawnWildlifeRing`, `replenishDepletedWildlife`, `initGame` |
 | Entity spawn/despawn bookkeeping and grid sync | `simulation/simulationEntities.ts` | per entity change (`tickLayerSystems`, `dailyGrassEcology`, hunting, daily economy, birth, immigration) | `pushNewEntity`, `syncEntityGrids`, `markWildlifeDead`, `markGrassDead`, `isValidHuntPrey` |
 | Entity id index | `entityIndex.ts` | per add/remove (all spawn and kill paths) | `indexLivingEntity`, `ensureEntityByIdMap`, `unindexEntityFromState`, `indexEntity` |
 | Death, removal and family-reference cleanup | `humanLifecycleCleanup.ts` | on death (raids, disasters, mortality, exhaustion, Moon Howler) | `killHuman`, `finalizeHumanDeath`, `reconcileFamilyReferencesAfterRemoval`, `reconcileOrphanedMarriages` |
@@ -173,7 +176,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Human, route and hunt line drawing | `renderer/humans.ts` | render pass | `drawHumans`, `drawTradeRouteLines`, `drawRaidMarchLines`, `drawHuntVisuals`, `drawCombatBurst` |
 | Audio graph, scheduling and SFX | `audio/graph.ts` + `audio/scheduler.ts` + `audio/session.ts` + `audio/sfx.ts` + `audio/sampleLoader.ts` | UI events + time of day (intro/gameplay gating) | `scheduleTone`, `setIntroAudioAllowed`, `setGameplayAudioActive`, `playClickSound`, `playBirthSound` |
 | Disasters, weather effects and storm/earthquake damage | `worldEvents.ts` | realtime weather + daily disasters (`tickLayerSystems`, `tickLayerDaily`) | `updateWeather`, `applyDailyWeatherEffects`, `updateDisasters`, `applyStormDamageToBuildings`, `applyEarthquakeDamageToBuildings` |
-| Terrain generation, regions and camp clearing | `terrainGen.ts` | world generation / map setup + camp placement | `generateWorldMap`, `clusterMountainRegions`, `findCampSite`, `ensureCampClearing`, `isFootprintBuildable` |
+| Camp-site selection and buildable clearing | `terrainGen.ts` | new-game generation and old-save regeneration | `generateWorldMap`, `isCoastalPreset`, `rectAroundTile`, `findCampSite`, `ensureCampClearing`, `clearStartAreaForest`, `isFootprintBuildable` |
 | Terrain queries (tiles, spawn validity, adjacency multiplier) | `terrainSystems.ts` | world gen + placement + daily economy + immigration | `getTileAt`, `isValidHumanSpawnPosition`, `findHumanSpawnNear`, `isInsideCompletedBuilding`, `getAdjacencyMultiplier`, `getTerrainEfficiencyMultiplier` |
 | Defense structures (walls, watchtower, barracks guards) | `defenseStructures.ts` | player-command build + raid resolution | `countCompletedDefenseBuildings`, `getWallSegmentBonus`, `getWatchtowerBonus`, `getBarracksGuardCount`, `getDefenseStructureBreakdown` |
 | Militia armament and strength math | `militiaBalance.ts` | raid resolution + UI projection | `computeMilitiaBreakdown`, `getMilitiaSpearTier`, `getMilitiaShieldTier`, `getMilitiaArmamentLabel` |
@@ -186,7 +189,8 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Alive-entity catalog lookups | `entityCatalog.ts` | per tick / UI lookup | `resolveAliveHumans`, `resolveAliveByType`, `rebuild` |
 | Render SoA pack, sidecar and buffer layout | `simBuffers/packRenderSoA.ts` + `simBuffers/entityRenderMeta.ts` + `simBuffers/schema.ts` + `simBuffers/renderSoAEntities.ts` + `simBuffers/renderSoAReader.ts` | per tick (worker packs, host reads) | `packRenderSoA`, `selectRenderEntities`, `packEntityRenderMeta`, `buildRenderEntityShim`, `renderBufferByteLength`, `updateRenderSoABuckets`, `createRenderSoAReader`, `validateRenderBufferLayout` |
 | Entity draw cache (viewport) | `renderer/entityCache.ts` | render pass | `updateCachedEntities`, `updateCachedEntitiesFromSoA`, `resetEntityCaches` |
-| Weather, season particles and terrain draw caches | `renderer/weather.ts` + `renderer/terrain.ts` | render pass | `drawWeather`, `drawSeasonParticles`, `drawWaterShimmer`, `drawGround`, `resetWeatherCaches`, `planGroundChunks` |
+| Weather and seasonal particles | `renderer/weather.ts` | render pass | `drawWeather`, `drawSeasonParticles`, `drawWaterShimmer`, `resetWeatherCaches` |
+| Ground chunk caching and composition | `renderer/terrain.ts` | viewport render (cached) | `targetGroundStep`, `disposeGroundChunk`, `planGroundChunks`, `resetTerrainCaches`, `seasonTerrainShift`, `getTerrainColor`, `buildTerrainCache`, `chunkGeometry`, `ensureChunk`, `bakeChunkDecor`, `drawSimpleGreenGround`, `voidGradient`, `sunGradient`, `drawProceduralGround`, `drawReinforcedSoil`, `drawGround` |
 | Ambient beds and track playback | `audio/ambient.ts` + `audio/trackPlayer.ts` + `audio/backgroundMusic.ts` + `audio/introMusic.ts` | UI events + time of day (intro vs gameplay) | `playLoopBed`, `rescheduleOneShot`, `playLoop`, `crossfadeLoop`, `start`, `ensureIntroAudio` |
 | Dashboard projections | `dashboardData.ts` | UI (read-only projection) | `collectDashboard`, `explainSettler`, `deriveDashboardBuildings` (the village building table's rows) |
 | Chronicle export and download | `eventLogExport.ts` | UI + autosave | `downloadChronicleLog`, `formatChronicleText`, `formatChronicleJSON`, `buildChronicleFilename` |
@@ -253,7 +257,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Entity-type cache | `entityTypeCache.ts` | per tick (`gameTick`) and per invalidation; `getCachedEntityByType` validates the cached bucket set against the caller's own entity list and drops a disagreeing entry | `getCachedEntityByType`, `invalidateCachedEntityByType`, `cacheEntityByType` |
 | Render snapshot and catalog animation patch | `renderSnapshot.ts` + `simBuffers/applyKinematics.ts` | per frame | `buildRenderSnapshot`, `patchCatalogKinematicsFromRenderSoA`, `colonyHasBlacksmith` |
 | Worker UI-patch merge | `simWorker/uiPatch.ts` | worker boundary (`patchUi`) | `applyWorkerUiPatch` |
-| Renderer facade and entity-layer compositing | `renderer.ts` + `renderer/entityComposite.ts` + `renderer/buildings.ts` + `renderer/animals.ts` + `renderer/trees.ts` + `renderer/grass.ts` + `renderer/particles.ts` + `renderer/markers.ts` + `renderer/scent.ts` + `renderer/nightEffects.ts` + `renderer/overlay.ts` + `renderer/buildPreview.ts` | render pass | `renderGame`, `compositeCachedEntityLayer`, `drawBuildings`, `drawAnimals`, `drawTrees`, `drawGrass`, `drawParticles`, `drawCampMarkers`, `drawScentOverlay`, `drawGameOverlay`, `drawBuildPreview`, `footprintGroundRise`, `targetGroundStep`, `isHighlightableBuilding`, `getBuildingFootprintScreenRect`, `drawBuildingHighlightRing` |
+| Renderer facade and entity-layer compositing | `renderer.ts` + `renderer/entityComposite.ts` + `renderer/buildings.ts` + `renderer/animals.ts` + `renderer/trees.ts` + `renderer/grass.ts` + `renderer/particles.ts` + `renderer/markers.ts` + `renderer/scent.ts` + `renderer/nightEffects.ts` + `renderer/overlay.ts` + `renderer/buildPreview.ts` | render pass | `renderGame`, `compositeCachedEntityLayer`, `drawBuildings`, `drawAnimals`, `drawTrees`, `drawGrass`, `drawParticles`, `drawCampMarkers`, `drawScentOverlay`, `drawGameOverlay`, `drawBuildPreview`, `footprintGroundRise`, `isHighlightableBuilding`, `getBuildingFootprintScreenRect`, `drawBuildingHighlightRing` |
 | Animal sprite metrics | `entitySprites.ts` | render pass | `getAnimalSpriteMetrics` |
 | Renderer preload, buffer pool and wire-type codes | `rendererLoader.ts` + `simBuffers/renderBufferPool.ts` + `simBuffers/entityTypeCodes.ts` | boot + worker buffer lifecycle | `preloadRenderer`, `entityTypeToCode`, `isKnownEntityTypeCode`, `codeToEntityType` |
 | Node/Tauri runtime helpers | `nodeRuntime.ts` | boot (`nameLoader`, `dialogueTrees`) | `isNodeRuntime`, `readUtf8RelativeToModule` |
@@ -327,14 +331,15 @@ exports it.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| Terrain data model, its four-layer grid and the tile projection | `terrain/terrainGrid.ts` | generation, then read-only | `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `isTileBuildable`, `setTileOverride`, `rebakeTerrainGrids` |
-| Terrain generation pipeline | `terrain/terragen.ts` | world generation, once per map | `generateRawTerrain`, `terrainSeedFor`, `legacyTerrainSeed` |
-| Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `fbm`, `ridged`, `warp`, `valueNoise`, `mulberry32`, `hash2`, `clamp` |
+| Terrain data model, tile projection and sparse overrides | `terrain/terrainGrid.ts` | generation, path/build updates and queries | `sampleElev`, `classifyTile`, `biomeEdgeDither`, `hasContinuousFields`, `worldToTile`, `tileToWorld`, `isInsideTileGrid`, `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `projectTile`, `setTileOverride`, `patchTile`, `isWalkableTerrainType`, `isTileBuildable`, `rebakePathCell`, `rebakeBuildCell`, `rebakeTerrainGrids` |
+| Terrain generation pipeline and biome-aligned detail | `terrain/terragen.ts` | world generation, once per map | `latitudeCooling`, `spreadHeights`, `moistureCuts`, `arabianSpringCenters`, `shapePresetRelief`, `buildHeight`, `carveRivers`, `buildWaterField`, `flagRiverCells`, `assignBiomes`, `pickDecor`, `decorBiomeForTile`, `placeDecorations`, `legacyTerrainSeed`, `terrainSeedFor`, `generateRawTerrain` |
+| Terrain preset acceptance-test helpers | `tests/terrain.presetIdentity.test.ts` | test tier only | `make`, `terrainShare`, `waterShare` — construct seeded preset maps and measure classified terrain and water shares. |
+| Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `hashString`, `mulberry32`, `hash2`, `smoothstep`, `valueNoise`, `fbm`, `ridged`, `warp`, `clamp`, `lerp`, `smoothRange`, `ridgedMulti` |
 | River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt` |
 | What a terrain type **is** — water, and may anything stand on it | `terrain/terrainTraits.ts` | read-only leaf (breaks the `placementUtils ↔ terrainGrid` cycle) | `isWaterTerrainType`, `isUnbuildableTerrainType` |
 | Orographic rain shadow | `terrain/rainShadow.ts` | generation (the moisture field) | `rainShadowField` |
-| Ground bake, per-pixel Whittaker | `renderer/whittakerTerrain.ts` | render, cached per viewport | `buildWhittakerFields`, `bakeWhittakerGround`, `bandDetail` |
-| Ground props (the L3 decor layer) | `renderer/decor.ts` | render, cached per rect | `bakeDecorInRect` |
+| Ground bake and height-field 2.5D lighting | `renderer/whittakerTerrain.ts` | cached map fields and viewport render | `lc`, `bandDetail`, `darken`, `buildWhittakerLut`, `whittakerColor`, `groundColor`, `coldGroundAt`, `snowAmountAt`, `getInlandColor`, `sampleF`, `buildWhittakerFields`, `bakeWhittakerGround` |
+| Ground props (the L3 decor layer) | `renderer/decor.ts` | render, cached per owner rect | `parseColor`, `tinted`, `drawProp`, `decorIndexFor`, `bakeDecorInRect` |
 | Hunting Spot prey selection, pursuit and the kill | `huntingSpot.ts` | realtime hunter behaviour | `huntingSpotTarget`, `commitHuntingSpotTarget`, `pickHuntingSpotPrey`, `huntingKillReach`, `huntingPursuitPoint`, `isHuntingStrikeLive`, `isHuntingSpotHunter`, `huntingFightBackFate`, `huntingFightBackKillChance` |
 | The village anchor (one camp-centre rule, two readers) | `villageAnchor.ts` | command + render, read-only | `getPlayerCampCenter`, `getPlayerCampCenterFromBuildings`, `getPlayerSettlerCenter` |
 | Civil status — married **or** expecting | `civilStatus.ts` | read-only predicate | `isMarriedOrExpecting` |
@@ -484,3 +489,12 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `tests/wallGate.rendering.test.ts` | `spyCanvas` |
 | `tests/workCommute.leadHour.test.ts` | `workplace`, `tickAtHourOnWorkDay`, `workerAtHome` |
 | `scripts/autoplay_playwright_probe.py` | `selected_preset_label`, `choose_preset`, `set_camera_zoom`, `run_ground_look`, `click_text`, `wait_for` |
+
+### World-copy optimization ownership
+
+| Function | Sole owning module | Responsibility |
+| --- | --- | --- |
+| `setBuildingStaffingMode`, `setHuntingSpotPrey` | `game/buildingConfigurationActions.ts` | Validate and copy only the changed building; unchanged settings return the input. |
+| `assignResidentToBuilding` | `game/buildingResidencyActions.ts` | Isolated or explicitly owned residency command transition. |
+| `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
+| `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |

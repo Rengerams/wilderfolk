@@ -264,3 +264,30 @@ describe('worker command round trips (shared worker + fallback implementation)',
     expect(next.buildings.find((b) => b.id === 2)!.workshopRecipeId).toBe('furniture');
   });
 });
+
+describe('bounded command copies', () => {
+  it('isolates a changed mine without copying unrelated state and skips repeated settings', () => {
+    const mine = building(2, BuildingType.Mine, { mineMode: 'iron' });
+    const other = building(3, BuildingType.Workshop);
+    const world = makeWorld([human(1)], [mine, other]);
+    const command = cmd({ op: 'setMineMode', buildingId: 2, mode: 'gold' });
+    const next = applyWorkerCommand(world, command);
+    expect(mine.mineMode).toBe('iron');
+    expect(next.buildings[0]).not.toBe(mine);
+    expect(next.buildings[1]).toBe(other);
+    expect(next.entities).toBe(world.entities);
+    expect(applyWorkerCommand(next, command)).toBe(next);
+  });
+
+  it('owned assignment matches isolated assignment without touching the authoritative preview source', () => {
+    const world = makeWorld([human(1)], [building(2, BuildingType.Workshop)]);
+    const command = cmd({ op: 'assignWorker', buildingId: 2, humanId: 1 });
+    const expected = applyWorkerCommand(world, command);
+    const display = structuredClone(world);
+    const actual = applyWorkerCommand(display, command, 'owned');
+    expect(actual).toBe(display);
+    expect(actual.entities).toEqual(expected.entities);
+    expect(actual.buildings).toEqual(expected.buildings);
+    expect(world.entities[0].workerBuildingId).toBeUndefined();
+  });
+});

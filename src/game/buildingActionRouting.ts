@@ -17,15 +17,16 @@ export function assignIdleWorkerToBuilding(
   originalState: WorldState,
   buildingId: number,
   preferredHumanId?: number,
+  ownership: 'isolated' | 'owned' = 'isolated',
 ): WorldState {
   const building = originalState.buildings.find((candidate) => candidate.id === buildingId);
 
   // Unfinished buildings always take builders, never residents.
   if (building?.completed && isResidenceBuildingType(building.type)) {
-    return assignResidentToBuilding(originalState, buildingId);
+    return assignResidentToBuilding(originalState, buildingId, ownership);
   }
 
-  return assignStaffWorkerToBuilding(originalState, buildingId, preferredHumanId);
+  return assignStaffWorkerToBuilding(originalState, buildingId, preferredHumanId, ownership);
 }
 
 /** Compatibility route for the historical generic worker-removal command. */
