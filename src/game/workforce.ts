@@ -195,17 +195,26 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): 
   return { counts, movable };
 }
 
+/** Keep essential production and guard coverage when automatically borrowing staff. */
+function minimumAutoCoverage(building: Building): number {
+  const critical = building.type === BuildingType.Quarry
+    || building.type === BuildingType.Barracks || building.type === BuildingType.Prison;
+  return critical ? Math.min(3, BUILDING_CONFIGS[building.type].maxOccupants) : 1;
+}
+
 function pickOverstaffedDonor(
   jobBuildings: Building[],
   index: WorkforceAssignmentIndex,
   excludeBuildingId: number,
+  preserveEssentialCoverage = false,
 ): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
     if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
     const count = index.counts.get(building.id) ?? 0;
-    if (count < 2 || (index.movable.get(building.id) ?? 0) === 0) continue;
+    const keep = preserveEssentialCoverage ? minimumAutoCoverage(building) : 1;
+    if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
     if (count < smallestCount) {
       best = building;
       smallestCount = count;
@@ -388,28 +397,19 @@ export function rebalanceJobWorkers(
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
   const index = buildWorkforceAssignmentIndex(humans, currentTick);
-  let changed = true;
-  let passes = 0;
-  const maxPasses = jobBuildings.length * 2;
 
-  while (changed && passes < maxPasses) {
-    changed = false;
-    passes++;
-    for (let i = 0; i < jobBuildings.length; i++) {
+  // Fill empty posts once; established workers keep their job when it already has coverage.
+  for (let i = 0; i < jobBuildings.length; i++) {
       const needy = jobBuildings[i];
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans).cap;
       if (staffed >= capacity) continue;
-      // The normal auto pass has already consumed all eligible idle settlers.
-      // A partially staffed Barracks (or Prison) still needs the same donor
-      // fallback as manual assignment. Never strip a donor's last worker and
-      // respect the existing transfer cooldown to avoid workforce ping-pong.
-      const defenseVacancy = needy.type === BuildingType.Barracks || needy.type === BuildingType.Prison;
-      if (staffed > 0 && !defenseVacancy) continue;
+      // Essential stone and guard coverage can grow to three posts; others only start.
+      if (staffed >= minimumAutoCoverage(needy)) continue;
 
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id);
+      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
       if (!donor) continue;
 
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);
@@ -422,8 +422,6 @@ export function rebalanceJobWorkers(
       if (canAutoChangeWorkplace(worker, currentTick)) {
         index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
       }
-      changed = true;
-    }
   }
 }
 
@@ -479,6 +477,7 @@ export function assignWorkerInPlace(
   humans: Entity[],
   buildings: Building[],
   venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
+  constructionWorkerIds?: Set<number>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
@@ -498,14 +497,16 @@ export function assignWorkerInPlace(
   let bestNear = false;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
-  const constructionWorkerIds = new Set<number>();
-  for (const site of buildings) {
-    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  const crewIds = constructionWorkerIds ?? new Set<number>();
+  if (!constructionWorkerIds) {
+    for (const site of buildings) {
+      if (!site.completed) for (const id of site.occupants) crewIds.add(id);
+    }
   }
   for (const candidate of humans) {
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
-      || constructionWorkerIds.has(candidate.id)) continue;
+      || crewIds.has(candidate.id)) continue;
     const near = isWithinAssignableCommute(candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
     const dx = candidate.x - buildingX;
     const dy = candidate.y - buildingY;
@@ -535,6 +536,9 @@ export function assignBuilderInPlace(
   allBuildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
+  constructionWorkerIds?: Set<number>,
+  buildingById?: ReadonlyMap<number, Building>,
+  allowJobTransfers = true,
 ): boolean {
   if (building.completed || building.faction === 'rival') return false;
 
@@ -549,15 +553,19 @@ export function assignBuilderInPlace(
       !hasWorkAssignment(h) &&
       !isImprisoned(h) &&
       !building.occupants.includes(h.id) &&
-      !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id)),
+      (constructionWorkerIds
+        ? !constructionWorkerIds.has(h.id)
+        : !allBuildings.some((b) => !b.completed && b.id !== building.id && b.occupants.includes(h.id))),
   );
 
   if (freeBuilder) {
     building.occupants.push(freeBuilder.id);
+    constructionWorkerIds?.add(freeBuilder.id);
     return true;
   }
 
-  // Soft-steal from lower priority jobs if needed
+  // Borrow from an established workplace only when starting an empty site.
+  if (!allowJobTransfers) return false;
   const jobHolder = humans
     .filter(
       (h) =>
@@ -568,33 +576,35 @@ export function assignBuilderInPlace(
         canAutoChangeWorkplace(h, currentTick) &&
         !isImprisoned(h) &&
         !building.occupants.includes(h.id) &&
-        !isOnConstructionCrew(allBuildings, h.id),
+        !(constructionWorkerIds
+          ? constructionWorkerIds.has(h.id)
+          : isOnConstructionCrew(allBuildings, h.id)),
     )
     .sort((a, b) => {
       const aPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === a.workerBuildingId)?.type ?? BuildingType.Farm,
+        (buildingById?.get(a.workerBuildingId!) ?? allBuildings.find((x) => x.id === a.workerBuildingId))?.type ?? BuildingType.Farm,
         policy,
       );
       const bPri = jobBuildingPriority(
-        allBuildings.find((x) => x.id === b.workerBuildingId)?.type ?? BuildingType.Farm,
+        (buildingById?.get(b.workerBuildingId!) ?? allBuildings.find((x) => x.id === b.workerBuildingId))?.type ?? BuildingType.Farm,
         policy,
       );
       return bPri - aPri;
     })
     .find((h) => {
-      const site = allBuildings.find((b) => b.id === h.workerBuildingId);
+      const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
       if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
-      if ((site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse) && staffed <= 1) {
-        return false;
-      }
-      return staffed >= 1;
+      // Construction must not strip the last producer or the protected guard/stone crew.
+      // This is the same donor-coverage invariant that job rebalancing applies.
+      return staffed > minimumAutoCoverage(site);
     });
 
   if (!jobHolder) return false;
   clearJobAssignment(jobHolder, allBuildings);
   if (currentTick != null) jobHolder.lastAutoJobTransferTick = currentTick;
   building.occupants.push(jobHolder.id);
+  constructionWorkerIds?.add(jobHolder.id);
   return true;
 }
 
@@ -626,15 +636,8 @@ export function prepareWorkforce(humans: Entity[], buildings: Building[]): Entit
       continue;
     }
 
-    // A sentence keeps the post, but a construction crew has no post to hold: free the crew slot.
-    if (isImprisoned(human)) {
-      for (const building of buildings) {
-        if (!building.completed && building.occupants.includes(human.id)) {
-          building.occupants = building.occupants.filter((id) => id !== human.id);
-        }
-      }
-      continue;
-    }
+    // The single crew-normalization pass below removes jailed builders.
+    if (isImprisoned(human)) continue;
     // The explicit null test narrows the id for the lookup below; `hasWorkAssignment` does not.
     if (!hasWorkAssignment(human) || human.workerBuildingId == null) continue;
     const workplace = buildingById.get(human.workerBuildingId);
@@ -695,30 +698,40 @@ export function staffConstructionCrews(
       return a.id - b.id;
     });
 
-  // Pass 1: ensure every active site has at least one builder
-  for (let i = 0; i < incomplete.length; i++) {
-    const building = incomplete[i];
-    if (building.occupants.length === 0) {
-      assignBuilderInPlace(building, alive, buildings, policy, currentTick);
+  const constructionWorkerIds = new Set<number>();
+  const buildingById = new Map<number, Building>();
+  for (const site of buildings) {
+    buildingById.set(site.id, site);
+    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  }
+
+  // Fill empty sites from unemployed builders before disturbing established jobs.
+  for (const site of incomplete) {
+    if (site.occupants.length === 0) {
+      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById, false);
     }
   }
 
-  // Rebalance: move builders from over-crewed sites to empty ones
-  for (let i = 0; i < incomplete.length; i++) {
-    const needy = incomplete[i];
+  // Share existing crews before considering a transfer out of a workplace.
+  for (const needy of incomplete) {
     if (needy.occupants.length > 0) continue;
     const donor = incomplete.find((b) => b.id !== needy.id && b.occupants.length > 1);
     if (!donor) break;
     const moved = donor.occupants.pop();
-    if (moved == null) continue;
-    needy.occupants.push(moved);
+    if (moved != null) needy.occupants.push(moved);
   }
 
-  // Pass 2: fill remaining slots
-  for (let i = 0; i < incomplete.length; i++) {
-    const building = incomplete[i];
-    while (assignBuilderInPlace(building, alive, buildings, policy, currentTick)) {
-      // Fill crew capacity
+  // At most one established worker is borrowed to start each still-empty project.
+  for (const site of incomplete) {
+    if (site.occupants.length === 0) {
+      assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById);
+    }
+  }
+
+  // Extra construction places never trigger another workplace transfer.
+  for (const site of incomplete) {
+    while (assignBuilderInPlace(site, alive, buildings, policy, currentTick, constructionWorkerIds, buildingById, false)) {
+      // Fill crew capacity with unemployed settlers only.
     }
   }
 }
@@ -731,11 +744,15 @@ export function staffJobBuildings(
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
+  const constructionWorkerIds = new Set<number>();
+  for (const site of buildings) {
+    if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
+  }
 
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
-    while (assignWorkerInPlace(building, alive, buildings, worldSlices)) {
+    while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds)) {
       // Fill job slots
     }
   }
