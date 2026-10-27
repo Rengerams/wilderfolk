@@ -3,6 +3,8 @@
 Authority: `AGENTS.md` + `src/game/simulation/decisionRegistry.ts`  
 Purpose: one decision → one owner module → one definition of each function.
 
+Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md).
+
 ## Decision owners (authoritative)
 
 | Decision | True owner | Cadence | Key entry functions |
@@ -324,7 +326,7 @@ exports it.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| Terrain data model, tile projection and sparse overrides | `terrain/terrainGrid.ts` | generation, path/build updates and queries | `sampleElev`, `classifyTile`, `hasContinuousFields`, `worldToTile`, `tileToWorld`, `isInsideTileGrid`, `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `projectTile`, `setTileOverride`, `patchTile`, `isWalkableTerrainType`, `isTileBuildable`, `rebakePathCell`, `rebakeBuildCell`, `rebakeTerrainGrids` |
+| Terrain data model, tile projection and sparse overrides | `terrain/terrainGrid.ts` | generation, path/build updates and queries | `sampleElev`, `classifyTile`, `biomeEdgeDither`, `hasContinuousFields`, `worldToTile`, `tileToWorld`, `isInsideTileGrid`, `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `projectTile`, `setTileOverride`, `patchTile`, `isWalkableTerrainType`, `isTileBuildable`, `rebakePathCell`, `rebakeBuildCell`, `rebakeTerrainGrids` |
 | Terrain generation pipeline and biome-aligned detail | `terrain/terragen.ts` | world generation, once per map | `latitudeCooling`, `spreadHeights`, `moistureCuts`, `arabianSpringCenters`, `shapePresetRelief`, `buildHeight`, `carveRivers`, `buildWaterField`, `flagRiverCells`, `assignBiomes`, `pickDecor`, `decorBiomeForTile`, `placeDecorations`, `legacyTerrainSeed`, `terrainSeedFor`, `generateRawTerrain` |
 | Noise and PRNG primitives | `terrain/noise.ts` | generation (pure) | `hashString`, `mulberry32`, `hash2`, `smoothstep`, `valueNoise`, `fbm`, `ridged`, `warp`, `clamp`, `lerp`, `smoothRange`, `ridgedMulti` |
 | River flow routing (the hydrology model) | `terrain/hydrology.ts` | generation, after de-pitting | `computeFlow`, `fillDepressions`, `riverWidthAt` |
