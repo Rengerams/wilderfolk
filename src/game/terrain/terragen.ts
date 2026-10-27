@@ -700,7 +700,7 @@ function carveRivers(
  * a channel and 0 is dry, which is why nothing here takes a square root of it.
  */
 function buildWaterField(
-  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2,
+  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3,
 ): { coverage: Float32Array; wCols: number; wRows: number } {
   const cell = WATER_CELL;
   const wCols = Math.ceil((cols * TERRAIN_CELL) / cell);
@@ -708,10 +708,35 @@ function buildWaterField(
   const coverage = new Float32Array(wCols * wRows);
 
   for (const path of rivers) {
-    if (generationVersion === 2) {
-      for (let point = 1; point < path.length; point++) {
-        const a = path[point - 1]!;
-        const b = path[point]!;
+    // Smooth only the water footprint; the hydrological graph and confluences stay untouched.
+    const centers: RiverPoint[] = [];
+    if (generationVersion >= 3 && path.length > 1) {
+      for (let i = 0; i < path.length - 1; i++) {
+        const p0 = path[Math.max(0, i - 1)]!;
+        const p1 = path[i]!;
+        const p2 = path[i + 1]!;
+        const p3 = path[Math.min(path.length - 1, i + 2)]!;
+        for (const t of [0, 0.5]) {
+          const t2 = t * t;
+          const t3 = t2 * t;
+          centers.push({
+            x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t
+              + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2
+              + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+            y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t
+              + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2
+              + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+            w: p1.w + (p2.w - p1.w) * t,
+          });
+        }
+      }
+      centers.push(path[path.length - 1]!);
+    }
+    const channel = centers.length ? centers : path;
+    if (generationVersion >= 2) {
+      for (let point = 1; point < channel.length; point++) {
+        const a = channel[point - 1]!;
+        const b = channel[point]!;
         const ax = a.x * TERRAIN_CELL, ay = a.y * TERRAIN_CELL;
         const bx = b.x * TERRAIN_CELL, by = b.y * TERRAIN_CELL;
         const vx = bx - ax, vy = by - ay;
@@ -891,7 +916,7 @@ function decorBiomeForTile(type: TerrainType, coarse: BiomeDef): BiomeDef {
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
-  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2,
+  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -901,7 +926,7 @@ function placeDecorations(
       const def = BIOME_BY_IDX[terrain[idx(x, y, cols)]];
       if (!def.decor.length) continue;
       const clumpNoise = fbm(x * 0.17, y * 0.17, seed + 1777, { octaves: 3 });
-      const densityScale = generationVersion === 2
+      const densityScale = generationVersion >= 2
         ? (def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga' ? 0.38 : 0.62)
         : 1;
       const count = def.density * DECOR_DENSITY * densityScale * (0.35 + clumpNoise * 1.5);
@@ -916,8 +941,8 @@ function placeDecorations(
         const pi = gy * pCols + gx;
         if (pathGrid[pi] !== 0) continue;
 
-        const site = generationVersion === 2 ? decorBiomeForTile(tileType(gx, gy), def) : def;
-        if (generationVersion === 2 && (
+        const site = generationVersion >= 2 ? decorBiomeForTile(tileType(gx, gy), def) : def;
+        if (generationVersion >= 2 && (
           site.id === 'water' || site.id === 'river' || site.id === 'deep_water'
         )) continue;
         const type = pickDecor(site.decor, rand());
@@ -976,10 +1001,10 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
   /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
   terrainSeed?: number,
-  generationVersion: 1 | 2 = 2,
+  generationVersion: 1 | 2 | 3 = 3,
 ): WorldMap {
   const settings = PRESET_SETTINGS[preset];
-  const s = generationVersion === 2 && preset === MapPreset.Rivers
+  const s = generationVersion >= 2 && preset === MapPreset.Rivers
     ? { ...settings, rivers: 7, riverWidth: 3.2 }
     : settings;
   const tseed = terrainSeedFor(seed, size, terrainSeed);
@@ -999,9 +1024,9 @@ export function generateRawTerrain(
   // Spread the height field before anything reads it, so the biome bands, the river
   // gradient walk and the rendered hillshade all see the same relief.
   const { heights: elevation, seaLevel } = spreadHeights(rawElevation, configuredSeaLevel);
-  const arabianSprings = generationVersion === 2 && preset === MapPreset.Arabia
+  const arabianSprings = generationVersion >= 2 && preset === MapPreset.Arabia
     ? arabianSpringCenters(cols, rows, tseed) : [];
-  if (generationVersion === 2) {
+  if (generationVersion >= 2) {
     shapePresetRelief(elevation, cols, rows, seaLevel, preset, tseed, arabianSprings);
   }
 
@@ -1036,7 +1061,7 @@ export function generateRawTerrain(
         }
         mo = clamp(mo + 0.48 * Math.exp(-Math.pow(nearest / 0.09, 4)), 0, 1);
       }
-      if (generationVersion === 2 && preset === MapPreset.Oasis) {
+      if (generationVersion >= 2 && preset === MapPreset.Oasis) {
         const distance = Math.hypot(
           x - (cols - 1) / 2, y - (rows - 1) / 2,
         ) / Math.min(cols, rows);
@@ -1061,8 +1086,33 @@ export function generateRawTerrain(
   const { coverage: riverDist, wCols, wRows } = buildWaterField(rivers, cols, rows, generationVersion);
   const riverFlag = flagRiverCells(riverDist, wCols, wRows, cols, rows);
 
-  for (let i = 0; i < riverFlag.length; i++)
-    if (riverFlag[i]) moisture[i] = clamp(moisture[i] + 0.2, 0, 1);
+  if (generationVersion >= 3) {
+    // The river's moisture influence fades through its neighbouring biome cells.
+    const distance = new Uint8Array(riverFlag.length);
+    distance.fill(255);
+    for (let i = 0; i < distance.length; i++) {
+      if (riverFlag[i] === 1) distance[i] = 0;
+    }
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = idx(x, y, cols);
+        if (x > 0) distance[i] = Math.min(distance[i], distance[i - 1] + 1);
+        if (y > 0) distance[i] = Math.min(distance[i], distance[i - cols] + 1);
+      }
+    }
+    for (let y = rows - 1; y >= 0; y--) {
+      for (let x = cols - 1; x >= 0; x--) {
+        const i = idx(x, y, cols);
+        if (x + 1 < cols) distance[i] = Math.min(distance[i], distance[i + 1] + 1);
+        if (y + 1 < rows) distance[i] = Math.min(distance[i], distance[i + cols] + 1);
+        const fade = Math.max(0, 1 - distance[i] / 7);
+        if (fade > 0) moisture[i] = clamp(moisture[i] + 0.24 * fade * fade, 0, 1);
+      }
+    }
+  } else {
+    for (let i = 0; i < riverFlag.length; i++)
+      if (riverFlag[i]) moisture[i] = clamp(moisture[i] + 0.2, 0, 1);
+  }
 
   const terrain = assignBiomes(s, cols, rows, elevation, moisture, temperature, riverFlag, seaLevel);
 
@@ -1095,7 +1145,7 @@ export function generateRawTerrain(
       seaLevel,
       cuts.forest,
       cuts.darkForest,
-      generationVersion === 2
+      generationVersion >= 2
         ? biomeEdgeDither(tileElevation, seaLevel)
         : 0,
     );
