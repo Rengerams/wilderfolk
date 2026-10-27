@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed (#62):** Blueberry gathering, fed-animal owner bonuses and grief comfort update authoritative stamina instead of the disposable human energy projection. Foraging eligibility now reads nutrition. Restoring Moon Howler human form rebases its advancement clock so the werewolf night is not charged again as human hunger or exhaustion; regressions cover the transition and rewards.
+
 - **Fixed (#62):** The Virtual Player now attempts real workforce staffing of completed idle food producers before proposing additional Farms in a measured food shortage. It refuses to multiply unstaffed Farms when nobody can transfer; targeted regressions cover the action and refusal.
 
 - **Fixed (#62):** Preserved elected-leader office during surviving Moon Howler priest rites; added focused/offscreen meal equivalence, canonical rolling food-flow diagnostics, and a full-year gate that rejects any intermediate producer-colony food-exhaustion checkpoint.
