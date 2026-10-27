@@ -2,11 +2,9 @@
  * Grid pathfinding over the terrain map — settlers/visitors stop walking in
  * straight lines through rivers and mountains.
  *
- * Design: the passability grid is built once per map (cached by seed, preset and
- * size). A* is only invoked when the direct line between an entity and its target
- * actually crosses a blocked tile (cheap sampling), and results are cached per
- * origin-target pair with a bounded cache. Every pathing call falls back to
- * direct movement when no path exists, so nothing can ever deadlock.
+ * Design: the map's cached walkability grid owns walls, gates, roads and bridges.
+ * Bounded A* routes around obstacles and chooses profitable road detours. Routes
+ * are cached by walker; no route means stop rather than walk through a barrier.
  *
  * Occupancy and slope both come from Teraforge's four-layer model: the L0 path
  * grid decides what blocks a step, and the tile's projected elevation decides
@@ -42,19 +40,32 @@ const SLOPE_DOWN_COST = 0.004;
 const CLIFF_STEP = 32;
 /** A road tile costs this fraction of a normal step — exactly the travel time the road speed saves. */
 const ROAD_STEP_COST = 1 / ROAD_SPEED_MULT;
+const PATH_MAX_SEARCH_NODES = 6000;
+const PATH_ARRIVAL_DISTANCE_PX = 8;
+const ROAD_DETOUR_RECHECK_TILES = 20;
+const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
+const BUILDING_SIGNATURE_HEIGHT_FACTOR = 23;
+const BUILDING_SIGNATURE_BRIDGE_FACTOR = 29;
 
-/** Completed player walls block walking; gates are passable openings. */
+/** Closed gates share the wall collision footprint; legacy gates remain open. */
 function isBlockingWall(b: Building): boolean {
-  return b.completed && b.faction !== 'rival' && b.type === BuildingType.Wall;
+  return b.completed && (b.type === BuildingType.Wall
+    || (b.type === BuildingType.WallGate && b.gateClosed === true));
 }
 
 /** Completed player roads and bridges: walkable, and cheaper than open ground. */
-function isWalkableRoad(b: Building): boolean {
+export function isWalkableRoad(b: Building): boolean {
   return (
     b.completed &&
     b.faction !== 'rival' &&
     (b.type === BuildingType.Road || b.type === BuildingType.Bridge)
   );
+}
+
+/** Exact footprint test shared by path pricing and the per-walker speed bonus. */
+function isRoadSurfacePoint(b: Building, x: number, y: number): boolean {
+  return x >= b.x - b.width / 2 && x < b.x + b.width / 2
+    && y >= b.y - b.height / 2 && y < b.y + b.height / 2;
 }
 
 /** Stamps `value` over every grid tile a building's footprint covers, clamped to the grid. */
@@ -64,6 +75,7 @@ function stampBuildingFootprint(
   rows: number,
   b: Building,
   value = 1,
+  surfaces?: Map<number, Building[]>,
 ): void {
   // Building positions are centres, not top-left corners. The walking mask must
   // cover the same footprint that placement and rendering use.
@@ -74,7 +86,13 @@ function stampBuildingFootprint(
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
-      grid[y * cols + x] = value;
+      const index = y * cols + x;
+      grid[index] = value;
+      if (surfaces) {
+        const entries = surfaces.get(index);
+        if (entries) entries.push(b);
+        else surfaces.set(index, [b]);
+      }
     }
   }
 }
@@ -89,7 +107,9 @@ function buildingSignature(
   let count = 0;
   for (const b of buildings) {
     if (!matches(b)) continue;
-    hash = (hash + b.id * 31 + Math.round(b.x) * 17 + Math.round(b.y) * 13 + (b.rotation ?? 0) * 7) >>> 0;
+    hash = (hash + b.id * 31 + b.x * 17 + b.y * 13 + (b.rotation ?? 0) * 7
+      + b.width * BUILDING_SIGNATURE_WIDTH_FACTOR + b.height * BUILDING_SIGNATURE_HEIGHT_FACTOR
+      + (b.type === BuildingType.Bridge ? BUILDING_SIGNATURE_BRIDGE_FACTOR : 0)) >>> 0;
     count++;
   }
   return `${count}:${hash}`;
@@ -103,6 +123,10 @@ export interface PathGrid {
   elevation?: Float32Array;
   /** 1 on every tile a completed road or bridge covers. Absent when the map has none. */
   road?: Uint8Array;
+  /** A* discount only where the waypoint at the tile centre is actually on a paved footprint. */
+  roadCost?: Uint8Array;
+  /** Partial-cell footprint index for exact point-speed checks (including narrow legacy roads). */
+  roadSurfaces?: Map<number, Building[]>;
 }
 
 let gridCache: PathGrid | null = null;
@@ -147,20 +171,36 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
     }
   }
   let road: Uint8Array | null = null;
+  const roadSurfaces = new Map<number, Building[]>();
   if (buildings) {
     // Bridges open water first. Walls always win at overlapping footprints,
     // regardless of building array order. A gate remains an intentional gap.
     for (const b of buildings) {
       if (!isWalkableRoad(b)) continue;
       road ??= new Uint8Array(cols * rows);
-      stampBuildingFootprint(road, cols, rows, b);
-      stampBuildingFootprint(blocked, cols, rows, b, 0);
+      stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
+      if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
     }
     for (const b of buildings) {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
-  return road ? { cols, rows, blocked, elevation, road } : { cols, rows, blocked, elevation };
+  // A* prices only paved tile centres; the footprint index still supports
+  // exact speed eligibility on narrow roads between tile centres.
+  let roadCost: Uint8Array | undefined;
+  if (road) {
+    const centreMask = new Uint8Array(cols * rows);
+    for (const [index, surfaces] of roadSurfaces) {
+      const x = ((index % cols) + 0.5) * PATH_CELL;
+      const y = (Math.floor(index / cols) + 0.5) * PATH_CELL;
+      if (surfaces.some((b) => isRoadSurfacePoint(b, x, y))) {
+        centreMask[index] = 1;
+        roadCost ??= centreMask;
+      }
+    }
+  }
+  return road ? { cols, rows, blocked, elevation, road, roadCost, roadSurfaces }
+    : { cols, rows, blocked, elevation };
 }
 
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
@@ -410,6 +450,9 @@ function searchRoute(
   const pathProfileStart = profileStart();
   try {
   const { cols, rows, blocked, elevation, road } = grid;
+  // Generated grids distinguish partial footprint coverage from tile-centre speed
+  // eligibility. Older test grids without surface geometry retain their road mask.
+  const pricedRoad = grid.roadCost ?? (grid.roadSurfaces ? undefined : road);
   recordFindPathCall();
   const rejected: RouteSearchResult = { path: null, cost: null, hitNodeCap: false };
   if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) {
@@ -446,7 +489,7 @@ function searchRoute(
 
   // Cost searches need the discounted road heuristic for optimality. Bounded movement searches
   // use the stronger unscaled heuristic to avoid exhausting their node budget on remote roads.
-  const cheapestStep = scaleHeuristicForRoadCost && road ? ROAD_STEP_COST : 1;
+  const cheapestStep = scaleHeuristicForRoadCost && pricedRoad ? ROAD_STEP_COST : 1;
   const h = (x: number, y: number) => {
     const adx = Math.abs(x - actualTx);
     const ady = Math.abs(y - actualTy);
@@ -480,7 +523,12 @@ function searchRoute(
       path.push({ x: actualSx, y: actualSy });
       path.reverse();
 
-      // Smooth the route: drop intermediate tiles the walker can see past (line-of-sight).
+      // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
+      if (pricedRoad) {
+        recordPathNodes(nodes);
+        recordPathFound();
+        return { path, cost: scores[goal], hitNodeCap: false };
+      }
       const simplified: { x: number; y: number }[] = [path[0]];
       for (let i = 1; i < path.length - 1; i++) {
         const last = simplified[simplified.length - 1];
@@ -510,7 +558,7 @@ function searchRoute(
 
       let step = dx !== 0 && dy !== 0 ? 1.4142 : 1;
       // A built road is cheaper than open ground, so the route follows the player's own paths.
-      if (road?.[nIdx]) step *= ROAD_STEP_COST;
+      if (pricedRoad?.[nIdx]) step *= ROAD_STEP_COST;
       if (elevation) {
         const nextElev = elevation[nIdx];
         const delta = nextElev - curElev;
@@ -538,6 +586,20 @@ function searchRoute(
   }
 }
 
+/** Time-aware walking route; bounded recovery remains safe when a distant road expands A*. */
+function walkRoute(
+  grid: PathGrid,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  maxNodes: number,
+): RouteSearchResult {
+  const optimal = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
+  if (optimal.path || !optimal.hitNodeCap || !grid.road) return optimal;
+  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false);
+}
+
 /** A* over the grid — returns tile path (start..goal inclusive) or null. */
 export function findPath(
   grid: PathGrid,
@@ -545,9 +607,9 @@ export function findPath(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): { x: number; y: number }[] | null {
-  return searchRoute(grid, sx, sy, tx, ty, maxNodes, false).path;
+  return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
 
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
@@ -557,7 +619,7 @@ export function findRouteCost(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): number | null {
   return findRouteCostOutcome(grid, sx, sy, tx, ty, maxNodes).cost;
 }
@@ -569,7 +631,7 @@ export function findRouteCostOutcome(
   sy: number,
   tx: number,
   ty: number,
-  maxNodes = 6000,
+  maxNodes = PATH_MAX_SEARCH_NODES,
 ): { cost: number | null; budgetExhausted: boolean } {
   const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
   return { cost: result.cost, budgetExhausted: result.hitNodeCap };
@@ -579,6 +641,24 @@ export function findRouteCostOutcome(
 export function pathWaypoints(path: { x: number; y: number }[]): { x: number; y: number }[] {
   const half = PATH_CELL / 2;
   return path.map((p) => ({ x: p.x * PATH_CELL + half, y: p.y * PATH_CELL + half }));
+}
+
+/** Keep road turns while merging collinear tiles into safe longer steering legs. */
+function collapseStraightWaypoints(points: { x: number; y: number }[]): { x: number; y: number }[] {
+  if (points.length < 3) return points;
+  const result = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const before = points[i - 1];
+    const at = points[i];
+    const after = points[i + 1];
+    const ax = Math.sign(at.x - before.x);
+    const ay = Math.sign(at.y - before.y);
+    const bx = Math.sign(after.x - at.x);
+    const by = Math.sign(after.y - at.y);
+    if (ax !== bx || ay !== by) result.push(at);
+  }
+  result.push(points[points.length - 1]);
+  return result;
 }
 
 /** True when the straight line from (x0,y0) to (x1,y1) crosses a blocked tile. */
@@ -651,6 +731,8 @@ interface CachedPath {
   startTileX: number;
   startTileY: number;
   waypoints: { x: number; y: number }[] | null;
+  /** A clear walk rejected a road detour; keep direct travel cached across tiles. */
+  directDetourRejected?: boolean;
   /** Waypoint the settler is currently walking toward, so progress survives a cache hit. */
   nextIndex: number;
 }
@@ -726,7 +808,8 @@ export function getRouteObstruction(
  *   commute leaves it to the human loop, the hotel walk moves the visitor itself). The stepper
  *   never writes a position: doing that *and* letting the caller move advanced entities twice per
  *   tick, which is the 2026-09-13 movement regression.
- * - 'direct': no pathing needed/found — caller does its usual straight move.
+ * - 'direct': the direct leg is traversable — caller does its usual straight move.
+ * - 'blocked': no safe route exists; caller must not advance.
  */
 export function steerWithPath(
   entity: Entity,
@@ -734,21 +817,29 @@ export function steerWithPath(
   targetY: number,
   speed: number,
   cacheKey: string,
-): 'arrived' | 'path' | 'direct' {
+): 'arrived' | 'path' | 'direct' | 'blocked' {
   const dx = targetX - entity.x;
   const dy = targetY - entity.y;
   const dist = Math.hypot(dx, dy) || 1;
-  if (dist <= 8) {
+  if (dist <= PATH_ARRIVAL_DISTANCE_PX) {
     entity.vx = 0;
     entity.vy = 0;
     return 'arrived';
   }
   if (!currentGrid) return 'direct';
 
-  if (lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY)) {
+  const directBlocked = lineCrossesBlocked(currentGrid, entity.x, entity.y, targetX, targetY);
+  const acceptedRoute = pathCache.get(cacheKey);
+  const continueAcceptedRoute = !!acceptedRoute?.waypoints && acceptedRoute.waypoints.length > 1
+    && acceptedRoute.targetX === targetX && acceptedRoute.targetY === targetY;
+  const considerRoadDetour = !directBlocked && !!currentGrid.road;
+  if (directBlocked || considerRoadDetour || continueAcceptedRoute) {
     let cached = pathCache.get(cacheKey);
     if (cached && (cached.targetX !== targetX || cached.targetY !== targetY
-      || (cached.waypoints === null && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
+      || (cached.directDetourRejected && (directBlocked
+        || Math.abs(cached.startTileX - Math.floor(entity.x / PATH_CELL))
+          + Math.abs(cached.startTileY - Math.floor(entity.y / PATH_CELL)) >= ROAD_DETOUR_RECHECK_TILES))
+      || (cached.waypoints === null && !cached.directDetourRejected && (cached.startTileX !== Math.floor(entity.x / PATH_CELL)
         || cached.startTileY !== Math.floor(entity.y / PATH_CELL))))) {
       cached = undefined;
     }
@@ -772,14 +863,17 @@ export function steerWithPath(
     }
     if (cached === undefined) {
       recordPathCacheMiss();
-      const path = findPath(
+      const route = walkRoute(
         currentGrid,
         Math.floor(entity.x / PATH_CELL),
         Math.floor(entity.y / PATH_CELL),
         Math.floor(targetX / PATH_CELL),
         Math.floor(targetY / PATH_CELL),
+        PATH_MAX_SEARCH_NODES,
       );
-      let waypoints = path ? pathWaypoints(path) : null;
+      const savesTime = route.cost !== null && route.cost * PATH_CELL < dist;
+      let waypoints = route.path && (directBlocked || savesTime)
+        ? collapseStraightWaypoints(pathWaypoints(route.path)) : null;
       const startTx = Math.floor(entity.x / PATH_CELL);
       const startTy = Math.floor(entity.y / PATH_CELL);
       const startIsBlocked = startTx >= 0 && startTy >= 0
@@ -791,6 +885,7 @@ export function steerWithPath(
       cached = {
         waypoints, nextIndex: waypoints && waypoints.length > 1 ? 1 : 0,
         targetX, targetY, startTileX: startTx, startTileY: startTy,
+        directDetourRejected: !directBlocked && !savesTime,
       };
       pathCache.delete(cacheKey);
       if (pathCache.size >= PATH_CACHE_LIMIT) {
@@ -811,11 +906,19 @@ export function steerWithPath(
       const ndy = next.y - entity.y;
       const nd = Math.hypot(ndx, ndy) || 1;
 
-      entity.vx = (ndx / nd) * speed;
-      entity.vy = (ndy / nd) * speed;
+      // The step integrator applies the road multiplier later: cap the base velocity now.
+      // This prevents skipping a corner waypoint while keeping long straight road legs fast.
+      const boundedSpeed = Math.min(speed, nd / ROAD_SPEED_MULT);
+      entity.vx = (ndx / nd) * boundedSpeed;
+      entity.vy = (ndy / nd) * boundedSpeed;
       faceVelocity(entity);
       return 'path';
     }
+  }
+  if (directBlocked) {
+    entity.vx = 0;
+    entity.vy = 0;
+    return 'blocked';
   }
   return 'direct';
 }
@@ -879,4 +982,17 @@ export function isGroundWalkableAt(x: number, y: number): boolean {
   const ty = Math.floor(y / PATH_CELL);
   if (tx < 0 || ty < 0 || tx >= grid.cols || ty >= grid.rows) return true;
   return grid.blocked[ty * grid.cols + tx] !== 1;
+}
+
+/** Walk-speed ownership uses the same completed-road mask as A* and commute pricing. */
+export function isOnWalkableRoadAt(x: number, y: number): boolean {
+  const grid = currentGrid;
+  if (!grid?.road) return false;
+  const tx = Math.floor(x / PATH_CELL);
+  const ty = Math.floor(y / PATH_CELL);
+  return tx >= 0 && ty >= 0 && tx < grid.cols && ty < grid.rows
+    && grid.blocked[ty * grid.cols + tx] === 0
+    && grid.road[ty * grid.cols + tx] === 1
+    && (grid.roadSurfaces?.get(ty * grid.cols + tx)?.some((b) =>
+      isRoadSurfacePoint(b, x, y)) ?? true);
 }

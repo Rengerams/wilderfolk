@@ -19,9 +19,10 @@ import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/c
 import { describe, expect, it } from 'vitest';
 import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
-import { getPathGrid, invalidateCommutePathsForWalker, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
+import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
 import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
@@ -134,6 +135,43 @@ describe('M12 hotel visitor movement', () => {
   });
 });
 
+describe('hotel guest routing and road speed', () => {
+  it('uses the same road multiplier as its path planner and moves exactly once', () => {
+    const h = hotel(5, 300, 180);
+    const visitor = human(3, 55, 207, { faction: 'visitor', hotelStayBuildingId: h.id });
+    const road = {
+      id: 805, type: BuildingType.Road, x: 190, y: 207,
+      width: 350, height: 14, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(60, 40, 20261029, () => false), [road]);
+    try {
+      expect(isOnWalkableRoadAt(visitor.x, visitor.y)).toBe(true);
+      const before = { x: visitor.x, y: visitor.y };
+      expect(steerVisitorToHotel(visitor, [h], 2)).toBe(true);
+      expect(Math.hypot(visitor.vx, visitor.vy)).toBeGreaterThan(0);
+      expect(visitor.x - before.x).toBeCloseTo(visitor.vx * ROAD_SPEED_MULT, 6);
+      expect(visitor.y - before.y).toBeCloseTo(visitor.vy * ROAD_SPEED_MULT, 6);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+
+  it('does not walk through a sealed river when the hotel is unreachable', () => {
+    setCurrentPathMap(makeMap(40, 40, 20261030, (x) => x === 20), []);
+    try {
+      const h = hotel(6, 300, 180);
+      const visitor = human(6, 55, 180, { faction: 'visitor', hotelStayBuildingId: h.id });
+      expect(steerVisitorToHotel(visitor, [h], 2)).toBe(true);
+      expect(visitor.x).toBe(55);
+      expect(visitor.y).toBe(180);
+      expect(visitor.vx).toBe(0);
+      expect(visitor.vy).toBe(0);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+});
+
 describe('M14 hospital routing movement', () => {
   it('sets walk velocity without writing position (the human loop applies the step)', () => {
     const patient = human(1, 20, 16, { pregnant: true, energy: 40, maxEnergy: 100 });
@@ -181,6 +219,105 @@ describe('M13 hospital treatment cadence', () => {
   });
 });
 
+describe('fast road waypoint steering', () => {
+  it('crosses ten-pixel road tiles without oscillating at a waypoint or repeatedly searching', () => {
+    const road = {
+      id: 803, type: BuildingType.Road, x: pixel(20, 15), y: pixel(20, 15),
+      width: 30 * PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(45, 35, 20261028, () => false), [road]);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const walker = human(803, pixel(4, 18), pixel(4, 18));
+      const goalX = pixel(36, 18);
+      const goalY = pixel(36, 18);
+      const steps: number[] = [];
+      let arrived = false;
+      for (let tick = 0; tick < 90; tick++) {
+        const mode = steerWithPath(walker, goalX, goalY, 28, 'fast-road');
+        if (mode === 'arrived') { arrived = true; break; }
+        if (mode === 'direct') {
+          const dx = goalX - walker.x;
+          const dy = goalY - walker.y;
+          const dist = Math.hypot(dx, dy);
+          walker.vx = dx / dist * Math.min(28, dist / 1.5);
+          walker.vy = dy / dist * Math.min(28, dist / 1.5);
+        } else {
+          expect(mode).toBe('path');
+        }
+        const roadMult = 1.5;
+        steps.push(Math.hypot(walker.vx, walker.vy) * roadMult);
+        applyHumanWalkStep(walker, roadMult);
+      }
+      expect(arrived).toBe(true);
+      expect(steps.some((step) => step > PATH_CELL * 2)).toBe(true);
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBeLessThan(15);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+});
+
+describe('accepted road detour final approach', () => {
+  it('continues on accepted waypoints once closer than the initial search threshold', () => {
+    const road = {
+      id: 802, type: BuildingType.Road, x: pixel(20, 18), y: pixel(18, 0),
+      width: 34 * PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(45, 35, 20261027, () => false), [road]);
+    try {
+      const walker = human(802, pixel(4, 0), pixel(18, 0));
+      const targetX = pixel(36, 18);
+      const targetY = pixel(18, 0);
+      expect(steerWithPath(walker, targetX, targetY, 5, 'accepted-road')).toBe('path');
+      let enteredFinalApproach = false;
+      for (let step = 0; step < 120; step++) {
+        const result = steerWithPath(walker, targetX, targetY, 5, 'accepted-road');
+        const remaining = Math.hypot(walker.x - targetX, walker.y - targetY);
+        if (remaining < 150 && remaining > 35) {
+          expect(result).toBe('path');
+          enteredFinalApproach = true;
+          break;
+        }
+        expect(result).toBe('path');
+        walker.x += walker.vx;
+        walker.y += walker.vy;
+      }
+      expect(enteredFinalApproach).toBe(true);
+    } finally {
+      setCurrentPathMap(null);
+    }
+  });
+});
+
+describe('road detour negative caching', () => {
+  it('keeps a rejected detour cached as the walker crosses tiles on a clear route', () => {
+    const farRoad = {
+      id: 801, type: BuildingType.Road, x: pixel(30, 30), y: pixel(30, 30),
+      width: PATH_CELL, height: PATH_CELL, completed: true,
+    } as Building;
+    setCurrentPathMap(makeMap(40, 40, 20261026, () => false), [farRoad]);
+    setPathfindingMetricsEnabled(true);
+    resetPathfinderSession();
+    try {
+      const walker = human(801, pixel(2, 0), pixel(5, 0));
+      expect(steerWithPath(walker, pixel(35, 0), pixel(5, 0), 5, 'negative-road')).toBe('direct');
+      const searches = getCurrentPathfinderTickCounters().findPathCalls;
+      expect(searches).toBeGreaterThan(0);
+      for (let tile = 3; tile <= 12; tile++) {
+        walker.x = pixel(tile, 5);
+        expect(steerWithPath(walker, pixel(35, 0), pixel(5, 0), 5, 'negative-road')).toBe('direct');
+      }
+      expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
+    } finally {
+      setPathfindingMetricsEnabled(false);
+      setCurrentPathMap(null);
+    }
+  });
+});
+
 describe('M22 path cache origin', () => {
   it('retains routes for hundreds of simultaneous commuters and invalidates topology changes', () => {
     const map = makeMap(40, 40, 934, (x, y) => y === 20 && x !== 35);
@@ -198,7 +335,7 @@ describe('M22 path cache origin', () => {
       }
       expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches);
       setCurrentPathMap(makeMap(40, 40, 935, (x, y) => y === 20), []);
-      expect(steerWithPath(walkers[0], pixel(20, 0), pixel(10, 0), 5, 'load_0')).toBe('direct');
+      expect(steerWithPath(walkers[0], pixel(20, 0), pixel(10, 0), 5, 'load_0')).toBe('blocked');
       expect(getCurrentPathfinderTickCounters().findPathCalls).toBe(searches + 1);
     } finally {
       setPathfindingMetricsEnabled(false);
@@ -209,7 +346,7 @@ describe('M22 path cache origin', () => {
   it('retries a failed route when the same key moves to another origin or destination', () => {
     setCurrentPathMap(makeMap(40, 40, 936, (x, y) => y === 20), []);
     const walker = human(1, pixel(5, 0), pixel(35, 0));
-    expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry')).toBe('direct');
+    expect(steerWithPath(walker, pixel(20, 0), pixel(10, 0), 5, 'retry')).toBe('blocked');
     setPathfindingMetricsEnabled(true);
     resetPathfinderSession();
     try {

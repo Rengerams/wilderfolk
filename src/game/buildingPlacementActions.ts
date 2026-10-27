@@ -21,7 +21,7 @@ import {
 } from './buildingRotation';
 import { isStripBuildType, type StripBuildPreview, type StripSegment } from './stripBuild';
 import { getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
-import { buildStripPlanFromDrag } from './stripTopology';
+import { buildStripPlanFromDrag, buildStripPlanFromStroke } from './stripTopology';
 import { createBuilding } from './worldGen';
 import {
   getBuildingFootprintRect,
@@ -29,14 +29,13 @@ import {
   isFootprintOnBuildableTerrain,
   isFootprintWithinMapBounds,
   overlapsAnyBuilding,
+  stripCrossingIsTheOnlyOverlap,
 } from './placementUtils';
 import { patchTile, rebakeTerrainGrids, tileAt } from './terrain/terrainGrid';
 import { logEvent } from './eventLog';
 
 // The unbuildable-terrain rule has one owner: `terrain/terrainTraits.isUnbuildableTerrainType`, a
 // leaf module so `terrainGrid` can read it without importing `placementUtils` back. Do not restate it.
-
-export { isFootprintOnBuildableTerrain } from './placementUtils';
 
 function isStripSegmentTechUnlocked(
   stripType: BuildingType,
@@ -96,7 +95,9 @@ export function getPlaceBuildingFailureReason(
   }
   if (isUniqueBuildingAlreadyBuilt(state, type)) return 'unique';
   if (!isFootprintOnBuildableTerrain(state, width, height, x, y, type)) return 'terrain';
-  if (overlapsAnyBuilding(state.buildings, width, height, x, y)) return 'blocked';
+  if (overlapsAnyBuilding(state.buildings, width, height, x, y)
+    && !((type === BuildingType.Road || type === BuildingType.Wall)
+      && stripCrossingIsTheOnlyOverlap(state.buildings, x, y, width, height, type))) return 'blocked';
   return null;
 }
 
@@ -278,12 +279,21 @@ export function buildStripPreview(
   endX: number,
   endY: number,
   rotation: BuildingRotation,
+  stroke?: readonly { x: number; y: number }[],
 ): StripBuildPreview {
-  const { plan, enclosedAreas } = buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
-  return {
-    rotation,
-    enclosedAreas,
-    segments: plan.map((piece) => {
+  const { plan, enclosedAreas } = stroke && stroke.length > 1
+    ? buildStripPlanFromStroke(state, type, stroke)
+    : buildStripPlanFromDrag(state, type, startX, startY, endX, endY, rotation);
+  const budgetState: WorldState = {
+    ...state,
+    resources: { ...state.resources },
+    lifetimeStats: {
+      ...state.lifetimeStats,
+      totalResourcesGathered: { ...state.lifetimeStats.totalResourcesGathered },
+    },
+  };
+  let ranOutOfResources = false;
+  const segments = plan.map((piece): StripSegment => {
       // The raw plan rotation is what the renderer reads for junction topology; validity is always
       // asked with the normalised form, which is the only one the footprint owner accepts.
       const segmentRotation = piece.rotation;
@@ -311,6 +321,19 @@ export function buildStripPreview(
           placementRotation,
         );
       }
+      if (!reason && !isStripSegmentTechUnlocked(type, piece.type, state)) reason = 'research';
+      const cost = BUILDING_CONFIGS[piece.type].cost;
+      const shortage = !reason && (ranOutOfResources
+        || budgetState.resources.wood < cost.wood
+        || budgetState.resources.stone < cost.stone
+        || budgetState.resources.gold < cost.gold);
+      if (shortage) ranOutOfResources = true;
+      if (!reason && !shortage) {
+        if (replacing) refundBuildingCost(budgetState, replacing.type);
+        budgetState.resources.wood -= cost.wood;
+        budgetState.resources.stone -= cost.stone;
+        budgetState.resources.gold -= cost.gold;
+      }
       return {
         x: piece.x,
         y: piece.y,
@@ -318,10 +341,26 @@ export function buildStripPreview(
         rotation: segmentRotation,
         junctionInfo: piece.junctionInfo,
         replacesBuildingId: piece.replacesBuildingId,
-        valid: reason == null,
+        valid: reason == null && !shortage,
         reason: reason ?? undefined,
+        resourceShortage: shortage,
       };
-    }),
+    });
+  return {
+    rotation,
+    // An incomplete stroke must never advertise a sealed wall enclosure.
+    enclosedAreas: segments.every((piece) => piece.valid) ? enclosedAreas : [],
+    segments,
+    cost: {
+      wood: state.resources.wood - budgetState.resources.wood,
+      stone: state.resources.stone - budgetState.resources.stone,
+      gold: state.resources.gold - budgetState.resources.gold,
+    },
+    available: {
+      wood: state.resources.wood,
+      stone: state.resources.stone,
+      gold: state.resources.gold,
+    },
   };
 }
 

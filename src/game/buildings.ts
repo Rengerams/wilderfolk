@@ -163,6 +163,8 @@ export interface Building {
   workshopRecipeId?: string;
   /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */
   rotation?: BuildingRotation;
+  /** WallGate only — closed gates block walkers; absent means open in legacy saves. */
+  gateClosed?: boolean;
   /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */
   hotelGuestIds?: number[];
   /** Hunting Spot only — which prey the staffed hunters target (see HUNTING_SPOT_PREY_OPTIONS). */

@@ -31,9 +31,9 @@ function previewGlowGradient(
   h: number,
   valid: boolean,
 ): CanvasGradient {
-  const cached = previewGlowCache;
-  if (cached && cached.ctx === ctx && cached.width === w && cached.height === h && cached.valid === valid) {
-    return cached.gradient;
+  if (previewGlowCache && previewGlowCache.ctx === ctx && previewGlowCache.width === w
+    && previewGlowCache.height === h && previewGlowCache.valid === valid) {
+    return previewGlowCache.gradient;
   }
   const gradient = ctx.createRadialGradient(0, 0, Math.min(w, h) * 0.2, 0, 0, Math.max(w, h) * 0.85);
   gradient.addColorStop(0, valid ? 'rgba(52, 211, 153, 1)' : 'rgba(248, 113, 113, 1)');
@@ -58,6 +58,7 @@ export function drawStripBuildPreview(
   const cam = state.camera;
   const zoom = cam.zoom > 0 ? cam.zoom : 1;
   const pulse = 0.4 + Math.sin(motionTime * 4.5) * 0.12;
+  const demolition = preview.demolition === true;
   const labelSize = Math.max(10, Math.round(11 * zoom));
   let blocked = 0;
   let sampleX = 0;
@@ -82,9 +83,10 @@ export function drawStripBuildPreview(
     sampleY = sy + h / 2;
 
     ctx.globalAlpha = segment.valid ? 0.72 : 0.5;
-    ctx.fillStyle = segment.valid ? 'rgba(34, 197, 94, 0.22)' : 'rgba(239, 68, 68, 0.26)';
+    ctx.fillStyle = demolition ? 'rgba(239, 68, 68, 0.38)'
+      : segment.valid ? 'rgba(34, 197, 94, 0.22)' : 'rgba(239, 68, 68, 0.26)';
     ctx.fillRect(sx - w / 2, sy - h / 2, w, h);
-    if (segment.valid) {
+    if (segment.valid && !demolition) {
       drawProceduralStripBuilding(
         ctx,
         segment.placeType,
@@ -98,7 +100,8 @@ export function drawStripBuildPreview(
     }
     ctx.globalAlpha = 1;
     ctx.lineWidth = Math.max(1.2, 1.5 * zoom);
-    ctx.strokeStyle = segment.valid ? `rgba(16, 185, 129, ${pulse + 0.5})` : 'rgba(248, 113, 113, 0.95)';
+    ctx.strokeStyle = demolition ? '#f87171'
+      : segment.valid ? `rgba(16, 185, 129, ${pulse + 0.5})` : 'rgba(248, 113, 113, 0.95)';
     ctx.setLineDash(segment.valid ? [] : [Math.max(3, 4 / zoom), Math.max(3, 3 / zoom)]);
     ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
     ctx.setLineDash([]);
@@ -116,20 +119,32 @@ export function drawStripBuildPreview(
   }
   ctx.restore();
 
-  // One label for the stroke: how much of it will land, and the reason the rest will not.
+  // The status and materials lines stay visible near the viewport edge.
   const reason = preview.segments.find((segment) => segment.reason)?.reason;
-  const text = blocked === 0
-    ? `${preview.segments.length} tiles — release to lay`
-    : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+  const shortage = preview.segments.some((segment) => segment.resourceShortage);
+  const cost = preview.cost;
+  const available = preview.available;
+  const text = demolition ? `${preview.segments.length} sections — release to remove`
+    : blocked === 0
+      ? `${preview.segments.length} tiles — release to lay`
+      : `${preview.segments.length - blocked} of ${preview.segments.length} tiles${shortage ? ' — insufficient resources' : reason ? ` — ${getPlaceBuildingFailureLabel(state.buildMode as BuildingType, reason, state.researchNodes)}` : ''}`;
+  const lines = [text];
+  if (!demolition && cost) lines.push(`Net cost: ${cost.wood}w ${cost.stone}s ${cost.gold}g`);
+  if (!demolition && available) lines.push(`Stock: ${available.wood}w ${available.stone}s ${available.gold}g`);
   ctx.save();
   ctx.font = `bold ${labelSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const width = ctx.measureText(text).width;
+  const initialWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+  const fontSize = Math.min(labelSize, labelSize * Math.max(0.35, (cw - 20) / Math.max(1, initialWidth)));
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const width = Math.max(...lines.map((line) => ctx.measureText(line).width));
+  const x = Math.max(width / 2 + 6, Math.min(cw - width / 2 - 6, sampleX));
+  const lineHeight = fontSize + 3;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(sampleX - width / 2 - 6, sampleY + 6, width + 12, labelSize + 8);
-  ctx.fillStyle = blocked === 0 ? '#6ee7b7' : '#fca5a5';
-  ctx.fillText(text, sampleX, sampleY + 10);
+  ctx.fillRect(x - width / 2 - 6, sampleY + 6, width + 12, lines.length * lineHeight + 5);
+  ctx.fillStyle = demolition || blocked > 0 ? '#fca5a5' : '#6ee7b7';
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, sampleY + 9 + i * lineHeight);
   ctx.restore();
 }
 
