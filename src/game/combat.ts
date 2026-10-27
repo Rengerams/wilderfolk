@@ -13,8 +13,6 @@ import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
 import { resolveResearchEffect } from './simHelpers';
 
-export { COMBAT_TECH } from './combatTech';
-
 export const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
   progress: 0,

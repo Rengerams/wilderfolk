@@ -15,6 +15,7 @@ import {
   DECISION_KEYS,
   SIMULATION_DECISIONS,
   getDecisionsByCadence,
+  isPropertyWritePermitted,
 } from '../src/game/simulation/decisionRegistry';
 
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
@@ -81,6 +82,16 @@ describe('simulation decision registry', () => {
   it('assigns each decision to a distinct owner (no two owners for one decision)', () => {
     const owners = REQUIRED_DECISIONS.map((key) => SIMULATION_DECISIONS[key].owner);
     expect(new Set(owners).size).toBe(owners.length);
+  });
+
+  it('keeps qualified property writes distinct across simulation owners', () => {
+    expect(isPropertyWritePermitted('workforce', 'building.occupants')).toBe(true);
+    expect(isPropertyWritePermitted('workforce', 'human.job')).toBe(true);
+    expect(isPropertyWritePermitted('workforce', 'job')).toBe(true);
+    expect(isPropertyWritePermitted('workforce', 'human.occupants')).toBe(false);
+    expect(isPropertyWritePermitted('workforce', 'entity.job')).toBe(false);
+    expect(isPropertyWritePermitted('workforce', 'villageLeaderId')).toBe(false);
+    expect(isPropertyWritePermitted('production', 'building.occupants')).toBe(false);
   });
 
   it('names test files that exist — the registry is the ownership contract, so a stale pointer lies', () => {

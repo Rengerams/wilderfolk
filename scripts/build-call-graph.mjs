@@ -422,7 +422,9 @@ function parseOwnershipOverview(file) {
 function modulesIn(text) {
   if (!text) return [];
   const found = new Set();
-  for (const match of text.matchAll(/([A-Za-z][\w./-]*\.tsx?)/g)) found.add(match[1].split('/').pop());
+  for (const match of text.matchAll(/([A-Za-z][\w./-]*\.tsx?)/g)) {
+    found.add(match[1].replace(/^src\//, ''));
+  }
   return [...found];
 }
 
@@ -652,18 +654,21 @@ function main() {
     decision.modules = [...new Set(modulesIn(ownerHead))].sort();
   }
 
+  const moduleOwnsFile = (moduleName, file) => file === moduleName || file.endsWith(`/${moduleName}`);
+
   const ownerForFunction = (fn) => {
-    const base = fn.file.split('/').pop();
     for (const decision of decisions) {
       if (
         decision.entryFunctionNames.includes(fn.name)
-        && decision.modules.includes(base)
+        && decision.modules.some((name) => moduleOwnsFile(name, fn.file))
       ) {
         return { decision, how: 'entry function' };
       }
     }
     for (const decision of decisions) {
-      if (decision.modules.includes(base)) return { decision, how: 'module owner' };
+      if (decision.modules.some((name) => moduleOwnsFile(name, fn.file))) {
+        return { decision, how: 'module owner' };
+      }
     }
     return undefined;
   };
@@ -689,6 +694,9 @@ function main() {
       functions: functions.length,
       callEdges: callees.reduce((sum, list) => sum + list.length, 0),
       withRecordedOwner: functions.filter((f) => f.ownerKey).length,
+      withExplicitEntry: functions.filter((f) => f.ownerHow === 'entry function').length,
+      withModuleOwner: functions.filter((f) => f.ownerHow === 'module owner').length,
+      withoutRecordedOwner: functions.filter((f) => !f.ownerKey).length,
       decisions: decisions.length,
       ambiguousCalls: [...unresolved.values()].reduce((sum, entry) => sum + entry.count, 0),
       // How each call site was classified — see `resolutionKinds` and the README's resolution ladder.
@@ -722,6 +730,7 @@ function main() {
       callers: callers[fn.index],
       callees: callees[fn.index],
     })),
+    unregistered: functions.filter((fn) => !fn.ownerKey).map(({ name, file, line }) => ({ name, file, line })),
     ambiguous: [...unresolved.entries()]
       .map(([key, entry]) => ({ key, count: entry.count, sites: entry.sites }))
       .sort((a, b) => b.count - a.count)
@@ -733,6 +742,10 @@ function main() {
   if (!jsonOnly) writeFileSync(path.join(OUT_DIR, 'call-graph.html'), renderHtml(payload));
 
   console.log(JSON.stringify(payload.stats, null, 2));
+  if (process.argv.includes('--verify-owners') && payload.unregistered.length) {
+    console.error('Unregistered functions:', payload.unregistered.slice(0, 100));
+    process.exitCode = 1;
+  }
   console.log(`wrote docs/tools/call-graph.json${jsonOnly ? '' : ' and call-graph.html'}`);
 }
 

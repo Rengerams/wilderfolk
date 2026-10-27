@@ -27,7 +27,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Economy / resources | `resourceUtils.ts` (add), `economy.ts` (caps/spoilage), `dailyBuildingEconomy.ts` (production) | daily / command | `addResource`, `updateStorageCaps`, `tickWinterHeating` |
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
-| Building type identity: the name shown and persisted, and its stable number | `buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
+| Building type identity: the name shown and persisted, and its stable number | `game/buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `residencyOccupancy.ts` matches homes on the code, never on the name) |
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `rivalDiplomacy.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |
 | Rival settlement day pulse | `rivalEvents.ts` | new-calendar-day | `tickRivalSettlements` — advances strategic records and retires legacy village camp objects; never builds a village camp. |
@@ -64,7 +64,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
 | Blueberry foraging and rare-tree placement | `blueberryForaging.ts` | new-game spawn / staggered / daily | `isBlueberryTree`, `hasRipeBlueberries`, `clearBlueberryTarget`, `spawnBlueberryTrees`, `tickBlueberryRegrowth`, `tryTickBlueberryForaging` |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
-| Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |
+| Calendar constants | `daycycleconstants.ts` | — | night/moon/adult-age constants |
 | RNG salt | `simRng.ts` | — | `hashSalt` |
 | Player commands | `simWorker/commands.ts` → domain owners | player-command | `isWorkerCommand`, `applyWorkerCommand` |
 
@@ -85,7 +85,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Session clock, command queue, worker fallback | `gameLoop.ts` | animation-frame / command | `frame`, `applyCommand`, `flushDeferredWorkerCommands`, `fallbackFromWorker` |
 | Trade caravans and routes | `tradeCaravans.ts` | systems layer + departure schedule | `tickTradeCaravans`, `spawnCaravan`, `scheduleTradeRouteDeparture`, `getCaravanMoveTarget` |
 | Civic petitions / town-hall audience, and the player's Town Hall lookup | `townHall.ts` + `playerTownHall.ts` | daily (resolution) + realtime (greeting only) | `resolveCivicPetition`, `tickTownHallAudiences`, `officialHandlePetitioners`, `wantsCivicAudience`, `findPlayerTownHall` |
-| Human age and fertility ladder | `dayCycle.ts` (`dayCycleConstants.ts` for the ages) | daily sync / pure helpers | `HUMAN_FERTILITY_START`, `getFemaleFertility`, `getYouthConceptionMultiplier`, `syncHumanAgeFromCalendar`, `tryGraduateHumanChild` |
+| Human age and fertility ladder | `dayCycle.ts` (`daycycleconstants.ts` for the ages) | daily sync / pure helpers | `HUMAN_FERTILITY_START`, `getFemaleFertility`, `getYouthConceptionMultiplier`, `syncHumanAgeFromCalendar`, `tryGraduateHumanChild` |
 | Adoption household candidate selection | `residencyReconciliation.ts` | guardianship phase | `livingAdoptiveCustodian`, `listVillageCouples`, `listVillageSingleAdults` (select available adoptive guardians and their households) |
 | Housing unit composition | `householdComposition.ts` (selection: `residencySelection.ts`) | assignment | `findLivingHuman` (shared alive-entity lookup), `isMinorChild`, `collectOwnHousehold`, `collectMinorHousehold`, `getChildCustodian`, `buildHousingUnits`, `parentIdsOf` (a settler's biological and adoptive parent ids) |
 | Medical care | `hospitalCare.ts` + `humanHospitalBehavior.ts` | daily care pass / realtime routing | `needsMedicalCare`, `medicalCareReason`, `treatPatientAtHospital`, `doctorTreatNearby`, `tickHospitalDailyCare`, `getHospitalRoster`, `describeHospitalRoster` |
@@ -155,7 +155,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 | Spatial-query metrics and grid A/B switch | `spatialQueryMetrics.ts` | dev-only | `setSpatialQueryMetricsEnabled`, `setSpatialQueryGridMode`, `isSpatialQueryMetricsEnabled` |
 | Auto-play decisions and their waiting verdict (dev-gated, N17) | `virtualPlayer.ts` | player-command — one action per in-game hour through the same command door | `decideVirtualPlayerAction` and the `decide*` family, `virtualPlayerWaitingReason`, `observeIndoorPatients` (read-only live patient state), `buildingBlockReason`, `canSpendKeepingReserve`, `spareBedReserve`, `wantedProducerCount`, `completedProducerCount` |
 | Auto-play tuning (buffers, reserves, producers per settler) | `gameConstants.ts` | — (data read by the `decide*` family) | the `VirtualPlayer` block (`SPARE_BED_*`, `SETTLERS_PER_FOOD_PRODUCER`, `SETTLERS_PER_INDUSTRY_PRODUCER`) |
-| Player preferences | `preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
+| Player preferences | `game/preferences.ts` | UI (boot read + toggle write) | `loadAutoSavePreference`, `saveAutoSavePreference`, `loadTutorialsEnabled`, `saveTutorialsEnabled` |
 | Camera and view state | `viewState.ts` | render pass + input + session setup | `createInitialView`, `createInitialViewForWorld`, `updateView`, `resolveEntity`, `resolveBuilding`, `clampCameraZoom` |
 | Building rotation rules | `buildingRotation.ts` | player-command (placement) | `isRotatableBuildingType`, `toggleBuildingRotation` |
 | Sprite metrics and class-ladder variants | `humanSprites.ts` | spawn (variant pick) + render pass | `pickHumanVariant`, `getHumanSpritePath`, `getHumanSpriteMetrics`, `getHumanSelectionBounds` |
@@ -209,7 +209,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| App shell, layout and menu composition | `App.tsx` + `GamePlayLayout.tsx` + `GameSidebar.tsx` + `GameHeader.tsx` + `GameOverlays.tsx` + `GameBuildRail.tsx` + `GameInspector.tsx` + `GameMapStage.tsx` + `GameMenu.tsx` + `ShortcutsOverlay.tsx` + `CollapsibleSection.tsx` + `Emoji.tsx` | UI (composition/wiring only) | `App`, `GamePlayLayout`, `GameSidebar`, `GameHeader`, `GameMapStage`, `GameMenu` |
+| App shell, layout and menu composition | `App.tsx` + `GamePlayLayout.tsx` + `GameHeader.tsx` + `GameOverlays.tsx` + `GameBuildRail.tsx` + `GameInspector.tsx` + `GameMapStage.tsx` + `GameMenu.tsx` + `ShortcutsOverlay.tsx` + `CollapsibleSection.tsx` + `Emoji.tsx` | UI (composition/wiring only) | `App`, `GamePlayLayout`, `GameHeader`, `GameMapStage`, `GameMenu` |
 | HUD badges, banners and alerts | `AlertBar.tsx` + `ActiveEventBanner.tsx` + `BigNewsBanner.tsx` + `MomentTitleCard.tsx` + `ResourceBadge.tsx` + `ResourceIcons.tsx` + `ResourceCost.tsx` + `VillageRequestCard.tsx` | UI (read-only presentation) | `AlertBar`, `ActiveEventBanner`, `BigNewsBanner`, `ResourceBadge`, `ResourceCost` |
 | Sidebar tabs and read-only panels | `DynastyPanel.tsx` + `FrontierTabPanel.tsx` + `LogTabPanel.tsx` + `MoreTabPanel.tsx` + `NatureTabPanel.tsx` + `ProgressTabPanel.tsx` + `ValleyChroniclePanel.tsx` + `VillageTabPanel.tsx` + `PopulationPanel.tsx` + `StatisticsPanel.tsx` + `VillageLeadershipPanel.tsx` + `FocusPanel.tsx` + `CitizenOverviewScreen.tsx` + `CombatPreviewPanel.tsx` + `CombatLogPanel.tsx` + `VisitorCampPanel.tsx` + `BlacksmithForgePanel.tsx` + `BuildCatalogPanel.tsx` + `WorkSchedulePanel.tsx` + `VenueSchedulePanel.tsx` + `WorkHoursWindow.tsx` + `FamilyTreeWindow.tsx` + `SimulationDiagnosticsPanel.tsx` + `GuidedCampaignPanel.tsx` + `SelectedBuildingPanel.tsx` + `SelectedEntityPanel.tsx` + `MapSetupScreen.tsx` + `IntroScreen.tsx` + `MiniMap.tsx` + `ChallengesPanel.tsx` + `FrontierPanel.tsx` + `StrategicWorldMap.tsx` + `TutorialOverlay.tsx` + `TutorialCampaignBanner.tsx` + `ContextualTutorialCard.tsx` | UI (read-only projections; commands go through `App`) | `ProgressTabPanel`, `VillageTabPanel`, `NatureTabPanel`, `MoreTabPanel`, `PopulationPanel`, `SelectedBuildingPanel`, `SelectedEntityPanel`, `MapSetupScreen`, `IntroScreen`, `computeMiniMapViewportRect` |
 | Village dashboard projection | `dashboard/GameDashboard.tsx` | UI (read-only) | `GameDashboard`, `BuildingsTable` (the building list's rows and header) |
@@ -228,7 +228,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 | Spatial grids (mobile, grass, social) and their invariants | `spatialGrid.ts` | realtime (rebuild/reconcile per tick) + query helpers | `syncMobileSimGrid`, `syncSpatialGridEntity`, `assertSpatialGridInvariants`, `EntitySpatialGrid`, `isHumanSocialGridEntity` |
 | Systems tick layer | `tickLayerSystems.ts` | systems pulse (`LAYER_SYSTEMS_INTERVAL`) | `tickLayerSystems`, `tickWildlife`, `tickWolfRecruitment`, `isWildlifePredator` |
 | Resource types, costs and build catalogue | `resourceTypes.ts` + `resourceCost.ts` + `buildCatalog.ts` | — (data + formatting, no state) | `formatResourceAmount`, `formatResourceAmounts`, `formatResourceCost`, `canAffordResourceCost`, `missingResourceCost`, `categoryForBuildingType` |
-| Building configs and mine-mode helper | `buildings.ts` | — / player-command | `mineOreForMode` |
+| Building configs and mine-mode helper | `game/buildings.ts` | — / player-command | `mineOreForMode` |
 | Daily village schedule fatigue | `scheduleFatigue.ts` + `dailyScheduleFatigue.ts` | realtime record + daily resolve (`tickLayerDaily`) | `recordScheduleWorkTick`, `resolveDailyVillageScheduleFatigue`, `getScheduleProductivityMultiplier` |
 | Village challenges | `challenges.ts` + `dailyChallenges.ts` | daily (`tickLayerDaily`) | `tickDailyChallenges`, `isChallengeComplete`, `getChallengeProgress` |
 | Grass ecology day pulse | `dailyGrassEcology.ts` | daily (`tickLayerDaily`) | `tickGrassDaily` |
@@ -393,7 +393,7 @@ If two modules export the same function name with the same responsibility:
 ## Calendar note
 
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
-`dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
+`daycycleconstants.ts` holds pure values (night hours, moon cycle, adult age floor).
 
 ## Housing architecture completion (23 October 2026)
 
@@ -494,3 +494,30 @@ Each helper below belongs to its **own test file or existing browser harness**. 
 | `assignResidentToBuilding` | `game/buildingResidencyActions.ts` | Isolated or explicitly owned residency command transition. |
 | `buildingFingerprint` | `game/simBuffers/simDelta.ts` | Serialize a building once for the next acknowledged delta baseline. |
 | `resetWorkerSession` | `game/simWorker/gameWorker.ts` | Reset runtime state and transport baselines at full-world boundaries. |
+
+
+## Missing source-module registrations (27 October 2026)
+
+The original owner tables cover 356 of 373 source modules.
+The entries below register only the 17 previously unlisted modules. Re-exports do not
+take ownership away from their leaf implementations. Module-qualified names keep same-basename files distinct.
+
+| Scope | Sole owning module | Cadence | Responsibility |
+|---|---|---|---|
+| Audio: constants.ts | `src/audio/constants.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: buildingActions.ts | `src/game/buildingActions.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
+| Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
+| Game: genealogyRegistry.ts | `src/game/genealogyRegistry.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: genealogyTypes.ts | `src/game/genealogyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: introTimeline.ts | `src/game/introTimeline.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: moonHowlerForm.ts | `src/game/moonHowlerForm.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Simulation: simulationTypes.ts | `src/game/simulation/simulationTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Terrain: biomes.ts | `src/game/terrain/biomes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: version.ts | `src/game/version.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Game: weatherVisualPreferences.ts | `src/game/weatherVisualPreferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Application: main.tsx | `src/main.tsx` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+| Test support: setup.ts | `src/test/setup.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |

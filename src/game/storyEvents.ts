@@ -7,7 +7,7 @@ import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { isPlayerHuman } from './playerHuman';
 import { logEvent } from './eventLog';
-import { HUMAN_DAILY_FOOD_CONSUMPTION } from './animalCare';
+import { Human } from './gameConstants';
 import { getDeerParliamentChoiceEligibility, resolveDeerParliament } from './deerParliament';
 import { getTravelingTheatreChoiceEligibility, resolveTravelingTheatre } from './travelingTheatre';
 import { getWeddingDiplomacyChoiceEligibility, resolveWeddingDiplomacy } from './weddingDiplomacy';
@@ -32,8 +32,8 @@ export function offerStoryEvent(state: WorldState, event: StoryEvent): void {
 
 /** Drop expired unanswered stories — the moment passes quietly. */
 const CHILDREN_SHELTER_CHILDREN = 10;
-/** Children consume food like ordinary city humans: 2 food/day each. */
-const CHILDREN_SHELTER_FOOD_PER_DAY = CHILDREN_SHELTER_CHILDREN * HUMAN_DAILY_FOOD_CONSUMPTION;
+/** Children consume the canonical daily human ration. */
+const CHILDREN_SHELTER_FOOD_PER_DAY = CHILDREN_SHELTER_CHILDREN * Human.DAILY_FOOD_CONSUMPTION;
 
 function countFreeShelterBeds(state: WorldState): number {
   return state.buildings

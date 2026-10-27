@@ -101,6 +101,7 @@ const STEP = {
   cycles: 'node scripts/check-import-cycles.mjs',
   /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
+  owners: 'node scripts/build-call-graph.mjs --json-only --verify-owners',
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs',
   build: 'npm run build',
@@ -114,10 +115,10 @@ const STEP = {
  * gate, which is what the `&&` chains these replace did.
  */
 const GATE = {
-  standard: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  all: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'invariants'],
-  audit: ['knip', 'cycles'],
+  standard: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  all: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  full: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'invariants'],
+  audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
 
@@ -131,6 +132,7 @@ const ALIAS = {
   'scripts-types': ['scriptsTypes'],
   knip: ['knip'],
   cycles: ['cycles'],
+  owners: ['owners'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
   browser: ['browser'],
@@ -141,7 +143,7 @@ const ALIAS = {
 const MENU = `
 wilderfolk test runner - one entry point, choose with args
 
-  npm test                        standard gate: check -> cycles --strict -> dup -> types -> lint -> unit
+  npm test                        standard gate: check -> owners -> cycles --strict -> dup -> types -> lint -> unit
   npm test -- standard            same as above
   npm test -- all                 same steps as standard
   npm test -- full                standard + invariant-test + invariants
@@ -159,6 +161,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- check               source-shadow-file check
   npm test -- knip                knip (unused files/exports)
   npm test -- cycles [--strict|--json]
+  npm test -- owners              verify every function has one recorded source owner
   npm test -- browser             browser gate (needs a prior build)
   npm test -- build               tsc app + tsc node + vite build
   npm test -- watch               vitest in watch mode

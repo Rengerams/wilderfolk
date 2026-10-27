@@ -13,9 +13,6 @@ export const TRACKS = {
    * Prefer the calmer loop so it doesn't fatigue over long sessions.
    */
   gameplay: audioUrl('audio/music/night-calm.ogg'),
-  /** Alias of gameplay — day/night no longer pick different files. */
-  day: audioUrl('audio/music/night-calm.ogg'),
-  night: audioUrl('audio/music/night-calm.ogg'),
   birdsLoop: audioUrl('audio/ambient/birds-loop.ogg'),
   birdChirp: audioUrl('audio/ambient/bird-chirp.mp3'),
   cricketFrog: audioUrl('audio/ambient/cricket-frog-night.mp3'),
@@ -26,14 +23,10 @@ export const TRACKS = {
   beastVoiceAlt: audioUrl('audio/ambient/animals/voice-1.wav'),
 } as const;
 
-export type TrackId = keyof typeof TRACKS;
-
 export const TRACK_VOLUMES = {
   intro: 0.46,
   /** Soft enough to sit under ambience + SFX without fatigue. */
   gameplay: 0.40,
-  day: 0.40,
-  night: 0.40,
   birdsLoop: 0.14,
   birdChirp: 0.22,
   cricketFrog: 0.16,
