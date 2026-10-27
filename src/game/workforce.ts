@@ -299,6 +299,22 @@ export function clearWorkerAssignment(human: Entity, buildings?: readonly Buildi
   human.job = JobType.Settler;
 }
 
+/**
+ * A sentence reserves a worker's post but excludes them from a normal workplace's
+ * active occupants. When custody ends, restore the reserved roster atomically;
+ * waiting for the next workforce pulse breaks the worker/occupants invariant.
+ * This is idempotent for prison guards (where the same prison holds both roles).
+ */
+export function restoreWorkerRosterAfterCustody(human: Entity, buildings: readonly Building[]): void {
+  if (!human.alive || !isPlayerHuman(human) || human.prisonBuildingId != null) return;
+  const workplaceId = human.workerBuildingId;
+  if (workplaceId == null) return;
+  const workplace = buildings.find((building) => building.id === workplaceId);
+  if (!workplace || !workplace.completed || workplace.faction === 'rival' ||
+      BUILDING_JOB_TYPES[workplace.type] == null) return;
+  if (!workplace.occupants.includes(human.id)) workplace.occupants.push(human.id);
+}
+
 /** Drops the workplace pointer alone; the moon forms keep their saved trade and re-attach it. */
 export function detachWorkplaceReference(human: Entity): void {
   human.workerBuildingId = undefined;
@@ -820,6 +836,7 @@ export function releasePrisoners(state: WorldState): void {
     entity.prisonBuildingId = undefined;
     entity.prisonerUntilTick = undefined;
     entity.prisonSentenceCrime = undefined;
+    restoreWorkerRosterAfterCustody(entity, state.buildings);
     entity.flash = 8;
 
     if (entity.id === state.villageLeaderId) {
