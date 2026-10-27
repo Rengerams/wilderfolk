@@ -64,7 +64,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Leader descendants walk | `householdComposition.ts` | query | `collectLeaderDescendants` — the family tree every household list is built from |
 | Blueberry foraging and rare-tree placement | `blueberryForaging.ts` | new-game spawn / staggered / daily | `isBlueberryTree`, `hasRipeBlueberries`, `clearBlueberryTarget`, `spawnBlueberryTrees`, `tickBlueberryRegrowth`, `tryTickBlueberryForaging` |
 | Calendar clock | `dayCycleClock.ts` | — | `TICKS_PER_DAY`, `isNewCalendarDayTick`, hour/day math |
-| Calendar constants | `dayCycleConstants.ts` | — | night/moon/adult-age constants |
+| Calendar constants | `daycycleconstants.ts` | — | night/moon/adult-age constants |
 | RNG salt | `simRng.ts` | — | `hashSalt` |
 | Player commands | `simWorker/commands.ts` → domain owners | player-command | `isWorkerCommand`, `applyWorkerCommand` |
 
@@ -85,7 +85,7 @@ behaviour. Nothing here changes the ownership law: one decision, one owner, one 
 | Session clock, command queue, worker fallback | `gameLoop.ts` | animation-frame / command | `frame`, `applyCommand`, `flushDeferredWorkerCommands`, `fallbackFromWorker` |
 | Trade caravans and routes | `tradeCaravans.ts` | systems layer + departure schedule | `tickTradeCaravans`, `spawnCaravan`, `scheduleTradeRouteDeparture`, `getCaravanMoveTarget` |
 | Civic petitions / town-hall audience, and the player's Town Hall lookup | `townHall.ts` + `playerTownHall.ts` | daily (resolution) + realtime (greeting only) | `resolveCivicPetition`, `tickTownHallAudiences`, `officialHandlePetitioners`, `wantsCivicAudience`, `findPlayerTownHall` |
-| Human age and fertility ladder | `dayCycle.ts` (`dayCycleConstants.ts` for the ages) | daily sync / pure helpers | `HUMAN_FERTILITY_START`, `getFemaleFertility`, `getYouthConceptionMultiplier`, `syncHumanAgeFromCalendar`, `tryGraduateHumanChild` |
+| Human age and fertility ladder | `dayCycle.ts` (`daycycleconstants.ts` for the ages) | daily sync / pure helpers | `HUMAN_FERTILITY_START`, `getFemaleFertility`, `getYouthConceptionMultiplier`, `syncHumanAgeFromCalendar`, `tryGraduateHumanChild` |
 | Adoption household candidate selection | `residencyReconciliation.ts` | guardianship phase | `livingAdoptiveCustodian`, `listVillageCouples`, `listVillageSingleAdults` (select available adoptive guardians and their households) |
 | Housing unit composition | `householdComposition.ts` (selection: `residencySelection.ts`) | assignment | `findLivingHuman` (shared alive-entity lookup), `isMinorChild`, `collectOwnHousehold`, `collectMinorHousehold`, `getChildCustodian`, `buildHousingUnits`, `parentIdsOf` (a settler's biological and adoptive parent ids) |
 | Medical care | `hospitalCare.ts` + `humanHospitalBehavior.ts` | daily care pass / realtime routing | `needsMedicalCare`, `medicalCareReason`, `treatPatientAtHospital`, `doctorTreatNearby`, `tickHospitalDailyCare`, `getHospitalRoster`, `describeHospitalRoster` |
@@ -393,7 +393,7 @@ If two modules export the same function name with the same responsibility:
 ## Calendar note
 
 `isNewCalendarDayTick` is **not** a constant. It is calendar-gate arithmetic and lives in **`dayCycleClock.ts`**.  
-`dayCycleConstants.ts` holds pure values (night hours, moon cycle, adult age floor).
+`daycycleconstants.ts` holds pure values (night hours, moon cycle, adult age floor).
 
 ## Housing architecture completion (23 October 2026)
 
