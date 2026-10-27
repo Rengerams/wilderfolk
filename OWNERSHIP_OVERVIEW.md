@@ -429,3 +429,17 @@ If two modules export the same function name with the same responsibility:
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
 | `housingUnitNeedsReassignment` | `game/residencySelection.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |
+
+## PR #59 — function-level ownership supplement (2026-10-27)
+
+The functions below belong exclusively to the module shown. They supplement the existing ownership entries rather than moving ownership or creating forwarding exports. Scope: production modules modified by PR #59; independently registered functions are not repeated. Inline callbacks are implementation details of their owning module, not independent owners.
+
+| Owning module | Additional named functions |
+|---|---|
+| `src/game/buildingMaintenanceActions.ts` | `buildingTypeHasLevelBenefit`, `getRepairBuildingEligibility`, `getRepairBuildingEligibilityFor`, `repairBuildings`, `getBuildingUpgradeCost`, `getBuildingUpgradeEligibility`, `refundBuildingCost` |
+| `src/game/buildingPlacementActions.ts` | `isStripSegmentTechUnlocked`, `canPlaceBuilding`, `isUniqueBuildingAlreadyBuilt`, `getPlaceBuildingFailureReason`, `clearTreesUnderFootprint`, `startBuilding`, `buildStripPreview`, `worstStripRefusal`, `placeStripChain` |
+| `src/game/pathfinding.ts` | `isBlockingWall`, `pathGridCacheKey`, `getReadOnlyPathGrid`, `nearestWalkableWorldPoint`, `findNearestWalkable`, `hasLineOfSight`, `lineCrossesBlocked`, `invalidateCommutePathsForWalker`, `getRouteObstruction`, `isGroundWalkableAt`, `h` |
+| `src/game/placementUtils.ts` | `footprintTileIndices`, `overlapsAnyBuilding`, `getBuildingOccupancyIndex`, `overlapsAnyBuildingIndexed` |
+| `src/game/stripTopology.ts` | `isWallStripType`, `isRoadStripType`, `stripFamilyFor`, `cellKey`, `getStripSegmentEndpoints`, `collectSnapPoints`, `nearestSnapPoint`, `snapStripDragEndpoints`, `findEnclosedWallAreas`, `markBlocked`, `push`, `emit` |
+| `src/game/stripJunction.ts` | `dist`, `countConnections`, `cornerRotationFromConnections`, `straightRotationFromConnections`, `resolveJunctionCenter`, `findStripBuildingNear`, `familyMembers`, `pushBuilding` |
+| `src/game/stripRender.ts` | `paintPavementPattern`, `seeded`, `beginRotatedStripFrame`, `strokePalisadeRails`, `drawPalisadeArm`, `drawProceduralFence`, `drawPalisadePosts`, `drawProceduralWallCorner`, `drawProceduralRoadJunction`, `drawProceduralWallJunction`, `drawProceduralStripBuilding` |
