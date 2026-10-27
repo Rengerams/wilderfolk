@@ -19,6 +19,8 @@ import {
 
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
+  'humanPhysiology',
+  'humanMeals',
   'workforce',
   'housing',
   'construction',
@@ -74,6 +76,26 @@ describe('simulation decision registry', () => {
       expect(row.writes.length, `writes of "${key}"`).toBeGreaterThan(0);
       for (const field of row.writes) {
         expect(field.trim().length, `write field of "${key}"`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('registers every exported player-human physiology and meal function in both ownership inventories', () => {
+    const overview = readFileSync(resolve(process.cwd(), 'OWNERSHIP_OVERVIEW.md'), 'utf8');
+    const owners = [
+      ['humanPhysiology', 'src/game/simulation/humanPhysiology.ts'],
+      ['humanMeals', 'src/game/simulation/humanNeeds.ts'],
+    ] as const;
+
+    for (const [key, path] of owners) {
+      const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+      const names = [...source.matchAll(/export function\\s+([A-Za-z_$][\\w$]*)\\s*\\(/g)]
+        .map((match) => match[1]);
+      expect(names.length, `No exported functions found in ${path}`).toBeGreaterThan(0);
+      const registration = SIMULATION_DECISIONS[key].owner;
+      for (const name of names) {
+        expect(registration, `Unregistered ${path} export ${name} in decisionRegistry`).toContain(name);
+        expect(overview, `Unregistered ${path} export ${name} in OWNERSHIP_OVERVIEW`).toContain(name);
       }
     }
   });
