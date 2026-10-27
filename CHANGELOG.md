@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Fixed:** Roads snapped to building entrances now align the whole straight drag to the safe road row, including drags starting at the entrance.
+
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
 - **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
 
