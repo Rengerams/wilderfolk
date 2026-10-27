@@ -12,6 +12,7 @@ import { loadNames } from '../src/game/nameLoader';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { createCompletedBuilding } from './colonyHealth';
 import { DEFAULT_CITY_TARGETS, seedCityScaleProfile } from './simCityProfile';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 
 const seed = Number(process.env.PERF_SEED ?? 12345);
 const populations = (process.env.PERF_POPS ?? '600,1200,2400').split(',').map(Number);
@@ -34,7 +35,9 @@ async function main(): Promise<void> {
       let moveDetails: Array<{phase:string;members:number[];from?:number;to?:number}> = [];
       for(let sample=0;sample<repeats;sample++) {
     resetPathGridCaches();
-    const state = initGame({ size: MapSize.Large, seed });
+    const state = initGame({ size: MapSize.Large, seed, skipTerrain: true });
+    // Same walkable housing fixture on the historical and current generator.
+    state.worldMap = testWorldMap({ tilesX: 240, tilesY: 310, seed });
     seedCityScaleProfile(state, { ...DEFAULT_CITY_TARGETS, playerHumans: population });
     const humans = state.entities.filter(e => e.alive && isPlayerHuman(e));
     state.buildings = [];
