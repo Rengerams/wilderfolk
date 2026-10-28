@@ -10,6 +10,8 @@ import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -37,6 +39,10 @@ export const SCHOOL_MAX_CHILDREN = 20;
 export const SCHOOL_START_HOUR = 9;
 export const SCHOOL_END_HOUR = 15;
 export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
+
+/** The catalog contexts this owner reads — one shared object each, never rebuilt per pupil. */
+const LEARNING_CONTEXT = { kind: 'school', activity: 'learning' } as const satisfies TraitContext;
+const RESEARCH_CONTEXT = { kind: 'school', activity: 'research' } as const satisfies TraitContext;
 
 export function isSchoolTime(tick: number, hourOfDay: number): boolean {
   return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
@@ -392,7 +398,9 @@ export function getSchoolAgeMultiplier(
 
 export function creditChildSchoolDay(child: Entity): void {
   const ticks = child.schoolTicksToday ?? 0;
-  if (ticks >= SCHOOL_DAY_MIN_TICKS) {
+  // The catalog's learning context sets how much class time this pupil needs for one school day.
+  const requiredTicks = SCHOOL_DAY_MIN_TICKS / evaluateTraitInfluence(child, LEARNING_CONTEXT).factor;
+  if (ticks >= requiredTicks) {
     child.schoolDays = (child.schoolDays ?? 0) + 1;
   }
   child.schoolTicksToday = 0;
@@ -463,11 +471,18 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   logEvent(state, 'event', detail, entity.name);
 }
 
-/** Up to +15% research speed when most adults attended school; insightful settlers add a bit more. */
+/**
+ * Up to +15% research speed when most adults attended school; research-apt settlers add a bit more.
+ *
+ * Who is apt comes from the trait catalog's `school`/research context; the +3%-per-settler scale and
+ * its 15% cap stay this owner's.
+ */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
   const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
-  const insightful = adults.filter((h) => h.traits?.includes('insightful')).length;
-  return 1 + (educated / adults.length) * 0.15 + Math.min(0.15, insightful * 0.03);
+  const apt = adults.filter(
+    (h) => evaluateTraitInfluence(h, RESEARCH_CONTEXT).factor > 1,
+  ).length;
+  return 1 + (educated / adults.length) * 0.15 + Math.min(0.15, apt * 0.03);
 }

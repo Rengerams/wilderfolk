@@ -1,6 +1,8 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -99,25 +101,43 @@ export function rewardBuildingWork(
   for (const id of building.occupants) gainSkill(state, id, job, amount * presenceShare, entityById);
 }
 
+/** Which of the work catalog's contexts this crew is working in. */
+export type WorkAction = 'production' | 'construction';
+
+/**
+ * The crew's skill, Resourceful construction edge and trade-specific DNA, as one building multiplier.
+ *
+ * The DNA term is the catalog's `work` context for this building's own trade, so it is neutral for a
+ * crew whose traits are irrelevant to the trade. It is not applied to a construction crew, whose
+ * established Resourceful factor below is that trait's single contribution (`resourceful` has a
+ * catalog entry of its own, and this is the one place its construction value is priced).
+ */
 export function getWorkerSkillMultiplier(
   state: WorldState,
   building: Building,
   entityById?: Map<number, Entity>,
+  action: WorkAction = 'production',
 ): number {
   const job = getJobForBuilding(building.type);
   if (!job || building.occupants.length === 0) return 1;
+  const workContext: TraitContext | undefined = action === 'production'
+    ? { kind: 'work', job, action: 'production' }
+    : undefined;
   let total = 0;
   let resourceful = 0;
+  let traitFactorSum = 0;
   for (const id of building.occupants) {
     const h = entityById?.get(id) ?? state.entities.find((e) => e.id === id);
     if (h) {
       total += readSkill(h, job);
       if (h.traits?.includes('resourceful')) resourceful++;
+      if (workContext) traitFactorSum += evaluateTraitInfluence(h, workContext).factor;
     }
   }
   const avg = total / building.occupants.length;
   // Resourceful builders get the site moving faster (+10% each, cap +30%).
   const resourcefulMult = 1 + Math.min(0.3, resourceful * 0.1);
-  return (1 + avg * 0.02) * resourcefulMult; // up to 3x at skill 100
+  const traitMult = workContext ? traitFactorSum / building.occupants.length : 1;
+  return (1 + avg * 0.02) * resourcefulMult * traitMult; // up to 3x at skill 100
 }
 

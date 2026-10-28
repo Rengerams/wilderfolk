@@ -6,7 +6,8 @@ import { getHumanHuntRange } from './combat';
 import { addResource } from './economy';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { addHuntVisual } from './huntvisuals';
-import { traitMultiplier } from './settlerTraits';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 import { valleyStageIndex } from './ecologyStage';
 import { personDayRoll } from './dayCycle';
 import { sayHumanChatPhrase } from './humanChat';
@@ -24,6 +25,9 @@ import { findClosestInEntityGrid } from './simQueries';
 import { isPlayerHuman } from './playerHuman';
 
 const HUNTER_WORK_STAMINA_THRESHOLD = 85;
+
+/** The catalog context this file reads: how this settler's DNA colours hunting. */
+const HUNT_CONTEXT = { kind: 'danger', activity: 'hunting' } as const satisfies TraitContext;
 
 const NORMAL_PREY_TYPES: ReadonlySet<EntityType> = new Set<EntityType>([
   EntityType.Deer,
@@ -90,7 +94,7 @@ export function tickHumanHunting(
     // Assigned hunters range farther; everyone else is opportunistic
     const huntRange = getHumanHuntRange(
       state,
-      config.huntRange * (isJobHunter ? 1.2 : 0.75) * traitMultiplier(entity, 'brave', 1.25),
+      config.huntRange * (isJobHunter ? 1.2 : 0.75) * evaluateTraitInfluence(entity, HUNT_CONTEXT).factor,
     );
 
     const deerBucket = byType[EntityType.Deer] ?? [];
@@ -179,8 +183,8 @@ export function tickHumanHunting(
       impulseScreenShake(state, 2);
     } else if (closestPrey?.alive) {
       entity.huntTargetId = closestPrey.id;
-      // Hunters pursue faster; casual foragers jog; brave settlers push harder
-      const chaseMult = (isJobHunter ? 0.72 : 0.5) * traitMultiplier(entity, 'brave', 1.2);
+      // Hunters pursue faster; casual foragers jog; hunting-favoured settlers push harder
+      const chaseMult = (isJobHunter ? 0.72 : 0.5) * evaluateTraitInfluence(entity, HUNT_CONTEXT).factor;
       steerEntityToward(entity, closestPrey.x, closestPrey.y, config.speed, chaseMult);
       suppressIdle = true;
 

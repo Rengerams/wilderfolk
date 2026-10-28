@@ -74,10 +74,10 @@ export const SIMULATION_DECISIONS = {
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence (read-only projection); personality/traitEffectCatalog.ts owns TRAIT_EFFECTS',
     cadence: 'on-demand',
-    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Existing domain owners may import it directly in later phases.',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Phase B consumes it directly at four existing owners: the crew multiplier (skills.ts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts) and the danger sites — hunt range/chase (humanHuntingBehavior.ts) and flight speed (humanTick.ts). Each site multiplies the returned factor alone; none adds a second trait term of its own.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller; no integration sites or scheduled invocations in phase A',
-    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, humanHuntingBehavior.tickHumanHunting, humanTick.tickHumans (flee branch)',
+    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.legacyDNA.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',
@@ -101,7 +101,7 @@ export const SIMULATION_DECISIONS = {
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killForeignCaptiveFromExhaustion, killFromStarvation, fract, freeHuntFoodGain, humanEnergyLoss',
     cadence: 'realtime',
-    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner.',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. Audited in phase B: the trait terms inside humanEnergyLoss (greenthumb winter resistance, hardy and fierce loss reduction) are reached only from the foreign-captive branch of humanTick, so the player-human physiology owner carries no trait factor and those legacy values are left exactly as they are.',
     writes: [
       'resources.food',
       'economyLedger.consumed.meals',
@@ -142,7 +142,7 @@ export const SIMULATION_DECISIONS = {
   construction: {
     owner: 'buildingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
     cadence: 'work',
-    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase',
+    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. Resourceful\'s established +10% per worker (cap +30%) inside skills.getWorkerSkillMultiplier is this site\'s single trait contribution: the personality catalog\'s construction entry is deliberately NOT applied on top of it, and the crew multiplier is called with the construction action so no production-context DNA reaches site progress',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
@@ -152,9 +152,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts',
   },
   production: {
-    owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax',
+    owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'system/daily — farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test',
+    cadenceNote: 'system/daily — farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift',
     writes: [
       'resources',
       'economyLedger.produced',
@@ -163,7 +163,7 @@ export const SIMULATION_DECISIONS = {
       'storageMax',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts',
+    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',

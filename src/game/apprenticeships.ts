@@ -5,6 +5,7 @@ import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
 
 /**
  * Apprenticeships (Phase 7) — a skilled master (skill ≥ 40) working a production
@@ -122,7 +123,9 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   const masterSkill = readSkill(master, job);
   const skills = ensureEntitySkills(ap);
   const before = skills[job] ?? 0;
-  skills[job] = Math.min(100, before + 0.4 + (masterSkill / 100) * 0.5);
+  // The apprentice's DNA nudges how fast this trade is learned (catalog `work`/training context).
+  const trainingFactor = evaluateTraitInfluence(ap, { kind: 'work', job, action: 'training' }).factor;
+  skills[job] = Math.min(100, before + (0.4 + (masterSkill / 100) * 0.5) * trainingFactor);
   // A teacher keeps their own hand in.
   ensureEntitySkills(master)[job] = Math.min(100, masterSkill + 0.05);
   if (skills[job] >= GRADUATE_SKILL) {
