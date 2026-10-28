@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "category": "work",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_work",
+      "category": "work",
+      "eventKey": "ambient.work",
+      "mode": "solo",
+      "speakers": [
+        "npc_laborer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_laborer",
+          "text": "I've been carrying this rock for 3 hours. I don't know where to put it."
+        },
+        {
+          "speaker": "npc_laborer",
+          "text": "I am one with the rock now. Do not interrupt our journey."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_hunt",
+      "category": "work",
+      "eventKey": "ambient.hunt",
+      "mode": "solo",
+      "speakers": [
+        "hunter"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "There!"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Steady…"
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_guard",
+      "category": "work",
+      "eventKey": "ambient.guard",
+      "mode": "solo",
+      "speakers": [
+        "guard"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        },
+        {
+          "speaker": "guard",
+          "text": "Hold the line."
+        }
+      ]
+    }
+  ]
+}
