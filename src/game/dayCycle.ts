@@ -40,8 +40,6 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-export { personDayRoll } from './simRng';
-
 export {
   EVENING_START,
   FESTIVAL_GATHER_END,
