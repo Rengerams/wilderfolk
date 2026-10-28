@@ -3,26 +3,26 @@
 You are a senior autonomous game developer. You work in every language but love TypeScript and React, you never act without being sure, and Wilderfolk is your baby. Ship correct, minimal, working, verified code. Prefer a small reviewable change over a broad or clever one. Ideas are always welcome; code changes beyond the task need permission (sole standing exception: small, localized bug fixes per §3 Step 3).
 Current working code is V.0.6.5.1. The next development target version we are working toward is V.0.6.5.2.
 
-**Mantra:** read `command.md` and verify the shell → understand → locate → smallest correct change → verify → report. Never guess, broaden scope, or ship unverified code.
+**Mantra:** read `docs/command.md` and verify the shell → understand → locate → smallest correct change → verify → report. Never guess, broaden scope, or ship unverified code.
 
 ---
 
 ## 0. Before your first command
 
-1. **Read `command.md` completely** (next to this file). It holds shell rules, known traps, 5.1 fallbacks, Git Bash rules, and local profile commands (`aitree`, `aicopy`, `aierr`, `versies`, …).
+1. **Read `docs/command.md` completely** (next to this file). It holds shell rules, known traps, 5.1 fallbacks, Git Bash rules, and local profile commands (`aitree`, `aicopy`, `aierr`, `versies`, …).
 2. **Verify your shell — run this first, every task, before anything else:**
    ```powershell
    $PSVersionTable.PSVersion.ToString()
    ```
-   * **`7.x`** → PowerShell 7 verified. Continue per `command.md`.
+   * **`7.x`** → PowerShell 7 verified. Continue per `docs/command.md`.
    * **`5.1`** → Do not proceed in 5.1. Launch `pwsh` (PowerShell 7 is installed at `C:\powershell7\pwsh.exe` and is on PATH) and verify inside it:
      ```powershell
      & pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
      ```
-     If your execution tool can only launch one-shot `powershell.exe` commands, bridge through `pwsh` or apply the 5.1 fallbacks from `command.md` to every command and state this in your report.
+     If your execution tool can only launch one-shot `powershell.exe` commands, bridge through `pwsh` or apply the 5.1 fallbacks from `docs/command.md` to every command and state this in your report.
 3. **Never use `pwsh --version` for this check:** it reports an external binary, not the shell executing your current process.
 4. **Subagents are separate processes:** Every delegated task starts with this exact verification. If a subagent reports 5.1, instruct it to switch to `pwsh` immediately.
-5. **No bash syntax in PowerShell:** `&&`, `||`, `export`, `/dev/null`, `ls -la`, and `rm -rf` are PowerShell-side syntax errors or misapplied aliases (see `command.md`).
+5. **No bash syntax in PowerShell:** `&&`, `||`, `export`, `/dev/null`, `ls -la`, and `rm -rf` are PowerShell-side syntax errors or misapplied aliases (see `docs/command.md`).
 6. **Git Bash is opt-in:** `C:\Program Files\Git\bin\bash.exe` runs only when launched explicitly and non-interactively: `& "C:\Program Files\Git\bin\bash.exe" -lc "…"`. Bash syntax is valid only inside those quotes; PowerShell rules apply outside them.
 7. **Why this matters:** A wrong shell guess is often silent. In 5.1, redirection (`>`) writes UTF-16LE with a BOM, injecting null bytes that break JSON parsers, linters, Node.js, and git diffs.
 
@@ -91,7 +91,7 @@ Targeted reconnaissance, not whole-repo reading:
   2. Listed → that module is its sole owner. Change it there; never fork or shadow it elsewhere.
   3. Not listed → add a row (function, owning module, one-line responsibility) before you finish.
   4. Owner conflict (two candidates, or the task implies a move) → stop and ask the owner; a function never has two owners and ownership is never reassigned silently.
-* **Unrelated bug found:** small → fix it now; otherwise file a report per `BUG_REPORTS/Readme.md` and continue your task unless the owner redirects you.
+* **Unrelated bug found:** small → fix it now; otherwise file a report per the existing report format in `docs/BUG_REPORTS/` and update `docs/BUG_REPORTS/SUMMARY.md`; continue your task unless the owner redirects you.
 
 ### Step 4 — Verify
 Scale verification to the blast radius. Discover commands from package scripts (`npm run` lists them); never invent script names or flags.
@@ -132,10 +132,10 @@ If the task exposes a regression in your own change: one-sentence technical root
 
 * **Package manager:** `npm`; `package-lock.json` is the only lockfile (`pnpm`/`yarn` lockfiles removed in 0.6.4.1; `packageManager` field is empty).
 * **Commands:** `npm test` = gate runner (`scripts/test.mjs`); `npm test -- help` lists steps (`all`, `full`, `unit`, `types`, `lint`, `knip`, `cycles`, `invariants`, `browser`, `accept`, `build`, `clean`). `npm run test:types` · `npm run lint` (oxlint, type-aware) · `npm run build` (`tsc app` + `tsc node` + `vite build`) · `npm run preview` · `npm run dev` (vite) · `npm run audit` (`knip` + `scripts/check-import-cycles.mjs`) · `npm run clean` / `clean:apply` · `npm run check:source`.
-* **Entry points:** `src/game/gameLoop.ts` (`frame()`: session clock, speed, command queue, worker fallback) → `src/game/gameTick.ts` (fixed layers: realtime → systems → assign → daily). Worker `src/game/simWorker/gameWorker.ts` + host `simWorker/GameWorkerHost.ts` (main-thread fallback mirrors it). State `WorldState` in `src/game/gameTypes.ts`. Rendering `src/game/renderer.ts` + `src/game/renderer/**` (canvas2D only; Pixi/WebGL deleted 2026-09-25). React shell `src/App.tsx` + `src/components/**`.
-* **State paradigm:** one mutable `WorldState`, mutated only inside tick layers and their named owners (`OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`). UI never mutates: actions become typed `WorkerCommands` (`src/game/simWorker/commands.ts`); views read projections (`dashboardData.ts`, `viewState.ts`, `humanStatus.ts`).
+* **Entry points:** `src/game/gameLoop.ts` (`frame()`: session clock, speed, command queue, worker fallback) → `src/game/gameTick.ts` (fixed layers: realtime → systems → assign → daily). Worker `src/game/simWorker/gameWorker.ts` + host `src/game/simWorker/GameWorkerHost.ts` (main-thread fallback mirrors it). State `WorldState` in `src/game/gameTypes.ts`. Rendering `src/game/renderer.ts` + `src/game/renderer/**` (canvas2D only; Pixi/WebGL deleted 2026-09-25). React shell `src/App.tsx` + `src/components/**`.
+* **State paradigm:** one mutable `WorldState`, mutated only inside tick layers and their named owners (`OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`). UI never mutates: actions become typed `WorkerCommands` (`src/game/simWorker/commands.ts`); views read projections (`src/game/dashboardData.ts`, `src/game/viewState.ts`, `src/game/humanStatus.ts`).
 * **Assets:** `public/sprites/**`, `public/audio/**` via `src/game/spriteLoader.ts` and `src/audio/*`; provenance in `ASSET_REGISTER.md`, licensing in `THIRD_PARTY_NOTICES.md`.
-* **Conventions:** relative imports from owner modules, no convenience re-exports (§5.7); a rule lives in its owner, a view renders it; blocked actions return the owner's reason string; diagnostics read-only and opt-in; determinism via `simRng` owner streams (`docs/SIM_RNG_GUIDELINES.md`); import cycles gated by `scripts/check-import-cycles.mjs`.
+* **Conventions:** relative imports from owner modules, no convenience re-exports (§5.7); a rule lives in its owner, a view renders it; blocked actions return the owner's reason string; diagnostics read-only and opt-in; determinism via `simRng` owner streams (`src/game/simRng.ts`); import cycles gated by `scripts/check-import-cycles.mjs`.
 * **`typescript@7` pin:** root `require("typescript")` is a stub (`{ version, versionMajorMinor }`). Compiler API lives on `typescript/unstable/sync`, `typescript/unstable/ast`, `typescript/unstable/ast/scanner`, `typescript/unstable/ast/is`. `bin/tsc` is unaffected. `dependency-cruiser` is broken by this and was removed — do not re-add. `@babel/parser` / `oxc-parser` are transitive only; don't rely on them. Guard any `while (token !== SyntaxKind.EndOfFileToken)` loop — an undefined kind makes it infinite.
 * **Sandbox environment:** `docker-compose.base44.yml` runs only the game's Vite dev server, from the bind-mounted clone on host port 3000, so preview edits are live; it is the Linux preview runbook and does not change the app's build. Start it with `docker compose -f docker-compose.base44.yml up -d` and verify with `curl http://localhost:3000/`.
 * **Concurrency:** several agents edit this tree at once. Read immediately before editing.
@@ -174,9 +174,9 @@ Test observable behavior and invariants, not call choreography.
 * **Existing mock-heavy tests are evidence, not truth.** Failing after your change: asserts observable behavior → real failure, fix the implementation; asserts internal choreography → report `BRITTLE-TEST: <path> — <reason>`, don't contort production code; rewrite/delete only when in scope or approved. Don't expand mock-heavy coverage. Quarantined tests (`__quarantine__/`, `*.quarantine.test.*`, skipped) are not repaired via production changes.
 
 ### 7.1 Use the existing harness — never build your own
-Do not write your own game harness, bot, or probe. The game harness is `scripts/autoplay_playwright_probe.py`, driven by `src/game/virtualplayer.ts`. Every question about the running game — does a control work, does a window open, does the header show what the player sees, does anything ever happen over time — is answered through that harness.
+Do not write your own game harness, bot, or probe. The game harness is `scripts/autoplay_playwright_probe.py`, driven by `src/game/virtualPlayer.ts`. Every question about the running game — does a control work, does a window open, does the header show what the player sees, does anything ever happen over time — is answered through that harness.
 
-* **Capability missing?** Extend the harness: add the action or observation to `virtualplayer.ts` (owner of player behavior) and expose it through `autoplay_playwright_probe.py`. Then assert on it. Locate panels by their owner-authored heading, never by index; return observed state, not a bare boolean.
+* **Capability missing?** Extend the harness: add the action or observation to `src/game/virtualPlayer.ts` (owner of player behavior) and expose it through `autoplay_playwright_probe.py`. Then assert on it. Locate panels by their owner-authored heading, never by index; return observed state, not a bare boolean.
 * **Simulation counts:** Pure simulation counts (imprisonments, feuds, elections, a church) come from the existing Node harnesses — `scripts/test-bot-build-all.mts`, `scripts/run-full-year.mts`, `scripts/colonyHealth.ts` — extended the same way, never duplicated.
 * `tmp/` is for disposable scratch only (a config, an extracted file). A measurement about the game belongs in the harness: hand-written probes gave three false readings in a row on 2026-09-29 while the harness already had the capability.
 * Never shrink or fork the harness. A script's own "TEMPORARY / safe to delete" header is not evidence it is scratch; if a harness misdescribes itself, fix the description.
@@ -191,10 +191,10 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | Kind | Home |
 | :--- | :--- |
 | Engineering protocol | `AGENTS.md` (root) |
-| Shell rules & profile commands | `command.md` (root) |
+| Shell rules & profile commands | `docs/command.md` (under docs/) |
 | Active roadmap | `roadmap_V.0.6.5.2.md` (root) |
 | Changelog | `CHANGELOG.md` (root), newest first |
-| Bug report | `BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` — format per `BUG_REPORTS/Readme.md`; tracker is `BUG_REPORTS/SUMMARY.md`; resolved reports stay in place |
+| Bug report | `docs/BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` — follow an existing report's format; tracker is `docs/BUG_REPORTS/SUMMARY.md`; resolved reports stay in place |
 | Audit / review report | `docs/private/audits/<yyyy-mm-dd>/<area>.md` (gitignored); campaign tracker `LIVE-FINDINGS-STATUS.md` in same folder |
 | Implementation plan | `docs/plans/<topic>-<yyyy-mm-dd>.md` |
 | Session handover | `docs/HANDOVER-<topic>-<yyyy-mm-dd>.md` |
@@ -203,16 +203,16 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | Generated run logs | `docs/log/**`, never at root |
 | Scratch, probes, one-off scripts | `tmp/**`, never `src/`, `tests/`, or root |
 
-No new top-level `.md` or document directory without an owner decision; propose it and record the decision here. Tracked surface: `README.md`, `CHANGELOG.md`, `Roadmap_V0_6.5.MD`, `AGENTS.md`, `ASSET_REGISTER.md`, `OWNERSHIP_OVERVIEW.md`, `THIRD_PARTY_NOTICES.md`, `BUG_REPORTS/`, `docs/**`, `tests/**`, and `scripts/**` (all tracked in git). Only `tmp/**` is gitignored scratch material. Windows paths in task text (`C:\Wilderfolk\…`) resolve to the workspace equivalent — never create duplicates over path notation.
+No new top-level `.md` or document directory without an owner decision; propose it and record the decision here. Tracked surface: `README.md`, `CHANGELOG.md`, `roadmap_V.0.6.5.2.md`, `AGENTS.md`, `ASSET_REGISTER.md`, `OWNERSHIP_OVERVIEW.md`, `THIRD_PARTY_NOTICES.md`, `docs/**`, `tests/**`, and `scripts/**` (all tracked in git). Only `tmp/**` is gitignored scratch material. Windows paths in task text (`C:\Wilderfolk\…`) resolve to the workspace equivalent — never create duplicates over path notation.
 
 ### Changelog
 One entry per noticeable change (user behavior, gameplay, visible UI, saved data, public API, integrations, performance, developer workflow — not pure refactors, renames, formatting, or test-only changes). Lead with the verb (`Added`, `Fixed`, `Changed`). Under 300 characters, no file names, file extensions (e.g. `.ts`, `.json`), paths, or links — all are lint-checked; say it in words (a command like `npm test` is fine). Essays go in a handover, plan, or bug report, and the entry does not point at them. Existing long entries are not precedent. Use existing headings.
 
 ### Roadmap
-When explicitly on roadmap work, update the item on completion. Register new features and significant changes in `Roadmap_V0_6.5.MD`, positively, in the existing format; the full account goes in `CHANGELOG.md`.
+When explicitly on roadmap work, update the item on completion. Register new features and significant changes in `roadmap_V.0.6.5.2.md`, positively, in the existing format; the full account goes in `CHANGELOG.md`.
 
 ### Bug reports
-Follow `BUG_REPORTS/Readme.md` for fields, severity, reproduction format, and destination. If it is missing, stop and report that — unless the repo documents a fallback (`./reports/bugs/<slug>.md` with title / Found in / Severity / Reproduction / Expected vs actual). Add a `// BUG:` comment only where that convention already exists. Never invent or restructure roadmap, changelog, or bug-report files.
+Use an existing report in `docs/BUG_REPORTS/` for fields, severity, and reproduction format; add the new report to `docs/BUG_REPORTS/SUMMARY.md`. Add a `// BUG:` comment only where that convention already exists. Never invent or restructure roadmap, changelog, or bug-report files.
 
 ### Scratch and `tmp/`
 Must not outlive its use: delete or promote before the session ends. `npm run clean` (dry) / `clean:apply` empties `tmp/`, `dist/`, and automation browser profiles in the OS temp dir wholesale — there is deliberately no keep-list. `npm run check:source` fails on zero-byte files and source archives under `src/`, `tests/`, `scripts/`, `config/`.
@@ -222,8 +222,8 @@ Pre-approved standing instruction: remove everything you created, without asking
 
 * **Where to look:** `$env:TEMP` / `$env:TMP`, `C:\Windows\Temp`; `%USERPROFILE%` (Desktop, Documents, Downloads, root); `%LOCALAPPDATA%`, `%APPDATA%`, `~/.cache`, `~/.config`, `~/.npm`, `~/.pnpm-store`, tool dotfolders; browser/automation profiles (Chrome/Edge/Chromium, Playwright, Puppeteer); extracts, downloads, staged build output, exported logs, screenshots, traces; stray archives or zero-byte files inside the repo.
 * **Before you start:** write scratch to `tmp/` or one predictable folder you create (`$env:TEMP\wilderfolk-agent-<task>`); note every path you create in shared locations.
-* **Before you report:** list what you created; `Remove-Item <path> -Recurse -Force`; verify with `Test-Path` (locked files silently survive — see `command.md`); run `npm run clean`; revert env vars, PATH, scheduled tasks, profile edits, git config, firewall/port changes, anything installed. Stop processes (dev server, watcher, browser) before deleting their profiles. If something cannot be removed, name the path and reason — never claim it is gone.
-* **Never delete:** other users' or agents' folders, `%TEMP%` or `C:\Windows\Temp` wholesale, tracked repo material (`src/`, `tests/`, `scripts/`, `docs/`, `CHANGELOG.md`, roadmap, `BUG_REPORTS/`), `node_modules/`, `package-lock.json`, `dist/` (except via `npm run clean*`), anything a harness depends on, anything the owner made. Unsure whether a path is yours → ask one question.
+* **Before you report:** list what you created; `Remove-Item <path> -Recurse -Force`; verify with `Test-Path` (locked files silently survive — see `docs/command.md`); run `npm run clean`; revert env vars, PATH, scheduled tasks, profile edits, git config, firewall/port changes, anything installed. Stop processes (dev server, watcher, browser) before deleting their profiles. If something cannot be removed, name the path and reason — never claim it is gone.
+* **Never delete:** other users' or agents' folders, `%TEMP%` or `C:\Windows\Temp` wholesale, tracked repo material (`src/`, `tests/`, `scripts/`, `docs/`, `CHANGELOG.md`, roadmap, `docs/BUG_REPORTS/`), `node_modules/`, `package-lock.json`, `dist/` (except via `npm run clean*`), anything a harness depends on, anything the owner made. Unsure whether a path is yours → ask one question.
 
 *Rule of thumb:* If a fresh session would not miss it, it must not exist when you finish.
 
@@ -237,15 +237,15 @@ Prioritize broken invariants, wrong complexity, edge cases, leaks, races, state 
 
 ## 10. Final checklist
 
-* [ ] Read `command.md`, verified the shell with `$PSVersionTable.PSVersion.ToString()` before the first command; any Git Bash call was explicit, non-interactive, correctly quoted.
+* [ ] Read `docs/command.md`, verified the shell with `$PSVersionTable.PSVersion.ToString()` before the first command; any Git Bash call was explicit, non-interactive, correctly quoted.
 * [ ] Requested behavior implemented; scope strictly controlled.
 * [ ] Every changed file was read immediately before editing.
 * [ ] No secrets committed, no destructive changes executed.
 * [ ] New helpers/dependencies justified by repository evidence; one source of truth maintained.
 * [ ] Every function touched or created is in `OWNERSHIP_OVERVIEW.md` with exactly one owner; missing rows added, no owner reassigned without approval.
 * [ ] `CHANGELOG.md` entry created for noticeable changes (under 300 chars, no file paths/extensions/links); roadmap updated if working on roadmap items.
-* [ ] Bugs reported per `BUG_REPORTS/Readme.md` (or blocker reported).
-* [ ] Game behavior verified through `scripts/autoplay_playwright_probe.py` / `virtualplayer.ts` (extended if needed) — no private harness or probe created.
+* [ ] Bugs follow an existing `docs/BUG_REPORTS/` report's format and are indexed in `docs/BUG_REPORTS/SUMMARY.md` (or blocker reported).
+* [ ] Game behavior verified through `scripts/autoplay_playwright_probe.py` / `src/game/virtualPlayer.ts` (extended if needed) — no private harness or probe created.
 * [ ] Verification run: TypeScript check (`npm run test:types`), lint (`npm run lint`), and build (`npm run build`) passing clean; full test suite run only if touching core architecture or required per §5.10.
 * [ ] No new comment exceeds 2 lines; rationale documented in `CHANGELOG.md`, not code comments.
 * [ ] Final report separates facts from assumptions and lists pre-existing issues left untouched.
