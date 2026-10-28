@@ -517,10 +517,115 @@ function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: nu
 }
 
 /**
+ * Interpolate along-stream phase only over assigned flow cells. The phase field is
+ * zero in unassigned bank cells, so ordinary interpolation would pull long-river
+ * distances toward zero and create compressed, cross-stream wave fronts.
+ *
+ * The mask uses exactly the same smoothstep weights as the phase sample.
+ * Outside the flow field there is no phase to paint.
+ */
+export function sampleRiverPhase(
+  phase: Float32Array,
+  mask: Float32Array,
+  cols: number,
+  rows: number,
+  fx: number,
+  fy: number,
+): number | null {
+  const assigned = sampleF(mask, cols, rows, fx, fy);
+  if (assigned <= 0.5) return null;
+  return sampleF(phase, cols, rows, fx, fy) / assigned;
+}
+
+/**
  * Whole-map fields the bake needs. They are **cell-resolution** — 160 × 120 at the current
  * constants on a 2560 × 1920 map — so they are cheap to hold for the whole world while the
  * per-pixel loop runs over one viewport at a time.
  */
+/**
+ * River paint details are *render-only*, derived from the saved world-space drainage lines.
+ * Find the nearest segment for each fine water cell once per map, not once per baked pixel.
+ * Waterfalls contribute localized riffle intensity; neither field affects movement or saves.
+ */
+function buildRiverSurfaceFields(map: WorldMap): {
+  riverPhase: Float32Array;
+  riverFlowMask: Float32Array;
+  riverRapids: Float32Array;
+} {
+  const cols = map.waterCols ?? map.cols ?? 0;
+  const rows = map.waterRows ?? map.rows ?? 0;
+  const n = cols * rows;
+  const riverPhase = new Float32Array(n);
+  const riverFlowMask = new Float32Array(n);
+  const riverRapids = new Float32Array(n);
+  const coverage = map.riverDist;
+  if (map.generationVersion !== 3 || !coverage || !cols || !rows) {
+    return { riverPhase, riverFlowMask, riverRapids };
+  }
+
+  const nearest = new Float32Array(n);
+  nearest.fill(Infinity);
+  const reach = WATER_CELL * 3;
+  for (const path of map.rivers ?? []) {
+    let distanceAlong = 0;
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1]!;
+      const b = path[i]!;
+      const vx = b.x - a.x;
+      const vy = b.y - a.y;
+      const lengthSquared = vx * vx + vy * vy;
+      if (lengthSquared < 1e-6) continue;
+      const length = Math.sqrt(lengthSquared);
+      const left = Math.max(0, Math.floor((Math.min(a.x, b.x) - reach) / WATER_CELL));
+      const right = Math.min(cols - 1, Math.ceil((Math.max(a.x, b.x) + reach) / WATER_CELL));
+      const top = Math.max(0, Math.floor((Math.min(a.y, b.y) - reach) / WATER_CELL));
+      const bottom = Math.min(rows - 1, Math.ceil((Math.max(a.y, b.y) + reach) / WATER_CELL));
+      for (let y = top; y <= bottom; y++) {
+        const wy = (y + 0.5) * WATER_CELL;
+        for (let x = left; x <= right; x++) {
+          const idx = y * cols + x;
+          if (coverage[idx] <= 0.32) continue;
+          const wx = (x + 0.5) * WATER_CELL;
+          const t = clamp(((wx - a.x) * vx + (wy - a.y) * vy) / lengthSquared, 0, 1);
+          const dx = wx - a.x - t * vx;
+          const dy = wy - a.y - t * vy;
+          const distSq = dx * dx + dy * dy;
+          if (distSq >= nearest[idx] || distSq > reach * reach) continue;
+          nearest[idx] = distSq;
+          // Arc length keeps the wave phase continuous around bends. A dot-product with an
+          // interpolated direction and absolute world position would shear at every curve.
+          riverPhase[idx] = distanceAlong + t * length;
+          riverFlowMask[idx] = 1;
+        }
+      }
+      distanceAlong += length;
+    }
+  }
+
+  for (const fall of map.waterfalls ?? []) {
+    const strength = clamp((fall.drop - 0.02) / 0.12, 0, 1);
+    if (strength <= 0) continue;
+    const radius = Math.max(24, Math.min(100, fall.w * 4 + 16));
+    const left = Math.max(0, Math.floor((fall.x - radius) / WATER_CELL));
+    const right = Math.min(cols - 1, Math.ceil((fall.x + radius) / WATER_CELL));
+    const top = Math.max(0, Math.floor((fall.y - radius) / WATER_CELL));
+    const bottom = Math.min(rows - 1, Math.ceil((fall.y + radius) / WATER_CELL));
+    for (let y = top; y <= bottom; y++) {
+      const dy = (y + 0.5) * WATER_CELL - fall.y;
+      for (let x = left; x <= right; x++) {
+        const idx = y * cols + x;
+        if (coverage[idx] <= 0.32) continue;
+        const dx = (x + 0.5) * WATER_CELL - fall.x;
+        const falloff = Math.max(0, 1 - Math.hypot(dx, dy) / radius);
+        const foam = strength * falloff * falloff;
+        if (foam > riverRapids[idx]) riverRapids[idx] = foam;
+      }
+    }
+  }
+
+  return { riverPhase, riverFlowMask, riverRapids };
+}
+
 export interface WhittakerFields {
   cols: number;
   rows: number;
@@ -557,6 +662,10 @@ export interface WhittakerFields {
   skyOcclusion: Float32Array;
   /** How close each cell is to water — the damp verge along every shore. */
   waterProx: Float32Array;
+  /** Fine, render-only along-stream distance, active channel mask and localized rapids. */
+  riverPhase: Float32Array;
+  riverFlowMask: Float32Array;
+  riverRapids: Float32Array;
   /**
    * Depth at which this map's water is fully deep — the far end of the water ramp, in elevation
    * units. Derived per map (see {@link DEEP_WATER_DEPTH_PERCENTILE}) so the shallow→shelf→deep
@@ -724,7 +833,9 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
     }
   }
 
-  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, deepWaterDepth };
+  const riverSurface = buildRiverSurfaceFields(map);
+  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx,
+    ...riverSurface, deepWaterDepth };
 }
 
 /** The world rectangle one bake covers. Omit to bake the whole map. */
@@ -807,7 +918,8 @@ export function bakeWhittakerGround(
   // caller builds them once and passes the same object to every chunk.
   const fields = precomputedFields ?? buildWhittakerFields(map);
   if (!fields) return null;
-  const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, deepWaterDepth } = fields;
+  const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx,
+    riverPhase, riverFlowMask, riverRapids, deepWaterDepth } = fields;
 
   const img = ctx.createImageData(W, H);
   const d = img.data;
@@ -982,6 +1094,15 @@ export function bakeWhittakerGround(
         r *= 1 - wetBank * 0.22;
         g *= 1 - wetBank * 0.16;
         b *= 1 - wetBank * 0.11;
+        // Deposition follows broad coherent patches, not a uniform brown border around the river.
+        // Keep the silt underneath the 0.55 gameplay-water threshold.
+        if (wetBank > 0) {
+          const sediment = valueNoise(wx * 0.024, wy * 0.024, seed + 6030);
+          const silt = wetBank * clamp((sediment - 0.43) * 1.7, 0, 1) * 0.28;
+          r = r * (1 - silt) + SAND_WET[0] * silt;
+          g = g * (1 - silt) + SAND_WET[1] * silt;
+          b = b * (1 - silt) + SAND_WET[2] * silt;
+        }
         if (rd > 0.47) {
           const waterBlend = clamp((rd - 0.47) / 0.08, 0, 1);
           const core = clamp((rd - 0.62) / 0.37, 0, 1);
@@ -990,6 +1111,23 @@ export function bakeWhittakerGround(
           r = r * (1 - waterBlend) + (river[0] + surface) * waterBlend;
           g = g * (1 - waterBlend) + (river[1] + surface * 1.1) * waterBlend;
           b = b * (1 - waterBlend) + (river[2] + surface * 1.4) * waterBlend;
+          // Along-stream phase makes the bright wave fronts cross the stream, not run as a global
+          // screen-aligned stripe. Stronger whitewater only appears near actual waterfall drops.
+          if (rd > 0.55 && waterBlend > 0.5) {
+            const distanceAlong = sampleRiverPhase(
+              riverPhase, riverFlowMask, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL,
+            );
+            if (distanceAlong !== null) {
+              const rapid = sampleF(riverRapids, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
+              const phase = distanceAlong * 0.25
+                + (valueNoise(wx * 0.045, wy * 0.045, seed + 6130) - 0.5) * 3.5;
+              const crest = Math.max(0, Math.sin(phase)) ** 8;
+              const highlight = crest * (0.065 + 0.58 * rapid) * waterBlend;
+              r += (WATER_FOAM[0] - r) * highlight;
+              g += (WATER_FOAM[1] - g) * highlight;
+              b += (WATER_FOAM[2] - b) * highlight;
+            }
+          }
         }
       } else if (map.generationVersion !== 3 && rd > 0.03) {
         const str = clamp((rd - 0.03) / 0.55, 0, 1) ** 0.75;
