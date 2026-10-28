@@ -2,9 +2,9 @@
  * PR B — the danger consumers: passive militia, hunting and flight.
  *
  * Three claims are pinned:
- * 1. The militia's Chivalrous share keeps its established value and stays a *single* contribution: a
- *    protector who also carries Fierce adds exactly as much as one who does not, so the catalog's
- *    defense entries are not stacked onto the militia total, and the muster guards are unchanged.
+ * 1. The militia prices each already-mustered soldier with that soldier's own bounded DNA factor, so
+ *    one protector cannot raise the whole army and the retired flat +8 % global bonus is gone. The
+ *    muster guards are unchanged.
  * 2. The free-roam hunt range is the catalog's hunting factor — a brave settler reaches game beyond
  *    an otherwise identical plain one, driven through the real `tickHumanHunting`.
  * 3. The flight speed reads the catalog's escape context, and no longer a raw `timid` literal.
@@ -30,10 +30,11 @@ import { byType } from '../src/test/factories';
 
 const FIXTURE_SEED = 20_260_928;
 const HUNTING = { kind: 'danger', activity: 'hunting' } as const;
+const PURSUIT = { kind: 'danger', activity: 'pursuit' } as const;
 const ESCAPE = { kind: 'danger', activity: 'escape' } as const;
 const DEFENSE = { kind: 'danger', activity: 'defense' } as const;
 
-/** Enough adult soldiers that an 8% militia share rounds to a visible integer. */
+/** Enough adult soldiers that a single soldier's share clears the integer rounding. */
 const SOLDIER_COUNT = 25;
 
 function soldier(id: number, traits: SettlerTrait[], overrides: Partial<Entity> = {}): Entity {
@@ -50,31 +51,78 @@ function militia(state: WorldState, entities: Entity[]): number {
   return computeMilitiaBreakdown(state, entities, { includeStructures: false }).militiaStrength;
 }
 
-describe('the militia keeps one Chivalrous contribution', () => {
-  it('pays for a protector exactly once, whatever else the catalog says about them', () => {
-    const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
-    const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, []));
-    const base = militia(state, own);
+function militiaWorld(): { state: WorldState; own: Entity[]; base: number } {
+  const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
+  const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, []));
+  return { state, own, base: militia(state, own) };
+}
 
-    const protector = soldier(90, ['chivalrous']);
-    const withChivalrous = militia(state, [...own, protector]);
-    expect(withChivalrous, 'the trait must work at all, or the assertions below pass for free')
-      .toBeGreaterThan(base);
+describe('the militia prices each defender\'s own DNA', () => {
+  it('adds one soldier\'s bounded share, not a fraction of the whole army', () => {
+    const { state, own, base } = militiaWorld();
+    const withProtector = militia(state, [...own, soldier(90, ['chivalrous'])]);
+    const delta = withProtector - base;
 
-    // A second defense entry in the catalog must not be stacked onto the same total.
-    expect(militia(state, [...own, soldier(91, ['chivalrous', 'fierce'])])).toBe(withChivalrous);
-    expect(evaluateTraitInfluence({ traits: ['fierce'] }, DEFENSE).factor, 'fixture premise')
-      .toBeGreaterThan(1);
+    expect(delta, 'the trait must work at all, or the assertions below pass for free').toBeGreaterThan(0);
+    // The retired rule added 8 % of the entire militia; one soldier's own share stays far below it.
+    expect(delta).toBeLessThan(base * 0.06);
+  });
+
+  it('scales with the number of protectors, one share each', () => {
+    const { state, own, base } = militiaWorld();
+    const one = militia(state, [...own, soldier(90, ['chivalrous'])]);
+    const two = militia(state, [...own, soldier(90, ['chivalrous']), soldier(91, ['chivalrous'])]);
+    const firstShare = one - base;
+
+    expect(two).toBeGreaterThan(one);
+    expect(Math.abs((two - one) - firstShare), 'a second protector earns the same own share')
+      .toBeLessThanOrEqual(1);
+  });
+
+  it('prices Fierce as its own defender factor instead of a second Chivalrous branch', () => {
+    const { state, own, base } = militiaWorld();
+    const chivalrous = evaluateTraitInfluence({ traits: ['chivalrous'] }, DEFENSE).factor;
+    const mixed = evaluateTraitInfluence({ traits: ['chivalrous', 'fierce'] }, DEFENSE).factor;
+    expect(mixed, 'fixture premise: Fierce adds its own defense resolve').toBeGreaterThan(chivalrous);
+
+    const crew = (startId: number, traits: SettlerTrait[]): Entity[] =>
+      [...own, ...Array.from({ length: 5 }, (_, i) => soldier(startId + i, traits))];
+
+    expect(militia(state, crew(95, ['fierce']))).toBeGreaterThan(base);
+    expect(militia(state, crew(96, ['chivalrous', 'fierce'])))
+      .toBeGreaterThan(militia(state, crew(96, ['chivalrous'])));
+  });
+
+  it('keeps every soldier factor bounded inside the new-effect cap', () => {
+    for (const traits of [['chivalrous'], ['fierce'], ['chivalrous', 'fierce']] as SettlerTrait[][]) {
+      const factor = evaluateTraitInfluence({ traits }, DEFENSE).factor;
+      expect(factor, JSON.stringify(traits)).toBeGreaterThan(1);
+      expect(factor, JSON.stringify(traits)).toBeLessThanOrEqual(1.15);
+    }
   });
 
   it('still refuses a protector who cannot be mustered', () => {
-    const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
-    const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, []));
-    const base = militia(state, own);
+    const { state, own, base } = militiaWorld();
 
     expect(militia(state, [...own, soldier(92, ['chivalrous'], { faction: 'rival' })])).toBe(base);
-    expect(militia(state, [...own, soldier(93, ['chivalrous'], { isJuvenile: true })])).toBe(base);
-    expect(militia(state, [...own, soldier(94, ['chivalrous'], { job: JobType.Settler })])).toBe(base);
+    expect(militia(state, [...own, soldier(93, ['chivalrous'], { faction: 'visitor' })])).toBe(base);
+    expect(militia(state, [...own, soldier(94, ['chivalrous'], { isJuvenile: true })])).toBe(base);
+    expect(militia(state, [...own, soldier(95, ['chivalrous'], { job: JobType.Settler })])).toBe(base);
+    expect(militia(state, [...own, soldier(96, ['chivalrous'], { prisonBuildingId: 9 })])).toBe(base);
+  });
+
+  it('states the per-soldier DNA term and no retired global percentage', () => {
+    const { state, own } = militiaWorld();
+    const lines = computeMilitiaBreakdown(state, [...own, soldier(99, ['chivalrous'])], {
+      includeStructures: false,
+    }).lines;
+    const line = lines.find((entry) => entry.includes('defender traits'));
+    expect(line).toBeDefined();
+    expect(line).not.toMatch(/8%/);
+    expect(line).toMatch(/per-soldier DNA/);
+
+    const plainLines = computeMilitiaBreakdown(state, own, { includeStructures: false }).lines;
+    expect(plainLines.some((entry) => entry.includes('defender traits'))).toBe(false);
   });
 });
 
@@ -153,6 +201,20 @@ describe('the free-roam hunt range is the catalog hunting factor', () => {
     expect(braveHunt.prey.alive, 'the deer is pursued, not shot — the distance is the point').toBe(true);
   });
 
+  it('applies the catalog factor once at each danger site, with no raw legacy literal', () => {
+    const huntingSource = readFileSync(resolve(process.cwd(), 'src/game/humanHuntingBehavior.ts'), 'utf8');
+    for (const factor of [
+      evaluateTraitInfluence({ traits: ['brave'] }, HUNTING).factor,
+      evaluateTraitInfluence({ traits: ['brave'] }, PURSUIT).factor,
+    ]) {
+      expect(factor).toBeGreaterThan(1);
+      expect(factor).toBeLessThanOrEqual(1.15);
+    }
+    expect(huntingSource).toMatch(/evaluateTraitInfluence\(entity, HUNT_CONTEXT\)\.factor/);
+    expect(huntingSource).toMatch(/evaluateTraitInfluence\(entity, PURSUIT_CONTEXT\)\.factor/);
+    expect(huntingSource).not.toMatch(/traitMultiplier\(entity, 'brave'/);
+  });
+
   it('leaves a settler whose traits say nothing about hunting at the neutral range', () => {
     const plain = huntWorld([], 0);
     const stoic = huntWorld(['stoic'], 0);
@@ -169,7 +231,9 @@ describe('flight reads the catalog escape context', () => {
   });
 
   it('keeps a risk-aware settler faster and a reckless one slower, as the catalog states', () => {
-    expect(evaluateTraitInfluence({ traits: ['timid'] }, ESCAPE).factor).toBeGreaterThan(1);
+    const timid = evaluateTraitInfluence({ traits: ['timid'] }, ESCAPE).factor;
+    expect(timid).toBeGreaterThan(1);
+    expect(timid).toBeLessThanOrEqual(1.15);
     expect(evaluateTraitInfluence({ traits: ['brave'] }, ESCAPE).factor).toBeLessThan(1);
     expect(evaluateTraitInfluence({ traits: ['lucky'] }, ESCAPE).factor).toBeLessThan(1);
     expect(evaluateTraitInfluence({ traits: ['stoic'] }, ESCAPE)).toEqual({ factor: 1, tendency: 0 });

@@ -4,9 +4,8 @@
  * Three things are pinned here, all against real owners rather than re-derived formulas:
  * 1. The shared crew multiplier (`skills.getWorkerSkillMultiplier`, read by daily production, the
  *    workshop estimate and the building panel) prices the trade's DNA exactly once.
- * 2. A construction crew is untouched by it: Resourceful's established +10%-per-worker (cap +30%) is
- *    that trait's single construction contribution, so the catalog's construction entry must never be
- *    stacked on top of it.
+ * 2. A construction crew is priced from the catalog's `work`/builder/construction context — the
+ *    retired +10%-per-Resourceful-worker (cap +30%) branch is gone, not stacked beside it.
  * 3. A worked shift still teaches its trade with a trait-carrying crew, store full or not.
  * 4. The apprenticeship `work`/training context reaches the real teaching path.
  */
@@ -72,15 +71,32 @@ describe('the crew multiplier prices the trade DNA once', () => {
       .toBe(getWorkerSkillMultiplier(bare, farm, crew(plain)));
   });
 
-  it('keeps Resourceful\'s established construction edge and does not stack the catalog on it', () => {
+  it('treats an unresolved occupant id as neutral instead of diluting the crew factor', () => {
+    const solo = building(SITE_ID, BuildingType.Farm, { occupants: [1] });
+    const withStale = building(SITE_ID, BuildingType.Farm, { occupants: [1, 99] });
+    const plain = skillingWorker(1, []);
+    const greenthumb = skillingWorker(1, ['greenthumb']);
+
+    // Neutral DNA must stay neutral even when a crew slot points at nobody.
+    expect(getWorkerSkillMultiplier(bare, withStale, crew(plain)))
+      .toBeCloseTo(getWorkerSkillMultiplier(bare, solo, crew(plain)), 10);
+    // The known settler's DNA counts once; the missing slot contributes a neutral 1.
+    const trait = evaluateTraitInfluence(greenthumb, FARMER).factor;
+    expect(getWorkerSkillMultiplier(bare, withStale, crew(greenthumb))).toBeCloseTo((1 + trait) / 2, 10);
+  });
+
+  it('prices a construction crew from the catalog\'s builder construction context', () => {
     const site = building(SITE_ID, BuildingType.Farm, { occupants: [1], completed: false });
+    const construction = { kind: 'work', job: JobType.Builder, action: 'construction' } as const;
     const plain = skillingWorker(1, []);
     const greenthumb = skillingWorker(1, ['greenthumb']);
     const resourceful = skillingWorker(1, ['resourceful']);
 
-    // The established rule is +10% per Resourceful worker for a crew of one, unchanged.
-    expect(getWorkerSkillMultiplier(bare, site, crew(resourceful), 'construction')).toBeCloseTo(1.1, 10);
-    // The catalog's construction entry is deliberately not applied to this crew (no double count).
+    const factor = evaluateTraitInfluence(resourceful, construction).factor;
+    expect(factor, 'the fixture premise: the catalog rewards a builder raising a site').toBeGreaterThan(1);
+    expect(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction')).toBe(1);
+    expect(getWorkerSkillMultiplier(bare, site, crew(resourceful), 'construction')).toBeCloseTo(factor, 10);
+    // A farmer's DNA says nothing about raising walls, and no old +10% branch survives beside it.
     expect(getWorkerSkillMultiplier(bare, site, crew(greenthumb), 'construction'))
       .toBe(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction'));
   });

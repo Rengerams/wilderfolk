@@ -1,10 +1,10 @@
 /**
- * PR B follow-up — the physiology labor context reaches a player settler.
+ * PR B — the physiology labor context reaches a player settler's own stamina.
  *
- * Hardy's and Fierce's energy terms used to live only in the foreign-captive energy path,
- * so a player settler's own reserve ignored its DNA. The live stamina drain now divides by
- * the catalog's `physiology`/`labor` factor, and the inspector copy names what really runs:
- * no trait claims a maturation or captive-only energy effect any more.
+ * The player drain divides by the catalog's `physiology`/`labor` factor during a worked shift only;
+ * merely walking keeps the base drain. The captive energy equation is separately DNA-free
+ * (`personality.captiveEnergyIntegration`), and the inspector copy names what really runs: no trait
+ * claims a maturation or captive-only energy effect any more.
  */
 import { describe, expect, it } from 'vitest';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
@@ -42,7 +42,25 @@ function staminaAfterWork(traits: SettlerTrait[], hours: number): number {
   return entity.needs!.stamina;
 }
 
+/** Stamina left after `hours` of walking with no shift. */
+function staminaAfterWalk(traits: SettlerTrait[], hours: number): number {
+  const entity = worker(traits);
+  for (let hour = 0; hour < hours; hour++) {
+    advanceHumanNeeds(entity, {
+      tick: hour, elapsedTicks: TICKS_PER_HOUR, sleeping: false, working: false, moving: true,
+    });
+  }
+  return entity.needs!.stamina;
+}
+
 describe('a player settler\'s work drain follows its own DNA', () => {
+  it('prices the labor context on a shift only, not while walking', () => {
+    expect(staminaAfterWalk(['hardy'], 2)).toBe(staminaAfterWalk([], 2));
+    expect(staminaAfterWalk(['graceful'], 2)).toBe(staminaAfterWalk([], 2));
+    // The same settler still differs once those hours are worked.
+    expect(staminaAfterWork(['hardy'], 2)).toBeGreaterThan(staminaAfterWork([], 2));
+  });
+
   it('makes Hardy and Graceful differ from a plain settler on the same shift', () => {
     const plain = staminaAfterWork([], 2);
     const hardy = staminaAfterWork(['hardy'], 2);

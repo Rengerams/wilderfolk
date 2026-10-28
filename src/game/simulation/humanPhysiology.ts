@@ -87,7 +87,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
   if (staminaRate < 0) {
-    staminaRate /= evaluateTraitInfluence(entity, LABOR_CONTEXT).factor;
+    // The labor context prices work only; walking keeps its base drain.
+    if (obs.working) staminaRate /= evaluateTraitInfluence(entity, LABOR_CONTEXT).factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
     if (obs.hasHospital) staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_DRAIN_MULTIPLIER;
   }

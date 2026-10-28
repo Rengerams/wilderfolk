@@ -453,17 +453,16 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
 }
 
 /**
- * Up to +15% research speed when most adults attended school; research-apt settlers add a bit more.
+ * Up to +15% research speed when most adults attended school, priced once by the collective DNA.
  *
- * Who is apt comes from the trait catalog's `school`/research context; the +3%-per-settler scale and
- * its 15% cap stay this owner's.
+ * The education share is this owner's baseline; the catalog's `school`/research factor is averaged
+ * over the same eligible adults and multiplies it, so an aptitude bonus cannot be counted twice.
  */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
   const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
-  const apt = adults.filter(
-    (h) => evaluateTraitInfluence(h, RESEARCH_CONTEXT).factor > 1,
-  ).length;
-  return 1 + (educated / adults.length) * 0.15 + Math.min(0.15, apt * 0.03);
+  let dnaFactorSum = 0;
+  for (const adult of adults) dnaFactorSum += evaluateTraitInfluence(adult, RESEARCH_CONTEXT).factor;
+  return (1 + (educated / adults.length) * 0.15) * (dnaFactorSum / adults.length);
 }

@@ -118,7 +118,9 @@ const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
   let filled = 0;
   for (const entity of entities) {
-    if (entity.type !== EntityType.Human || !entity.alive) continue;
+    // A cursed settler may be saved in moon form, which is still the same person and their DNA.
+    if (!entity.alive) continue;
+    if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
     const saved = entity.traits;
     const kept = validSettlerTraits(saved);
     if (kept.length > 0 && kept.length === (Array.isArray(saved) ? saved.length : 0)) continue;

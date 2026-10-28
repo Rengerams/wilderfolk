@@ -2,9 +2,9 @@
  * PR B — the school consumers read the one trait evaluator (`personality/traitEvaluation.ts`).
  *
  * Two live school paths are pinned, against the owners rather than re-derived formulas:
- * 1. `getEducationResearchMultiplier` (read by `research.ts`) takes *who is research-apt* from the
- *    catalog's `school`/research context, while the +3%-per-settler scale and its 15% cap stay the
- *    education owner's own.
+ * 1. `getEducationResearchMultiplier` (read by `research.ts`) keeps the education share as its
+ *    baseline and multiplies it once by the collective `school`/research DNA factor — the retired
+ *    +3%-per-apt-settler count and its 15% cap are gone, so an aptitude bonus cannot be counted twice.
  * 2. `creditChildSchoolDay` prices the class time one school day costs this pupil from the catalog's
  *    `school`/learning context, so a child whose DNA resists structure needs slightly more attendance
  *    for the same day — with the attendance threshold, the graduation rule and one-credit-per-day
@@ -41,26 +41,26 @@ function pupil(id: number, traits: SettlerTrait[], ticksToday: number): Entity {
   });
 }
 
-describe('the research multiplier takes its aptitude rule from the catalog', () => {
-  it('pays only for settlers the catalog calls research-apt', () => {
-    const plain = getEducationResearchMultiplier([adult(1, [])]);
-    const insightful = getEducationResearchMultiplier([adult(1, ['insightful'])]);
+describe('the research multiplier takes its DNA factor from the catalog', () => {
+  it('multiplies the education baseline by the settler\'s own research factor', () => {
+    const factor = evaluateTraitInfluence({ traits: ['insightful'] }, RESEARCH).factor;
+    expect(factor, 'fixture premise: the catalog rewards research aptitude').toBeGreaterThan(1);
 
-    expect(evaluateTraitInfluence({ traits: ['insightful'] }, RESEARCH).factor).toBeGreaterThan(1);
+    expect(getEducationResearchMultiplier([adult(1, [])])).toBe(1);
+    expect(getEducationResearchMultiplier([adult(1, ['insightful'])])).toBeCloseTo(factor, 10);
     expect(evaluateTraitInfluence({ traits: ['hardy'] }, RESEARCH)).toEqual({ factor: 1, tendency: 0 });
-    expect(plain).toBe(1);
-    expect(insightful).toBeCloseTo(1.03, 10);
-    expect(getEducationResearchMultiplier([adult(1, ['hardy'])])).toBe(plain);
+    expect(getEducationResearchMultiplier([adult(1, ['hardy'])])).toBe(1);
   });
 
-  it('keeps the education owner\'s own 3%-per-settler term and its 15% cap', () => {
-    const twoApt = getEducationResearchMultiplier([adult(1, ['insightful']), adult(2, ['insightful'])]);
-    expect(twoApt).toBeCloseTo(1.06, 10);
-    // Six apt adults reach the cap; a seventh adds nothing.
-    const many = getEducationResearchMultiplier(
-      Array.from({ length: 7 }, (_, i) => adult(i + 1, ['insightful'])),
-    );
-    expect(many).toBeCloseTo(1.15, 10);
+  it('averages the DNA across the adults, so one apt settler cannot carry the colony', () => {
+    const factor = evaluateTraitInfluence({ traits: ['insightful'] }, RESEARCH).factor;
+    const oneOfFour = getEducationResearchMultiplier([
+      adult(1, ['insightful']),
+      adult(2, []),
+      adult(3, []),
+      adult(4, []),
+    ]);
+    expect(oneOfFour).toBeCloseTo(1 + (factor - 1) / 4, 10);
   });
 
   it('still scales with the share of adults who attended school', () => {

@@ -1,11 +1,11 @@
 /**
- * The chivalrous militia bonus is the player's alone, and its label states what the code does.
+ * Defensive DNA is the player's alone, and its label states what the code does.
  *
- * Regression for two halves of one finding: the filter was a bare
- * `traits.includes('chivalrous')`, so a **rival or visitor** carrying the trait raised the
- * player's `militiaStrength` (which `resolveDefenseRatio` converts into a raid outcome); and the
- * breakdown line claimed `(N × 8 %)` while the arithmetic added a single flat 8 %
- * (`BUG_REPORTS/2026-09-17-enemy-chivalrous-trait-inflates-player-militia.md`).
+ * Regression for two halves of one finding: a bare trait check let a rival or visitor carrying
+ * Chivalrous raise the player's `militiaStrength`, which the raid resolves into an outcome; and the
+ * breakdown line claimed a per-protector percentage while the arithmetic added one flat share. The
+ * flat army-wide share is retired — each mustered soldier now carries its own bounded factor, gated
+ * by the same muster predicate as the adult count.
  */
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -64,14 +64,14 @@ describe('the chivalrous bonus counts only the player\'s own adults', () => {
     expect(strength(state, [...own, child])).toBe(base);
   });
 
-  it('states the flat bonus it actually applies', () => {
+  it('states the per-soldier DNA term it actually applies', () => {
     const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
     const lines = computeMilitiaBreakdown(state, [...settlers(), adult(99, ['chivalrous'])], {
       includeStructures: false,
     }).lines;
-    const line = lines.find((l) => l.includes('chivalrous'));
+    const line = lines.find((l) => l.includes('defender traits'));
     expect(line).toBeDefined();
-    expect(line).not.toMatch(/×\s*8%/);
-    expect(line).toMatch(/flat \+8%/);
+    expect(line).toMatch(/per-soldier DNA/);
+    expect(line).not.toMatch(/8%/);
   });
 });

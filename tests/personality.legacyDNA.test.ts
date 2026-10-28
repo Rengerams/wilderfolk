@@ -122,6 +122,17 @@ describe('a legacy settler without DNA gains canonical traits', () => {
     }
   });
 
+  it('gives a settler saved in moon form its DNA too', () => {
+    resetSimRng();
+    let id: number | undefined;
+    const payload = legacyPayload((humans) => {
+      id = humans[0].id as number;
+      humans[0].type = EntityType.Werewolf;
+    });
+    const settler = load(payload).entities.find((entity) => entity.id === id);
+    expect(settler?.traits?.length ?? 0, 'a moon-form settler was skipped by the fill').toBeGreaterThan(0);
+  });
+
   it('is idempotent across save, load, save, load', () => {
     resetSimRng();
     const first = load(legacyPayload());
