@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Illustrated New Frontier map (28 October 2026):** Replaced the abstract frontier survey drawing with the supplied parchment world map. Live rival settlement spawn coordinates, diplomatic status and animated raid routes are drawn as interactive overlays; a stable, read-only projection prevents already discovered rivals from jumping when new camps appear. No simulation rules or save schema changed. Added projection tests and registered the view's ownership.
+
 - **Changed:** Consolidated the terrain architecture into one reference covering generation v1–v4, hydrology, 2.5D rendering, saved-world contracts and verification; retired superseded terrain design notes.
 
 - **Removed:** Legacy Goals and their completion counter; historical Chronicle chapters remain in the open-ended simulator.
