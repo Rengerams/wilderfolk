@@ -710,7 +710,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   }
 
   // 4. Tree Clusters & Forest Fills
-  if (state.worldMap?.generationVersion !== 3) {
+  if ((state.worldMap?.generationVersion ?? 1) < 3) {
     for (let c = 0; c < 12; c++) {
       const cx = width * 0.12 + simRandom() * width * 0.76;
       const cy = height * 0.12 + simRandom() * height * 0.76;
