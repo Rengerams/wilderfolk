@@ -323,7 +323,7 @@ export const SIMULATION_DECISIONS = {
 
 /** Read-only UI projection: no new simulation scheduler or decision key. */
 export const STRATEGIC_MAP_PRESENTATION = {
-  owner: 'strategicMapProjection.ts — projectStrategicCamp; StrategicWorldMap.tsx — StrategicWorldMap',
+  owner: 'strategicMapProjection.ts — projectStrategicCamp; StrategicWorldMap.tsx — rivalInk, StrategicWorldMap',
   cadence: 'React render of the FrontierPanel',
   scheduledFrom: 'FrontierPanel.tsx → StrategicWorldMap.tsx',
   writes: [] as readonly string[],
