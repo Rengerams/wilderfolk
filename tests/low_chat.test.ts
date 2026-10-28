@@ -27,14 +27,13 @@ import { EVENT_LOG_FILTER_OPTIONS } from '../src/game/eventLogFilters';
 import { tickHospitalDailyCare, treatPatientAtHospital } from '../src/game/hospitalCare';
 import {
   isDialogueBusy,
-  maybeDialogueChat,
   resetDialogueSessions,
   sayHumanChatPhrase,
   startDialogueTreeChat,
   tickHumanChat,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById, pickDialogueTree } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, pickDialogueTree, maybeDialogueChat } from '../src/game/dialogueTrees';
 import {
   flushRelationshipDiagnostics,
   isRelationshipDiagnosticsEnabled,
