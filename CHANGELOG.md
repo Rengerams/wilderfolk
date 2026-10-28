@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Dialogue architecture (28 October 2026):** Planned a single speech pipeline using event-specific dialogue trees, with phased codebot tasks, deterministic selection and session/worker regression gates.
+- **Dialogue pipeline (28 October 2026):** Introduced event-keyed speech routing and version-1.3 scene metadata, with single- and two-speaker validation. Gameplay migration and regression verification continue.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
