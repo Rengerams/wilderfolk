@@ -194,7 +194,7 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Parse/index JSON at initialization; pure content lookup on the existing event roll. A scripted request delegates to humanChat; this registry row owns neither gameplay outcomes nor chat field mutations. The PR91 presentation parser and binding are read-only.',
+    cadenceNote: 'Parse/index JSON at initialization; pure content lookup on the existing event roll. A scripted request delegates to humanChat; this registry row owns neither gameplay outcomes nor chat field mutations. The PR91 presentation parser and binding are read-only and reject a cast member without a spoken line.',
     writes: [],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts',
@@ -202,10 +202,10 @@ export const SIMULATION_DECISIONS = {
   dialogueSessions: {
     owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
     cadence: 'realtime',
-    cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions and idle-partner reclaim are executed only here; the render-buffer boundary mirrors fields but does not originate speech.',
+    cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks. The render-buffer boundary mirrors fields but does not originate speech.',
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
     scheduledFrom: 'humanTick.ts — tickHumanChat once in the active branch, including its existing early-return branch; event owners request through dialogueTrees.ts',
-    testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.schema13.test.ts',
+    testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
