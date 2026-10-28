@@ -21,6 +21,12 @@ afterAll(() => {
   (globalThis as { document?: unknown }).document = existingDocument;
 });
 
+function lastPixels(): Uint8ClampedArray {
+  const image = capture.image;
+  if (!image) throw new Error('no ground pixels');
+  return Uint8ClampedArray.from(image.data);
+}
+
 describe('landform graphic uplift', () => {
   it('shows exposed rock on steep upland while keeping the underlying terrain immutable', () => {
     const map = testWorldMap({ tilesX: 24, tilesY: 24 });
@@ -29,11 +35,9 @@ describe('landform graphic uplift', () => {
     const original = Float32Array.from(map.elevation!);
     const fields = buildWhittakerFields(map)!;
     const bake = () => {
-      capture.image = null;
       bakeWhittakerGround(map, 240, 240, map.seaLevel!, 0,
         { x: 48, y: 48, width: 64, height: 64 }, fields);
-      if (!capture.image) throw new Error('no ground pixels');
-      return Uint8ClampedArray.from(capture.image.data);
+      return lastPixels();
     };
 
     // Keep exactly the same terrain, lighting inputs except its visible grade.
@@ -63,11 +67,9 @@ describe('landform graphic uplift', () => {
     }
     const fields = buildWhittakerFields(map)!;
     const bake = (x: number, width: number) => {
-      capture.image = null;
       bakeWhittakerGround(map, 320, 320, map.seaLevel!, 0,
         { x, y: 64, width, height: 48 }, fields);
-      if (!capture.image) throw new Error('no ground pixels');
-      return Uint8ClampedArray.from(capture.image.data);
+      return lastPixels();
     };
     const full = bake(64, 128);
     const first = bake(64, 64);
