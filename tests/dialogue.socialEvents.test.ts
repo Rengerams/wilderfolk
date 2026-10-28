@@ -1,7 +1,6 @@
 import { personDayRoll } from '../src/game/simRng';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { tryNeighborGreeting, tryWorkplaceBanter } from '../src/game/socialLife';
-
 import { isDialogueBusy, resetDialogueSessions } from '../src/game/humanChat';
 import type { Entity } from '../src/game/gameTypes';
 
