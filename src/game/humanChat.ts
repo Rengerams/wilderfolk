@@ -284,6 +284,9 @@ export function startDialogueTreeChat(
   showDialogueStep(tree, 0, entityA, entityB, solo || !entityB, durationHours);
 }
 
+/** Solo scenes can finish without a world/entity resolver (e.g. headless tests). */
+const NO_CHAT_PARTNER = (_id: number): null => null;
+
 function resolveSessionSpeaker(
   entityId: number,
   self: ChatSpeaker,
@@ -384,7 +387,13 @@ export function tickHumanChat(
   if (entity.chatTicks > 0) return;
 
   if (entity.chatDialogueSessionKey) {
-    const advanced = resolvePartner ? advanceDialogue(entity, resolvePartner) : false;
+    // Solo lines must advance/finish even when no external partner resolver exists.
+    // Paired sessions still require the real resolver; do not invent a partner.
+    const key = entity.chatDialogueSessionKey;
+    const session = dialogueSessions.get(key);
+    const advanced = (resolvePartner || session?.solo)
+      ? advanceDialogue(entity, resolvePartner ?? NO_CHAT_PARTNER)
+      : false;
     if (advanced) return;
     // `advanceDialogue` returning false means the session is gone (a forced phrase reclaimed it, or the
     // partner vanished). Release both halves, not just this one.
