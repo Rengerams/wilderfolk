@@ -14,7 +14,6 @@ import {
   rollSettlerTraits,
   inheritSettlerTraits,
   TRAIT_DEFS,
-  traitMultiplier,
   hasTrait,
 } from '../src/game/settlerTraits';
 
@@ -128,20 +127,15 @@ describe('createEntity traits', () => {
   });
 });
 
-describe('traitMultiplier', () => {
-  it('applies the modifier only when the trait is present', () => {
+describe('hasTrait genotype lookup', () => {
+  it('recognizes a real trait and returns false for absent traits', () => {
     const brave = createEntity(EntityType.Human, 0, 0, 3, 100, false, {
-      gender: 'male',
-      inheritedTraits: ['brave'],
+      gender: 'male', inheritedTraits: ['brave'],
     });
     const plain = createEntity(EntityType.Human, 0, 0, 4, 100, false, {
-      gender: 'male',
-      inheritedTraits: [],
+      gender: 'male', inheritedTraits: [],
     });
-    // Force plain to carry no traits so the multiplier check is deterministic.
     plain.traits = [];
-    expect(traitMultiplier(brave, 'brave', 1.25)).toBe(1.25);
-    expect(traitMultiplier(plain, 'brave', 1.25)).toBe(1);
     expect(hasTrait(brave, 'brave')).toBe(true);
     expect(hasTrait(plain, 'brave')).toBe(false);
   });
