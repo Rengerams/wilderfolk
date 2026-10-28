@@ -12,6 +12,9 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight chorus can start before all speakers arrive](../bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md):** new eight-person scene could freeze when only six arrived. Branch now waits for every selected speaker; regression added, CI/browser validation pending.
+
+
 **2026-10-28 — [V4 river-flow highlights missing](../bug_report/2026-10-28-v4-river-flow-material-gated-to-v3.md):** render-only v3 gate excluded v4 current glints and waterfall rapids. Proposed correction and targeted regressions on the PR branch; CI, browser visuals and FPS validation still pending.
 
 | Discovered | Reports | Resolved | Still open / pending |
