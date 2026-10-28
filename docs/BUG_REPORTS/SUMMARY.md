@@ -30,6 +30,12 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
+
+**2026-10-28 — [Spotlight background music startup race](../bug_report/2026-10-28-spotlight-background-music-start-race.md):** Fixed with audio-session revision checks and decode-time cancellation; focused regression authored, live validation pending.
+
+**2026-10-28 — [Spotlight male chorus admitted women](../bug_report/2026-10-28-spotlight-chorus-accepted-female-adults.md):** Fixed by requiring six-to-ten male adults and adding mixed-population regression coverage.
+
 **2026-10-28 — [Spotlight presentation jumps from actual actor to saved target](../bug_report/2026-10-28-spotlight-presentation-origin-snap.md):** Fixed on PR #91 branch by using the heroine's actual stage position for visual poses and farewell, avoiding a possible 11-world-unit snap. Browser verification pending.
 
 **2026-10-28 — [Spotlight intro repeats unchanged React caption updates](../bug_report/2026-10-28-spotlight-redundant-caption-update.md):** Fixed on PR #91 branch by normalizing null captions before change comparison. Browser/profiler verification pending.
