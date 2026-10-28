@@ -10,7 +10,7 @@ import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 import { valleyStageIndex } from './ecologyStage';
 import { personDayRoll } from './dayCycle';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
 import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
@@ -195,7 +195,7 @@ export function tickHumanHunting(
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 811) < 0.012
       ) {
-        requestDialogue({ eventKey: 'hunting.scarce', speaker: entity, tick: state.tick, durationHours: 16 / 3, priority: 'scripted' });
+        requestDialogue({ eventKey: 'hunting.scarce', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(48), priority: 'scripted' });
       }
     } else {
       entity.huntTargetId = undefined;
@@ -204,7 +204,7 @@ export function tickHumanHunting(
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 812) < 0.02
       ) {
-        requestDialogue({ eventKey: 'hunting.thinTrails', speaker: entity, tick: state.tick, durationHours: 40 / 9, priority: 'scripted' });
+        requestDialogue({ eventKey: 'hunting.thinTrails', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
       }
     }
   } else if (
