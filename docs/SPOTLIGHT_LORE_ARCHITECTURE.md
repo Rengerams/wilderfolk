@@ -8,6 +8,43 @@
 
 Occasionally, an eligible female juvenile (12–17 years old) becomes the accidental center of attention. Six to ten available adult residents approach the real person on the town map, gather in a semicircle, and perform a deliberately awkward, comedic call-and-response. The map remains visible; the camera centers on the girl. The simulation can pause for slow readable spoken captions, independently of game speed; skip and natural completion return the simulation to its prior settings. Pure lore: no material reward, affection/romance side effect, career change, reputation or resource mutation from presentation.
 
+## Next implementation slice — choreographed Spotlight finale (planned, not implemented)
+
+**Source of requirements:** [Spotlight feature implementation plan — choreography change request](plans/spotlight-lore-2026-10-28.md#choreography-change-request--implementation-contract-28-october-2026). This section describes the **agreed TO-BE**, not the runtime present in PR #91. Do **not** mark the choreography implemented, rewrite unrelated simulation code, or assume existing UI tests pass. The current PR still has a 31-caption hardcoded React `LINES` mirror; it does **not** currently produce the poses, particles or farewell walk.
+
+### Ordered visual storyboard
+
+1. **Opening and heroine comeback:** existing dialogue proceeds one adult at a time; directly after the early juvenile-scam caption the girl herself adds “Yes, Juvenile Scam! But look at me!” The explicit `heroine` speaker role binds to `spotlightLore.heroineId`, distinct from six-to-ten adult `speaker_1..speaker_10` roles.
+2. **First look caption:** after the **first** look refrain, pause the next caption for a **7-second** small circular, proud “look at me” walk. Return the girl's visible position exactly to the starting point before continuing the text.
+3. **First call-and-response chorus:** adult look-refrain responses plus the blue/you/la-la-la passages. Show playful **cartoon heart and kiss-mark particles** originating around the girl's *displayed* sprite and drifting toward the male chorus in a purely theatrical, age-appropriate effect. No courtship/affair/relationship fields or interactions.
+4. **Second look caption:** after the **later** “She goes” + look refrain, repeat the **7-second** circular solo, again withholding the next caption until the solo finishes. It must trigger on this exact second cue, not on every repeated refrain.
+5. **Bridge and renewed hearts:** later blue/you/la-la-la passages restart the hearts and kiss marks around the heroine. Unlike the first chorus, they **remain active through the rest of the finale**.
+6. **Walking finale:** on the final later look refrain the girl slowly leaves the semicircle. The camera follows her projected walking position smoothly while the adults continue the repeated “She goes”/look refrain and she visibly moves away.
+7. **Final girl's punchline:** on the final “She goes” beat, **the heroine**, not an adult, says “I've got the looks!” as the final spoken line. Visual effects last until the 2.8-second applause, then vanish. The existing typed finish command ends the scene and returns control to the prior view/speed/pause once.
+
+Each cue must have a **stable symbolic ID** such as `juvenile-reply`, `first-look-pose`, `first-chorus`, `second-look-pose`, `bridge-hearts`, `farewell-walk` and `final-heroine`. Resolve cue IDs once against canonical JSON captions with strict validation, not substring matching or ambiguous repeated phrases. A script that lacks a required beat, changes its order or assigns a heroine line to an adult must fail its tests rather than silently dropping an animation.
+
+### Contract boundaries for implementers
+
+| Owner | Required behavior | What it must never do |
+| --- | --- | --- |
+| `src/game/data/dialogue/spotlight-lore.json` + PR #93 presentation reader | **Only canonical source of all captions**, sequence and adult/heroine speaker identities. Add the requested missing later passages and heroine callbacks here | Maintain a second text array in JSX or copy lyric strings into timing logic |
+| Spotlight-specific typed presentation adapter | Bind **exactly 6–10 distinct adult IDs** plus the independently bound **heroine ID**; all selected adults speak. Coordinate with PR #93's strict schema 1.3 validation | Relax global solo/pair bank constraints or identify the heroine as `speaker_11` |
+| `src/components/spotlightChoreography.ts` (proposed cue manifest/timing owner) | Stable caption-to-animation cue mapping, deterministic beat ordering, exactly two 7,000 ms pose steps, variable normal line lengths | Become a parallel dialogue writer or touch `WorldState` |
+| Existing map renderer + `SpotlightLoreOverlay.tsx` | One visible heroine rendered with a presentation-only position/rotation transform; timed circles, safely validated slow farewell and **bounded** heart/kiss-mark particles | Draw a second heroine, directly mutate `Entity.x/y`, create a gameplay tick, or run music |
+| `App.tsx` + GameLoop existing camera/view APIs | Remains sole live camera/pause state owner; follow *presentation-space* heroine position smoothly, clamp to world, restore snapshot once | Spawn independent camera loop/owner, overwrite newer session's settings or issue worker commands per video frame |
+| `src/game/spotlightLore.ts` / `humanTick.ts` | Continue to own the weekend 19:00 event gate and actual gathering movement. No persistent changes for the paused show | Move a girl in saved gameplay during 7-second poses or emit simulated romance effects |
+
+**Clocks:** The scene still starts by a deterministic 7.5% weekend **19:00** gate with a **90-day** cooldown, gathers with the existing **65 sim-tick** limit, and presents itself by real wall-clock time while simulation ticks are paused. The completed choreography adds two exclusive **7,000 ms** holds to the otherwise length-scaled 3.0–5.3 second captions. The intro remains 2.4 seconds and outro applause 2.8 seconds. Because new JSON captions are required, **the final real-world duration must be measured again**, not copied from the original 31-line timing.
+
+**Visual movement while paused:** The game's authoritative `Entity` remains at her saved location. The presenter derives a presentation-only offset and optional orientation for the *existing drawn figure*, with the source position restored exactly after each circle and the end of the scene; the camera and bubble/halo/particles consume the exact same projection. Do not let visual offsets survive load, skip or session change. Prevalidate the farewell corridor against the existing path grid; keep the departure small (approximately 20–35 world units, bounded by remaining captions), choose a clear corridor or perform a safe theatrical departure on the spot. No duplicate sprite or worker-owned world mutation.
+
+**Effects/performance:** Use a single deterministic emitter only in specified intervals, at most **6** new hearts/kiss marks per real second and **24** live elements. Mark icons noninteractive. Cancel its clock and clear the buffer on component teardown, skip, replacement or completed applause. Avoid full-world entity scans or React state writes every frame; use the presentational animation frame that already positions bubbles and halo.
+
+**Explicit acceptance:** Verify every choreographic event and exact ordering with a fake monotonic clock, JSON 1.3/heroine-role binding for cast sizes 6–10, both 7,000 ms pauses, single-figure draw ownership, no collision crossings, live smooth camera follow, continuous final effects, actual worker/fallback presentation after pause, skip and reload cleanup, and untouched gameplay/world positions/needs/relationships. A real browser run on the map is mandatory before this can be marked implemented. The coding plan contains the full test matrix and PR governance requirements.
+
+---
+
 ## Canonical implementation ownership
 
 | Concern | Sole authority | Data and cadence |
@@ -43,7 +80,7 @@ No active scene
 
 The girl stays at her actual in-world location. The performer IDs and target coordinates live in one small saved scene record. Only the <=11 world-unit arrival threshold and original movement integrator decide who arrives. The current branch waits for **every selected performer and the heroine**, not merely the minimum of six. Stage targets remain active through the ready phase so catch-up ticks cannot send participants home before the UI pauses. Eligibility and physical stage attendance are checked in ready; if emergency movement displaces a singer or the heroine before the UI pauses, the scene aborts rather than starting with a missing actor. Saved ready scenes with dispersed casts are rejected during load normalization, but valid gathering saves continue to resume walking. A new festival also aborts the scene. At most 65 simulation ticks are allowed for gathering, after which it aborts; the ready phase has a bounded 150-tick headless fallback. During the UI performance, game ticks pause and captions advance by **real wall-clock time**.
 
-The stage's current script contains 31 sequential caption lines. Durations are 3.0–5.3 real seconds per line with opening silence (2.4 s) and a closing applause (2.8 s). It includes recognizable lines from the owner-provided lyrics interspersed with original villager jokes. There is **no music playback or new audio asset**.
+**Current runtime baseline (before choreography implementation):** The stage's script still contains 31 sequential caption lines, 3.0–5.3 real seconds per line, opening silence (2.4 s), and closing applause (2.8 s). The implementation above **will replace this fixed script in the overlay with canonical JSON 1.3 captions and cue-driven animation**, expanding the sequence and recalculating duration. There is **no music playback or new audio asset**.
 
 ### Movement priority (Codex P2 #4401308618)
 
