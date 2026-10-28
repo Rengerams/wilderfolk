@@ -4,7 +4,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { getSimRng, seededRandomForRun } from './simRng';
+import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
@@ -31,7 +31,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
-import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isNightHour, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNearResidence, isNightHour, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
