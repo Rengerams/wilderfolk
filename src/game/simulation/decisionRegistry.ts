@@ -331,6 +331,15 @@ export const SIMULATION_DECISIONS = {
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 
+/** Read-only UI projection: no new simulation scheduler or decision key. */
+export const STRATEGIC_MAP_PRESENTATION = {
+  owner: 'strategicMapProjection.ts — projectStrategicCamp; StrategicWorldMap.tsx — rivalInk, StrategicWorldMap; CitizenOverviewScreen.tsx — Frontier window sizing',
+  cadence: 'Read-only React render of the Frontier subject window',
+  scheduledFrom: 'CitizenOverviewScreen.tsx → GameWindow.tsx → FrontierTabPanel.tsx → FrontierPanel.tsx → StrategicWorldMap.tsx',
+  writes: [] as readonly string[],
+  testFile: 'tests/strategicWorldMap.projection.test.ts, tests/strategicWorldMap.windowLayout.test.ts',
+} as const;
+
 /** All declared decision keys as a typed array. */
 export const DECISION_KEYS = Object.keys(SIMULATION_DECISIONS) as DecisionKey[];
 
