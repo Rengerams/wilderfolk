@@ -4,6 +4,10 @@ import { getAbsoluteCalendarDay, TICKS_PER_DAY } from '../src/game/dayCycleClock
 import { JobType, BuildingType } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { recordScheduleWorkTick, resolveDailyScheduleFatigue } from '../src/game/scheduleFatigue';
+import { resolveDailyVillageScheduleFatigue } from '../src/game/dailyScheduleFatigue';
+import { transformToWerewolfForm } from '../src/game/moonHowler';
+import { revertToHumanForm } from '../src/game/moonHowlerForm';
+import { EntityType } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 import { tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
@@ -33,7 +37,7 @@ describe('observed career history', () => {
   it('does not fabricate work for absence, unassigned, child, captive, rival or stale sites', () => {
     const base = worker();
     expect(recordCareerWork(base, farm, JobType.Farmer, 0, 0)).toBe(false);
-    expect(recordCareerWork({ ...base, workerBuildingId: undefined }, farm, JobType.Farmer, 0, 4)).toBe(false);
+    expect(recordCareerWork({ ...base, workerBuildingId: undefined, scheduleLastWorkedSiteId: -1 }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, isJuvenile: true, age: 16 }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, age: 17 }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, alive: false }, farm, JobType.Farmer, 0, 4)).toBe(false);
@@ -41,11 +45,19 @@ describe('observed career history', () => {
     expect(recordCareerWork({ ...base, faction: 'visitor' }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, prisonBuildingId: 7 }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork({ ...base, scheduleLastWorkedSiteId: 11 }, farm, JobType.Farmer, 0, 4)).toBe(false);
-    expect(recordCareerWork({ ...base, job: JobType.Hunter }, farm, JobType.Farmer, 0, 4)).toBe(false);
+    expect(recordCareerWork({ ...base, scheduleLastWorkedJob: JobType.Hunter }, farm, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork(base, { ...farm, completed: false }, JobType.Farmer, 0, 4)).toBe(false);
-    expect(recordCareerWork(base, { ...farm, occupants: [] }, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork(base, { ...farm, faction: 'rival' }, JobType.Farmer, 0, 4)).toBe(false);
     expect(base.careerHistory).toBeUndefined();
+  });
+
+  it('credits a witnessed past job even if the person has a different post at noon', () => {
+    const h = worker();
+    h.job = JobType.Hunter;
+    h.workerBuildingId = 99;
+    expect(recordCareerWork(h, { ...farm, occupants: [] }, JobType.Farmer, 2, 6)).toBe(true);
+    expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 2 });
+    expect(h.careerHistory?.hunter).toBeUndefined();
   });
 
   it('does not attribute mixed-site shifts to the last assigned building', () => {
@@ -114,6 +126,49 @@ describe('observed career history', () => {
     };
     tickDailyBuildingEconomy(world, context, [h]);
     expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
+    tickDailyBuildingEconomy(world, context, [h]);
+    expect(h.careerHistory?.farmer?.days).toBe(1);
+  });
+
+  it('settles a full-moon farmer shift at midnight and credits it after dawn, even after job displacement', () => {
+    const world = initGame({ seed: 4242 });
+    const h = worker();
+    const site = building(10, BuildingType.Farm, { occupants: [h.id] });
+    world.entities = [h];
+    world.buildings = [site];
+    h.moonHowlerCursed = true;
+    recordScheduleWorkTick(h, 6 * TICKS_PER_HOUR);
+    transformToWerewolfForm(h, world.buildings);
+    expect(h.type).toBe(EntityType.Werewolf);
+    expect(h.workerBuildingId).toBeUndefined();
+    // Midnight: the person is a wolf, but the recorded hours belong to yesterday's farmer.
+    resolveDailyVillageScheduleFatigue(world, [], [h]);
+    expect(h.scheduleLastWorkedHours).toBe(6);
+    expect(h.scheduleLastWorkedSiteId).toBe(site.id);
+    expect(h.scheduleLastWorkedJob).toBe(JobType.Farmer);
+    expect(h.scheduleWorkedTicksToday).toBe(0);
+    expect(recordCareerWork(h, site, JobType.Farmer, 1, 6)).toBe(false);
+
+    // Sunrise returns the same person; the old workplace may already be full.
+    revertToHumanForm(h, { buildings: world.buildings, humans: [h] });
+    expect(h.type).toBe(EntityType.Human);
+    h.workerBuildingId = undefined;
+    h.job = JobType.Settler;
+    site.occupants = [];
+    world.tick = 2 * TICKS_PER_DAY + 12 * TICKS_PER_HOUR;
+    world.dayInYear = 2;
+    rebuildEntityByIdMap(world);
+    const context: TickContext = {
+      width: world.width, height: world.height, hourOfDay: 12, season: Season.Spring,
+      grassMult: 1, reproMult: 1, winterPenalty: 1, canHeat: true,
+      byType: { human: [h] } as TickContext['byType'],
+      aliveEntities: [h], newEntities: [], updatedBuildings: world.buildings,
+      roadBuildings: [], playerHumans: [h], entityById: new Map([[h.id, h]]),
+      buildingById: new Map([[site.id, site]]), predators: [],
+    };
+    tickDailyBuildingEconomy(world, context, [h]);
+    expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
+    expect(h.careerHistory?.settler).toBeUndefined();
     tickDailyBuildingEconomy(world, context, [h]);
     expect(h.careerHistory?.farmer?.days).toBe(1);
   });
