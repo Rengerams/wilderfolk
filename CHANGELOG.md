@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed:** Version-4 rivers now inherit flow-aligned highlights and localized waterfall rapids from v3, without changing saved maps, water collisions or chunk caching.
+
 - **Changed:** Consolidated the terrain architecture into one reference covering generation v1–v4, hydrology, 2.5D rendering, saved-world contracts and verification; retired superseded terrain design notes.
 
 - **Removed:** Legacy Goals and their completion counter; historical Chronicle chapters remain in the open-ended simulator.
