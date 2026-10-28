@@ -1,12 +1,4 @@
-import { seededRandomForRun } from './simRng';
-import {
-  ensureDialogueBankFromBundle,
-  getDialogueTreeById,
-  isDialogueBankReady,
-  pickDialogueTree,
-  speakerRoleIndex,
-  type DialogueTree,
-} from './dialogueTrees';
+import type { DialogueTree, DialogueLine } from './dialogueTrees';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
 import type { Season, WeatherType } from './gameTypes';
 
@@ -60,28 +52,14 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
   return (entity.chatTicks ?? 0) > 0 || entity.chatDialogueSessionKey != null;
 }
 
-/** Legacy display duration from the 24-tick day; converted at the chat boundary. */
-export const CHAT_DEFAULT_DURATION_LEGACY_TICKS = 90;
 /** A spoken tree line remains visible for roughly 2.5–5 game hours. */
 export const DIALOGUE_LINE_BASE_HOURS = 2.5;
 export const DIALOGUE_LINE_CHAR_HOURS = 0.08;
 export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
 export const CHAT_BUBBLE_MAX_LINES = 3;
 
-const DEFAULT_FALLBACK_LINES = ['Lovely weather.', 'Good to see friendly faces.', 'The village grows every season.'];
-
-const FALLBACK_CHAT_LINES: Partial<Record<HumanChatContext, string[]>> = {
-  social: DEFAULT_FALLBACK_LINES,
-  home: ['Home at last.', 'Pass the stew?', 'Quiet night in.'],
-  work: ['Back to it.', 'Tools need sharpening.', 'Steady hands today.'],
-  courtship: ['You have a kind smile.', 'Walk with me?', 'The stars are bright.'],
-  child: ['Tag, you\'re it!', 'Can we play outside?', 'Story time?'],
-  food: ['Stores are thin.', 'Who\'s cooking tonight?', 'We need more grain.'],
-  winter: ['Wood pile\'s low.', 'Frost on the roof.', 'Stay warm, friend.'],
-};
-
 interface DialogueSession {
-  treeId: string;
+  tree: DialogueTree;
   step: number;
   entityAId: number;
   entityBId: number;
@@ -284,7 +262,7 @@ export function startDialogueTreeChat(
   if (dialogueSessions.has(key)) return;
 
   dialogueSessions.set(key, {
-    treeId: tree.id,
+    tree,
     step: 0,
     entityAId: entityA.id,
     entityBId: entityB?.id ?? entityA.id,
@@ -319,15 +297,9 @@ function advanceDialogue(
   if (!resolved) return false;
 
   const { session, self, partner } = resolved;
-  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
-  const tree = getDialogueTreeById(session.treeId);
+  const tree = session.tree;
   const sessionKey = self.chatDialogueSessionKey!;
   
-  if (!tree) {
-    clearDialogueSession(sessionKey, self, partner ?? undefined);
-    return false;
-  }
-
   if (!session.solo && !partner) {
     clearDialogueSession(sessionKey, self, undefined);
     return false;
@@ -442,117 +414,6 @@ export function endAmbientHumanChat(entity: ChatSpeaker): boolean {
   clearEntityChat(entity);
   entity.chatPartnerId = undefined;
   return true;
-}
-
-let warnedMissingBank = false;
-
-export function maybeDialogueChat(
-  entity: ChatSpeaker,
-  partner: ChatSpeaker | null,
-  context: HumanChatContext,
-  tick: number,
-  chance: number,
-  options: ChatPickOptions = {},
-): void {
-  // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
-  if (isDialogueBusy(entity)) return;
-  if (partner && isDialogueBusy(partner)) return;
-  if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
-
-  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
-
-  const tree = pickDialogueTree(context, entity.id, tick, options);
-  if (tree) {
-    startDialogueTreeChat(entity, partner, tree, partner == null);
-    return;
-  }
-
-  // Bank missing or empty — short emergency lines only (should be rare).
-  if (!warnedMissingBank) {
-    warnedMissingBank = true;
-    console.warn('[chat] Dialogue bank empty — using fallback phrases (split dialogue files not loaded)');
-  }
-  const fallback = FALLBACK_CHAT_LINES[context] ?? DEFAULT_FALLBACK_LINES;
-  const phrase = fallback[(entity.id + tick) % fallback.length]!;
-  sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
-  if (partner) {
-    const reply = fallback[(entity.id + tick + 1) % fallback.length]!;
-    sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
-  }
-}
-
-/** Weighted pool of chat contexts — random pick, optional light bias from world state. */
-export function pickRandomChatContext(
-  entity: Pick<ChatSpeaker, 'isJuvenile' | 'id'>,
-  tick: number,
-  options: ChatPickOptions = {},
-  extra?: {
-    pregnant?: boolean;
-    renffr?: boolean;
-    workHour?: boolean;
-    night?: boolean;
-  },
-): HumanChatContext {
-  // Base weights: mostly social / work / home so trees across the bank get used.
-  const pool: HumanChatContext[] = [
-    'social', 'social', 'social', 'social',
-    'work', 'work',
-    'home', 'home',
-  ];
-  if (options.foodLow) pool.push('food', 'food');
-  if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
-  if (options.festivalActive) pool.push('festival', 'festival');
-  if (entity.isJuvenile) pool.push('child', 'child', 'school');
-  if (extra?.pregnant) pool.push('pregnant');
-  if (extra?.renffr) pool.push('renffr', 'renffr');
-  if (extra?.workHour) pool.push('work', 'work');
-  if (extra?.night) pool.push('home', 'sleep', 'sleep');
-  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
-  return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
-}
-
-/**
- * Ambient dialogue — random time, random context, optional random nearby partner.
- * Not gated to work hours / evening / “arrived at building”.
- *
- * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
- */
-export function tryAmbientRandomDialogue(
-  entity: ChatSpeaker,
-  nearbyCandidates: ChatSpeaker[],
-  tick: number,
-  chancePerTick: number,
-  options: ChatPickOptions = {},
-  extra?: {
-    pregnant?: boolean;
-    renffr?: boolean;
-    workHour?: boolean;
-    night?: boolean;
-  },
-): void {
-  // Owner predicate, not the visible-line counter — the candidate must not be mid-conversation
-  if (isDialogueBusy(entity)) return;
-  if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
-
-  const context = pickRandomChatContext(entity, tick, options, extra);
-  
-  // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()
-  let partner: ChatSpeaker | null = null;
-  if (nearbyCandidates.length > 0) {
-    // Try to find a free partner randomly without allocating a new array
-    let attempts = 0;
-    const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
-    while (attempts < maxAttempts) {
-      const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
-      if (candidate && candidate.id !== entity.id && !isDialogueBusy(candidate)) {
-        partner = candidate;
-        break;
-      }
-      attempts++;
-    }
-  }
-
-  maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
 export function getAnimatedChatDots(tick: number, entityId: number): string {
