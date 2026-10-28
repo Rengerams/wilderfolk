@@ -29,7 +29,6 @@ import {
   setRelationshipDiagnosticsEnabled,
   type RelationshipDiagnosticsSnapshot,
 } from '../src/game/relationshipDiagnostics';
-
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 /**
