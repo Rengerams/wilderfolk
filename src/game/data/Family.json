@@ -1,11 +1,11 @@
 {
   "version": "1.3",
   "game": "Wilderfolk Sim",
-  "category": "social",
+  "category": "family",
   "dialogue_trees": [
     {
       "id": "wf_family_chore_negotiation",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "husband",
@@ -25,12 +25,11 @@
           "text": "His name was Barnaby and he had excellent table manners."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_snoring_defense",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "wife",
@@ -50,12 +49,11 @@
           "text": "The wind doesn't gasp for air every thirty seconds."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_warm_spot",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "partner_a",
@@ -75,12 +73,11 @@
           "text": "Such selfless devotion. Now scoot over."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_drawing_portrait",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "child",
@@ -100,12 +97,11 @@
           "text": "Because realism is important to my artistic vision."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_bedtime_excuses",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "child",
@@ -125,12 +121,11 @@
           "text": "Then my coat has hostile intentions."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_dinner_vegetables",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "parent",
@@ -150,12 +145,11 @@
           "text": "Three carrots, or I tell the village elder you hate farming."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_lost_boots",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "parent",
@@ -179,12 +173,11 @@
           "text": "He gets drafty toes!"
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_roommate_leftovers",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "housemate_a",
@@ -208,12 +201,11 @@
           "text": "I thought it said 'MINT'. I was testing for herbal freshness."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_roommate_window",
-      "category": "social",
+      "category": "family",
       "conversation_type": "two_way",
       "speakers": [
         "housemate_a",
@@ -233,12 +225,11 @@
           "text": "Now it smells like boiled cabbage and frostbite."
         }
       ],
-      "mode": "pair",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_blanket_monologue",
-      "category": "social",
+      "category": "family",
       "conversation_type": "one_way",
       "speakers": [
         "settler"
@@ -249,12 +240,11 @@
           "text": "Nobody here to steal the wool blanket. I am the undisputed emperor of this mattress."
         }
       ],
-      "mode": "solo",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_pot_dining",
-      "category": "social",
+      "category": "family",
       "conversation_type": "one_way",
       "speakers": [
         "settler"
@@ -265,12 +255,11 @@
           "text": "Eating stew directly out of the cooking pot with a big spoon. Civilization has peaked."
         }
       ],
-      "mode": "solo",
       "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_spider_truce",
-      "category": "social",
+      "category": "family",
       "conversation_type": "one_way",
       "speakers": [
         "settler"
@@ -281,7 +270,6 @@
           "text": "Spider in the corner: you eat the pantry moths, I don't crush you with a boot. An honorable treaty."
         }
       ],
-      "mode": "solo",
       "eventKey": "family.daily"
     }
   ],
