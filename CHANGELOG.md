@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **CI follow-up (PR #81, 28 October 2026):** Align workforce/quarry regression fixtures with the actual two-worker Farm capacity, preserve food crews while borrowing industrial surplus, and validate Quarry recovery by observed production instead of permanent end-of-run staffing. Keep cold mountain snow visible above exposed rock without changing terrain generation.
+- **CI follow-up (#81):** Align staffing tests with the two-worker Farm capacity, recover Quarry staffing from industrial surplus, verify stone production and preserve snow on cold crests.
 
 - **Silo storage automation (PR #81):** Expand food capacity when at least 90% full, even with existing Silos; prevent parallel Silo builds and avoid treating a food-production deficit as storage pressure. Preserve current food-first staffing and the normal Quarry donor rules.
 
