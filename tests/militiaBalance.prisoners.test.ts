@@ -18,7 +18,8 @@ import { createEntity } from '../src/game/entityFactory';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import { canBeMustered, computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getRaidParticipants } from '../src/game/frontierCombat';
-import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 
 const FIXTURE_SEED = 20_260_917;
 const SETTLER_COUNT = 20;

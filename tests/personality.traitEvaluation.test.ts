@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { snapshotSimRng } from '../src/game/simRng';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 

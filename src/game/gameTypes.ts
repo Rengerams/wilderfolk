@@ -10,6 +10,7 @@ import { BuildingType } from './buildings';
 import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 import type { SimRngSnapshot } from './simRng';
+import type { SettlerTrait } from './settlerTraits';
 
 export { BuildingType, BUILDING_CONFIGS } from './buildings';
 export type { Building, BuildingConfig, StaffingMode } from './buildings';
@@ -133,23 +134,6 @@ export const JobType = {
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 
-/** Personality trait ids for settlers (catalog + behavior in settlerTraits.ts). */
-export type SettlerTrait =
-  | 'hardy'
-  | 'brave'
-  | 'gregarious'
-  | 'timid'
-  | 'greenthumb'
-  | 'lucky'
-  | 'nurturing'
-  | 'insightful'
-  | 'chivalrous'
-  | 'resourceful'
-  | 'stoic'
-  | 'graceful'
-  | 'intuitive'
-  | 'fierce';
-
 export const JOB_LABELS: Record<JobType, string> = {
   [JobType.Settler]: 'Unemployed',
   [JobType.Farmer]: 'Farmer',
@@ -194,10 +178,6 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
   [BuildingType.Tavern]: JobType.Innkeeper,
   [BuildingType.Hotel]: JobType.Hotelier,
 };
-
-/** Max sleepers at one staffed hotel overnight — visitors and settlers share the same beds. */
-export const HOTEL_GUEST_CAPACITY = 8;
-
 
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
   // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
@@ -532,6 +512,8 @@ export interface PopulationHistoryEntry {
   food?: number;
   wood?: number;
   stone?: number;
+  /** Optional for pre-0.6.5.2 saves that did not sample iron. */
+  iron?: number;
   pollution?: number;
   ecosystemHealth?: number;
   biodiversity?: number;

@@ -12,7 +12,8 @@ import { humanEnergyLoss } from '../src/game/simulation/humanNeeds';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { EntityType } from '../src/game/gameTypes';
-import type { Entity, SettlerTrait } from '../src/game/gameTypes';
+import type { Entity } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const CONFIG = SPECIES_CONFIG[EntityType.Human];

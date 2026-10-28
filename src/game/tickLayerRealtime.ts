@@ -209,6 +209,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
       food: state.resources.food,
       wood: state.resources.wood,
       stone: state.resources.stone,
+      iron: state.resources.iron,
       pollution: state.pollutionLevel,
       ecosystemHealth: getEcosystemHealth(state),
       biodiversity: state.biodiversityIndex,

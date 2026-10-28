@@ -12,7 +12,8 @@ import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
-import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 
 const FIXTURE_SEED = 20_260_917;
 /** Enough adults that an 8 % bonus rounds to a visible integer. */
