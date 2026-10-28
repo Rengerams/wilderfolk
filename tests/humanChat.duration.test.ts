@@ -20,6 +20,22 @@ describe('human chat duration at production cadence', () => {
     expect(woodLineTicks).toBeLessThanOrEqual(4 * TICKS_PER_HOUR);
   });
 
+  it('advances and releases a two-line solo session without a partner resolver', () => {
+    const speaker: ChatSpeaker = { id: 75 };
+    expect(requestDialogue({
+      eventKey: 'ambient.social', treeId: 'ambient_solo_social',
+      speaker, tick: 16, durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
+    expect(isDialogueBusy(speaker)).toBe(true);
+    for (let tick = 0; tick < 4; tick++) tickHumanChat(speaker);
+    expect(speaker.chatPhrase).toContain('He named himself');
+    expect(isDialogueBusy(speaker)).toBe(true);
+    for (let tick = 0; tick < 4; tick++) tickHumanChat(speaker);
+    expect(speaker.chatPhrase).toBeUndefined();
+    expect(speaker.chatDialogueSessionKey).toBeUndefined();
+    expect(isDialogueBusy(speaker)).toBe(false);
+  });
+
   it('expires a one-line event caption promptly and clears the renderer-visible state', () => {
     const speaker: ChatSpeaker = { id: 71 };
     expect(requestDialogue({
