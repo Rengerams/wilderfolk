@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Terrain browser review (28 October 2026):** Hide the map grid by default; reduce excessive bright rock art without altering path obstacles; require clear five-preset browser screenshots before visual approval.
+
 - **CC0 soil and leaf litter (28 October 2026):** Added four verified Cethiel dirt textures. Version 4 blends fine soil, coarse dirt and leaf litter; the rut texture is reserved for authored paths. Legacy maps retain their existing materials.
 
 - **CC0 natural ground detail (28 October 2026):** Curated 14 CC0 rubberduck textures at 512px; version 4 uses seven natural ground materials with elevation and moisture transitions and seam-safe sampling. Building textures and normal maps stay unloaded.
