@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
 - **Workforce stability (27 October 2026):** Construction borrows at most one worker per empty site, after idle and existing crews. Job rebalance opens empty posts only; staffing never shuffles workers to top up partially staffed posts.
