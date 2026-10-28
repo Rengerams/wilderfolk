@@ -15,6 +15,7 @@ const farm = building(10, BuildingType.Farm, { occupants: [1] });
 const worker = () => human(1, {
   workerBuildingId: 10, job: JobType.Farmer,
   scheduleLastWorkedHours: 6, scheduleLastWorkedSiteId: 10,
+  scheduleLastWorkedJob: JobType.Farmer,
 });
 
 describe('observed career history', () => {
@@ -59,6 +60,20 @@ describe('observed career history', () => {
     expect(h.scheduleLastWorkedSiteId).toBe(-1);
     expect(recordCareerWork(h, farm, JobType.Farmer, 0, 2)).toBe(false);
     expect(h.careerHistory).toBeUndefined();
+  });
+
+
+  it('does not credit a different profession from the same workplace after a mid-day role change', () => {
+    const h = worker();
+    h.scheduleWorkedTicksToday = undefined;
+    recordScheduleWorkTick(h, TICKS_PER_HOUR);
+    h.job = JobType.Hunter;
+    recordScheduleWorkTick(h, TICKS_PER_HOUR);
+    h.job = JobType.Farmer;
+    resolveDailyScheduleFatigue(h, { workSchedule: { startHour: 8, endHour: 17 } });
+    expect(h.scheduleLastWorkedSiteId).toBe(10);
+    expect(h.scheduleLastWorkedJob).toBeNull();
+    expect(recordCareerWork(h, farm, JobType.Farmer, 0, 2)).toBe(false);
   });
 
   it('keeps full-storage attendance eligible and saturates without redundant records', () => {

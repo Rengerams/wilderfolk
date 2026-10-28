@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Added:** Career history credits verified workplace attendance once per profession and settled calendar day. Actual apprenticeship completion and work thresholds record optional milestones; unverified construction attendance remains uncredited.
+- **Added:** Career history credits verified workplace attendance once per profession and settled calendar day, requiring matching workplace and trade provenance. Actual apprenticeship completion and work thresholds record optional milestones; unverified construction attendance remains uncredited.
 
 - **Changed:** Career and DNA fit break only exact commute-and-skill ties for idle candidates. Old saves start with neutral career history, and worker rollback isolates nested records.
 

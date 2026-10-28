@@ -161,6 +161,12 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       ? saved.scheduleWorkedSiteIdToday : undefined;
     entity.scheduleLastWorkedSiteId = validSite(saved.scheduleLastWorkedSiteId)
       ? saved.scheduleLastWorkedSiteId : undefined;
+    const validJob = (job: unknown): job is JobType | null =>
+      job === null || Object.values(JobType).includes(job as JobType);
+    entity.scheduleWorkedJobToday = validJob(saved.scheduleWorkedJobToday)
+      ? saved.scheduleWorkedJobToday : undefined;
+    entity.scheduleLastWorkedJob = validJob(saved.scheduleLastWorkedJob)
+      ? saved.scheduleLastWorkedJob : undefined;
   }
   ensureEntitySkills(entity);
 }

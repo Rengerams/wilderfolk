@@ -41,6 +41,7 @@ export function recordCareerWork(
   if (!Number.isSafeInteger(day) || day < 0 || day > MAX_CAREER_DAY
     || !Number.isFinite(observedHours) || observedHours <= 0) return false;
   if (worker.workerBuildingId !== site.id || worker.scheduleLastWorkedSiteId !== site.id
+    || worker.scheduleLastWorkedJob !== job
     || !site.completed || site.faction === 'rival' || BUILDING_JOB_TYPES[site.type] !== job
     || worker.job !== job || !site.occupants.includes(worker.id)) return false;
   const previous = worker.careerHistory?.[job];

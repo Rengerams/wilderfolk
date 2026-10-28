@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
-import { EntityType, JobType, BuildingType } from '../src/game/gameTypes';
-import { human, building } from '../src/test/factories';
+import { EntityType, JobType } from '../src/game/gameTypes';
+import { human } from '../src/test/factories';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
@@ -22,6 +22,8 @@ function oldPayload(): Record<string, unknown> {
     delete e.careerMilestones;
     delete e.scheduleLastWorkedSiteId;
     delete e.scheduleWorkedSiteIdToday;
+    delete e.scheduleWorkedJobToday;
+    delete e.scheduleLastWorkedJob;
   }
   return encoded.parsed;
 }

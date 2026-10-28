@@ -287,6 +287,8 @@ export interface Entity {
   /** Sole attendance owner's verified site for current/last settled shift (-1 = mixed/unknown). */
   scheduleWorkedSiteIdToday?: number;
   scheduleLastWorkedSiteId?: number;
+  scheduleWorkedJobToday?: JobType | null;
+  scheduleLastWorkedJob?: JobType | null;
   scheduleFatigue?: number;
   educated?: boolean;
   traits?: SettlerTrait[];
