@@ -7,7 +7,7 @@
  *   - L37 humanChat: a forced phrase reclaims the settler's dialogue session, and a
  *     partner left holding a reclaimed key is not dialogue-busy forever.
  *   - L37 (X6): the seven unreferenced legacy chat/courtship helpers are gone.
- *   - L16 dialogueTrees: tree selection is a deterministic draw from the context pool.
+ *   - L16 dialogueTrees: authored speech is chosen only from exact event key and mode.
  *   - L23 eventLog (already fixed): a non-combat chronicle line is never classified as combat.
  *   - L24/L25 eventLogFilters: the Chronicle offers a `divorce` category.
  *   - L74 travelingTheatre: the stage-1 script choice reaches the opening-night outcome.
@@ -32,7 +32,7 @@ import {
   tickHumanChat,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById, pickDialogueTree, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
 import {
   flushRelationshipDiagnostics,
   isRelationshipDiagnosticsEnabled,
@@ -251,16 +251,17 @@ describe('L37 — dialogue session reclamation', () => {
   });
 });
 
-describe('L16 — dialogue tree selection', () => {
-  it('is a deterministic draw from the context pool', () => {
-    const first = pickDialogueTree('work', 12, 30);
-    const second = pickDialogueTree('work', 12, 30);
-
-    expect(first).not.toBeNull();
-    expect(second?.id).toBe(first?.id);
-    for (let tick = 0; tick < 24; tick++) {
-      expect(pickDialogueTree('work', 12, tick)?.category).toBe('work');
-    }
+describe('L16 — event-key dialogue selection', () => {
+  it('requires an actual indexed event key and never falls back to a whole category', () => {
+    const actor: ChatSpeaker = { id: 12 };
+    expect(requestDialogue({ eventKey: 'work', speaker: actor, tick: 30 })).toBe(false);
+    expect(actor.chatPhrase).toBeUndefined();
+    expect(requestDialogue({ eventKey: 'ambient.work', speaker: actor, tick: 30 })).toBe(true);
+    const first = actor.chatPhrase;
+    resetDialogueSessions();
+    const other: ChatSpeaker = { id: 12 };
+    expect(requestDialogue({ eventKey: 'ambient.work', speaker: other, tick: 30 })).toBe(true);
+    expect(other.chatPhrase).toBe(first);
   });
 });
 
