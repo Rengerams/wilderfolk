@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "social",
   "dialogue_trees": [
@@ -25,7 +25,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_party",
@@ -49,7 +49,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_friendship",
@@ -73,7 +73,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_hey",
@@ -97,7 +97,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_peace",
@@ -121,7 +121,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_harvest",
@@ -145,7 +145,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_kids",
@@ -169,7 +169,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_wolves",
@@ -193,7 +193,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_mama",
@@ -217,7 +217,7 @@
         }
       ],
       "eventKey": "ambient.child",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_play",
@@ -241,7 +241,7 @@
         }
       ],
       "eventKey": "ambient.child",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_help",
@@ -265,7 +265,7 @@
         }
       ],
       "eventKey": "ambient.child",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_lesson",
@@ -289,7 +289,7 @@
         }
       ],
       "eventKey": "ambient.school",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_recess",
@@ -313,7 +313,7 @@
         }
       ],
       "eventKey": "ambient.school",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_class",
@@ -337,7 +337,7 @@
         }
       ],
       "eventKey": "ambient.school",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_walk",
@@ -361,7 +361,7 @@
         }
       ],
       "eventKey": "ambient.courtship",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_well",
@@ -385,7 +385,7 @@
         }
       ],
       "eventKey": "ambient.courtship",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_evening",
@@ -409,7 +409,7 @@
         }
       ],
       "eventKey": "ambient.courtship",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_company",
@@ -433,7 +433,7 @@
         }
       ],
       "eventKey": "ambient.courtship",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_boots",
@@ -457,7 +457,7 @@
         }
       ],
       "eventKey": "ambient.courtship",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_trade",
@@ -481,7 +481,7 @@
         }
       ],
       "eventKey": "ambient.visitor",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_roads",
@@ -505,7 +505,7 @@
         }
       ],
       "eventKey": "ambient.visitor",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_passing",
@@ -529,7 +529,7 @@
         }
       ],
       "eventKey": "ambient.visitor",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_fences",
@@ -553,7 +553,7 @@
         }
       ],
       "eventKey": "ambient.rival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_watch",
@@ -577,7 +577,7 @@
         }
       ],
       "eventKey": "ambient.rival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_slight",
@@ -601,7 +601,7 @@
         }
       ],
       "eventKey": "ambient.rival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_feast",
@@ -625,7 +625,7 @@
         }
       ],
       "eventKey": "ambient.festival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_cheers",
@@ -649,7 +649,7 @@
         }
       ],
       "eventKey": "ambient.festival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_best",
@@ -673,7 +673,7 @@
         }
       ],
       "eventKey": "ambient.festival",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_relationship_pressure",
@@ -709,7 +709,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_secret_conflict",
@@ -761,7 +761,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_rumor",
@@ -797,7 +797,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_social_crow",
@@ -821,7 +821,7 @@
         }
       ],
       "eventKey": "ambient.social",
-      "mode": "pair"
+      "conversation_type": "two_way"
     }
   ],
   "categories": [
