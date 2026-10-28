@@ -83,7 +83,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/personality.legacyConsumerAudit.test.ts, tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts',
   },
   humanPhysiology: {
-    owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',
+    owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',
     cadence: 'realtime',
     cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. Work-shift stamina loss is divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain; walking keeps its base drain.',
     writes: [
@@ -96,10 +96,11 @@ export const SIMULATION_DECISIONS = {
       'human.needs.sleepRecoveryUntilTick',
       'human.needs.breakUntilRecovered',
       'human.needs.nightDutyRecoveryPending',
+      'human.needs.restStartTick/restBuildingId/restAnchorX/restAnchorY',
       'human.energy (derived projection)',
     ],
     scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
-    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts',
   },
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',

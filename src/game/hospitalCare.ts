@@ -74,6 +74,22 @@ export function needsMedicalCare(entity: Entity, tick: number): boolean {
   return false;
 }
 
+/** Admission-derived hospital rest: medical need, a staffed ward, and real indoor presence. */
+export function isRestingHospitalPatient(
+  patient: Entity,
+  hospital: Building | undefined,
+  tick: number,
+  previousIndoorBuildingId?: number,
+): boolean {
+  if (!hospital || hospital.type !== BuildingType.Hospital || !hospital.completed
+    || hospital.faction === 'rival' || hospital.occupants.length === 0
+    || previousIndoorBuildingId !== hospital.id || !isPlayerHuman(patient)
+    || !needsMedicalCare(patient, tick)) return false;
+  const dx = patient.x - (hospital.x + hospital.width / 2);
+  const dy = patient.y - (hospital.y + hospital.height / 2);
+  return dx * dx + dy * dy <= HOSPITAL_WARD_RADIUS_PX ** 2;
+}
+
 /** How urgently this settler should seek the hospital (0–1). */
 export function medicalUrgency(entity: Entity): number {
   // pregnancyProgress runs ~0..PREGNANCY_TICKS (~24 days); scale urgency over the term
