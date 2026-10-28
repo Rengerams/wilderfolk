@@ -3,12 +3,12 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
-import { DAYS_PER_YEAR, getAgeInYears, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
+import { DAYS_PER_YEAR, PER_TICK_RATE_SCALE, getAgeInYears, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
 import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
-import { sayHumanChatPhrase } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
@@ -662,79 +662,47 @@ function pickTopCandidates(state: WorldState, count: number): LeadershipScoreBre
   return getElectionRaceCandidates(state, count);
 }
 
-function pickElectionGossipPhrase(
+/** Select exactly the former seeded gossip slot, now referencing JSON IDs instead of TS speech. */
+function selectElectionGossip(
   state: WorldState,
   tone: 'buildup' | 'ceremony' | 'tension',
-): string {
+): { treeId: string; variables: Record<string, string> } {
   const race = pickTopCandidates(state, 4);
   const leader = getVillageLeader(state);
   const leaderName = leader ? formatSettlerName(leader) : 'our head';
   const challengers = leader ? race.filter((b) => b.entityId !== leader.id) : race;
-  const a = challengers[0]?.name ?? race[0]?.name ?? 'someone';
-  const b = challengers[1]?.name ?? race[1]?.name ?? 'another';
-  const c = challengers[2]?.name ?? race[2]?.name ?? 'a dark horse';
+  const candidateA = challengers[0]?.name ?? race[0]?.name ?? 'someone';
+  const candidateB = challengers[1]?.name ?? race[1]?.name ?? 'another';
+  const candidateC = challengers[2]?.name ?? race[2]?.name ?? 'a dark horse';
   const record = leader ? getIncumbentRecordAssessment(state, leader) : null;
 
-  const recordBuildup = record
-    ? [
-        record.economyStatus === 'good'
-          ? `Prosperity favors ${leaderName} — the stores are full.`
-          : record.economyStatus === 'poor'
-            ? `Hard times hurt ${leaderName} at the polls.`
-            : null,
-        record.scandalStatus === 'clean'
-          ? `${leaderName} kept a clean name — that helps.`
-          : `Those scandals still haunt ${leaderName}…`,
-        record.villageStatus === 'good'
-          ? `The village is thriving under ${leaderName}.`
-          : record.villageStatus === 'poor'
-            ? `Folks blame ${leaderName} for how bad things are.`
-            : null,
-      ].filter((line): line is string => line != null)
-    : [];
+  const recordIds: string[] = [];
+  if (record && tone !== 'tension') {
+    const prefix = tone + '_record_';
+    if (record.economyStatus === 'good') recordIds.push(prefix + 'economy_good');
+    else if (record.economyStatus === 'poor') recordIds.push(prefix + 'economy_poor');
+    recordIds.push(prefix + (record.scandalStatus === 'clean' ? 'scandal_clean' : 'scandal_bad'));
+    if (record.villageStatus === 'good') recordIds.push(prefix + 'village_good');
+    else if (record.villageStatus === 'poor') recordIds.push(prefix + 'village_poor');
+  }
 
-  const buildup = [
-    `Election next year — will ${leaderName} keep the crown?`,
-    `I hear ${a} is gaining support…`,
-    `${b} served well — worth watching.`,
-    leader
-      ? `The village buzzes about ${leaderName}, ${a}, and ${b}.`
-      : `The village buzzes about ${a} and ${b}.`,
-    `Who will lead us after ${leaderName}?`,
-    `${c} might surprise us next election.`,
-    ...recordBuildup,
-  ];
-
-  const ceremony = leader
-    ? [
-        `Who will it be — ${leaderName} or ${a}?`,
-        `Well, I know one thing — ${leaderName} has quite the reputation in town!`,
-        `${a} challenges ${leaderName} for the crown.`,
-        `Can ${leaderName} hold off ${a}?`,
-        `${leaderName} is defending — ${a} has the merit, I think.`,
-        `Time for a change from ${leaderName}?`,
-        `${b} deserves a chance against ${leaderName}.`,
-        ...recordBuildup,
-      ]
-    : [
-        `Who will it be — ${a} or ${b}?`,
-        `${a} has the merit, I think.`,
-        `The Hall favors ${b}…`,
-        `Time for a fresh village head?`,
-        `I’m voting ${a} in my heart.`,
-        `${b} deserves a chance.`,
-      ];
-
-  const tension = [
-    'Quiet… they’re about to announce…',
-    'My heart is pounding…',
-    'Who did the merit favor?',
-    'Shh — here comes the result…',
-  ];
-
-  const pool = tone === 'buildup' ? buildup : tone === 'tension' ? tension : ceremony;
-  const idx = (state.tick * 17 + pool.length * 3) % pool.length;
-  return pool[idx];
+  const pool = tone === 'tension'
+    ? ['tension_quiet', 'tension_heart', 'tension_merit', 'tension_result']
+    : tone === 'buildup'
+      ? ['buildup_next_year', 'buildup_a_support', 'buildup_b_watching',
+        leader ? 'buildup_buzz_leader' : 'buildup_buzz_no_leader',
+        'buildup_after_leader', 'buildup_c_surprise', ...recordIds]
+      : leader
+        ? ['ceremony_leader_who', 'ceremony_leader_reputation', 'ceremony_leader_challenge',
+          'ceremony_leader_hold', 'ceremony_leader_merit', 'ceremony_leader_change',
+          'ceremony_leader_b_chance', ...recordIds]
+        : ['ceremony_open_who', 'ceremony_open_merit', 'ceremony_open_hall',
+          'ceremony_open_change', 'ceremony_open_vote', 'ceremony_open_b_chance'];
+  const index = (state.tick * 17 + pool.length * 3) % pool.length;
+  return {
+    treeId: 'evt_election_' + pool[index],
+    variables: { leader: leaderName, candidateA, candidateB, candidateC },
+  };
 }
 
 export function tickElectionGossip(state: WorldState): void {
@@ -777,7 +745,12 @@ export function tickElectionGossip(state: WorldState): void {
   const speaker = eligible[Math.floor(seededRandomForRun(`${gossipKey}:speaker`) * eligible.length)];
   if (!speaker) return;
 
-  sayHumanChatPhrase(speaker, pickElectionGossipPhrase(state, tone), 110);
+  const gossip = selectElectionGossip(state, tone);
+  requestDialogue({
+    eventKey: 'election.' + tone, treeId: gossip.treeId, speaker,
+    tick: state.tick, priority: 'scripted', variables: gossip.variables,
+    durationHours: Math.max(4, Math.round(110 * PER_TICK_RATE_SCALE)) / TICKS_PER_HOUR,
+  });
 }
 
 export function startElectionCeremony(
@@ -917,7 +890,11 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
       const winner = state.entities.find((e) => e.id === result.leaderId);
       if (winner) {
         winner.flash = 14;
-        sayHumanChatPhrase(winner, 'I will serve the village!', 140);
+        requestDialogue({
+          eventKey: 'election.winner', speaker: winner, tick: state.tick,
+          priority: 'scripted',
+          durationHours: Math.max(4, Math.round(140 * PER_TICK_RATE_SCALE)) / TICKS_PER_HOUR,
+        });
       }
 
       if (announcement) {
