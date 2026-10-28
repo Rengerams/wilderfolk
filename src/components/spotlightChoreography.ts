@@ -5,7 +5,8 @@ export const SPOTLIGHT_PRESENTATION = readPresentationDialogue(spotlightSource, 
 
 export const SPOTLIGHT_POSE_MS = 7000;
 export const SPOTLIGHT_INTRO_MS = 2400;
-export const SPOTLIGHT_APPLAUSE_MS = 2800;
+/** Hold the actual 6.1-second audience cheering sample and a brief silent tail. */
+export const SPOTLIGHT_APPLAUSE_MS = 6400;
 
 export const SPOTLIGHT_CUES = [
   'juvenile-reply', 'first-look-pose', 'first-chorus-start', 'first-chorus-end',
