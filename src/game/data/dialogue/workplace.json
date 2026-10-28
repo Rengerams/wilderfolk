@@ -1,0 +1,96 @@
+{
+  "version": "1.0",
+  "category": "work",
+  "dialogue_trees": [
+    {
+      "id": "evt_workplace_banter_solo_0",
+      "category": "work",
+      "eventKey": "workplace.banter.solo",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Long morning."
+        }
+      ]
+    },
+    {
+      "id": "evt_workplace_banter_solo_1",
+      "category": "work",
+      "eventKey": "workplace.banter.solo",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Almost midday."
+        }
+      ]
+    },
+    {
+      "id": "evt_workplace_banter_start_0",
+      "category": "work",
+      "eventKey": "workplace.banter.start",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        }
+      ]
+    },
+    {
+      "id": "evt_workplace_banter_start_1",
+      "category": "work",
+      "eventKey": "workplace.banter.start",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        }
+      ]
+    },
+    {
+      "id": "evt_workplace_banter_reply_0",
+      "category": "work",
+      "eventKey": "workplace.banter.reply",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Same as ever."
+        }
+      ]
+    },
+    {
+      "id": "evt_workplace_banter_reply_1",
+      "category": "work",
+      "eventKey": "workplace.banter.reply",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Could be worse."
+        }
+      ]
+    }
+  ]
+}
