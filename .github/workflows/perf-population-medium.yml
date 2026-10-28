@@ -10,6 +10,7 @@ on:
       - 'scripts/simCityProfile.ts'
       - 'scripts/compare-population-benchmarks.mjs'
       - 'scripts/compare-population-colony.mjs'
+      - 'scripts/compare-population-colony.test.mjs'
       - '.github/workflows/perf-population-medium.yml'
       - '.github/workflows/perf-population-reusable.yml'
   workflow_dispatch:

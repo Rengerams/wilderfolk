@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI:** Added per-resident workday, workplace and observed-hours JSONL audit to VirtualPlayer population benchmarks; daily profession sums and bot commands are reconciled and regression-tested before performance runs.
+
 - **CI:** Population performance now runs full game-day cycles on staffed producer colonies with the hourly VirtualPlayer; optional half-year stress runs are manual and include real career-credit checks.
 
 - **Changed:** Moon Howler transformation, new curses and the full-moon cure window now begin at 22:00 (previously 23:00), with reversion still at 06:00. Ordinary village night hours are unchanged.

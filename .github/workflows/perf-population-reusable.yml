@@ -50,6 +50,10 @@ jobs:
           echo "REPORT_DIR=$RUNNER_TEMP/population-perf-$TIER" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/population-perf-$TIER"
 
+      - name: Test audit contract and reject inconsistent workday logs
+        shell: bash
+        run: node --test scripts/compare-population-colony.test.mjs
+
       - name: Benchmark baseline with identical colony harness
         if: inputs.days != 180
         shell: bash
