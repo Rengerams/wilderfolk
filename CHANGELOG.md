@@ -4,7 +4,8 @@
 
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
-- **Dialogue checks:** Added source ownership, schema integrity, paired-role and contextual-scene regression guards. Full compilation and test verification remain pending.
+- **Dialogue checks:** Added source ownership and schema integrity guards; 43 focused regressions and test typecheck passed on PR #93. Standard suite and release build remain pending.
+- **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
