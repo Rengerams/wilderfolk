@@ -160,6 +160,11 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/cethiel/Grass_02.png',
     '/sprites/terrain/cethiel/Grass_03.png',
     '/sprites/terrain/cethiel/Grass_04.png',
+    // Cethiel CC0 dirt: fine soil, gritty soil and natural leaf litter.
+    // Dirt_03 has directional ruts and is reserved for deliberate paths/farms.
+    '/sprites/terrain/cethiel/Dirt_01.png',
+    '/sprites/terrain/cethiel/Dirt_02.png',
+    '/sprites/terrain/cethiel/Dirt_04.png',
     // CC0 50 Free Textures 5 (rubberduck / para), 512px reduced albedos.
     // Load only the seven materials the v4 ground shader actually samples.
     '/sprites/terrain/rubberduck/246.jpg', // sand
