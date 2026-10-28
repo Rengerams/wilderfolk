@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Spotlight timing (PR #91):** Moved the weekend rare-event roll from 16:00 to 19:00; eligibility, 7.5% chance, 90-day cooldown and rewards remain unchanged.
+
 - **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; CI/browser verification pending.
 
 - **Tests:** Corrected the real-tick spotlight `ready` fixture to keep every performer on stage while testing home-commute priority. Preserved strict live attendance rules.
