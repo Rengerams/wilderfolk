@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Nature decor cleanup (28 October 2026):** New version-4 worlds no longer generate mushrooms, bones, water lilies, flowers, ferns, reeds, cattails, dry scrub or tiny decorative berry bushes; surviving scenery retains its weighted biome coverage. Harvestable blueberry trees and historical v1–v3 maps remain unchanged.
+
 - **Biome ecotones (28 October 2026):** Smooth grass, sand, dirt, stone and snow transitions; fade tree density by local climate; replace generated scenery shapes with licensed artist sprites in new worlds. Existing saves retain their terrain recipes.
 
 
