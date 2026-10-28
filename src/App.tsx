@@ -58,6 +58,7 @@ import { isRotatableBuildingType, toggleBuildingRotation } from './game/building
 import { preloadAllSprites } from './game/spriteLoader';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import GameMapStage from './components/GameMapStage';
+import SpotlightLoreOverlay from './components/SpotlightLoreOverlay';
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
@@ -438,12 +439,67 @@ export default function App() {
 
   const togglePause = useCallback(() => {
     const loop = loopRef.current;
-    if (!loop) return;
+    if (!loop || loop.getWorld().spotlightLore?.phase === 'ready') return;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
     // Resuming is only a resume. It used to also fire `autoStaffWorkers`, so pressing Space handed
     // every idle settler a job with no confirmation and undid a player's deliberate unstaffing. The
     // labelled "Auto-assign all workers" control owns that decision.
   }, [loopRef]);
+
+  const spotlightReturnRef = useRef<{
+    id: string;
+    camera: ViewState['camera'];
+    favoriteEntityId: number | null;
+    paused: boolean;
+    speed: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const scene = world.spotlightLore;
+    const prior = spotlightReturnRef.current;
+    if (!gameplayActive) {
+      spotlightReturnRef.current = null;
+      return;
+    }
+    if (!scene) {
+      if (!prior) return;
+      spotlightReturnRef.current = null;
+      loop.patchView({ camera: prior.camera, favoriteEntityId: prior.favoriteEntityId });
+      loop.mutateWorld((w) => { w.paused = prior.paused; w.speed = prior.speed; });
+      return;
+    }
+    if (!prior || prior.id !== scene.id) {
+      const viewBefore = loop.getView();
+      spotlightReturnRef.current = {
+        id: scene.id,
+        camera: { ...viewBefore.camera },
+        favoriteEntityId: viewBefore.favoriteEntityId,
+        paused: scene.phase === 'ready' ? false : loop.getWorld().paused,
+        speed: loop.getWorld().speed,
+      };
+    }
+    const girl = resolveEntity(loop.getWorld(), scene.heroineId);
+    if (girl?.alive) {
+      const aimed = focusCameraOn(loop.getView(), girl.x, girl.y, 1.75);
+      const canvas = canvasRef.current;
+      loop.patchView({
+        camera: clampCameraTarget(
+          aimed.camera, world.width, world.height,
+          canvas?.clientWidth ?? world.width, canvas?.clientHeight ?? world.height,
+        ),
+      });
+    }
+    if (scene.phase === 'ready' && !loop.getWorld().paused) {
+      loop.mutateWorld((w) => { w.paused = true; });
+    }
+  }, [gameplayActive, world.tick, world.spotlightLore?.id, world.spotlightLore?.phase, loopRef]);
+
+  const finishSpotlight = useCallback((sceneId: string, reason: 'complete' | 'skipped') => {
+    if (loopRef.current?.getWorld().spotlightLore?.id !== sceneId) return;
+    applyGameAction({ proto: 1, op: 'finishSpotlightLore', sceneId, reason });
+  }, [applyGameAction, loopRef]);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
     primeAudioUnlock();
@@ -709,7 +765,7 @@ export default function App() {
   useEffect(() => {
     const loop = loopRef.current;
     const catalog = catalogRef.current;
-    if (!loop || showIntro || showMapSetup) return;
+    if (!loop || showIntro || showMapSetup || world.spotlightLore) return;
     const view = loop.getView();
     const id = view.favoriteEntityId;
     if (id == null) return;
@@ -1400,8 +1456,16 @@ export default function App() {
             onMouseLeave={handleMouseLeave}
             onContextMenu={handleContextMenu}
           />
-
-        
+          {gameplayActive && world.spotlightLore && (
+            <SpotlightLoreOverlay
+              key={world.spotlightLore.id}
+              scene={world.spotlightLore}
+              world={world}
+              camera={view.camera}
+              canvasRef={canvasRef}
+              onFinish={finishSpotlight}
+            />
+          )}
 
           <div className="pointer-events-none absolute inset-0 z-10">
           {/* Strip gestures: a contextual hint makes bulk demolition discoverable. */}
