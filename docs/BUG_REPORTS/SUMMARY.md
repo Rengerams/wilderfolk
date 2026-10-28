@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Ready spotlight can lose actors before presentation](../bug_report/2026-10-28-spotlight-ready-cast-dispersed.md):** Fixed in code on PR #91; validate current cast proximity during ready and on save reload, while allowing still-gathering actors to travel. CI/browser pending.
+
 **2026-10-28 — [Spotlight starts before the heroine returns](../bug_report/2026-10-28-spotlight-heroine-not-arrived.md):** Resolved; Require the heroine within the same 11-unit arrival radius.
 
 **2026-10-28 — [Ready spotlight ignores invalid participants](../bug_report/2026-10-28-spotlight-ready-participant-validation.md):** Resolved; Check participant eligibility before the ready return and abort for an active festival.
