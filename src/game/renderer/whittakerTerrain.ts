@@ -517,6 +517,27 @@ function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: nu
 }
 
 /**
+ * Interpolate along-stream phase only over assigned flow cells. The phase field is
+ * zero in unassigned bank cells, so ordinary interpolation would pull long-river
+ * distances toward zero and create compressed, cross-stream wave fronts.
+ *
+ * The mask uses exactly the same smoothstep weights as the phase sample.
+ * Outside the flow field there is no phase to paint.
+ */
+export function sampleRiverPhase(
+  phase: Float32Array,
+  mask: Float32Array,
+  cols: number,
+  rows: number,
+  fx: number,
+  fy: number,
+): number | null {
+  const assigned = sampleF(mask, cols, rows, fx, fy);
+  if (assigned <= 0.5) return null;
+  return sampleF(phase, cols, rows, fx, fy) / assigned;
+}
+
+/**
  * Whole-map fields the bake needs. They are **cell-resolution** — 160 × 120 at the current
  * constants on a 2560 × 1920 map — so they are cheap to hold for the whole world while the
  * per-pixel loop runs over one viewport at a time.
@@ -1093,10 +1114,11 @@ export function bakeWhittakerGround(
           // Along-stream phase makes the bright wave fronts cross the stream, not run as a global
           // screen-aligned stripe. Stronger whitewater only appears near actual waterfall drops.
           if (rd > 0.55 && waterBlend > 0.5) {
-            const flowMask = sampleF(riverFlowMask, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-            if (flowMask > 0.5) {
+            const distanceAlong = sampleRiverPhase(
+              riverPhase, riverFlowMask, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL,
+            );
+            if (distanceAlong !== null) {
               const rapid = sampleF(riverRapids, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-              const distanceAlong = sampleF(riverPhase, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
               const phase = distanceAlong * 0.25
                 + (valueNoise(wx * 0.045, wy * 0.045, seed + 6130) - 0.5) * 3.5;
               const crest = Math.max(0, Math.sin(phase)) ** 8;
