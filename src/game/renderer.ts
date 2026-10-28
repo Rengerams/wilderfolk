@@ -14,7 +14,7 @@ import {
 import { resetWeatherCaches } from './renderer/weather';
 import { compositeCachedEntityLayer, paintMovingEntities } from './renderer/entityComposite';
 import { drawGameOverlay } from './renderer/overlay';
-import { beginMotionFrame, resetMotionInterpolation } from './renderer/motionInterpolation';
+import { beginMotionFrame, resetMotionInterpolation, setSpotlightPresentationFrame, type SpotlightPresentation } from './renderer/motionInterpolation';
 import { drawMiniMapFrame } from './renderer/miniMapFrame';
 import { getPresentationRng } from './simRng';
 import { resetLogisticsOverlayCache } from './logisticsOverlayData';
@@ -48,7 +48,10 @@ export function renderGame(
   cw: number,
   ch: number,
   tickFraction = 1,
+  spotlightPresentation: SpotlightPresentation | null = null,
 ) {
+  setSpotlightPresentationFrame(spotlightPresentation);
+  try {
   profileRenderedFrame(state.tick, state.weather);
   tickRenderClock(performance.now());
   ctx.imageSmoothingEnabled = false;
@@ -98,4 +101,7 @@ export function renderGame(
   const renderminimapStart = profileStart();
   drawMiniMapFrame();
   profileEnd('render.minimap', renderminimapStart);
+  } finally {
+    setSpotlightPresentationFrame(null);
+  }
 }
