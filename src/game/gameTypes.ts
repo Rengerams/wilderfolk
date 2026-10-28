@@ -1211,7 +1211,7 @@ export interface WorldMap {
    */
   terrainSeed?: number;
   /** Versioned procedural recipes keep compact saves visually identical across upgrades. */
-  generationVersion?: 1 | 2 | 3;
+  generationVersion?: 1 | 2 | 3 | 4;
   /**
    * Per-map biome cuts for the moisture field, derived by the generator from that map's own
    * distribution. Absolute constants cannot work: the tile-level moisture field runs 0.47 at
