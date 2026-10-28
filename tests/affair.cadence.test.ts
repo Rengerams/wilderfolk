@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * Affair cadence authority — SIMULATION_AUTHORITY.md §3/§4 + Objective 9 +
  * BUG 2026-08-20-affair-establishment-dual-cadence.
@@ -17,7 +18,7 @@ import { EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import {
