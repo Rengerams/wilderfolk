@@ -14,7 +14,7 @@ import {
   personDayRoll,
 } from './dayCycle';
 import { isDialogueBusy } from './humanChat';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { isMarriedOrExpecting } from './civilStatus';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
@@ -51,7 +51,7 @@ export interface SocialImpulse {
   /** Suggest staying near home residence. */
   stayHome?: boolean;
   /** Exact outcome-based dialogue content key; prose is owned only by JSON. */
-  dialogueEvent?: string;
+  dialogueEvent?: DialogueEventKey;
   /** Source selection roll, keeping the previous person/day authored-text choice. */
   dialogueRoll?: number;
 }
@@ -232,7 +232,7 @@ export function pickSocialImpulse(
     return {
       motive: 'bad_weather',
       stayHome: true,
-      dialogueEvent: `social.impulse.bad_weather.${weatherKind}`,
+      dialogueEvent: `social.impulse.bad_weather.${weatherKind}` as const,
     };
   }
 
