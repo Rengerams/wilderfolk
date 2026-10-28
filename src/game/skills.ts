@@ -116,21 +116,26 @@ export function getWorkerSkillMultiplier(
   entityById?: Map<number, Entity>,
   action: WorkAction = 'production',
 ): number {
-  const job = getJobForBuilding(building.type);
-  if (!job || building.occupants.length === 0) return 1;
+  if (building.occupants.length === 0) return 1;
+  const siteJob = getJobForBuilding(building.type);
+  // A build crew is paid the site's own trade when it has one, else Builder: a house or wall has
+  // no production job, yet the crew raising it still earns — and is priced by — Building.
+  const skillJob = action === 'construction' ? siteJob ?? JobType.Builder : siteJob;
+  if (!skillJob) return 1;
   const workContext: TraitContext = action === 'construction'
     ? { kind: 'work', job: JobType.Builder, action: 'construction' }
-    : { kind: 'work', job, action: 'production' };
+    : { kind: 'work', job: skillJob, action: 'production' };
   let total = 0;
   let traitFactorSum = 0;
   for (const id of building.occupants) {
-    const h = entityById?.get(id) ?? state.entities.find((e) => e.id === id);
-    if (!h) {
-      // An unresolved occupant id has no DNA, so it counts as neutral rather than as a penalty.
+    // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
+    const h = entityById ? entityById.get(id) : state.entities.find((e) => e.id === id);
+    if (!h || !h.alive) {
+      // An unresolved or dead occupant has no DNA, so it counts as neutral rather than a penalty.
       traitFactorSum += 1;
       continue;
     }
-    total += readSkill(h, job);
+    total += readSkill(h, skillJob);
     traitFactorSum += evaluateTraitInfluence(h, workContext).factor;
   }
   const avg = total / building.occupants.length;

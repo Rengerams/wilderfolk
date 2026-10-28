@@ -238,17 +238,18 @@ export function rollLegacySettlerTraits(
 /**
  * The recognized traits a saved array may keep, in the order it wrote them.
  *
- * Non-arrays, unknown ids, duplicates and anything past the three canonical slots are dropped; an
- * existing nonempty valid set is never extended, because a fourth trait is not that settler's DNA.
+ * Non-arrays, unknown ids, duplicates, mutually exclusive pairs and anything past the three
+ * canonical slots are dropped; an existing nonempty valid set is never extended.
  */
 export function validSettlerTraits(saved: unknown): SettlerTrait[] {
   if (!Array.isArray(saved)) return [];
   const kept: SettlerTrait[] = [];
   for (const value of saved) {
     if (typeof value !== 'string' || !TRAIT_POOL.includes(value as SettlerTrait)) continue;
-    if (kept.includes(value as SettlerTrait)) continue;
+    const trait = value as SettlerTrait;
+    if (kept.includes(trait) || conflictsWith(trait, kept)) continue;
     if (kept.length >= TRAIT_COUNT) break;
-    kept.push(value as SettlerTrait);
+    kept.push(trait);
   }
   return kept;
 }

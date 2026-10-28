@@ -20,6 +20,8 @@
 
 - **Fixed:** Endurance DNA now prices a worked shift only, so Hardy and Graceful leave ordinary walking on its documented drain.
 
+- **Fixed:** A builder raising a house, wall, well or silo now earns the construction trait bonus; a crew slot naming a departed settler no longer prices a dead body's DNA, and saved DNA can no longer hold two mutually exclusive traits.
+
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
 
 - **Illustrated New Frontier map (28 October 2026):** Uses supplied parchment artwork with interactive live rival pins and raid routes. Stable read-only projection prevents pins shifting when new camps spawn. Gameplay, save format and raid rules remain unchanged.

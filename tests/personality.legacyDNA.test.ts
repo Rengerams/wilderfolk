@@ -180,6 +180,9 @@ describe('the legacy fill uses the canonical allocation rule', () => {
     expect(validSettlerTraits(['hardy', 'hardy', 'nonsense'])).toEqual(['hardy']);
     expect(validSettlerTraits(['brave', 'gregarious'])).toEqual(['brave', 'gregarious']);
     expect(validSettlerTraits(['fierce', 'stoic', 'lucky', 'hardy'])).toEqual(['fierce', 'stoic', 'lucky']);
+    // Mutually exclusive pairs cannot coexist, so a malformed array keeps only its first of the two.
+    expect(validSettlerTraits(['brave', 'timid'])).toEqual(['brave']);
+    expect(validSettlerTraits(['gregarious', 'timid'])).toEqual(['gregarious']);
     expect(validSettlerTraits(undefined)).toEqual([]);
     expect(validSettlerTraits('hardy')).toEqual([]);
   });

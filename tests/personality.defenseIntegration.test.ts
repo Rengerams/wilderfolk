@@ -17,8 +17,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { EntityType, JobType } from '../src/game/gameTypes';
+import { EntityType, JobType, Season } from '../src/game/gameTypes';
 import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
+import { tickHumans } from '../src/game/humanTick';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { getHumanHuntRange } from '../src/game/combat';
 import { isPlayerHuman } from '../src/game/playerHuman';
@@ -60,7 +61,9 @@ function militiaWorld(): { state: WorldState; own: Entity[]; base: number } {
 describe('the militia prices each defender\'s own DNA', () => {
   it('adds one soldier\'s bounded share, not a fraction of the whole army', () => {
     const { state, own, base } = militiaWorld();
-    const withProtector = militia(state, [...own, soldier(90, ['chivalrous'])]);
+    // Same roster size: one of the existing soldiers carries the trait, so only its own share moves.
+    const roster = own.map((entity, index) => soldier(entity.id, index === 0 ? ['chivalrous'] : []));
+    const withProtector = militia(state, roster);
     const delta = withProtector - base;
 
     expect(delta, 'the trait must work at all, or the assertions below pass for free').toBeGreaterThan(0);
@@ -222,6 +225,52 @@ describe('the free-roam hunt range is the catalog hunting factor', () => {
   });
 });
 
+/** One settler facing an active Moon Howler 40 px away, ticked once through the real `tickHumans`. */
+function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
+  const state = initGame({ seed: FIXTURE_SEED });
+  const found = state.entities.find((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
+  expect(found, 'fixture premise: the colony starts with a settler').toBeTruthy();
+  const runner = found!;
+  runner.job = JobType.Settler;
+  runner.traits = traits;
+  runner.workerBuildingId = undefined;
+  runner.residenceBuildingId = undefined;
+  runner.vx = 0;
+  runner.vy = 0;
+
+  const howler = createEntity(EntityType.Werewolf, runner.x + 40, runner.y, 9_001, 80, false, { name: 'Howler' });
+  howler.alive = true;
+  howler.moonHowlerCursed = true;
+  state.entities.push(howler);
+
+  const humans = [runner];
+  const byType = {
+    [EntityType.Human]: humans,
+    [EntityType.Werewolf]: [howler],
+  } as unknown as TickContext['byType'];
+  tickHumans(state, {
+    width: state.width,
+    height: state.height,
+    hourOfDay: 12,
+    season: Season.Spring,
+    grassMult: 1,
+    reproMult: 1,
+    winterPenalty: 0,
+    canHeat: true,
+    byType,
+    aliveEntities: [runner, howler],
+    newEntities: [],
+    updatedBuildings: state.buildings,
+    roadBuildings: [],
+    playerHumans: humans,
+    entityById: new Map<number, Entity>([[runner.id, runner], [howler.id, howler]]),
+    buildingById: new Map(state.buildings.map((b) => [b.id, b])),
+    predators: [],
+  } as TickContext);
+
+  return { speed: Math.hypot(runner.vx, runner.vy) };
+}
+
 describe('flight reads the catalog escape context', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/game/humanTick.ts'), 'utf8');
 
@@ -237,5 +286,15 @@ describe('flight reads the catalog escape context', () => {
     expect(evaluateTraitInfluence({ traits: ['brave'] }, ESCAPE).factor).toBeLessThan(1);
     expect(evaluateTraitInfluence({ traits: ['lucky'] }, ESCAPE).factor).toBeLessThan(1);
     expect(evaluateTraitInfluence({ traits: ['stoic'] }, ESCAPE)).toEqual({ factor: 1, tendency: 0 });
+  });
+
+  it('makes a risk-aware settler outrun a reckless one in a driven frame', () => {
+    const timid = fleeFromHowler(['timid']);
+    const plain = fleeFromHowler([]);
+    const brave = fleeFromHowler(['brave']);
+
+    expect(plain.speed, 'fixture premise: the settler actually fled the howler').toBeGreaterThan(0);
+    expect(timid.speed).toBeGreaterThan(plain.speed);
+    expect(brave.speed).toBeLessThan(plain.speed);
   });
 });

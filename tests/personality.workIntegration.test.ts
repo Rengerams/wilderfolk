@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameTick';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { BuildingType, JobType } from '../src/game/gameTypes';
+import { BUILDING_JOB_TYPES, BuildingType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -99,6 +99,35 @@ describe('the crew multiplier prices the trade DNA once', () => {
     // A farmer's DNA says nothing about raising walls, and no old +10% branch survives beside it.
     expect(getWorkerSkillMultiplier(bare, site, crew(greenthumb), 'construction'))
       .toBe(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction'));
+  });
+
+  it('prices a builder raising a site that has no trade of its own', () => {
+    // A house or wall has no production job, so the build crew is the Builder trade by default.
+    const site = building(SITE_ID, BuildingType.House, { occupants: [1], completed: false });
+    const construction = { kind: 'work', job: JobType.Builder, action: 'construction' } as const;
+    const plain = skillingWorker(1, []);
+    const resourceful = skillingWorker(1, ['resourceful']);
+    const trained = skillingWorker(1, ['resourceful']);
+    trained.skills = { [JobType.Builder]: MAX_SKILL };
+
+    expect(BUILDING_JOB_TYPES[BuildingType.House], 'fixture premise: a house has no production job')
+      .toBeUndefined();
+    const factor = evaluateTraitInfluence(resourceful, construction).factor;
+    expect(getWorkerSkillMultiplier(bare, site, crew(plain), 'construction')).toBe(1);
+    expect(getWorkerSkillMultiplier(bare, site, crew(resourceful), 'construction')).toBeCloseTo(factor, 10);
+    // The Builder trade still pays on that site: skill 100 is the documented 3x ceiling, then DNA.
+    expect(getWorkerSkillMultiplier(bare, site, crew(trained), 'construction')).toBeCloseTo(3 * factor, 8);
+  });
+
+  it('trusts a supplied index over a world scan for a stale crew slot', () => {
+    const site = building(SITE_ID, BuildingType.Farm, { occupants: [1] });
+    const dead = skillingWorker(1, ['greenthumb']);
+    dead.alive = false;
+    const world = { entities: [dead] } as unknown as WorldState;
+
+    // The daily crew map indexes living settlers only; the missing id must stay neutral either way.
+    expect(getWorkerSkillMultiplier(world, site, new Map<number, Entity>())).toBe(1);
+    expect(getWorkerSkillMultiplier(world, site)).toBe(1);
   });
 });
 
