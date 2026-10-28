@@ -56,12 +56,15 @@ def main() -> int:
             args=["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader",
                   "--enable-unsafe-swiftshader"],
         )
-        page = browser.new_page(viewport={"width": 1200, "height": 760},
-                                device_scale_factor=1, reduced_motion="reduce")
-        page.on("pageerror", lambda exc: page_errors.append(str(exc)))
-        assets = inspect_albedos_after_visit = None
+        assets = None
         for preset in PRESETS:
-            page.goto(BASE_URL, wait_until="load")
+            # A fresh browser context per map avoids the running simulation's
+            # unload/network listeners blocking the next map's load event.
+            page = browser.new_page(viewport={"width": 1200, "height": 760},
+                                    device_scale_factor=1, reduced_motion="reduce")
+            page.set_default_navigation_timeout(120000)
+            page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=120000)
             if assets is None:
                 assets = inspect_albedos(page)
             wait_for(page, "() => !!document.querySelector('canvas')", "canvas")
@@ -101,6 +104,7 @@ def main() -> int:
             report.append({"preset": preset, "selected": chosen, "zoom": zoom,
                            "stats": stats, "screenshot": str(screenshot)})
             print(f"{preset}: {stats['distinctColors']} colors, {stats['mean']} mean, {screenshot}", flush=True)
+            page.close()
         (OUT / "REPORT.json").write_text(
             json.dumps({"scenes": report, "assets": assets, "pageErrors": page_errors},
                        indent=2) + "\n", encoding="utf-8"
