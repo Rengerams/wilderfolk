@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; CI/browser verification pending.
+
 - **Tests:** Corrected the real-tick spotlight `ready` fixture to keep every performer on stage while testing home-commute priority. Preserved strict live attendance rules.
 
 - **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
