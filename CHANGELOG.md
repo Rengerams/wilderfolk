@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Resource-worker recovery (#72):** When stone or wood reaches zero, assign one idle worker to an unmanned Quarry or Lumber Mill before filling new construction crews. Keep manual staffing and existing jobs intact.
+
 - **CI workforce and terrain (PR #72):** Align food and Quarry staffing tests with real Farm capacity; use industrial surplus for Quarry recovery and preserve snow colours on mountain crests.
 
 - **Terrain river materials (#75, 28 October 2026):** Added flow-aligned glints, waterfall rapids and patchy silt banks. Fixed shore-phase compression by normalizing against assigned flow cells; added regression coverage and registered render-function owners. Generation and saves unchanged.
