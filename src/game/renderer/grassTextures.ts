@@ -14,6 +14,21 @@
 import { MapPreset } from '../gameTypes';
 import { getSprite } from '../spriteLoader';
 
+// Curated 512px albedos from rubberduck's CC0 50-texture pack. Other albedos
+// remain available for future buildings/paths but are never loaded into the map
+// without a material that actually uses them.
+export const TERRAIN_MATERIAL_PATHS = {
+  sand: '/sprites/terrain/rubberduck/246.jpg',
+  soil: '/sprites/terrain/rubberduck/206.jpg',
+  drySoil: '/sprites/terrain/rubberduck/217.jpg',
+  gravel: '/sprites/terrain/rubberduck/232.jpg',
+  rock: '/sprites/terrain/rubberduck/235.jpg',
+  straw: '/sprites/terrain/rubberduck/210.jpg',
+  pebbles: '/sprites/terrain/rubberduck/215.jpg',
+} as const;
+
+export type NaturalTerrainMaterial = keyof typeof TERRAIN_MATERIAL_PATHS;
+
 export const GRASS_TEXTURE_PATHS = [
   '/sprites/terrain/cethiel/Grass_03.png', // open grass, readable individual leaves
   '/sprites/terrain/cethiel/Grass_04.png', // flower-rich meadow cover
@@ -82,6 +97,48 @@ export function loadedGrassTextures(): GroundGrassTextures | null {
   const aa = decodeGrassTexture(a), bb = decodeGrassTexture(b);
   const cc = decodeGrassTexture(c), dd = decodeGrassTexture(d);
   return aa && bb && cc && dd ? [aa, bb, cc, dd] : null;
+}
+
+export type LoadedTerrainMaterials = Record<NaturalTerrainMaterial, GroundGrassTexture>;
+
+/** Decode the seven used photographic materials at most once per loaded image. */
+export function loadedTerrainMaterials(): LoadedTerrainMaterials | null {
+  const sand = getSprite(TERRAIN_MATERIAL_PATHS.sand);
+  const soil = getSprite(TERRAIN_MATERIAL_PATHS.soil);
+  const drySoil = getSprite(TERRAIN_MATERIAL_PATHS.drySoil);
+  const gravel = getSprite(TERRAIN_MATERIAL_PATHS.gravel);
+  const rock = getSprite(TERRAIN_MATERIAL_PATHS.rock);
+  const straw = getSprite(TERRAIN_MATERIAL_PATHS.straw);
+  const pebbles = getSprite(TERRAIN_MATERIAL_PATHS.pebbles);
+  if (!sand || !soil || !drySoil || !gravel || !rock || !straw || !pebbles) return null;
+  const values = [
+    decodeGrassTexture(sand), decodeGrassTexture(soil), decodeGrassTexture(drySoil),
+    decodeGrassTexture(gravel), decodeGrassTexture(rock),
+    decodeGrassTexture(straw), decodeGrassTexture(pebbles),
+  ];
+  if (values.some((texture) => !texture)) return null;
+  return {
+    sand: values[0]!, soil: values[1]!, drySoil: values[2]!,
+    gravel: values[3]!, rock: values[4]!,
+    straw: values[5]!, pebbles: values[6]!,
+  };
+}
+
+/**
+ * Add colour-neutral material relief to a reusable RGB tuple. Uses the world XY
+ * position rather than chunk-relative UV, keeping 2.5D chunk seams invisible.
+ */
+export function sampleTerrainMaterial(
+  texture: GroundGrassTexture,
+  worldX: number, worldY: number,
+  out: [number, number, number],
+): void {
+  const x = ((Math.floor(worldX) % texture.width) + texture.width) % texture.width;
+  const y = ((Math.floor(worldY) % texture.height) + texture.height) % texture.height;
+  const i = (y * texture.width + x) * 4;
+  out[0] = texture.pixels[i] - texture.mean[0];
+  out[1] = texture.pixels[i + 1] - texture.mean[1];
+  out[2] = texture.pixels[i + 2] - texture.mean[2];
 }
 
 function smooth01(t: number): number {
