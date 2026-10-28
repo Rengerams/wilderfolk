@@ -221,18 +221,12 @@ describe('L37 — dialogue session reclamation', () => {
       eventKey: 'social.impulse.grief.home', speaker: a, tick: 10, priority: 'scripted',
     })).toBe(true);
     expect(a.chatDialogueSessionKey).toBe('solo:51');
-    // The partner still holds the abandoned pair key until its next tick.
-    expect(b.chatDialogueSessionKey).toBe('51:52');
-
-    const partnerTicks = b.chatTicks ?? 0;
-    for (let i = 0; i < partnerTicks; i++) {
-      tickHumanChat(a, resolveA);
-      tickHumanChat(b, resolveB);
-    }
-
     expect(b.chatDialogueSessionKey).toBeUndefined();
     expect(b.chatPartnerId).toBeUndefined();
+    expect(b.chatPhrase).toBeUndefined();
+    expect(b.chatTicks).toBeUndefined();
     expect(isDialogueBusy(b)).toBe(false);
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: b, tick: 11 })).toBe(true);
   });
 
   it('no longer exposes the unreferenced legacy chat/courtship helpers', async () => {
