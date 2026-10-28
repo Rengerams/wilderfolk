@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Relationship diagnostics truthfulness — Objective 8.
  *
@@ -15,6 +14,7 @@ import { personDayRoll } from '../src/game/simRng';
  * The fixture starts a pregnancy (mocked roll), advances it to term, and
  * completes a birth — then checks each counter.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType, emptyEntityByType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
