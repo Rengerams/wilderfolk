@@ -5,6 +5,13 @@ import festivalDialogueJson from './data/festival.json' with { type: 'json' };
 import needsDialogueJson from './data/needs.json' with { type: 'json' };
 import socialDialogueJson from './data/social.json' with { type: 'json' };
 import workDialogueJson from './data/work.json' with { type: 'json' };
+import ambientSoloSocialJson from './data/dialogue/ambient-solo-social.json' with { type: 'json' };
+import ambientSoloNeedsJson from './data/dialogue/ambient-solo-needs.json' with { type: 'json' };
+import ambientSoloWorkJson from './data/dialogue/ambient-solo-work.json' with { type: 'json' };
+import ambientSoloChaosJson from './data/dialogue/ambient-solo-chaos.json' with { type: 'json' };
+import ambientSoloExistentialJson from './data/dialogue/ambient-solo-existential.json' with { type: 'json' };
+import ambientSoloEnvironmentJson from './data/dialogue/ambient-solo-environment.json' with { type: 'json' };
+import ambientSoloFestivalJson from './data/dialogue/ambient-solo-festival.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
@@ -56,6 +63,13 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   needsDialogueJson as unknown as DialogueSourceFile,
   socialDialogueJson as unknown as DialogueSourceFile,
   workDialogueJson as unknown as DialogueSourceFile,
+  ambientSoloSocialJson as unknown as DialogueSourceFile,
+  ambientSoloNeedsJson as unknown as DialogueSourceFile,
+  ambientSoloWorkJson as unknown as DialogueSourceFile,
+  ambientSoloChaosJson as unknown as DialogueSourceFile,
+  ambientSoloExistentialJson as unknown as DialogueSourceFile,
+  ambientSoloEnvironmentJson as unknown as DialogueSourceFile,
+  ambientSoloFestivalJson as unknown as DialogueSourceFile,
 ];
 
 const DIALOGUE_SOURCE_FILE_NAMES = [
@@ -66,6 +80,13 @@ const DIALOGUE_SOURCE_FILE_NAMES = [
   'needs.json',
   'social.json',
   'work.json',
+  'dialogue/ambient-solo-social.json',
+  'dialogue/ambient-solo-needs.json',
+  'dialogue/ambient-solo-work.json',
+  'dialogue/ambient-solo-chaos.json',
+  'dialogue/ambient-solo-existential.json',
+  'dialogue/ambient-solo-environment.json',
+  'dialogue/ambient-solo-festival.json',
 ] as const;
 
 function isDialogueCategory(value: string): value is DialogueCategory {
@@ -81,6 +102,9 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
       throw new Error(`[dialogue] Unsupported source category: ${String(source.category)}`);
     }
     for (const tree of source.dialogue_trees) {
+      if (!tree.eventKey || (tree.mode !== 'solo' && tree.mode !== 'pair')) {
+        throw new Error(`[dialogue] Missing event key or mode for ${tree.id}`);
+      }
       if (tree.category !== source.category) {
         throw new Error(`[dialogue] Tree ${tree.id} is ${tree.category} inside ${source.category}.json`);
       }
@@ -141,12 +165,11 @@ function indexDialogueBank(next: DialogueBankFile): void {
     if ((mode === 'solo' ? 1 : 2) !== tree.speakers.length || !tree.lines.length || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
       throw new Error(`[dialogue] Invalid roles or lines for ${tree.id}`);
     }
-    if (tree.eventKey) {
-      const key = `${tree.eventKey}:${mode}`;
-      const entries = nextTreesByEvent.get(key) ?? [];
-      entries.push(tree);
-      nextTreesByEvent.set(key, entries);
-    }
+    if (!tree.eventKey) throw new Error(`[dialogue] Missing event key for ${tree.id}`);
+    const key = `${tree.eventKey}:${mode}`;
+    const entries = nextTreesByEvent.get(key) ?? [];
+    entries.push(tree);
+    nextTreesByEvent.set(key, entries);
     const list = nextTreesByCategory.get(tree.category) ?? [];
     list.push(tree);
     nextTreesByCategory.set(tree.category, list);
@@ -345,7 +368,7 @@ export function maybeDialogueChat(
   context: HumanChatContext,
   tick: number,
   chance: number,
-  options: ChatPickOptions = {},
+  _options: ChatPickOptions = {},
 ): void {
   // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
   if (isDialogueBusy(entity) || (partner && isDialogueBusy(partner))) return;
