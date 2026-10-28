@@ -21,132 +21,238 @@
         "speaker_7",
         "speaker_8",
         "speaker_9",
-        "speaker_10"
+        "speaker_10",
+        "heroine"
       ],
       "lines": [
         {
+          "id": "spotlight.line.01",
           "speaker": "speaker_1",
           "text": "1-2-3-4, walking like a man!"
         },
         {
+          "id": "spotlight.line.02",
           "speaker": "speaker_2",
           "text": "Hitting like a hammer!"
         },
         {
+          "id": "spotlight.line.03",
           "speaker": "speaker_3",
           "text": "She's a juvenile scam!"
         },
         {
+          "id": "spotlight.line.04",
+          "speaker": "heroine",
+          "text": "Yes, Juvenile Scam! But look at me!",
+          "cue": "juvenile-reply"
+        },
+        {
+          "id": "spotlight.line.05",
           "speaker": "speaker_4",
           "text": "Never was a quitter!"
         },
         {
+          "id": "spotlight.line.06",
           "speaker": "speaker_5",
           "text": "Tasty like a raindrop!"
         },
         {
+          "id": "spotlight.line.07",
           "speaker": "speaker_6",
-          "text": "She's got the look!"
+          "text": "She's got the look!",
+          "cue": "first-look-pose"
         },
         {
+          "id": "spotlight.line.08",
           "speaker": "speaker_7",
           "text": "Heavenly bound, cause heaven has got a number!"
         },
         {
+          "id": "spotlight.line.09",
           "speaker": "speaker_8",
           "text": "When she's spinning me around!"
         },
         {
+          "id": "spotlight.line.10",
           "speaker": "speaker_9",
           "text": "Kissing is a colour!"
         },
         {
+          "id": "spotlight.line.11",
           "speaker": "speaker_10",
           "text": "Wait. Which colour? The painter would like to know."
         },
         {
+          "id": "spotlight.line.12",
           "speaker": "speaker_1",
-          "text": "She's got the look!"
+          "text": "She's got the look!",
+          "cue": "first-chorus-start"
         },
         {
+          "id": "spotlight.line.13",
           "speaker": "speaker_2",
           "text": "She's got the look!"
         },
         {
+          "id": "spotlight.line.14",
           "speaker": "speaker_3",
           "text": "What in the world can make a brown-eyed girl turn blue?"
         },
         {
+          "id": "spotlight.line.15",
           "speaker": "speaker_4",
           "text": "That would be my blueberry pie. She ate all of it."
         },
         {
+          "id": "spotlight.line.16",
           "speaker": "speaker_5",
           "text": "When everything I'll ever do, I'll do for you!"
         },
         {
+          "id": "spotlight.line.17",
           "speaker": "speaker_6",
-          "text": "And I go: la la la la la — she's got the look!"
+          "text": "And I go: la la la la la — she's got the look!",
+          "cue": "first-chorus-end"
         },
         {
+          "id": "spotlight.line.18",
           "speaker": "speaker_7",
           "text": "No, no, you're early. We haven't reached the chorus!"
         },
         {
+          "id": "spotlight.line.19",
           "speaker": "speaker_8",
           "text": "She's got the look!"
         },
         {
+          "id": "spotlight.line.20",
           "speaker": "speaker_9",
           "text": "Fire in the ice!"
         },
         {
+          "id": "spotlight.line.21",
           "speaker": "speaker_10",
           "text": "Who put my soup in the ice cellar?"
         },
         {
+          "id": "spotlight.line.22",
           "speaker": "speaker_1",
           "text": "Banging on the head drum!"
         },
         {
+          "id": "spotlight.line.23",
           "speaker": "speaker_2",
           "text": "Shaking like a mad bull!"
         },
         {
+          "id": "spotlight.line.24",
           "speaker": "speaker_3",
           "text": "She's got the look!"
         },
         {
+          "id": "spotlight.line.25",
           "speaker": "speaker_4",
           "text": "Swaying to the band!"
         },
         {
+          "id": "spotlight.line.26",
           "speaker": "speaker_5",
           "text": "Moving like a hammer!"
         },
         {
+          "id": "spotlight.line.27",
           "speaker": "speaker_6",
           "text": "She's a miracle, man!"
         },
         {
+          "id": "spotlight.line.28",
           "speaker": "speaker_7",
           "text": "A miracle GIRL, you goose!"
         },
         {
+          "id": "spotlight.line.29",
           "speaker": "speaker_8",
           "text": "Loving is the ocean!"
         },
         {
+          "id": "spotlight.line.30",
           "speaker": "speaker_9",
           "text": "Kissing is the wet sand!"
         },
         {
+          "id": "spotlight.line.31",
           "speaker": "speaker_10",
           "text": "She's got the look!"
         },
         {
+          "id": "spotlight.line.32",
           "speaker": "speaker_1",
           "text": "Well, now everyone is looking. What was the question?"
+        },
+        {
+          "id": "spotlight.line.33",
+          "speaker": "speaker_2",
+          "text": "She goes (na na na na na na)",
+          "cue": "second-look-lead"
+        },
+        {
+          "id": "spotlight.line.34",
+          "speaker": "speaker_3",
+          "text": "She's got the look!",
+          "cue": "second-look-pose"
+        },
+        {
+          "id": "spotlight.line.35",
+          "speaker": "speaker_4",
+          "text": "What in the world can make you so blue",
+          "cue": "bridge-hearts-start"
+        },
+        {
+          "id": "spotlight.line.36",
+          "speaker": "speaker_5",
+          "text": "When everything I'll ever do I'll do for you"
+        },
+        {
+          "id": "spotlight.line.37",
+          "speaker": "speaker_6",
+          "text": "And I go la la la la la (na na na na na na)"
+        },
+        {
+          "id": "spotlight.line.38",
+          "speaker": "speaker_7",
+          "text": "She's got the look!",
+          "cue": "farewell-walk"
+        },
+        {
+          "id": "spotlight.line.39",
+          "speaker": "speaker_8",
+          "text": "She goes (na na na na na na)"
+        },
+        {
+          "id": "spotlight.line.40",
+          "speaker": "speaker_9",
+          "text": "She's got the look, she's got the look"
+        },
+        {
+          "id": "spotlight.line.41",
+          "speaker": "speaker_10",
+          "text": "She goes (na na na na na na)"
+        },
+        {
+          "id": "spotlight.line.42",
+          "speaker": "speaker_1",
+          "text": "She's got the look, she's got the look"
+        },
+        {
+          "id": "spotlight.line.43",
+          "speaker": "speaker_2",
+          "text": "She goes (na na na na na na)"
+        },
+        {
+          "id": "spotlight.line.44",
+          "speaker": "heroine",
+          "text": "I've got the looks!",
+          "cue": "final-heroine"
         }
       ]
     }
