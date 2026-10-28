@@ -14,6 +14,14 @@
 - **Additional implementation tests:** `dialogue.bankIntegrity`, `dialogue.sessionModes`, `dialogue.domainEvents`, `dialogue.workerSaveParity`, `dialogue.legacyElectionsAudit`, and `dialogue.performance` (current p50/p95 only).
 - **Release acceptance not yet asserted:** full standard CI, build at final head and merge; a code change or a newly added test alone is not proof it passed. Actual PR #91 overlay UI wiring remains a separate branch integration after PR #93.
 
+## PR #93 follow-up acceptance hardening (28 October 2026)
+
+- **Simulation gate:** the removed 360-day CI workflow is replaced by `.github/workflows/simulation-120-day.yml`. On relevant game-rule PRs and manual dispatch it runs `npx tsx scripts/run-full-year.mts --scenario=producers --days=120 --seed=12345 --bot`, using the existing checkpoint invariant checker. It does **not** run the full-year Vitest file; the historical long scenario remains separately available.
+- **Chat sessions:** `humanChat.ts` retains the actual paired participants in the existing unsaved session Map, freeing both synchronously on scripted interruption even without a caller resolver. Same tick cadence and chat fields; `tests/dialogue.sessionModes.test.ts` pins immediate release.
+- **Spotlight:** `bindNumberedPresentationSpeakers` now rejects presentations leaving any gathered actor silent. The PR #91 source still owns 31 captions and ten roles; `tests/dialogue.schema13.test.ts` validates cast sizes 6–10 with all actors speaking. Actual overlay hookup belongs to PR #91 after integration.
+- **Domain and save/worker:** `tests/dialogue.domainEvents.test.ts` exercises real hospital and Town Hall outcome functions in addition to content routing; `tests/dialogue.workerSaveParity.test.ts` exercises serialized bank request parity and paired save/load orphan recovery. Full real Worker thread execution and visual tests remain unverified; do not claim otherwise.
+- **Verification status:** changes committed on PR #93; full standard CI, 120-day workflow, strict cycle audit and production build at the final HEAD still require successful runs before merge.
+
 ## 0. Mandatory preflight — do this before editing
 
 1. Read `AGENTS.md`, all of `docs/command.md`, the linked architecture document, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`, `docs/bug_report/readme.md` and `package.json`. Verify executing shell *inside that shell* with `$PSVersionTable.PSVersion.ToString()`; if 5.1, switch to PowerShell 7 per command rules. No assumed Linux shell and no invented package scripts.
