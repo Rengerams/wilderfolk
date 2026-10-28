@@ -1374,8 +1374,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    // Established affair movement: pregnant settlers still meet lovers and can be caught
+    // Established affairs still happen in normal free time, but cannot steal
+    // spotlight participants' movement after the gathering vector is assigned.
     if (
+      !inSpotlightGathering &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
@@ -1812,7 +1814,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Idle stamina recovery requires an actual stationary break; keep danger,
     // scheduled duty and ceremonies free to override it.
-    if (takingNeedsBreak && !inSpotlightGathering && !huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering &&
+    if (takingNeedsBreak && !inSpotlightGathering && !huntingWere && !inElectionCeremony && !festivalGathering &&
       !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !entity.raidDeploymentId) {
       entity.vx = 0;
       entity.vy = 0;
