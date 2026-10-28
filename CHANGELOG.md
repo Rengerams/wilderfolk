@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.6.0[Unreleased]
+## 0.6.5.2 [Unreleased]
 
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
