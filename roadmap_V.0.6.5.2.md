@@ -31,6 +31,10 @@
 - [x] **Silo expansion on storage pressure:** build additional Silos when food storage reaches 90% occupancy, without treating food shortages as a reason for expansion ([#81](https://github.com/Rengerams/wilderfolk/pull/81)).
 - [x] **Food-first workforce protection:** preserve staffed food producers, allow transferable Quarry surplus and keep the Virtual Player's donor rule consistent with actual staffing ([#82](https://github.com/Rengerams/wilderfolk/pull/82)).
 
+## Rare lore events — planned
+
+- [ ] **The Look — juvenile spotlight:** Occasional female juvenile-centered comedy with real village gathering, relaxed lines, camera focus and optional paused playback; pending implementation review in [#91](https://github.com/Rengerams/wilderfolk/pull/91).
+
 ## 1. Warfare design goals — implemented
 
 - [x] Raids produce persistent casualties, losses, reports and consequences rather than only resource deductions.
