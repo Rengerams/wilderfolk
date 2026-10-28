@@ -22,6 +22,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Simulation PR gate deleted](../bug_report/2026-10-28-simulation-pr-gate-deleted.md):** PR #93 removed the simulation workflow without a replacement. A user-approved 120-day seeded producer-bot gate has been added; workflow run pending.
 
+**2026-10-28 — [Dialogue key contract accepted arbitrary strings and mutable scenes](../bug_report/2026-10-28-dialogue-event-key-contract-mutable-bank.md):** PR #93 adds typed keys, validated immutable indexed JSON and every-event worker/main parity tests; final CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.

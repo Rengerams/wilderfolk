@@ -14,6 +14,14 @@
 - **Additional implementation tests:** `dialogue.bankIntegrity`, `dialogue.sessionModes`, `dialogue.domainEvents`, `dialogue.workerSaveParity`, `dialogue.legacyElectionsAudit`, and `dialogue.performance` (current p50/p95 only).
 - **Release acceptance not yet asserted:** full standard CI, build at final head and merge; a code change or a newly added test alone is not proof it passed. Actual PR #91 overlay UI wiring remains a separate branch integration after PR #93.
 
+## PR #93 typed content contract and context routing (28 October 2026)
+
+- **Implemented in PR #93:** `DialogueEventKey` now lists all 94 authored event keys, including detailed social motives, visitor POIs, hospital variants, hotel service states and election phases. Invalid caller keys fail TypeScript instead of silently falling back to unrelated dialogue.
+- **Compiled contract:** `DialogueTree` is readonly with mandatory `eventKey`, mandatory discriminated `solo`/`pair` mode and matching 1/2 speakers. Both the bundle and any worker/deserialized payload are checked against the explicit key registry and copied into nested frozen scenes, speakers and lines.
+- **Domain correctness:** original event gates stay in their owners; the exact `eventKey` plus optional `treeId` selects only matching authored content. Regression tests enumerate all keys, sample specific outcomes and reject mismatched variants; none invent new speech timing or event RNG.
+- **Worker:** `gameWorker.ts` installs the bundled `canonicalDialogueBank` at module initialization. Worker/main serialization parity tests now exercise every compiled tree. This validates content parity, **not** a live browser Worker round trip; live validation remains pending.
+- **Spotlight PR #91:** not integrated in this change, as requested. Full standard/120-day and browser-worker acceptance pending.
+
 ## PR #93 follow-up acceptance hardening (28 October 2026)
 
 - **Simulation gate:** the removed 360-day CI workflow is replaced by `.github/workflows/simulation-120-day.yml`. On relevant game-rule PRs and manual dispatch it runs `npx tsx scripts/run-full-year.mts --scenario=producers --days=120 --seed=12345 --bot`, using the existing checkpoint invariant checker. It does **not** run the full-year Vitest file; the historical long scenario remains separately available.

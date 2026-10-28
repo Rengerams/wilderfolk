@@ -192,12 +192,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
   },
   dialogueContent: {
-    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
+    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Parse/index JSON at initialization; pure content lookup on the existing event roll. A scripted request delegates to humanChat; this registry row owns neither gameplay outcomes nor chat field mutations. The PR91 presentation parser and binding are read-only and reject a cast member without a spoken line.',
+    cadenceNote: 'Validate the 94-key union and freeze every indexed/worker-installed scene and line at initialization; pure content lookup on the existing event roll. A scripted request delegates to humanChat; this registry row owns neither gameplay outcomes nor chat field mutations. The PR91 presentation parser and binding are read-only and reject a cast member without a spoken line.',
     writes: [],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
-    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts',
+    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts',
   },
   dialogueSessions: {
     owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',

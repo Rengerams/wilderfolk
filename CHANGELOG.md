@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Dialogue contract (28 October 2026):** Restricted speech requests to 94 authored event keys, made solo/pair scene types mandatory and deeply froze main/worker banks. Added all-event selection and serialization parity regressions; no gameplay or save changes.
+
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
 
 - **Changed:** The legacy DNA audit now follows local alias chains, repeated assignments and renamed destructuring, so indirect trait checks stay reported; no gameplay rules changed.

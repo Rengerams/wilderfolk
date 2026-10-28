@@ -10,6 +10,8 @@
 
 **Acceptance hardening on PR #93 (28 October 2026):** The PR now adds a real 120-day seeded bot-driven producer gate instead of restoring 360-day CI, immediate paired-session interruption cleanup in the sole `humanChat` writer, all-speaker participation for six-to-ten-person Spotlight casts, direct hospital/Town Hall handler regressions and serialized bank plus paired save/load tests. These are committed changes, **not** evidence of a passing final full CI, real Worker-thread transport, or a completed PR #91 overlay hookup.
 
+**Typed/immutable contract hardening (PR #93, 28 October 2026):** `DialogueEventKey` is now the explicit 94-key authored union, including context-specific social and visitor outcomes. `DialogueTree` requires eventKey and discriminated solo/pair modes; both source compilation and worker payload installation validate keys, freeze the canonical bank and all tree/line/speaker arrays, and index by exact eventKey plus mode. Domain event conditions remain where they were; an explicit treeId must belong to that key and mode or the speech request is refused. Existing worker module initialization installs `canonicalDialogueBank`, while App preloads the same sources; all-tree serialized parity tests are added. Actual browser Worker-thread transport and final CI remain pending. Spotlight overlay hookup stays deferred to PR #91.
+
 **Intentional content exception:** All ten `Elections.json` IDs already exist in `needs.json`, but all ten authorings differ in lines or speaker metadata. The historical file remains unimported and intact; explicit source tests and a source guard enforce this quarantine. Deleting or silently remapping it would lose content or change live dialogue probabilities.
 
 ## 0. Contract, problem, scope
@@ -148,7 +150,7 @@ KEEP: existing sim delta/render metadata → renderer bubble
 
 **Important:** “`dialogueTrees.ts` is the main orchestrator” means **speech** orchestration only. It must not own `WorldState` scheduling, source-event eligibility, event-log mutations, economics or relationships. `humanChat.ts` remains a focused executor rather than a competing second selector.
 
-### 2.2 Data/selection contract (proposed API, not existing)
+### 2.2 Data/selection contract (implemented contract; abbreviated illustrative API)
 
 ~~~ts
 type DialogueMode = 'solo' | 'pair';
@@ -192,7 +194,7 @@ function requestDialogue(request: Readonly<DialogueRequest>): boolean;
 function tickDialogue(entity: ChatSpeaker, resolvePartner: PartnerResolver): void;
 ~~~
 
-Signatures are *proposed*, not exported at the current main snapshot. Implement them in the actual owning file only. Domain owners keep existing chance/eligibility logic and call `requestDialogue` only on a real accepted speech trigger; `dialogueTrees` does not reroll the game's event chance. When a domain already supplies a deterministic outcome variant (e.g. aid kind, election phase, visitor POI), encode it in the event key or a narrow enum so the chosen text does not contradict reality. Dynamic name insertion uses existing formatter/escaped tokens, not assembled sentence literals in TS.
+The signatures below describe the design baseline; PR #93 exports the typed union and request API, including narrower caller-specific variants. Implement them in the actual owning file only. Domain owners keep existing chance/eligibility logic and call `requestDialogue` only on a real accepted speech trigger; `dialogueTrees` does not reroll the game's event chance. When a domain already supplies a deterministic outcome variant (e.g. aid kind, election phase, visitor POI), encode it in the event key or a narrow enum so the chosen text does not contradict reality. Dynamic name insertion uses existing formatter/escaped tokens, not assembled sentence literals in TS.
 
 **Selection:** compile immutable `eventKey × mode` arrays on bank load; preserve all 19 existing `HumanChatContext` values through a verified explicit event-key mapping (never silently drop `school`, `guard`, `rival`, `courtship`, `affair` or `renffr`); never concatenate every category's trees per request or scan all entities. Validate that a line's speaker appears in the declared roles, no empty trees, duplicate IDs, invalid event keys/modes, oversized strings and missing event coverage. Seed selection from the existing deterministic sim convention with stable event, tick and participant IDs. Preserve event probability RNG independently: content choice must not change economy/marriage/election random streams. Prefer keyed stateless draws for scene choice. No arbitrary “category fallback” that makes famine chatter appear during an election.
 
