@@ -5,6 +5,7 @@ import {
   EVENING_START,
   HUMAN_VENERABLE_AGE,
   TICKS_PER_DAY,
+  TICKS_PER_HOUR,
   getHourOfDay,
   getWeekday,
   hasResidenceAssignment,
@@ -12,7 +13,8 @@ import {
   isWorkDay,
   personDayRoll,
 } from './dayCycle';
-import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { isMarriedOrExpecting } from './civilStatus';
 
@@ -426,24 +428,23 @@ export function tryWorkplaceBanter(
 
   const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));
   if (!mate) {
-    sayHumanChatPhrase(
-      entity,
-      personDayRoll(entity.id, tick, 721) < 0.5 ? 'Long morning.' : 'Almost midday.',
-      SOCIAL_IMPULSE_CONFIG.CHAT_BUBBLE_TICKS_SHORT,
-    );
+    requestDialogue({
+      eventKey: 'workplace.banter.solo', speaker: entity, tick,
+      selectionRoll: personDayRoll(entity.id, tick, 721),
+      durationHours: 4 / TICKS_PER_HOUR,
+    });
     return;
   }
 
-  sayHumanChatPhrase(
-    entity,
-    personDayRoll(entity.id, tick, 722) < 0.5 ? 'How is it going?' : 'Steady work.',
-    SOCIAL_IMPULSE_CONFIG.CHAT_BUBBLE_TICKS_NORMAL,
-  );
-  sayHumanChatPhrase(
-    mate,
-    personDayRoll(mate.id, tick, 723) < 0.5 ? 'Same as ever.' : 'Could be worse.',
-    SOCIAL_IMPULSE_CONFIG.CHAT_BUBBLE_TICKS_NORMAL,
-  );
+  // Preserve each person's deterministic choice while giving both actors a
+  // single paired session. The two voices alternate, never talk over themselves.
+  const startLine = personDayRoll(entity.id, tick, 722) < 0.5 ? 0 : 1;
+  const replyLine = personDayRoll(mate.id, tick, 723) < 0.5 ? 0 : 1;
+  requestDialogue({
+    eventKey: 'workplace.banter', speaker: entity, partner: mate, tick,
+    selectionRoll: (startLine * 2 + replyLine + 0.5) / 4,
+    durationHours: 4 / TICKS_PER_HOUR,
+  });
 }
 
 /** Doorstep greeting between neighbors passing near home in the early morning. */
@@ -469,18 +470,11 @@ export function tryNeighborGreeting(
     return;
   }
 
-  sayHumanChatPhrase(
-    entity,
-    personDayRoll(entity.id, tick, 725) < 0.5 ? 'Morning!' : 'Good day.',
-    SOCIAL_IMPULSE_CONFIG.CHAT_BUBBLE_TICKS_SHORT,
-  );
-
-  // Reply, unless the other is already mid-conversation with someone else.
-  if (!isDialogueBusy(other)) {
-    sayHumanChatPhrase(
-      other,
-      personDayRoll(other.id, tick, 726) < 0.5 ? 'Morning.' : 'And to you.',
-      SOCIAL_IMPULSE_CONFIG.CHAT_BUBBLE_TICKS_SHORT,
-    );
-  }
+  const greeting = personDayRoll(entity.id, tick, 725) < 0.5 ? 0 : 1;
+  const reply = personDayRoll(other.id, tick, 726) < 0.5 ? 0 : 1;
+  requestDialogue({
+    eventKey: 'neighbor.greeting', speaker: entity, partner: other, tick,
+    selectionRoll: (greeting * 2 + reply + 0.5) / 4,
+    durationHours: 4 / TICKS_PER_HOUR,
+  });
 }
