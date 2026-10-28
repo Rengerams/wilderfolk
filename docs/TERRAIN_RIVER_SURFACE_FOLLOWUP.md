@@ -7,9 +7,9 @@ unchanged. An existing v3 save can show the new paint without rebuilding its wor
 
 ## Improvements
 
-1. **Directional river glints.** The renderer derives a fine-resolution local tangent from
+1. **Directional river glints.** The renderer derives a fine-resolution along-stream arc-length field from
    each saved river polyline. A deterministic low-amplitude crest pattern runs **across**
-   that tangent rather than being aligned to screen X/Y. This avoids uniform cyan strips.
+   the local current, following bends rather than being aligned to screen X/Y. This avoids uniform cyan strips.
 2. **Drop-localized rapids.** Existing waterfall locations and drop sizes seed a bounded
    whitewater intensity field. Strong highlights fade out beyond a short reach of the
    actual drop and are masked to the canonical water-coverage layer.
