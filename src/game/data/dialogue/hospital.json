@@ -1,0 +1,96 @@
+{
+  "version": "1.0",
+  "category": "needs",
+  "dialogue_trees": [
+    {
+      "id": "evt_hospital_patient_pregnant_0",
+      "category": "needs",
+      "eventKey": "hospital.patient.pregnant",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The child is well…"
+        }
+      ]
+    },
+    {
+      "id": "evt_hospital_patient_pregnant_1",
+      "category": "needs",
+      "eventKey": "hospital.patient.pregnant",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Thank you, doctor."
+        }
+      ]
+    },
+    {
+      "id": "evt_hospital_patient_other_0",
+      "category": "needs",
+      "eventKey": "hospital.patient.other",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I feel better."
+        }
+      ]
+    },
+    {
+      "id": "evt_hospital_patient_other_1",
+      "category": "needs",
+      "eventKey": "hospital.patient.other",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Medicine helps."
+        }
+      ]
+    },
+    {
+      "id": "evt_hospital_doctor_0",
+      "category": "needs",
+      "eventKey": "hospital.doctor",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Rest and drink water."
+        }
+      ]
+    },
+    {
+      "id": "evt_hospital_doctor_1",
+      "category": "needs",
+      "eventKey": "hospital.doctor",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "You will mend."
+        }
+      ]
+    }
+  ]
+}
