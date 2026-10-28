@@ -479,10 +479,10 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
 
 describe('the storage buildings the owner reported missing', () => {
   it('builds a Silo when the store it widens — food — is nearly full', () => {
-    // The storage owner's own table (`computeStorageMax`): a Silo adds 600 food and cuts spoilage,
-    // and holds no gold at all, so the old `storageNearlyFull('gold')` gate made it unbuildable.
+    // A Silo expands the food shelf at 90%+ utilization; it does not treat
+    // a moderate harvest reserve or a negative food flow as storage pressure.
     const world = ownerColony(12, {
-      resources: { food: 560, wood: 300, stone: 200, gold: 100, iron: 150 },
+      resources: { food: 760, wood: 300, stone: 200, gold: 100, iron: 150 },
       storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
     }, {
       mills: 4, farms: 2,
@@ -497,6 +497,63 @@ describe('the storage buildings the owner reported missing', () => {
 
     expect(decision).not.toBeNull();
     expect(decision!.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Silo });
+  });
+
+  it('adds a second Silo when the existing storage is nearly at its limit', () => {
+    const world = ownerColony(12, {
+      resources: { food: 2680, wood: 300, stone: 200, gold: 100, iron: 150 },
+      storageMax: { wood: 800, stone: 500, food: 2800, gold: 20000, iron: 300 },
+    }, {
+      mills: 4, farms: 2,
+      extraBuildings: [
+        building(12, BuildingType.Well, { x: 360, y: 260 }),
+        building(13, BuildingType.Tavern, { x: 400, y: 250 }),
+        building(14, BuildingType.Church, { x: 440, y: 250 }),
+        building(15, BuildingType.Silo, { x: 500, y: 260 }),
+      ],
+    });
+    const action = decideVirtualPlayerAction(world);
+    expect(action?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Silo });
+  });
+
+  it('does not build a Silo solely because food production is losing ground', () => {
+    const world = ownerColony(12, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 400, wood: 300, stone: 200, gold: 100, iron: 150 },
+      storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
+      foodSpoilageRate: 0.008,
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 4 }, consumed: { meals: 50, spoilage: 2 },
+      })),
+    }, {
+      mills: 4, farms: 2,
+      extraBuildings: [
+        building(12, BuildingType.Well, { x: 360, y: 260 }),
+        building(13, BuildingType.Tavern, { x: 400, y: 250 }),
+        building(14, BuildingType.Church, { x: 440, y: 250 }),
+      ],
+    });
+    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.Silo,
+    });
+  });
+
+  it('never orders parallel Silo builds even when the food storage is full', () => {
+    const world = ownerColony(12, {
+      resources: { food: 790, wood: 300, stone: 200, gold: 100, iron: 150 },
+      storageMax: { wood: 800, stone: 300, food: 800, gold: 20000, iron: 300 },
+    }, {
+      mills: 4, farms: 2,
+      extraBuildings: [
+        building(12, BuildingType.Well, { x: 360, y: 260 }),
+        building(13, BuildingType.Tavern, { x: 400, y: 250 }),
+        building(14, BuildingType.Church, { x: 440, y: 250 }),
+        building(15, BuildingType.Silo, { x: 500, y: 260, completed: false, constructionProgress: 30 }),
+      ],
+    });
+    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.Silo,
+    });
   });
 
   it('builds a Barn when the wood shelf is nearly full, even on a lean larder', () => {
