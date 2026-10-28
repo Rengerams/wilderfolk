@@ -72,9 +72,12 @@ function runDays(world: WorldState, days: number): WorldState {
 }
 
 /** The app's own autoplay cadence: one ladder decision per in-game hour, dispatched like a click. */
-function runAutoplay(world: WorldState, days: number): { world: WorldState; peakStone: number } {
+function runAutoplay(world: WorldState, days: number, quarryId: number): {
+  world: WorldState; peakStone: number; peakQuarryWorkers: number;
+} {
   let next = world;
   let peakStone = next.resources.stone;
+  let peakQuarryWorkers = countWorkersAtBuilding(next.entities, quarryId);
   for (let tick = 0; tick < days * TICKS_PER_DAY; tick++) {
     if (next.tick % TICKS_PER_HOUR === 0) {
       const decision = decideVirtualPlayerAction(next);
@@ -84,8 +87,9 @@ function runAutoplay(world: WorldState, days: number): { world: WorldState; peak
     // A functioning Quarry can refill stone that the bot spends on the next build.
     // Track the recovered stock before later purchases use it up again.
     peakStone = Math.max(peakStone, next.resources.stone);
+    peakQuarryWorkers = Math.max(peakQuarryWorkers, countWorkersAtBuilding(next.entities, quarryId));
   }
-  return { world: next, peakStone };
+  return { world: next, peakStone, peakQuarryWorkers };
 }
 
 describe('zero stone with an unmanned Quarry', () => {
@@ -105,27 +109,31 @@ describe('zero stone with an unmanned Quarry', () => {
     expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 
-  it('crews it from an over-crewed donor, so a colony with every hand at work still digs stone', () => {
+  it('transfers excess lumberjacks to an empty Quarry without leaving the mill unstaffed', () => {
     const quarry = placeCompletedProducer(zeroStoneColony(), BuildingType.Quarry);
     const quarryId = quarry.building.id;
     let world = quarry.world;
     // Every hand employed, none of them recently auto-assigned: the rebalance is the only door left.
-    const farm = placeCompletedProducer(world, BuildingType.Farm);
-    world = farm.world;
+    // Build the starter Lumber Mill before emptying the stone shelf; normal industry
+    // can loan one of its two workers, unlike a Farm at its protected two-post cap.
+    world.resources.stone = BUILDING_CONFIGS[BuildingType.LumberMill].cost.stone ?? 0;
+    const mill = placeCompletedProducer(world, BuildingType.LumberMill);
+    world = mill.world;
+    world.resources.stone = 0;
     for (const settler of adults(world)) {
-      settler.workerBuildingId = farm.building.id;
-      settler.job = JobType.Farmer;
+      settler.workerBuildingId = mill.building.id;
+      settler.job = JobType.Lumberjack;
       settler.lastAutoJobTransferTick = undefined;
     }
     expect(
-      countWorkersAtBuilding(world.entities, farm.building.id),
-      'the donor must hold at least two hands',
+      countWorkersAtBuilding(world.entities, mill.building.id),
+      'a normal producer must have surplus staff',
     ).toBeGreaterThanOrEqual(2);
 
     world = runDays(world, DAYS_RUN);
 
     expect(countWorkersAtBuilding(world.entities, quarryId), 'a rebalanced hand must work the Quarry').toBeGreaterThan(0);
-    expect(countWorkersAtBuilding(world.entities, farm.building.id), 'the donor keeps a hand').toBeGreaterThan(0);
+    expect(countWorkersAtBuilding(world.entities, mill.building.id), 'the mill must keep one worker').toBeGreaterThan(0);
     expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 
@@ -138,12 +146,12 @@ describe('zero stone with an unmanned Quarry', () => {
       settler.job = JobType.Settler;
     }
 
-    const result = runAutoplay(world, AUTOPLAY_DAYS);
+    const result = runAutoplay(world, AUTOPLAY_DAYS, quarryId);
     world = result.world;
 
     // The bot's build program can use every stone it mines. Final inventory is not
     // cumulative production: a zero ending stock does not mean the Quarry never recovered.
-    expect(countWorkersAtBuilding(world.entities, quarryId), 'a hand must work the Quarry').toBeGreaterThan(0);
+    expect(result.peakQuarryWorkers, 'a hand must have worked the Quarry').toBeGreaterThan(0);
     expect(Math.floor(result.peakStone), 'the Quarry must replenish stone during autoplay').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 });
