@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Spotlight follow-up (PR #91):** Anchored visual poses to the heroine's actual arrival position to prevent a first-frame jump; skipped unchanged caption state updates during intro and applause. No game-state or save changes.
+
 - **Spotlight choreography (PR #91):** Moved the scene to 44 canonical JSON captions. Added the heroine's two replies, two 7-second walks, bounded hearts and kiss marks, and a safe departing finale with a smoothly following camera. Tests/browser verification pending.
 
 - **Spotlight timing (PR #91):** Moved the weekend rare-event roll from 16:00 to 19:00; eligibility, 7.5% chance, 90-day cooldown and rewards remain unchanged.
