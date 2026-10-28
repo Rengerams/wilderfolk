@@ -30,6 +30,10 @@
 - [x] **Continuous ecotones and licensed nature art:** smoothly blended biome materials and vegetation with bundled, credited sprites for world generation v4 ([#79](https://github.com/Rengerams/wilderfolk/pull/79)).
 - [x] **Silo expansion on storage pressure:** build additional Silos when food storage reaches 90% occupancy, without treating food shortages as a reason for expansion ([#81](https://github.com/Rengerams/wilderfolk/pull/81)).
 - [x] **Food-first workforce protection:** preserve staffed food producers, allow transferable Quarry surplus and keep the Virtual Player's donor rule consistent with actual staffing ([#82](https://github.com/Rengerams/wilderfolk/pull/82)).
+- [x] **Illustrated strategic world map:** the New Frontier illustration, stable settlement markers and marching overlays are integrated into the in-game map ([#84](https://github.com/Rengerams/wilderfolk/pull/84)).
+- [x] **Terrain v4 river effect parity:** flow-aligned river surface details also render in v4 terrain, not just v3 ([#86](https://github.com/Rengerams/wilderfolk/pull/86)).
+- [x] **DNA phase A — shared trait catalog:** all fourteen traits have contextual benefits and drawbacks evaluated by one deterministic, bounded, read-only owner ([#85](https://github.com/Rengerams/wilderfolk/pull/85)).
+- [x] **DNA phase B — live work, school and danger effects:** the catalog now influences production, construction, schooling, research, apprenticeships, militia, hunting, pursuit, escape and work stamina; legacy settlers get deterministic DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
 
 ## 1. Warfare design goals — implemented
 
@@ -44,6 +48,7 @@
 - [x] Outgoing march, engagement, six-game-hour battle and return, including reserved soldiers and durable midpoint casualties.
 - [x] Raid phases and outcomes are recorded in the **ordinary Chronicle event log** as well as supplemental battle reports, with one resolved result across reloads.
 - [x] Up to **six strategic settlements total** (friendly and hostile combined) on the **world map only**. Founding opportunities begin on colony day 10, recur every 30 days and require six living player settlers; older saves above the cap remain intact.
+- [x] The in-game New Frontier map uses an illustrated background, stable positions for settlements, interactive rival selection and visible march routes ([#84](https://github.com/Rengerams/wilderfolk/pull/84)).
 - [x] Cancelled expeditions and razed rivals release deployed troops; peace clears war state.
 
 ## 3. Battle outcomes, village survival and recovery — implemented
@@ -99,12 +104,14 @@
 
 The raid overhaul is an implemented **aggregate simulation**, not a tactical battle system. Existing Watchtowers already contribute passive barricade defense and early warning. Active turret fire, projectile combat, manual combat and physical siege minigames are **not planned**.
 
-## 11. DNA traits — strengths, weaknesses and whole-game influence
+## 11. DNA traits — phases A and B implemented; remaining integrations open
 
 **Codebot implementation:** [Executable PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md) · [architecture](docs/plans/personality-career-single-pipeline-0.6.5.2.md). Every PR must update both ownership registries and follow [the bug-report protocol](docs/bug_report/readme.md).
 
 - [x] The existing inherited identity system assigns **three DNA traits from fourteen**, with established selected trait effects.
-- [ ] Every trait gains meaningful, bounded, context-relevant positive and negative influences across applicable production, skills, education, combat, diplomacy and social systems.
+- [x] All **fourteen canonical traits** have catalogued positive and negative context effects, stable explanation identifiers and a shared bounded, deterministic evaluator; this is implemented infrastructure, not evidence that every gameplay context already consumes it ([#85](https://github.com/Rengerams/wilderfolk/pull/85)).
+- [x] The shared evaluator is consumed by real production/construction crews, apprenticeship training, school-day credits, research, individual militia strength, hunting/pursuit/escape and on-shift stamina. Older saves receive stable DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
+- [ ] Complete the remaining canonical DNA integration in social, romance, family, leisure and diplomatic decisions while preserving existing gameplay effects; PR [#95](https://github.com/Rengerams/wilderfolk/pull/95) is open, not yet accepted.
 - [ ] Trait aptitudes and acquired experience combine without permanently locking professions or making one DNA set universally superior.
 - [ ] Personality influences leisure, friendships, romance, fidelity, parenting, reactions to life events and personal development; existing relationships and experiences remain important rather than one trait determining a choice.
 - [ ] Inspectors explain applicable DNA strengths, disadvantages and contextual behavior using the character's existing traits and history.
@@ -135,6 +142,8 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 ## 15. Seasons, resilience and village emergencies — additional features open
 
 - [x] The existing game already has seasons and seasonal simulation effects.
+
+**Current live-game boundary:** disaster handlers and damage helpers exist, but `HOSTILE_WEATHER_ENABLED` is `false` in `worldEvents.ts`. Fire, flood, plague, tornado, earthquake and storm-damage gameplay are therefore **disabled**, not an implemented emergency system.
 - [ ] Seasonal preparedness view for food, fuel, shelter and critical reserves.
 - [ ] Rare, understandable simulated emergencies (fires, storm/road damage, illness pressure) with practical recovery and emergency work priorities.
 
@@ -143,6 +152,7 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 **Codebot implementation:** [Executable DNA + career PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md). Shared trait evaluation, separate bounded career-history owner; no aliases or re-exports.
 
 - [x] Existing school-age rules, age-18 adulthood, job skills, employment and selective apprenticeship mechanics remain the foundation.
+- [x] Current schooling, research and apprentice skill gain already apply contextual DNA factors through the shared evaluator ([#90](https://github.com/Rengerams/wilderfolk/pull/90)); persistent adult careers and detailed worker-selection reasons remain separate open features.
 - [ ] Persistent adult work histories, experience milestones and meaningful progression for teachers, medics, builders, craftspeople and defenders.
 - [ ] Contextual **Why this worker?** explanations integrating skill, aptitude, distance, availability and interests.
 - [ ] DNA aptitude and career development influence opportunities without constant involuntary workplace reshuffling or mandatory apprenticeship.
@@ -151,11 +161,14 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 
 - [x] Reduced world-state copies and unchanged worker history transfers ([#64](https://github.com/Rengerams/wilderfolk/pull/64)).
 - [x] More efficient workforce indexes and fewer redundant reassignment passes ([#71](https://github.com/Rengerams/wilderfolk/pull/71)).
+- [x] Existing adaptive radius queries and centralized world runtime-cache rebuild/invalidation are implemented (`adaptiveSpatialQuery.ts`, `worldRuntimeCaches.ts`); this does not complete the further large-colony work below.
 - [ ] Further incremental spatial/topology indexing, event-driven caches and bounded pathfinding/rendering work for very large colonies.
 - [ ] Additional memory, save/load and worker-transfer scalability improvements beyond the merged changes.
 
-## 18. Player tools and explainability — additional features open
+## 18. Player tools and explainability — partially implemented
 
+- [x] The settler inspector already shows current activity, schedule, destination and work/blocked reasons (`SelectedEntityPanel.tsx`, `humanStatus.ts`).
+- [x] A severity-ranked priority strip already provides clickable action links for urgent colony needs (`priorityAlerts.ts`, `AlertBar.tsx`); it is **not configurable**.
 - [ ] Consolidated **Why is this happening?** explanations for staffing, food, school places, inactivity, housing, roads and defense.
 - [ ] Configurable actionable alerts and repair-priority controls.
 - [ ] Reliable, clearly labeled previews for the effect of planned policies and infrastructure changes.
@@ -181,6 +194,7 @@ This roadmap records **feature availability only**. Specifications and implement
 | --- | --- | --- | --- |
 | Housing and families | [#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56) | Ordered housing ledger and phase pipeline; protected prisoner beds; 20-bed leader home and one linked annex; adult-child independence, deterministic divorce custody and distance-aware family relocation | [Housing architecture](docs/HOUSING_ARCHITECTURE.md), `residencyReconciliation.ts`, `leaderHouseExpansion.ts` |
 | Raids, strategic rivals, prisoners | [#58](https://github.com/Rengerams/wilderfolk/pull/58) | Up to six strategic-only rivals, six-hour incoming/outgoing battles, durable casualties, victory choice/mercy/tribute/razing, settlement recovery/destruction, captive outcomes, diplomatic memory and bounded leadership merit | `frontierCombat.ts`, `raidAftermath.ts`, `rivalSettlements.ts`, `warPrisoners.ts` |
+| Illustrated strategic world map | [#84](https://github.com/Rengerams/wilderfolk/pull/84) | Illustrated New Frontier background, stable rival marker projection, interactive rival selection and visible marching routes | `src/components/StrategicWorldMap.tsx`, `src/game/strategicMapProjection.ts` |
 | Roads, walls, gates and navigation | [#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66) | Drag road/wall build and demolition, geometry-aware joins and building-entrance snapping, gate open/close and collision, A* road-cost preference and speed only on real road surfaces; corrected previews and legacy save tests | [Brief](docs/plans/roads-walls-navigation-overhaul.md), [Architecture](docs/ROADS_WALLS_NAVIGATION_ARCHITECTURE.md), `stripTopology.ts`, `pathfinding.ts` |
 | Existing Watchtowers — passive simulation | Existing `BuildingType.Watchtower` system | Buildable and Virtual Player-buildable; +15 passive barricade strength each or +27 with forged Tower Ballistae; early warning at 260 world units; no active firing or real-time combat | `src/game/defenseStructures.ts`, `src/game/watchtowerDetection.ts`, `src/game/virtualPlayer.ts` |
 | Human needs and food | [#62](https://github.com/Rengerams/wilderfolk/pull/62) | Serialized nutrition/rest/stamina for player humans, one physiology update before offscreen branching, meal ledger integration, gradual deprivation, shift/rest behavior, Moon Howler restoration, UI readouts, food-production bot/staffing fixes and regressions | [Needs architecture](docs/HUMAN_NEEDS_ARCHITECTURE.md), [PR mapping](docs/architecture/human-needs-pr62.md), `simulation/humanPhysiology.ts`, `simulation/humanNeeds.ts` |
@@ -192,16 +206,18 @@ This roadmap records **feature availability only**. Specifications and implement
 | Food-production workforce coverage | [#82](https://github.com/Rengerams/wilderfolk/pull/82) | Preserve essential Farm, Greenhouse, Hunting Spot and Fishing Spot staffing; borrow from eligible Quarry surplus; no repeated ineligible transfer commands | `src/game/workforce.ts`, `src/game/virtualPlayer.ts` |
 | Raid civic consequences | [#70](https://github.com/Rengerams/wilderfolk/pull/70) | Contextual social and diplomatic reactions to mercy, execution, surrender and razing, rather than universal moral scores | Raid, diplomacy and leadership owners |
 | Workforce assignment efficiency | [#71](https://github.com/Rengerams/wilderfolk/pull/71) | Reuse worker and donor indexes across assignments and avoid redundant workforce work | `src/game/workforce.ts` |
-| Rivers and terrain ecology | [#73](https://github.com/Rengerams/wilderfolk/pull/73), [#75](https://github.com/Rengerams/wilderfolk/pull/75) | Flow-shaped rivers, riparian transitions, forest groves, directional water surfaces, localized whitewater and sediment banks | `src/game/renderer/whittakerTerrain.ts`, `src/game/terrain/` |
+| Rivers and terrain ecology | [#73](https://github.com/Rengerams/wilderfolk/pull/73), [#75](https://github.com/Rengerams/wilderfolk/pull/75), [#86](https://github.com/Rengerams/wilderfolk/pull/86) | Flow-shaped rivers, riparian transitions, forest groves, directional water surfaces, localized whitewater and sediment banks, including v4 terrain rendering | `src/game/renderer/whittakerTerrain.ts`, `src/game/terrain/` |
 | Terrain relief and 2.5D display | [#76](https://github.com/Rengerams/wilderfolk/pull/76), [#77](https://github.com/Rengerams/wilderfolk/pull/77) | Ridgeline and valley shading, elevated cached mesh chunks, grounded vegetation and accurate inverse-picking of raised surfaces | `src/game/terrainAtlas.ts`, `docs/TERRAIN_ARCHITECTURE.md` |
 | Biome transitions and nature artwork | [#79](https://github.com/Rengerams/wilderfolk/pull/79) | Climate-weighted ecotones, textured vegetation and bundled licensed terrain/nature assets for new generation-v4 maps | `src/game/renderer/`, `public/sprites/nature/`, `THIRD_PARTY_NOTICES.md` |
 | CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
+| Canonical DNA catalog and Phase B consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90) | Fourteen positive/negative trait definitions, bounded pure evaluator, real production/school/militia/hunting/physiology integration and deterministic old-save DNA migration; social/family and career-history extensions still pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
+| Existing settler reasons and priority alerts | Existing UI/system owners | The inspector projects schedule, activity, movement and blocked-work reasons; the alert strip provides ranked actionable warnings. Neither is the full configurable explainability system | `src/components/SelectedEntityPanel.tsx`, `src/game/priorityAlerts.ts`, `src/components/AlertBar.tsx` |
 
 ### 21.1 Feature backlog beyond merged scope
 
 These describe **unimplemented or incomplete features**, not test activities or implementation plans. Previously merged implementations remain accepted.
 
-- [ ] **Whole-life DNA personalities:** contextual leisure, relationships, fidelity, parental priorities and persistent experiences (§11).
+- [ ] **Whole-life DNA personalities (remaining phases):** complete contextual leisure, relationships, fidelity, parental priorities and persistent experiences beyond merged DNA phases A–B (§11).
 - [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
 - [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).
 - [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
