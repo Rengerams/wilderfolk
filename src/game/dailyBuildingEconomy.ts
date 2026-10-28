@@ -439,6 +439,18 @@ function tickBuildingProduction(
     if (!h.alive) continue;
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
+    const lastWorkedHours = getScheduleLastWorkedHours(h);
+    // Attribute *yesterday's* work to its witnessed site and trade, even if a
+    // Moon Howler night displaced the current job/seat before today's noon pass.
+    // This is the existing per-worker attendance loop, not a new colony scan.
+    if (lastWorkedHours > 0 && h.scheduleLastWorkedSiteId != null && h.scheduleLastWorkedSiteId >= 0) {
+      const attendedSite = buildingById.get(h.scheduleLastWorkedSiteId);
+      const attendedJob = h.scheduleLastWorkedJob;
+      if (attendedSite && attendedJob
+        && recordCareerWork(h, attendedSite, attendedJob, settledAttendanceDay, lastWorkedHours)) {
+        advanceCareerProgression(h, attendedJob, settledAttendanceDay, 'work');
+      }
+    }
     const siteId = h.workerBuildingId;
     if (siteId == null) continue;
 
@@ -446,14 +458,6 @@ function tickBuildingProduction(
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
     current.count += 1;
     current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
-    const lastWorkedHours = getScheduleLastWorkedHours(h);
-    const site = buildingById.get(siteId);
-    if (site && lastWorkedHours > 0) {
-      const job = getJobForBuilding(site.type);
-      if (job && recordCareerWork(h, site, job, settledAttendanceDay, lastWorkedHours)) {
-        advanceCareerProgression(h, job, settledAttendanceDay, 'work');
-      }
-    }
     current.workedHoursSum += lastWorkedHours;
     if (lastWorkedHours > 0) current.workedCount += 1;
     buildingWorkerStats.set(siteId, current);
