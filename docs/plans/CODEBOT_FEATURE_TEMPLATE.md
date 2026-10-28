@@ -267,9 +267,19 @@ A proposal FAILS this section if it merely creates more folders while old and ne
 
 **Compatible versions:** `[READ ACTUAL POLICY; RECORD VERSIONS AND ANY INTENTIONAL CHANGE]`. Never bump only the displayed game version.
 
-## 4. Implementation tickets — split into reviewable PRs
+## 4. Architecture migration phases — reviewable implementation PRs
 
-**Order:** `[A → B → C; REMOVE PHASES NOT NEEDED]`. Start with the earliest unfinished phase. Each PR must implement a meaningful, self-contained slice. **No future-phase placeholder API, dead code, disabled mechanics, or a test-only fake.** Each PR that adds persisted data ships the *complete* migration in that same PR.
+**Order:** `[A → B → C; REMOVE PHASES NOT NEEDED]`. Start with the earliest unfinished phase. Each phase must connect the **verified AS-IS (§1.1)** to **TO-BE (§2)** through specific rows of the **function migration map (§2.3)** and preserve the **module boundaries (§2.4)**. Do not merely label PRs "foundation/integration/polish": explain how the system changes and which pipeline is active **after each PR**. A single coherent PR is fine for a small feature. **No future-phase placeholder API, dead code, duplicate owner, new clock, disabled mechanics or test-only fake.** Every PR introducing a persisted field ships its complete save/worker/rollback migration and tests immediately.
+
+### 4.0 Mandatory phased cutover matrix
+
+| Phase / PR | Depends on | Starting active architecture | Exact AS-IS → TO-BE function/module actions (from §2.3) | Architecture active **after** phase | Tests / boundary proof | Rollback or blocked-state behavior |
+| --- | --- | --- | --- | --- | --- | --- |
+| `[A]` | `[nothing or verified merged dependency]` | `[actual current pipeline/owners]` | `[KEEP/MODIFY/NEW/REMOVE real symbols]` | `[one current authoritative owner + direct callers]` | `[named test and import/registry check]` | `[safe rollback/no dual writers]` |
+| `[B]` | `[merged A]` | `[state after A]` | `[precise new integrations + legacy removals]` | `[final or intermediate *single* pipeline]` | `[named tests, runtime evidence]` | `[safe rollback/no partial persisted data]` |
+
+**Per-phase requirements:** specify which modules can be developed/tested independently, the exact existing integration boundary, when the old code stops being invoked, and how old imports/functions are retired **in that same PR**. A PR cannot leave two competing calculations/writers behind to "clean up later". If an intermediate phase contains a new unused implementation, justify it as a behavior-neutral pure foundation with direct unit tests and no speculative exports.
+
 
 For **every** implementation PR, always edit:
 - `OWNERSHIP_OVERVIEW.md` — every touched/new function and actual sole owner.
@@ -278,7 +288,13 @@ For **every** implementation PR, always edit:
 - Applicable feature architecture document, and roadmap entry **only as appropriate to the current implementation status**.
 - `docs/bug_report/` and `docs/BUG_REPORTS/SUMMARY.md` **when any defect is discovered**, whether it was fixed immediately or remains open.
 
-### PR A — `[SMALLEST COHERENT FOUNDATION]`
+### PR A — `[FIRST COHERENT ARCHITECTURAL STEP]`
+
+**Starting architecture:** `[CURRENT CALLER + OWNER + ALREADY ACTIVE PATH FROM §1.1]`
+
+**TO-BE change:** `[EXACT §2.3 ROWS, NEW MODULE BOUNDARY AND DIRECT CALL GRAPH]`
+
+**Active after PR A:** `[ONE AUTHORITATIVE PATH, WITH NO DOUBLE IMPLEMENTATION OR WRITE]`
 
 **Goal:** `[PLAYER / SYSTEM RESULT, EVEN IF FOUNDATION IS BEHAVIOR-NEUTRAL]`
 
@@ -294,12 +310,18 @@ For **every** implementation PR, always edit:
 
 **ACCEPT ONLY WHEN:**
 - `[TESTABLE CONTRACT / EDGE CASE]`
-- `[NO DUPLICATE STATE WRITER OR ALIAS]`
+- `[NO DUPLICATE STATE WRITER OR ALIAS; NO CIRCULAR MODULE IMPORT]`
 - `[DETERMINISTIC REPEATABILITY, IF APPLICABLE]`
 - `[TARGETED REGRESSIONS + TYPECHECK + LINT + BUILD]`
 - Both registries and changelog reflect **implemented**, not planned, code.
 
-### PR B — `[INTEGRATE INTO REAL GAMEPLAY]`
+### PR B — `[ACTIVATE THE NEXT ARCHITECTURAL BOUNDARY]`
+
+**Starting architecture:** `[WHAT REALLY RUNS AFTER MERGED PR A, NOT THE ORIGINAL AS-IS]`
+
+**TO-BE change:** `[EXACT §2.3 ROWS; NEW DIRECT IMPORTS, LEGACY BRANCH REMOVALS]`
+
+**Active after PR B:** `[NAMED LIVE PIPELINE + AUTHORITATIVE WRITER]`
 
 **Depends on:** `[MERGED PR A / VERIFIED PRECONDITIONS]`
 
@@ -311,11 +333,17 @@ For **every** implementation PR, always edit:
 
 **ACCEPT ONLY WHEN:**
 - `[REAL GAME / SIMULATION CHANGES IN AN OBSERVABLE WAY]`
-- `[INTEGRATION GUARDS, STATE TRANSITIONS, PERFORMANCE]`
+- `[INTEGRATION GUARDS, STATE TRANSITIONS, PERFORMANCE, UNIDIRECTIONAL DEPENDENCIES]`
 - `[OLD-SAVE / WORKER PARITY IN SAME PR IF NEW FIELDS]`
 - `[TESTS PASS; NO BREAKAGE OF EXISTING SYSTEMS]`
 
-### PR C — `[UI, POLISH, OR END-TO-END VALIDATION — IF REALLY NEEDED]`
+### PR C — `[REMAINING INTEGRATION / UI / E2E — ONLY IF NEEDED]`
+
+**Starting architecture:** `[WHAT RUNS AFTER MERGED PR B]`
+
+**TO-BE change:** `[LAST §2.3 ROWS + ANY FINAL OLD PATH REMOVAL]`
+
+**Active after PR C:** `[FINAL CANONICAL TO-BE CALL GRAPH AND MODULE DEPENDENCIES]`
 
 **Depends on:** `[MERGED EARLIER PRs]`
 
@@ -324,7 +352,7 @@ For **every** implementation PR, always edit:
 **EDIT:** `[PRESENTATION OWNER, EXISTING VIEW PROJECTIONS, REGISTRIES, CHANGELOG]`
 
 **ACCEPT ONLY WHEN:**
-- Player can observe/control the real feature via the existing game path, with accurate labels and blocked-action reasons.
+- Player can observe/control the real feature via the existing game path, with accurate labels and blocked-action reasons. The final direct-call graph and module boundary table agree with the actual imports.
 - UI does not recalculate rules differently or mutate the simulation directly.
 - Representative seeded gameplay, save/load, worker fallback and relevant integration tests pass.
 - `[FEATURE-SPECIFIC END-TO-END CRITERIA]`
