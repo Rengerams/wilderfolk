@@ -4,7 +4,8 @@
  * check-in tick, and the auto-staff card blamed idle settlers while the only open posts were manual.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType, HOTEL_GUEST_CAPACITY } from '../src/game/gameTypes';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { HOTEL_GUEST_CAPACITY } from '../src/game/hotelStay';
 import type { Building, Entity, GameEventLog, WorldState } from '../src/game/gameTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';

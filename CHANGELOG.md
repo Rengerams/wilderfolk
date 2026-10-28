@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
+
+- **Fixed:** Population history now records iron alongside other resources on every sample; older snapshots without an iron field remain readable.
+
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.

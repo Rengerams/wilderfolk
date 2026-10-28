@@ -11,7 +11,8 @@ import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/hum
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 import { TRAIT_DEFS } from '../src/game/settlerTraits';
 import { EntityType } from '../src/game/gameTypes';
-import type { Entity, SettlerTrait } from '../src/game/gameTypes';
+import type { Entity } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const LABOR = { kind: 'physiology', activity: 'labor' } as const;

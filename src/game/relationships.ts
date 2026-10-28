@@ -1,4 +1,5 @@
-import type { Entity, SettlerTrait, WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
+import type { SettlerTrait } from './settlerTraits';
 import { JobType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
