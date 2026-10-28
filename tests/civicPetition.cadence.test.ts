@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * A civic petition is resolved once per colony day, by the town-hall owner.
  *
@@ -15,6 +14,7 @@ import { personDayRoll } from '../src/game/simRng';
  * tests pin both halves: the official's per-tick greeting changes no state, and the daily
  * pulse still resolves a petition.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
