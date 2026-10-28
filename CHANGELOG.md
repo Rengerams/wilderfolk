@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **2.5D terrain (28 October 2026):** Cache textured ground chunks as triangular height meshes, align entities/decor and invert pointer/keyboard picking on raised terrain. Compatible with legacy save maps; game physics stay 2D.
+
 - **Terrain graphics (28 October 2026):** Expose rock on steep upland slopes, brighten ridges, shade valleys and ground trees, grass and selection effects at the same elevation as settlers. Render-only; no terrain regeneration or save changes.
 
 - **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
