@@ -23,7 +23,7 @@ function eligibleGirl(entity: Entity): boolean {
 
 function eligibleChorus(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
-    !entity.isJuvenile && entity.age >= 18 && !entity.prisonBuildingId &&
+    entity.gender === 'male' && !entity.isJuvenile && entity.age >= 18 && !entity.prisonBuildingId &&
     !entity.raidDeploymentId && !entity.departedAlive && !entity.warCaptive &&
     !entity.indoorBuildingId && !entity.huntTargetId &&
     entity.job !== JobType.Doctor && entity.job !== JobType.PrisonGuard &&
