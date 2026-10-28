@@ -8,7 +8,7 @@ import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
 import { addNotification } from './simEffects';
 import { isPlayerHuman } from './playerHuman';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { ensureEntitySkills } from './skills';
 import { simulateElectionVotes } from './electionVotes';
 import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
@@ -749,7 +749,7 @@ export function tickElectionGossip(state: WorldState): void {
   requestDialogue({
     eventKey: 'election.' + tone, treeId: gossip.treeId, speaker,
     tick: state.tick, priority: 'scripted', variables: gossip.variables,
-    durationHours: Math.max(4, Math.round(110 * PER_TICK_RATE_SCALE)) / TICKS_PER_HOUR,
+    durationHours: dialogueHoursFromNominalTicks(110),
   });
 }
 
@@ -893,7 +893,7 @@ export function tickElectionCeremony(state: WorldState, year: number): ElectionA
         requestDialogue({
           eventKey: 'election.winner', speaker: winner, tick: state.tick,
           priority: 'scripted',
-          durationHours: Math.max(4, Math.round(140 * PER_TICK_RATE_SCALE)) / TICKS_PER_HOUR,
+          durationHours: dialogueHoursFromNominalTicks(140),
         });
       }
 
