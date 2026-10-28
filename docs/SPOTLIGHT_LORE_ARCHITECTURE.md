@@ -98,7 +98,7 @@ This does not create romance, XP, relationships, physical voice audio, special s
 
 ## Tests, reviews and release rule
 
-- `tests/spotlightLore.test.ts`: deterministic trigger, unique gathering targets, all participants arrive, completion idempotence, load normalization, worker deltas, rollback; a real `gameTick` regression for home-preferring actors.
+- `tests/spotlightLore.test.ts`: deterministic trigger, unique gathering targets, all participants arrive, completion idempotence, load normalization, worker deltas, rollback; a real `gameTick` regression for home-preferring actors. The real-tick fixture must rebuild `entityById` and invalidate entity-type buckets when it replaces `initGame()`'s founder/wildlife population; use consistent actor birth dates and afternoon calendar markers. CI previously failed on stale test indexes, not on an observed live-scene abort.
 - `tests/spotlightReturnState.test.ts`: snapshot consume-once, discard before saved-game/new-game replacement.
 - Existing ownership, import cycle, TypeScript, standard tests and build: rely on **finished CI status**, not assumed PASS.
 - Full browser run with active worker, viewport zoom, pause/skip, actual actor movement, load-during-scene and fresh-session controls remains a release gate.
