@@ -1,11 +1,11 @@
 {
   "version": "1.2",
   "game": "Wilderfolk Sim",
-  "category": "famine",
+  "category": "needs",
   "dialogue_trees": [
     {
       "id": "wf_starving_hunt",
-      "category": "famine",
+      "category": "needs",
       "conversation_type": "two_way",
       "speakers": [
         "hunter",
@@ -28,11 +28,13 @@
           "speaker": "starving_villager",
           "text": "I miss the taste of anything that wasn't bark or regret."
         }
-      ]
+      ],
+      "mode": "pair",
+      "eventKey": "famine.hunger"
     },
     {
       "id": "wf_foraging_blueberries",
-      "category": "famine",
+      "category": "needs",
       "conversation_type": "two_way",
       "speakers": [
         "forager",
@@ -55,11 +57,13 @@
           "speaker": "starving_villager",
           "text": "Don't jinx it. Hope's the only thing keeping us from gnawing the fence posts."
         }
-      ]
+      ],
+      "mode": "pair",
+      "eventKey": "famine.hunger"
     },
     {
       "id": "wf_one_way_starving_monologue",
-      "category": "famine",
+      "category": "needs",
       "conversation_type": "one_way",
       "speakers": [
         "starving_villager"
@@ -69,11 +73,13 @@
           "speaker": "starving_villager",
           "text": "My stomach's making sounds that would scare a ghost. I'd trade my left shoe for a rotten turnip."
         }
-      ]
+      ],
+      "mode": "solo",
+      "eventKey": "famine.hunger"
     },
     {
       "id": "wf_one_way_blueberry_mutter",
-      "category": "famine",
+      "category": "needs",
       "conversation_type": "one_way",
       "speakers": [
         "forager"
@@ -83,7 +89,9 @@
           "speaker": "forager",
           "text": "Picking berries is easy. Finding berries that aren't just sad and small… that's the real challenge."
         }
-      ]
+      ],
+      "mode": "solo",
+      "eventKey": "famine.hunger"
     }
   ],
   "categories": [
