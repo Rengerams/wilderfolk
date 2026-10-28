@@ -1,4 +1,4 @@
-import type { Building, Entity } from './gameTypes';
+import type { Entity } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import type { EntitySpatialGrid, RoadAvoidanceIndex } from './spatialGrid';
@@ -152,23 +152,6 @@ export function forEachInEntityGrid(
   );
 }
 
-
-export function queryIsNearRoad(
-  roadAvoidance: RoadAvoidanceIndex | undefined,
-  x: number,
-  y: number,
-  fallbackRoads: readonly Building[],
-  fallbackOnRoad: (x: number, y: number, road: Building) => boolean,
-): boolean {
-  return withSpatialQuery('road_near', () => {
-    if (roadAvoidance) return roadAvoidance.isNearRoad(x, y);
-    for (const road of fallbackRoads) {
-      if (isSpatialQueryMetricsEnabled()) recordSpatialCandidate('road_near');
-      if (fallbackOnRoad(x, y, road)) return true;
-    }
-    return false;
-  });
-}
 
 export function queryRoadAvoidance(
   roadAvoidance: RoadAvoidanceIndex | undefined,

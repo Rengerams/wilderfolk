@@ -2,6 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
+
+- **Changed:** The legacy DNA audit now follows local alias chains, repeated assignments and renamed destructuring, so indirect trait checks stay reported; no gameplay rules changed.
+
+- **Changed:** Courtship pace, married and youth conception, work banter, spousal grief, prisoner mercy voices and social feuds read their trait rules from one personality catalog at the exact historical values, the legacy DNA scan now reports zero, and play is unchanged.
+
+
 - **Dialogue acceptance (28 October 2026):** Scripted interruptions now release both actors immediately; group presentations require every gathered actor to speak. Added real care and civic outcome tests, paired reload checks and serialized worker-bank selection parity.
 
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.

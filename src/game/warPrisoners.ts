@@ -16,6 +16,8 @@ import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { ExactTraitContext } from './personality/traitEffectCatalog';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -24,6 +26,9 @@ const RECRUIT_MAX_CHANCE = 0.6;
 const TRUST_RECRUIT_SCALE = 200;
 const MAX_CUSTODY_OPINION_MERIT = 5;
 const CUSTODY_LEADERSHIP_LIMIT = 100;
+
+/** The catalog context behind a villager's voice on a prisoner fate decision. */
+const COMMUNITY_REACTION_CONTEXT = { kind: 'civic', activity: 'communityReaction' } as const satisfies ExactTraitContext;
 
 /** Only surviving, identifiable adult combatants can occupy a real prison cell. */
 export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, raidId: string, escorts: number): void {
@@ -58,8 +63,13 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
 export function applyWarCommunityReaction(state: WorldState,
   choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string): void {
   const villagers = state.entities.filter((person) => person.alive && isPlayerHuman(person));
-  const empathetic = villagers.filter((person) => person.traits?.some((trait) => trait === 'nurturing' || trait === 'chivalrous')).length;
-  const fierce = villagers.filter((person) => person.traits?.includes('fierce')).length;
+  let empathetic = 0;
+  let fierce = 0;
+  for (const villager of villagers) {
+    const voices = evaluateTraitInfluence(villager, COMMUNITY_REACTION_CONTEXT).exact;
+    empathetic += voices.restraintVoice;
+    fierce += voices.severityVoice;
+  }
   const activeWar = state.rivalSettlements.some((rival) => rival.id === rivalId && rival.atWarWithPlayer);
   const recentAttack = state.raidBattleReports?.some((report) => report.rivalId === rivalId && report.side === 'defense'
     && report.resolvedAtTick <= state.tick && report.resolvedAtTick >= state.tick - 30 * TICKS_PER_DAY) ?? false;

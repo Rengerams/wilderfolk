@@ -104,13 +104,17 @@ import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
-import { traitMultiplier } from './settlerTraits';
+
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import type { ExactTraitContext, TraitContext } from './personality/traitEffectCatalog';
 import type { TickContext } from './simulation/simulationTypes';
 
 /** The catalog context behind how fast a settler breaks off from a threat and runs. */
 const ESCAPE_CONTEXT = { kind: 'danger', activity: 'escape' } as const satisfies TraitContext;
+
+/** The catalog context behind how fast a courting pair makes progress. */
+const COURTSHIP_PROGRESS_CONTEXT = { kind: 'social', activity: 'courtshipProgress' } as const satisfies ExactTraitContext;
+
 
 import {
   findClosestAdaptiveInRadius,
@@ -1185,14 +1189,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
           if (entity.id < closest.id) {
             const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
+            const courtshipFactors = evaluateTraitInfluence(entity, COURTSHIP_PROGRESS_CONTEXT).exact.orderedFactors;
             const courtRate =
               courtshipRatePerHour(socialTime) *
               (state.festival?.active ? 2 : 1) *
               (hasPerformers ? 1.35 : 1) *
               (livingTogether ? 1.5 : 1) *
-              traitMultiplier(entity, 'gregarious', 1.4) *
-              traitMultiplier(entity, 'timid', 0.7) *
-              traitMultiplier(entity, 'graceful', 1.2) *
+              courtshipFactors[0] *
+              courtshipFactors[1] *
+              courtshipFactors[2] *
               PER_TICK_RATE_SCALE;
 
             entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);

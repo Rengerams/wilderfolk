@@ -161,8 +161,6 @@ const config: KnipConfig = {
     'oxlint',
     'oxlint-tsgolint',
   ],
-  // `tauri` runs from package.json scripts (tauri:dev / tauri:build), not an npm dependency.
-  ignoreBinaries: ['tauri'],
 };
 
 export default config;

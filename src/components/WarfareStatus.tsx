@@ -22,7 +22,7 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const recovery = world.raidRecovery;
   const prisoners = useMemo(() => recovery?.status === 'destroyed' ? [] : world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null), [world, recovery?.status]);
   const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
-  const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world]);
+  const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world, recovery?.status]);
   const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
   if (terminal && recovery) {
     return <div role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
