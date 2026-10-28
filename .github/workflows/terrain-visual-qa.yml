@@ -1,7 +1,7 @@
 name: Biome terrain browser visual acceptance
 on:
   push:
-    branches: [feat/biome-ecotone-transitions-20261028]
+    branches: [feat/heightmesh-2p5d-20261028]
     paths:
       - scripts/terrain_visual_acceptance.py
       - .github/workflows/terrain-visual-qa.yml
