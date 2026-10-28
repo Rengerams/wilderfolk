@@ -6,7 +6,7 @@ import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './
 import { BuildingType } from './gameTypes';
 import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour } from './dayCycle';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { applyHumanWalkStep } from './simulation/humanMovement';
@@ -283,6 +283,7 @@ function ensureWanderState(
 }
 
 /** Only POI labels emitted by pickPoiForKind are accepted as event keys. */
+type VisitorPoiLabel = Extract<DialogueEventKey, `visitor.poi.${string}`> extends `visitor.poi.${infer Label}` ? Label : never;
 const VISITOR_POI_LABELS = new Set([
   'market', 'hall', 'church', 'study', 'hunt', 'trail', 'campfire', 'homes',
   'help', 'shelter', 'stage', 'show', 'square', 'well', 'shrine', 'notes',
@@ -293,7 +294,7 @@ const VISITOR_POI_LABELS = new Set([
 function maybeArriveFlavor(entity: Entity, phase: VisitPhase, tick: number, label?: string): void {
   if (phase !== 'loiter_poi' || !label) return;
   if (getSimRng('factionWander')() > 0.35) return;
-  const poi = VISITOR_POI_LABELS.has(label) ? label : 'visit';
+  const poi = (VISITOR_POI_LABELS.has(label) ? label : 'visit') as VisitorPoiLabel;
   const selectionRoll = getSimRng('factionWander')();
   const durationTicks = 18 + Math.floor(getSimRng('factionWander')() * 10);
   requestDialogue({
