@@ -229,7 +229,7 @@ function showDialogueStep(
     return;
   }
 
-  const role = speakerRoleIndex(tree, line);
+  const role = line.speaker === tree.speakers[0] ? 0 : 1;
   const active = role === 0 ? entityA : entityB;
   const idle = role === 0 ? entityB : entityA;
   
