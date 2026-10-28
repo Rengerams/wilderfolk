@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SPOTLIGHT_APPLAUSE_CLIP_MS, SPOTLIGHT_APPLAUSE_AUDIO_URL } from '../src/audio/spotlightApplause';
 import {
@@ -7,12 +8,9 @@ import {
 } from '../src/components/spotlightChoreography';
 
 describe('Spotlight crowd applause — provided real audio on the SFX bus', () => {
-  it('contains the complete and uncorrupted six-second Opus excerpt in its packed asset', () => {
-    const prefix = 'data:audio/ogg;base64,';
-    expect(SPOTLIGHT_APPLAUSE_AUDIO_URL.startsWith(prefix)).toBe(true);
-    const b64 = SPOTLIGHT_APPLAUSE_AUDIO_URL.slice(prefix.length);
-    expect(b64).toHaveLength(10872);
-    const bytes = Buffer.from(b64, 'base64');
+  it('contains the exact valid six-second Opus excerpt in its static audio asset', () => {
+    expect(SPOTLIGHT_APPLAUSE_AUDIO_URL).toMatch(/audio\\/sfx\\/spotlight-applause\\.ogg$/);
+    const bytes = readFileSync(new URL('../public/audio/sfx/spotlight-applause.ogg', import.meta.url));
     expect(bytes).toHaveLength(8154);
     expect(bytes.toString('ascii', 0, 4)).toBe('OggS');
     expect(createHash('sha256').update(bytes).digest('hex'))
