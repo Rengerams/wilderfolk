@@ -8,6 +8,8 @@
 
 **PR #93 implementation evidence (28 October 2026):** Canonical JSON bank, exact eventKey+mode request gateway, one humanChat session writer, migrated domain triggers, shared worker bank and old-save reclaim logic are present. The unused category-wide `pickDialogueTree` selector was removed. Regression suites now include bank integrity, session modes, domain routing, real save/load recovery, legacy Elections quarantine and an indexed lookup p50/p95 microbenchmark. These are implementation facts, not a claim of final CI or historic before/after performance parity.
 
+**Acceptance hardening on PR #93 (28 October 2026):** The PR now adds a real 120-day seeded bot-driven producer gate instead of restoring 360-day CI, immediate paired-session interruption cleanup in the sole `humanChat` writer, all-speaker participation for six-to-ten-person Spotlight casts, direct hospital/Town Hall handler regressions and serialized bank plus paired save/load tests. These are committed changes, **not** evidence of a passing final full CI, real Worker-thread transport, or a completed PR #91 overlay hookup.
+
 **Intentional content exception:** All ten `Elections.json` IDs already exist in `needs.json`, but all ten authorings differ in lines or speaker metadata. The historical file remains unimported and intact; explicit source tests and a source guard enforce this quarantine. Deleting or silently remapping it would lose content or change live dialogue probabilities.
 
 ## 0. Contract, problem, scope
