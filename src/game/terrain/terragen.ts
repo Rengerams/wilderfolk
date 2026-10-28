@@ -20,6 +20,7 @@ import {
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
 import { isUnbuildableTerrainType } from './terrainTraits';
+import { sampleEcotone, type EcotoneTerrainFields } from './ecotones';
 import { B, BIOME_BY_IDX, BIOMES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
@@ -917,6 +918,7 @@ function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
   tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3 | 4,
+  ecotoneFields?: EcotoneTerrainFields,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -929,7 +931,21 @@ function placeDecorations(
       const densityScale = generationVersion >= 2
         ? (def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga' ? 0.38 : 0.62)
         : 1;
-      const count = def.density * DECOR_DENSITY * densityScale * (0.35 + clumpNoise * 1.5);
+      // V4 smoothly adjusts understory density without changing biome identity.
+      // V1–V3 retain their exact density, decor choices and RNG calls.
+      const climate = generationVersion === 4 && ecotoneFields
+        ? sampleEcotone(ecotoneFields, (x + 0.5) * TERRAIN_CELL, (y + 0.5) * TERRAIN_CELL)
+        : null;
+      let targetDensity = def.density * densityScale;
+      if (climate && (def.id === 'grass' || def.id === 'meadow'
+        || def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga')) {
+        const forestDensity = BIOMES.grass.density * (1 - climate.forest)
+          + BIOMES.forest.density * (climate.forest - climate.denseForest)
+          + BIOMES.dense_forest.density * climate.denseForest;
+        targetDensity = forestDensity * (0.62 - climate.forest * 0.22)
+          * climate.alpineFade * (1 - climate.dry * 0.4);
+      }
+      const count = targetDensity * DECOR_DENSITY * (0.35 + clumpNoise * 1.5);
       let n = Math.floor(count);
       if (rand() < count - n) n++;
 
@@ -945,7 +961,18 @@ function placeDecorations(
         if (generationVersion >= 2 && (
           site.id === 'water' || site.id === 'river' || site.id === 'deep_water'
         )) continue;
-        const type = pickDecor(site.decor, rand());
+        let table = site.decor;
+        if (climate && (site.id === 'grass' || site.id === 'meadow'
+          || site.id === 'forest' || site.id === 'dense_forest')) {
+          // The same humidity weights decide *what* is present and *how much*.
+          // Pick a gradual mix of meadow/forest/dense understory (not hard tile cuts).
+          const forestPart = climate.forest;
+          const densePart = climate.denseForest;
+          const pick = rand();
+          table = pick < densePart ? BIOMES.dense_forest.decor
+            : pick < forestPart ? BIOMES.forest.decor : BIOMES.grass.decor;
+        }
+        const type = pickDecor(table, rand());
         if (TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
 
         decorations.push({
@@ -1158,6 +1185,11 @@ export function generateRawTerrain(
   // L3 decorations (biome-density-driven; trees excluded)
   const decorations = placeDecorations(
     tseed, cols, rows, terrain, pathGrid, pCols, pRows, pathTileType, generationVersion,
+    generationVersion === 4 ? {
+      cols, rows, elevation, moisture, temperature, seaLevel, riverDist, waterCols: wCols,
+      waterRows: wRows, moistureForestThreshold: cuts.forest,
+      moistureDarkForestThreshold: cuts.darkForest,
+    } : undefined,
   );
 
   // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads
