@@ -51,7 +51,7 @@ for (const file of sourceFiles) {
       errors.push(`${name}: mutable chat-session internals imported outside dialogueTrees.ts`);
     }
   }
-  if (name === rootDialoguePath && /\\b(?:pickDialogueTree|resolveDialogueCategories)\\s*\\(/.test(code)) {
+  if (name === rootDialoguePath && /\b(?:pickDialogueTree|resolveDialogueCategories)\s*\(/.test(code)) {
     errors.push(`${name}: forbidden category-wide dialogue picker survived event-key migration`);
   }
   if (/\bsayHumanChatPhrase\s*\(/.test(code)) {
