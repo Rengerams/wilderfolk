@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/simRng';
-import { snapshotSimRng } from '../src/game/simRng';
+import { personDayRoll, snapshotSimRng } from '../src/game/simRng';
 
 describe('personDayRoll central RNG ownership', () => {
   it('preserves the exact historical per-person/day/salt results', () => {
