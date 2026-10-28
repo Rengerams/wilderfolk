@@ -250,7 +250,7 @@ describe('first-session arc', () => {
     expect(state.pendingStoryEvents?.length).toBe(1);
     const accepted = respondToStoryEvent(state, state.pendingStoryEvents![0].id, 'accept');
     expect(accepted.storyFlags?.winter_accepted).toBeGreaterThan(0);
-    // 270 is the first freeze (`WINTER_FIRST_DAY` = DAYS_PER_SEASON * 3, legacyGoals.ts:43) — the day
+    // 270 is the first freeze (after three 90-day seasons) — the day
     // the check actually fires. These three cases drove 260, ten days inside autumn, which encoded the
     // card's stale copy rather than the season owner (2026-09-21 audit).
     accepted.dayInYear = 270;
