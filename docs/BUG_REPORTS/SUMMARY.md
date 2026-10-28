@@ -26,6 +26,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Missing dialogue participant crashes the simulation](../bug_report/2026-10-28-dialogue-cleanup-undefined-partner-crash.md):** completed pair dialogue cleanup dereferenced an absent actor after the session key was cleared. PR #93 adds key and participant guards plus a deterministic missing-partner regression; final CI pending.
 
+**2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` adds path-limited untracked cleanup before checkout; new CI verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
