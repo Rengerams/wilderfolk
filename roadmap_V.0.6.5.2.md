@@ -33,7 +33,7 @@
 
 ## Rare lore events — planned
 
-- [ ] **The Look — juvenile spotlight:** Occasional female juvenile-centered comedy with real village gathering, relaxed lines, camera focus and optional paused playback; pending implementation review in [#91](https://github.com/Rengerams/wilderfolk/pull/91).
+- [ ] **The Look — juvenile spotlight:** Code exists on [PR #91](https://github.com/Rengerams/wilderfolk/pull/91): rare juvenile star, actual settler gathering, camera focus, paced comic lines, pause/skip and Chronicle logging. Remains unchecked until merged; deviations from the design are recorded in [Spotlight Lore Architecture](docs/SPOTLIGHT_LORE_ARCHITECTURE.md).
 
 ## 1. Warfare design goals — implemented
 
