@@ -53,4 +53,28 @@ describe('solo, paired and forced dialogue sessions', () => {
     expect(b.chatDialogueSessionKey).toBeUndefined();
     expect(isDialogueBusy(b)).toBe(false);
   });
+  it('scripted speech releases a busy counterpart immediately without a resolver', () => {
+    const a = actor(16);
+    const b = actor(17);
+    expect(requestDialogue({
+      eventKey: 'neighbor.greeting', speaker: a, partner: b, tick: 7,
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
+    expect(isDialogueBusy(b)).toBe(true);
+    expect(requestDialogue({
+      eventKey: 'election.winner', speaker: a, tick: 8, priority: 'scripted',
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
+    expect(a.chatDialogueSessionKey).toBe('solo:16');
+    expect(b.chatDialogueSessionKey).toBeUndefined();
+    expect(b.chatPartnerId).toBeUndefined();
+    expect(b.chatPhrase).toBeUndefined();
+    expect(isDialogueBusy(b)).toBe(false);
+    expect(requestDialogue({
+      eventKey: 'ambient.social', speaker: b, tick: 9,
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
+  });
+
+
 });
