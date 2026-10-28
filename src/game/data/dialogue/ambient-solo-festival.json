@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "category": "festival",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_festival",
+      "category": "festival",
+      "eventKey": "ambient.festival",
+      "mode": "solo",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ]
+    }
+  ]
+}
