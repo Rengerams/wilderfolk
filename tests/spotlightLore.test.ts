@@ -147,11 +147,11 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     // Run the real game tick. A saved scene is explicitly active; no rare roll is needed.
     const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720, skipTerrain: true });
     const girl = createEntity(EntityType.Human, 480, 350, 100001, undefined, true, {
-      name: 'Ada', gender: 'female', ageYears: 14,
+      name: 'Ada', gender: 'female', ageYears: 14, colonyDay: 96,
     });
     const adults = Array.from({ length: 8 }, (_, i) => createEntity(
       EntityType.Human, 500 + i * 2, 364, 100002 + i, undefined, false,
-      { name: `Audience${i}`, ageYears: 28 },
+      { name: `Audience${i}`, ageYears: 28, colonyDay: 96 },
     ));
     world.entities = [girl, ...adults];
     // initGame already populated its tick-persistent ID/type caches with the
@@ -169,6 +169,9 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
       if (member) {
         world.tick = currentTick - 1;
         world.dayInYear = getCalendarDay(currentTick);
+        // This is an afternoon snapshot, not the first tick after founding;
+        // do not also run unrelated daily ageing/relationship transitions.
+        world.lastProcessedCalendarDay = getAbsoluteCalendarDay(currentTick);
         break;
       }
     }
