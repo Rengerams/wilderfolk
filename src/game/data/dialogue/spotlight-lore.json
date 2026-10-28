@@ -10,133 +10,138 @@
       "id": "spotlight.lore.performance",
       "category": "festival",
       "eventKey": "spotlight.lore",
-      "conversation_type": "one_way",
+      "conversation_type": "group",
       "speakers": [
-        "performer"
+        "speaker_1",
+        "speaker_2",
+        "speaker_3",
+        "speaker_4",
+        "speaker_5",
+        "speaker_6"
       ],
       "lines": [
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "1-2-3-4, walking like a man!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_2",
           "text": "Hitting like a hammer!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_3",
           "text": "She's a juvenile scam!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_4",
           "text": "Never was a quitter!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_5",
           "text": "Tasty like a raindrop!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_6",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "Heavenly bound, cause heaven has got a number!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_2",
           "text": "When she's spinning me around!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_3",
           "text": "Kissing is a colour!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_4",
           "text": "Wait. Which colour? The painter would like to know."
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_5",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_6",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "What in the world can make a brown-eyed girl turn blue?"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_2",
           "text": "That would be my blueberry pie. She ate all of it."
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_3",
           "text": "When everything I'll ever do, I'll do for you!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_4",
           "text": "And I go: la la la la la — she's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_5",
           "text": "No, no, you're early. We haven't reached the chorus!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_6",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "Fire in the ice!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_2",
           "text": "Who put my soup in the ice cellar?"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_3",
           "text": "Banging on the head drum!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_4",
           "text": "Shaking like a mad bull!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_5",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_6",
           "text": "Swaying to the band!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "Moving like a hammer!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_2",
           "text": "She's a miracle, man!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_3",
           "text": "A miracle GIRL, you goose!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_4",
           "text": "Loving is the ocean!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_5",
           "text": "Kissing is the wet sand!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_6",
           "text": "She's got the look!"
         },
         {
-          "speaker": "performer",
+          "speaker": "speaker_1",
           "text": "Well, now everyone is looking. What was the question?"
         }
       ]
