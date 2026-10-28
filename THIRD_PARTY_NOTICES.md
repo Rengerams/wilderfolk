@@ -3,6 +3,14 @@
 Wilderfolk's source code and original materials are subject to the [Wilderfolk Permission-Required License](LICENSE) — Copyright (c) 2026 Renffr. Permission must be requested before reuse, modification, redistribution, or commercial use.
 This file lists every third-party asset shipped with the game and its license.
 
+## Cethiel — Tileable Dirt Textures (CC0)
+
+| Local assets | Artwork | Creator | License | Source |
+|---|---|---|---|---|
+| `public/sprites/terrain/cethiel/Dirt_01.png` … `Dirt_04.png` | Four tileable 512×512 soil textures | Cethiel | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [Tileable Dirt Textures](https://opengameart.org/content/tileable-dirt-textures) |
+
+The four PNGs match the originals supplied in `Tileable Dirt Textures.zip` by SHA-256. V4 uses fine loam (01), stony/coarse ground (02), and woodland leaf litter (04) with climate-graded blending. The directional/rutted Dirt_03 is retained for later path/farm textures but is intentionally not preloaded into random natural soil. Normal maps and the optional composite preview are not shipped.
+
 ## rubberduck / para — 50 free textures 5 (CC0)
 
 | Local assets | Artwork | Creator | License | Source |
