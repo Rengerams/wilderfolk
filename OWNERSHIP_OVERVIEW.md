@@ -11,6 +11,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 |---|---|---|
 | CI and standard/slow gate routing | `scripts/test.mjs` | `npm run test:standard`, `npm test -- colony-integration`, `npm test -- full` |
 | Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
+| DNA legacy-consumer source inventory | `tests/personality.legacyConsumerAudit.test.ts` | Standard Vitest: fails on new unregistered legacy DNA rule sites; PR C must make the known six-owner inventory empty and retain the strict guard |
 | Stall-verdict unit regressions | `tests/longRunStallVerdict.test.ts` | Standard Vitest |
 | Terrain bake fixture | `tests/groundLook.bands.test.ts` | Pristine cached maps and pixels |
 | Save payload fixture | `tests/saveLoad.valueIntegrity.test.ts` | Independent clones of the real payload |
