@@ -91,6 +91,19 @@ def main() -> int:
                 click_text(page, "turn off all tutorials")
                 click_text(page, "got it")
                 click_text(page, "skip guide")
+            # Restrict this to an actually visible contextual tip. The generic
+            # click_text helper also finds hidden modal buttons and reported
+            # success without dismissing the card in the previous screenshot.
+            for _ in range(8):
+                disable = page.get_by_role("button", name="Turn off all tutorials", exact=True)
+                if disable.count() and disable.first.is_visible():
+                    disable.first.click()
+                tip = page.locator('button[aria-label="Dismiss tip"]')
+                if tip.count() and tip.first.is_visible():
+                    tip.first.click()
+                page.wait_for_timeout(250)
+                if tip.count() == 0:
+                    break
             # The default building grid is ON even outside build mode; its
             # orthogonal lines must not be mistaken for a mesh seam. Evaluate
             # natural ground with the grid switched OFF through the real UI.
@@ -112,6 +125,8 @@ def main() -> int:
                 raise RuntimeError(f"{preset}: terrain did not paint: {stats}")
             if page_errors:
                 raise RuntimeError(f"Browser exception on {preset}: {page_errors}")
+            if page.locator('button[aria-label="Dismiss tip"]').count() > 0:
+                raise RuntimeError(f"{preset}: tutorial still obscures the visual acceptance screenshot")
             slug = preset.lower().replace(" ", "-")
             screenshot = OUT / f"{slug}.jpg"
             # Capture the *actual* game canvas without overlapping notification
