@@ -94,7 +94,7 @@ The lesson took me most of the year to trust: a full schedule is not a successfu
 
 Winter did not arrive like an enemy. It arrived like a condition that had been present all along.
 
-When the cold season came and a settler stood in a workplace or home that could not be heated, energy loss rose to **1.5 times normal**. Greenthumb settlers resisted part of the cold penalty. They still looked cold. They merely suffered with greater botanical dignity.
+When the cold season came and a settler stood in a workplace or home that could not be heated, energy loss rose to **1.5 times normal**. No one's character softened that. Whoever stood in the cold paid for it in full, and Greenthumb's gift stayed out in the fields where it belonged.
 
 Our standard storehouse held **800 units of wood**. By late autumn I understood why the Wood Storehouse mattered. Fuel that seemed abundant in summer became a private argument with the frost.
 
