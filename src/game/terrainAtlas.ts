@@ -268,7 +268,7 @@ export const TERRAIN_HEIGHT_MESH_STEP = 32;
 export const TERRAIN_HEIGHT_MESH_MAX_RISE = 28;
 
 export function supportsTerrainHeightMesh(map: WorldMap | null): boolean {
-  return map?.generationVersion === 3
+  return (map?.generationVersion ?? 0) >= 3
     && !!map.elevation && !!map.cols && !!map.rows;
 }
 
