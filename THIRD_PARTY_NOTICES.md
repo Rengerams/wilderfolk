@@ -3,7 +3,16 @@
 Wilderfolk's source code and original materials are subject to the [Wilderfolk Permission-Required License](LICENSE) — Copyright (c) 2026 Renffr. Permission must be requested before reuse, modification, redistribution, or commercial use.
 This file lists every third-party asset shipped with the game and its license.
 
-## Audio (OpenGameArt.org)
+## Nature artwork (CC0)
+
+| Local assets | Artwork | Creator | License | Source |
+|---|---|---|---|---|
+| `public/sprites/nature/ansimuz/*.png` | Trees & Bushes, Summer Pine Tree Tiles | [Ansimuz / Luis Zuno](https://opengameart.org/users/ansimuz) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [OpenGameArt Trees & Bushes](https://opengameart.org/content/trees-bushes) — original `license.txt` included |
+| `public/sprites/nature/kenney/*.png` | Isometric Nature rock, cactus and wood illustrations | [Kenney](https://kenney.nl/) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [Kenney's Isometric Nature](https://kenney.nl/assets/isometric-nature), originals mirrored by [shorepine/kenney](https://github.com/shorepine/kenney) |
+
+The nature images are shipped locally; there are no runtime third-party asset requests. The Ansimuz RGB preview sheet is retained as a source reference, **not rendered** as a sprite, because its opaque background would create visible rectangles.
+
+## Audio (OpenGameArt.org)## Audio (OpenGameArt.org)
 
 Royalty-free music and sound effects from [OpenGameArt.org](https://opengameart.org).
 Files live under `public/audio/`; track wiring is in `src/audio/tracks.ts`.
