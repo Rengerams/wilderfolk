@@ -26,7 +26,8 @@ function eligibleChorus(entity: Entity): boolean {
     !entity.raidDeploymentId && !entity.departedAlive && !entity.warCaptive &&
     !entity.indoorBuildingId && !entity.huntTargetId &&
     entity.job !== JobType.Doctor && entity.job !== JobType.PrisonGuard &&
-    entity.job !== JobType.Soldier;
+    entity.job !== JobType.Soldier && entity.job !== JobType.Innkeeper &&
+    entity.job !== JobType.Hotelier && entity.job !== JobType.Priest;
 }
 
 /** Called from the existing realtime pulse; the inactive path is O(1). */
