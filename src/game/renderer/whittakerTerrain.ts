@@ -23,6 +23,7 @@
  */
 import type { WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
+import { grassDetailAt, loadedGrassTextures } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
 import {
@@ -811,6 +812,9 @@ export function bakeWhittakerGround(
 
   const img = ctx.createImageData(W, H);
   const d = img.data;
+  // Decode artist-authored CC0 grass once per loaded image, never inside the pixel loop.
+  const grassTextures = map.generationVersion === 4 ? loadedGrassTextures() : null;
+  const grassDetail: [number, number, number] = [0, 0, 0];
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const wx = originX + px * pxStep;
@@ -942,11 +946,30 @@ export function bakeWhittakerGround(
           r += m; g += m * 0.8; b += m * 0.6;
         }
         if (grassW > 0.005) {
-          const clump = (valueNoise(wx * 0.048 + wy * 0.012, wy * 0.041 - wx * 0.009, seed + 2222) - 0.5) * (60 + mo * 44);
-          const patch = (valueNoise(wx * 0.035, wy * 0.035, seed + 2345) - 0.5) * (52 + mo * 36);
-          const streak = (valueNoise(wx * 0.17 + wy * 0.05, wy * 0.14 - wx * 0.03, seed + 2223) - 0.5) * 34;
-          const m = (clump + patch + streak) * grassW;
-          r += m * 0.32; g += m * 0.85; b += m * 0.2;
+          if (grassTextures) {
+            // Four tileable 512px albedos by Cethiel: open grass, flower-rich meadow,
+            // forest floor and dense leaves. Moisture controls their proportions,
+            // never the coarse tile label. Delta-from-mean preserves climate colour.
+            grassDetailAt(
+              grassTextures, wx, wy, mo,
+              map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST,
+              map.moistureDarkForestThreshold
+                ?? (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST) + 0.12,
+              map.preset, grassDetail,
+            );
+            const textureStrength = grassW * 0.86;
+            r += grassDetail[0] * textureStrength;
+            g += grassDetail[1] * textureStrength;
+            b += grassDetail[2] * textureStrength;
+          } else {
+            // Headless tests and an asset that failed to preload retain safe
+            // deterministic procedural detail instead of leaving blank ground.
+            const clump = (valueNoise(wx * 0.048 + wy * 0.012, wy * 0.041 - wx * 0.009, seed + 2222) - 0.5) * (60 + mo * 44);
+            const patch = (valueNoise(wx * 0.035, wy * 0.035, seed + 2345) - 0.5) * (52 + mo * 36);
+            const streak = (valueNoise(wx * 0.17 + wy * 0.05, wy * 0.14 - wx * 0.03, seed + 2223) - 0.5) * 34;
+            const m = (clump + patch + streak) * grassW;
+            r += m * 0.32; g += m * 0.85; b += m * 0.2;
+          }
         }
         r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
       } else if (!isWater) {
