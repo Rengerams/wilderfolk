@@ -258,7 +258,7 @@ The broader personality-driven DNA system is a **future v0.6.6.0 proposal**, not
 * **Developer builds only:** optional CPU profiling and diagnostics for investigating slowdowns; these tools are hidden in production releases.
 * Expanded regression coverage, typechecking and build checks.
 
-**Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.6.0 roadmap](roadmap_V.0.6.6.0.md)**. They are not shipped v0.6.5.1 features.
+**Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.6.0 roadmap](https://github.com/Rengerams/wilderfolk/blob/main/roadmap_V.0.6.6.0.md)**. They are not shipped v0.6.5.1 features.
 
 ---
 
