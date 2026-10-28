@@ -80,7 +80,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - Catalog is exhaustively typed for all fourteen existing IDs; positive/negative contexts demonstrably reachable.
 - Empty, unknown-on-load, duplicated and three-trait input cannot cause infinite, NaN or double effects.
 - Same inputs produce identical output, no RNG consumed, no entity mutation.
-- New suite plus TypeScript, lint, build and dependencies audit all pass. Do **not** change runtime game mechanics in PR A.
+- New suite **including the existing registry's strict-key/readonly-write tests** plus TypeScript, lint, build and dependency audit pass. Do **not** change runtime game mechanics in PR A.
 
 ### PR B — work, school, physiology, hunting and passive militia integration
 
@@ -104,7 +104,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - Existing Resourceful construction and Chivalrous militia benefits are not counted twice.
 - New DNA strengths and weaknesses measurably affect real worked output or learning *only while applicable*.
 - Skill credit when warehouses are full remains unchanged; guard eligibility excludes prisoners/rivals; school and apprenticeships remain consistent.
-- Existing deterministic worker, production, education, hunter and defense tests pass. No new O(population²) scans.
+- Existing deterministic worker, production, education, hunter and defense tests pass. Add the missing-DNA legacy-save test from §1.1 here **only if actually needed**; do not modify valid saved DNA. No new O(population²) scans or `state.entities.find` per worker/trait. No performance regression compared with a baseline run.
 
 ### PR C — social/romance/family life, no second relationship engine
 
@@ -124,7 +124,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 **ACCEPT WHEN**
 - Existing pair eligibility, youth/adult age rules, partner exclusivity, friendship/feud reciprocity, affine caps, affair encounter daily windows, pregnancy and grief cooldowns remain authoritative.
 - Trait biases affect social motives and relationship decisions but never force cheating, permanent loyalty, predetermined marriages or good/evil scoring.
-- Each memory transition is event-driven and once-only with bounded storage; old saves remain valid.
+- Each memory transition is event-driven and once-only with bounded storage. **If `lifeExperience.ts` adds saved fields, include Entity types, save schema, load normalization, worker rollback cloning and focused old-save/round-trip tests in PR C itself**; never defer them to D/E. If existing history suffices, do not create the optional module or new state at all.
 - Existing relationship, affair, conception and social tests pass deterministically.
 
 ### PR D — actual careers, history, mentorship integration and job fit
@@ -147,11 +147,11 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 **REQUIRED**
 - `careerHistory.ts` is sole writer of bounded per-job day/shift totals. Credit only **observed attendance/work** (`scheduleLastWorkedHours > 0` with a valid eligible worker, building/job attribution and prisoner exclusion), irrespective of whether output is blocked by full storage. At most one credit per worker/job/absolute calendar day, even if construction and production both grant skills; cap/saturate counters, and avoid one map allocation per entity.
 - `careerProgression.ts` is sole writer of distinct career milestones/specializations; evaluate only when new credited work or a real training event might cross a milestone, not through a daily whole-colony sweep. Read prior education, actual work, old apprentice data and the one trait evaluator. No competing skill meter or job reassignment.
-- `workerFit.ts` computes optional explanation/score for already eligible vacant assignments using skill, commuting, availability, experience and context-relevant DNA; the workforce owner still makes final decision.
+- `workerFit.ts` computes an optional explanation/score **only when the existing workforce owner is already choosing among eligible idle candidates**, using available skill, commute, experience and the central trait evaluation. **Do not call `readSkill()` from pure projections/UI**: it delegates to `ensureEntitySkills()` and can mutate entities with missing `skills`; use `entity.skills?.[job] ?? 0` for read-only scoring. The workforce owner retains final decisions and existing guards.
 - Register `careerHistory` and `careerProgression` as distinct decision keys with accurate new-field write lists and existing call cadence. `workerFit` remains pure and is registered with the appropriate read-only projection / existing workforce metadata, not duplicate assignment authority.
 
 **ACCEPT WHEN**
-- Different adults with identical education can develop distinct careers from real work and opportunity.
+- Different adults with identical education can develop distinct careers from real work and opportunity. Work-credit decisions are invoked from an **existing already-computed attendance map/pass**, not by walking all people for each building or each job.
 - Age 18 / school 6–17, manual staffing, colony staffing priorities and automatic-transfer 60-day cooldown remain unchanged.
 - Work history/milestone idempotency, deterministic old-save **field backfill**, worker/main-thread parity and rollback, no extra global scan and no newly introduced performance cliff. Save migration and schema support must already pass in PR D, not PR E.
 
@@ -170,9 +170,20 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 **ACCEPT WHEN**
 - Player sees relevant trait benefits/drawbacks and the actual reasons for a worker/career choice.
 - No UI-only duplicate gameplay formulas; no deprecated aliases/re-exports.
-- Existing saves, authoritative worker/fallback, serialization and seeded full-colony simulation still behave correctly.
-- All fourteen traits have real reachable advantages and drawbacks with focused tests; bounded career data persists.
+- Existing saves, authoritative worker/fallback, serialization and seeded full-colony simulation still behave correctly. For old saves the new properties are already migrated by PR C/D; PR E only verifies the full player-visible path and does not postpone compatibility fixes.
+- All fourteen traits have real reachable advantages and drawbacks with focused tests; bounded career data persists. Existing valid DNA remains unchanged; old saves with missing DNA receive deterministic canonical traits without consuming live RNG.
 - Updated owner tables, registry keys, call/cadence/write lists and actual tested links agree.
+
+## 2.1 Performance and semantics proof (all implementation phases)
+
+- **No new global tick pass.** Normal trait evaluation has constant work: at most three saved traits and a small compile-time/static effect table; no full-world lookups, pathfinding, sorting, RNG, text formatting or heap allocation for explanations. Read-only inspector reasons may allocate *only for the selected person*.
+- **No quadratic worker matching.** Reuse the existing `entityById`, staffing indexes, attendance maps and the existing idle-candidate loop; evaluate fit only for a candidate already visited by that loop. Do not build a whole-person × whole-building score matrix or re-rank settled workers.
+- **Event-driven career work.** Reuse already captured previous-day attendance at the existing production/day boundary and check `lastCreditedDay`; milestones recompute only for the person whose credited work/apprenticeship changes. No daily scan of all job records for every colonist and no new full-population `tickLayerDaily` pass.
+- **Bounded state.** Store only per-person records with actual progress, at most one bounded entry per supported job, saturated counters, a small fixed set of milestone codes and no per-shift timeline. When the person is removed, follow the existing entity/genealogy retention rule; do not retain separate infinite registries.
+- **Clone integrity.** Re-check `simWorker/simPrep.ts` rollback's per-entity nested copy if fields are mutable. `simBuffers/simDelta.ts` already transports whole entities; redundant top-level deltas increase bandwidth without adding correctness. Do not add new `structuredClone` per work event.
+- **Use a measured baseline:** profile comparable fixed-seed colonies, including at least a small, medium and larger population fixture under the same simulation mode. Report timings/memory (or `NOT RUN` if unavailable) and relative change. No arbitrary claimed `O(1)` end-to-end or guaranteed percentage until actually measured.
+- **Keep test runtime bounded:** run targeted real integration tests and a representative short seeded continuation first. Do not put a compulsory 360-day colony or an unbounded stress scenario in every PR CI gate; expand only when the touched owner justifies it, recording exact duration and pass/failure.
+- **No fake progress from old saves:** the derived trait rules become available immediately without modifying stored DNA. Work history starts at a neutral baseline unless there is proven saved event evidence; existing skill and titles still determine real work decisions.
 
 ## 3. Checks and PR reporting
 
