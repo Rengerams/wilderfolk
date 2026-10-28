@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
+
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
