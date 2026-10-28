@@ -1922,3 +1922,6 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 - **Stale personality trait-context test — investigating:** The phase-A three-trait regression checked an obsolete diplomacy effect after the context correction; fixture now checks a real social-reconciliation drawback. Full CI rerun pending. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
 - **Trait order causes floating-point drift — investigating:** Three traits with the same aggregate effects produced a different last-bit tendency when their input order changed; now processed in canonical order without allocations, with six-permutation regression. [Report](../bug_report/2026-10-28-personality-trait-order-floating-point-drift.md).
+## 2026-10-28 — Illustrated New Frontier strategic map
+
+- **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
