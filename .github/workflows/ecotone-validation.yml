@@ -22,6 +22,6 @@ jobs:
       - name: TypeScript build
         run: npx tsc -b
       - name: Targeted terrain and save tests
-        run: npx vitest run tests/terrain.ecotones.test.ts tests/terrain.retiredDecor.test.ts tests/terrain.saveGenerationVersion.test.ts tests/terrain.heightMesh.test.ts tests/terrain.landformGraphics.test.ts tests/terrain.presetIdentity.test.ts tests/terrain.visualCoherence.test.ts tests/terrain.naturalism.test.ts tests/terragen.riverGeneration.test.ts tests/groundLook.bands.test.ts tests/groundChunk.bands.test.ts tests/groundChunk.rebake.test.ts --maxWorkers=2
+        run: npx vitest run tests/terrain.ecotones.test.ts tests/terrain.grassTextures.test.ts tests/terrain.retiredDecor.test.ts tests/terrain.saveGenerationVersion.test.ts tests/terrain.heightMesh.test.ts tests/terrain.landformGraphics.test.ts tests/terrain.presetIdentity.test.ts tests/terrain.visualCoherence.test.ts tests/terrain.naturalism.test.ts tests/terragen.riverGeneration.test.ts tests/groundLook.bands.test.ts tests/groundChunk.bands.test.ts tests/groundChunk.rebake.test.ts --maxWorkers=2
       - name: Production bundle
         run: npm run build
