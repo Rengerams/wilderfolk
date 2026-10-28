@@ -12,6 +12,10 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight gathering overridden by home commute](../bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md):** Fixed on PR #91: selected performers retain gathering movement over ordinary weekend home, leisure and work commute. Real-tick regression added; CI/browser validation pending.
+
+**2026-10-28 — [Spotlight UI state leaked into a newly loaded colony](../bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md):** Fixed on PR #91: discard the previous camera/pause snapshot before replacing a colony and restore scene controls at most once. Lifecycle regressions added; CI/browser validation pending.
+
 **2026-10-28 — [Spotlight chorus can start before all speakers arrive](../bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md):** new eight-person scene could freeze when only six arrived. Branch now waits for every selected speaker; regression added, CI/browser validation pending.
 
 
