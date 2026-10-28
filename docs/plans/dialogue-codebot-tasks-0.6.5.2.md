@@ -1,10 +1,18 @@
 # Coding-agent execution — dialogue trees single pipeline 0.6.5.2
 
-**Task class:** REFACTOR + CONTENT MIGRATION. **Status:** NOT IMPLEMENTED by this plan.  
+**Task class:** REFACTOR + CONTENT MIGRATION. **Status:** IMPLEMENTED IN PR #93 BRANCH; final verification and merge pending.  
 **Design authority:** [Dialogue AS-IS / TO-BE architecture](dialogue-single-pipeline-0.6.5.2.md).  
 **Required style:** [Wilderfolk feature codebot template](CODEBOT_FEATURE_TEMPLATE.md); follow the DNA [architecture](personality-career-single-pipeline-0.6.5.2.md) + [execution tasks](personality-career-codebot-tasks-0.6.5.2.md) separation.  
-**Application version:** current 0.6.5.1; next development target **0.6.5.2** (`AGENTS.md`). **Order:** PR A → PR B → PR C → PR D, merging each before starting the next.  
+**Application version:** current 0.6.5.1; next development target **0.6.5.2** (`AGENTS.md`). **Implementation:** phases A–D consolidated in PR #93; original four-merge delivery sequencing is superseded by the combined review.  
 **Do not** modify gameplay implementation in response to this document alone without an implementation task. Do not claim that writing this plan completes the feature.
+
+## PR #93 implementation checkpoint
+
+- **Implemented in branch:** canonical 1.3 event/mode bank, domain cutovers A–D, one chat-state owner, validated 6–10 actor presentation binder, worker bundle install, session cleanup and deterministic content choice.
+- **Legacy retired:** category-wide `pickDialogueTree` function and its old selection test; no active `sayHumanChatPhrase` production callers.
+- **Legacy content decision:** all ten `Elections.json` IDs overlap `needs.json` but all ten historical versions differ, so the file stays quarantined, preserved and regression-tested instead of being silently removed.
+- **Additional implementation tests:** `dialogue.bankIntegrity`, `dialogue.sessionModes`, `dialogue.domainEvents`, `dialogue.workerSaveParity`, `dialogue.legacyElectionsAudit`, and `dialogue.performance` (current p50/p95 only).
+- **Release acceptance not yet asserted:** full standard CI, build at final head and merge; a code change or a newly added test alone is not proof it passed. Actual PR #91 overlay UI wiring remains a separate branch integration after PR #93.
 
 ## 0. Mandatory preflight — do this before editing
 
@@ -289,9 +297,9 @@ The **whole refactor is complete only after PR D has merged** and the final stat
 
 ## PR #91 JSON captions — strict integration contract
 
-**Actual source now exists.** PR [#91](https://github.com/Rengerams/wilderfolk/pull/91), commit `89460fbc`, owns `src/game/data/dialogue/spotlight-lore.json`: 31 original text lines, `version:"1.3"`, `category:"festival"`, `eventKey:"spotlight.lore"`, `conversation_type:"group"`, six sequential roles `speaker_1` through `speaker_6`. This is the **sole** scene text owner; do not copy its text into PR #93, other JSON or TypeScript.
+**Actual source now exists.** PR [#91](https://github.com/Rengerams/wilderfolk/pull/91), commit `89460fbc`, owns `src/game/data/dialogue/spotlight-lore.json`: 31 original text lines, `version:"1.3"`, `category:"festival"`, `eventKey:"spotlight.lore"`, `conversation_type:"group"`, ten sequential roles `speaker_1` through `speaker_10`. This is the **sole** scene text owner; do not copy its text into PR #93, other JSON or TypeScript.
 
-**PR #93 reusable support (implemented):** `readPresentationDialogue(raw, 'spotlight.lore')` validates and returns immutable ordered lines. `bindNumberedPresentationSpeakers(presentation, performerIds)` accepts **6–10 unique positive real adult IDs** regardless of JSON role count: roles map in source order, surplus roles recycle the existing adult cast deterministically (index modulo actual cast size), and surplus adults remain non-speaking. With PR #91's six roles, the first six adult performers speak, whether six or ten adults gather. Source text, order and optional timing remain unchanged. Both helpers are in `dialogueTrees.ts`, outside the ambient solo/pair bank. The source-wide 1.3 test scanner must tolerate `group` and exclude it from ambient-bank comparisons.
+**PR #93 reusable support (implemented):** `readPresentationDialogue(raw, 'spotlight.lore')` validates and returns immutable ordered lines. `bindNumberedPresentationSpeakers(presentation, performerIds)` accepts **6–10 unique positive real adult IDs** regardless of JSON role count: roles map in source order, surplus roles recycle the existing adult cast deterministically (index modulo actual cast size), and every real adult in a cast of six to ten receives at least one role across the 31 captions. With fewer than ten actors, the final roles reuse the existing cast deterministically. Source text, order and optional timing remain unchanged. Both helpers are in `dialogueTrees.ts`, outside the ambient solo/pair bank. The source-wide 1.3 test scanner must tolerate `group` and exclude it from ambient-bank comparisons.
 
 **Overlay wiring required once the PRs share a common codebase** (do not add imports on a branch where the other PR's file/API is absent):
 
@@ -299,10 +307,10 @@ The **whole refactor is complete only after PR D has merged** and the final stat
    ```ts
    const SPOTLIGHT_SCRIPT = readPresentationDialogue(spotlightLoreJson, 'spotlight.lore');
    ```
-2. Bind the current real cast **once per scene**, not every animation frame: `const captions = bindNumberedPresentationSpeakers(SPOTLIGHT_SCRIPT, scene.performerIds)`. Use the scene/session key if memoizing. Resolve the current speaker via `resolveEntity(world, captions[lineIndex]?.speakerId ?? null)`, rather than `performerIds[lineIndex % performerIds.length]`. Important: when 7–10 adults gather, only `performerIds[0..5]` speak. No made-up speaker, rotation or actor instance.
+2. Bind the current real cast **once per scene**, not every animation frame: `const captions = bindNumberedPresentationSpeakers(SPOTLIGHT_SCRIPT, scene.performerIds)`. Use the scene/session key if memoizing. Resolve the current speaker via `resolveEntity(world, captions[lineIndex]?.speakerId ?? null)`, rather than `performerIds[lineIndex % performerIds.length]`. Important: when 6–10 adults gather, all are eligible to speak; `speaker_N` is assigned to `performerIds[(N - 1) % performerIds.length]`. No made-up speaker, rotation or actor instance.
 3. Replace the overlay's hardcoded `LINES` constant with the 31 `captions[i].text` entries, **without modifying or retyping their texts**. Preserve caption formatting via the existing `formatChatLine`, spotlight/camera/controls, game pause, skip-once semantics and completion. Do not call `requestDialogue`, `startDialogueTreeChat`, or write to `chatPhrase` / `chatTicks`.
 4. Timing: no `durationMs` fields are authored in PR #91. Keep existing `lineDuration(text) = Math.max(3000, Math.min(5300, 1900 + text.length * 43))`, introductory 2400 ms and closing 2800 ms. Support `captions[i].durationMs ?? lineDuration(captions[i].text)` if later authored. Preserve per-scene reload/session isolation.
-5. Tests: assert actual JSON's exact 31-line text **and order** against the previous overlay (do not duplicate 31 strings in another new file), speaker_1→performerIds[0] through speaker_6→performerIds[5], 6–10 real actors, no speaker duplication, abort/skip once, wall-clock while simulation is paused, save/reload and no simulated chat-field changes. Run focused dialogue and Spotlight tests, typecheck, build and standard suite. Report actual results; do not claim pass before running.
+5. Tests: assert actual JSON's exact 31-line text **and order** against the previous overlay (do not duplicate 31 strings in another new file), speaker_1→performerIds[0] through speaker_10→performerIds[9] for a ten-person cast, 6–10 real actors with safe reuse for smaller casts, abort/skip once, wall-clock while simulation is paused, save/reload and no simulated chat-field changes. Run focused dialogue and Spotlight tests, typecheck, build and standard suite. Report actual results; do not claim pass before running.
 6. Update the relevant ownership rows, decision registry, changelog, bug-report summary/real counts and PR body when implementation is complete. Do not alter PR #91's domain eligibility, event frequency, real movement, world/save/worker model, Chronicle rules or gameplay balance.
 
 **Branch dependency at 2026-10-28:** PR #91 owns the overlay and JSON; PR #93 owns the functions and tests. This means PR #93's helper can be merged independently, but the actual overlay import and replacement of `LINES` requires the branches to be integrated. Do not merge all of PR #91 into PR #93 or introduce a broken cross-branch dependency merely to mark the overlay as done.
