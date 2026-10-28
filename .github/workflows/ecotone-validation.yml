@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ecotone-validation-${{ github.ref }}
-  cancel-in-progress: true
+  group: ecotone-validation-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   validate:
     runs-on: ubuntu-latest
