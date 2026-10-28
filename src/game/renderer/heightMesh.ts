@@ -7,7 +7,7 @@
  * there are no triangle transforms or height samples per animation frame.
  */
 import type { WorldMap } from '../gameTypes';
-import { TERRAIN_HEIGHT_MESH_MAX_RISE, TERRAIN_HEIGHT_MESH_STEP, terrainRiseAt } from '../terrainAtlas';
+import { TERRAIN_HEIGHT_MESH_MAX_RISE, TERRAIN_HEIGHT_MESH_STEP, supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
 import { createCanvasSurface, getCanvasContext, type CanvasContext2d, type CanvasSurface } from '../canvasLayer';
 
 export const HEIGHT_MESH_TOP_PAD = TERRAIN_HEIGHT_MESH_MAX_RISE;
@@ -29,17 +29,21 @@ export function projectedHeightAt(map: WorldMap | null, x: number, y: number): n
 /**
  * Approximate the unique ground coordinate under a pixel. Because the mesh's maximum
  * 28px rise is smaller than its 32px cell, y → y − rise is strictly increasing.
- * Solving the inverse by fixed-point iteration therefore converges even on cliffs.
+ * A bounded bisection gives an unambiguous inverse even on the steepest cliffs.
  */
 export function unprojectTerrainY(map: WorldMap | null, x: number, flatY: number): number {
-  if (!map) return flatY;
-  let y = flatY;
-  for (let i = 0; i < 32; i++) {
-    const next = flatY + terrainRiseAt(map, x, y);
-    if (Math.abs(next - y) < 0.005) return next;
-    y = next;
+  // v1/v2 draw flat terrain: keep their historic XY pointer mapping unchanged.
+  if (!supportsTerrainHeightMesh(map)) return flatY;
+  // Rise is bounded in [0, 28] and a 32px mesh edge guarantees no vertical fold.
+  // Bisection converges in a fixed 16 probes even on the maximum possible grade.
+  let low = flatY;
+  let high = flatY + TERRAIN_HEIGHT_MESH_MAX_RISE;
+  for (let i = 0; i < 16; i++) {
+    const mid = (low + high) * 0.5;
+    if (mid - terrainRiseAt(map, x, mid) < flatY) low = mid;
+    else high = mid;
   }
-  return y;
+  return (low + high) * 0.5;
 }
 
 /**
