@@ -14,6 +14,7 @@ This roadmap tracks **features and implemented behavior**, not a test or verific
 - [x] **Housing and family lifecycle:** ordered housing ownership, custody, reserved beds, fixed 20-bed leader home and linked annex ([#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56)).
 - [x] **Raids and rivals:** strategic world-map settlements, six-hour battles, persistent casualties, surrender choices, recovery, destruction, prisoners and civic merit ([#58](https://github.com/Rengerams/wilderfolk/pull/58)).
 - [x] **Roads, walls and navigation:** continuous drag construction/demolition, junctions, gates, collision, entrance snapping, terrain-based path costs and road speed ([#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66)).
+- [x] **Watchtowers — simulated, passive defense:** buildable Watchtowers provide +15 barricade strength each (+27 after forged Tower Ballistae), detect marching raiders within 260 world units, and can be built by the Virtual Player. These bonuses are simulation parameters; no towers shoot projectiles or initiate real-time combat (`defenseStructures.ts`, `watchtowerDetection.ts`, `virtualPlayer.ts`).
 - [x] **Indoor presentation:** hide settlers who are physically inside buildings while maintaining their simulation activity ([#60](https://github.com/Rengerams/wilderfolk/pull/60)).
 - [x] **Human needs and food systems:** separate persistent nutrition/rest/stamina, real meals and sleep, workforce and automated farm adjustments ([#62](https://github.com/Rengerams/wilderfolk/pull/62)).
 - [x] **Distinct biomes and map presets:** terrain-based habitats, consistent rivers/scenery, original-site production bonuses and generator compatibility ([#63](https://github.com/Rengerams/wilderfolk/pull/63)).
@@ -248,11 +249,11 @@ The core raid overhaul is merged ([#58](https://github.com/Rengerams/wilderfolk/
 - [x] **Persistent aftermath:** graves, named casualties, family consequences, Chronicle and save/worker transitions retain the battle outcome.
 - [x] **Diplomacy and leadership:** witnessed reputation effects and bounded earned merit apply once to a real outcome.
 - [x] **Wartime social context:** consequences of surrender and prisoner decisions reflect current war and resident values ([#70](https://github.com/Rengerams/wilderfolk/pull/70)).
-- [ ] **Advanced fortification combat:** fully integrated defensive towers, detailed breach interactions and broader battlefield presentation remain future scope.
+- [ ] **Advanced simulated siege outcomes:** optional deeper aggregate gate/wall breach and fortification-damage consequences, plus clearer aftermath reporting, remain future scope. Existing Watchtowers and passive tower upgrades are implemented. No active tower fire, real-time unit combat or tactical minigame is planned.
 
 ## 10. Implemented warfare scope
 
-The merged warfare implementation includes the combat lifecycle, player choices, aftermath and recovery, reputation and election consequences, and persistent saves. The more extensive defensive-tower and siege mechanics remain a planned extension (§9, §13).
+The merged warfare implementation includes the combat lifecycle, player choices, aftermath and recovery, reputation and election consequences, and persistent saves. Watchtowers already contribute passive defense strength and detect approaching raiders. Any additional siege depth belongs to abstract simulation results and post-battle explanations, not real-time fighting (§9, §13).
 
 ## 11. DNA traits — strengths, weaknesses and whole-game influence
 
@@ -453,30 +454,30 @@ The player should be able to build an attractive, connected settlement where roa
 - Keep the collision/navigation footprint aligned with the graphic: no road that looks walkable but is blocked, and no hidden gaps at corners.
 - Rendering and auto-tiling must update when neighboring tiles are placed, upgraded, damaged or removed.
 
-### 13.4 Buildable walls, gates and defensive towers
+### 13.4 Buildable walls, gates and existing Watchtowers
 
 - Improve **wall drawing** with drag placement, automatic connected sections, corners, end caps and clear snapping to gates, towers and existing fortifications.
 - Preview resource costs, construction time, collision and whether a proposed wall actually seals an approach; warn clearly about unconnected gaps.
 - Offer functional **gates** through walls so villagers, merchants and militia can enter or leave; gate state must affect routes and attack behavior consistently.
-- Provide intuitive tower placement and upgrading, with clear coverage/range previews, line-of-sight limits and staffing requirements where the combat model calls for guards.
+- [x] **Existing Watchtowers:** placeable buildings with a passive barricade bonus (+15, or +27 after forged Tower Ballistae) and early warning of marching raiders within 260 world units. These are simulated bonuses, not weapon ranges or line-of-sight projectile attacks. Tower staffing is not a requirement for this passive bonus.
 - Allow repair and rebuilding after raids; damage should visibly affect wall and tower condition.
 - Keep construction rules coherent at waterways, cliffs, bridges and steep terrain so fortifications cannot exploit invalid or inaccessible placements.
 
-### 13.5 Fortifications in raids
+### 13.5 Fortifications in simulated raids — no real-time battles
 
-- Walls should slow, redirect or block attackers until breached; towers should contribute defense according to real range, line of sight, garrison, equipment and condition.
-- Raiders must be able to target **gates, weak sections and breach points**, rather than treating a fully enclosed city as magically invulnerable.
-- Defenders need reachable positions and routes. A wall without a workable gate should not trap the entire village or create free defense points.
-- The raid overview should explain which tower provided support, where a breach occurred, and how fortifications affected the result.
-- Fortifications should contribute to the **v0.6.5.2 devastation model**: well-defended towns are harder to wipe out, but sufficiently strong enemies can still destroy walls and towers.
-- Do not duplicate the existing aggregate militia/defense score with an unbounded second bonus. Balance physical defense effects against current combat resolution.
+- **Simulation-only combat:** raids resolve through existing aggregate combat and outcome rules. The player does not manually fight, towers never fire projectiles, and there is no real-time tactical battle or physical wall-breaching minigame.
+- [x] **Existing passive defense:** completed Watchtowers already raise simulated barricade strength, and forged Tower Ballistae increase that value. Watchtowers also provide early raid detection.
+- [x] **Existing infrastructure:** road/wall/gate connectivity and collision apply to normal map movement; these are not evidence of simulated projectiles or active tower targeting.
+- [ ] **Optional deeper siege outcomes:** if expanded, use the existing raid owner to determine abstract gate/wall damage, breach severity and recovery effects once per raid. Describe causes in the battle report without creating an active tactical combat layer.
+- Keep fortified towns harder to defeat within the v0.6.5.2 devastation model, while allowing extreme defeats and meaningful recovery.
+- Avoid double-counting the already implemented tower/wall barricade bonuses or creating a second independent combat resolver.
 
 ### 13.6 Building UX and visual polish
 
 - One coherent construction tool family for roads, walls, gates and towers, with predictable rotate / drag / confirm / cancel / demolish behavior.
 - Clearly show the footprint, entrances, range, terrain obstructions, required materials and connectivity **before** committing construction.
 - Draw clear construction and upgrade stages, material changes, scaffolding/damage and completion transitions.
-- Display concise explanations such as *Disconnected road*, *Gate blocks route*, *Tower has no guard*, *Outside tower range*, *No resources*, or *Blocked terrain*.
+- Display concise, factual explanations such as *Disconnected road*, *Gate blocks route*, *Watchtower provides passive defense*, *No resources*, or *Blocked terrain*. Do not imply tower guards, projectile range or active firing.
 - Maintain legible outlines, shadows, sorting and selection hitboxes at varying zoom levels and when structures overlap vegetation.
 - Make any optional decoration or visual quality controls independent of the underlying pathfinding/combat simulation.
 
@@ -487,11 +488,11 @@ The player should be able to build an attractive, connected settlement where roa
 - Integrate with existing placement, terrain, building state, pathfinding, rendering, workforce, defense and frontier combat owners instead of creating parallel simulations.
 - Test road dragging across valid/invalid tiles, costs/refunds, crossings, bridges, junctions, undo/cancel, demolition, map borders and terrain changes.
 - Test pathfinding before and after construction, a destroyed bridge, an open/closed gate, traffic congestion and a disconnected school/workplace.
-- Test wall corners and gaps, tower range and staffing, raider gate attack, breach, rebuilding and a fully enclosed village.
+- Preserve the existing build, save, wall/gate navigation and simulated Watchtower bonuses. Any later siege-outcome feature should test aggregate damage, recovery and once-only outcome application, not tower range attacks or unit combat.
 - Confirm visuals match pathfinding and collision, plus large-map performance at various zoom levels.
 - Run save → load → simulate → save → reload regression checks using existing settlements, including large cities.
 
-**Definition of done:** roads are easy to draw, visibly join correctly and make travel/logistics better; walls, gates and towers are pleasant to construct and materially influence raids; existing villages still load and play correctly.
+**Definition of done:** roads are easy to draw, visibly join correctly and improve travel; walls and gates retain their map/navigation roles, and existing Watchtowers contribute passive defense and early warning to simulated raids. There is no active or tactical combat layer.
 
 
 ## 14. Village logistics — supply routes, warehouses and bottlenecks
@@ -696,7 +697,7 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 **Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
 
-**Definition of done:** connected roads work visually and logically; enclosed walls actually block movement; gates are passable; roads provide measured travel benefits; click-and-drag build and demolition are responsive; saves and performance remain sound. PR #59 and fixes #65/#66 are accepted; see the implementation brief for validation. The larger §13 aspirations, including richer tower/raid interactions and full 1,800-settler responsiveness, remain separate work.
+**Definition of done:** connected roads work visually and logically; enclosed walls block ordinary movement; gates are passable; roads provide travel benefits; click-and-drag build and demolition work. PR #59 and fixes #65/#66 are accepted. Watchtowers are already implemented as passive simulated defense. Any future §13 combat work is limited to aggregate siege outcomes and reporting, not real-time tower/raid interactions.
 
 ## 22. Human needs and food economy — Issue #61 (26 October 2026)
 
@@ -734,6 +735,7 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 | Housing and families | [#40](https://github.com/Rengerams/wilderfolk/pull/40), [#56](https://github.com/Rengerams/wilderfolk/pull/56) | Ordered housing ledger and phase pipeline; protected prisoner beds; 20-bed leader home and one linked annex; adult-child independence, deterministic divorce custody and distance-aware family relocation | [Housing architecture](docs/HOUSING_ARCHITECTURE.md), `residencyReconciliation.ts`, `leaderHouseExpansion.ts` |
 | Raids, strategic rivals, prisoners | [#58](https://github.com/Rengerams/wilderfolk/pull/58) | Up to six strategic-only rivals, six-hour incoming/outgoing battles, durable casualties, victory choice/mercy/tribute/razing, settlement recovery/destruction, captive outcomes, diplomatic memory and bounded leadership merit | `frontierCombat.ts`, `raidAftermath.ts`, `rivalSettlements.ts`, `warPrisoners.ts` |
 | Roads, walls, gates and navigation | [#59](https://github.com/Rengerams/wilderfolk/pull/59), [#65](https://github.com/Rengerams/wilderfolk/pull/65), [#66](https://github.com/Rengerams/wilderfolk/pull/66) | Drag road/wall build and demolition, geometry-aware joins and building-entrance snapping, gate open/close and collision, A* road-cost preference and speed only on real road surfaces; corrected previews and legacy save tests | [Brief](docs/plans/roads-walls-navigation-overhaul.md), [Architecture](docs/ROADS_WALLS_NAVIGATION_ARCHITECTURE.md), `stripTopology.ts`, `pathfinding.ts` |
+| Existing Watchtowers — passive simulation | Existing `BuildingType.Watchtower` system | Buildable and Virtual Player-buildable; +15 passive barricade strength each or +27 with forged Tower Ballistae; early warning at 260 world units; no active firing or real-time combat | `src/game/defenseStructures.ts`, `src/game/watchtowerDetection.ts`, `src/game/virtualPlayer.ts` |
 | Human needs and food | [#62](https://github.com/Rengerams/wilderfolk/pull/62) | Serialized nutrition/rest/stamina for player humans, one physiology update before offscreen branching, meal ledger integration, gradual deprivation, shift/rest behavior, Moon Howler restoration, UI readouts, food-production bot/staffing fixes and regressions | [Needs architecture](docs/HUMAN_NEEDS_ARCHITECTURE.md), [PR mapping](docs/architecture/human-needs-pr62.md), `simulation/humanPhysiology.ts`, `simulation/humanNeeds.ts` |
 | Map terrain/biomes | [#63](https://github.com/Rengerams/wilderfolk/pull/63) | Map presets with distinct relief, habitats and scenery; connected waterways, consistent terrain classification, original-site production bonuses, versioned generator/save behavior, terrain regressions | [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md), `terrain/terragen.ts`, `terrain/terrainGrid.ts`, `renderer/terrain.ts` |
 | World-copy overhead | [#64](https://github.com/Rengerams/wilderfolk/pull/64) | Narrower world/building copying, fingerprinted and omitted unchanged worker histories, leaner save serialization, rollback snapshot profiling | [Optimization note](docs/plans/world-copy-optimization-2026-10-27.md), `simBuffers/simDelta.ts`, `simWorker/simPrep.ts` |
@@ -759,7 +761,7 @@ These describe **unimplemented or incomplete feature scope**, not test activitie
 - [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§17).
 - [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§18, §21).
 - [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§19).
-- [ ] **More advanced fortification and siege mechanics:** defensive towers and detailed breaches beyond the merged road/wall pipeline (§13).
+- [ ] **Optional deeper simulated siege outcomes:** additional aggregate gate/wall damage and breach consequences with clearer battle reports, within the existing raid simulation (§13). Watchtowers and their defensive bonuses are already implemented; no active tower fire or real-time combat.
 
 ### 23.2 Canonical document and implementation boundary
 
