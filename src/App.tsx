@@ -482,17 +482,8 @@ export default function App() {
         speed: loop.getWorld().speed,
       };
     }
-    const girl = resolveEntity(loop.getWorld(), scene.heroineId);
-    if (girl?.alive) {
-      const aimed = focusCameraOn(loop.getView(), girl.x, girl.y, 1.75);
-      const canvas = canvasRef.current;
-      loop.patchView({
-        camera: clampCameraTarget(
-          aimed.camera, world.width, world.height,
-          canvas?.clientWidth ?? world.width, canvas?.clientHeight ?? world.height,
-        ),
-      });
-    }
+    // Camera movement for this scene starts behind the intro blackout.
+    // The overlay asks App to focus only when its cinematic cue begins.
     if (scene.phase === 'ready' && !loop.getWorld().paused) {
       loop.mutateWorld((w) => { w.paused = true; });
     }
