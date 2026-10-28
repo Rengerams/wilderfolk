@@ -9,7 +9,7 @@ import { preloadSpotlightMusic, playSpotlightMusic, type SpotlightMusicPlayback 
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
-  spotlightOpeningFrame,
+  spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 
@@ -123,9 +123,9 @@ export default function SpotlightLoreOverlay({
           musicSoundRef.current = playSpotlightMusic();
         }
       }
-      if (!soundtrackFaded && elapsed >= SPOTLIGHT_APPLAUSE_START - 1400) {
+      if (!soundtrackFaded && elapsed >= SPOTLIGHT_APPLAUSE_START - SPOTLIGHT_MUSIC_FADE_MS) {
         soundtrackFaded = true;
-        musicSoundRef.current?.fadeOut(1.4);
+        musicSoundRef.current?.fadeOut(SPOTLIGHT_MUSIC_FADE_MS / 1000);
       }
       if (step.kind === 'applause' && !soundtrackStopped) {
         soundtrackStopped = true;
