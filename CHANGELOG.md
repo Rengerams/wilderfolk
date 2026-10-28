@@ -2,6 +2,9 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **Biome ecotones (28 October 2026):** Smooth grass, sand, dirt, stone and snow transitions; fade tree density by local climate; replace generated scenery shapes with licensed artist sprites in new worlds. Existing saves retain their terrain recipes.
+
+
 - **2.5D terrain (28 October 2026):** Cache textured ground chunks as triangular height meshes, align game objects and decorations, and correct mouse and keyboard positioning on slopes. Legacy save maps and game physics are unchanged.
 
 - **Terrain graphics (28 October 2026):** Expose rock on steep upland slopes, brighten ridges, shade valleys and ground trees, grass and selection effects at the same elevation as settlers. Render-only; no terrain regeneration or save changes.
