@@ -123,6 +123,10 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/tree2.png',
     // Artist-authored top-down conifers (Ansimuz, CC0). New-world vegetation uses real artwork.
     '/sprites/nature/ansimuz/summer_pine_tree_tiles.png',
+    // CC0 image-based L3 scenery: artist assets instead of drawProp Canvas primitives.
+    '/sprites/nature/kenney/naturePack_026_0.png',
+    '/sprites/nature/kenney/naturePack_054_0.png',
+    '/sprites/nature/kenney/naturePack_078_0.png',
     '/sprites/blueberry_tree.png',
     '/sprites/grass.png',
     '/sprites/grass2.png',
