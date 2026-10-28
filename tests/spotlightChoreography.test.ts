@@ -9,6 +9,11 @@ import {
   spotlightFarewellPosition, spotlightFarewellDestination, spotlightSafePoseRadius,
 } from '../src/components/spotlightFarewell';
 import { testWorldMap } from '../src/test/worldMapFixtures';
+import type { Entity } from '../src/game/gameTypes';
+import {
+  presentationPosition, setSpotlightPresentationFrame, getSpotlightPresentationMotion,
+  resetMotionInterpolation,
+} from '../src/game/renderer/motionInterpolation';
 
 describe('spotlight choreography — canonical JSON 1.3 captions and stable cues', () => {
   it('binds the actual heroine and each one of 6–10 adult singers without a hidden 7th–10th speaker', () => {
@@ -91,4 +96,20 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
     expect([0, 5, 8, 11]).toContain(radius);
     expect(spotlightSafePoseRadius({ ...world, worldMap: null }, { x: 480, y: 350 })).toBe(0);
   });
+  it('projects the actual juvenile sprite only during the render frame without changing the entity', () => {
+    const original = { id: 99, x: 480, y: 350 } as Entity;
+    resetMotionInterpolation();
+    setSpotlightPresentationFrame({ id: 99, x: 471, y: 354, moving: true, facingLeft: true });
+    try {
+      expect(presentationPosition(original)).toEqual({ x: 471, y: 354 });
+      expect(getSpotlightPresentationMotion(original.id)?.facingLeft).toBe(true);
+      expect(original.x).toBe(480);
+      expect(original.y).toBe(350);
+      expect(getSpotlightPresentationMotion(101)).toBeNull();
+    } finally {
+      setSpotlightPresentationFrame(null);
+    }
+    expect(presentationPosition(original)).toEqual({ x: 480, y: 350 });
+  });
+
 });
