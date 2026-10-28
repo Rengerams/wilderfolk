@@ -81,6 +81,7 @@ import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
+import RazeConfirmation from './components/RazeConfirmation';
 import { downloadSaveFile } from './game/saveLoad';
 import { downloadChronicleLog } from './game/eventLogExport';
 
@@ -2268,22 +2269,17 @@ export default function App() {
                     <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { razeSubmittingRef.current = false; setRazeConfirmationId(pending.raidId); }}>Raze settlement</button>
                   </div>
                   {razeConfirmationId === pending.raidId && (
-                    <div role="group" aria-label="Confirm razing this settlement" className="space-y-2 rounded border border-rose-700/70 p-3">
-                      <p className="font-semibold text-stone-100">Raze {pending.rivalName}?</p>
-                      <p className="text-sm text-stone-300">
-                        This permanently removes the rival settlement from the current saved world and cancels its pending activities.
-                        Its {pending.enemySurvivors} surviving {pending.enemySurvivors === 1 ? 'inhabitant is' : 'inhabitants are'} recorded as displaced, not killed by this decision.
-                        Nearby settlements that witness the destruction may change their diplomatic attitude and future behavior.
-                      </p>
-                      <button type="button" className="mr-2 rounded bg-rose-900 px-3 py-2" onClick={() => {
+                    <RazeConfirmation
+                      pending={pending}
+                      onConfirm={() => {
                         if (razeSubmittingRef.current) return;
                         razeSubmittingRef.current = true;
                         applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' });
                         setRazeConfirmationId(null);
                         setBattleReport(null);
-                      }}>Confirm raze</button>
-                      <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { razeSubmittingRef.current = false; setRazeConfirmationId(null); }}>Cancel</button>
-                    </div>
+                      }}
+                      onCancel={() => { razeSubmittingRef.current = false; setRazeConfirmationId(null); }}
+                    />
                   )}
                 </div>
               )}
