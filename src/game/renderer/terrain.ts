@@ -728,7 +728,9 @@ function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot
     const ty = Math.floor(index / mapWidth);
     const worldX = tx * PATH_CELL, worldY = ty * PATH_CELL;
     const [sx, syBase] = worldToScreen(worldX, worldY, state.camera, cw, ch);
-    const sy = syBase - terrainRiseAt(state.worldMap, worldX, worldY) * state.camera.zoom;
+    const rise = supportsTerrainHeightMesh(state.worldMap)
+      ? terrainRiseAt(state.worldMap, worldX, worldY) : 0;
+    const sy = syBase - rise * state.camera.zoom;
     if (sx + size <= 0 || sy + size <= 0 || sx >= cw || sy >= ch) continue;
     ctx.drawImage(sprite, sx, sy, size, size);
   }
