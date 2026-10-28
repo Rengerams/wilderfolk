@@ -40,9 +40,7 @@ export function recordCareerWork(
     || worker.age < HUMAN_ADULT_MIN_AGE || worker.faction || worker.prisonBuildingId != null) return false;
   if (!Number.isSafeInteger(day) || day < 0 || day > MAX_CAREER_DAY
     || !Number.isFinite(observedHours) || observedHours <= 0) return false;
-  // Last-settled shift provenance, not today's mutable job/roster, establishes where
-  // this person actually worked. A full-moon transformation vacates the post at
-  // 23:00; the seat can be filled before the person reverts at dawn.
+  // Credit the witnessed prior shift, not the worker's current job or roster.
   if (worker.scheduleLastWorkedSiteId !== site.id || worker.scheduleLastWorkedJob !== job
     || !site.completed || site.faction === 'rival' || BUILDING_JOB_TYPES[site.type] !== job) return false;
   const previous = worker.careerHistory?.[job];
