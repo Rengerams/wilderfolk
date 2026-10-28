@@ -1,11 +1,12 @@
 # Wilderfolk — New Feature Codebot Execution Template
 
-**Document type:** reusable **Wilderfolk-specific** implementation-plan template  
+**Document type:** reusable **Wilderfolk-specific feature/function architecture and phased implementation-plan template  
 **Status:** CONCEPT TEMPLATE — not a feature implementation or approval to merge  
 **Reference:** [DNA / Personality / Career coding-agent plan](personality-career-codebot-tasks-0.6.5.2.md)  
 **Authority:** `AGENTS.md`, `docs/command.md`, and the repository's canonical ownership/decision registers take precedence.
+**Required output:** one verifiable **AS-IS architecture → TO-BE architecture → code/function migration matrix → implementation phases**. No stage starts until these four parts agree; the old and new flows must be clearly distinguishable.
 
-> **Planning agent:** Copy this file to `docs/plans/<feature-slug>-<YYYY-MM-DD>.md` and fill every `[PLACEHOLDER]` from current repository evidence. Write `N/A — <reason>` when a section does not apply. Delete unused optional phases and examples. Confirm names, paths, scripts, state fields and calls in the actual branch; the examples here are **not** permission to invent APIs. Do not hand an unfilled plan to a codebot.
+> **Planning agent:** Copy this file to `docs/plans/<feature-slug>-<YYYY-MM-DD>.md` and fill every `[PLACEHOLDER]` from current repository evidence. Write `N/A — <reason>` where a specific dimension is irrelevant. **Always complete the current (AS-IS), target (TO-BE), delta/cutover, and phase sections, even for a single-function change.** Delete unused optional phases and examples. Verify paths, symbols, scripts, state fields and calls against the current branch; examples do **not** authorize invented APIs. Do not hand an unfilled plan to a codebot.
 
 ---
 
@@ -17,13 +18,13 @@
 | User-visible result | `[ONE SENTENCE: WHAT THE PLAYER CAN DO/SEE/EXPERIENCE]` |
 | Origin / priority | `[DIRECT TASK, ISSUE NUMBER, OR VERIFIED ROADMAP SECTION]` |
 | Target version | `[READ FROM CURRENT AGENTS.md — DO NOT GUESS]` |
-| Authoritative design | `[LINK TO SINGLE ARCHITECTURE DOCUMENT / SECTION]` |
+| Authoritative design | `[THIS DOCUMENT'S AS-IS / TO-BE SECTIONS OR LINK TO EXISTING CANONICAL DESIGN]` |
 | Current status | `NOT IMPLEMENTED / PARTIALLY IMPLEMENTED — WITH EVIDENCE` |
-| Main simulation owner | `[FILE + EXACT FUNCTIONS, VERIFIED]` |
+| Main simulation owner | `[EXISTING FUNCTION/FILE IF ANY; EXPLICIT NEW OWNER IF FEATURE HAS NONE]` |
 | State affected | `[CANONICAL WORLDSTATE/ENTITY/OTHER FIELDS; OR NONE]` |
 | Existing save compatibility | `[AFFECTED? SUPPORTED VERSIONS? MIGRATION RULE]` |
 | Scope excluded | `[OUT-OF-SCOPE BEHAVIOR]` |
-| Delivery approach | `[NUMBER OF SMALL REVIEWABLE PRs + REQUIRED ORDER]` |
+| Delivery approach | `[NUMBER OF SMALL REVIEWABLE PRs + PHASE ORDER + CUTOVER]` |
 
 **Problem:** `[CURRENT BEHAVIOR / MISSING FEATURE WITH CODE EVIDENCE]`
 
@@ -48,7 +49,7 @@ Before editing any code:
 2. Read `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts`. Inspect the relevant architecture in `docs/` and the current branch/PR.
 3. Search the live repository for each behavior, owner function, state field, save path, event emitter, and existing test. Read each file **again immediately before editing**; other agents may have changed it.
 4. Trace the actual call chain: `gameLoop.ts` → `gameTick.ts` → relevant realtime/systems/assignment/daily tick layer, **or** the appropriate worker command/event entrypoint. Verify the actual cadence, not the intended cadence.
-5. Inspect the worker path (`src/game/simWorker/gameWorker.ts` and `GameWorkerHost.ts` where relevant), and the main-thread fallback. Trace how the result reaches the UI.
+5. Inspect the worker path (`src/game/simWorker/gameWorker.ts` and `src/game/simWorker/GameWorkerHost.ts` where relevant), and the main-thread fallback. Trace how the result reaches the UI.
 6. For new saved data, trace `src/game/gameTypes.ts`, `src/game/saveSchema.ts`, `src/game/saveLoad.ts`, `src/game/simWorker/simPrep.ts` and `src/game/simBuffers/simDelta.ts`.
 7. Search for existing utilities and prior similar implementations. **Reuse → narrowly generalize → create**. Do not introduce another representation of the same concept.
 8. Document the verified **as-is** flow and what is missing before specifying changes. Do not assume the reference plan reflects the latest main.
@@ -63,33 +64,75 @@ Before editing any code:
 
 **Architecture conflict check:** `[OVERLAPPING OWNERS? DUPLICATED CALCULATIONS? MISSING PATH? NONE?]`. Do not silently reassign an existing owner. Escalate conflicting authority before implementation.
 
-## 2. Single-pipeline architecture contract
+### 1.1 Current architecture — AS-IS (required, verified code only)
+
+**Do not write the proposed design here.** Capture the real current call chain, including code that is already implemented. Name actual symbols and source paths; where the feature does not exist, show the nearest current entrypoint and **exactly where the new behavior is missing**. A reader must understand how the game works *today* without reading the TO-BE section.
+
+```text
+[CURRENT command/event/tick function + path; VERIFIED]
+                      |
+                      v
+[CURRENT dispatcher / function + path; VERIFIED]
+                      |
+                      v
+[CURRENT domain calculation and caller + path; VERIFIED]
+                      |
+                      v
+[CURRENT mutation owner OR "no feature state yet"]
+                      |
+                      v
+[CURRENT event log / worker / UI projection, where relevant]
+```
+
+| Current file + exact function | Called by / cadence | Input and output | Fields read | Fields written | Deficiency or reuse decision |
+| --- | --- | --- | --- | --- | --- |
+| `[EXISTING/PATH.ts:realFunction]` | `[verified caller]` | `[types]` | `[state]` | `[state or []]` | `[KEEP / MODIFY / REPLACE OR NONE EXIST]` |
+
+**Current function calls and ownership:** `[list imports, direct callers, single registered owner, exceptions found]`.
+
+**Current behavior and limits:** `[what works now, where outputs reach the player, existing tests and measured costs; NOT RUN where unmeasured]`.
+
+**Problem location:** `[precise point in this trace that fails to provide the requested feature; evidence]`.
+
+### 1.2 Baseline and protected behavior
+
+| Existing contract | Current evidence | Must remain unchanged? | Regression test |
+| --- | --- | --- | --- |
+| `[rule, guard, data format, clock or UI]` | `[owner/function/test]` | `[YES / INTENTIONAL CHANGE + REASON]` | `[existing actual file]` |
+
+Specify if the current implementation already contains similar or partially working functions; do **not** propose an alias or duplicate function for them. Include relevant current time/memory characteristics and existing save/worker compatibility, or state `NOT MEASURED`.
+
+## 2. Target architecture — TO-BE (single canonical pipeline)
+
+**This section describes the intended implementation, not current code.** It must directly solve the gap documented in §1.1 while retaining every protected behavior in §1.2. Mark each proposed node **KEEP**, **MODIFY** or **NEW**, and cite its function's owning file. If the existing pipeline already suffices, show its direct extension rather than creating another manager.
 
 Write **one concrete data/control pipeline** for this feature, replacing every placeholder:
 
 ```text
-[EXISTING PLAYER COMMAND / EXISTING TICK OR EVENT]
+[KEEP: existing command / event / tick + verified real function]
                |
                v
-[EXISTING SCHEDULER OR COMMAND ROUTER; NEVER A NEW PARALLEL CLOCK]
+[KEEP / MODIFY: existing scheduler / router + real function]
                |
                v
-[CANONICAL DOMAIN INPUTS FROM WorldState / Entity]
+[KEEP: canonical domain inputs; narrow read-only projections]
                |
                v
-[PURE NEW FEATURE RULE / EVALUATOR, IF NEEDED]
+[NEW / MODIFY / N/A: one owned rule function; no duplicate logic]
                |
                v
-[ONE AUTHORIZED STATE-WRITING OWNER]
+[KEEP / MODIFY: existing authoritative writer OR NEW distinct owner]
                |
-               +--> [EXISTING eventLog / saved state, only when applicable]
-               |
-               v
-[EXISTING WORKER DELTA / VIEW PROJECTION]
+               +--> [KEEP: canonical event log + saved state when applicable]
                |
                v
-[PLAYER UI / AUTOMATED OBSERVATION]
+[KEEP / MODIFY: real worker transfer / read-only view projection]
+               |
+               v
+[MODIFY / KEEP: actual player UI or automated observation]
 ```
+
+**Function-by-function rule:** every TO-BE node must name the actual owner path, function signature, direct caller, input/output types and permission to mutate state. Existing nodes may stay unchanged; newly created ones must have a real distinct responsibility. Explain how UI/worker/save readers observe the new result, or mark N/A with evidence.
 
 ### 2.1 Module and state ownership — mandatory
 
