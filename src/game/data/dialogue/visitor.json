@@ -1,0 +1,940 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "social",
+  "categories": [
+    "social"
+  ],
+  "dialogue_trees": [
+    {
+      "id": "evt_visitor_market_0",
+      "category": "social",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine goods?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_1",
+      "category": "social",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "What is the price?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_2",
+      "category": "social",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We bring cloth."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_3",
+      "category": "social",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Trade?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_0",
+      "category": "social",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Is the elder here?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_1",
+      "category": "social",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We seek audience."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_2",
+      "category": "social",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Greetings, village."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_0",
+      "category": "social",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bless this place."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_1",
+      "category": "social",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We light a candle."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_2",
+      "category": "social",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Peace upon you."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_0",
+      "category": "social",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "May we read?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_1",
+      "category": "social",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Curious craft…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_2",
+      "category": "social",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Share a map?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_0",
+      "category": "social",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Tracks nearby."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_1",
+      "category": "social",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good hunting ground."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_2",
+      "category": "social",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Deer that way."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_0",
+      "category": "social",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Quiet woods."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_1",
+      "category": "social",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Keep watch."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_2",
+      "category": "social",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Smell of game."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_0",
+      "category": "social",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Warm hearth?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_1",
+      "category": "social",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Stories for bread?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_2",
+      "category": "social",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Long road."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_0",
+      "category": "social",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Strong walls."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_1",
+      "category": "social",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Children laugh here."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_2",
+      "category": "social",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine houses."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_0",
+      "category": "social",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We need shelter…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_1",
+      "category": "social",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Any work for food?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_2",
+      "category": "social",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Please, the cold…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_0",
+      "category": "social",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Water, please."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_1",
+      "category": "social",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A moment of rest."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_2",
+      "category": "social",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Kind strangers?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_0",
+      "category": "social",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A song for coin!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_1",
+      "category": "social",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Gather round!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_2",
+      "category": "social",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dance with us!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_0",
+      "category": "social",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Ta-da!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_1",
+      "category": "social",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Encore?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_2",
+      "category": "social",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Music!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_0",
+      "category": "social",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy square."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_1",
+      "category": "social",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hello!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_2",
+      "category": "social",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Nice village."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_0",
+      "category": "social",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fresh water."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_1",
+      "category": "social",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A drink first."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_2",
+      "category": "social",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Ah…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_0",
+      "category": "social",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We pray."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_1",
+      "category": "social",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Sacred quiet."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_2",
+      "category": "social",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Amen."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_0",
+      "category": "social",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Interesting…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_1",
+      "category": "social",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Write that down."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_2",
+      "category": "social",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hmm."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_0",
+      "category": "social",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hello there."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_1",
+      "category": "social",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_2",
+      "category": "social",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Pardon us."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_0",
+      "category": "social",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dusty boots."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_1",
+      "category": "social",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Which way?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_2",
+      "category": "social",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Onward."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_0",
+      "category": "social",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Mercy…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_1",
+      "category": "social",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We fled fire."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_2",
+      "category": "social",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Any room?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_0",
+      "category": "social",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "♪ La la~"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_1",
+      "category": "social",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Clap along!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_2",
+      "category": "social",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A tune!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_3",
+      "category": "social",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bravo?"
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ]
+}
