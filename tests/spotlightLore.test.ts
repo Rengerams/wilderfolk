@@ -6,6 +6,7 @@ import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule'
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { gameTick } from '../src/game/gameTick';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { initGame } from '../src/game/worldGen';
 import {
@@ -199,6 +200,51 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     gameTick(world);
     expect(world.spotlightLore?.phase).toBe('gathering');
     expect(actor.x).toBeLessThan(beforeX);
+    expect(actor.indoorBuildingId).toBeUndefined();
+  });
+});
+
+describe('spotlight lore — established affairs must not steal movement', () => {
+  it('keeps a valid established-affair participant walking to the spotlight rather than the distant tryst', () => {
+    const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720, skipTerrain: true });
+    const day = 96;
+    const at16 = day * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+    expect(isWeekend(at16)).toBe(true);
+    const girl = createEntity(EntityType.Human, 480, 350, 110001, undefined, true, {
+      name: 'Ada', gender: 'female', ageYears: 14, colonyDay: day,
+    });
+    const audience = Array.from({ length: 8 }, (_, i) => createEntity(
+      EntityType.Human, 500 + i * 2, 364, 110002 + i, undefined, false,
+      { name: `Singer${i}`, gender: 'male', ageYears: 28, colonyDay: day },
+    ));
+    const lover = createEntity(EntityType.Human, 720, 350, 110020, undefined, false, {
+      name: 'Lover', gender: 'female', ageYears: 28, colonyDay: day,
+    });
+    const actor = audience[0];
+    actor.affairPartnerId = lover.id;
+    lover.affairPartnerId = actor.id;
+    world.entities = [girl, ...audience, lover];
+    rebuildEntityByIdMap(world);
+    invalidateCachedEntityByType(world);
+    world.buildings = [];
+    world.tick = at16 - 1;
+    world.dayInYear = getCalendarDay(at16);
+    world.lastProcessedCalendarDay = getAbsoluteCalendarDay(at16);
+    world.spotlightLore = {
+      id: 'established-affair-steering', heroineId: girl.id,
+      performerIds: audience.map((person) => person.id),
+      phase: 'gathering', startedAtTick: world.tick,
+      gatherX: girl.x, gatherY: girl.y,
+      slots: audience.map((person, i) => ({
+        humanId: person.id, x: person.id === actor.id ? 425 : 435 + 8 * i, y: 360,
+      })),
+    };
+    expect(hasAffairPartner(actor, world.entityById!)).toBe(true);
+    expect(canPursueSecretAffair(actor, 16, undefined, world.buildings, world.entityById!, at16, getWorkSchedule(world))).toBe(true);
+    const before = actor.x;
+    gameTick(world);
+    expect(world.spotlightLore?.phase).toBe('gathering');
+    expect(actor.x, 'ordinary tryst would steer right; spotlight must steer left').toBeLessThan(before);
     expect(actor.indoorBuildingId).toBeUndefined();
   });
 });
