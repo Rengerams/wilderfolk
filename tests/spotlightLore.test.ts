@@ -14,7 +14,7 @@ import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 
 function makeFixture() {
-  const world = initGame({ seed: 63231, size: 'small' });
+  const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720 });
   const anchor = world.worldMap?.campSite ?? { x: world.width / 2, y: world.height / 2 };
   const x = anchor.x;
   const y = anchor.y;
