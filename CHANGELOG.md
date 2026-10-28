@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Documentation (28 October 2026):** Aligned active roadmap references, architectural notes, and roadmap copies with v0.6.5.2; updated links from v0.6.6.0.
+- **Documentation (28 October 2026):** Aligned active roadmap references, architectural notes, and roadmap copies with v0.6.5.2; updated links and the archived roadmap filename.
 - **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
