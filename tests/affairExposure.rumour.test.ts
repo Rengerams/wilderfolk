@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Daily affair gossip produces a rumour, never an unwitnessed "caught in the act".
  *
@@ -16,6 +15,7 @@ import { personDayRoll } from '../src/game/simRng';
  * `'rumor'` unconditionally, which is what `SIMULATION_AUTHORITY.md` §4 requires of the
  * new-calendar-day owner.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
