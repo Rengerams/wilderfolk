@@ -6,6 +6,7 @@
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
 - **Dialogue checks:** Added source ownership and schema integrity guards; 43 focused regressions and test typecheck passed on PR #93. Standard suite and release build remain pending.
 - **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
+- **Fixed:** Migrated scripted speech now keeps its original effective tick duration using the current simulation clock; added regression coverage for 12 care, lodging, hunting, civic and omen captions.
 - **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
 
 - **Fixed:** Population history now records iron alongside other resources on every sample; older snapshots without an iron field remain readable.
