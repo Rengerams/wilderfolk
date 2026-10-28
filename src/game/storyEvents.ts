@@ -523,9 +523,7 @@ export function maybeOfferWinterPrep(state: WorldState): void {
  *
  * 270 is the season owner's answer, not a preference: `getSeason` (`simHelpers.ts:9-13`) returns Fall
  * for `dayInYear < DAYS_PER_SEASON * 3` and Winter at or above it, with `DAYS_PER_SEASON = 90`
- * (`gameConstants.ts:95`) — so the first freeze is day **270**, which `WINTER_FIRST_DAY`
- * (`legacyGoals.ts:43`) already names and `legacyGoals.ts:150` already tells the player
- * ("days 270–359"). This card, this check and its two cases in `tests/storyEvents.test.ts` all said
+ * (`gameConstants.ts:95`) — so the first freeze is day **270**, at the start of the winter quarter. This card, this check and its two cases in `tests/storyEvents.test.ts` all said
  * **260**, which is ten days inside autumn, where nothing freezes — temperature reads only
  * `SEASON_BASE_C[season]` (`temperature.ts:50`). The copy, the check and those cases moved together:
  * changing any one alone desyncs the card from what the valley actually does.
