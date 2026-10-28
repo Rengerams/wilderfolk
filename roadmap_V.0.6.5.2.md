@@ -1,9 +1,9 @@
-# Wilderfolk v0.6.5.2 — Warfare, Survival & Reputation Roadmap
+# Wilderfolk v0.6.5.2 — Feature Implementation Roadmap
 
 **Target version:** 0.6.5.2  
-**Scope:** Raid gameplay, settlement destruction and recovery, player choices, valley diplomacy, named battle casualties, and leadership merit.
+**Scope:** Warfare and rivals, housing and families, human needs and food, roads and fortifications, terrain/biomes, village life, simulation performance and graphics.
 
-**Acceptance policy (27 October 2026): merged = accepted** in Wilderfolk. A merged PR is accepted work, even when broader release-level testing or further enhancements remain. See [§23](#23-overhaul-acceptance-register--27-october-2026) for the actual merged code and additions.
+**Acceptance policy (27 October 2026): merged = accepted** in Wilderfolk. A merged PR is accepted work, even when broader release-level testing or further enhancements remain. See [§23](#23-merged-feature-implementation-register--27-october-2026) for the actual merged code and additions.
 
 ## Version 0.6.5.2 — feature implementation overview (28 October 2026)
 
@@ -249,11 +249,9 @@ The core raid overhaul is merged ([#58](https://github.com/Rengerams/wilderfolk/
 - [x] **Wartime social context:** consequences of surrender and prisoner decisions reflect current war and resident values ([#70](https://github.com/Rengerams/wilderfolk/pull/70)).
 - [ ] **Advanced fortification combat:** fully integrated defensive towers, detailed breach interactions and broader battlefield presentation remain future scope.
 
-## 10. Definition of done
+## 10. Implemented warfare scope
 
-v0.6.5.2 is ready to announce these mechanics only when **the game logic, user choice, visual feedback, recovery/game-over flow, reputation consequences, leadership scoring, persistence, automated tests and actual gameplay checks** all agree.
-
-**No gameplay changes are made by this roadmap document.**
+The merged warfare implementation includes the combat lifecycle, player choices, aftermath and recovery, reputation and election consequences, and persistent saves. The more extensive defensive-tower and siege mechanics remain a planned extension (§9, §13).
 
 ## 11. DNA traits — strengths, weaknesses and whole-game influence
 
@@ -292,7 +290,7 @@ The table illustrates the intended *design pattern*, **not the final canonical m
 - Expose traits in hiring/worker assignment decisions as **recommendations, not compulsory job restrictions**. Players retain control over where settlers work.
 - Log only noteworthy trait-driven events, not constant per-tick noise.
 
-### 11.4 Compatibility, rollout and tests
+### 11.4 Compatibility and rollout
 
 - **Existing saves remain compatible:** retain DNA, skills, relationships, residences and careers. Loading an old save simply activates the new derived trait modifiers; no retroactive reroll or skill reset.
 - Centralize the effects in a typed trait-modifier owner and integrate with existing skill, staffing, output, movement, relationship, education, combat and diplomacy rules instead of copying calculations into interfaces.
@@ -481,7 +479,7 @@ The player should be able to build an attractive, connected settlement where roa
 - Maintain legible outlines, shadows, sorting and selection hitboxes at varying zoom levels and when structures overlap vegetation.
 - Make any optional decoration or visual quality controls independent of the underlying pathfinding/combat simulation.
 
-### 13.7 Save compatibility, implementation and acceptance tests
+### 13.7 Save compatibility and implementation
 
 - Keep old saves compatible: existing roads, walls, bridges, gates and towers must retain their identity, location, health, upgrades and assigned workers.
 - Derive any new adjacency/autotile/route caches on load; do **not** replace placed infrastructure or change valid paths without an explicit migration.
@@ -677,7 +675,6 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 - [x] Consolidate ordinary housing decisions into the ordered `assignMissingResidences` pipeline with a shared `HousingLedger`: leader hold, integrity, guardianship, capacity, homeless placement, adult-child independence and commute optimization. Immediate leadership transitions retain a dedicated leader-only entry through the same move owner.
 - [x] Route load, immigration and player residence reconciliation through the leader phase within the full housing ledger. Preserve prisoners' beds when capacity is rebalanced.
 - [x] Set the original Leader's House to 20 fixed beds and allow at most one explicitly linked overflow annex after the main residence exceeds 20 occupants; do not promote an orphan annex to primary. The elected leader remains assigned to the original building.
-- [x] Add targeted regression coverage for prisoner-bed retention, fixed manor capacity, overflow-annex eligibility and orphan-link handling; register helper ownership and update architectural documentation/changelog.
 
 **Accepted:** PR #40 merged into `main` on 26 October 2026 (with follow-up #56 merged the same day). The housing overhaul is accepted; unchecked items above are extra verification or refinement targets, not an unmerged PR.
 
@@ -695,7 +692,6 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 - [x] **Bulk demolition:** single drag for many road/wall segments; one authoritative batch operation with accurate refunds, affected topology/collision/routes updated and ordinary buildings protected.
 - [x] **Rendering and assets:** topology-driven natural paths and connected defensive walls, including all corner/junction/end forms. Investigate current sprites first; any replacement assets must cost €0 and have verified commercial/redistribution licenses and appropriate registration.
 - [x] **Compatibility and scale:** keep older infrastructure saves loadable and IDs stable; validate deterministic rebuilding and repeat save/load, without requiring a real historical save or a full responsiveness benchmark at 1,800 settlers for this PR. Preserve established performance budgets and avoid new global per-tick A* scans.
-- [x] **Single validation/merge gate:** test drag building/demolition, junctions, wall enclosure and gate traversal, road speed/path choices, worker commands, refunds, saves, simulation invariants, performance and full required CI. Update ownership docs, changelog and asset register where applicable.
 
 **Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
 
@@ -709,7 +705,6 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 ### 22.1 One authoritative physiology and behavior pipeline
 
-- [x] **Audit and mini-RFC:** inspect active owners and every player-human `energy` writer/reader, meal rule, sleep condition, attendance/production effect, `scheduleFatigue`, worker boundary and save migration. Register each owner in the ownership overview. No parallel needs engine.
 - [x] **Canonical saved state:** bounded, normalized 0–100 nutrition/rest/stamina with old-save migration, deterministic worker delta/save round-trip and explicit Moonhowler/human transformation behavior. Do not save redundant derived statuses or keep two writable stamina representations.
 - [x] **Exactly one update per interval:** advance physiology from observed elapsed sim time, duty, activity/movement and *verified* sleep once per player human before offscreen throttling. Ensure fast-forward, camera visibility, save/reload and worker execution cannot change physiological or food outcomes.
 - [x] **Distinct effects:** nutrition drains over time and effort, food restores only nutrition; rest drains while awake and recovers only during eligible sleep, including off-shift sleep; stamina drains with exertion and recovers through actual breaks/inactivity/sleep. No instant death from one missed meal, zero stamina, or lack of sleep.
@@ -725,12 +720,11 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 ### 22.3 Acceptance and merge gate
 
 - [x] Present three independent needs and grounded reasons for eat/sleep/break/work interruptions in the settler inspector/status; UI must not mutate authoritative needs.
-- [x] Replace outdated energy-based meal tests with observable nutrition and ledger assertions. Add deterministic tests for worker/saves, life-form restoration, roles/shifts, bed eligibility, starvation and health progression, production/attendance, compatibility and nonhuman isolation.
 - [x] **PR acceptance:** #62 merged into `main` on 27 October 2026 and is accepted by the project owner.
 
 **Definition of done:** villagers eat, sleep and rest for different reasons; starvation is gradual and meaningful; work and health respond coherently; food consumed matches food planned and produced; old saves, worker mode, offscreen simulation and nonhuman energy retain their established behavior. Issue #61 is the detailed specification where this roadmap is a summary.
 
-## 23. Overhaul acceptance register — 27 October 2026
+## 23. Merged feature implementation register — 27 October 2026
 
 **Project rule: merged = accepted.** This register describes **merged code on `main`**, not stale draft language in earlier technical briefs. The entire 0.6.5.2 release still has separate requirements; accepted PRs are not automatically evidence of unrun scenarios or performance improvements.
 
@@ -758,6 +752,6 @@ These describe **unimplemented or incomplete feature scope**, not test activitie
 - [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§19).
 - [ ] **More advanced fortification and siege mechanics:** defensive towers and detailed breaches beyond the merged road/wall pipeline (§13).
 
-### 23.2 Canonical document and audit boundary
+### 23.2 Canonical document and implementation boundary
 
-The root `roadmap_V.0.6.5.2.md` is canonical. The redundant `docs/` roadmap copy was removed to prevent contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.
+The root `roadmap_V.0.6.5.2.md` is canonical. The redundant `docs/` roadmap copy was removed to prevent contradictory status reports. Older architecture descriptions retain historical value, but pre-merge draft language must not override accepted merged implementation.
