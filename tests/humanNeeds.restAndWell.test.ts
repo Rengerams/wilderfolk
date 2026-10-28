@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { isRestingHospitalPatient } from '../src/game/hospitalCare';
 import { HUMAN_NEEDS, advanceHumanNeeds, hasNearbyWell, initialHumanNeeds, normalizeHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
 const resident = (): Entity => ({ id: 2, type: EntityType.Human, alive: true,
@@ -18,7 +19,7 @@ const sleep = (person: Entity, tick: number, buildingId?: number, moving = false
 describe('the 400 px well radius', () => {
   it('requires a completed player well, including the 400 px boundary', () => {
     const p = resident();
-    expect(hasNearbyWell(p, [well(1, 400)])).toBe(true);
+    expect(hasNearbyWell(p, [well(1, 400, { width: 40, height: 40 })])).toBe(true);
     expect(hasNearbyWell(p, [well(1, 401)])).toBe(false);
     expect(hasNearbyWell(p, [well(1, 20, { completed: false })])).toBe(false);
     expect(hasNearbyWell(p, [well(1, 20, { faction: 'rival' })])).toBe(false);
@@ -74,5 +75,25 @@ describe('four-hour uninterrupted actual sleep', () => {
     normalizeHumanNeeds(copy);
     expect(copy.needs!.restStartTick).toBe(10);
     expect(copy.needs!.restBuildingId).toBe(0);
+  });
+});
+
+describe('hospital admission versus mere proximity', () => {
+  const ward = { id: 9, type: BuildingType.Hospital, completed: true,
+    x: 0, y: 0, width: 40, height: 40, occupants: [111] } as Building;
+  it('requires a medically eligible patient actually admitted to a staffed ward', () => {
+    const p = resident(); // energy 10% => medically eligible
+    expect(isRestingHospitalPatient(p, ward, 0, 9)).toBe(true);
+    expect(isRestingHospitalPatient(p, ward, 0, undefined)).toBe(false);
+    expect(isRestingHospitalPatient(p, { ...ward, occupants: [] }, 0, 9)).toBe(false);
+    expect(isRestingHospitalPatient(p, { ...ward, completed: false }, 0, 9)).toBe(false);
+    expect(isRestingHospitalPatient(p, { ...ward, faction: 'rival' }, 0, 9)).toBe(false);
+  });
+  it('increases sleeping stamina recovery, not a nonexistent negative hospital drain', () => {
+    const regular = resident(), patient = resident();
+    sleep(regular, 0, 9);
+    advanceHumanNeeds(patient, { tick: 0, sleeping: true, working: false,
+      moving: false, hasHospital: isRestingHospitalPatient(patient, ward, 0, 9), restingBuildingId: 9 });
+    expect(patient.needs!.stamina).toBeGreaterThan(regular.needs!.stamina);
   });
 });

@@ -47,7 +47,7 @@ export function grantHospitalIntervalReputation(
  */
 export function describeHospitalReputation(): string {
   return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
-    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Any hospital lowers energy drain.`;
+    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Admitted patients recover extra stamina while resting.`;
 }
 
 export function isDoctorAtHospital(
@@ -85,8 +85,9 @@ export function isRestingHospitalPatient(
     || hospital.faction === 'rival' || hospital.occupants.length === 0
     || previousIndoorBuildingId !== hospital.id || !isPlayerHuman(patient)
     || !needsMedicalCare(patient, tick)) return false;
-  const dx = patient.x - (hospital.x + hospital.width / 2);
-  const dy = patient.y - (hospital.y + hospital.height / 2);
+  // buildingGeometry: x/y are the footprint centre, not the top-left corner.
+  const dx = patient.x - hospital.x;
+  const dy = patient.y - hospital.y;
   return dx * dx + dy * dy <= HOSPITAL_WARD_RADIUS_PX ** 2;
 }
 
