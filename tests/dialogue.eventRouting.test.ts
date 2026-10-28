@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { canonicalDialogueBank, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, DIALOGUE_EVENT_KEYS, maybeDialogueChat, requestDialogue, type DialogueEventKey } from '../src/game/dialogueTrees';
 import {
   resetDialogueSessions, tickHumanChat, type ChatSpeaker,
 } from '../src/game/humanChat';
@@ -26,7 +26,7 @@ describe('single dialogue event routing', () => {
   it('does not start a missing event, invalid variant, or pair-only event as solo', () => {
     const a = speaker(1001);
     const b = speaker(1002);
-    expect(requestDialogue({ eventKey: 'no.such.event', speaker: a, tick: 10 })).toBe(false);
+    expect(requestDialogue({ eventKey: 'no.such.event' as DialogueEventKey, speaker: a, tick: 10 })).toBe(false);
     expect(requestDialogue({ eventKey: 'neighbor.greeting', speaker: a, tick: 10 })).toBe(false);
     expect(requestDialogue({
       eventKey: 'workplace.banter', treeId: 'evt_neighbor_greeting_pair_00',
