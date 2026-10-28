@@ -45,7 +45,7 @@ stacks on the relief material / vegetation grounding pass (PR #76).
   3D lighting engine. Mountains do not currently occlude all billboard sprites
   through a global per-pixel depth buffer; interaction is XY-ground based.
 - On very steep polygons anti-aliasing may reveal minor hairline seams and
-  large individual decorations still rely on their 32px chunk overscan.
+  raised decorations use 32px side/bottom overscan and a 60px top margin (art plus elevation).
 - The map edge frame and some UI overlays remain in screen-space flat
   orientation; follow-up visual polish can project overlays independently.
 - Do not change `TERRAIN_HEIGHT_MESH_STEP` or maximum rise independently of
