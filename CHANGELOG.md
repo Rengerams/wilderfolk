@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.6.6.0[Unreleased]
+## 0.6.5.2 [Unreleased]
 
 - **2.5D terrain (28 October 2026):** Cache textured ground chunks as triangular height meshes, align game objects and decorations, and correct mouse and keyboard positioning on slopes. Legacy save maps and game physics are unchanged.
 
 - **Terrain graphics (28 October 2026):** Expose rock on steep upland slopes, brighten ridges, shade valleys and ground trees, grass and selection effects at the same elevation as settlers. Render-only; no terrain regeneration or save changes.
 
-- **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
+- **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.
+- **Terrain (merged #73):** Seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
 - **Workforce stability (27 October 2026):** Construction borrows at most one worker per empty site, after idle and existing crews. Job rebalance opens empty posts only; staffing never shuffles workers to top up partially staffed posts.
@@ -16,7 +17,7 @@
 
 - **Changed:** Captive and surrender choices now affect reputation and election standing according to resident traits and wartime context, without fixed moral rewards or penalties. Prisoner and settlement-fate controls show neutral options without outcome warnings.
 
-- **Documentation (27 October 2026):** Reconciled the v0.6.6.0 roadmap and architecture notes with merged PRs, separating accepted changes from broader release-hardening work.
+- **Documentation (27 October 2026):** Reconciled the v0.6.5.2 roadmap and architecture notes with merged PRs, separating accepted changes from broader release-hardening work.
 
 - **Changed:** Migrated building-action imports to their owning modules and removed obsolete building-action and renderer-loader TypeScript facades; added a guarded migration script.
 
@@ -876,7 +877,7 @@ Total output lines: 60
 - **Fixed: the simulation worker and loaded saves now use the colony seed** — `setSimSeed` / `enableSeededGlobalRandom` were called only by `initGame`, so a realm that *received* a world never adopted its seed: the simulation worker is a separate realm whose `simRng` state began at the module default of seed 1, and the load path re-seeded nothing at all, so a loaded colony kept whatever seed the game created earlier in that page had used. Every `getSimRng(owner)` / `seededRandomForRun()` draw in those realms therefore came from the wrong stream (the worker ignored the map seed entirely, and two different seeds shared one set of streams). New `simRng.adoptSimSeedFromWorld()` is called by `gameWorker.resetWorkerSession` (init, import and world sync) and by `saveLoad.loadGameFromParsed`; `tests/simSeed.adoption.test.ts` proves it, including a real save round-trip that returns to the file's seed rather than the previous game's (which is exactly how the bug was measured: seed 4 instead of 31337), and `tests/gameWorker.seed.test.ts` drives the real worker module through a real `init` and `importSave` message to prove the realm adopted the seed and re-seeded on a swapped world.
 - **Verification** — TypeScript (`tsc -b`), Oxlint (0 warnings / 0 errors), production build, and the full local suite (95 files / 507 tests) all pass; `npm run test:full-year` completes 360 days with the leader invariant satisfied and now reconciles births exactly (seed 12345: 30 deliveries, 30 `'birth'` events, 24 `'conception'` events — the 54 birth-typed events of the same-seed run before the fix were 30 deliveries plus exactly those 24 expectations); `npm run test:browser` passes against the production build; the duplicate-code scan reports 0 clones at the project's configured thresholds.
 - **Scope note** — `humanTick.ts` remains an active follow-up decommissioning track; its remaining adult leisure, realtime social-runtime, work-boundary review, and coordinator-reduction slices are not included in this 6.4.1 entry.
-- **Docs corrected — youth love begins at 12, as the code already did** — the youth-love minimum age was moved to 12 in `humanRelationships.ts` (`YOUTH_LOVE_MIN_AGE`; the upper bound is unchanged at `HUMAN_MOVE_OUT_MIN_AGE` = 18), but the governing documents still described the older age-14 gate, so an audit reported the constant as an invariant violation. The **documents** were the stale artifact and are now corrected to match the intended behaviour: `SIMULATION_AUTHORITY.md` §3 (the ownership row) and §5 (the youth-love invariant), `YOUTH_LOVE_FEATURE.md` (the age timeline, the start-eligibility age row, the daily age-protection step, and the automated-coverage row) and the README feature table. Fertility and the youth-conception gate are untouched and still begin at **14**, so the age-14 conception wording in the authority document remains correct. No code, save, or migration change — [the audit's H11 finding is withdrawn as intended behaviour](BUG_REPORTS/2026-09-13-youth-love-min-age-12-lets-12-13-year-olds-enter-youth-lov.md).
+- **Docs corrected — youth love begins at 12, as the code already did** — the youth-love minimum age was moved to 12 in `humanRelationships.ts` (`YOUTH_LOVE_MIN_AGE`; the upper bound is unchanged at `HUMAN_MOVE_OUT_MIN_AGE` = 18), but the governing documents still described the older age-14 gate, so an audit reported the constant as an invariant violation. The **documents** were the stale artifact and are now corrected to match the intended behaviour: `SIMULATION_AUTHORITY.md` §3 (the ownership row) and §5 (the youth-love invariant), `YOUTH_LOVE_FEATURE.md` (the age timeline, the start-eligibility age row, the daily age-protection step, and the automated-coverage row) and the README feature table. Fertility and the youth-conception gate are untouched and still begin at **14**, so the age-14 conception wording in the authority document remains correct. No code, save, or migration change — [the audit's H11 finding is withdrawn as intended behaviour](docs/BUG_REPORTS/2026-09-13-youth-love-min-age-12-lets-12-13-year-olds-enter-youth-lov.md).
 - **Fixed: a failed worker tick did not roll back the year-rollover and stats fields** — the worker takes a `SimPrepKeys` backup before every tick and undoes it when a layer throws (`gameWorker.ts`), then the host gives up on the worker and re-runs that same tick on the main thread (`fallbackFromWorker`). `yearlyStats`, `lifetimeStats` and `populationHistory` were missing from that payload, so a failed year-boundary tick left them advanced and the retried tick advanced them **again**: the closing year appeared twice in `yearlyStats` (permanently — `recordYearlyStats` appends without a per-year guard, the duplicate then becomes the next year's baseline, and both are persisted) and `lifetimeStats.totalMarriages` / `totalBuildingsUpgraded` double-counted, since `updateLifetimeStats` uses `+=` for those two while the born/died counters are recomputed from the array and therefore self-healed. All three fields are now in the payload and deep-cloned with `structuredClone`, because the tick mutates nested objects (`lifetimeStats.totalResourcesGathered`, yearly `population`/`births`/`resources`) and a shallow copy would leave the backup aliasing live state. New `tests/simPrep.rollbackClosure.test.ts` (3) drives a real `gameTick` at the production year boundary and asserts the rollback restores all three, plus a closure test that poisons every payload key in turn so a payload that claims a field its applier ignores cannot pass; recorded in `BUG_REPORTS/2026-09-13-worker-tick-rollback-leaves-stats.md`. No save-format or migration change — a pre-existing duplicate is left as history.
 - **Age rules now describe one relationship route per age band (youth conception from 12, affairs 18+)** — youth love already began at 12 while the conception gate still started at 14 and an affair could take a 16–17-year-old paramour, so three age rules disagreed. They now form one ladder. **Youth conception** admits 12 and 13: `HUMAN_FERTILITY_START` is 12 (it is the same threshold that opens youth love) and `YOUTH_CONCEPTION_MULTIPLIERS` gained `12: 0.25` and `13: 0.25` — the base value 14 already used — while 14–17 keep their rebalanced multipliers (0.25 / 0.35 / 0.50 / 0.70), so a 12-year-old conceives at the same reduced rate as a 14-year-old and the nearby adult base chance is still multiplied, never replaced. **Fertility below 18 is reachable only through the youth gate** by construction: marriage requires `HUMAN_MOVE_OUT_MIN_AGE` = 18 and an affair now requires `Relationship.AFFAIR_MIN_AGE` = **18 on both sides** (`isValidAffairTarget` checks the paramour *and* the cheater, and `tryDailyAffairEncounter` uses the same constant instead of the 16-year courtship age), which also closes the audit's affair-conception finding — an adult could previously conceive with a 16–17-year-old paramour entirely outside the youth gate. Courtship eligibility, marriage, and every other use of `HUMAN_ADULT_MIN_AGE` = 16 are unchanged. Documents aligned: `SIMULATION_AUTHORITY.md` §5 now states fertility begins where youth love begins and adds an **Affair invariants** section (adult-only, establishment-only scandals), the age-14 conception rows in §3/§5 and the README feature table say 12, `YOUTH_LOVE_FEATURE.md` no longer claims youth love cannot lead to pregnancy (it states the reduced gate and the 18+ adult-only systems) and `FERTILITY_AGE14_F1.md` carries a "later amendments" note pointing at the current values while its original table stays as the slice's record. New `tests/youthConception.ageFloor.test.ts` (4: the 12 boundary, 11 still rejected, conception at 12 and 13 with lineage, and rejection for one-sided or absent links) and `tests/affairAge.adultOnly.test.ts` (4: 16/17 paramours and a 17-year-old cheater rejected, 18 accepted, lifespan ceiling intact). No save field, format, or migration change — the earlier row's sentence that fertility and the youth-conception gate are "untouched and still begin at 14" is superseded by this entry.
 - **Fixed: tiered combat research no longer stacks into a guaranteed kill** — `researchedEffect(..., 'add')` summed every matching researched node, so Iron Spears (+0.45) plus Iron Swords (+0.55) gave `getCounterAttackChance` exactly **1.0**; `rollCounterAttack` rolls in [0, 0.999] and returns `roll < chance`, so every wolf, fox and Moon Howler that reached a settler died instead of killing them — the 45 %/55 % tiers and the `hasIronSwords ? 0.55 : 0.45` fallback were unreachable. Additive effects are **tiers**: the strongest researched value now applies (`Math.max`), which is the law `frontierCombat.ts` already states ("Weapon/armor tiers replace lower ones — do not stack"). `predator_block` had the same shape (0.35 + 0.6 + 0.72 = 1.67) and was only hidden by its 0.85 cap, which also made its forged-tier branches dead; it now applies the 0.72 scale-mail tier. `tests/combatTierEffects.test.ts` (3) pins both effects and that a counter-attack is still a roll.
@@ -1627,7 +1628,7 @@ Summary for this release:
 **Six valleys to settle — painted lands, walking pioneers, and a frontier that breathes.**
 
 `GAME_VERSION` **0.5.4** · continue colonies from **0.4.x – 0.5.3**.  
-Feature table → [ROADMAP.md](ROADMAP.md)
+Feature table → `ROADMAP.md`
 
 ### Added
 - **Choose your land** — the new-settlement screen is a painted gallery: each of the **six valleys** (Verdant, Mountainous, Coastal, Arid, Harsh, and the new **Riverlands** marshland) is a tiny landscape card, and map size is a slim segmented control
@@ -1657,7 +1658,7 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 **The night hunts back — Moon Howler exorcism overhaul, personality traits, and the deepest playtest pass yet.**
 
 - `GAME_VERSION` **0.5.3** · continue colonies from **0.4.x – 0.5.2**.  
-- Feature table → [ROADMAP.md](ROADMAP.md) · Moon Howler release notes → [docs/marketing/moon-howler-overhaul.md](docs/marketing/moon-howler-overhaul.md)
+- Feature table → `ROADMAP.md` · Moon Howler release notes → `docs/marketing/moon-howler-overhaul.md`
 
 ### Fixed
 - **Rivers actually flow** — world-gen rivers now follow a smoothed elevation gradient from mountain peaks (with a basin-bypass fallback) and carve their channel into real water tiles; before, greedy descents died on spiky noise and rivers rendered as land on every preset
@@ -1693,7 +1694,7 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 **A game-feel and depth pass — flowing water, living light, real trade, and elections that matter.**
 
 `GAME_VERSION` **0.5.2** · continue colonies from **0.4.x – 0.5.1**.  
-Feature table → [ROADMAP.md](ROADMAP.md)
+Feature table → `ROADMAP.md`
 
 ### Added
 - **Water & terrain** — own seamless shallow/deep water sprites, flowing wave bands, shore reflection, zoom-5 terrain LOD, per-tile terrain-atlas variation (softer bevels, painted coasts), own seamless wooden bridge sprite
@@ -1739,7 +1740,7 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 **The valley feels truer and clearer.**
 
 `GAME_VERSION` **0.5.1** · continue colonies from **0.4.x / 0.5.0**.  
-Feature table → [ROADMAP.md](ROADMAP.md)
+Feature table → `ROADMAP.md`
 
 ### Changed
 - **Raid gold** — outgoing spoils stay grounded (no unbounded free gold)
@@ -1756,7 +1757,7 @@ Feature table → [ROADMAP.md](ROADMAP.md)
 **The valley scales — kin, beasts, and forge-steel.**
 
 `GAME_VERSION` **0.5.0** · continue colonies from **0.4**.  
-Marketing kit → [docs/archive/MARKETING_v0.5.0.md](docs/archive/MARKETING_v0.5.0.md) · Feature table → [ROADMAP.md](ROADMAP.md) · Archive → [docs/archive/ROADMAP_0.5.0.md](docs/archive/ROADMAP_0.5.0.md)
+Marketing kit → `docs/archive/MARKETING_v0.5.0.md` · Feature table → `ROADMAP.md` · Archive → `docs/archive/ROADMAP_0.5.0.md`
 
 ### Added
 - **Forge tier 5** — Iron Swords, Scale Mail, Bastion Towers
@@ -1817,7 +1818,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — social interaction system (July 20, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) — chat/dialogue cleanup + groupEvents perf pass
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` — chat/dialogue cleanup + groupEvents perf pass
 
 - **`humanChat.ts`** — `cleanupEntityDialogueState()` removes a dead settler's dialogue session and clears `chatDialogueSessionKey` / `chatPartnerId` / `chatPhrase` / `chatTicks`
 - **`dayCycle.ts`** — death cleanup now calls `cleanupEntityDialogueState()` via `finalizeHumanDeath()`, fixing stale session leaks when chat partners die
@@ -1849,7 +1850,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — engine & loop bugs (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch EA #1–#7
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch EA #1–#7
 
 - **EA-1** — `computeRoadLayoutStamp(roads)` replaces count-only `roadAvoidanceStamp`; road demolish clears avoidance index
 - **EA-2** — building repair requires **alive** occupants (`entityById`), not `occupants.length`
@@ -1867,7 +1868,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — audit mass-fix session (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` — **429** registry IDs (**391 fixed**, **24 info**, **0 open/partial**); Batches Q, S, U, V, W, T (87), AP (8)
 
 - **simWorker (W):** command/render desync — delta always applied on command success; headless commands; per-op validation; `sendCommand()` rejects on failure; `applySimTickDelta` before render parse
 - **simBuffers (V):** `safeF32` NaN guard; screen-shake cleared in draw loop; `RESIDENCE_BUILDING_NONE` sentinel; bucket cache keyed on tick + meta
@@ -1921,7 +1922,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — Moon Howler 14-day cycle & Church cure (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch N #1–#7
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch N #1–#7
 
 - **Recurring hunts** — uncured settlers now transform at **8pm** on full-moon colony days (0, 14, 28…) and revert at **6am** the next morning; no longer reverts on arbitrary daytime ticks (`isMoonHowlerTransformTick` / `isMoonHowlerRevertTick` in `moonHowler.ts`)
 - **Calendar** — moon logic uses `getAbsoluteCalendarDay(state.tick)` so the 14-day cadence stays aligned with the sim clock
@@ -1933,7 +1934,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — caught-affair divorce after imprisonment (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch P #1–#3
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch P #1–#3
 
 - **Divorce after imprison** — caught affairs imprisoned the cheater first (teleport to prison), then required the spouse within 40px for divorce — so marriages almost never ended despite scandal + prison logs. Caught-in-act path skips the proximity check and always divorces
 - **Either spouse** — men and women can cheat; husbands and wives can both initiate divorce (`dissolveMarriage` in `nameLoader.ts`)
@@ -1942,7 +1943,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — orphaned marriages, vitest dialogue preload, prison flake (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch O #1–#3
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch O #1–#3
 
 - **Orphaned marriages** — end-of-tick `allAlive` prunes dead entities; survivors could keep `partnerId` pointing at a removed id (`human 285 married partner 831 missing or dead` on seed-42 day 29). `reconcileOrphanedMarriages()` in `dayCycle.ts` runs before `state.entities = allAlive` (accepts human **or** cursed 🌝 form as valid partner)
 - **Vitest dialogue bank** — top-level `await preloadDialogueBank()` in `src/test/setup.ts` (disk load via dynamic `import()` like `nameLoader.ts`); fixes parallel-worker race with async `beforeAll`
@@ -1962,7 +1963,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Added — scale, worker, quality (July 8, 2026)
 
-- **Dual-layer spatial grid** (`spatialGrid.ts`) — **grass 56px** (graze only) + **mobile 80px** (flee/hunt/social); `RoadAvoidanceIndex` 128px; each hot path uses the correct layer — [TECHNICAL.md](TECHNICAL.md#dual-layer-spatial-grid); `USE_SPATIAL_GRID` on by default (`VITE_USE_SPATIAL_GRID=0` for A/B)
+- **Dual-layer spatial grid** (`spatialGrid.ts`) — **grass 56px** (graze only) + **mobile 80px** (flee/hunt/social); `RoadAvoidanceIndex` 128px; each hot path uses the correct layer — `TECHNICAL.md`; `USE_SPATIAL_GRID` on by default (`VITE_USE_SPATIAL_GRID=0` for A/B)
 - **Spatial query metrics** (`spatialQueryMetrics.ts`) — per-tick candidate/query counters; reported in `npm run bench` / city sims; A/B via `benchmark-spatial-ab.ts` (July 2026 city: graze **~99%**, flee **~88%** reduction vs naive)
 - **Web Worker simulation** (`simWorker/`) — optional `gameTick` off main thread (`VITE_USE_GAME_WORKER=1`); `GameWorkerHost`, render SoA ping-pong (`simBuffers/`), `WORKER_PROTO` negotiation, headless tick path
 - **Entity catalog** (`entityCatalog.ts`) — O(1) citizen lookup; main-thread `catalog` state synced from `GameLoop.subscribe`
@@ -1984,7 +1985,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — marriage integrity + Moon Howler spouses (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch I #1–#3
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch I #1–#3
 
 - **`killHuman` / `finalizeHumanDeath` (`dayCycle.ts`)** — single death cleanup entry for player settlers (`isKillableSettlerEntity`: human **or** cursed full-moon werewolf): sets `alive = false`, strips building occupants (`homeBuildingId`, `residenceBuildingId`, prison fields), and **widows the survivor** — clears `partner.partnerId`, sets `relationshipStatus` to `single` (or `expecting` if pregnant)
 - **Death paths unified** — all production human kills now call `killHuman(..., entityById)` instead of bare `alive = false`:
@@ -2003,7 +2004,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Fixed — pairwise sim hotspots (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch I #4–#9 · details in [docs/private/OPEN_PROBLEMS.md](docs/private/OPEN_PROBLEMS.md)
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch I #4–#9 · details in `docs/private/OPEN_PROBLEMS.md`
 
 - **`tickQueries.ts` (new)** — per-tick shared helpers: `getLivingEntity`, `buildResidenceOccupantIndex`, `getHousemates`, `findClosestEntityInRadius`, `forEachEntityInRadius`, `buildWildlifePopulationSnapshot`, `recordWildlifeBirth`, `buildGrassPopulationSnapshot`, `recordGrassBirth` / `recordGrassDeath`
 - **Social scans → indexed queries** (`lifeSimulation.ts`):
@@ -2023,7 +2024,7 @@ A big playability and presentation pass: the map reads as a place, the day has r
 
 ### Changed — npm scripts & test gate (July 8, 2026)
 
-**Bug tracker:** [docs/private/BUGS_TRACKER.md](docs/private/BUGS_TRACKER.md) Batch J
+**Bug tracker:** `docs/private/BUGS_TRACKER.md` Batch J
 
 - **`npm test`** — `vitest run` (**358** tests, **67** files, **0 skipped**)
 - **`npm run test:all`** — vitest + `tsc -p tsconfig.vitest.json --noEmit`; **`npm run test:types`** — typecheck only
@@ -2240,7 +2241,7 @@ Four code-review rounds (~40 fixes). Verified: `npm run build`, `npm run lint` (
 ### Ship checklist (closed)
 - [x] 10-year balance pass — town PASS 2026-07-04 (`npm run simulate:10year`, 9/9 gates)
 - [x] Spear / militia balance review (`militiaBalance.ts`, `balance:militia`)
-- [x] External playtests — 10 sessions ([TECHNICAL.md](TECHNICAL.md#playtest-report))
+- [x] External playtests — 10 sessions (`TECHNICAL.md`)
 - [x] `GAME_VERSION` **0.4.2** + `COMPATIBLE_SAVE_VERSIONS` migration
 - [x] Docs + in-game Roadmap sync
 
@@ -2358,7 +2359,7 @@ Verified in codebase — all shipped before **v0.4.1** (2026-07-04). Verbose dev
 - [x] **Event log** — uncapped saves, 500-entry UI cap, `.txt`/`.json`/`.csv` export (`eventLog.ts`, `eventLogExport.ts`, `EventLogPanel.tsx`)
 - [x] **Prison + Guard** — arrest on caught affairs, prisoner state, `isImprisoned()` (`BuildingType.Prison`, `lifeSimulation.ts`, `dayCycle.ts`)
 - [x] **Terrain** — real terrain render, tile-sized cache, preset variety, coastal camp clearing (`renderer.ts`, `terrainGen.ts`)
-- [x] **Audio credits** — [TECHNICAL.md](TECHNICAL.md#audio-credits)
+- [x] **Audio credits** — `TECHNICAL.md`
 - [x] **Shared event log module** — `logEvent()`, `syncEventLogIdFromState()` (`eventLog.ts`)
 - [x] **Building foundation pads** — category colors, pad shapes, season tint, hover/selection (`renderer.ts`, `BUILDING_CONFIGS`)
 - [x] **Simulation upgrade** — storage caps, food spoilage, terrain/adjacency efficiency, wolf pack bonuses (`economy.ts`, `gameEngine.ts`, `lifeSimulation.ts`)
