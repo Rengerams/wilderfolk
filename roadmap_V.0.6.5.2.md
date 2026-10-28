@@ -90,9 +90,10 @@
 
 ## 9. Raid feature implementation status
 
+- [ ] **Expanded final-settlement report:** show last leader, achieved goals/chapters and recorded Chronicle highlights on the terminal screen (§3).
+- [ ] **Clearer raze confirmation:** explain permanent removal, displaced survivors and contextual diplomacy before confirming (§4).
 - [x] Strategic rivals, six-hour raids, player choice, aftermath, recovery, terminal defeat, captives, diplomatic memory and leadership merit are in merged PR [#58](https://github.com/Rengerams/wilderfolk/pull/58).
 - [x] Civic wartime decisions were extended in merged PR [#70](https://github.com/Rengerams/wilderfolk/pull/70).
-- [ ] **Optional richer siege simulation:** more detailed abstract damage to gates/walls, breach severity and explanatory after-battle reports, while retaining one simulation combat resolver.
 
 ## 10. Warfare scope boundary
 
@@ -122,8 +123,7 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 - [x] **13.3 Visuals:** connected infrastructure geometry, previews and compatible terrain rendering.
 - [x] **13.4 Watchtowers:** passive **+15** barricade strength each (**+27** with forged Tower Ballistae); approaching raiders detected within **260 world units**. The Virtual Player can construct them.
 - [x] **13.5 Combat boundary:** walls/gates/towers contribute to simulated defense, not active attacks.
-- [ ] **13.6 Optional advanced simulated siege effects:** distinct aggregate fortification damage and breach severity with more detailed battle aftermath, without projectile or tactical combat.
-- [x] **13.7 Persistence:** infrastructure remains compatible with existing save data.
+- [x] **13.6 Persistence:** infrastructure remains compatible with existing save data.
 
 ## 14. Districts and neighbourhood identity — not yet implemented
 
@@ -203,7 +203,6 @@ These describe **unimplemented or incomplete features**, not test activities or 
 - [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
 - [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§17).
 - [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§18).
-- [ ] **Optional deeper simulated siege outcomes:** additional aggregate gate/wall damage and breach consequences with clearer battle reports, within the existing raid simulation (§13). Watchtowers and their defensive bonuses are already implemented; no active tower fire or real-time combat.
 - [ ] **Warfare UI finishing details:** fuller terminal-settlement summary (leader, achievements and Chronicle highlights) and a neutral explanation of permanence in the raze confirmation (§§3–4).
 
 ### 21.2 Canonical document and implementation boundary
