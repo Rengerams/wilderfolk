@@ -23,7 +23,9 @@
           "speaker": "npc_humiliated",
           "text": "It was the principle of the thing."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "dt_bed",
@@ -45,7 +47,9 @@
           "speaker": "npc_floor_sleeper",
           "text": "And admit defeat? I have standards."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "dt_potato",
@@ -67,7 +71,9 @@
           "speaker": "npc_hungry",
           "text": "Four tiles. Might as well be the moon."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "dt_berries",
@@ -89,7 +95,9 @@
           "speaker": "npc_dead",
           "text": "I forgot I could eat them without putting them in a crate first. Don't look at me."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_arrival",
@@ -111,7 +119,9 @@
           "speaker": "settler",
           "text": "Feet up soon."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_cozy",
@@ -133,7 +143,9 @@
           "speaker": "settler",
           "text": "Quiet evening."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_warm",
@@ -155,7 +167,9 @@
           "speaker": "settler",
           "text": "Settle in?"
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_indoors",
@@ -177,7 +191,9 @@
           "speaker": "settler",
           "text": "Good night."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_winter",
@@ -199,7 +215,9 @@
           "speaker": "settler",
           "text": "Blankets out."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_festival",
@@ -221,7 +239,9 @@
           "speaker": "settler",
           "text": "Glad to be back."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_home_food",
@@ -243,7 +263,9 @@
           "speaker": "settler",
           "text": "Children first."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_sleep",
@@ -265,7 +287,9 @@
           "speaker": "settler",
           "text": "Dream well."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_sleep_long",
@@ -287,7 +311,9 @@
           "speaker": "settler",
           "text": "Home sweet home."
         }
-      ]
+      ],
+      "eventKey": "ambient.sleep",
+      "mode": "pair"
     },
     {
       "id": "wf_food_crisis",
@@ -309,7 +335,9 @@
           "speaker": "hungry_settler",
           "text": "Hunters must bring more."
         }
-      ]
+      ],
+      "eventKey": "ambient.food",
+      "mode": "pair"
     },
     {
       "id": "wf_food_soup",
@@ -331,7 +359,9 @@
           "speaker": "cook",
           "text": "Winter stores thin."
         }
-      ]
+      ],
+      "eventKey": "ambient.food",
+      "mode": "pair"
     },
     {
       "id": "wf_pregnant",
@@ -353,7 +383,9 @@
           "speaker": "expectant_mother",
           "text": "Counting days…"
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_pregnant_tired",
@@ -375,7 +407,9 @@
           "speaker": "expectant_mother",
           "text": "Baby's restless."
         }
-      ]
+      ],
+      "eventKey": "ambient.pregnancy",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_longday",
@@ -397,7 +431,9 @@
           "speaker": "housemate_a",
           "text": "Kettle on?"
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_rain",
@@ -419,7 +455,9 @@
           "speaker": "housemate_a",
           "text": "I'll check the thatch."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_kids",
@@ -441,7 +479,9 @@
           "speaker": "housemate_a",
           "text": "Until morning."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_wood",
@@ -463,7 +503,9 @@
           "speaker": "housemate_a",
           "text": "Again."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_wolves",
@@ -485,7 +527,9 @@
           "speaker": "housemate_a",
           "text": "Sleep close."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_harvest",
@@ -507,7 +551,9 @@
           "speaker": "housemate_a",
           "text": "For now."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_housemate_cold",
@@ -529,7 +575,9 @@
           "speaker": "housemate_a",
           "text": "Barely."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_needs_shared_blanket",
@@ -563,7 +611,9 @@
           "speaker": "npc_prepared",
           "text": "Not with that attitude."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     },
     {
       "id": "wf_funny_needs_stew",
@@ -585,7 +635,9 @@
           "speaker": "cook",
           "text": "Serve the courage first. The turnips need time."
         }
-      ]
+      ],
+      "eventKey": "ambient.home",
+      "mode": "pair"
     }
   ],
   "categories": [
