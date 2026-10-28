@@ -8,7 +8,8 @@ import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
-import { sayHumanChatPhrase } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
+import { isDialogueBusy } from './humanChat';
 
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
@@ -82,8 +83,11 @@ export function tickHumanChildLeisure(args: {
         entity.vx = Math.sin(state.tick * 0.2 + entity.id) * speed * 0.45;
         entity.vy = Math.cos(state.tick * 0.18 + mate.id) * speed * 0.45;
         if (seededRandomForRun(`chat-kid:${entity.id}:${state.tick}`) < 0.06 * PER_TICK_RATE_SCALE) {
-          const bubble = personDayRoll(entity.id, state.tick, 719) < 0.5 ? 'Tag!' : 'Wait for me!';
-          sayHumanChatPhrase(entity, bubble, 40);
+          requestDialogue({
+            eventKey: 'child.play', speaker: entity, tick: state.tick,
+            selectionRoll: personDayRoll(entity.id, state.tick, 719),
+            durationHours: 4 / TICKS_PER_HOUR,
+          });
         }
       }
       faceVelocity(entity);
@@ -224,7 +228,12 @@ export function tickAdultLeisureMotive(args: {
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, [], args.pickSocialBuilding);
   let suppressIdle = args.suppressIdleInitial;
   if (impulse.motive !== 'none') {
-    if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE) sayHumanChatPhrase(entity, impulse.bubble, 55);
+    if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE && !isDialogueBusy(entity)) {
+      requestDialogue({
+        eventKey: `social.impulse.${impulse.motive}`, speaker: entity, tick: state.tick,
+        durationHours: 4 / TICKS_PER_HOUR,
+      });
+    }
     if (impulse.stayHome && hasResidenceAssignment(entity)) {
       const home = buildingById.get(entity.residenceBuildingId!);
       if (home?.completed) {
