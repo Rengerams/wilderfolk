@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
+
+- **Illustrated New Frontier map (28 October 2026):** Uses supplied parchment artwork with interactive live rival pins and raid routes. Stable read-only projection prevents pins shifting when new camps spawn. Gameplay, save format and raid rules remain unchanged.
 - **Fixed:** Version-4 rivers now inherit flow-aligned highlights and localized waterfall rapids from v3, without changing saved maps, water collisions or chunk caching.
 
 - **Changed:** Consolidated the terrain architecture into one reference covering generation v1–v4, hydrology, 2.5D rendering, saved-world contracts and verification; retired superseded terrain design notes.

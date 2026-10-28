@@ -1914,3 +1914,7 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 ## 2026-10-28 — Design incompatibility resolved
 
 - **Legacy Goals in an open-ended simulator:** [report](../bug_report/2026-10-28-legacy-goals-conflict-with-open-ended-simulator.md). Removed the finite achievement projection and UI while preserving Chronicle history and existing saves. **Resolved in source; runtime checks not run.**
+
+## 2026-10-28 — Illustrated New Frontier strategic map
+
+- **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
