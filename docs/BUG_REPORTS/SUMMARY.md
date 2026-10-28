@@ -10,6 +10,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-08 — register-only entries.** The 2026-10-06 audit campaign (141 findings) and the 2026-10-08 session (31 new findings plus 7 tooling/infra items) are recorded at the end of this file as one line each, **with no individual report files**, on the owner's instruction ("just only in the summary"). About 130 of the 172 are closed and verified; **25 defects remain open**, each with what a fix needs, plus ~25 small copy-and-layout findings noted in one line there. The evidence — `path:line`, measurements, before/after proofs — lives in `docs/private/audits/2026-10-06/`, which is gitignored; `BUG-OVERVIEW-2026-10-08.md` §6 is the consolidated view and `STATUS-2026-10-08.md` the full account. This register is therefore the durable index for them.
 
+**2026-10-28 — [Visitor speech bypassed session ownership](../bug_report/2026-10-28-visitor-speech-bypassed-session-owner.md):** visitor arrivals and performers directly overwrote chatPhrase/chatTicks without checking a live session. PR #93 routes the unchanged captions through JSON and the single session writer; targeted CI and worker/browser verification still pending.
+
 ## At a glance
 
 **2026-10-28 — [V4 river-flow highlights missing](../bug_report/2026-10-28-v4-river-flow-material-gated-to-v3.md):** render-only v3 gate excluded v4 current glints and waterfall rapids. Proposed correction and targeted regressions on the PR branch; CI, browser visuals and FPS validation still pending.
