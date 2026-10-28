@@ -170,11 +170,18 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
   return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
 }
 
-/** Sustained shortage according to the economy's own completed-day records. */
+/** Sustained shortage according to completed-day food ledgers, not stock alone.
+ * A brief good harvest cannot cancel a month of underproduction: natural
+ * immigration and children continue eating through that temporary recovery.
+ */
 function isMeasuredFoodDeficit(state: WorldState): boolean {
-  const flow = getRecentFoodFlow(state);
-  return flow != null && flow.consumedPerDay > 0
-    && flow.netPerDay < -flow.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO;
+  const recent = getRecentFoodFlow(state);
+  if (recent == null) return false;
+  if (recent.consumedPerDay > 0
+    && recent.netPerDay < -recent.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO) return true;
+  const month = getRecentFoodFlow(state, 30);
+  return month != null && month.days >= 14 && month.consumedPerDay > 0
+    && month.netPerDay < -month.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO;
 }
 
 /** Spare assignable beds the village keeps ahead of need (`VirtualPlayer.SPARE_BED_*`). */
@@ -573,7 +580,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  if (!shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  if (!shortOnFood && !measuredDeficit && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   if (unstaffedFoodProducer) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
@@ -598,7 +605,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   for (const type of foodCandidates) {
     const requirement = BUILDING_CONFIGS[type].unlockRequirement;
     if (requirement && !isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) continue;
-    if (!shortOnFood && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
+    if (!shortOnFood && !measuredDeficit && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
     if (!spot) continue;
