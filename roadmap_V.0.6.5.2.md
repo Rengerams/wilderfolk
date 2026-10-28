@@ -23,16 +23,17 @@ This roadmap tracks **features and implemented behavior**, not a test or verific
 - [x] **Workforce performance:** reuse staffing indexes and avoid unnecessary reassignment passes ([#71](https://github.com/Rengerams/wilderfolk/pull/71)).
 - [x] **Natural riverbanks and forest groves (terrain v3):** riparian transitions, flow-shaped river footprints and biome-weighted vegetation ([#73](https://github.com/Rengerams/wilderfolk/pull/73)).
 - [x] **Build workflow maintenance:** repair GitHub Actions dependency lockfile and npm caching setup ([#74](https://github.com/Rengerams/wilderfolk/pull/74)).
+- [x] **Food-chain autoplayer:** curb nonessential housing during deficits, improve staffed food-production upgrades, and select feasible Greenhouses, Fishing Spots, Hunting Spots and Farms ([#72](https://github.com/Rengerams/wilderfolk/pull/72)).
+- [x] **River surface effects:** flow-aligned water glints, localized waterfall whitewater and varied sediment banks ([#75](https://github.com/Rengerams/wilderfolk/pull/75)).
+- [x] **Richer terrain relief:** ridge/valley shading, exposed rock materials and terrain-grounded vegetation ([#76](https://github.com/Rengerams/wilderfolk/pull/76)).
+- [x] **2.5D ground mesh:** cached raised terrain chunks, terrain-aligned objects and inverse pointer picking; older save projections stay intact ([#77](https://github.com/Rengerams/wilderfolk/pull/77)).
+- [x] **Continuous ecotones and licensed nature art:** smoothly blended biome materials and vegetation with bundled, credited sprites for world generation v4 ([#79](https://github.com/Rengerams/wilderfolk/pull/79)).
+- [x] **Silo expansion on storage pressure:** build additional Silos when food storage reaches 90% occupancy, without treating food shortages as a reason for expansion ([#81](https://github.com/Rengerams/wilderfolk/pull/81)).
+- [x] **Food-first workforce protection:** preserve staffed food producers, allow transferable Quarry surplus and keep the Virtual Player's donor rule consistent with actual staffing ([#82](https://github.com/Rengerams/wilderfolk/pull/82)).
 
-### In implementation / not yet merged
+### Remaining feature scope
 
-- [ ] **Long-run food-chain autoplayer correction:** proposed food-production, farm upgrades and starvation remediation ([#72](https://github.com/Rengerams/wilderfolk/pull/72)).
-- [ ] **River surface effects:** flow-aligned water, whitewater and sediment-bank rendering ([#75](https://github.com/Rengerams/wilderfolk/pull/75)).
-- [ ] **Richer terrain relief:** relief materials and terrain-grounded vegetation ([#76](https://github.com/Rengerams/wilderfolk/pull/76)).
-- [ ] **2.5D ground mesh:** cached height-mesh ground and inverse picking ([#77](https://github.com/Rengerams/wilderfolk/pull/77)).
-- [ ] **Continuous ecotones and licensed nature art:** biome-edge transitions and sprite upgrade ([#79](https://github.com/Rengerams/wilderfolk/pull/79)).
-
-Other not-yet-implemented features are described in §§11–19 and the feature backlog in §23.1.
+The previously pending features in #72, #75, #76, #77 and #79 are now implemented and listed above. Additional, not-yet-implemented gameplay features remain in §§11–19 and the feature backlog in §23.1.
 
 ## 1. Design goals
 
@@ -724,9 +725,9 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 **Definition of done:** villagers eat, sleep and rest for different reasons; starvation is gradual and meaningful; work and health respond coherently; food consumed matches food planned and produced; old saves, worker mode, offscreen simulation and nonhuman energy retain their established behavior. Issue #61 is the detailed specification where this roadmap is a summary.
 
-## 23. Merged feature implementation register — 27 October 2026
+## 23. Merged feature implementation register — 28 October 2026
 
-**Project rule: merged = accepted.** This register describes **merged code on `main`**, not stale draft language in earlier technical briefs. The entire 0.6.5.2 release still has separate requirements; accepted PRs are not automatically evidence of unrun scenarios or performance improvements.
+**Project rule: merged = accepted.** This register lists implemented features from merged code on `main`, not proposals or draft status. Future enhancements stay in the feature backlog; this roadmap is an implementation overview, not a test/verification register.
 
 | Area | Merged and accepted PRs | Added/changed behavior in current code | Primary references |
 | --- | --- | --- | --- |
@@ -738,6 +739,14 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 | World-copy overhead | [#64](https://github.com/Rengerams/wilderfolk/pull/64) | Narrower world/building copying, fingerprinted and omitted unchanged worker histories, leaner save serialization, rollback snapshot profiling | [Optimization note](docs/plans/world-copy-optimization-2026-10-27.md), `simBuffers/simDelta.ts`, `simWorker/simPrep.ts` |
 | Canonical names, ownership, compatibility | [#67](https://github.com/Rengerams/wilderfolk/pull/67), [#68](https://github.com/Rengerams/wilderfolk/pull/68) | Removed redundant aliases, strengthened ownership/decision checks, introduced a guarded facade migration script, removed the `buildingActions.ts` and `rendererLoader.ts` compatibility-only files, rewired imports directly to owners | [Migration](docs/COMPATIBILITY_FACADE_MIGRATION.md), `OWNERSHIP_OVERVIEW.md`, `scripts/migrate-compat-facades.mjs` |
 | Indoor settler rendering | [#60](https://github.com/Rengerams/wilderfolk/pull/60) | No outdoor settler sprite while inside a building, without pausing work, healthcare or other simulation progression | `humanTick.ts` and related renderer tests |
+| Food-chain planning and Silo capacity | [#72](https://github.com/Rengerams/wilderfolk/pull/72), [#81](https://github.com/Rengerams/wilderfolk/pull/81) | Food-first Virtual Player decisions, productive site selection, housing restraint during shortages and additional Silos at 90% food-storage occupancy | `src/game/virtualPlayer.ts`, `workforcePolicy.ts` |
+| Food-production workforce coverage | [#82](https://github.com/Rengerams/wilderfolk/pull/82) | Preserve essential Farm, Greenhouse, Hunting Spot and Fishing Spot staffing; borrow from eligible Quarry surplus; no repeated ineligible transfer commands | `src/game/workforce.ts`, `src/game/virtualPlayer.ts` |
+| Raid civic consequences | [#70](https://github.com/Rengerams/wilderfolk/pull/70) | Contextual social and diplomatic reactions to mercy, execution, surrender and razing, rather than universal moral scores | Raid, diplomacy and leadership owners |
+| Workforce assignment efficiency | [#71](https://github.com/Rengerams/wilderfolk/pull/71) | Reuse worker and donor indexes across assignments and avoid redundant workforce work | `src/game/workforce.ts` |
+| Rivers and terrain ecology | [#73](https://github.com/Rengerams/wilderfolk/pull/73), [#75](https://github.com/Rengerams/wilderfolk/pull/75) | Flow-shaped rivers, riparian transitions, forest groves, directional water surfaces, localized whitewater and sediment banks | `src/game/renderer/whittakerTerrain.ts`, `src/game/terrain/` |
+| Terrain relief and 2.5D display | [#76](https://github.com/Rengerams/wilderfolk/pull/76), [#77](https://github.com/Rengerams/wilderfolk/pull/77) | Ridgeline and valley shading, elevated cached mesh chunks, grounded vegetation and accurate inverse-picking of raised surfaces | `src/game/terrainAtlas.ts`, `docs/TERRAIN_HEIGHT_MESH.md` |
+| Biome transitions and nature artwork | [#79](https://github.com/Rengerams/wilderfolk/pull/79) | Climate-weighted ecotones, textured vegetation and bundled licensed terrain/nature assets for new generation-v4 maps | `src/game/renderer/`, `public/sprites/nature/`, `THIRD_PARTY_NOTICES.md` |
+| CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
 
 ### 23.1 Feature backlog beyond merged scope
 
