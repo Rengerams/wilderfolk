@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Design/tests:** PR C must preserve current social DNA gameplay exactly, moving extra context multipliers into the single catalog; a source audit now rejects newly added legacy DNA consumers and must reach zero at cutover.
+
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
