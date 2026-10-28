@@ -146,8 +146,13 @@ KEEP: existing sim delta/render metadata → renderer bubble
 ~~~ts
 type DialogueMode = 'solo' | 'pair';
 type DialogueEventKey =
-  | 'ambient.social' | 'ambient.work' | 'ambient.needs'
-  | 'ambient.environment' | 'ambient.festival'
+  | 'ambient.social' | 'ambient.home' | 'ambient.courtship'
+  | 'ambient.work' | 'ambient.visitor' | 'ambient.rival'
+  | 'ambient.hunt' | 'ambient.child' | 'ambient.school'
+  | 'ambient.pregnancy' | 'ambient.affair' | 'ambient.sleep'
+  | 'ambient.renffr' | 'ambient.fear' | 'ambient.winter'
+  | 'ambient.festival' | 'ambient.guard' | 'ambient.food'
+  | 'ambient.election'
   | 'family.daily' | 'famine.hunger' | 'pregnancy.daily'
   | 'workplace.banter' | 'neighbor.greeting' | 'child.play'
   | 'social.impulse' | 'hunting.shortage'
@@ -182,9 +187,9 @@ function tickDialogue(entity: ChatSpeaker, resolvePartner: PartnerResolver): voi
 
 Signatures are *proposed*, not exported at the current main snapshot. Implement them in the actual owning file only. Domain owners keep existing chance/eligibility logic and call `requestDialogue` only on a real accepted speech trigger; `dialogueTrees` does not reroll the game's event chance. When a domain already supplies a deterministic outcome variant (e.g. aid kind, election phase, visitor POI), encode it in the event key or a narrow enum so the chosen text does not contradict reality. Dynamic name insertion uses existing formatter/escaped tokens, not assembled sentence literals in TS.
 
-**Selection:** compile immutable `eventKey × mode` arrays on bank load; never concatenate every category's trees per request or scan all entities. Validate that a line's speaker appears in the declared roles, no empty trees, duplicate IDs, invalid event keys/modes, oversized strings and missing event coverage. Seed selection from the existing deterministic sim convention with stable event, tick and participant IDs. Preserve event probability RNG independently: content choice must not change economy/marriage/election random streams. Prefer keyed stateless draws for scene choice. No arbitrary “category fallback” that makes famine chatter appear during an election.
+**Selection:** compile immutable `eventKey × mode` arrays on bank load; preserve all 19 existing `HumanChatContext` values through a verified explicit event-key mapping (never silently drop `school`, `guard`, `rival`, `courtship`, `affair` or `renffr`); never concatenate every category's trees per request or scan all entities. Validate that a line's speaker appears in the declared roles, no empty trees, duplicate IDs, invalid event keys/modes, oversized strings and missing event coverage. Seed selection from the existing deterministic sim convention with stable event, tick and participant IDs. Preserve event probability RNG independently: content choice must not change economy/marriage/election random streams. Prefer keyed stateless draws for scene choice. No arbitrary “category fallback” that makes famine chatter appear during an election.
 
-**Solo vs pair:** a solo request must select a solo tree; paired request must select a pair tree; a missing partner must not let one settler speak both sides. Where a domain currently permits both modes, ship actual authored solo and pair alternatives in the *same* integration PR. No fake second entity or silent mode coercion. Missing valid event content fails closed (no bubble + bounded diagnostic/test failure) rather than showing unrelated text.
+**Solo vs pair:** a solo request must select a solo tree; paired request must select a pair tree; a missing partner must not let one settler speak both sides. For every *reachable* ambient event-key/mode combination, provide a real matching authored scene when activating PR A, including solo when no partner is available; do not silently suppress the majority of existing ambient bubbles. Where a domain currently permits both modes, ship actual authored solo and pair alternatives in the *same* integration PR. No fake second entity or silent mode coercion. Missing valid event content fails closed (no bubble + bounded diagnostic/test failure) rather than showing unrelated text.
 
 **Priority/lifecycle:** ordinary ambient cannot interrupt busy/scripted/paired dialogue. Scripted events may interrupt only according to explicit existing forced-speech semantics; when interruption occurs, release both halves atomically. Preserve exactly one session per settler, partner symmetry, narrator/speaker role, actor eligibility and age/bed/faction guards. The current session Map is transient. Reset on world/session change and reclaim stale saved keys, including the idle half; do not use a new world-state queue or independent interval. Ensure visitors and performers are ticked through the existing human realtime path (they are Human entities today), not an additional faction timer.
 
