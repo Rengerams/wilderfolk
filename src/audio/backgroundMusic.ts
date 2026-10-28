@@ -30,6 +30,8 @@ const PHRASES: PhraseFn[] = [playMelodicPhrase, playVariationPhrase, playRestPhr
 class BackgroundMusicPlayer {
   private running = false;
   private spotlightSuspended = false;
+  /** Invalidate asynchronous playback requests whenever the soundscape changes. */
+  private playbackRevision = 0;
   private usingSamples = false;
   private usingHtmlAudio = false;
   private htmlAudio: HTMLAudioElement | null = null;
@@ -103,12 +105,16 @@ class BackgroundMusicPlayer {
     this.htmlTrackUrl = null;
   }
 
-  private async tryHtmlPlayback(url: string, volume: number): Promise<boolean> {
+  private async tryHtmlPlayback(url: string, volume: number, isCurrent: () => boolean): Promise<boolean> {
     if (audioGraph.isMuted) return false;
     const el = this.ensureHtmlAudio(url);
     syncHtmlAudioVolume(el, volume, audioGraph.getLevels());
     try {
       await el.play();
+      if (!isCurrent()) {
+        el.pause();
+        return false;
+      }
       this.usingHtmlAudio = true;
       this.usingSamples = false;
       return true;
@@ -120,17 +126,21 @@ class BackgroundMusicPlayer {
   async start() {
     if (this.spotlightSuspended || this.running) return;
     this.running = true;
+    const revision = ++this.playbackRevision;
+    const isCurrent = () => this.running && !this.spotlightSuspended
+      && revision === this.playbackRevision;
     audioGraph.setMusicBrightness(false);
 
     const { url, vol } = this.currentTrack();
 
-    if (await this.tryHtmlPlayback(url, vol)) {
-      return;
-    }
+    if (await this.tryHtmlPlayback(url, vol, isCurrent)) return;
+    if (!isCurrent()) return;
 
     const unlocked = await audioGraph.unlock();
+    if (!isCurrent()) return;
     if (unlocked) {
-      const ok = await musicPlayer.playLoop(url, 'music', vol, 1.4);
+      const ok = await musicPlayer.playLoop(url, 'music', vol, 1.4, isCurrent);
+      if (!isCurrent()) return;
       if (ok) {
         this.usingSamples = true;
         this.usingHtmlAudio = false;
@@ -138,6 +148,7 @@ class BackgroundMusicPlayer {
       }
     }
 
+    if (!isCurrent()) return;
     this.usingSamples = false;
     this.usingHtmlAudio = false;
     this.phraseIndex = 0;
@@ -155,11 +166,23 @@ class BackgroundMusicPlayer {
       if (restored) return;
       restored = true;
       this.spotlightSuspended = false;
-      if (shouldResume) void this.ensurePlaying();
+      if (shouldResume) {
+        const pending = this.ensurePromise;
+        // An old async start must settle before starting a replacement session.
+        if (pending) {
+          void pending.then(
+            () => { if (!this.spotlightSuspended) void this.ensurePlaying(); },
+            () => { if (!this.spotlightSuspended) void this.ensurePlaying(); },
+          );
+        } else {
+          void this.ensurePlaying();
+        }
+      }
     };
   }
 
   stop() {
+    this.playbackRevision++;
     this.running = false;
     if (this.timeout) {
       clearTimeout(this.timeout);
