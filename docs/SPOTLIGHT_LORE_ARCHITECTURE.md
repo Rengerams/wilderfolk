@@ -53,6 +53,10 @@ Ordinary home preference, home/hotel commute, school/work relocation, social/fre
 
 The existing GameLoop keeps smoothing its rendered camera while paused. React's `view.camera` may be stale because the game session intentionally skips React updates for presentation-only frames. The spotlight stage therefore reads the current `loop.getView().camera` through an accessor each animation frame; it projects the **already resolved** speaker/heroine positions using the canonical `worldToScreen` and updates three HTML styles only (halo, ring and speech bubble). This animation frame belongs solely to the mounted stage and is cancelled on unmount. It does not rerender React, scan every settler, write entity movement or advance the simulation.
 
+### Established-affair steering (Codex P2 #4401703334)
+
+A chorus actor may already have a mutual `affairPartnerId`; the later established-affair tryst route is independent of the new-affair branch and previously overwrote the scene's velocity. Both paths now exclude `inSpotlightGathering`; actual social relationship state remains in its existing owner and is not reset. A real-tick regression puts the lover opposite the spotlight slot, confirms the affair is otherwise eligible, then asserts the stage-directed velocity survives.
+
 ### Session isolation (Codex P2 #4401308629)
 
 `spotlightReturnRef` belongs to the **current running colony session**, never to global save data. `App.tsx` invalidates it **before** either `replaceSession` call (new game or loaded save), because otherwise the subsequent `!scene` effect would mistakenly treat a loaded world as the old scene completing. Ordinary completion consumes the snapshot one time via `takeSpotlightReturn`. The loaded world's view and pause/speed must remain untouched. `tests/spotlightReturnState.test.ts` covers one-shot consumption and invalidation; the real React load flow still needs browser verification.
@@ -103,6 +107,6 @@ This does not create romance, XP, relationships, physical voice audio, special s
 - Existing ownership, import cycle, TypeScript, standard tests and build: rely on **finished CI status**, not assumed PASS.
 - Full browser run with active worker, viewport zoom, pause/skip, actual actor movement, load-during-scene and fresh-session controls remains a release gate.
 
-Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md), and [camera easing projection](bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md).
+Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md), and [camera easing projection](bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md), and [established-affair movement](bug_report/2026-10-28-spotlight-established-affair-overrides-movement.md).
 
 **Acceptance:** keep the roadmap item **unchecked** until PR #91 is merged into `main`. Architecture describes the branch; it is not evidence of production readiness.
