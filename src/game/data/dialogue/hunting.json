@@ -1,12 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.3",
   "category": "work",
   "dialogue_trees": [
     {
       "id": "evt_hunting_scarce_0",
       "category": "work",
       "eventKey": "hunting.scarce",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -15,13 +14,13 @@
           "speaker": "speaker",
           "text": "Game's getting scarce…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_hunting_thinTrails_0",
       "category": "work",
       "eventKey": "hunting.thinTrails",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -30,7 +29,12 @@
           "speaker": "speaker",
           "text": "Thin trails today…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "work"
   ]
 }
