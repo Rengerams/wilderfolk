@@ -5,6 +5,7 @@
 import type { TerrainDecoration, WorldMap } from '../gameTypes';
 import { supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
 import { clamp } from '../terrain/noise';
+import { getSpriteFrame } from '../spriteLoader';
 
 /**
  * Per-prop brightness variation, applied to the prop's own colours.
@@ -70,6 +71,56 @@ function tinted(color: string, level: number): string {
     : color;
   tintedCache.set(key, out);
   return out;
+}
+
+/**
+ * Authored scenery for version-4 worlds. The atlas sprites are cropped from
+ * transparent CC0 PNGs; the other frames are the game's existing painted PNGs.
+ * No Canvas strokes or procedural polygon "sprites" are rendered in V4.
+ *
+ * The variants share a few textures on purpose until higher-quality species-
+ * specific sheets can replace them; a rock never borrows a tree sprite.
+ */
+interface DecorArtwork {
+  sprite: string;
+  width: number;
+  height: number;
+  crop?: readonly [number, number, number, number];
+}
+const ROCK_PATH = '/sprites/nature/kenney/naturePack_026_0.png';
+const CACTUS_PATH = '/sprites/nature/kenney/naturePack_054_0.png';
+const WOOD_PATH = '/sprites/nature/kenney/naturePack_078_0.png';
+const PROP_ART: Partial<Record<TerrainDecoration['type'], DecorArtwork>> = {
+  bush: { sprite: '/sprites/bush.png', width: 22, height: 20 },
+  berries: { sprite: '/sprites/bush.png', width: 18, height: 16 },
+  fern: { sprite: '/sprites/grass.png', width: 15, height: 17 },
+  flower: { sprite: '/sprites/grass2.png', width: 12, height: 14 },
+  tallgrass: { sprite: '/sprites/grass.png', width: 15, height: 16 },
+  reed: { sprite: '/sprites/grass.png', width: 12, height: 16 },
+  cattail: { sprite: '/sprites/grass2.png', width: 12, height: 17 },
+  scrub: { sprite: '/sprites/grass2.png', width: 14, height: 11 },
+  stump: { sprite: '/sprites/stump.png', width: 19, height: 14 },
+  log: { sprite: '/sprites/stump.png', width: 23, height: 13 },
+  driftwood: { sprite: '/sprites/stump.png', width: 20, height: 12 },
+  mushroom: { sprite: '/sprites/bush.png', width: 10, height: 10 },
+  rock_small: { sprite: ROCK_PATH, width: 13, height: 11, crop: [80, 257, 64, 63] },
+  rock_big: { sprite: ROCK_PATH, width: 27, height: 23, crop: [80, 257, 64, 63] },
+  cactus: { sprite: CACTUS_PATH, width: 12, height: 22, crop: [100, 247, 37, 80] },
+  bones: { sprite: ROCK_PATH, width: 12, height: 9, crop: [80, 257, 64, 63] },
+  dirt_patch: { sprite: ROCK_PATH, width: 9, height: 7, crop: [80, 257, 64, 63] },
+  lilypad: { sprite: '/sprites/grass.png', width: 12, height: 6 },
+};
+function drawPropArtwork(ctx: CanvasRenderingContext2D, d: TerrainDecoration): void {
+  const art = PROP_ART[d.type];
+  if (!art) return;
+  const frame = getSpriteFrame(art.sprite);
+  if (!frame) return; // loaded by preloadAllSprites before the terrain cache is created
+  const source = art.crop ?? [frame.sx, frame.sy, frame.sw, frame.sh];
+  const scale = d.scale;
+  const w = art.width * scale, h = art.height * scale;
+  // Bottom-anchored sprites match the terrain height and avoid planted-in-air foliage.
+  ctx.drawImage(frame.image, source[0], source[1], source[2], source[3],
+    -w / 2, -h * 0.9, w, h);
 }
 
 /** Draw one decorative ground prop (no trees — those are Wilderfolk entities). */
@@ -301,7 +352,12 @@ export function bakeDecorInRect(
         const rise = supportsTerrainHeightMesh(map) ? terrainRiseAt(map, d.x, d.y) : 0;
         ctx.translate((d.x - rect.x) * scale, (d.y - rect.y - rise) * scale);
         ctx.scale(scale, scale);
-        drawProp(ctx, d, d.scale, d.variant, d.flipX);
+        if ((map.generationVersion ?? 0) >= 4) {
+          // V4 art is loaded from PNGs. Legacy worlds preserve their exact original strokes.
+          drawPropArtwork(ctx, d);
+        } else {
+          drawProp(ctx, d, d.scale, d.variant, d.flipX);
+        }
         ctx.restore();
         baked++;
       }
