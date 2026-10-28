@@ -17,6 +17,7 @@ import {
   createBuildGhost,
 } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
+import { unprojectTerrainY } from '../game/renderer/heightMesh';
 import { collectStripDemolitionIds } from '../game/stripTopology';
 import { getHumanSelectionBounds } from '../game/humanSprites';
 import { playClickSound } from '../audio';
@@ -136,10 +137,12 @@ export function useCanvasInteractions({
       const scaleY = canvasH / rect.height;
       const screenX = (clientX - rect.left) * scaleX;
       const screenY = (clientY - rect.top) * scaleY;
-      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      const [worldX, flatY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      const map = loopRef.current?.getWorld().worldMap ?? worldRef.current.worldMap;
+      const worldY = unprojectTerrainY(map, worldX, flatY);
       return { worldX, worldY, rect };
     },
-    [canvasRef, getViewCamera],
+    [canvasRef, getViewCamera, loopRef, worldRef],
   );
 
   const handleCanvasClick = useCallback(
