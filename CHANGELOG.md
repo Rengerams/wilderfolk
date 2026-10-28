@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Rare village spotlight (PR #91):** A young villager draws a comic chorus of neighbours; camera focus, genuine gathering, a paced paused-scene performance and skip/resume run without game rewards. Pending verification and merge.
+- **Rare village spotlight (PR #91):** A young villager draws a comic chorus of neighbours; camera focus, genuine gathering, a leisurely staged performance and optional early ending run without game rewards. Pending verification and merge.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
 
