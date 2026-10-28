@@ -1922,6 +1922,14 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 - **Stale personality trait-context test — investigating:** The phase-A three-trait regression checked an obsolete diplomacy effect after the context correction; fixture now checks a real social-reconciliation drawback. Full CI rerun pending. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
 - **Trait order causes floating-point drift — investigating:** Three traits with the same aggregate effects produced a different last-bit tendency when their input order changed; now processed in canonical order without allocations, with six-permutation regression. [Report](../bug_report/2026-10-28-personality-trait-order-floating-point-drift.md).
+
+## 2026-10-28 — Personality phase B trait integration findings
+
+Two defects the phase-B integration audit found in pre-existing trait wiring. Both are reported only; neither is fixed on this branch, because each would change gameplay balance outside the integration's scope.
+
+- **Nurturing maturation boost is dead code — open:** The trait's "children mature faster" rule lives in `getSchoolAgeMultiplier`, which has no caller anywhere in the repository, so the trait's only live effect is the captive-fate empathy count. [Report](../bug_report/2026-10-28-nurturing-maturation-boost-has-no-caller.md).
+- **Energy descriptions describe a foreign-captive-only path — open:** Hardy, Greenthumb's winter term and Fierce are read only inside `humanEnergyLoss`, whose single caller is guarded to foreign war captives; player settlers run the trait-free physiology path, so the inspector promises an effect a player settler never gets. [Report](../bug_report/2026-10-28-trait-descriptions-describe-foreign-captive-only-energy.md).
+
 ## 2026-10-28 — Illustrated New Frontier strategic map
 
 - **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.

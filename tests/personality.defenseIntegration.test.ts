@@ -122,7 +122,7 @@ function standAndHunt(state: WorldState, hunter: Entity, prey: Entity): Entity {
     byType: buckets,
     huntTargetByPreyId: new Map<number, Set<number>>(),
   } as unknown as TickContext;
-  const config = (SPECIES_CONFIG as Record<EntityType, typeof SPECIES_CONFIG[EntityType.Human]>)[EntityType.Human];
+  const config = SPECIES_CONFIG[EntityType.Human];
   tickHumanHunting(
     state, ctx, hunter, config,
     false, true, false, false,

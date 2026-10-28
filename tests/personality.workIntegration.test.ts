@@ -114,7 +114,6 @@ function farmWorld(traits: SettlerTrait[], skill = MAX_SKILL): { state: WorldSta
     maxHealth: 100,
     spriteScale: 1,
     buildAnimTimer: 0,
-    faction: 'player',
   };
   state.buildings.push(farm);
 
@@ -172,7 +171,6 @@ describe('the apprenticeship training context reaches the real teaching path', (
     const blacksmith = building(SITE_ID, BuildingType.Blacksmith, {
       x: cfg.width,
       y: cfg.height,
-      faction: 'player',
       occupants: [],
     });
     state.buildings.push(blacksmith);

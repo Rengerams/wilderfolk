@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Settler DNA at work (28 October 2026):** Genes now shape real production crews, school learning, research, apprenticeship training, hunting range and flight from predators. Construction keeps its existing Resourceful bonus once, and settlers saved without DNA gain stable traits on load.
+
 - **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
