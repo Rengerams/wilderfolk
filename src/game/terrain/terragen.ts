@@ -21,7 +21,7 @@ import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
 import { isUnbuildableTerrainType } from './terrainTraits';
 import { sampleEcotone, type EcotoneTerrainFields } from './ecotones';
-import { B, BIOME_BY_IDX, BIOMES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
+import { B, BIOME_BY_IDX, BIOMES, RETIRED_V4_DECOR_TYPES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
   Buildability,
@@ -884,12 +884,26 @@ function assignBiomes(
 
 /* ===== L3 decorations ===== */
 
-function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
+function pickDecor(
+  table: [SpriteType, number][], r: number,
+  excluded?: ReadonlySet<SpriteType>,
+): SpriteType | null {
+  // Use one canonical biome table; filter only the v4 candidates, preserving
+  // the original v1–v3 weighted picks and RNG sequence.
   let total = 0;
-  for (const [, w] of table) total += w;
+  for (const [type, weight] of table) {
+    if (!excluded?.has(type)) total += weight;
+  }
+  if (total <= 0) return null;
   let v = r * total;
-  for (const [t, w] of table) { v -= w; if (v <= 0) return t; }
-  return table[table.length - 1][0];
+  let last: SpriteType | null = null;
+  for (const [type, weight] of table) {
+    if (excluded?.has(type)) continue;
+    last = type;
+    v -= weight;
+    if (v <= 0) return type;
+  }
+  return last;
 }
 
 
@@ -972,8 +986,10 @@ function placeDecorations(
           table = pick < densePart ? BIOMES.dense_forest.decor
             : pick < forestPart ? BIOMES.forest.decor : BIOMES.grass.decor;
         }
-        const type = pickDecor(table, rand());
-        if (TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
+        const type = pickDecor(
+          table, rand(), generationVersion === 4 ? RETIRED_V4_DECOR_TYPES : undefined,
+        );
+        if (!type || TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
 
         decorations.push({
           x: px, y: py, type,
