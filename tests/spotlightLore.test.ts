@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createEntity } from '../src/game/entityFactory';
-import { EntityType, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, type Building, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay, getCalendarDay, isWeekend, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { getWorkSchedule } from '../src/game/workSchedule';
+import { gameTick } from '../src/game/gameTick';
 import { initGame } from '../src/game/worldGen';
 import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
@@ -135,6 +137,58 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     girl.alive = false;
     tickSpotlightGathering(world, new Map(world.entities.map((h) => [h.id, h])));
     expect(world.spotlightLore).toBeNull();
+  });
+});
+
+describe('spotlight lore — ordinary human movement must not steal actors', () => {
+  it('keeps a weekend home-preferring settler walking toward the spotlight, not their house', () => {
+    // Run the real game tick. A saved scene is explicitly active; no rare roll is needed.
+    const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720, skipTerrain: true });
+    const girl = createEntity(EntityType.Human, 480, 350, 100001, undefined, true, {
+      name: 'Ada', gender: 'female', ageYears: 14,
+    });
+    const adults = Array.from({ length: 8 }, (_, i) => createEntity(
+      EntityType.Human, 500 + i * 2, 364, 100002 + i, undefined, false,
+      { name: `Audience${i}`, ageYears: 28 },
+    ));
+    world.entities = [girl, ...adults];
+    // 16:00 on a weekend; find a deterministic actor who prefers home.
+    let member: Entity | undefined;
+    for (let day = 96; day < 160; day++) {
+      const currentTick = day * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+      if (!isWeekend(currentTick)) continue;
+      member = adults.find((adult) => prefersHomeTonightFor(getWorkSchedule(world), adult.id, currentTick, 16));
+      if (member) {
+        world.tick = currentTick - 1;
+        world.dayInYear = getCalendarDay(currentTick);
+        break;
+      }
+    }
+    expect(member, 'at least one weekend settler should prefer home').toBeDefined();
+    const actor = member!;
+    const home: Building = {
+      id: 901, type: BuildingType.House,
+      x: 720, y: 340, width: 48, height: 42, occupants: [actor.id],
+      level: 1, constructionProgress: 100, completed: true,
+      health: 100, maxHealth: 100, spriteScale: 1, buildAnimTimer: 0,
+    };
+    world.buildings = [home];
+    actor.residenceBuildingId = home.id;
+    // Home is far to the right; the spotlight slot is to the left.
+    const beforeX = actor.x;
+    const slots = adults.map((person, i) => ({
+      humanId: person.id, x: person.id === actor.id ? 425 : 430 + i * 8, y: 360,
+    }));
+    world.spotlightLore = {
+      id: 'test-commute-priority', heroineId: girl.id,
+      performerIds: adults.map((person) => person.id),
+      phase: 'gathering', startedAtTick: world.tick,
+      gatherX: girl.x, gatherY: girl.y, slots,
+    };
+    gameTick(world);
+    expect(world.spotlightLore?.phase).toBe('gathering');
+    expect(actor.x).toBeLessThan(beforeX);
+    expect(actor.indoorBuildingId).toBeUndefined();
   });
 });
 
