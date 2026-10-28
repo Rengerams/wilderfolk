@@ -10,6 +10,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
 | CI and standard/slow gate routing | `scripts/test.mjs` | `npm run test:standard`, `npm test -- colony-integration`, `npm test -- full` |
+| Incremental function overlap review | `scripts/check-function-overlap.mjs` — `changedLines`, `lex`, `dice`, `overlap`, `checkOverlaps` and internal comparison helpers | Standard CI after `scripts/build-call-graph.mjs`; fingerprints and test-backed exceptions in `docs/tools/semantic-overlap-reviewed.json` |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
 | Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
 | DNA legacy-consumer source inventory | `tests/personality.legacyConsumerAudit.test.ts` | Standard Vitest: fails on new unregistered legacy DNA rule sites; PR C must make the known six-owner inventory empty and retain the strict guard |
