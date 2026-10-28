@@ -214,7 +214,7 @@ export function generateWorldMap(
   preset?: MapPreset,
   /** The noise seed a save recorded — see `terrainSeedFor`. Wins over `seed` + `size`. */
   terrainSeed?: number,
-  generationVersion?: 1 | 2,
+  generationVersion?: 1 | 2 | 3,
 ): WorldMap;
 export function generateWorldMap(
   widthOrSize: number | MapSize = 1200,
@@ -223,7 +223,7 @@ export function generateWorldMap(
   sizeArg?: MapSize,
   presetArg: MapPreset = 'continental',
   terrainSeedArg?: number,
-  generationVersion: 1 | 2 = 2,
+  generationVersion: 1 | 2 | 3 = 3,
 ): WorldMap {
   let width: number;
   let height: number;
@@ -275,18 +275,18 @@ export function generateWorldMap(
   const campY = camp.y;
 
   if (
-    generationVersion === 2
+    generationVersion >= 2
     || isCoastalPreset(preset)
     || !isFootprintBuildable(map, houseFootprint.w, houseFootprint.h, campX, campY)
   ) {
     ensureCampClearing(
       map, campX, campY,
-      generationVersion === 2 ? (isCoastalPreset(preset) ? 11 : 7) : (isCoastalPreset(preset) ? 18 : 12),
+      generationVersion >= 2 ? (isCoastalPreset(preset) ? 11 : 7) : (isCoastalPreset(preset) ? 18 : 12),
       preset,
     );
   }
 
-  const startForestRadius = generationVersion === 2
+  const startForestRadius = generationVersion >= 2
     ? Math.min(16, Math.max(10, Math.round(Math.min(map.width, map.height) * 0.055)))
     : Math.max(14, Math.round(Math.min(map.width, map.height) * 0.22));
   clearStartAreaForest(map, campX, campY, startForestRadius);

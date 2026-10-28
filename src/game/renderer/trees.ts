@@ -44,7 +44,9 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
     const sx = worldToScreenX(tree.x, cam, cw);
     const sy = worldToScreenY(tree.y, cam, ch);
     const baseSize = tree.size > 0 ? tree.size : 12;
-    const size = baseSize * 2.4 * cam.zoom;
+    const canopyVariation = state.worldMap?.generationVersion === 3
+      ? 0.90 + ((tree.id * 37) % 13) / 65 : 1;
+    const size = baseSize * 2.4 * canopyVariation * cam.zoom;
 
     // Accurate culling margins: accounts for tree height (extends ~2.5x size above sy) and width
     const cullMarginX = size * 1.3 + 30;
@@ -107,7 +109,8 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
     if (isRipeBlueberry && isDrawableSpriteFrame(blueberryTreeFrame)) {
       drawSpriteFrame(ctx, blueberryTreeFrame, sx, sy - size * 0.08, size * 1.82, size * 2.45, 0.5, 0.92);
     } else {
-      const isTall = (tree.id % 2) === 1;
+      const isTall = state.worldMap?.generationVersion === 3 && tree.spriteVariant != null
+        ? tree.spriteVariant === 1 : (tree.id % 2) === 1;
       const frame = isTall ? tree2Frame : treeFrame;
       if (isDrawableSpriteFrame(frame)) {
         drawSpriteFrame(

@@ -35,12 +35,12 @@ describe('landscape rendering follows the simulation map', () => {
   it('spawns living trees only in vegetated biomes on new maps', () => {
     for (const preset of [MapPreset.Arabia, MapPreset.Oasis, MapPreset.BlackForest]) {
       const world = initGame({ seed: 1234, preset, size: MapSize.Medium });
-      expect(world.worldMap?.generationVersion).toBe(2);
+      expect(world.worldMap?.generationVersion).toBe(3);
       let trees = 0;
       for (const entity of world.entities) {
         if (entity.type !== EntityType.Tree || !entity.alive) continue;
         const tile = tileAt(world.worldMap!, Math.floor(entity.x / 10), Math.floor(entity.y / 10));
-        expect([TerrainType.Grassland, TerrainType.Forest, TerrainType.DarkForest])
+        expect([TerrainType.Grassland, TerrainType.Forest, TerrainType.DarkForest, TerrainType.RiverBank])
           .toContain(tile?.type);
         trees++;
       }
