@@ -77,6 +77,8 @@ let terrainChunkCacheKey = '';
 const WHITTAKER_CHUNK_SIZE = 256; // world px per chunk; the canvas is this / the chunk's bake step
 const WHITTAKER_CHUNK_MARGIN = 1; // keep one chunk of margin around the viewport
 const DECOR_CHUNK_MARGIN = 32;
+/** Projected props can rise 28 px beyond their existing 32 px sprite overhang. */
+const DECOR_RAISED_TOP_MARGIN = DECOR_CHUNK_MARGIN + HEIGHT_MESH_TOP_PAD;
 /**
  * Decor canvases one frame may bake — each is (256 + 2×32)² ≈ 102 kpx, twelve times the ground budget.
  */
@@ -300,8 +302,9 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
 
     /** Bake one chunk's river courses and L3 props onto the overhanging canvas of its own. */
     const bakeChunkDecor = (chunk: GroundChunk): void => {
+      const topMargin = heightMesh ? DECOR_RAISED_TOP_MARGIN : DECOR_CHUNK_MARGIN;
       const decorWorldW = chunk.worldW + DECOR_CHUNK_MARGIN * 2;
-      const decorWorldH = chunk.worldH + DECOR_CHUNK_MARGIN * 2;
+      const decorWorldH = chunk.worldH + topMargin + DECOR_CHUNK_MARGIN;
       // Decor is step-independent: baked 1:1 and blitted at its world rect, so a ground re-bake keeps it.
       const decor = createCanvasSurface(
         Math.max(1, Math.ceil(decorWorldW)),
@@ -310,7 +313,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       bakeDecorInRect(
         getCanvasContext(decor) as CanvasRenderingContext2D,
         map,
-        { x: chunk.worldX - DECOR_CHUNK_MARGIN, y: chunk.worldY - DECOR_CHUNK_MARGIN, width: decorWorldW, height: decorWorldH },
+        { x: chunk.worldX - DECOR_CHUNK_MARGIN, y: chunk.worldY - topMargin, width: decorWorldW, height: decorWorldH },
         1,
         { x: chunk.worldX, y: chunk.worldY, width: chunk.worldW, height: chunk.worldH },
       );
@@ -650,9 +653,11 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       // Ground from every chunk first; the next chunk must not erase props crossing its edge.
       for (const chunk of chunks) {
         if (!chunk.decor) continue;
+        const topMargin = supportsTerrainHeightMesh(state.worldMap)
+          ? DECOR_RAISED_TOP_MARGIN : DECOR_CHUNK_MARGIN;
         const [decorSx, decorSy] = worldToScreen(
           chunk.worldX - DECOR_CHUNK_MARGIN,
-          chunk.worldY - DECOR_CHUNK_MARGIN,
+          chunk.worldY - topMargin,
           cam, cw, ch,
         );
         ctx.drawImage(
@@ -660,7 +665,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
           decorSx,
           decorSy,
           (chunk.worldW + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
-          (chunk.worldH + DECOR_CHUNK_MARGIN * 2) * cam.zoom,
+          (chunk.worldH + topMargin + DECOR_CHUNK_MARGIN) * cam.zoom,
         );
       }
 

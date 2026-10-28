@@ -13,7 +13,7 @@ import {
 import { building, human } from '../src/test/factories';
 
 describe('two-month automatic job stability', () => {
-  it('borrows only one worker for an empty post and retains stable assignments', () => {
+  it('does not drain the critical food crew while staffing a guard post', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3, 4] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [] });
     const workers = [1, 2, 3, 4].map((id) => human(id, { workerBuildingId: 10 }));
@@ -22,15 +22,15 @@ describe('two-month automatic job stability', () => {
     expect(barracks.occupants).toHaveLength(1);
     expect(workers.filter((worker) => worker.workerBuildingId === 11)).toHaveLength(1);
     expect(workers.filter((worker) => worker.lastAutoJobTransferTick === 100)).toHaveLength(1);
-    // Guard coverage ramps up one eligible worker per staffing pass.
+    // Food production keeps three hands; guards cannot drain it further.
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 101);
-    expect(farm.occupants).toHaveLength(2);
-    expect(barracks.occupants).toHaveLength(2);
+    expect(farm.occupants).toHaveLength(3);
+    expect(barracks.occupants).toHaveLength(1);
     rebalanceJobWorkers(workers, [farm, barracks], undefined, 102);
-    expect(farm.occupants).toHaveLength(1);
-    expect(barracks.occupants).toHaveLength(3);
+    expect(farm.occupants).toHaveLength(3);
+    expect(barracks.occupants).toHaveLength(1);
 
-    // Once safe coverage is reached, later passes must not shuffle the crew.
+    // Once the donor reaches its coverage floor, later passes remain stable.
     const assignments = workers.map((worker) => worker.workerBuildingId);
     for (const tick of [103, 104, 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS]) {
       rebalanceJobWorkers(workers, [farm, barracks], undefined, tick);
@@ -51,7 +51,7 @@ describe('two-month automatic job stability', () => {
     }
   });
 
-  it('protects a staffed Quarry and fills minimal emergency guard coverage once', () => {
+  it('borrows from ordinary Quarry surplus before draining protected Farm coverage', () => {
     const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2, 3] });
     const barracks = building(11, BuildingType.Barracks, { occupants: [4] });
     const farm = building(12, BuildingType.Farm, { occupants: [5, 6, 7] });
@@ -62,18 +62,47 @@ describe('two-month automatic job stability', () => {
     ];
 
     rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 100);
-    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(quarry.occupants).toHaveLength(2);
     expect(barracks.occupants).toHaveLength(2);
-    expect(farm.occupants).toHaveLength(2);
+    expect(farm.occupants).toHaveLength(3);
     const newWorker = workers.find((worker) => worker.workerBuildingId === 11 && worker.id !== 4);
     expect(newWorker?.lastAutoJobTransferTick).toBe(100);
     rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 101);
-    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(quarry.occupants).toHaveLength(1);
     expect(barracks.occupants).toHaveLength(3);
-    expect(farm.occupants).toHaveLength(1);
+    expect(farm.occupants).toHaveLength(3);
     const assignments = workers.map((worker) => worker.workerBuildingId);
     rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 102);
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+  });
+
+  it('staffs an uncrewed Farm from Quarry surplus and keeps one stone worker', () => {
+    const quarry = building(10, BuildingType.Quarry, { occupants: [1, 2, 3] });
+    const farm = building(11, BuildingType.Farm);
+    const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: quarry.id }));
+    expect(findOverstaffedDonorBuilding([quarry, farm], workers, farm.id, 100, true)?.id).toBe(quarry.id);
+    rebalanceJobWorkers(workers, [quarry, farm], undefined, 100);
+    expect(quarry.occupants).toHaveLength(2);
+    expect(farm.occupants).toHaveLength(1);
+    rebalanceJobWorkers(workers, [quarry, farm], undefined, 101);
+    expect(quarry.occupants).toHaveLength(1);
+    expect(farm.occupants).toHaveLength(2);
+    const assignments = workers.map((worker) => worker.workerBuildingId);
+    rebalanceJobWorkers(workers, [quarry, farm], undefined, 102);
+    expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+  });
+
+  it('does not claim a protected food crew is a transferable donor for autoplay', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
+    const empty = building(11, BuildingType.Greenhouse);
+    const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: farm.id }));
+    // Manual staffing can still request an eligible worker, but auto-staff cannot take
+    // one and then repeat the rejected transfer every in-game hour.
+    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100)?.id).toBe(farm.id);
+    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100, true)).toBeUndefined();
+    rebalanceJobWorkers(workers, [farm, empty], undefined, 100);
+    expect(farm.occupants).toHaveLength(3);
+    expect(empty.occupants).toHaveLength(0);
   });
 
   it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
@@ -154,7 +183,7 @@ describe('two-month automatic job stability', () => {
 
 describe('a prisoner keeps the reserved post', () => {
   it('is never the worker a rebalance moves, though the post still counts as crew', () => {
-    const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
+    const lumber = building(10, BuildingType.LumberMill, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });
     const free = human(1, { workerBuildingId: 10 });
     const jailed = human(2, { workerBuildingId: 10, prisonBuildingId: 90, prisonerUntilTick: 10_000 });
@@ -163,10 +192,10 @@ describe('a prisoner keeps the reserved post', () => {
 
     expect(canAutoChangeWorkplace(jailed, tick)).toBe(false);
     // Two assigned settlers make the farm a donor; only the settler who can attend may leave it.
-    expect(findOverstaffedDonorBuilding([farm, quarry], workers, 11, tick)?.id).toBe(10);
-    expect(pickWorkerToTransfer(workers, farm, quarry, tick)).toBe(free);
+    expect(findOverstaffedDonorBuilding([lumber, quarry], workers, 11, tick)?.id).toBe(10);
+    expect(pickWorkerToTransfer(workers, lumber, quarry, tick)).toBe(free);
 
-    rebalanceJobWorkers(workers, [farm, quarry], undefined, tick);
+    rebalanceJobWorkers(workers, [lumber, quarry], undefined, tick);
     expect(quarry.occupants).toEqual([1]);
     expect(jailed.workerBuildingId).toBe(10);
   });
