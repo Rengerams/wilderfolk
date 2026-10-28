@@ -48,3 +48,29 @@ export function spotlightFarewellPosition(
     y: origin.y + (destination.y - origin.y) * smooth,
   };
 }
+
+/** Stage loops are collision-checked once. If boxed in, turn on the spot instead. */
+export function spotlightSafePoseRadius(
+  world: Pick<WorldState, 'worldMap' | 'buildings' | 'width' | 'height'>,
+  origin: SpotlightWorldPoint,
+): number {
+  if (!world.worldMap) return 0;
+  const grid = getReadOnlyPathGrid(world.worldMap, world.buildings);
+  for (const radius of [11, 8, 5]) {
+    let safe = true;
+    let previous = origin;
+    for (let index = 1; index <= 20; index++) {
+      const angle = Math.PI * 2 * index / 20;
+      const next = { x: origin.x + radius * (Math.cos(angle) - 1), y: origin.y + radius * Math.sin(angle) };
+      if (next.x < PATH_CELL || next.y < PATH_CELL || next.x > world.width - PATH_CELL
+          || next.y > world.height - PATH_CELL
+          || lineCrossesBlocked(grid, previous.x, previous.y, next.x, next.y)) {
+        safe = false;
+        break;
+      }
+      previous = next;
+    }
+    if (safe) return radius;
+  }
+  return 0;
+}
