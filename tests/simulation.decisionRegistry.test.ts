@@ -29,6 +29,7 @@ const REQUIRED_DECISIONS = [
   'production',
   'villageRequests',
   'socialFeedback',
+  'spotlightLore',
   'courtship',
   'affairs',
   'conception',
