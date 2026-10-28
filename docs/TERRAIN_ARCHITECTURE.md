@@ -11,7 +11,7 @@
 | Generation v1 (legacy) | Original noise-based landscape and point-stamped rivers | Retained as a versioned compact-save regeneration recipe; do not rewrite its seed/size/RNG contract. |
 | Generation v2 — [PR #63](https://github.com/Rengerams/wilderfolk/pull/63) | Distinct map presets and relief, coherent connected river coverage, canonical terrain classification, camp clearing, original-site production efficiency | Merged and accepted 27 October 2026. |
 | Generation v3 — [PR #73](https://github.com/Rengerams/wilderfolk/pull/73) | Smooth Catmull–Rom water-mask rasterization, wet riparian transition, seeded forest groves and glades | Merged 28 October 2026. Drainage polylines remain the authoritative paths. |
-| V3 river presentation — [PR #75](https://github.com/Rengerams/wilderfolk/pull/75) | Flow-aligned highlights, waterfall-localized whitewater, sediment on exposed banks | Merged 28 October 2026; **current flow-detail field construction is specifically gated to generation v3**, not every later version. |
+| V3+ river presentation — [PR #75](https://github.com/Rengerams/wilderfolk/pull/75) | Flow-aligned highlights, waterfall-localized whitewater, sediment on exposed banks | Merged 28 October 2026; flow-detail fields now support v3 and v4 without changing river geometry. |
 | Relief graphics — [PR #76](https://github.com/Rengerams/wilderfolk/pull/76) | Material contrast on steep rock, ridge/valley shading, consistent elevated feet of vegetation and effects | Merged 28 October 2026; render-only. |
 | 2.5D height surface — [PR #77](https://github.com/Rengerams/wilderfolk/pull/77) | Cached affine textured triangles, shared terrain-rise sampling and inverse ground picking | Merged 28 October 2026; applies where `supportsTerrainHeightMesh` accepts the map (generation v3+), not flat legacy v1/v2. |
 | Generation v4 — [PR #79](https://github.com/Rengerams/wilderfolk/pull/79) and later material refinements | Continuous ecotone weights for decor/trees, climate-driven vegetation, licensed/CC0 sprites and blended grass/dirt/soil/leaf-litter and natural ground materials | Merged 28 October 2026. **New games default to v4** through `terrainGen.generateWorldMap`. The lower-level `terragen.generateRawTerrain` still defaults to v3 when invoked directly without an explicit version. |
@@ -97,9 +97,9 @@ The initial settlement is selected on usable land and cleared with bounded terra
 
 `riverDist` determines the water footprint, for both tile classification and ground shading. V3+ propagates a bounded riparian moisture gradient across the climate lattice with two linear passes. The shader colours actual channel water and wet/silty soil at the shoulders: painting extra blue water outside blocked water cells is incorrect. Static vegetation is excluded from active water; banks can support sparse riparian growth.
 
-**River-material follow-up (v3):** `renderer/whittakerTerrain.ts` derives along-flow arc length and local current direction from saved river polylines; wave glints cut across the flow, whitewater is localized around recorded waterfall drops, and exposed sediment breaks a uniform bank ring. `buildRiverSurfaceFields` is transient map-level precomputation, with field sampling only near relevant water. No new saved water or waterfall state is introduced.
+**River-material follow-up (v3+):** `renderer/whittakerTerrain.ts` derives along-flow arc length and local current direction from saved river polylines; wave glints cut across the flow, whitewater is localized around recorded waterfall drops, and exposed sediment breaks a uniform bank ring. `buildRiverSurfaceFields` is transient map-level precomputation, with field sampling only near relevant water. No new saved water or waterfall state is introduced.
 
-**Version boundary to verify:** the current `buildRiverSurfaceFields` returns empty flow-detail arrays unless `map.generationVersion === 3`. V4 keeps the v3+ generated channel mask and riparian rules, but does **not** currently receive that v3-only directional highlight/rapid prepass. Do not document v4 as having those effects without changing and testing the gate; decide separately whether the restriction is intentional.
+**Version boundary:** `buildRiverSurfaceFields` enables derived river phase, flow-aligned glints and localized rapids for **v3 and v4**, while v1/v2 retain empty flow fields. This renderer-only treatment reads the saved water mask, polylines and waterfalls without changing terrain, navigation or the saved generation recipe.
 
 ## 5. Trees, ground props and v4 nature materials
 
@@ -145,7 +145,7 @@ Version matrix for code reviews:
 | 1 | Legacy recipe; version missing also resolves to 1 | Preserve legacy flat interaction and water rules. |
 | 2 | Accepted preset-era recipe | Linear-segment water masks; no new forest sampling or height mesh. |
 | 3 | Smoothed channels, riparian gradients, grove distributions | Supports raised mesh; flow-specific water surface prepass runs for v3. |
-| 4 | New-game default, v3+ hydrology and continuous ecotones/material-aware decor | Supports raised mesh and v4 nature materials; **v3-only river highlight prepass needs explicit assessment**. |
+| 4 | New-game default, v3+ hydrology and continuous ecotones/material-aware decor | Supports raised mesh and v4 nature materials; flow-aligned highlights and localized rapids now work. |
 
 **Immutable contracts:** Never reorder old RNG calls, silently alter a saved seed/size law, overwrite old regeneration logic in place or regenerate a full noncompact map. If physical generation changes, introduce **v5** and add old/new deterministic round-trip fixtures. Shader-only enhancements can keep generation versions when compatible, but still need visual and cache tests. Never store presentation meshes or transient shading fields in saves.
 
@@ -167,7 +167,7 @@ Version matrix for code reviews:
 | Props, living flora, material assets | `renderer/decor.ts`, `renderer/trees.ts`, `renderer/grass.ts`, `renderer/grassTextures.ts`; living entities in `worldGen.ts` |
 | Saves and regeneration | `saveLoad.ts` — compact/restore and override validation |
 
-The definitive function registry is [OWNERSHIP_OVERVIEW.md](../OWNERSHIP_OVERVIEW.md); the decision registry is [src/game/simulation/decisionRegistry.ts](../src/game/simulation/decisionRegistry.ts). They were consulted while consolidating these **documents**: this change adds no functions or simulation writes, so no fabricated owner/decision entry is introduced. For future implementation patches update **both** registries in the same PR and use actual entrypoint, cadence, caller, write set and tests. New code imports directly from the owner and must not introduce aliases/re-exports for convenience.
+The definitive function registry is [OWNERSHIP_OVERVIEW.md](../OWNERSHIP_OVERVIEW.md); the decision registry is [src/game/simulation/decisionRegistry.ts](../src/game/simulation/decisionRegistry.ts). The `terrainRiverSurface` entry names the existing renderer owner, cache/ground-bake caller, actual `render` cadence and `writes: []` (no gameplay state writes). For future implementation patches update **both** registries in the same PR and use actual entrypoint, cadence, caller, write set and tests. New code imports directly from the owner and must not introduce aliases/re-exports for convenience.
 
 ## 9. Verification matrix and acceptance criteria
 
@@ -175,7 +175,7 @@ The definitive function registry is [OWNERSHIP_OVERVIEW.md](../OWNERSHIP_OVERVIE
 | --- | --- |
 | Presets and map variety; buildable camps | `tests/terrain.presetIdentity.test.ts`, `tests/terrain.mapVariety.test.ts`, `tests/terrain.campGround.test.ts` |
 | Flow network and river classifier | `tests/terragen.riverGeneration.test.ts`, `tests/terrain.naturalism.test.ts`, `tests/terrain.visualCoherence.test.ts` |
-| V3 river materials, waterfall locality, chunk crop agreement | `tests/terrain.riverMaterials.test.ts` |
+| V3/v4 river materials, waterfall locality, gameplay-grid invariance and chunk crop agreement | `tests/terrain.riverMaterials.test.ts` |
 | Smooth v4 ecological fringes, retirement of tiny art | `tests/terrain.ecotones.test.ts`, `tests/terrain.retiredDecor.test.ts` |
 | World-aligned nature textures, relief colouring | `tests/terrain.grassTextures.test.ts`, `tests/terrain.landformGraphics.test.ts`, `tests/groundLook.bands.test.ts` |
 | Height mesh seam, inverse projection and bounded triangles | `tests/terrain.heightMesh.test.ts` |
@@ -189,11 +189,10 @@ Profile Medium, Large and Huge world generation time, Whittaker prepass and chun
 ## 10. Known limits and future work (not implemented by these documents)
 
 1. **Visibility/depth:** Raised surface is a cached 2.5D texture warp; hills do not occlude every billboard/tree/building through a global depth buffer. Selection overlays and map framing remain partly flat.
-2. **v4 flow highlights:** `buildRiverSurfaceFields` currently restricts flow highlights/rapids to exactly v3; review the intended v4 policy and test it explicitly before claiming parity.
-3. **Edit visuals:** Sparse tile overrides are gameplay truth, but continuous ground colour may still be sampled from original climate/height. A cleared tile or build site can require a blended edit surface or decor invalidation.
-4. **Art:** Further unique species/season sprites, scree and floodplain sets, sediment deltas, lake/stream differentiation and naturally eroded valley geometry need independent asset or generator work. Do not pretend shader tricks implement new physics.
-5. **Performance / QA:** Chunk seams, waterfall readability, zoom LOD, foreground clipping, path-overlay alignment and Huge-map throughput still require on-device comparison before release. No per-frame full-map ray tracing or new heavy renderer should be introduced as a shortcut.
-6. **Climate scope:** Per-preset daily weather and ambient-temperature simulation are separate systems, not owned by terrain rendering.
+2. **Edit visuals:** Sparse tile overrides are gameplay truth, but continuous ground colour may still be sampled from original climate/height. A cleared tile or build site can require a blended edit surface or decor invalidation.
+3. **Art:** Further unique species/season sprites, scree and floodplain sets, sediment deltas, lake/stream differentiation and naturally eroded valley geometry need independent asset or generator work. Do not pretend shader tricks implement new physics.
+4. **Performance / QA:** Chunk seams, waterfall readability, zoom LOD, foreground clipping, path-overlay alignment and Huge-map throughput still require on-device comparison before release. No per-frame full-map ray tracing or new heavy renderer should be introduced as a shortcut.
+5. **Climate scope:** Per-preset daily weather and ambient-temperature simulation are separate systems, not owned by terrain rendering.
 
 ### Change procedure
 
