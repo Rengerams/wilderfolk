@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Medium-severity simulation-audit findings M3, M4, M15, M16.
  *
@@ -14,6 +13,7 @@ import { personDayRoll } from '../src/game/simRng';
  * M16 humanTick.ts — an on-duty Official at a completed Town Hall must reach
  *     officialHandlePetitioners.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import {
   BuildingType,
