@@ -1,0 +1,145 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "festival",
+  "categories": [
+    "festival"
+  ],
+  "dialogue_trees": [
+    {
+      "id": "spotlight.lore.performance",
+      "category": "festival",
+      "eventKey": "spotlight.lore",
+      "conversation_type": "one_way",
+      "speakers": [
+        "performer"
+      ],
+      "lines": [
+        {
+          "speaker": "performer",
+          "text": "1-2-3-4, walking like a man!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Hitting like a hammer!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's a juvenile scam!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Never was a quitter!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Tasty like a raindrop!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Heavenly bound, cause heaven has got a number!"
+        },
+        {
+          "speaker": "performer",
+          "text": "When she's spinning me around!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Kissing is a colour!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Wait. Which colour? The painter would like to know."
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "What in the world can make a brown-eyed girl turn blue?"
+        },
+        {
+          "speaker": "performer",
+          "text": "That would be my blueberry pie. She ate all of it."
+        },
+        {
+          "speaker": "performer",
+          "text": "When everything I'll ever do, I'll do for you!"
+        },
+        {
+          "speaker": "performer",
+          "text": "And I go: la la la la la — she's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "No, no, you're early. We haven't reached the chorus!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Fire in the ice!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Who put my soup in the ice cellar?"
+        },
+        {
+          "speaker": "performer",
+          "text": "Banging on the head drum!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Shaking like a mad bull!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Swaying to the band!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Moving like a hammer!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's a miracle, man!"
+        },
+        {
+          "speaker": "performer",
+          "text": "A miracle GIRL, you goose!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Loving is the ocean!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Kissing is the wet sand!"
+        },
+        {
+          "speaker": "performer",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "performer",
+          "text": "Well, now everyone is looking. What was the question?"
+        }
+      ]
+    }
+  ]
+}
