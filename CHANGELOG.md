@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 October 2026):** Virtual Player staffing checks now use the same protected Quarry/Barracks/Prison minimum coverage as automatic rebalancing, preventing repeated unfulfillable staffing commands from starving later food actions. Silo construction responds to food storage at 90% or more capacity, may expand beyond the first Silo, and never starts a second Silo while one is unfinished. Negative food flow alone no longer triggers Silo building. Added targeted staffing and silo regressions; the seeded 90-day producer gate still requires CI verification.
+
 - **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.
 - **Terrain (merged #73):** Seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
