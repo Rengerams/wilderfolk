@@ -202,7 +202,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const humanFleeMult = getHumanFleeSpeedMultiplier(state);
-  const spotlightGather = state.spotlightLore?.phase === 'gathering' ? state.spotlightLore : null;
+  const spotlightGather = state.spotlightLore ?? null;
   const spotlightActorIds = spotlightGather
     ? new Set([spotlightGather.heroineId, ...spotlightGather.performerIds])
     : null;

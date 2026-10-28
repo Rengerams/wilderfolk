@@ -9,6 +9,7 @@ import { logEvent } from './eventLog';
 const SPOTLIGHT_COOLDOWN_DAYS = 90;
 const SPOTLIGHT_GATHER_TIMEOUT_TICKS = 65;
 const SPOTLIGHT_READY_TIMEOUT_TICKS = 150;
+const SPOTLIGHT_ARRIVAL_DISTANCE = 11;
 const SPOTLIGHT_MIN_CHORUS = 6;
 const SPOTLIGHT_MAX_CHORUS = 10;
 
@@ -17,7 +18,7 @@ function eligibleGirl(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
     entity.gender === 'female' && entity.isJuvenile && entity.age >= 12 && entity.age < 18 &&
     !entity.prisonBuildingId && !entity.raidDeploymentId && !entity.indoorBuildingId &&
-    !entity.departedAlive && !entity.huntTargetId;
+    !entity.departedAlive && !entity.warCaptive && !entity.huntTargetId;
 }
 
 function eligibleChorus(entity: Entity): boolean {
@@ -86,7 +87,6 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
 
 /** Bounded lookup, not another human/AI movement implementation. */
 export function getSpotlightGatherTarget(scene: SpotlightLoreState, humanId: number): { x: number; y: number } | null {
-  if (scene.phase !== 'gathering') return null;
   if (scene.heroineId === humanId) return { x: scene.gatherX, y: scene.gatherY };
   return scene.slots.find((slot) => slot.humanId === humanId) ?? null;
 }
@@ -96,15 +96,9 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
   const scene = state.spotlightLore;
   if (!scene) return;
   const heroine = entityById.get(scene.heroineId);
-  if (!heroine || !eligibleGirl(heroine) || state.electionCeremony ||
+  if (!heroine || !eligibleGirl(heroine) || state.electionCeremony || state.festival?.active ||
       state.pendingRaidEvents.length > 0 || state.pendingOutgoingRaidEvents.length > 0) {
     finishSpotlightLore(state, scene.id, 'aborted');
-    return;
-  }
-  if (scene.phase === 'ready') {
-    if (state.tick - (scene.readyAtTick ?? state.tick) > SPOTLIGHT_READY_TIMEOUT_TICKS) {
-      finishSpotlightLore(state, scene.id, 'aborted');
-    }
     return;
   }
   let arrived = 0;
@@ -114,9 +108,16 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
       finishSpotlightLore(state, scene.id, 'aborted');
       return;
     }
-    if (Math.hypot(actor.x - slot.x, actor.y - slot.y) <= 11) arrived++;
+    if (Math.hypot(actor.x - slot.x, actor.y - slot.y) <= SPOTLIGHT_ARRIVAL_DISTANCE) arrived++;
   }
-  if (arrived === scene.slots.length) {
+  if (scene.phase === 'ready') {
+    if (state.tick - (scene.readyAtTick ?? state.tick) > SPOTLIGHT_READY_TIMEOUT_TICKS) {
+      finishSpotlightLore(state, scene.id, 'aborted');
+    }
+    return;
+  }
+  if (arrived === scene.slots.length &&
+      Math.hypot(heroine.x - scene.gatherX, heroine.y - scene.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE) {
     scene.phase = 'ready';
     scene.readyAtTick = state.tick;
   } else if (state.tick - scene.startedAtTick > SPOTLIGHT_GATHER_TIMEOUT_TICKS) {
@@ -156,13 +157,13 @@ export function normalizeSpotlightLoreOnLoad(state: WorldState): void {
     s.performerIds.length <= SPOTLIGHT_MAX_CHORUS &&
     s.performerIds.every((id) => Number.isSafeInteger(id) && id > 0) &&
     new Set(s.performerIds).size === s.performerIds.length;
-  const valid = typeof s.id === 'string' && s.id.length <= 60 &&
+  const valid = typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 60 &&
     (s.phase === 'gathering' || s.phase === 'ready') &&
     Number.isSafeInteger(s.heroineId) && s.heroineId > 0 &&
     Number.isSafeInteger(s.startedAtTick) && s.startedAtTick >= 0 && s.startedAtTick <= state.tick &&
     finite(s.gatherX) && finite(s.gatherY) &&
     s.gatherX >= 0 && s.gatherX <= state.width &&
-    s.gatherY >= 0 && s.gatherY <= state.height && idsValid &&
+    s.gatherY >= 0 && s.gatherY <= state.height && idsValid && !s.performerIds.includes(s.heroineId) &&
     Array.isArray(s.slots) && s.slots.length === s.performerIds.length &&
     s.slots.every((v) => v && Number.isSafeInteger(v.humanId) &&
       s.performerIds.includes(v.humanId) && finite(v.x) && finite(v.y) &&
@@ -170,5 +171,15 @@ export function normalizeSpotlightLoreOnLoad(state: WorldState): void {
     new Set(s.slots.map((v) => v.humanId)).size === s.slots.length &&
     (s.phase !== 'ready' || (Number.isSafeInteger(s.readyAtTick) &&
       s.readyAtTick! >= s.startedAtTick && s.readyAtTick! <= state.tick));
-  if (!valid) state.spotlightLore = null;
+  if (!valid) {
+    state.spotlightLore = null;
+    return;
+  }
+  const participants = new Set([s.heroineId, ...s.performerIds]);
+  const actors = new Map(state.entities.filter((entity) => participants.has(entity.id)).map((entity) => [entity.id, entity]));
+  const heroine = actors.get(s.heroineId);
+  if (!heroine || !eligibleGirl(heroine) || s.performerIds.some((id) => {
+    const actor = actors.get(id);
+    return !actor || !eligibleChorus(actor);
+  })) state.spotlightLore = null;
 }

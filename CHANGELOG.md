@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
+
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
 - **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.

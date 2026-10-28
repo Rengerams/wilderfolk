@@ -24,11 +24,11 @@ function makeFixture() {
   const x = anchor.x;
   const y = anchor.y;
   const girl = createEntity(EntityType.Human, x, y, 100001, undefined, true, {
-    name: 'Ada', gender: 'female', ageYears: 14,
+    name: 'Ada', gender: 'female', ageYears: 14, colonyDay: 120,
   });
   const adults = Array.from({ length: 8 }, (_, i) => createEntity(
     EntityType.Human, x + (i - 4) * 4, y + 14, 100002 + i, undefined, false,
-    { name: `Villager${i}`, gender: 'male', ageYears: 28 },
+    { name: `Villager${i}`, gender: 'male', ageYears: 28, colonyDay: 120 },
   ));
   world.entities = [girl, ...adults];
   world.spotlightLore = null;
@@ -125,6 +125,41 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(world.spotlightLore?.phase).toBe('ready');
   });
 
+  it('waits for the heroine to return to the stage before starting', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    const scene = readyScene(world, girl, adults);
+    scene.phase = 'gathering';
+    world.spotlightLore = scene;
+    for (const slot of scene.slots) {
+      const actor = adults.find((human) => human.id === slot.humanId)!;
+      actor.x = slot.x;
+      actor.y = slot.y;
+    }
+    girl.x += 50;
+    const index = new Map(world.entities.map((human) => [human.id, human]));
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore?.phase).toBe('gathering');
+    girl.x = scene.gatherX;
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore?.phase).toBe('ready');
+  });
+
+  it('aborts a ready performance when a singer dies or a festival starts', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    const index = new Map(world.entities.map((human) => [human.id, human]));
+    world.spotlightLore = readyScene(world, girl, adults);
+    adults[0].alive = false;
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore).toBeNull();
+    adults[0].alive = true;
+    world.spotlightLore = readyScene(world, girl, adults);
+    world.festival = { ...world.festival, active: true } as NonNullable<typeof world.festival>;
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore).toBeNull();
+  });
+
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
     const { world, girl, adults } = makeFixture();
     world.tick = 72 * 200;
@@ -144,7 +179,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
 });
 
 describe('spotlight lore — ordinary human movement must not steal actors', () => {
-  it('keeps a weekend home-preferring settler walking toward the spotlight, not their house', () => {
+  it.each(['gathering', 'ready'] as const)('keeps a %s actor walking toward the spotlight, not their house', (phase) => {
     // Run the real game tick. A saved scene is explicitly active; no rare roll is needed.
     const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720, skipTerrain: true });
     const girl = createEntity(EntityType.Human, 480, 350, 100001, undefined, true, {
@@ -194,11 +229,11 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     world.spotlightLore = {
       id: 'test-commute-priority', heroineId: girl.id,
       performerIds: adults.map((person) => person.id),
-      phase: 'gathering', startedAtTick: world.tick,
+      phase, startedAtTick: world.tick, readyAtTick: phase === 'ready' ? world.tick : undefined,
       gatherX: girl.x, gatherY: girl.y, slots,
     };
     gameTick(world);
-    expect(world.spotlightLore?.phase).toBe('gathering');
+    expect(world.spotlightLore?.phase).toBe(phase);
     expect(actor.x).toBeLessThan(beforeX);
     expect(actor.indoorBuildingId).toBeUndefined();
   });
@@ -276,6 +311,21 @@ describe('spotlight lore — saved state and worker mirrors', () => {
     world.spotlightLore!.performerIds.pop();
     applySimPrep(world, snapshot);
     expect(world.spotlightLore).toEqual(prior);
+  });
+
+  it('rejects saved scenes with missing, dead or overlapping participants before presentation', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    const scene = readyScene(world, girl, adults);
+    for (const heroineId of [999999, adults[0].id]) {
+      world.spotlightLore = { ...scene, heroineId };
+      normalizeSpotlightLoreOnLoad(world);
+      expect(world.spotlightLore).toBeNull();
+    }
+    adults[0].alive = false;
+    world.spotlightLore = structuredClone(scene);
+    normalizeSpotlightLoreOnLoad(world);
+    expect(world.spotlightLore).toBeNull();
   });
 
   it('normalizes missing and corrupt data safely; roundtrips a valid active scene', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { Camera, SpotlightLoreState, WorldState } from '../game/gameTypes';
 import { resolveEntity, worldToScreen } from '../game/viewState';
 import { formatChatLine } from '../game/humanChat';
@@ -56,9 +56,7 @@ export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRe
   const [lineIndex, setLineIndex] = useState(-1);
   const completed = useRef(false);
   const finishRef = useRef(onFinish);
-  finishRef.current = onFinish;
   const getCameraRef = useRef(getCamera);
-  getCameraRef.current = getCamera;
   const radialRef = useRef<HTMLDivElement | null>(null);
   const ringRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -85,14 +83,16 @@ export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRe
   const girl = resolveEntity(world, scene.heroineId);
   const speakerId = scene.performerIds[Math.max(0, lineIndex) % scene.performerIds.length];
   const speaker = resolveEntity(world, speakerId ?? null);
-  // A paused simulation still eases the renderer camera on every animation frame.
-  // Keep the stage's screen-space anchors in that exact live camera projection,
-  // without committing 60 React updates/s or searching world entities per frame.
-  actorsRef.current = {
-    girl: girl ? { x: girl.x, y: girl.y } : null,
-    speaker: speaker ? { x: speaker.x, y: speaker.y } : null,
-  };
-  useEffect(() => {
+  // Publish committed actors and callbacks before projecting the stage.
+  useLayoutEffect(() => {
+    finishRef.current = onFinish;
+    getCameraRef.current = getCamera;
+    actorsRef.current = {
+      girl: girl ? { x: girl.x, y: girl.y } : null,
+      speaker: speaker ? { x: speaker.x, y: speaker.y } : null,
+    };
+  });
+  useLayoutEffect(() => {
     let frame = 0;
     const sync = () => {
       const camera = getCameraRef.current();
@@ -121,20 +121,9 @@ export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRe
     };
     sync();
     return () => window.cancelAnimationFrame(frame);
-  }, [canvasRef, scene.id]);
+  }, [canvasRef, scene.id, lineIndex]);
 
-  const camera = getCameraRef.current();
-  const cw = canvasRef.current?.clientWidth ?? 800;
-  const ch = canvasRef.current?.clientHeight ?? 600;
-  const [girlX, girlY] = girl
-    ? worldToScreen(girl.x, girl.y, camera, cw, ch)
-    : [cw / 2, ch / 2];
-  const [speakerX, speakerY] = speaker
-    ? worldToScreen(speaker.x, speaker.y, camera, cw, ch)
-    : [cw / 2, ch / 2];
   const line = lineIndex >= 0 ? LINES[lineIndex] : null;
-  const visualX = Math.min(cw - 160, Math.max(160, speakerX));
-  const visualY = Math.max(85, Math.min(ch - 140, speakerY - 82));
 
   const skip = () => {
     if (completed.current) return;
@@ -148,14 +137,10 @@ export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRe
         ref={radialRef}
         className="absolute inset-0 transition-opacity duration-700"
         aria-hidden="true"
-        style={{
-          background: `radial-gradient(ellipse 180px 145px at ${girlX}px ${girlY - 32}px, transparent 0%, rgba(12,11,8,0.08) 40%, rgba(12,11,8,0.5) 100%)`,
-        }}
       />
       <div
         ref={ringRef}
         className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
-        style={{ left: girlX, top: girlY - 18 }}
         aria-hidden="true"
       />
       <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-lg border border-amber-500/70 bg-stone-950/90 px-5 py-2 text-center shadow-xl">
@@ -171,7 +156,6 @@ export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRe
           <div
             ref={bubbleRef}
             className="absolute z-10 w-[min(20rem,75%)] -translate-x-1/2 rounded-xl border border-stone-700 bg-amber-50 px-4 py-3 text-center text-sm text-stone-900 shadow-2xl"
-            style={{ left: visualX, top: visualY - 30 }}
             role="status"
             aria-live="polite"
           >

@@ -16,9 +16,9 @@ Occasionally, an eligible female juvenile (12–17 years old) becomes the accide
 | Gathering progression, clean abort, one-time Chronicle event | `src/game/spotlightLore.ts` | `tickSpotlightGathering`, `finishSpotlightLore` |
 | Physical movement | `src/game/humanTick.ts` | `tickHumans` remains **the only** simulated x/y and velocity integrator |
 | Scheduling | `src/game/tickLayerRealtime.ts` | Calls start before `tickHumans` and checks arrival after it |
-| Saved model | `src/game/gameTypes.ts`, `src/game/saveSchema.ts`, `src/game/saveLoad.ts` | Optional `WorldState.spotlightLore` + `spotlightLoreLastDay`; loads validate and normalize |
+| Saved model | `src/game/gameTypes.ts`, `src/game/saveSchema.ts`, `src/game/saveLoad.ts` | Optional `WorldState.spotlightLore` + `spotlightLoreLastDay`; loads validate shape and participant eligibility |
 | Worker/fallback parity | `src/game/simWorker/simPrep.ts`, `src/game/simBuffers/simDelta.ts`, `src/game/simWorker/commands.ts` | Delta + deep rollback projection and idempotent typed finish command |
-| Camera, pause and session lifecycle | `src/App.tsx` | Existing `GameLoop` camera focus and `mutateWorld` pause; captures previous controls |
+| Camera, pause and session lifecycle | `src/App.tsx` | Existing `GameLoop` camera focus and `mutateWorld` pause; captures previous controls; session revision forces recapture and remount on same-scene reload |
 | Caption timing and on-map presentation | `src/components/SpotlightLoreOverlay.tsx` | React wall-clock timeouts and position conversion; **does not** write simulation chat state |
 | Old view snapshot consumption | `src/components/spotlightReturnState.ts` | `takeSpotlightReturn` consumes once; `discardSpotlightReturn` invalidates on session replacement |
 
@@ -32,7 +32,7 @@ No active scene
       └─ eligible girl + 6–10 nearby adult players + walkable distinct slots
           └─ scene.phase = gathering, scene.startedAtTick = world.tick
               ├─ danger / invalid participant / timeout ⇒ abort + clear scene
-              └─ EVERY selected speaker reaches slot ⇒ scene.phase = ready
+              └─ EVERY selected speaker and the heroine reach their slots ⇒ scene.phase = ready
                   └─ App focuses camera and pauses GameLoop simulation ticks
                       └─ independently timed screen-space dialog captions
                           ├─ user Skip ⇒ finishSpotlightLore(skipped)
@@ -41,7 +41,7 @@ No active scene
                                   └─ restore prior camera/favorite/pause/speed ONCE
 ```
 
-The girl stays at her actual in-world location. The performer IDs and target coordinates live in one small saved scene record. Only the <11 world-unit arrival threshold and original movement integrator decide who arrives. The current branch waits for **every selected performer**, not merely the minimum of six. At most 65 simulation ticks are allowed for gathering, after which it aborts; the ready phase has a bounded 150-tick headless fallback. During the UI performance, game ticks pause and captions advance by **real wall-clock time**.
+The girl stays at her actual in-world location. The performer IDs and target coordinates live in one small saved scene record. Only the <=11 world-unit arrival threshold and original movement integrator decide who arrives. The current branch waits for **every selected performer and the heroine**, not merely the minimum of six. Stage targets remain active through the ready phase so catch-up ticks cannot send participants home before the UI pauses. Eligibility is checked in both phases; a new festival aborts the scene. At most 65 simulation ticks are allowed for gathering, after which it aborts; the ready phase has a bounded 150-tick headless fallback. During the UI performance, game ticks pause and captions advance by **real wall-clock time**.
 
 The stage's current script contains 31 sequential caption lines. Durations are 3.0–5.3 real seconds per line with opening silence (2.4 s) and a closing applause (2.8 s). It includes recognizable lines from the owner-provided lyrics interspersed with original villager jokes. There is **no music playback or new audio asset**.
 

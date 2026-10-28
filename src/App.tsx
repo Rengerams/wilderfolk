@@ -296,6 +296,7 @@ export default function App() {
     catalogRef,
     loopRef,
     replaceSession,
+    sessionRevision,
     viewRef,
     worldRef,
   } = useGameSession({
@@ -495,7 +496,7 @@ export default function App() {
     if (scene.phase === 'ready' && !loop.getWorld().paused) {
       loop.mutateWorld((w) => { w.paused = true; });
     }
-  }, [gameplayActive, world.tick, world.spotlightLore?.id, world.spotlightLore?.phase, loopRef]);
+  }, [gameplayActive, sessionRevision, world.tick, world.width, world.height, world.spotlightLore, world.spotlightLore?.phase, loopRef]);
 
   const finishSpotlight = useCallback((sceneId: string, reason: 'complete' | 'skipped') => {
     if (loopRef.current?.getWorld().spotlightLore?.id !== sceneId) return;
@@ -784,7 +785,7 @@ export default function App() {
         rect?.width ?? w.width, rect?.height ?? w.height,
       ),
     });
-  }, [world.tick, showIntro, showMapSetup, loopRef, catalogRef]);
+  }, [world.tick, world.spotlightLore, showIntro, showMapSetup, loopRef, catalogRef]);
 
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
@@ -1465,7 +1466,7 @@ export default function App() {
           />
           {gameplayActive && world.spotlightLore && (
             <SpotlightLoreOverlay
-              key={world.spotlightLore.id}
+              key={`${sessionRevision}:${world.spotlightLore.id}`}
               scene={world.spotlightLore}
               world={world}
               getCamera={() => loopRef.current?.getView().camera ?? view.camera}

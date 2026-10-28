@@ -12,6 +12,16 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight starts before the heroine returns](../bug_report/2026-10-28-spotlight-heroine-not-arrived.md):** Resolved; Require the heroine within the same 11-unit arrival radius.
+
+**2026-10-28 — [Ready spotlight ignores invalid participants](../bug_report/2026-10-28-spotlight-ready-participant-validation.md):** Resolved; Check participant eligibility before the ready return and abort for an active festival.
+
+**2026-10-28 — [Saved spotlight accepts invalid participant references](../bug_report/2026-10-28-spotlight-saved-participant-references.md):** Resolved; Validate references and eligibility in one population scan; reject empty IDs and overlapping roles.
+
+**2026-10-28 — [Ready spotlight loses movement priority before pause](../bug_report/2026-10-28-spotlight-ready-movement-handoff.md):** Resolved; Keep stage targets active through ready; preserve emergency priority and the headless timeout.
+
+**2026-10-28 — [Same-scene reload retains spotlight presentation state](../bug_report/2026-10-28-spotlight-same-scene-reload.md):** Investigating; Increment a presentation revision in replaceSession; include it in the effect dependencies and overlay key.
+
 **2026-10-28 — [Established affair steals spotlight gathering movement](../bug_report/2026-10-28-spotlight-established-affair-overrides-movement.md):** Fixed on PR #91: ongoing mutual affairs cannot overwrite the stage-bound actor's velocity; a real-tick opposite-direction tryst regression was added. CI/browser validation pending.
 
 **2026-10-28 — [Spotlight real-tick test fixture retained stale entity index](../bug_report/2026-10-28-spotlight-test-fixture-stale-entity-index.md):** Test-only defect on PR #91: a replaced settler population had the previous colony's ID/type cache, causing false scene abortion. Fixture now rebuilds indexes; CI confirmation pending.

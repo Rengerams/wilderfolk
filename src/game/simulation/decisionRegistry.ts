@@ -200,7 +200,7 @@ export const SIMULATION_DECISIONS = {
   spotlightLore: {
     owner: 'spotlightLore.ts — maybeStartSpotlightLore, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
     cadence: 'realtime',
-    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend-day selection, bounded gathering and typed finish command; UI-only wall-clock presentation after pause',
+    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend-day selection, all-actor arrival and eligibility through ready, saved participant validation and typed finish; UI-only timing scoped to session revision',
     writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)'],
     scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads gathering target; simWorker/commands.ts delegates finishSpotlightLore',
     testFile: 'tests/spotlightLore.test.ts',
