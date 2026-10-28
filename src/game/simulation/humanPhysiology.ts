@@ -1,5 +1,7 @@
 import type { Entity, HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
+import { evaluateTraitInfluence } from '../personality/traitEvaluation';
+import type { TraitContext } from '../personality/traitEffectCatalog';
 
 export const HUMAN_NEEDS = {
   NUTRITION_BASE_LOSS_PER_SIM_HOUR: 1.2,
@@ -25,6 +27,9 @@ export const HUMAN_NEEDS = {
   NUTRITION_FAMINE_BITE_THRESHOLD: 30,
   STARVATION_FATAL_SIM_HOURS: 48,
 } as const;
+
+/** The catalog's labor context prices work drain: endurance traits divide it, heavy labor raises it. */
+const LABOR_CONTEXT = { kind: 'physiology', activity: 'labor' } as const satisfies TraitContext;
 
 const bounded = (n: number, fallback: number): number =>
   Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : fallback;
@@ -82,6 +87,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
   if (staminaRate < 0) {
+    // The labor context prices work only; walking keeps its base drain.
+    if (obs.working) staminaRate /= evaluateTraitInfluence(entity, LABOR_CONTEXT).factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
     if (obs.hasHospital) staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_DRAIN_MULTIPLIER;
   }

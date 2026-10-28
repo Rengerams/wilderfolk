@@ -2,14 +2,33 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
+
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
-
-
-- **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
 
 - **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
 
 - **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
+
+- **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
+
+- **Settler DNA at work (28 October 2026):** Genes now shape real production crews, construction, school learning, research, apprenticeship training, militia defence, hunting range and flight from predators. Settlers saved without DNA gain stable traits on load.
+
+- **Fixed:** Hardy now slows a settler's own work drain, so endurance reaches the people the inspector shows, and Greenthumb, Nurturing and Fierce describe effects the game performs instead of the captive-only and maturation promises they never kept.
+
+- **Changed:** One bounded catalog factor now prices every migrated trait effect; the old Resourceful crew bonus, Chivalrous militia share, Insightful research bonus and captive Hardy, Fierce and Greenthumb energy terms are retired.
+
+- **Fixed:** Brave's hunt reach and closing speed and Timid's flight now come from one bounded factor, so both still change real hunts and pursuits after their standalone multipliers were retired.
+
+- **Fixed:** A crew slot naming a settler who is gone no longer halves a building's trait bonus, and a settler saved in Moon Howler form now receives its DNA on load.
+
+- **Fixed:** Endurance DNA now prices a worked shift only, so Hardy and Graceful leave ordinary walking on its documented drain.
+
+- **Fixed:** A builder raising a house, wall, well or silo now earns the construction trait bonus; a crew slot naming a departed settler no longer prices a dead body's DNA, and saved DNA can no longer hold two mutually exclusive traits.
+
+- **Fixed:** A work-shift skill credit now reads the caller's worker index only, so a stale crew slot costs no population-wide search.
+
+- **Changed:** A dedicated gate now runs the full 360-day simulation for changes to game rules, because the standard gate stops at the unit tier.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
 

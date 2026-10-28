@@ -1,7 +1,7 @@
 # Phase A trait evaluation fails TypeScript CI
 
 - Bug: the first personality-phase implementation failed the compiler gate before tests could run.
-- Status: investigating
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-10-28
 - Version/build: 0.6.5.1, unmerged Phase A commit `6298e0d`
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-28 — investigating: the initial run failed; type fixes committed, passing rerun not yet confirmed.
+- 2026-10-28 — resolved: the type gate passes on branch `codebot-tasks` at the current head.
 
 ## Observed behavior
 `npm run test:standard` stopped at TypeScript compilation with TS7053 in trait evaluation and two TS2352 errors in invalid-trait test fixtures. Build was skipped.
@@ -38,4 +39,4 @@ None: no fields, serializer or worker transport changes.
 
 ## Verification result
 - FAIL (initial): `npm run test:standard`, CI run 40674771650, TS7053/TS2352.
-- NOT RUN (completed pass): a successful full rerun for the final PR head must be confirmed before closing this report.
+- PASS: `npm run test:types` and `npm run build` on branch `codebot-tasks` (no TS7053/TS2352).

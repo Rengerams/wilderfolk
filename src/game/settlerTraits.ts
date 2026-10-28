@@ -1,11 +1,12 @@
 /**
  * Settler personality traits — a trait catalog that makes each villager
  * feel like an individual. Traits are assigned at creation (1–3 per settler),
- * inherited partly from parents, and read as `traitMultiplier` by the tick
- * bodies that need them (humanTick, humanNeeds, humanRelationships, hunting).
+ * inherited partly from parents, and read as `traitMultiplier` by the owners
+ * still on it (conception, social banter, mercy); the rest reads the
+ * personality evaluator.
  */
 import type { Entity, SettlerTrait } from './gameTypes';
-import { getSimRng } from './simRng';
+import { createSeededRng, getSimRng, type RngStream } from './simRng';
 
 export type { SettlerTrait };
 
@@ -22,7 +23,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'hardy',
     label: 'Hardy',
     emoji: '💪',
-    description: 'Loses energy 15% slower — works the frontier longer.',
+    description: 'Tires more slowly on hard work — endures the longest shifts.',
   },
   brave: {
     id: 'brave',
@@ -46,7 +47,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'greenthumb',
     label: 'Greenthumb',
     emoji: '🌿',
-    description: 'Farms yield more and winters cost less.',
+    description: 'A patient hand with crops — farms yield more.',
   },
   lucky: {
     id: 'lucky',
@@ -58,7 +59,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'nurturing',
     label: 'Nurturing',
     emoji: '💗',
-    description: 'Children mature faster while they live in the village.',
+    description: 'Soft-hearted — speaks for mercy when a captive is judged.',
   },
   insightful: {
     id: 'insightful',
@@ -100,7 +101,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'fierce',
     label: 'Fierce',
     emoji: '🔥',
-    description: 'Passionate and determined — burns energy slower on the job.',
+    description: 'Hot-blooded — presses for severity over a captive and quarrels easily.',
   },
 };
 
@@ -166,8 +167,17 @@ function conflictsWith(trait: SettlerTrait, existing: readonly SettlerTrait[]): 
   return false;
 }
 
-/** Roll a single random trait weighted by gender that doesn't conflict. */
-function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): SettlerTrait {
+/**
+ * Roll a single random trait weighted by gender that doesn't conflict.
+ *
+ * `stream` is the injected-RNG seam: the live allocation path passes nothing and draws the colony's
+ * `settlerTraits` stream, while save-load backfill passes its own derived stream.
+ */
+function pickTrait(
+  existing: SettlerTrait[],
+  gender?: 'male' | 'female',
+  stream?: RngStream,
+): SettlerTrait {
   const pool: SettlerTrait[] = [];
   for (let i = 0; i < TRAIT_POOL.length; i++) {
     const t = TRAIT_POOL[i];
@@ -184,7 +194,7 @@ function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): Settle
   const weights = pool.map((t) => (leaningSet.has(t) ? GENDER_BIAS : BASE_WEIGHT));
   const total = weights.reduce((s, w) => s + w, 0);
 
-  let roll = getSimRng('settlerTraits')() * total;
+  let roll = (stream ?? getSimRng('settlerTraits'))() * total;
   for (let i = 0; i < pool.length; i++) {
     roll -= weights[i];
     if (roll <= 0) return pool[i];
@@ -193,16 +203,55 @@ function pickTrait(existing: SettlerTrait[], gender?: 'male' | 'female'): Settle
   return pool[pool.length - 1];
 }
 
-/** Assign random traits for a new settler (gender-weighted and non-conflicting). */
+/**
+ * Assign random traits for a new settler (gender-weighted and non-conflicting).
+ *
+ * One allocation rule for both paths: `stream` is the only difference between a live roll and the
+ * legacy save-load backfill, which injects a stream of its own so it cannot consume live draws.
+ */
 export function rollSettlerTraits(
   existing: SettlerTrait[] = [],
   gender?: 'male' | 'female',
+  stream?: RngStream,
 ): SettlerTrait[] {
   const traits = [...existing];
   while (traits.length < TRAIT_COUNT) {
-    traits.push(pickTrait(traits, gender));
+    traits.push(pickTrait(traits, gender, stream));
   }
   return traits;
+}
+
+/**
+ * Canonical baseline DNA for a settler saved before traits existed.
+ *
+ * Derived from the colony seed and the citizen's own id, so the fill is stable for a save file, uses
+ * the canonical allocation rule above, and never draws from — or perturbs — a live RNG stream.
+ */
+export function rollLegacySettlerTraits(
+  colonySeed: number,
+  entityId: number,
+  gender?: 'male' | 'female',
+): SettlerTrait[] {
+  return rollSettlerTraits([], gender, createSeededRng(colonySeed, `legacySettlerTraits:${entityId}`));
+}
+
+/**
+ * The recognized traits a saved array may keep, in the order it wrote them.
+ *
+ * Non-arrays, unknown ids, duplicates, mutually exclusive pairs and anything past the three
+ * canonical slots are dropped; an existing nonempty valid set is never extended.
+ */
+export function validSettlerTraits(saved: unknown): SettlerTrait[] {
+  if (!Array.isArray(saved)) return [];
+  const kept: SettlerTrait[] = [];
+  for (const value of saved) {
+    if (typeof value !== 'string' || !TRAIT_POOL.includes(value as SettlerTrait)) continue;
+    const trait = value as SettlerTrait;
+    if (kept.includes(trait) || conflictsWith(trait, kept)) continue;
+    if (kept.length >= TRAIT_COUNT) break;
+    kept.push(trait);
+  }
+  return kept;
 }
 
 /** Per-trait chance a parent passes personality to a child. */

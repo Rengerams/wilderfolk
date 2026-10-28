@@ -22,7 +22,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY, isProductionTick } from '../src/game/dayCycle';
 import { tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { readSkill, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
+import { readSkill, rewardBuildingWork, WORK_SKILL_BUILDING_TYPES, WORK_SKILL_PER_SHIFT } from '../src/game/skills';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
 
 const FIXTURE_SEED = 20_261_009;
@@ -166,5 +166,27 @@ describe('a worked shift teaches its trade', () => {
         `${building} staffs a ${String(job)} but its shift pays no trade skill`,
       ).toBe(true);
     }
+  });
+});
+
+describe('a supplied crew index is authoritative for the shift credit', () => {
+  it('leaves a worker the index does not name without a credit, never scanning the world', () => {
+    const { state, worker } = staffedWorld(BuildingType.LumberMill, JobType.Lumberjack);
+    const site = state.buildings.find((b) => b.id === SITE_ID)!;
+    const before = skillIn(state, worker.id, JobType.Lumberjack);
+
+    // The worker exists in the world but not in the index: that is a stale crew slot.
+    rewardBuildingWork(state, site, 1, WORK_SKILL_PER_SHIFT, new Map());
+
+    expect(skillIn(state, worker.id, JobType.Lumberjack)).toBe(before);
+  });
+
+  it('credits the same worker through an index that names them', () => {
+    const { state, worker } = staffedWorld(BuildingType.LumberMill, JobType.Lumberjack);
+    const site = state.buildings.find((b) => b.id === SITE_ID)!;
+
+    rewardBuildingWork(state, site, 1, WORK_SKILL_PER_SHIFT, new Map([[worker.id, worker]]));
+
+    expect(skillIn(state, worker.id, JobType.Lumberjack)).toBeCloseTo(WORK_SKILL_PER_SHIFT, 6);
   });
 });

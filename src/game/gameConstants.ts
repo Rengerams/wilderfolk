@@ -38,7 +38,7 @@ export const Time = {
 
 // Convenience top-level exports for common calendar math
 export const HOURS_PER_DAY = Time.HOURS_PER_DAY;
-const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
+export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 
 
 export const Human = {

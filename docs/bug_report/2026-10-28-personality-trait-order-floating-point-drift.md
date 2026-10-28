@@ -1,7 +1,7 @@
 # Trait evaluation depends on DNA trait order at floating-point precision
 
 - Bug: the pure trait evaluator produced slightly different numeric tendency values for the same three traits in different orders.
-- Status: investigating
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-10-28
 - Version/build: 0.6.5.1, unmerged Phase A PR #85
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-28 — investigating: code and six-permutation regression committed; completed verification pending.
+- 2026-10-28 — resolved: the canonical-order accumulation and its permutation regression pass at the current head.
 
 ## Observed behavior
 Three trait drawbacks at `social/reconciliation` returned the same factor but two slightly different tendencies: `-0.1935483870967742` versus `-0.19354838709677422`. This made a deep equality invariant fail even though the actual trait set was identical.
@@ -38,4 +39,4 @@ None. Existing traits are read but neither reordered nor persisted differently.
 
 ## Verification result
 - FAIL (pre-fix): `npm run test:standard`, 2,580 passed, 1 failed and 2 skipped, run 40679466067.
-- NOT RUN (completed verification): updated tests and full CI on the final code commit.
+- PASS: `npx vitest run tests/personality.traitEvaluation.test.ts` on branch `codebot-tasks`.

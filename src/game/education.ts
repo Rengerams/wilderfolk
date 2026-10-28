@@ -10,12 +10,12 @@ import { formatCitizenName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
-/** School days before faster maturation kicks in. */
-export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
 /** School days for basic graduation perks. */
 export const SCHOOL_GRADUATION_DAYS = 120;
 /** School days for the intermediate education tier. */
@@ -37,6 +37,10 @@ export const SCHOOL_MAX_CHILDREN = 20;
 export const SCHOOL_START_HOUR = 9;
 export const SCHOOL_END_HOUR = 15;
 export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
+
+/** The catalog contexts this owner reads — one shared object each, never rebuilt per pupil. */
+const LEARNING_CONTEXT = { kind: 'school', activity: 'learning' } as const satisfies TraitContext;
+const RESEARCH_CONTEXT = { kind: 'school', activity: 'research' } as const satisfies TraitContext;
 
 export function isSchoolTime(tick: number, hourOfDay: number): boolean {
   return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
@@ -373,26 +377,11 @@ export function describeSchoolingSummary(
   return { headline, lines, notes };
 }
 
-/** Maturation multiplier while a child is actively attending a staffed school. */
-function getSchoolAgeMultiplier(
-  child: Entity,
-  buildings: Building[],
-  nurturingCount = 0,
-): number {
-  if (child.type !== EntityType.Human || !child.isJuvenile || findStaffedSchools(buildings).length === 0) {
-    return 1;
-  }
-  const days = child.schoolDays ?? 0;
-  if (days < SCHOOL_MIN_DAYS_FOR_BOOST) return 1;
-  const schoolBoost = Math.min(1, days / SCHOOL_FULL_EDUCATION_DAYS);
-  // Nurturing settlers in the village help every child mature a bit faster.
-  const nurtureBoost = Math.min(0.2, nurturingCount * 0.04);
-  return 1 + schoolBoost + nurtureBoost;
-}
-
 export function creditChildSchoolDay(child: Entity): void {
   const ticks = child.schoolTicksToday ?? 0;
-  if (ticks >= SCHOOL_DAY_MIN_TICKS) {
+  // The catalog's learning context sets how much class time this pupil needs for one school day.
+  const requiredTicks = SCHOOL_DAY_MIN_TICKS / evaluateTraitInfluence(child, LEARNING_CONTEXT).factor;
+  if (ticks >= requiredTicks) {
     child.schoolDays = (child.schoolDays ?? 0) + 1;
   }
   child.schoolTicksToday = 0;
@@ -463,11 +452,17 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   logEvent(state, 'event', detail, entity.name);
 }
 
-/** Up to +15% research speed when most adults attended school; insightful settlers add a bit more. */
+/**
+ * Up to +15% research speed when most adults attended school, priced once by the collective DNA.
+ *
+ * The education share is this owner's baseline; the catalog's `school`/research factor is averaged
+ * over the same eligible adults and multiplies it, so an aptitude bonus cannot be counted twice.
+ */
 export function getEducationResearchMultiplier(humans: Entity[]): number {
   const adults = humans.filter((h) => h.alive && isPlayerHuman(h) && !h.isJuvenile);
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
-  const insightful = adults.filter((h) => h.traits?.includes('insightful')).length;
-  return 1 + (educated / adults.length) * 0.15 + Math.min(0.15, insightful * 0.03);
+  let dnaFactorSum = 0;
+  for (const adult of adults) dnaFactorSum += evaluateTraitInfluence(adult, RESEARCH_CONTEXT).factor;
+  return (1 + (educated / adults.length) * 0.15) * (dnaFactorSum / adults.length);
 }

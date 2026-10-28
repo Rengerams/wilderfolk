@@ -153,7 +153,7 @@ export function forEachInEntityGrid(
 }
 
 
-function queryIsNearRoad(
+export function queryIsNearRoad(
   roadAvoidance: RoadAvoidanceIndex | undefined,
   x: number,
   y: number,

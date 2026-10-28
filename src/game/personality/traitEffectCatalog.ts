@@ -5,7 +5,7 @@ export type TraitContext =
   | { readonly kind: 'work'; readonly job: JobType; readonly action: 'production' | 'construction' | 'training' }
   | { readonly kind: 'school'; readonly activity: 'learning' | 'teaching' | 'research' }
   | { readonly kind: 'physiology'; readonly activity: 'labor' | 'cold' | 'recovery' }
-  | { readonly kind: 'danger'; readonly activity: 'hunting' | 'defense' | 'escape' }
+  | { readonly kind: 'danger'; readonly activity: 'hunting' | 'pursuit' | 'defense' | 'escape' }
   | { readonly kind: 'social'; readonly activity: 'friendship' | 'conflict' | 'courtship' | 'reconciliation' }
   | { readonly kind: 'family'; readonly activity: 'care' | 'parenting' | 'bereavement' }
   | { readonly kind: 'romance'; readonly activity: 'attachment' | 'affair_approach' | 'remorse' }
@@ -22,25 +22,29 @@ export interface TraitEffect {
 export interface TraitEffects {
   readonly benefit: TraitEffect;
   readonly drawback: TraitEffect;
+  /** A further context in which the same trait applies. */
+  readonly also?: readonly TraitEffect[];
 }
 
 // A factor delta changes effectiveness; a tendency delta changes willingness.
-// Existing special bonuses remain with their current owners until integration.
 export const TRAIT_EFFECTS = {
   hardy: {
     benefit: { when: { kind: 'physiology', activity: 'labor' }, effectId: 'hardy.endurance', factorDelta: 0.06, tendencyDelta: 0.08 },
     drawback: { when: { kind: 'physiology', activity: 'recovery' }, effectId: 'hardy.restReluctance', factorDelta: -0.04, tendencyDelta: -0.08 },
   },
   brave: {
-    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'brave.huntingResolve', factorDelta: 0.05, tendencyDelta: 0.08 },
+    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'brave.huntingResolve', factorDelta: 0.06, tendencyDelta: 0.08 },
     drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'brave.lateRetreat', factorDelta: -0.05, tendencyDelta: -0.08 },
+    also: [
+      { when: { kind: 'danger', activity: 'pursuit' }, effectId: 'brave.relentlessPursuit', factorDelta: 0.05, tendencyDelta: 0.06 },
+    ],
   },
   gregarious: {
     benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'gregarious.bonding', factorDelta: 0.06, tendencyDelta: 0.08 },
     drawback: { when: { kind: 'leisure', activity: 'solitude' }, effectId: 'gregarious.dislikesSolitude', factorDelta: -0.04, tendencyDelta: -0.10 },
   },
   timid: {
-    benefit: { when: { kind: 'danger', activity: 'escape' }, effectId: 'timid.earlyRetreat', factorDelta: 0.06, tendencyDelta: 0.10 },
+    benefit: { when: { kind: 'danger', activity: 'escape' }, effectId: 'timid.earlyRetreat', factorDelta: 0.07, tendencyDelta: 0.10 },
     drawback: { when: { kind: 'social', activity: 'courtship' }, effectId: 'timid.hesitation', factorDelta: -0.05, tendencyDelta: -0.09 },
   },
   greenthumb: {

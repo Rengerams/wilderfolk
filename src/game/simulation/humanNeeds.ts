@@ -2,7 +2,6 @@ import type { Building, Entity, WorldState } from '../gameTypes';
 import { EntityType } from '../gameTypes';
 import { getValleyHuntYieldMultiplier } from '../ecologyStage';
 import { getHuntFoodMultiplier } from '../combat';
-import { traitMultiplier } from '../settlerTraits';
 import {
   prefersHomeTonight,
   hasResidenceAssignment,
@@ -29,11 +28,8 @@ const HUNT_DEFAULT_BASE_YIELD = 18;
 const ENERGY_MODIFIERS = {
   WELL_REDUCTION: 0.8,
   UNHEATED_WINTER_PENALTY: 1.5,
-  GREENTHUMB_WINTER_RESISTANCE: 0.7,
   HOME_RESTING_REDUCTION: 0.5,
   HOSPITAL_REDUCTION: 0.9,
-  HARDY_TRAIT_REDUCTION: 0.85,
-  FIERCE_TRAIT_REDUCTION: 0.9,
 } as const;
 
 /** Evaluates whether the current clock hour is a scheduled meal check (00:00, 04:00, 08:00, etc.). */
@@ -116,9 +112,9 @@ export interface HumanEnergyLossOptions {
 }
 
 /**
- * Calculates net energy drain for a settler on the current simulation tick.
- * Evaluates: base metabolism, well access, unheated winter cold, home resting proximity,
- * hospital care, and genetic traits ('greenthumb', 'hardy', 'fierce').
+ * Calculates net energy drain for a foreign war captive on the current simulation tick.
+ * Evaluates: base metabolism, well access, unheated winter cold, home resting proximity and
+ * hospital care. Player settlers use `humanPhysiology` and its own need state instead.
  */
 export function humanEnergyLoss(
   entity: Entity,
@@ -133,10 +129,9 @@ export function humanEnergyLoss(
     ? baseRate * ENERGY_MODIFIERS.WELL_REDUCTION
     : baseRate;
 
-  // 2. Winter exposure (Greenthumb settlers resist freezing temperatures)
+  // 2. Winter exposure
   if (isWinter && !canHeat) {
-    const greenthumbMod = traitMultiplier(entity, 'greenthumb', ENERGY_MODIFIERS.GREENTHUMB_WINTER_RESISTANCE);
-    loss *= ENERGY_MODIFIERS.UNHEATED_WINTER_PENALTY * greenthumbMod;
+    loss *= ENERGY_MODIFIERS.UNHEATED_WINTER_PENALTY;
   }
 
   // 3. Resting near home during evening/night OR daytime recovery when weary/sick
@@ -164,10 +159,6 @@ export function humanEnergyLoss(
   if (hasHospital) {
     loss *= ENERGY_MODIFIERS.HOSPITAL_REDUCTION;
   }
-
-  // 5. Genetic settler traits
-  loss *= traitMultiplier(entity, 'hardy', ENERGY_MODIFIERS.HARDY_TRAIT_REDUCTION);
-  loss *= traitMultiplier(entity, 'fierce', ENERGY_MODIFIERS.FIERCE_TRAIT_REDUCTION);
 
   return Math.max(0, loss);
 }

@@ -1,7 +1,7 @@
 # Malformed DNA element coerced during trait lookup
 
 - Bug: a non-string value in a legacy or corrupted trait array could invoke user-provided coercion while evaluating a read-only influence.
-- Status: investigating
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-10-28
 - Version/build: 0.6.5.1, unmerged Phase A commit `b5942e9`
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-28 — investigating: defensive guard and regression committed; final CI verification pending.
+- 2026-10-28 — resolved: the string guard and the malformed-element regression pass at the current head.
 
 ## Observed behavior
 The original `hasOwnProperty` check received unvalidated array elements. A non-string value with an unsafe conversion method can throw instead of being ignored. This is a code-trace finding in a new, unmerged implementation, not an observed live-save failure.
@@ -37,4 +38,4 @@ Reject any non-string element before checking the exhaustive catalog's own prope
 None: PR A does not hydrate or change saved DNA. Deterministic missing-DNA backfill remains scoped to PR B.
 
 ## Verification result
-- NOT RUN (completed pass): updated targeted and full tests on the final PR head.
+- PASS: `npx vitest run tests/personality.traitEvaluation.test.ts` on branch `codebot-tasks`, including the throwing `toString` fixture.

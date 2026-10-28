@@ -1,6 +1,8 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -51,7 +53,8 @@ export function gainSkill(
   amount: number,
   entityById?: Map<number, Entity>,
 ) {
-  const human = entityById?.get(humanId) ?? state.entities.find((e) => e.id === humanId);
+  // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
+  const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
   if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
   const skills = ensureEntitySkills(human);
   skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
@@ -99,25 +102,45 @@ export function rewardBuildingWork(
   for (const id of building.occupants) gainSkill(state, id, job, amount * presenceShare, entityById);
 }
 
+/** Which of the work catalog's contexts this crew is working in. */
+export type WorkAction = 'production' | 'construction';
+
+/**
+ * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier.
+ *
+ * The context is the site's own trade for production and `work`/builder/construction for a build
+ * crew, so a trait irrelevant to the work is neutral and each trait is priced exactly once.
+ */
 export function getWorkerSkillMultiplier(
   state: WorldState,
   building: Building,
   entityById?: Map<number, Entity>,
+  action: WorkAction = 'production',
 ): number {
-  const job = getJobForBuilding(building.type);
-  if (!job || building.occupants.length === 0) return 1;
+  if (building.occupants.length === 0) return 1;
+  const siteJob = getJobForBuilding(building.type);
+  // A build crew is paid the site's own trade when it has one, else Builder: a house or wall has
+  // no production job, yet the crew raising it still earns — and is priced by — Building.
+  const skillJob = action === 'construction' ? siteJob ?? JobType.Builder : siteJob;
+  if (!skillJob) return 1;
+  const workContext: TraitContext = action === 'construction'
+    ? { kind: 'work', job: JobType.Builder, action: 'construction' }
+    : { kind: 'work', job: skillJob, action: 'production' };
   let total = 0;
-  let resourceful = 0;
+  let traitFactorSum = 0;
   for (const id of building.occupants) {
-    const h = entityById?.get(id) ?? state.entities.find((e) => e.id === id);
-    if (h) {
-      total += readSkill(h, job);
-      if (h.traits?.includes('resourceful')) resourceful++;
+    // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
+    const h = entityById ? entityById.get(id) : state.entities.find((e) => e.id === id);
+    if (!h || !h.alive) {
+      // An unresolved or dead occupant has no DNA, so it counts as neutral rather than a penalty.
+      traitFactorSum += 1;
+      continue;
     }
+    total += readSkill(h, skillJob);
+    traitFactorSum += evaluateTraitInfluence(h, workContext).factor;
   }
   const avg = total / building.occupants.length;
-  // Resourceful builders get the site moving faster (+10% each, cap +30%).
-  const resourcefulMult = 1 + Math.min(0.3, resourceful * 0.1);
-  return (1 + avg * 0.02) * resourcefulMult; // up to 3x at skill 100
+  const traitMult = traitFactorSum / building.occupants.length;
+  return (1 + avg * 0.02) * traitMult; // up to 3x at skill 100
 }
 
