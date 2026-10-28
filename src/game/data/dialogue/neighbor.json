@@ -61,6 +61,86 @@
         }
       ],
       "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_00",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_01",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_10",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_11",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
     }
   ],
   "game": "Wilderfolk Sim",
