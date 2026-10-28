@@ -1,6 +1,10 @@
 {
   "version": "1.3",
+  "game": "Wilderfolk Sim",
   "category": "social",
+  "categories": [
+    "social"
+  ],
   "dialogue_trees": [
     {
       "id": "evt_social_impulse_sick_day_0",
@@ -33,9 +37,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_grief_0",
+      "id": "evt_social_impulse_grief_church_0",
       "category": "social",
-      "eventKey": "social.impulse.grief",
+      "eventKey": "social.impulse.grief.church",
       "speakers": [
         "speaker"
       ],
@@ -48,9 +52,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_grief_1",
+      "id": "evt_social_impulse_grief_church_1",
       "category": "social",
-      "eventKey": "social.impulse.grief",
+      "eventKey": "social.impulse.grief.church",
       "speakers": [
         "speaker"
       ],
@@ -63,9 +67,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_grief_2",
+      "id": "evt_social_impulse_grief_home_0",
       "category": "social",
-      "eventKey": "social.impulse.grief",
+      "eventKey": "social.impulse.grief.home",
       "speakers": [
         "speaker"
       ],
@@ -78,9 +82,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_bad_weather_0",
+      "id": "evt_social_impulse_bad_weather_drought_0",
       "category": "social",
-      "eventKey": "social.impulse.bad_weather",
+      "eventKey": "social.impulse.bad_weather.drought",
       "speakers": [
         "speaker"
       ],
@@ -93,9 +97,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_bad_weather_1",
+      "id": "evt_social_impulse_bad_weather_storm_0",
       "category": "social",
-      "eventKey": "social.impulse.bad_weather",
+      "eventKey": "social.impulse.bad_weather.storm",
       "speakers": [
         "speaker"
       ],
@@ -108,9 +112,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_bad_weather_2",
+      "id": "evt_social_impulse_bad_weather_snow_0",
       "category": "social",
-      "eventKey": "social.impulse.bad_weather",
+      "eventKey": "social.impulse.bad_weather.snow",
       "speakers": [
         "speaker"
       ],
@@ -123,9 +127,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_bad_weather_3",
+      "id": "evt_social_impulse_bad_weather_rain_0",
       "category": "social",
-      "eventKey": "social.impulse.bad_weather",
+      "eventKey": "social.impulse.bad_weather.rain",
       "speakers": [
         "speaker"
       ],
@@ -168,9 +172,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_care_pregnant_0",
+      "id": "evt_social_impulse_care_pregnant_to_hospital_0",
       "category": "social",
-      "eventKey": "social.impulse.care_pregnant",
+      "eventKey": "social.impulse.care_pregnant.to_hospital",
       "speakers": [
         "speaker"
       ],
@@ -183,9 +187,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_care_pregnant_1",
+      "id": "evt_social_impulse_care_pregnant_check_spouse_0",
       "category": "social",
-      "eventKey": "social.impulse.care_pregnant",
+      "eventKey": "social.impulse.care_pregnant.check_spouse",
       "speakers": [
         "speaker"
       ],
@@ -198,9 +202,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_care_pregnant_2",
+      "id": "evt_social_impulse_care_pregnant_rest_0",
       "category": "social",
-      "eventKey": "social.impulse.care_pregnant",
+      "eventKey": "social.impulse.care_pregnant.rest",
       "speakers": [
         "speaker"
       ],
@@ -213,9 +217,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_hospital_visit_0",
+      "id": "evt_social_impulse_hospital_visit_checkup_0",
       "category": "social",
-      "eventKey": "social.impulse.hospital_visit",
+      "eventKey": "social.impulse.hospital_visit.checkup",
       "speakers": [
         "speaker"
       ],
@@ -228,9 +232,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_hospital_visit_1",
+      "id": "evt_social_impulse_hospital_visit_midwives_0",
       "category": "social",
-      "eventKey": "social.impulse.hospital_visit",
+      "eventKey": "social.impulse.hospital_visit.midwives",
       "speakers": [
         "speaker"
       ],
@@ -243,9 +247,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_hospital_visit_2",
+      "id": "evt_social_impulse_hospital_visit_doctor_0",
       "category": "social",
-      "eventKey": "social.impulse.hospital_visit",
+      "eventKey": "social.impulse.hospital_visit.doctor",
       "speakers": [
         "speaker"
       ],
@@ -288,9 +292,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_civic_petition_0",
+      "id": "evt_social_impulse_civic_petition_grief_0",
       "category": "social",
-      "eventKey": "social.impulse.civic_petition",
+      "eventKey": "social.impulse.civic_petition.grief",
       "speakers": [
         "speaker"
       ],
@@ -303,9 +307,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_civic_petition_1",
+      "id": "evt_social_impulse_civic_petition_food_0",
       "category": "social",
-      "eventKey": "social.impulse.civic_petition",
+      "eventKey": "social.impulse.civic_petition.food",
       "speakers": [
         "speaker"
       ],
@@ -318,9 +322,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_civic_petition_2",
+      "id": "evt_social_impulse_civic_petition_general_0",
       "category": "social",
-      "eventKey": "social.impulse.civic_petition",
+      "eventKey": "social.impulse.civic_petition.general",
       "speakers": [
         "speaker"
       ],
@@ -348,9 +352,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_market_errand_0",
+      "id": "evt_social_impulse_market_errand_well_0",
       "category": "social",
-      "eventKey": "social.impulse.market_errand",
+      "eventKey": "social.impulse.market_errand.well",
       "speakers": [
         "speaker"
       ],
@@ -363,9 +367,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_market_errand_1",
+      "id": "evt_social_impulse_market_errand_other_0",
       "category": "social",
-      "eventKey": "social.impulse.market_errand",
+      "eventKey": "social.impulse.market_errand.other",
       "speakers": [
         "speaker"
       ],
@@ -378,9 +382,9 @@
       "conversation_type": "one_way"
     },
     {
-      "id": "evt_social_impulse_market_errand_2",
+      "id": "evt_social_impulse_market_errand_other_1",
       "category": "social",
-      "eventKey": "social.impulse.market_errand",
+      "eventKey": "social.impulse.market_errand.other",
       "speakers": [
         "speaker"
       ],
@@ -452,9 +456,5 @@
       ],
       "conversation_type": "one_way"
     }
-  ],
-  "game": "Wilderfolk Sim",
-  "categories": [
-    "social"
   ]
 }
