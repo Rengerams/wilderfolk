@@ -17,7 +17,11 @@
         "speaker_3",
         "speaker_4",
         "speaker_5",
-        "speaker_6"
+        "speaker_6",
+        "speaker_7",
+        "speaker_8",
+        "speaker_9",
+        "speaker_10"
       ],
       "lines": [
         {
@@ -45,99 +49,99 @@
           "text": "She's got the look!"
         },
         {
-          "speaker": "speaker_1",
+          "speaker": "speaker_7",
           "text": "Heavenly bound, cause heaven has got a number!"
         },
         {
-          "speaker": "speaker_2",
+          "speaker": "speaker_8",
           "text": "When she's spinning me around!"
         },
         {
-          "speaker": "speaker_3",
+          "speaker": "speaker_9",
           "text": "Kissing is a colour!"
         },
         {
-          "speaker": "speaker_4",
+          "speaker": "speaker_10",
           "text": "Wait. Which colour? The painter would like to know."
         },
         {
-          "speaker": "speaker_5",
-          "text": "She's got the look!"
-        },
-        {
-          "speaker": "speaker_6",
-          "text": "She's got the look!"
-        },
-        {
           "speaker": "speaker_1",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "speaker_2",
+          "text": "She's got the look!"
+        },
+        {
+          "speaker": "speaker_3",
           "text": "What in the world can make a brown-eyed girl turn blue?"
         },
         {
-          "speaker": "speaker_2",
+          "speaker": "speaker_4",
           "text": "That would be my blueberry pie. She ate all of it."
         },
         {
-          "speaker": "speaker_3",
+          "speaker": "speaker_5",
           "text": "When everything I'll ever do, I'll do for you!"
         },
         {
-          "speaker": "speaker_4",
+          "speaker": "speaker_6",
           "text": "And I go: la la la la la — she's got the look!"
         },
         {
-          "speaker": "speaker_5",
+          "speaker": "speaker_7",
           "text": "No, no, you're early. We haven't reached the chorus!"
         },
         {
-          "speaker": "speaker_6",
+          "speaker": "speaker_8",
           "text": "She's got the look!"
         },
         {
-          "speaker": "speaker_1",
+          "speaker": "speaker_9",
           "text": "Fire in the ice!"
         },
         {
-          "speaker": "speaker_2",
+          "speaker": "speaker_10",
           "text": "Who put my soup in the ice cellar?"
         },
         {
-          "speaker": "speaker_3",
+          "speaker": "speaker_1",
           "text": "Banging on the head drum!"
         },
         {
-          "speaker": "speaker_4",
+          "speaker": "speaker_2",
           "text": "Shaking like a mad bull!"
         },
         {
-          "speaker": "speaker_5",
+          "speaker": "speaker_3",
           "text": "She's got the look!"
         },
         {
-          "speaker": "speaker_6",
+          "speaker": "speaker_4",
           "text": "Swaying to the band!"
         },
         {
-          "speaker": "speaker_1",
+          "speaker": "speaker_5",
           "text": "Moving like a hammer!"
         },
         {
-          "speaker": "speaker_2",
+          "speaker": "speaker_6",
           "text": "She's a miracle, man!"
         },
         {
-          "speaker": "speaker_3",
+          "speaker": "speaker_7",
           "text": "A miracle GIRL, you goose!"
         },
         {
-          "speaker": "speaker_4",
+          "speaker": "speaker_8",
           "text": "Loving is the ocean!"
         },
         {
-          "speaker": "speaker_5",
+          "speaker": "speaker_9",
           "text": "Kissing is the wet sand!"
         },
         {
-          "speaker": "speaker_6",
+          "speaker": "speaker_10",
           "text": "She's got the look!"
         },
         {
