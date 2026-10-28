@@ -11,6 +11,57 @@ beforeEach(resetDialogueSessions);
 afterEach(resetDialogueSessions);
 
 describe('single dialogue event routing', () => {
+
+  it('admits only authored event keys, including their actual situation variants', () => {
+    const acceptsKnown: 'hospital.patient.pregnant' extends DialogueEventKey ? true : false = true;
+    const rejectsUnknown: 'hospital.patient.unknown' extends DialogueEventKey ? true : false = false;
+    const rejectsGeneric: string extends DialogueEventKey ? true : false = false;
+    expect(acceptsKnown).toBe(true);
+    expect(rejectsUnknown).toBe(false);
+    expect(rejectsGeneric).toBe(false);
+    expect(new Set(canonicalDialogueBank.dialogue_trees.map((tree) => tree.eventKey)))
+      .toEqual(new Set(DIALOGUE_EVENT_KEYS));
+  });
+
+  it('routes each situation to its own JSON tree and never to unrelated outcomes', () => {
+    const contexts: readonly DialogueEventKey[] = [
+      'hospital.patient.pregnant', 'hospital.patient.other', 'hospital.doctor',
+      'hotel.arrival', 'hotel.service.busy', 'hotel.service.welcome',
+      'townHall.foodAid', 'townHall.goldAid', 'townHall.heard',
+      'townHall.audience.petitioner', 'townHall.audience.leader',
+      'hunting.scarce', 'hunting.thinTrails',
+      'social.impulse.grief.home', 'social.impulse.grief.church',
+      'social.impulse.bad_weather.rain', 'social.impulse.bad_weather.snow',
+      'visitor.poi.market', 'visitor.poi.church', 'visitor.poi.plea',
+      'election.buildup', 'election.tension', 'election.ceremony', 'election.winner',
+      'marriage.accepted', 'pregnancy.daily', 'famine.hunger', 'family.daily',
+    ];
+    for (const eventKey of contexts) {
+      resetDialogueSessions();
+      const pool = canonicalDialogueBank.dialogue_trees.filter((tree) => tree.eventKey === eventKey);
+      expect(pool.length, eventKey).toBeGreaterThan(0);
+      const tree = pool[0]!;
+      const a = speaker(91001);
+      const b = speaker(91002);
+      expect(requestDialogue({
+        eventKey, treeId: tree.id, speaker: a, partner: tree.mode === 'pair' ? b : null,
+        tick: 450, selectionRoll: 0,
+      }), eventKey).toBe(true);
+      const text = a.chatPhrase ?? b.chatPhrase;
+      expect(text, eventKey).toBeTruthy();
+      expect(text?.replaceAll('\\n', ' ').trim(), eventKey)
+        .toContain(tree.lines[0]!.text.replaceAll(/\\s+/g, ' ').slice(0, 8));
+      const incompatible = canonicalDialogueBank.dialogue_trees.find((candidate) =>
+        candidate.mode === tree.mode && candidate.eventKey !== eventKey);
+      if (incompatible) {
+        resetDialogueSessions();
+        expect(requestDialogue({
+          eventKey, treeId: incompatible.id, speaker: speaker(91003),
+          partner: tree.mode === 'pair' ? speaker(91004) : null, tick: 450,
+        }), eventKey).toBe(false);
+      }
+    }
+  });
   it('indexes JSON visitor, child, election, social and paired workplace keys', () => {
     const keyAndMode = canonicalDialogueBank.dialogue_trees
       .map((tree) => `${tree.eventKey}:${tree.mode}`);
