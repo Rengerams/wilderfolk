@@ -7,6 +7,7 @@
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
 import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { countLivingPopulation } from './entityCounts';
 
@@ -45,7 +46,7 @@ export function tickLayerDaily(
   const hour = getHourOfDay(state.tick);
   if (hour === DAILY_PHASE_HOURS.fatigue) {
   const stage1 = profileStart();
-  resolveDailyVillageScheduleFatigue(state, ctx.playerHumans);
+  resolveDailyVillageScheduleFatigue(state, ctx.playerHumans, ctx.byType[EntityType.Werewolf]);
   profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
   }
