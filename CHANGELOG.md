@@ -1,8 +1,6 @@
 # Changelog
 
-## 0.6.5.2 [Unreleased]
-
-- **Fixed (#72, 28 October 2026):** In measured food deficits the Virtual Player postpones speculative housing while still sheltering homeless settlers; improves staffed Farms before expanding, checks Mill research eligibility, uses available Mills and Silos, and diversifies eligible production among Greenhouses, Fishing Spots, safe Hunting Spots and Farms without inventing food. Fishing Spots now receive explicit food-job priority in workforce presets; the 7/30/150-day producer scenario is bounded to 12 minutes per job.
+## 0.6.6.0[Unreleased]
 
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
@@ -27,6 +25,7 @@
 
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
 - **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
+- **Fixed (#72, 28 October 2026):** In measured food deficits the Virtual Player postpones speculative housing while still sheltering homeless settlers; improves staffed Farms before expanding, checks Mill research eligibility, uses available Mills and Silos, and diversifies eligible production among Greenhouses, Fishing Spots, safe Hunting Spots and Farms without inventing food. Fishing Spots now receive explicit food-job priority in workforce presets; the 7/30/150-day producer scenario is bounded to 12 minutes per job.
 
 
 - **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
