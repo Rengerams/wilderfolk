@@ -1,5 +1,5 @@
 import type { DialogueTree } from './dialogueTrees';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
+import { TICKS_PER_HOUR } from './dayCycleClock';
 import type { Season, WeatherType } from './gameTypes';
 
 export type HumanChatContext =
@@ -132,10 +132,6 @@ export function ticksForDialogueLine(text: string): number {
   return Math.max(TICKS_PER_HOUR, Math.round(durationHours * TICKS_PER_HOUR));
 }
 
-function activeChatTicksFromLegacyDuration(legacyTicks: number): number {
-  return Math.max(4, Math.round(legacyTicks * PER_TICK_RATE_SCALE));
-}
-
 function sessionKeyFor(aId: number, bId: number): string {
   const lo = Math.min(aId, bId);
   const hi = Math.max(aId, bId);
@@ -160,7 +156,7 @@ function clearEntityChat(entity: ChatSpeaker): void {
  *
  * No partner resolver is needed here: deleting the entry is enough. The survivor's key becomes an
  * orphan and the hoisted reclaim releases it on that settler's next tick — the same net that already
- * covers the resolver-less `sayHumanChatPhrase` path.
+ * covers resolver-less scripted interruption before the counterpart's next tick.
  */
 export function releaseDialogueSession(entity: ChatSpeaker): void {
   const key = entity.chatDialogueSessionKey;
@@ -355,28 +351,6 @@ export function prepareScriptedDialogue(
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
   clearEntityChat(entity);
-}
-
-export function sayHumanChatPhrase(
-  entity: ChatSpeaker,
-  phrase: string,
-  legacyDurationTicks = 120,
-  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
-): void {
-  const staleKey = entity.chatDialogueSessionKey;
-  if (staleKey) {
-    const session = dialogueSessions.get(staleKey);
-    const counterpartId = session
-      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
-      : entity.chatPartnerId;
-    const counterpart = counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
-    // `clearDialogueSession` deletes the entry *and* releases whichever halves it is handed.
-    clearDialogueSession(staleKey, entity, counterpart);
-  }
-  entity.chatDialogueSessionKey = undefined;
-  entity.chatPartnerId = undefined;
-  entity.chatPhrase = formatChatLine(phrase, entity);
-  entity.chatTicks = activeChatTicksFromLegacyDuration(legacyDurationTicks);
 }
 
 export function tickHumanChat(
