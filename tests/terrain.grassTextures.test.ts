@@ -7,24 +7,26 @@ import {
   type GroundGrassTextures,
 } from '../src/game/renderer/grassTextures';
 
-function texture(r: number, g: number, b: number): GroundGrassTexture {
-  // A fixed 2×2 tile with asymmetric detail and an authored mean. Deliberately
-  // much smaller than the shipping 512px PNGs to exercise UV wrapping.
+function texture(r: number, g: number, b: number, contrast: number): GroundGrassTexture {
+  // A fixed 2×2 tile with *distinct* contrast in each material: colour
+  // differences alone cancel when the renderer preserves palette means.
   return {
     width: 2, height: 2,
     pixels: new Uint8ClampedArray([
-      r, g, b, 255, r + 12, g + 12, b + 12, 255,
-      r + 8, g + 8, b + 8, 255, r + 20, g + 20, b + 20, 255,
+      r, g, b, 255,
+      r + 12 * contrast, g + 12 * contrast, b + 12 * contrast, 255,
+      r + 8 * contrast, g + 8 * contrast, b + 8 * contrast, 255,
+      r + 20 * contrast, g + 20 * contrast, b + 20 * contrast, 255,
     ]),
-    mean: [r + 10, g + 10, b + 10],
+    mean: [r + 10 * contrast, g + 10 * contrast, b + 10 * contrast],
   };
 }
 
 const textures: GroundGrassTextures = [
-  texture(70, 100, 70),
-  texture(110, 100, 50),
-  texture(55, 70, 52),
-  texture(35, 65, 28),
+  texture(70, 100, 70, 1),
+  texture(110, 100, 50, 1.8),
+  texture(55, 70, 52, 1.4),
+  texture(35, 65, 28, 2),
 ];
 
 const sample = (x: number, y: number, moisture: number, preset = MapPreset.Meadows) => {
