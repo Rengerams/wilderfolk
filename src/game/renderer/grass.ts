@@ -1,5 +1,6 @@
 import { Season } from '../gameTypes';
 import { getSpriteFrame } from '../spriteLoader';
+import { terrainRiseAt } from '../terrainAtlas';
 import { isDrawableSpriteFrame } from './shared';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { drawSpriteFrame } from './spriteDrawing';
@@ -38,7 +39,9 @@ export function drawGrass(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   let drawn = 0;
   for (const grass of _cachedGrass) {
     const sx = worldToScreenX(grass.x, cam, cw);
-    const sy = worldToScreenY(grass.y, cam, ch);
+    // Tufts grow out of the elevated ground, never through a hillside or below a ridge.
+    const sy = worldToScreenY(grass.y, cam, ch)
+      - terrainRiseAt(state.worldMap, grass.x, grass.y) * cam.zoom;
     const size = grass.size * 1.0 * cam.zoom;
     if (sx + size < -20 || sx - size > cw + 20 || sy + size < -20 || sy - size > ch + 20) continue;
     // Density cull when zoomed out

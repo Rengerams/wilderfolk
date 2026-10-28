@@ -1,6 +1,7 @@
 import { getRenderDpr, type CanvasContext2d } from '../canvasLayer';
 import { getAnimalSpriteMetrics } from '../entitySprites';
 import { getHumanSpriteMetrics } from '../humanSprites';
+import { terrainRiseAt } from '../terrainAtlas';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { motionTime } from './shared';
 import { presentationPosition } from './motionInterpolation';
@@ -67,7 +68,8 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     if (e.flash <= 0) continue;
     const pos = presentationPosition(e);
     const sx = worldToScreenX(pos.x, cam, cw);
-    const sy = worldToScreenY(pos.y, cam, ch);
+    const sy = worldToScreenY(pos.y, cam, ch)
+      - terrainRiseAt(state.worldMap, pos.x, pos.y) * cam.zoom;
     const { spriteH } = getAnimalSpriteMetrics(e, cam.zoom);
     ctx.save();
     ctx.globalAlpha = 0.7 + Math.sin(motionTime * 20) * 0.3;
@@ -82,7 +84,8 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     if (human.flash <= 0) continue;
     const pos = presentationPosition(human);
     const sx = worldToScreenX(pos.x, cam, cw);
-    const sy = worldToScreenY(pos.y, cam, ch);
+    const sy = worldToScreenY(pos.y, cam, ch)
+      - terrainRiseAt(state.worldMap, pos.x, pos.y) * cam.zoom;
     const { size, spriteH, footOffset } = getHumanSpriteMetrics(human, cam.zoom);
     const footY = sy + footOffset;
     ctx.save();
