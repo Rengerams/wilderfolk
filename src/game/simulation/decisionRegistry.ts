@@ -49,6 +49,9 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'traitInfluence'
+  | 'careerHistory'
+  | 'careerProgression'
+  | 'workerFit'
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workforce'
@@ -79,6 +82,30 @@ export const SIMULATION_DECISIONS = {
     writes: [],
     scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships',
     testFile: 'tests/personality.legacyConsumerAudit.test.ts, tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts',
+  },
+  careerHistory: {
+    owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
+    cadence: 'daily',
+    cadenceNote: 'No independent pass: credits only settled-site attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. No construction inference or full-storage gating.',
+    writes: ['human.careerHistory', 'human.careerHistory[job].days', 'human.careerHistory[job].lastDay'],
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours and indexed completed-site validation',
+    testFile: 'tests/careers.history.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
+  },
+  careerProgression: {
+    owner: 'careers/careerProgression.ts — advanceCareerProgression; new career milestone owner',
+    cadence: 'daily',
+    cadenceNote: 'Event-driven only: after a newly accepted career day or actual apprenticeship completion; no duplicate skill writer or career timer.',
+    writes: ['human.careerMilestones', 'human.careerMilestones[job].tier', 'human.careerMilestones[job].tierAtDay', 'human.careerMilestones[job].trainedAtDay'],
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction accepted recordCareerWork; apprenticeships.teach actual graduation',
+    testFile: 'tests/careers.progression.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
+  },
+  workerFit: {
+    owner: 'careers/workerFit.ts — evaluateWorkerFit pure optional experienced-worker and DNA projection',
+    cadence: 'on-demand',
+    cadenceNote: 'No state writes, no extra assignment pass; only compared for precisely tied eligibility, squared commute and skill in workforce.assignWorkerInPlace.',
+    writes: [],
+    scheduledFrom: 'workforce.assignWorkerInPlace — already-visited eligible idle candidates when proximity and skill tie',
+    testFile: 'tests/careers.workerFit.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',

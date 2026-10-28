@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added:** PR-D records bounded, verified per-job career days from the existing daily attendance aggregation; milestones follow accepted shifts or real apprentice graduation, and idle-worker career/DNA fit breaks only exact commute-and-skill ties. The same release migrates old saves with neutral history and deep-copies nested career data for worker rollback. Construction without independently verified shift provenance remains uncredited.
+
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
 
 - **Changed:** The legacy DNA audit now follows local alias chains, repeated assignments and renamed destructuring, so indirect trait checks stay reported; no gameplay rules changed.

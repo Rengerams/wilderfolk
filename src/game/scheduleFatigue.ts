@@ -29,7 +29,11 @@ export function recordScheduleWorkTick(entity: Entity, step = 1): void {
   // A jailed settler keeps the reserved post but earns no attendance: a cell is not a shift.
   if (entity.prisonBuildingId != null) return;
   if (!Number.isFinite(step) || step <= 0) return;
-  entity.scheduleWorkedTicksToday = (entity.scheduleWorkedTicksToday ?? 0) + step;
+  const priorTicks = entity.scheduleWorkedTicksToday ?? 0;
+  const siteId = entity.workerBuildingId ?? -1;
+  if (priorTicks === 0) entity.scheduleWorkedSiteIdToday = siteId;
+  else if (entity.scheduleWorkedSiteIdToday !== siteId) entity.scheduleWorkedSiteIdToday = -1;
+  entity.scheduleWorkedTicksToday = priorTicks + step;
 }
 
 /**
@@ -55,7 +59,8 @@ export function getScheduleTargetHours(state: Pick<WorldState, 'workSchedule'>):
 }
 
 export function resolveDailyScheduleFatigue(
-  entity: Pick<Entity, 'scheduleFatigue' | 'scheduleWorkedTicksToday' | 'scheduleLastWorkedHours'>,
+  entity: Pick<Entity, 'scheduleFatigue' | 'scheduleWorkedTicksToday' | 'scheduleLastWorkedHours'
+    | 'scheduleWorkedSiteIdToday' | 'scheduleLastWorkedSiteId'>,
   state: Pick<WorldState, 'workSchedule'>,
   /** Pre-derived `getScheduleTargetHours(state)` for a caller resolving many settlers in one pass. */
   targetHoursForPass?: number,
@@ -73,6 +78,8 @@ export function resolveDailyScheduleFatigue(
   // (see `getScheduleLastWorkedHours`). Without it the only record of attendance was destroyed
   // here, and production fell back to counting assigned bodies parked at home or asleep.
   entity.scheduleLastWorkedHours = workedHours;
+  entity.scheduleLastWorkedSiteId = entity.scheduleWorkedSiteIdToday ?? -1;
+  entity.scheduleWorkedSiteIdToday = undefined;
   entity.scheduleWorkedTicksToday = 0;
   return { workedHours, fatigueBefore, fatigueAfter };
 }

@@ -5,6 +5,9 @@
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
 import type { WorldState, Entity, Building } from './gameTypes';
+import { recordCareerWork } from './careers/careerHistory';
+import { advanceCareerProgression } from './careers/careerProgression';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import { mineOreForMode } from './buildings';
 import {
   BuildingType,
@@ -390,7 +393,7 @@ function tickBuildingProduction(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
+  const { updatedBuildings, entityById, buildingById, byType, roadBuildings } = ctx;
   // Production runs at noon, but isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
@@ -443,6 +446,13 @@ function tickBuildingProduction(
     current.count += 1;
     current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
     const lastWorkedHours = getScheduleLastWorkedHours(h);
+    const site = buildingById.get(siteId);
+    if (site && lastWorkedHours > 0) {
+      const job = getJobForBuilding(site.type);
+      if (job && recordCareerWork(h, site, job, getAbsoluteCalendarDay(state.tick) - 1, lastWorkedHours)) {
+        advanceCareerProgression(h, job, getAbsoluteCalendarDay(state.tick) - 1, 'work');
+      }
+    }
     current.workedHoursSum += lastWorkedHours;
     if (lastWorkedHours > 0) current.workedCount += 1;
     buildingWorkerStats.set(siteId, current);

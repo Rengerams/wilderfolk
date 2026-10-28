@@ -254,6 +254,9 @@ export interface MoonHowlerSavedState {
   combatTicks?: number;
 }
 
+import type { CareerHistory } from './careers/careerHistory';
+import type { CareerMilestones } from './careers/careerProgression';
+
 export interface Entity {
   id: number;
   type: EntityType;
@@ -282,6 +285,9 @@ export interface Entity {
   scheduleWorkedTicksToday?: number;
  
   scheduleLastWorkedHours?: number;
+  /** Sole attendance owner's verified site for current/last settled shift (-1 = mixed/unknown). */
+  scheduleWorkedSiteIdToday?: number;
+  scheduleLastWorkedSiteId?: number;
   scheduleFatigue?: number;
   educated?: boolean;
   traits?: SettlerTrait[];
@@ -300,6 +306,8 @@ export interface Entity {
   occupation?: string;
   job?: JobType;
   skills?: Partial<Record<JobType, number>>;
+  careerHistory?: CareerHistory;
+  careerMilestones?: CareerMilestones;
   battleLeadershipMerit?: number;
   raidDeploymentId?: string;
   departedAlive?: boolean;
