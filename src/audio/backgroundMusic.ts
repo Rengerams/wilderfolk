@@ -29,6 +29,7 @@ const PHRASES: PhraseFn[] = [playMelodicPhrase, playVariationPhrase, playRestPhr
 
 class BackgroundMusicPlayer {
   private running = false;
+  private spotlightSuspended = false;
   private usingSamples = false;
   private usingHtmlAudio = false;
   private htmlAudio: HTMLAudioElement | null = null;
@@ -68,6 +69,7 @@ class BackgroundMusicPlayer {
 
   /** Start or recover gameplay music after unlock, unmute, or entering the map. */
   async ensurePlaying(): Promise<void> {
+    if (this.spotlightSuspended) return;
     if (this.ensurePromise) return this.ensurePromise;
     this.ensurePromise = (async () => {
       try {
@@ -116,7 +118,7 @@ class BackgroundMusicPlayer {
   }
 
   async start() {
-    if (this.running) return;
+    if (this.spotlightSuspended || this.running) return;
     this.running = true;
     audioGraph.setMusicBrightness(false);
 
@@ -140,6 +142,21 @@ class BackgroundMusicPlayer {
     this.usingHtmlAudio = false;
     this.phraseIndex = 0;
     this.scheduleProcedural();
+  }
+
+  /** Temporarily hand the music bus to Spotlight, restoring its prior state once. */
+  suspendForSpotlight(): () => void {
+    if (this.spotlightSuspended) return () => undefined;
+    const shouldResume = this.running;
+    this.spotlightSuspended = true;
+    this.stop();
+    let restored = false;
+    return () => {
+      if (restored) return;
+      restored = true;
+      this.spotlightSuspended = false;
+      if (shouldResume) void this.ensurePlaying();
+    };
   }
 
   stop() {
