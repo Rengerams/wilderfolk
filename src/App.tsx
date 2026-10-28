@@ -59,6 +59,7 @@ import { preloadAllSprites } from './game/spriteLoader';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import GameMapStage from './components/GameMapStage';
 import SpotlightLoreOverlay from './components/SpotlightLoreOverlay';
+import { discardSpotlightReturn, takeSpotlightReturn } from './components/spotlightReturnState';
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
@@ -460,14 +461,14 @@ export default function App() {
     const scene = world.spotlightLore;
     const prior = spotlightReturnRef.current;
     if (!gameplayActive) {
-      spotlightReturnRef.current = null;
+      discardSpotlightReturn(spotlightReturnRef);
       return;
     }
     if (!scene) {
-      if (!prior) return;
-      spotlightReturnRef.current = null;
-      loop.patchView({ camera: prior.camera, favoriteEntityId: prior.favoriteEntityId });
-      loop.mutateWorld((w) => { w.paused = prior.paused; w.speed = prior.speed; });
+      const completed = takeSpotlightReturn(spotlightReturnRef);
+      if (!completed) return;
+      loop.patchView({ camera: completed.camera, favoriteEntityId: completed.favoriteEntityId });
+      loop.mutateWorld((w) => { w.paused = completed.paused; w.speed = completed.speed; });
       return;
     }
     if (!prior || prior.id !== scene.id) {
@@ -1102,7 +1103,7 @@ export default function App() {
       resetTransientFeedbackForNewSession();
       // Replacing the colony invalidates the old scene's camera/pause snapshot.
       // Otherwise the next render could restore it into this brand-new session.
-      spotlightReturnRef.current = null;
+      discardSpotlightReturn(spotlightReturnRef);
       replaceSession(s, nextView);
       setSelectedBuildingType(null);
       setHasSavedGame(false);
@@ -1152,7 +1153,7 @@ export default function App() {
     synchronizeTransientFeedbackFromWorld(loaded.world);
     // Loaded saves own their own view/speed. Never replay a departed scene's
     // snapshot into the new GameLoop session, even when gameplayActive is unchanged.
-    spotlightReturnRef.current = null;
+    discardSpotlightReturn(spotlightReturnRef);
     replaceSession(loaded.world, loaded.view);
     // A loaded colony is already past the quick-start flow. Leaving the old tutorial state in place
     // let the pause effect run again after the session swap, so the loaded world appeared frozen until
