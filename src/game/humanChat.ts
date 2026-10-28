@@ -64,6 +64,7 @@ interface DialogueSession {
   entityAId: number;
   entityBId: number;
   solo: boolean;
+  durationHours?: number;
 }
 
 const dialogueSessions = new Map<string, DialogueSession>();
@@ -215,11 +216,12 @@ function showDialogueStep(
   entityA: ChatSpeaker,
   entityB: ChatSpeaker | null,
   solo: boolean,
+  durationHours?: number,
 ): void {
   const line = tree.lines[step];
   if (!line) return;
 
-  const ticks = ticksForDialogueLine(line.text);
+  const ticks = durationHours === undefined ? ticksForDialogueLine(line.text) : Math.max(4, Math.round(durationHours * TICKS_PER_HOUR));
   const formatted = formatChatLine(line.text);
 
   if (solo || !entityB) {
@@ -245,6 +247,7 @@ export function startDialogueTreeChat(
   entityB: ChatSpeaker | null,
   tree: DialogueTree,
   solo = false,
+  durationHours?: number,
 ): void {
   // `isDialogueBusy`, not a raw `chatTicks` read: a participant is busy while either a visible line
   // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
@@ -267,6 +270,7 @@ export function startDialogueTreeChat(
     entityAId: entityA.id,
     entityBId: entityB?.id ?? entityA.id,
     solo: solo || !entityB,
+    durationHours,
   });
 
   entityA.chatDialogueSessionKey = key;
@@ -276,7 +280,7 @@ export function startDialogueTreeChat(
     entityB.chatPartnerId = entityA.id;
   }
 
-  showDialogueStep(tree, 0, entityA, entityB, solo || !entityB);
+  showDialogueStep(tree, 0, entityA, entityB, solo || !entityB, durationHours);
 }
 
 function resolveSessionSpeaker(
@@ -322,7 +326,7 @@ function advanceDialogue(
   }
 
   session.step = nextStep;
-  showDialogueStep(tree, nextStep, entityA, entityB, session.solo);
+  showDialogueStep(tree, nextStep, entityA, entityB, session.solo, session.durationHours);
   return true;
 }
 
@@ -335,6 +339,24 @@ function advanceDialogue(
  * `resolvePartner` is how the other half is reached; without it the orphan is caught by
  * `tickHumanChat`'s hoisted reclaim instead of never.
  */
+export function prepareScriptedDialogue(
+  entity: ChatSpeaker,
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
+): void {
+  const key = entity.chatDialogueSessionKey;
+  if (key) {
+    const session = dialogueSessions.get(key);
+    const otherId = session
+      ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
+      : entity.chatPartnerId;
+    const other = otherId != null ? resolvePartner?.(otherId) ?? undefined : undefined;
+    clearDialogueSession(key, entity, other);
+  }
+  entity.chatDialogueSessionKey = undefined;
+  entity.chatPartnerId = undefined;
+  clearEntityChat(entity);
+}
+
 export function sayHumanChatPhrase(
   entity: ChatSpeaker,
   phrase: string,
