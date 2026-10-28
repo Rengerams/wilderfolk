@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Raid documentation (28 October 2026):** Removed the optional advanced-siege feature from the v0.6.5.2 roadmap. Kept only the two outstanding raid UI additions (expanded terminal report and neutral raze confirmation), with their implementation and regression approach in `docs/plans/raid-ui-final-report-and-raze-confirmation-0.6.5.2.md`.
+
+
 - **Resource-worker recovery (#72):** When stone or wood reaches zero, assign one idle worker to an unmanned Quarry or Lumber Mill before filling new construction crews. Keep manual staffing and existing jobs intact.
 
 - **CI workforce and terrain (PR #72):** Align food and Quarry staffing tests with real Farm capacity; use industrial surplus for Quarry recovery and preserve snow colours on mountain crests.
