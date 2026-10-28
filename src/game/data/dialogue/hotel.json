@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "category": "needs",
+  "dialogue_trees": [
+    {
+      "id": "evt_hotel_arrival_0",
+      "category": "needs",
+      "eventKey": "hotel.arrival",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A soft bed…"
+        }
+      ]
+    },
+    {
+      "id": "evt_hotel_arrival_1",
+      "category": "needs",
+      "eventKey": "hotel.arrival",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Room for the night."
+        }
+      ]
+    },
+    {
+      "id": "evt_hotel_service_busy_0",
+      "category": "needs",
+      "eventKey": "hotel.service.busy",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy night — rooms nearly full."
+        }
+      ]
+    },
+    {
+      "id": "evt_hotel_service_welcome_0",
+      "category": "needs",
+      "eventKey": "hotel.service.welcome",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Welcome, traveler."
+        }
+      ]
+    }
+  ]
+}
