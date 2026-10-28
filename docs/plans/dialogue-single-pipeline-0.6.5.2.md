@@ -299,3 +299,34 @@ The codebot must follow `docs/plans/dialogue-codebot-tasks-0.6.5.2.md` for exact
 - [ ] All old-session/lifecycle/busy/sleep protections and focused regression tests pass.
 - [ ] No new hot-loop scans, duplicated banks, import cycles or unbounded session data.
 - [ ] Each implementation PR contains both ownership registries, changelog, bug-report accounting, test evidence and handover; no roadmap completion before merge.
+
+
+## PR #91 compatibility — JSON-authored group captions (schema v1.3)
+
+PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) owns rare Spotlight Lore ("The Look"): event eligibility, 6–10 real actors, gathering, camera, pause, captions, skip, save/worker state and Chronicle. **PR #91 will supply its own JSON scene file. Do NOT copy, rewrite, or duplicate its authored dialogue lines in PR #93.**
+
+PR #93 adds the presentation-only method readPresentationDialogue(source, eventKey) in src/game/dialogueTrees.ts. This validates PR #91's independently imported version 1.3 JSON and returns ordered, immutable role-tagged caption lines without using a simulated chat session. This is intentionally separate from the requestDialogue(one_way/two_way) simulation channel: the game pauses during the performance and simulation chatTicks cannot progress. The existing PR #91 overlay stays the only wall-clock caption presentation owner; humanChat.ts stays the only simulated entity chat writer.
+
+Expected file format (illustrative content; NOT the real PR #91 script):
+
+    {
+      "version": "1.3",
+      "game": "Wilderfolk Sim",
+      "category": "spotlight",
+      "categories": ["spotlight"],
+      "dialogue_trees": [{
+        "id": "spotlight_the_look",
+        "category": "spotlight",
+        "eventKey": "spotlight.theLook",
+        "conversation_type": "group",
+        "speakers": ["chorus", "heroine", "narrator"],
+        "lines": [
+          {"speaker": "chorus", "text": "Welcome to the gathering.", "durationMs": 3400},
+          {"speaker": "narrator", "text": "The village falls silent."}
+        ]
+      }]
+    }
+
+Group trees may declare 1–16 distinct roles and 1–512 lines. Lines require a declared speaker role and nonempty text; optional durationMs must be an integer in 250–60000 ms. Missing event keys, duplicates and mismatched schema versions are rejected. Do not invent additional actor IDs: PR #91's overlay maps chorus lines to its existing scene.performerIds (preserving its performer round-robin), heroine lines to scene.heroineId and narrator lines to overlay narration. A missing durationMs uses PR #91's existing pacing formula.
+
+PR #91 imports the actual JSON and calls readPresentationDialogue once outside its render loop; it can replace the hardcoded LINES array only after proving identical stage ordering and timings. PR #93 imports no PR #91 file, alters no PR #91 gameplay branch, and changes no camera/clock/UI/WorldState. Integration regressions cover role mapping, real actors, pause/skip, save-reload and no simulation chat-field writes. Schema-level guard: tests/dialogue.schema13.test.ts.
