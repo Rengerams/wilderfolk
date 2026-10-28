@@ -257,6 +257,8 @@ The merged warfare implementation includes the combat lifecycle, player choices,
 
 ## 11. DNA traits — strengths, weaknesses and whole-game influence
 
+**Implementation plan (proposed):** [DNA + career single-pipeline architecture and implementation plan](docs/plans/personality-career-single-pipeline-0.6.5.2.md). Current trait inheritance and selected effects are implemented; the complete cross-domain personality pipeline remains future scope. New logic belongs in dedicated modules with direct imports and one evaluator, not duplicate rules in current owners.
+
 Every inherited DNA/personality trait must have meaningful **positive (+)** and **negative (−)** influences. Traits should affect the entire simulation wherever relevant, rather than being cosmetic labels or bonuses limited to one profession. A strong settler may excel at physically demanding mining while an insightful/intuitive settler may do better at teaching or research, but each advantage comes with a plausible trade-off.
 
 ### 11.1 Core gameplay rules
@@ -522,6 +524,8 @@ Make weather and seasonal preparation more meaningful, with counterplay.
 **Acceptance:** A prepared player has understandable ways to prevent or mitigate harm, and recovery remains possible.
 
 ## 16. More meaningful professions, education and career paths
+
+**Implementation plan (proposed):** [DNA + career single-pipeline architecture and implementation plan](docs/plans/personality-career-single-pipeline-0.6.5.2.md). This section shares the central trait evaluation pipeline with §11; progression and work-history writes remain a distinct, bounded career owner. Existing apprenticeship, school, skills and workforce engines stay authoritative.
 
 Build on age-18 adulthood and the selective apprenticeship rules.
 
