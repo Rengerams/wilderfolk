@@ -65,25 +65,47 @@ function paintTriangle(
   const gy = ((b.x - a.x) * (c.rise - a.rise) - (c.x - a.x) * (b.rise - a.rise)) / det;
   const intercept = a.rise - gx * a.x - gy * a.y;
 
+  // Adjacent Canvas clip masks each antialias the exact shared edge down
+  // toward alpha 0. Their two half-covered triangles leave a visible diagonal
+  // seam in opaque water and soil. Overlap triangle masks slightly, and extend
+  // the source crop past the nominal cell so the overlapping clip has texels.
+  const ax = a.x, ay = a.y + HEIGHT_MESH_TOP_PAD - a.rise;
+  const bx = b.x, by = b.y + HEIGHT_MESH_TOP_PAD - b.rise;
+  const cx = c.x, cy = c.y + HEIGHT_MESH_TOP_PAD - c.rise;
+  const centerX = (ax + bx + cx) / 3;
+  const centerY = (ay + by + cy) / 3;
+  const expand = (x: number, y: number): [number, number] => {
+    const dx = x - centerX, dy = y - centerY;
+    const len = Math.hypot(dx, dy) || 1;
+    return [x + dx / len * 1.35, y + dy / len * 1.35];
+  };
+  const [paX, paY] = expand(ax, ay);
+  const [pbX, pbY] = expand(bx, by);
+  const [pcX, pcY] = expand(cx, cy);
+
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(a.x, a.y + HEIGHT_MESH_TOP_PAD - a.rise);
-  ctx.lineTo(b.x, b.y + HEIGHT_MESH_TOP_PAD - b.rise);
-  ctx.lineTo(c.x, c.y + HEIGHT_MESH_TOP_PAD - c.rise);
+  ctx.moveTo(paX, paY);
+  ctx.lineTo(pbX, pbY);
+  ctx.lineTo(pcX, pcY);
   ctx.closePath();
   ctx.clip();
   ctx.transform(1, -gx, 0, 1 - gy, 0, HEIGHT_MESH_TOP_PAD - intercept);
 
   // Cropping source before affine drawing cuts the work from O(chunk²*triangles)
   // to O(chunk²) total source texels across its triangles.
-  const sourceX = x0 * source.width / rect.width;
-  const sourceY = y0 * source.height / rect.height;
-  const sourceW = cellW * source.width / rect.width;
-  const sourceH = cellH * source.height / rect.height;
+  const padding = 2;
+  const left = Math.max(0, x0 - padding);
+  const top = Math.max(0, y0 - padding);
+  const right = Math.min(rect.width, x0 + cellW + padding);
+  const bottom = Math.min(rect.height, y0 + cellH + padding);
   ctx.drawImage(
     source as CanvasImageSource,
-    sourceX, sourceY, sourceW, sourceH,
-    x0, y0, cellW, cellH,
+    left * source.width / rect.width,
+    top * source.height / rect.height,
+    (right - left) * source.width / rect.width,
+    (bottom - top) * source.height / rect.height,
+    left, top, right - left, bottom - top,
   );
   ctx.restore();
 }
