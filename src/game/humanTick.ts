@@ -16,6 +16,7 @@ import { isPlayerHuman } from './playerHuman';
 import { getBuildingCenter } from './placementUtils';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
+import { getSpotlightGatherTarget } from './spotlightLore';
 
 import {
   allowSocialLifeFor,
@@ -196,6 +197,10 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   const weekend = isWeekend(state.tick);
   const isNewCalendarDay = isNewCalendarDayTick(state);
   const humanFleeMult = getHumanFleeSpeedMultiplier(state);
+  const spotlightGather = state.spotlightLore?.phase === 'gathering' ? state.spotlightLore : null;
+  const spotlightActorIds = spotlightGather
+    ? new Set([spotlightGather.heroineId, ...spotlightGather.performerIds])
+    : null;
   const isTick8 = hourOfDay === 8 && isStartOfClockHour(state.tick);
 
   const constructionByWorkerId = buildConstructionCrewIndex(updatedBuildings);
@@ -596,7 +601,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const inFocus = !focus || isInFocus(entity, focus);
     const active =
       !isPrisoner &&
-      (inFocus ||
+      (spotlightActorIds?.has(entity.id) || inFocus ||
         (recoveringSleep && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
@@ -865,6 +870,23 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
       settlerChat(entity, 'fear', 0.14 * PER_TICK_RATE_SCALE);
+    } else if (spotlightGather && spotlightActorIds?.has(entity.id)) {
+      const target = getSpotlightGatherTarget(spotlightGather, entity.id);
+      if (target) {
+        const dx = target.x - entity.x;
+        const dy = target.y - entity.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 9) {
+          entity.vx = (dx / dist) * config.speed * 1.2;
+          entity.vy = (dy / dist) * config.speed * 1.2;
+          faceVelocity(entity);
+        } else {
+          entity.vx = 0;
+          entity.vy = 0;
+        }
+        suppressIdle = true;
+        onSchedule = true;
+      }
     } else if (inElectionCeremony && state.electionCeremony) {
       const target = getElectionGatherTarget(state, entity.id);
       const dx = target.x - entity.x;
