@@ -169,12 +169,16 @@ describe('a zoom re-bakes the ground chunk by chunk, in place', () => {
 
     // Settle at the 0.5× overview: the target step is 2, so every chunk canvas is 128 px wide.
     let frames = 0;
+    const overviewCanvasWidths = new Set<number>();
     for (; frames < 400; frames++) {
       frame(0.5);
+      for (const surface of counts.created) overviewCanvasWidths.add(surface.width);
       if (counts.paintedPixels === 0) break;
     }
     expect(counts.paintedPixels, `overview fill did not finish in ${frames} frames`).toBe(0);
-    expect(counts.drawnWidths, 'a coarse chunk canvas was never drawn').toContain(CHUNK / 2);
+    // The source raster stays coarse, but the projected 2.5D output is world-width.
+    expect(overviewCanvasWidths, 'no coarse 128px raster was allocated').toContain(CHUNK / 2);
+    expect(counts.drawnWidths, 'coarse projected terrain is not visible').toContain(CHUNK);
 
     // A settled frame at the target step re-bakes nothing and allocates nothing.
     frame(0.5);
@@ -184,7 +188,9 @@ describe('a zoom re-bakes the ground chunk by chunk, in place', () => {
     // Zoom in to 1:1 — every chunk's baked step is now coarser than the target, so each re-bakes.
     // A chunk's own canvas is larger than any single budgeted bake band, so area tells the two apart.
     const chunkSurfaces = (): number =>
-      counts.created.filter((s) => s.width > 0 && s.width * s.height > GROUND_BAKE_PIXEL_BUDGET).length;
+      // Projected meshes are a separate cached output: count only the original
+      // world-rect raster being re-baked at the new step.
+      counts.created.filter((s) => s.width === CHUNK && s.height === CHUNK).length;
     const allocationsPerFrame: number[] = [];
     let sawTargetStepDraw = false;
     for (let f = 0; f < 500; f++) {
