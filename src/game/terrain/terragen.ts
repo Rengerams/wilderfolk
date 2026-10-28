@@ -959,6 +959,13 @@ function placeDecorations(
         targetDensity = forestDensity * (0.62 - climate.forest * 0.22)
           * climate.alpineFade * (1 - climate.dry * 0.4);
       }
+      // The 2.5D rock/height surface already has a textured relief: stamping
+      // a separate bright boulder on every nearby cell turns mountains into
+      // white rubble fields. Keep sparse natural talus while relying on the
+      // actual height mesh and rock albedo for continuous mountain structure.
+      if (generationVersion === 4 && (def.id === 'rock' || def.id === 'snow')) {
+        targetDensity *= 0.42;
+      }
       const count = targetDensity * DECOR_DENSITY * (0.35 + clumpNoise * 1.5);
       let n = Math.floor(count);
       if (rand() < count - n) n++;
