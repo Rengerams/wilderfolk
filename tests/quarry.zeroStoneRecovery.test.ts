@@ -72,9 +72,12 @@ function runDays(world: WorldState, days: number): WorldState {
 }
 
 /** The app's own autoplay cadence: one ladder decision per in-game hour, dispatched like a click. */
-function runAutoplay(world: WorldState, days: number): { world: WorldState; peakStone: number } {
+function runAutoplay(world: WorldState, days: number, quarryId: number): {
+  world: WorldState; peakStone: number; peakQuarryWorkers: number;
+} {
   let next = world;
   let peakStone = next.resources.stone;
+  let peakQuarryWorkers = countWorkersAtBuilding(next.entities, quarryId);
   for (let tick = 0; tick < days * TICKS_PER_DAY; tick++) {
     if (next.tick % TICKS_PER_HOUR === 0) {
       const decision = decideVirtualPlayerAction(next);
@@ -84,8 +87,9 @@ function runAutoplay(world: WorldState, days: number): { world: WorldState; peak
     // A functioning Quarry can refill stone that the bot spends on the next build.
     // Track the recovered stock before later purchases use it up again.
     peakStone = Math.max(peakStone, next.resources.stone);
+    peakQuarryWorkers = Math.max(peakQuarryWorkers, countWorkersAtBuilding(next.entities, quarryId));
   }
-  return { world: next, peakStone };
+  return { world: next, peakStone, peakQuarryWorkers };
 }
 
 describe('zero stone with an unmanned Quarry', () => {
@@ -142,12 +146,12 @@ describe('zero stone with an unmanned Quarry', () => {
       settler.job = JobType.Settler;
     }
 
-    const result = runAutoplay(world, AUTOPLAY_DAYS);
+    const result = runAutoplay(world, AUTOPLAY_DAYS, quarryId);
     world = result.world;
 
     // The bot's build program can use every stone it mines. Final inventory is not
     // cumulative production: a zero ending stock does not mean the Quarry never recovered.
-    expect(countWorkersAtBuilding(world.entities, quarryId), 'a hand must work the Quarry').toBeGreaterThan(0);
+    expect(result.peakQuarryWorkers, 'a hand must have worked the Quarry').toBeGreaterThan(0);
     expect(Math.floor(result.peakStone), 'the Quarry must replenish stone during autoplay').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 });
