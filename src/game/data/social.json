@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "social",
   "dialogue_trees": [
@@ -23,7 +23,9 @@
           "speaker": "npc_chicken_friend",
           "text": "He named himself. I just respected his choice."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_party",
@@ -45,7 +47,9 @@
           "speaker": "npc_host",
           "text": "I ate it anyway. 5/10, would grief again."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_friendship",
@@ -67,7 +71,9 @@
           "speaker": "npc_invested",
           "text": "We're both scheduled to leave the map tomorrow. I want a refund."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_hey",
@@ -89,7 +95,9 @@
           "speaker": "neighbor_a",
           "text": "Fine village."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_peace",
@@ -111,7 +119,9 @@
           "speaker": "elder",
           "text": "Busy week."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_harvest",
@@ -133,7 +143,9 @@
           "speaker": "farmer",
           "text": "Seen the traders?"
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_kids",
@@ -155,7 +167,9 @@
           "speaker": "parent",
           "text": "Hungry yet?"
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_wolves",
@@ -177,7 +191,9 @@
           "speaker": "settler",
           "text": "Cold out."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_mama",
@@ -199,7 +215,9 @@
           "speaker": "child",
           "text": "Race you!"
         }
-      ]
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_play",
@@ -221,7 +239,9 @@
           "speaker": "child",
           "text": "Hehe!"
         }
-      ]
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_child_help",
@@ -243,7 +263,9 @@
           "speaker": "child",
           "text": "Wait up!"
         }
-      ]
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_lesson",
@@ -265,7 +287,9 @@
           "speaker": "pupil",
           "text": "I learned!"
         }
-      ]
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_recess",
@@ -287,7 +311,9 @@
           "speaker": "pupil",
           "text": "Sums are hard."
         }
-      ]
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_school_class",
@@ -309,7 +335,9 @@
           "speaker": "pupil",
           "text": "Books!"
         }
-      ]
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_walk",
@@ -331,7 +359,9 @@
           "speaker": "suitor",
           "text": "Moon looks kind tonight."
         }
-      ]
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_well",
@@ -353,7 +383,9 @@
           "speaker": "suitor",
           "text": "Care for a stroll?"
         }
-      ]
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_evening",
@@ -375,7 +407,9 @@
           "speaker": "suitor",
           "text": "Fancy meeting you."
         }
-      ]
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_company",
@@ -397,7 +431,9 @@
           "speaker": "suitor",
           "text": "Pretty view."
         }
-      ]
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_courtship_boots",
@@ -419,7 +455,9 @@
           "speaker": "suitor",
           "text": "Lovely day…"
         }
-      ]
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_trade",
@@ -441,7 +479,9 @@
           "speaker": "visitor",
           "text": "Your reputation travels."
         }
-      ]
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_roads",
@@ -463,7 +503,9 @@
           "speaker": "visitor",
           "text": "We brought news."
         }
-      ]
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_visitor_passing",
@@ -485,7 +527,9 @@
           "speaker": "visitor",
           "text": "Greetings!"
         }
-      ]
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_fences",
@@ -507,7 +551,9 @@
           "speaker": "rival",
           "text": "Bold settlers."
         }
-      ]
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_watch",
@@ -529,7 +575,9 @@
           "speaker": "rival",
           "text": "Keep your distance."
         }
-      ]
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_rival_slight",
@@ -551,7 +599,9 @@
           "speaker": "rival",
           "text": "Our land too."
         }
-      ]
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_feast",
@@ -573,7 +623,9 @@
           "speaker": "reveler",
           "text": "Music tonight!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_cheers",
@@ -595,7 +647,9 @@
           "speaker": "reveler",
           "text": "Flags up!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_festival_best",
@@ -617,7 +671,9 @@
           "speaker": "reveler",
           "text": "What a feast!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_relationship_pressure",
@@ -651,7 +707,9 @@
           "speaker": "npc_cynical",
           "text": "That's the problem. I know you mean it."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_secret_conflict",
@@ -701,7 +759,9 @@
           "speaker": "npc_cynical",
           "text": "I promised you nothing. You heard what you needed to hear."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_social_rumor",
@@ -735,7 +795,9 @@
           "speaker": "npc_recluse",
           "text": "Then ask a question you are prepared to hear answered."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_social_crow",
@@ -757,7 +819,9 @@
           "speaker": "neighbor",
           "text": "No. It looks better dressed than I do."
         }
-      ]
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
     }
   ],
   "categories": [

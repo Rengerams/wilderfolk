@@ -1,0 +1,460 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "social",
+  "categories": [
+    "social"
+  ],
+  "dialogue_trees": [
+    {
+      "id": "evt_social_impulse_sick_day_0",
+      "category": "social",
+      "eventKey": "social.impulse.sick_day",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I need rest…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sick_day_1",
+      "category": "social",
+      "eventKey": "social.impulse.sick_day",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Not feeling well."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_church_0",
+      "category": "social",
+      "eventKey": "social.impulse.grief.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I miss them…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_church_1",
+      "category": "social",
+      "eventKey": "social.impulse.grief.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A quiet prayer."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_home_0",
+      "category": "social",
+      "eventKey": "social.impulse.grief.home",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Leave me a while…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_drought_0",
+      "category": "social",
+      "eventKey": "social.impulse.bad_weather.drought",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dust and heat."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_storm_0",
+      "category": "social",
+      "eventKey": "social.impulse.bad_weather.storm",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Awful storm."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_snow_0",
+      "category": "social",
+      "eventKey": "social.impulse.bad_weather.snow",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Too cold out."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_rain_0",
+      "category": "social",
+      "eventKey": "social.impulse.bad_weather.rain",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Rain… maybe later."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_elder_rest_0",
+      "category": "social",
+      "eventKey": "social.impulse.elder_rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My knees…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_elder_rest_1",
+      "category": "social",
+      "eventKey": "social.impulse.elder_rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Porch is fine."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_to_hospital_0",
+      "category": "social",
+      "eventKey": "social.impulse.care_pregnant.to_hospital",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Easy now…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_check_spouse_0",
+      "category": "social",
+      "eventKey": "social.impulse.care_pregnant.check_spouse",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How are you feeling?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_rest_0",
+      "category": "social",
+      "eventKey": "social.impulse.care_pregnant.rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Need to sit."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_checkup_0",
+      "category": "social",
+      "eventKey": "social.impulse.hospital_visit.checkup",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Check-up…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_midwives_0",
+      "category": "social",
+      "eventKey": "social.impulse.hospital_visit.midwives",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The midwives…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_doctor_0",
+      "category": "social",
+      "eventKey": "social.impulse.hospital_visit.doctor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I need a doctor."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sunday_service_0",
+      "category": "social",
+      "eventKey": "social.impulse.sunday_service",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bless this day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sunday_service_1",
+      "category": "social",
+      "eventKey": "social.impulse.sunday_service",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Amen."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_grief_0",
+      "category": "social",
+      "eventKey": "social.impulse.civic_petition.grief",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I must speak to the hall…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_food_0",
+      "category": "social",
+      "eventKey": "social.impulse.civic_petition.food",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We need grain stores…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_general_0",
+      "category": "social",
+      "eventKey": "social.impulse.civic_petition.general",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A petition for the officials."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_birthday_0",
+      "category": "social",
+      "eventKey": "social.impulse.birthday",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "It is my day!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_well_0",
+      "category": "social",
+      "eventKey": "social.impulse.market_errand.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Need water."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_other_0",
+      "category": "social",
+      "eventKey": "social.impulse.market_errand.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A few errands."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_other_1",
+      "category": "social",
+      "eventKey": "social.impulse.market_errand.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "What is the price?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_comfort_neighbor_0",
+      "category": "social",
+      "eventKey": "social.impulse.comfort_neighbor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "You look tired."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_comfort_neighbor_1",
+      "category": "social",
+      "eventKey": "social.impulse.comfort_neighbor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I am here."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_day_off_0",
+      "category": "social",
+      "eventKey": "social.impulse.day_off",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A day off."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_day_off_1",
+      "category": "social",
+      "eventKey": "social.impulse.day_off",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Anyone about?"
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ]
+}

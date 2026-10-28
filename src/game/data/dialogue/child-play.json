@@ -1,0 +1,40 @@
+{
+  "version": "1.3",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "evt_child_play_0",
+      "category": "social",
+      "eventKey": "child.play",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Tag!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_child_play_1",
+      "category": "social",
+      "eventKey": "child.play",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Wait for me!"
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "social"
+  ]
+}

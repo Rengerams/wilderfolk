@@ -14,12 +14,14 @@
  * because the idle half's counter is 0. The free case is the control — it must speak either way, so a
  * gate that simply never speaks cannot pass this file.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { hotelierGreetGuests } from '../src/game/hotelStay';
 import { initGame } from '../src/game/worldGen';
 import { isPlayerHuman } from '../src/game/playerHuman';
+import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { resetDialogueSessions } from '../src/game/humanChat';
 
 const SEED = 20_260_920;
 const HOTEL_ID = 90_001;
@@ -51,10 +53,10 @@ function hotelWorld(): { state: WorldState; hotelier: WorldState['entities'][num
   return { state, hotelier: hotelier! };
 }
 
-/** The first tick inside a day at which the hotelier's own roll lets it speak. */
+/** Search a full 24-hour day at the authoritative 12 ticks/hour, not the retired 72-tick day. */
 function firstSpeakingTick(state: WorldState, hotelier: WorldState['entities'][number]): number | null {
   const hotel = state.buildings.find((b) => b.id === HOTEL_ID)!;
-  for (let tick = 0; tick <= 72; tick++) {
+  for (let tick = 0; tick < TICKS_PER_DAY; tick++) {
     hotelier.chatPhrase = undefined;
     hotelier.chatTicks = undefined;
     state.tick = tick;
@@ -63,6 +65,9 @@ function firstSpeakingTick(state: WorldState, hotelier: WorldState['entities'][n
   }
   return null;
 }
+
+beforeEach(resetDialogueSessions);
+afterEach(resetDialogueSessions);
 
 describe('forced-line gates use the owner predicate, not the visible-line counter', () => {
   it('control: a free hotelier does speak, so the gate is not a blanket refusal', () => {

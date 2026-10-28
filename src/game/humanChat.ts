@@ -1,13 +1,5 @@
-import { seededRandomForRun } from './simRng';
-import {
-  ensureDialogueBankFromBundle,
-  getDialogueTreeById,
-  isDialogueBankReady,
-  pickDialogueTree,
-  speakerRoleIndex,
-  type DialogueTree,
-} from './dialogueTrees';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
+import type { DialogueTree } from './dialogueTrees';
+import { TICKS_PER_HOUR } from './dayCycleClock';
 import type { Season, WeatherType } from './gameTypes';
 
 export type HumanChatContext =
@@ -53,6 +45,11 @@ export type ChatSpeaker = {
   chatDialogueSessionKey?: string;
   isJuvenile?: boolean;
   name?: string;
+  /** Read-only contextual eligibility hints, supplied by the real Entity. */
+  pregnant?: boolean;
+  partnerId?: number;
+  childrenIds?: readonly number[];
+  residenceBuildingId?: number;
 };
 
 /** A participant is busy while either a visible line or paired dialogue session is active. */
@@ -60,32 +57,21 @@ export function isDialogueBusy(entity: Pick<ChatSpeaker, 'chatTicks' | 'chatDial
   return (entity.chatTicks ?? 0) > 0 || entity.chatDialogueSessionKey != null;
 }
 
-/** Legacy display duration from the 24-tick day; converted at the chat boundary. */
-export const CHAT_DEFAULT_DURATION_LEGACY_TICKS = 90;
 /** A spoken tree line remains visible for roughly 2.5–5 game hours. */
 export const DIALOGUE_LINE_BASE_HOURS = 2.5;
 export const DIALOGUE_LINE_CHAR_HOURS = 0.08;
 export const CHAT_BUBBLE_MAX_CHARS_PER_LINE = 38;
 export const CHAT_BUBBLE_MAX_LINES = 3;
 
-const DEFAULT_FALLBACK_LINES = ['Lovely weather.', 'Good to see friendly faces.', 'The village grows every season.'];
-
-const FALLBACK_CHAT_LINES: Partial<Record<HumanChatContext, string[]>> = {
-  social: DEFAULT_FALLBACK_LINES,
-  home: ['Home at last.', 'Pass the stew?', 'Quiet night in.'],
-  work: ['Back to it.', 'Tools need sharpening.', 'Steady hands today.'],
-  courtship: ['You have a kind smile.', 'Walk with me?', 'The stars are bright.'],
-  child: ['Tag, you\'re it!', 'Can we play outside?', 'Story time?'],
-  food: ['Stores are thin.', 'Who\'s cooking tonight?', 'We need more grain.'],
-  winter: ['Wood pile\'s low.', 'Frost on the roof.', 'Stay warm, friend.'],
-};
-
 interface DialogueSession {
-  treeId: string;
+  tree: DialogueTree;
   step: number;
   entityAId: number;
   entityBId: number;
+  entityARef: ChatSpeaker;
+  entityBRef: ChatSpeaker | null;
   solo: boolean;
+  durationHours?: number;
 }
 
 const dialogueSessions = new Map<string, DialogueSession>();
@@ -153,10 +139,6 @@ export function ticksForDialogueLine(text: string): number {
   return Math.max(TICKS_PER_HOUR, Math.round(durationHours * TICKS_PER_HOUR));
 }
 
-function activeChatTicksFromLegacyDuration(legacyTicks: number): number {
-  return Math.max(4, Math.round(legacyTicks * PER_TICK_RATE_SCALE));
-}
-
 function sessionKeyFor(aId: number, bId: number): string {
   const lo = Math.min(aId, bId);
   const hi = Math.max(aId, bId);
@@ -168,21 +150,7 @@ function clearEntityChat(entity: ChatSpeaker): void {
   entity.chatPhrase = undefined;
 }
 
-/**
- * Drop whatever dialogue session this settler holds, leaving the counterpart to be reclaimed.
- *
- * Called when a settler stops being ticked. `tickHumanChat` runs only for
- * `byType[EntityType.Human]`, so an entity that leaves that population can no longer advance its
- * session: a pair mid-dialogue whose active half transforms into a Moon Howler froze for the night
- * (`moonHowler.ts` sets `type = EntityType.Werewolf`), because the wolf's `chatTicks` stopped
- * decrementing while the idle half stayed `isDialogueBusy`. The idle half could not self-heal —
- * the session entry is *live*, so the orphan reclaim below cannot see it, and its own `chatTicks`
- * are already 0 so it never reaches `advanceDialogue`.
- *
- * No partner resolver is needed here: deleting the entry is enough. The survivor's key becomes an
- * orphan and the hoisted reclaim releases it on that settler's next tick — the same net that already
- * covers the resolver-less `sayHumanChatPhrase` path.
- */
+/** Release a live session and both of its attached participants immediately. */
 export function releaseDialogueSession(entity: ChatSpeaker): void {
   const key = entity.chatDialogueSessionKey;
   if (!key) return;
@@ -190,21 +158,13 @@ export function releaseDialogueSession(entity: ChatSpeaker): void {
 }
 
 function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: ChatSpeaker): void {
+  const session = dialogueSessions.get(key);
   dialogueSessions.delete(key);
-  if (entityA) {
-    // Only clear if this entity is actually part of this specific session
-    if (entityA.chatDialogueSessionKey === key) {
-      entityA.chatDialogueSessionKey = undefined;
-      entityA.chatPartnerId = undefined;
-      clearEntityChat(entityA);
-    }
-  }
-  if (entityB) {
-    if (entityB.chatDialogueSessionKey === key) {
-      entityB.chatDialogueSessionKey = undefined;
-      entityB.chatPartnerId = undefined;
-      clearEntityChat(entityB);
-    }
+  for (const participant of [entityA, entityB, session?.entityARef, session?.entityBRef]) {
+    if (!participant || participant.chatDialogueSessionKey !== key) continue;
+    participant.chatDialogueSessionKey = undefined;
+    participant.chatPartnerId = undefined;
+    clearEntityChat(participant);
   }
 }
 
@@ -237,11 +197,12 @@ function showDialogueStep(
   entityA: ChatSpeaker,
   entityB: ChatSpeaker | null,
   solo: boolean,
+  durationHours?: number,
 ): void {
   const line = tree.lines[step];
   if (!line) return;
 
-  const ticks = ticksForDialogueLine(line.text);
+  const ticks = durationHours === undefined ? ticksForDialogueLine(line.text) : Math.max(4, Math.round(durationHours * TICKS_PER_HOUR));
   const formatted = formatChatLine(line.text);
 
   if (solo || !entityB) {
@@ -251,7 +212,7 @@ function showDialogueStep(
     return;
   }
 
-  const role = speakerRoleIndex(tree, line);
+  const role = line.speaker === tree.speakers[0] ? 0 : 1;
   const active = role === 0 ? entityA : entityB;
   const idle = role === 0 ? entityB : entityA;
   
@@ -267,6 +228,7 @@ export function startDialogueTreeChat(
   entityB: ChatSpeaker | null,
   tree: DialogueTree,
   solo = false,
+  durationHours?: number,
 ): void {
   // `isDialogueBusy`, not a raw `chatTicks` read: a participant is busy while either a visible line
   // *or* a paired session is live, and `showDialogueStep` clears the idle half's line while keeping its
@@ -284,11 +246,14 @@ export function startDialogueTreeChat(
   if (dialogueSessions.has(key)) return;
 
   dialogueSessions.set(key, {
-    treeId: tree.id,
+    tree,
     step: 0,
     entityAId: entityA.id,
     entityBId: entityB?.id ?? entityA.id,
+    entityARef: entityA,
+    entityBRef: entityB,
     solo: solo || !entityB,
+    durationHours,
   });
 
   entityA.chatDialogueSessionKey = key;
@@ -298,8 +263,11 @@ export function startDialogueTreeChat(
     entityB.chatPartnerId = entityA.id;
   }
 
-  showDialogueStep(tree, 0, entityA, entityB, solo || !entityB);
+  showDialogueStep(tree, 0, entityA, entityB, solo || !entityB, durationHours);
 }
+
+/** Solo scenes can finish without a world/entity resolver (e.g. headless tests). */
+const NO_CHAT_PARTNER = (_id: number): null => null;
 
 function resolveSessionSpeaker(
   entityId: number,
@@ -319,15 +287,9 @@ function advanceDialogue(
   if (!resolved) return false;
 
   const { session, self, partner } = resolved;
-  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
-  const tree = getDialogueTreeById(session.treeId);
+  const tree = session.tree;
   const sessionKey = self.chatDialogueSessionKey!;
   
-  if (!tree) {
-    clearDialogueSession(sessionKey, self, partner ?? undefined);
-    return false;
-  }
-
   if (!session.solo && !partner) {
     clearDialogueSession(sessionKey, self, undefined);
     return false;
@@ -350,39 +312,27 @@ function advanceDialogue(
   }
 
   session.step = nextStep;
-  showDialogueStep(tree, nextStep, entityA, entityB, session.solo);
+  showDialogueStep(tree, nextStep, entityA, entityB, session.solo, session.durationHours);
   return true;
 }
 
-/**
- * Force a specific line (e.g. rare world events, elections).
- *
- * A forced phrase abandons whatever dialogue session this settler held, and the **counterpart must be
- * released with it**: the session map entry is what `isDialogueBusy` reads, so deleting the entry while
- * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns.
- * `resolvePartner` is how the other half is reached; without it the orphan is caught by
- * `tickHumanChat`'s hoisted reclaim instead of never.
- */
-export function sayHumanChatPhrase(
+/** Scripted speech interrupts the current session and frees both participants. */
+export function prepareScriptedDialogue(
   entity: ChatSpeaker,
-  phrase: string,
-  legacyDurationTicks = 120,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
 ): void {
-  const staleKey = entity.chatDialogueSessionKey;
-  if (staleKey) {
-    const session = dialogueSessions.get(staleKey);
-    const counterpartId = session
+  const key = entity.chatDialogueSessionKey;
+  if (key) {
+    const session = dialogueSessions.get(key);
+    const otherId = session
       ? (session.entityAId === entity.id ? session.entityBId : session.entityAId)
       : entity.chatPartnerId;
-    const counterpart = counterpartId != null ? resolvePartner?.(counterpartId) ?? undefined : undefined;
-    // `clearDialogueSession` deletes the entry *and* releases whichever halves it is handed.
-    clearDialogueSession(staleKey, entity, counterpart);
+    const other = otherId != null ? resolvePartner?.(otherId) ?? undefined : undefined;
+    clearDialogueSession(key, entity, other);
   }
   entity.chatDialogueSessionKey = undefined;
   entity.chatPartnerId = undefined;
-  entity.chatPhrase = formatChatLine(phrase, entity);
-  entity.chatTicks = activeChatTicksFromLegacyDuration(legacyDurationTicks);
+  clearEntityChat(entity);
 }
 
 export function tickHumanChat(
@@ -411,12 +361,18 @@ export function tickHumanChat(
   if (entity.chatTicks > 0) return;
 
   if (entity.chatDialogueSessionKey) {
-    const advanced = resolvePartner ? advanceDialogue(entity, resolvePartner) : false;
+    // Solo lines must advance/finish even when no external partner resolver exists.
+    // Paired sessions still require the real resolver; do not invent a partner.
+    const key = entity.chatDialogueSessionKey;
+    const session = dialogueSessions.get(key);
+    const advanced = (resolvePartner || session?.solo)
+      ? advanceDialogue(entity, resolvePartner ?? NO_CHAT_PARTNER)
+      : false;
     if (advanced) return;
     // `advanceDialogue` returning false means the session is gone (a forced phrase reclaimed it, or the
     // partner vanished). Release both halves, not just this one.
     const goneKey = entity.chatDialogueSessionKey;
-    if (!dialogueSessions.has(goneKey)) {
+    if (goneKey && !dialogueSessions.has(goneKey)) {
       const partnerId = entity.chatPartnerId;
       const counterpart = partnerId != null ? resolvePartner?.(partnerId) ?? undefined : undefined;
       clearDialogueSession(goneKey, entity, counterpart);
@@ -442,117 +398,6 @@ export function endAmbientHumanChat(entity: ChatSpeaker): boolean {
   clearEntityChat(entity);
   entity.chatPartnerId = undefined;
   return true;
-}
-
-let warnedMissingBank = false;
-
-export function maybeDialogueChat(
-  entity: ChatSpeaker,
-  partner: ChatSpeaker | null,
-  context: HumanChatContext,
-  tick: number,
-  chance: number,
-  options: ChatPickOptions = {},
-): void {
-  // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
-  if (isDialogueBusy(entity)) return;
-  if (partner && isDialogueBusy(partner)) return;
-  if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
-
-  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
-
-  const tree = pickDialogueTree(context, entity.id, tick, options);
-  if (tree) {
-    startDialogueTreeChat(entity, partner, tree, partner == null);
-    return;
-  }
-
-  // Bank missing or empty — short emergency lines only (should be rare).
-  if (!warnedMissingBank) {
-    warnedMissingBank = true;
-    console.warn('[chat] Dialogue bank empty — using fallback phrases (split dialogue files not loaded)');
-  }
-  const fallback = FALLBACK_CHAT_LINES[context] ?? DEFAULT_FALLBACK_LINES;
-  const phrase = fallback[(entity.id + tick) % fallback.length]!;
-  sayHumanChatPhrase(entity, phrase, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
-  if (partner) {
-    const reply = fallback[(entity.id + tick + 1) % fallback.length]!;
-    sayHumanChatPhrase(partner, reply, CHAT_DEFAULT_DURATION_LEGACY_TICKS);
-  }
-}
-
-/** Weighted pool of chat contexts — random pick, optional light bias from world state. */
-export function pickRandomChatContext(
-  entity: Pick<ChatSpeaker, 'isJuvenile' | 'id'>,
-  tick: number,
-  options: ChatPickOptions = {},
-  extra?: {
-    pregnant?: boolean;
-    renffr?: boolean;
-    workHour?: boolean;
-    night?: boolean;
-  },
-): HumanChatContext {
-  // Base weights: mostly social / work / home so trees across the bank get used.
-  const pool: HumanChatContext[] = [
-    'social', 'social', 'social', 'social',
-    'work', 'work',
-    'home', 'home',
-  ];
-  if (options.foodLow) pool.push('food', 'food');
-  if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
-  if (options.festivalActive) pool.push('festival', 'festival');
-  if (entity.isJuvenile) pool.push('child', 'child', 'school');
-  if (extra?.pregnant) pool.push('pregnant');
-  if (extra?.renffr) pool.push('renffr', 'renffr');
-  if (extra?.workHour) pool.push('work', 'work');
-  if (extra?.night) pool.push('home', 'sleep', 'sleep');
-  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
-  return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
-}
-
-/**
- * Ambient dialogue — random time, random context, optional random nearby partner.
- * Not gated to work hours / evening / “arrived at building”.
- *
- * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
- */
-export function tryAmbientRandomDialogue(
-  entity: ChatSpeaker,
-  nearbyCandidates: ChatSpeaker[],
-  tick: number,
-  chancePerTick: number,
-  options: ChatPickOptions = {},
-  extra?: {
-    pregnant?: boolean;
-    renffr?: boolean;
-    workHour?: boolean;
-    night?: boolean;
-  },
-): void {
-  // Owner predicate, not the visible-line counter — the candidate must not be mid-conversation
-  if (isDialogueBusy(entity)) return;
-  if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
-
-  const context = pickRandomChatContext(entity, tick, options, extra);
-  
-  // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()
-  let partner: ChatSpeaker | null = null;
-  if (nearbyCandidates.length > 0) {
-    // Try to find a free partner randomly without allocating a new array
-    let attempts = 0;
-    const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
-    while (attempts < maxAttempts) {
-      const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
-      if (candidate && candidate.id !== entity.id && !isDialogueBusy(candidate)) {
-        partner = candidate;
-        break;
-      }
-      attempts++;
-    }
-  }
-
-  maybeDialogueChat(entity, partner, context, tick, 1, options);
 }
 
 export function getAnimatedChatDots(tick: number, entityId: number): string {

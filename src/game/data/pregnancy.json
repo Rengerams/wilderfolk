@@ -15,7 +15,8 @@
           "speaker": "partner",
           "text": "I'm so happy to be a dad! Terrified, but happy!"
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_mother_waddle",
@@ -29,7 +30,8 @@
           "speaker": "expectant_mother",
           "text": "I don't walk anymore. I simply exert gravitational pull in a forward direction."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_partner_diapers",
@@ -43,7 +45,8 @@
           "speaker": "partner",
           "text": "I just folded 60 cloth diapers. I am either ready for a baby or opening a car wash."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_partner_woodworking",
@@ -57,7 +60,8 @@
           "speaker": "partner",
           "text": "I sanded this wooden rattle for four hours. It is smoother than my own life choices."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_kicking",
@@ -80,7 +84,8 @@
           "speaker": "expectant_mother",
           "text": "That was definitely the baby. Your heart is just doing the cha-cha."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_karate",
@@ -103,7 +108,8 @@
           "speaker": "expectant_mother",
           "text": "Either way, my ribs are their favorite drum."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_cradle",
@@ -126,7 +132,8 @@
           "speaker": "partner",
           "text": "Hobbits are sturdy! It builds character. And saves on lumber."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_sleep",
@@ -149,7 +156,8 @@
           "speaker": "expectant_mother",
           "text": "A machine that cries when the fire goes out. We're doomed."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_pillows",
@@ -176,7 +184,8 @@
           "speaker": "expectant_mother",
           "text": "Your sacrifice is noted and appreciated."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_nesting",
@@ -203,7 +212,8 @@
           "speaker": "expectant_mother",
           "text": "Judgmental beans."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_cravings",
@@ -230,7 +240,8 @@
           "speaker": "partner",
           "text": "Never. I'm currently eating raw bread dough in solidarity."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_names",
@@ -256,7 +267,9 @@
           "speaker": "expectant_mother",
           "text": "I'm going to sleep in the barn."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_pregnant_panic",
@@ -279,7 +292,8 @@
           "speaker": "partner",
           "text": "Great. I'll go practice holding a watermelon. Wish me luck."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_emergency_bag",
@@ -302,7 +316,8 @@
           "speaker": "partner",
           "text": "In case we need to bribe a forest gnome for medical advice."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     },
     {
       "id": "wf_pregnant_neighbor_advice",
@@ -325,7 +340,8 @@
           "speaker": "neighbor",
           "text": "Ah. Congratulations on expecting a compass."
         }
-      ]
+      ],
+      "eventKey": "pregnancy.daily"
     }
   ],
   "categories": [

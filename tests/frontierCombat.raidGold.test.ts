@@ -95,10 +95,12 @@ function raidFixture(adults: number): { state: WorldState; rival: RivalSettlemen
 
 /** The first seed whose chance roll queues the raid — the same seed is used for every village size. */
 function queuedRaid(adults: number): RaidEvent | null {
+  // A failed chance roll has no gameplay side effects; reuse this immutable-size fixture
+  // rather than regenerating a terrain world (and 800 adults) up to forty times.
+  const { state, rival } = raidFixture(adults);
   for (let seed = 1; seed <= 40; seed++) {
     resetSimRng();
     setSimSeed(seed);
-    const { state, rival } = raidFixture(adults);
     maybeQueueRaid(state, rival, state.entities);
     const queued = state.pendingRaidEvents?.[0];
     if (queued) return queued;

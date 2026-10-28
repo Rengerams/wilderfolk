@@ -60,6 +60,8 @@ export type DecisionKey =
   | 'production'
   | 'villageRequests'
   | 'socialFeedback'
+  | 'dialogueContent'
+  | 'dialogueSessions'
   | 'courtship'
   | 'affairs'
   | 'conception'
@@ -209,19 +211,28 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   socialFeedback: {
-    owner: 'humanSocial.ts — simSettlerChat, simSettlerPairChat, simAmbientChatNeighbors',
+    owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting',
     cadence: 'realtime',
-    cadenceNote: 'only simAmbientChatNeighbors is staggered-social (it returns [] unless (tick + id) % SOCIAL_STAGGER === 0); simSettlerChat and simSettlerPairChat are called ungated every realtime tick from the humanTick path, each scaling its own chance by PER_TICK_RATE_SCALE where a per-tick rate is intended. The query is an ADAPTIVE spatial query — it falls back to a linear scan of the candidate array when the social grid is absent or the cost model rejects it, so "spatial-grid queries only" would be wrong',
-    writes: [
-      'human.chatPhrase',
-      'human.chatTicks',
-      'human.chatPartnerId',
-      'human.chatDialogueSessionKey',
-      'floatingTexts (hearts)',
-      'small courtship progress',
-    ],
-    scheduledFrom: 'humanTick.ts realtime path (simAmbientChatNeighbors staggered; settler/pair chat per tick)',
-    testFile: 'tests/phase7.social.test.ts, tests/school.test.ts, tests/humanChat.ambientPairing.test.ts',
+    cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at existing work/morning/stagger gates; the dialogue router selects text and humanChat executes sessions. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
+    writes: ['floatingTexts (hearts)', 'small courtship progress'],
+    scheduledFrom: 'humanTick.ts realtime social/leisure path, with SOCIAL_STAGGER on neighbour selection',
+    testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts',
+  },
+  dialogueContent: {
+    owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
+    cadence: 'on-demand',
+    cadenceNote: 'Validate the 94-key union and freeze every indexed/worker-installed scene and line at initialization; pure content lookup on the existing event roll. A scripted request delegates to humanChat; this registry row owns neither gameplay outcomes nor chat field mutations. The PR91 presentation parser and binding are read-only and reject a cast member without a spoken line.',
+    writes: [],
+    scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
+    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts',
+  },
+  dialogueSessions: {
+    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
+    cadence: 'realtime',
+    cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks; missing counterparts and cleared keys are ignored safely. The render-buffer boundary mirrors fields but does not originate speech.',
+    writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
+    scheduledFrom: 'humanTick.ts — tickHumanChat once in the active branch, including its existing early-return branch; event owners request through dialogueTrees.ts',
+    testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
@@ -294,7 +305,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip)',
     cadence: 'daily',
     cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
     writes: [

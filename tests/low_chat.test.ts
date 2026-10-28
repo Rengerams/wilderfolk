@@ -7,7 +7,7 @@
  *   - L37 humanChat: a forced phrase reclaims the settler's dialogue session, and a
  *     partner left holding a reclaimed key is not dialogue-busy forever.
  *   - L37 (X6): the seven unreferenced legacy chat/courtship helpers are gone.
- *   - L16 dialogueTrees: tree selection is a deterministic draw from the context pool.
+ *   - L16 dialogueTrees: authored speech is chosen only from exact event key and mode.
  *   - L23 eventLog (already fixed): a non-combat chronicle line is never classified as combat.
  *   - L24/L25 eventLogFilters: the Chronicle offers a `divorce` category.
  *   - L74 travelingTheatre: the stage-1 script choice reaches the opening-night outcome.
@@ -19,7 +19,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, GameEventLog, StoryEvent, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/dayCycle';
 import { getEconomyLedger } from '../src/game/economyLedger';
 import { logEvent, resolveCombatLogKind } from '../src/game/eventLog';
@@ -27,14 +27,12 @@ import { EVENT_LOG_FILTER_OPTIONS } from '../src/game/eventLogFilters';
 import { tickHospitalDailyCare, treatPatientAtHospital } from '../src/game/hospitalCare';
 import {
   isDialogueBusy,
-  maybeDialogueChat,
   resetDialogueSessions,
-  sayHumanChatPhrase,
   startDialogueTreeChat,
   tickHumanChat,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById, pickDialogueTree } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, maybeDialogueChat, requestDialogue, type DialogueEventKey } from '../src/game/dialogueTrees';
 import {
   flushRelationshipDiagnostics,
   isRelationshipDiagnosticsEnabled,
@@ -183,7 +181,10 @@ describe('L37 — dialogue session reclamation', () => {
     startDialogueTreeChat(speaker, null, tree, true);
     expect(speaker.chatDialogueSessionKey).toBe('solo:41');
 
-    sayHumanChatPhrase(speaker, 'A forced line', 12);
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker, tick: 4, priority: 'scripted',
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
     for (let i = 0; i < 4; i++) tickHumanChat(speaker);
     expect(speaker.chatPhrase).toBeUndefined();
 
@@ -216,20 +217,16 @@ describe('L37 — dialogue session reclamation', () => {
     expect(b.chatDialogueSessionKey).toBeDefined();
 
     // A forced phrase abandons the pair session for both sides.
-    sayHumanChatPhrase(a, 'A forced line');
-    expect(a.chatDialogueSessionKey).toBeUndefined();
-    // The partner still holds the key until its own line finishes.
-    expect(b.chatDialogueSessionKey).toBe('51:52');
-
-    const partnerTicks = b.chatTicks ?? 0;
-    for (let i = 0; i < partnerTicks; i++) {
-      tickHumanChat(a, resolveA);
-      tickHumanChat(b, resolveB);
-    }
-
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker: a, tick: 10, priority: 'scripted',
+    })).toBe(true);
+    expect(a.chatDialogueSessionKey).toBe('solo:51');
     expect(b.chatDialogueSessionKey).toBeUndefined();
     expect(b.chatPartnerId).toBeUndefined();
+    expect(b.chatPhrase).toBeUndefined();
+    expect(b.chatTicks).toBeUndefined();
     expect(isDialogueBusy(b)).toBe(false);
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: b, tick: 11 })).toBe(true);
   });
 
   it('no longer exposes the unreferenced legacy chat/courtship helpers', async () => {
@@ -248,16 +245,17 @@ describe('L37 — dialogue session reclamation', () => {
   });
 });
 
-describe('L16 — dialogue tree selection', () => {
-  it('is a deterministic draw from the context pool', () => {
-    const first = pickDialogueTree('work', 12, 30);
-    const second = pickDialogueTree('work', 12, 30);
-
-    expect(first).not.toBeNull();
-    expect(second?.id).toBe(first?.id);
-    for (let tick = 0; tick < 24; tick++) {
-      expect(pickDialogueTree('work', 12, tick)?.category).toBe('work');
-    }
+describe('L16 — event-key dialogue selection', () => {
+  it('requires an actual indexed event key and never falls back to a whole category', () => {
+    const actor: ChatSpeaker = { id: 12 };
+    expect(requestDialogue({ eventKey: 'work' as DialogueEventKey, speaker: actor, tick: 30 })).toBe(false);
+    expect(actor.chatPhrase).toBeUndefined();
+    expect(requestDialogue({ eventKey: 'ambient.work', speaker: actor, tick: 30 })).toBe(true);
+    const first = actor.chatPhrase;
+    resetDialogueSessions();
+    const other: ChatSpeaker = { id: 12 };
+    expect(requestDialogue({ eventKey: 'ambient.work', speaker: other, tick: 30 })).toBe(true);
+    expect(other.chatPhrase).toBe(first);
   });
 });
 

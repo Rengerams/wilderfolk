@@ -1,0 +1,70 @@
+{
+  "version": "1.3",
+  "category": "existential",
+  "dialogue_trees": [
+    {
+      "id": "evt_renffr_omen_0",
+      "category": "existential",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I saw the mark of Renffr in the stars tonight… the harvest will be plentiful."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_1",
+      "category": "existential",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Did you see it? Renffr — written across the sky!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_2",
+      "category": "existential",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The letters fell apart… what does Renffr want?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_3",
+      "category": "existential",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My grandmother spoke of Renffr on nights like this."
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "existential"
+  ]
+}

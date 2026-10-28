@@ -10,6 +10,22 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-08 — register-only entries.** The 2026-10-06 audit campaign (141 findings) and the 2026-10-08 session (31 new findings plus 7 tooling/infra items) are recorded at the end of this file as one line each, **with no individual report files**, on the owner's instruction ("just only in the summary"). About 130 of the 172 are closed and verified; **25 defects remain open**, each with what a fix needs, plus ~25 small copy-and-layout findings noted in one line there. The evidence — `path:line`, measurements, before/after proofs — lives in `docs/private/audits/2026-10-06/`, which is gitignored; `BUG-OVERVIEW-2026-10-08.md` §6 is the consolidated view and `STATUS-2026-10-08.md` the full account. This register is therefore the durable index for them.
 
+**2026-10-28 — [Visitor speech bypassed session ownership](../bug_report/2026-10-28-visitor-speech-bypassed-session-owner.md):** visitor arrivals and performers directly overwrote chatPhrase/chatTicks without checking a live session. PR #93 routes the unchanged captions through JSON and the single session writer; targeted CI and worker/browser verification still pending.
+
+**2026-10-28 — [Solo dialogue never releases without resolver](../bug_report/2026-10-28-solo-dialogue-session-never-releases-without-resolver.md):** solo JSON lines could reach zero ticks while retaining their live session key when no resolver was passed; PR #93 now advances/clears solo sessions without synthesizing a partner. CI and worker/save verification pending.
+
+**2026-10-28 — [Dialogue migration inflated caption duration](../bug_report/2026-10-28-dialogue-migration-duration-inflation.md):** nominal legacy speech ticks were mistaken for game hours (hospital: 4 → 64 effective ticks); PR #93 converts through the authoritative clock and adds a 12-scene duration/busy-release regression. CI verification pending.
+
+**2026-10-28 — [Scripted pair interruption delayed partner release](../bug_report/2026-10-28-scripted-pair-interruption-delayed-release.md):** scripted announcements without a resolver could leave the interrupted partner busy until its next tick. PR #93 now releases both actors immediately; regression added, CI pending.
+
+**2026-10-28 — [Spotlight cast included silent adults](../bug_report/2026-10-28-spotlight-cast-silent-actors.md):** a six-role presentation accepted eight gathered actors, leaving two without dialogue. PR #93 now requires every gathered adult to speak; 31-line six-to-ten-cast regression added, CI pending.
+
+**2026-10-28 — [Simulation PR gate deleted](../bug_report/2026-10-28-simulation-pr-gate-deleted.md):** PR #93 removed the simulation workflow without a replacement. A user-approved 120-day seeded producer-bot gate has been added; workflow run pending.
+
+**2026-10-28 — [Dialogue key contract accepted arbitrary strings and mutable scenes](../bug_report/2026-10-28-dialogue-event-key-contract-mutable-bank.md):** PR #93 adds typed keys, validated immutable indexed JSON and every-event worker/main parity tests; final CI pending.
+
+**2026-10-28 — [Missing dialogue participant crashes the simulation](../bug_report/2026-10-28-dialogue-cleanup-undefined-partner-crash.md):** completed pair dialogue cleanup dereferenced an absent actor after the session key was cleared. PR #93 adds key and participant guards plus a deterministic missing-partner regression; final CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.

@@ -24,7 +24,8 @@
           "speaker": "husband",
           "text": "His name was Barnaby and he had excellent table manners."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_snoring_defense",
@@ -47,7 +48,8 @@
           "speaker": "wife",
           "text": "The wind doesn't gasp for air every thirty seconds."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_warm_spot",
@@ -70,7 +72,8 @@
           "speaker": "partner_a",
           "text": "Such selfless devotion. Now scoot over."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_drawing_portrait",
@@ -93,7 +96,8 @@
           "speaker": "child",
           "text": "Because realism is important to my artistic vision."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_bedtime_excuses",
@@ -116,7 +120,8 @@
           "speaker": "child",
           "text": "Then my coat has hostile intentions."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_dinner_vegetables",
@@ -139,7 +144,8 @@
           "speaker": "parent",
           "text": "Three carrots, or I tell the village elder you hate farming."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_lost_boots",
@@ -166,7 +172,8 @@
           "speaker": "child",
           "text": "He gets drafty toes!"
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_roommate_leftovers",
@@ -193,7 +200,8 @@
           "speaker": "housemate_b",
           "text": "I thought it said 'MINT'. I was testing for herbal freshness."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_roommate_window",
@@ -216,7 +224,8 @@
           "speaker": "housemate_a",
           "text": "Now it smells like boiled cabbage and frostbite."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_blanket_monologue",
@@ -230,7 +239,8 @@
           "speaker": "settler",
           "text": "Nobody here to steal the wool blanket. I am the undisputed emperor of this mattress."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_pot_dining",
@@ -244,7 +254,8 @@
           "speaker": "settler",
           "text": "Eating stew directly out of the cooking pot with a big spoon. Civilization has peaked."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     },
     {
       "id": "wf_family_solo_spider_truce",
@@ -258,7 +269,8 @@
           "speaker": "settler",
           "text": "Spider in the corner: you eat the pantry moths, I don't crush you with a boot. An honorable treaty."
         }
-      ]
+      ],
+      "eventKey": "family.daily"
     }
   ],
   "categories": [

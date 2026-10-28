@@ -1,0 +1,25 @@
+{
+  "version": "1.3",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "evt_marriage_accepted_0",
+      "category": "social",
+      "eventKey": "marriage.accepted",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Yes!"
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "social"
+  ]
+}

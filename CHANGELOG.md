@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
+
+- **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
+
+- **Dialogue contract (28 October 2026):** Restricted speech requests to 94 authored event keys, made one- and two-speaker scene types mandatory and froze both application and worker banks. Added all-event selection and serialization parity regressions; no gameplay or save changes.
+
 - **CI:** Added per-resident workday, workplace and observed-hours JSONL audit to VirtualPlayer population benchmarks; daily profession sums and bot commands are reconciled and regression-tested before performance runs.
 
 - **CI:** Population performance now runs full game-day cycles on staffed producer colonies with the hourly VirtualPlayer; optional half-year stress runs are manual and include real career-credit checks.
@@ -22,14 +28,21 @@
 
 - **Changed:** Courtship pace, married and youth conception, work banter, spousal grief, prisoner mercy voices and social feuds read their trait rules from one personality catalog at the exact historical values, the legacy DNA scan now reports zero, and play is unchanged.
 
-- **Changed:** Aligned the feature roadmap with merged DNA phases A and B, the illustrated strategic map, v4 river rendering and existing alerts; unmerged personality, career and disabled disaster features remain open.
 
+- **Dialogue acceptance (28 October 2026):** Scripted interruptions now release both actors immediately; group presentations require every gathered actor to speak. Added real care and civic outcome tests, paired reload checks and serialized worker-bank selection parity.
+
+- **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
+- **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
+- **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final PR-head node CI completed successfully; browser Spotlight acceptance remains separate.
+- **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
+- **Dialogue cleanup:** Removed the obsolete category-wide picker and its allocation-heavy category index; preserved ten conflicting historic election captions outside the active bank.
+- **Fixed:** Migrated scripted speech now keeps its original effective tick duration using the current simulation clock; added regression coverage for 12 care, lodging, hunting, civic and omen captions.
 - **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
 
 - **Fixed:** Population history now records iron alongside other resources on every sample; older snapshots without an iron field remain readable.
 - **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
-- **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
+- **CI:** Replaced the removed simulation PR workflow with a bounded seeded 120-day producer-bot gate for game-rule changes; presentation-only edits are excluded.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
 
@@ -55,7 +68,7 @@
 
 - **Fixed:** A work-shift skill credit now reads the caller's worker index only, so a stale crew slot costs no population-wide search.
 
-- **Changed:** A dedicated gate now runs the full 360-day simulation for changes to game rules, because the standard gate stops at the unit tier.
+- **Changed:** Long simulation scenarios remain manually available; the PR simulation gate now checks 120 days with checkpoint invariants.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
 
