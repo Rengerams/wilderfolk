@@ -578,8 +578,38 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   return true;
 }
 
-function ambientEventKey(context: HumanChatContext): string {
-  return 'ambient.' + (context === 'pregnant' ? 'pregnancy' : context);
+/** Pick an already-existing event context without creating another event scheduler.
+ * Only use specific scenes when their real-world role requirements are met.
+ * Unsupported relationships retain the original ambient source for that mode.
+ */
+function contextualAmbientScene(
+  entity: ChatSpeaker,
+  partner: ChatSpeaker | null,
+  context: HumanChatContext,
+  options: ChatPickOptions,
+): { eventKey: string; treeId?: string } {
+  if (context === 'pregnant' && entity.pregnant) {
+    if (!partner) return { eventKey: 'pregnancy.daily', treeId: 'wf_pregnant_mother_waddle' };
+    if (entity.partnerId === partner.id && partner.partnerId === entity.id) {
+      return { eventKey: 'pregnancy.daily', treeId: 'wf_pregnant_kicking' };
+    }
+  }
+  if (context === 'food' && options.foodLow && !partner) {
+    return { eventKey: 'famine.hunger', treeId: 'wf_one_way_starving_monologue' };
+  }
+  if (context === 'home') {
+    if (partner && entity.partnerId === partner.id && partner.partnerId === entity.id) {
+      return { eventKey: 'family.daily', treeId: 'wf_family_warm_spot' };
+    }
+    if (partner && entity.residenceBuildingId != null
+      && entity.residenceBuildingId === partner.residenceBuildingId) {
+      return { eventKey: 'family.daily', treeId: 'wf_family_roommate_leftovers' };
+    }
+    if (!partner && (entity.partnerId != null || (entity.childrenIds?.length ?? 0) > 0)) {
+      return { eventKey: 'family.daily' };
+    }
+  }
+  return { eventKey: 'ambient.' + (context === 'pregnant' ? 'pregnancy' : context) };
 }
 
 export function maybeDialogueChat(
@@ -588,13 +618,14 @@ export function maybeDialogueChat(
   context: HumanChatContext,
   tick: number,
   chance: number,
-  _options: ChatPickOptions = {},
+  options: ChatPickOptions = {},
 ): void {
-  // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
+  // Keep the same event eligibility and single seeded chance roll.
   if (isDialogueBusy(entity) || (partner && isDialogueBusy(partner))) return;
   if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
 
-  requestDialogue({ eventKey: ambientEventKey(context), speaker: entity, partner, tick });
+  const content = contextualAmbientScene(entity, partner, context, options);
+  requestDialogue({ ...content, speaker: entity, partner, tick });
 }
 
 /** Weighted pool of chat contexts — random pick, optional light bias from world state. */
