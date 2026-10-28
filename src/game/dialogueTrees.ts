@@ -493,38 +493,44 @@ export function readPresentationDialogue(
 }
 
 /**
- * Resolve the ordered speaker_1 ... speaker_N roles of a group presentation to
- * its real adult performers. Extra gathered performers remain non-speaking.
- * Called when preparing the stage, never from a simulation tick.
+ * Bind numbered presentation roles to 6–10 distinct, real gathered adults.
+ * There may be fewer JSON roles than villagers (remaining villagers are silent),
+ * or more JSON roles than villagers (a gathered adult voices additional roles).
+ * Never invent an actor, mutate gameplay fields, or consume RNG.
  */
 export interface BoundPresentationDialogueLine extends PresentationDialogueLine {
   readonly speakerId: number;
 }
 
+const PRESENTATION_MIN_PERFORMERS = 6;
+const PRESENTATION_MAX_PERFORMERS = 10;
+
 export function bindNumberedPresentationSpeakers(
   presentation: PresentationDialogueScene,
   performerIds: readonly number[],
 ): readonly BoundPresentationDialogueLine[] {
-  if (!Array.isArray(performerIds) || presentation.speakers.length > performerIds.length) {
-    throw new Error('[dialogue] Not enough real performers for presentation');
+  if (!Array.isArray(performerIds)
+    || performerIds.length < PRESENTATION_MIN_PERFORMERS
+    || performerIds.length > PRESENTATION_MAX_PERFORMERS) {
+    throw new Error('[dialogue] Presentation requires 6–10 real performers');
   }
-  for (let i = 0; i < presentation.speakers.length; i++) {
-    if (presentation.speakers[i] !== `speaker_${i + 1}`) {
-      throw new Error('[dialogue] Numbered presentation speaker roles must be sequential');
-    }
-  }
-  const cast = performerIds.slice(0, presentation.speakers.length);
-  if (cast.some((id) => !Number.isSafeInteger(id) || id < 1)
-    || new Set(cast).size !== cast.length) {
+  if (performerIds.some((id) => !Number.isSafeInteger(id) || id < 1)
+    || new Set(performerIds).size !== performerIds.length) {
     throw new Error('[dialogue] Invalid or duplicate presentation performer IDs');
   }
+  const roleToActor = new Map<string, number>();
+  for (let i = 0; i < presentation.speakers.length; i++) {
+    const role = presentation.speakers[i];
+    if (role !== `speaker_${i + 1}`) {
+      throw new Error('[dialogue] Numbered presentation speaker roles must be sequential');
+    }
+    // Assign missing role slots to an already-present adult, in stable cast order.
+    roleToActor.set(role, performerIds[i % performerIds.length]!);
+  }
   return Object.freeze(presentation.lines.map((line) => {
-    const index = presentation.speakers.indexOf(line.speaker);
-    if (index < 0) throw new Error('[dialogue] Undeclared presentation speaker');
-    return Object.freeze({
-      ...line,
-      speakerId: cast[index]!,
-    });
+    const speakerId = roleToActor.get(line.speaker);
+    if (speakerId === undefined) throw new Error('[dialogue] Undeclared presentation speaker');
+    return Object.freeze({ ...line, speakerId });
   }));
 }
 
