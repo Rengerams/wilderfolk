@@ -565,6 +565,18 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
 
   // Expand silo capacity when food is nearly at storage limit, not when production is short.
   // Keep one construction site at a time and leave repair materials available.
+  if (!shortOnFood && storageNearlyFull(state, 'food', FOOD_SILO_PRESSURE_RATIO)
+    && !isUnderConstruction(state, BuildingType.Silo)
+    && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Silo].cost)) {
+    const spot = findPlacementSpot(state, BuildingType.Silo, 0);
+    if (spot) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: BuildingType.Silo, x: spot.x, y: spot.y, rotation: 0 },
+        reason: 'build a Silo — food storage is nearly full',
+      };
+    }
+  }
+
   if (!shortOnFood && !measuredDeficit && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   if (unstaffedFoodProducer) return null;
