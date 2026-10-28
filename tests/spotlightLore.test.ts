@@ -42,10 +42,10 @@ function makeFixture() {
 function pickEligibleTick(world: ReturnType<typeof makeFixture>['world']): number {
   const salt = world.nextEntityId + world.width * 37 + world.height * 19;
   for (let day = 90; day < 900; day++) {
-    const tick = day * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+    const tick = day * TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
     if (isWeekend(tick) && personDayRoll(salt, tick, 3919) < 0.075) return tick;
   }
-  throw new Error('Expected at least one rare daytime opportunity in seeded days 90–900');
+  throw new Error('Expected at least one rare evening opportunity in seeded days 90–900');
 }
 
 function readyScene(world: ReturnType<typeof makeFixture>['world'], girl: Entity, adults: Entity[]): SpotlightLoreState {
@@ -66,9 +66,13 @@ function readyScene(world: ReturnType<typeof makeFixture>['world'], girl: Entity
 }
 
 describe('rare spotlight lore — deterministic rule and participant boundaries', () => {
-  it('rejects missing population and starts only once on an eligible rare weekend afternoon', () => {
+  it('starts only at 19:00 on an eligible rare weekend evening', () => {
     const { world, girl, adults } = makeFixture();
     const tick = pickEligibleTick(world);
+    world.tick = tick - 3 * TICKS_PER_HOUR;
+    world.dayInYear = getCalendarDay(world.tick);
+    expect(maybeStartSpotlightLore(world)).toBe(false);
+    expect(world.spotlightLore).toBeNull();
     world.tick = tick;
     world.dayInYear = getCalendarDay(tick);
     expect(getAbsoluteCalendarDay(tick)).toBeGreaterThan(0);
@@ -225,16 +229,16 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     // treats the new heroine as missing and aborts this otherwise valid scene.
     rebuildEntityByIdMap(world);
     invalidateCachedEntityByType(world);
-    // 16:00 on a weekend; find a deterministic actor who prefers home.
+    // 19:00 on a weekend; find a deterministic actor who prefers home.
     let member: Entity | undefined;
     for (let day = 96; day < 160; day++) {
-      const currentTick = day * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+      const currentTick = day * TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
       if (!isWeekend(currentTick)) continue;
-      member = adults.find((adult) => prefersHomeTonightFor(getWorkSchedule(world), adult.id, currentTick, 16));
+      member = adults.find((adult) => prefersHomeTonightFor(getWorkSchedule(world), adult.id, currentTick, 19));
       if (member) {
         world.tick = currentTick - 1;
         world.dayInYear = getCalendarDay(currentTick);
-        // This is an afternoon snapshot, not the first tick after founding;
+        // This is an evening snapshot, not the first tick after founding;
         // do not also run unrelated daily ageing/relationship transitions.
         world.lastProcessedCalendarDay = getAbsoluteCalendarDay(currentTick);
         break;
