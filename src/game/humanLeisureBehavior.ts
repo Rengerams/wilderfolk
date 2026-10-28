@@ -1,7 +1,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
@@ -119,7 +119,7 @@ export function tickHumanChildLeisure(args: {
 
 import type { TickContext } from './simulation/simulationTypes';
 import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
-import { seededRandomForRun } from './simRng';
+import { seededRandomForRun, personDayRoll } from './simRng';
 import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
 import { pickBeautySpot } from './beautyGrid';
 
