@@ -39,6 +39,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Event site sampling | `worldEventSites.ts` | event roll | `pickSite` — the shared deterministic site chooser used by visitors and strategic camp metadata. |
 | Rival schedule wiring | `rivalWorldTick.ts` | daily | `tickWorldRivalSettlements` — wires the dedicated rival tick, diplomacy and old camp poaching cleanup. |
 | Yearly world event selection | `groupEvents.ts` | yearly event pulse | `rollYearlyWorldEvent` — general events and visitors only; does not establish rival settlements. |
+| Strategic frontier map projection | `strategicMapProjection.ts` | read-only React render from `StrategicWorldMap.tsx` | `projectStrategicCamp` — deterministic stable map illustration positions; `StrategicWorldMap` draws rivals and raid routes from canonical state and never writes simulation state. |
 | Rival settlement record creation | `rivalSettlements.ts` | daily rival pulse / explicit action | `maybeFoundRivalSettlement` — population and calendar gate; `spawnRivalSettlement` — capped at six strategic neighbors with no on-map agents or buildings. |
 | Village camp hit testing | `groupEvents.ts` | UI query | `hitTestCamp` — visitor camps only; rival settlements belong to the strategic map. |
 | Village camp highlights | `renderer/markers.ts` | render pass | `drawCampHighlightRings` — visitor camp selection only. |
