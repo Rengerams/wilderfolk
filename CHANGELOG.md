@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
+
 - **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.

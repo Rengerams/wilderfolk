@@ -1,10 +1,19 @@
 name: Housing 90-day targeted regression
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: ["main"]
     paths:
       - "tests/longRunStallVerdict.test.ts"
+      - "tests/longRunColony.integration.test.ts"
+      - "src/game/virtualPlayer.ts"
+      - "src/hooks/useVirtualPlayer.ts"
+      - "scripts/colonyHealth.ts"
+      - "src/game/gameTick.ts"
+      - "src/game/gameEngine.ts"
+      - "src/game/dailyBuildingEconomy.ts"
+      - "src/game/simulation/humanNeeds.ts"
       - "src/game/residencySelection.ts"
       - "src/game/residencyReconciliation.ts"
       - "src/game/residencyOccupancy.ts"
@@ -13,11 +22,12 @@ on:
 jobs:
   housing-90-day:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: 26.12.1
           cache: npm
-      - run: npm ci
-      - run: npm test -- unit tests/longRunStallVerdict.test.ts
+      - run: npm ci --no-audit --no-fund
+      - run: npm test -- colony-integration
