@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Rare village spotlight (PR #91):** Added a young villager's comic gathering with real participants, camera focus, paced dialogue and optional pause/skip. Fixed home-commute interference and save-session state leakage; see `docs/SPOTLIGHT_LORE_ARCHITECTURE.md`. Not merged.
+- **Rare village spotlight (PR #91):** Added a young villager's comic gathering with real participants, camera focus, paced dialogue and optional pause/skip. Fixed commute interference and save-session state leakage, with design deviations documented separately. Not merged.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
 
