@@ -1,11 +1,16 @@
 {
   "version": "1.3",
-  "category": "existential",
+  "game": "Wilderfolk Sim",
+  "category": "festival",
+  "categories": [
+    "festival"
+  ],
   "dialogue_trees": [
     {
-      "id": "evt_election_buildup_0",
-      "category": "existential",
+      "id": "evt_election_buildup_next_year",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -14,13 +19,13 @@
           "speaker": "speaker",
           "text": "Election next year — will {leader} keep the crown?"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_buildup_1",
-      "category": "existential",
+      "id": "evt_election_buildup_a_support",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -29,13 +34,13 @@
           "speaker": "speaker",
           "text": "I hear {candidateA} is gaining support…"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_buildup_2",
-      "category": "existential",
+      "id": "evt_election_buildup_b_watching",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -44,13 +49,13 @@
           "speaker": "speaker",
           "text": "{candidateB} served well — worth watching."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_buildup_3",
-      "category": "existential",
+      "id": "evt_election_buildup_buzz_leader",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -59,13 +64,28 @@
           "speaker": "speaker",
           "text": "The village buzzes about {leader}, {candidateA}, and {candidateB}."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_buildup_4",
-      "category": "existential",
+      "id": "evt_election_buildup_buzz_no_leader",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village buzzes about {candidateA} and {candidateB}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_after_leader",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -74,13 +94,13 @@
           "speaker": "speaker",
           "text": "Who will lead us after {leader}?"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_buildup_5",
-      "category": "existential",
+      "id": "evt_election_buildup_c_surprise",
+      "category": "festival",
       "eventKey": "election.buildup",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -89,13 +109,13 @@
           "speaker": "speaker",
           "text": "{candidateC} might surprise us next election."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_0",
-      "category": "existential",
+      "id": "evt_election_ceremony_leader_who",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -104,13 +124,118 @@
           "speaker": "speaker",
           "text": "Who will it be — {leader} or {candidateA}?"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_1",
-      "category": "existential",
+      "id": "evt_election_ceremony_leader_reputation",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Well, I know one thing — {leader} has quite the reputation in town!"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_challenge",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateA} challenges {leader} for the crown."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_hold",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Can {leader} hold off {candidateA}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_merit",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} is defending — {candidateA} has the merit, I think."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_change",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Time for a change from {leader}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_b_chance",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} deserves a chance against {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_who",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will it be — {candidateA} or {candidateB}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_merit",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -119,13 +244,13 @@
           "speaker": "speaker",
           "text": "{candidateA} has the merit, I think."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_2",
-      "category": "existential",
+      "id": "evt_election_ceremony_open_hall",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -134,13 +259,13 @@
           "speaker": "speaker",
           "text": "The Hall favors {candidateB}…"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_3",
-      "category": "existential",
+      "id": "evt_election_ceremony_open_change",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -149,13 +274,13 @@
           "speaker": "speaker",
           "text": "Time for a fresh village head?"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_4",
-      "category": "existential",
+      "id": "evt_election_ceremony_open_vote",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -164,13 +289,13 @@
           "speaker": "speaker",
           "text": "I’m voting {candidateA} in my heart."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_ceremony_5",
-      "category": "existential",
+      "id": "evt_election_ceremony_open_b_chance",
+      "category": "festival",
       "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -179,13 +304,13 @@
           "speaker": "speaker",
           "text": "{candidateB} deserves a chance."
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_tension_0",
-      "category": "existential",
+      "id": "evt_election_tension_quiet",
+      "category": "festival",
       "eventKey": "election.tension",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -194,13 +319,13 @@
           "speaker": "speaker",
           "text": "Quiet… they’re about to announce…"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_tension_1",
-      "category": "existential",
+      "id": "evt_election_tension_heart",
+      "category": "festival",
       "eventKey": "election.tension",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -209,13 +334,13 @@
           "speaker": "speaker",
           "text": "My heart is pounding…"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_tension_2",
-      "category": "existential",
+      "id": "evt_election_tension_merit",
+      "category": "festival",
       "eventKey": "election.tension",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -224,13 +349,13 @@
           "speaker": "speaker",
           "text": "Who did the merit favor?"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_tension_3",
-      "category": "existential",
+      "id": "evt_election_tension_result",
+      "category": "festival",
       "eventKey": "election.tension",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -239,13 +364,193 @@
           "speaker": "speaker",
           "text": "Shh — here comes the result…"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     },
     {
-      "id": "evt_election_winner_0",
-      "category": "existential",
+      "id": "evt_election_buildup_record_economy_good",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Prosperity favors {leader} — the stores are full."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_economy_poor",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hard times hurt {leader} at the polls."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_scandal_clean",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} kept a clean name — that helps."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_scandal_bad",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Those scandals still haunt {leader}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_village_good",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village is thriving under {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_village_poor",
+      "category": "festival",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Folks blame {leader} for how bad things are."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_economy_good",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Prosperity favors {leader} — the stores are full."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_economy_poor",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hard times hurt {leader} at the polls."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_scandal_clean",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} kept a clean name — that helps."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_scandal_bad",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Those scandals still haunt {leader}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_village_good",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village is thriving under {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_village_poor",
+      "category": "festival",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Folks blame {leader} for how bad things are."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_winner",
+      "category": "festival",
       "eventKey": "election.winner",
+      "conversation_type": "one_way",
       "speakers": [
         "speaker"
       ],
@@ -254,12 +559,7 @@
           "speaker": "speaker",
           "text": "I will serve the village!"
         }
-      ],
-      "conversation_type": "one_way"
+      ]
     }
-  ],
-  "game": "Wilderfolk Sim",
-  "categories": [
-    "existential"
   ]
 }
