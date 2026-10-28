@@ -39,4 +39,5 @@ export const TRACK_VOLUMES = {
   spotlightLore: 0.52,
 } as const;
 
-export const ALL_TRACK_URLS = Object.values(TRACKS);
+// Stream the rare long Spotlight score only for its scene; exclude it from boot decoding.
+export const ALL_TRACK_URLS = Object.values(TRACKS).filter((url) => url !== TRACKS.spotlightLore);
