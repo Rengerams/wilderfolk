@@ -5,9 +5,11 @@ import { terrainRiseAt } from '../game/terrainAtlas';
 import { formatChatLine } from '../game/humanChat';
 import { bindNumberedPresentationSpeakers } from '../game/dialogueTrees';
 import { preloadSpotlightApplause, playSpotlightApplause } from '../audio/spotlightApplause';
+import { preloadSpotlightMusic, playSpotlightMusic } from '../audio/spotlightMusic';
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
+  spotlightOpeningFrame,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 
@@ -45,6 +47,8 @@ export default function SpotlightLoreOverlay({
   const particleRef = useRef<HTMLDivElement | null>(null);
   const applauseRef = useRef<HTMLDivElement | null>(null);
   const applauseSoundRef = useRef<{ stop: () => void } | null>(null);
+  const musicSoundRef = useRef<{ stop: () => void } | null>(null);
+  const blackoutRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
     callbacks.current = { getCamera, onCameraTarget, onPresentation, onFinish };
@@ -72,6 +76,9 @@ export default function SpotlightLoreOverlay({
     [scene.id, scene.phase]);
 
   useEffect(() => {
+    if (scene.phase === 'ready' || scene.phase === 'gathering') {
+      void preloadSpotlightMusic().catch(() => undefined);
+    }
     if (scene.phase === 'ready') void preloadSpotlightApplause().catch(() => undefined);
   }, [scene.id, scene.phase]);
 
@@ -93,6 +100,7 @@ export default function SpotlightLoreOverlay({
     let previousIndex = -1;
     let previousKind: 'intro' | 'caption' | 'pose' | 'applause' | null = null;
     let startTime: number | null = null;
+    let soundtrackStarted = false;
     const men = scene.slots.filter((slot) => cast.get(slot.humanId)?.gender === 'male');
     const effectTargets = men.length > 0 ? men : scene.slots;
     const chorusMean = effectTargets.reduce(
@@ -105,6 +113,18 @@ export default function SpotlightLoreOverlay({
       if (startTime === null) startTime = now;
       const elapsed = now - startTime;
       const step = spotlightFrameAt(elapsed);
+      const opening = spotlightOpeningFrame(elapsed);
+      if (step.kind === 'intro') {
+        if (opening.cameraShouldFocus) callbacks.current.onCameraTarget(from.x, from.y);
+        if (opening.musicShouldStart && !soundtrackStarted) {
+          soundtrackStarted = true;
+          musicSoundRef.current = playSpotlightMusic();
+        }
+      }
+      if (step.kind === 'applause' && musicSoundRef.current) {
+        musicSoundRef.current.stop();
+        musicSoundRef.current = null;
+      }
       if (step.finished) {
         completed.current = true;
         callbacks.current.onPresentation(null);
@@ -145,6 +165,13 @@ export default function SpotlightLoreOverlay({
         return { x: sx, y: sy - terrainRiseAt(world.worldMap, px, py) * camera.zoom };
       };
       const onScreen = project(x, y);
+      if (blackoutRef.current) {
+        blackoutRef.current.style.opacity = String(step.kind === 'intro' ? opening.blackoutOpacity : 0);
+        const hole = `radial-gradient(ellipse 94px 122px at ${onScreen.x}px ${onScreen.y - 38}px,
+          transparent 0%, transparent 45%, black 100%)`;
+        blackoutRef.current.style.maskImage = opening.spotlightVisible ? hole : 'none';
+        blackoutRef.current.style.webkitMaskImage = opening.spotlightVisible ? hole : 'none';
+      }
       const applauseMarkers = applauseRef.current?.children;
       if (applauseMarkers) {
         for (let index = 0; index < applauseMarkers.length; index++) {
@@ -167,6 +194,7 @@ export default function SpotlightLoreOverlay({
           'px, transparent 0%, rgba(12,11,8,0.08) 40%, rgba(12,11,8,0.5) 100%)';
       }
       if (ringRef.current) {
+        ringRef.current.style.opacity = step.kind === 'intro' && !opening.spotlightVisible ? '0' : '1';
         ringRef.current.style.left = onScreen.x + 'px';
         ringRef.current.style.top = (onScreen.y - 18) + 'px';
       }
@@ -211,6 +239,8 @@ export default function SpotlightLoreOverlay({
     frameHandle = window.requestAnimationFrame(paint);
     return () => {
       window.cancelAnimationFrame(frameHandle);
+      musicSoundRef.current?.stop();
+      musicSoundRef.current = null;
       callbacks.current.onPresentation(null);
     };
   }, [scene.id, scene.phase]);
@@ -224,6 +254,8 @@ export default function SpotlightLoreOverlay({
     if (completed.current) return;
     completed.current = true;
     applauseSoundRef.current?.stop();
+    musicSoundRef.current?.stop();
+    musicSoundRef.current = null;
     callbacks.current.onPresentation(null);
     callbacks.current.onFinish(scene.id, 'skipped');
   };
@@ -231,8 +263,12 @@ export default function SpotlightLoreOverlay({
   return (
     <div className="pointer-events-auto absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
       <div ref={radialRef} className="absolute inset-0 transition-opacity duration-700" aria-hidden="true" />
+      {scene.phase === 'ready' && (
+        <div ref={blackoutRef} className="pointer-events-none absolute inset-0 z-[30] bg-black"
+          style={{ opacity: 1 }} aria-hidden="true" />
+      )}
       <div ref={ringRef}
-        className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
+        className="absolute z-[31] h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
         aria-hidden="true" />
       <div ref={particleRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
         {Array.from({ length: PARTICLE_LIMIT }, (_, i) => (
@@ -275,7 +311,7 @@ export default function SpotlightLoreOverlay({
         </div>
       ) : null}
       <button type="button" onClick={skip}
-        className="pointer-events-auto absolute right-4 top-4 rounded-lg border border-amber-600 bg-stone-950/90 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-stone-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300">
+        className="pointer-events-auto absolute z-[40] right-4 top-4 rounded-lg border border-amber-600 bg-stone-950/90 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-stone-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300">
         Skip scene
       </button>
       <span className="sr-only">Performance duration {Math.round(SPOTLIGHT_TOTAL_MS / 1000)} seconds.</span>
