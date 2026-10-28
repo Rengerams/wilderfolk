@@ -1,7 +1,7 @@
 # Visitor speech bypassed the dialogue session owner
 
 - Bug: Faction visitors and performers wrote visible chat fields without checking an active dialogue session.
-- Status: fix implemented in PR #93; CI and worker/browser verification pending
+- Status: investigating — fix implemented, focused CI passed; worker/browser verification pending
 - Severity: medium
 - Date discovered: 2026-10-28
 - Version/build: Wilderfolk 0.6.5.2 migration branch
@@ -9,6 +9,11 @@
 - Area: visitor behavior and dialogue session ownership
 - Owner module: `src/game/factionWander.ts`
 - Related PR: [#93](https://github.com/Rengerams/wilderfolk/pull/93)
+
+## Status history
+
+- 2026-10-28 — investigating: code trace confirmed the defect and a targeted correction was committed to PR #93.
+- 2026-10-28 — focused regression passed in GitHub Actions run 40732825550; full standard, worker/save and live verification remain pending.
 
 ## Observed behavior
 
