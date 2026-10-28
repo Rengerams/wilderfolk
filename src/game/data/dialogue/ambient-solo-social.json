@@ -1,12 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.3",
   "category": "social",
   "dialogue_trees": [
     {
       "id": "ambient_solo_social",
       "category": "social",
       "eventKey": "ambient.social",
-      "mode": "solo",
       "speakers": [
         "npc_chicken_friend"
       ],
@@ -19,13 +18,13 @@
           "speaker": "npc_chicken_friend",
           "text": "He named himself. I just respected his choice."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_courtship",
       "category": "social",
       "eventKey": "ambient.courtship",
-      "mode": "solo",
       "speakers": [
         "suitor"
       ],
@@ -38,13 +37,13 @@
           "speaker": "suitor",
           "text": "Moon looks kind tonight."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_visitor",
       "category": "social",
       "eventKey": "ambient.visitor",
-      "mode": "solo",
       "speakers": [
         "visitor"
       ],
@@ -57,13 +56,13 @@
           "speaker": "visitor",
           "text": "Your reputation travels."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_rival",
       "category": "social",
       "eventKey": "ambient.rival",
-      "mode": "solo",
       "speakers": [
         "rival"
       ],
@@ -76,13 +75,13 @@
           "speaker": "rival",
           "text": "Bold settlers."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_child",
       "category": "social",
       "eventKey": "ambient.child",
-      "mode": "solo",
       "speakers": [
         "child"
       ],
@@ -95,13 +94,13 @@
           "speaker": "child",
           "text": "Race you!"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_school",
       "category": "social",
       "eventKey": "ambient.school",
-      "mode": "solo",
       "speakers": [
         "pupil"
       ],
@@ -114,7 +113,12 @@
           "speaker": "pupil",
           "text": "I learned!"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "social"
   ]
 }
