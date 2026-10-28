@@ -33,7 +33,7 @@ describe('new-game preset landscape contracts', () => {
       const maps = new Map<MapPreset, WorldMap>();
       for (const preset of Object.values(MapPreset)) {
         const map = make(preset, seed);
-        expect(map.generationVersion).toBe(3);
+        expect(map.generationVersion).toBe(4);
         maps.set(preset, map);
       }
       const get = (preset: MapPreset) => maps.get(preset)!;
