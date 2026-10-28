@@ -240,7 +240,7 @@ describe('workforce named transitions', () => {
     expect(farm.occupants).toHaveLength(3);
   });
 
-  it('keeps the Quarry producing while borrowing a builder from surplus farm staff', () => {
+  it('borrows construction crew from Quarry surplus, leaving Farm food posts protected', () => {
     const miners = [1, 2, 3].map((id) => human(id, { workerBuildingId: 20 }));
     const farmers = [4, 5].map((id) => human(id, { workerBuildingId: 21 }));
     const quarry = building(20, BuildingType.Quarry, { occupants: [1, 2, 3] });
@@ -249,13 +249,13 @@ describe('workforce named transitions', () => {
 
     staffConstructionCrews([...miners, ...farmers], [site, quarry, farm], undefined, 100);
 
-    expect(quarry.occupants).toEqual([1, 2, 3]);
-    expect(farm.occupants).toHaveLength(1);
+    expect(quarry.occupants).toHaveLength(2);
+    expect(farm.occupants).toEqual([4, 5]);
     expect(site.occupants).toHaveLength(1);
-    expect([4, 5]).toContain(site.occupants[0]);
-    expect(farmers.find((worker) => worker.id === site.occupants[0])?.lastAutoJobTransferTick).toBe(100);
+    expect([1, 2, 3]).toContain(site.occupants[0]);
+    expect(miners.find((worker) => worker.id === site.occupants[0])?.lastAutoJobTransferTick).toBe(100);
     staffConstructionCrews([...miners, ...farmers], [site, quarry, farm], undefined, 101);
-    expect(quarry.occupants).toEqual([1, 2, 3]);
+    expect(quarry.occupants).toHaveLength(2);
     expect(site.occupants).toHaveLength(1);
   });
 
