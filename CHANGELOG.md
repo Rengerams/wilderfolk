@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
+
 - **Fixed:** Version-4 rivers now inherit flow-aligned highlights and localized waterfall rapids from v3, without changing saved maps, water collisions or chunk caching.
 
 - **Changed:** Consolidated the terrain architecture into one reference covering generation v1–v4, hydrology, 2.5D rendering, saved-world contracts and verification; retired superseded terrain design notes.
