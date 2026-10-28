@@ -413,6 +413,7 @@ Use the existing test tools and harnesses only:
 5. **Roadmap:** use the roadmap as a feature implementation overview, **not** as a bug tracker or verification list. Do not check a feature off just because a plan or unmerged PR exists; completed means implemented and **merged**.
 6. **Bug reports:** first read `docs/bug_report/readme.md`. Search `docs/bug_report/`, historical `docs/BUG_REPORTS/` and `docs/BUG_REPORTS/SUMMARY.md` before filing. Add a distinct report `docs/bug_report/YYYY-MM-DD-short-title.md` and its link/status to the **single** summary. Report confirmed bugs even if fixed in the same PR.
 7. **No silent side work:** small localized bugs may be fixed under AGENTS scope rules; otherwise report open/blocked. No unrelated refactors or broad code cleanup to mask scope changes.
+8. **Historical docs are read-only:** `docs/FIRST_YEAR_IN_WILDERFOLK.md`, `docs/SECOND_YEAR_IN_WILDERFOLK.md`, `docs/archive/**`, old handovers/audits and historical `docs/BUG_REPORTS/**` reports are reference snapshots. Do not change them to match new feature balance, even if the old narrative is now factually dated. Only `docs/BUG_REPORTS/SUMMARY.md` is an active historical index. Update *active* architecture/plans instead. An explicit user request naming the historical document is required for an exception; refer to AGENTS §8.
 
 **Documentation diff checklist (each PR):**
 - `OWNERSHIP_OVERVIEW.md` — `[ROWS / FUNCTIONS ADDED OR CHANGED]`
@@ -421,6 +422,7 @@ Use the existing test tools and harnesses only:
 - `docs/plans/[FEATURE ARCHITECTURE].md` — `[ACTUAL CHANGE OR N/A]`
 - `[ROADMAP FILE]` — `[STATUS, ONLY WHEN APPROPRIATE]`
 - `docs/bug_report/…` and `docs/BUG_REPORTS/SUMMARY.md` — `[ISSUE / NONE DISCOVERED]`
+- Historical narratives/archives — `NO CHANGES` unless the user specifically authorized them; inspect the PR diff for both Wilderfolk year narratives and past reports.
 
 ## 8. End-of-PR handover (mandatory)
 
