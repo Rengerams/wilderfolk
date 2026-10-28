@@ -4,9 +4,10 @@ import { resolveEntity, worldToScreen } from '../game/viewState';
 import { terrainRiseAt } from '../game/terrainAtlas';
 import { formatChatLine } from '../game/humanChat';
 import { bindNumberedPresentationSpeakers } from '../game/dialogueTrees';
+import { preloadSpotlightApplause, playSpotlightApplause } from '../audio/spotlightApplause';
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
-  SPOTLIGHT_BRIDGE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
+  SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 
@@ -42,6 +43,8 @@ export default function SpotlightLoreOverlay({
   const ringRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const particleRef = useRef<HTMLDivElement | null>(null);
+  const applauseRef = useRef<HTMLDivElement | null>(null);
+  const applauseSoundRef = useRef<{ stop: () => void } | null>(null);
 
   useLayoutEffect(() => {
     callbacks.current = { getCamera, onCameraTarget, onPresentation, onFinish };
@@ -67,6 +70,21 @@ export default function SpotlightLoreOverlay({
   }), [scene.id, scene.phase]);
   const poseRadius = useMemo(() => spotlightSafePoseRadius(world, stageOrigin),
     [scene.id, scene.phase]);
+
+  useEffect(() => {
+    if (scene.phase === 'ready') void preloadSpotlightApplause().catch(() => undefined);
+  }, [scene.id, scene.phase]);
+
+  // The real sample starts once at applause and is stopped on skip, unmount or colony replacement.
+  useEffect(() => {
+    if (scene.phase !== 'ready' || stageKind !== 'applause') return;
+    const playback = playSpotlightApplause();
+    applauseSoundRef.current = playback;
+    return () => {
+      playback.stop();
+      if (applauseSoundRef.current === playback) applauseSoundRef.current = null;
+    };
+  }, [scene.id, scene.phase, stageKind]);
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
@@ -106,7 +124,10 @@ export default function SpotlightLoreOverlay({
       const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, poseRadius);
       const walked = spotlightFarewellPosition(from, departure, step.farewellProgress);
       const x = walked.x + pose.x;
-      const y = walked.y + pose.y;
+      const bowProgress = step.kind === 'applause'
+        ? Math.max(0, Math.min(1, (elapsed - SPOTLIGHT_APPLAUSE_START) / 1500)) : 0;
+      const bowOffset = step.kind === 'applause' ? 3 * Math.sin(Math.PI * bowProgress) : 0;
+      const y = walked.y + pose.y + bowOffset;
       const moving = step.poseProgress !== null || (step.farewellProgress > 0 && step.farewellProgress < 1);
       const facingLeft = step.poseProgress !== null
         ? Math.sin(step.poseProgress * Math.PI * 2) < 0
@@ -124,6 +145,22 @@ export default function SpotlightLoreOverlay({
         return { x: sx, y: sy - terrainRiseAt(world.worldMap, px, py) * camera.zoom };
       };
       const onScreen = project(x, y);
+      const applauseMarkers = applauseRef.current?.children;
+      if (applauseMarkers) {
+        for (let index = 0; index < applauseMarkers.length; index++) {
+          const marker = applauseMarkers[index] as HTMLElement;
+          const human = cast.get(scene.performerIds[index]);
+          if (step.kind !== 'applause' || !human) {
+            marker.style.opacity = '0';
+            continue;
+          }
+          const location = project(human.x, human.y);
+          const bounce = Math.sin(elapsed / 150 + index * 2.2);
+          marker.style.left = location.x + 'px';
+          marker.style.top = (location.y - 58 - bounce * 7) + 'px';
+          marker.style.opacity = String(0.45 + 0.5 * Math.abs(bounce));
+        }
+      }
       if (radialRef.current) {
         radialRef.current.style.background =
           'radial-gradient(ellipse 180px 145px at ' + onScreen.x + 'px ' + (onScreen.y - 32) +
@@ -186,6 +223,7 @@ export default function SpotlightLoreOverlay({
   const skip = () => {
     if (completed.current) return;
     completed.current = true;
+    applauseSoundRef.current?.stop();
     callbacks.current.onPresentation(null);
     callbacks.current.onFinish(scene.id, 'skipped');
   };
@@ -199,6 +237,12 @@ export default function SpotlightLoreOverlay({
       <div ref={particleRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
         {Array.from({ length: PARTICLE_LIMIT }, (_, i) => (
           <span key={i} className="absolute left-0 top-0 select-none text-xl" style={{ opacity: 0, willChange: 'transform, opacity' }} />
+        ))}
+      </div>
+      <div ref={applauseRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {scene.performerIds.map((id) => (
+          <span key={id} className="absolute -translate-x-1/2 -translate-y-1/2 text-xl"
+            style={{ opacity: 0, willChange: 'left, top, opacity' }}>👏</span>
         ))}
       </div>
       <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-lg border border-amber-500/70 bg-stone-950/90 px-5 py-2 text-center shadow-xl">
