@@ -1,12 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.3",
   "category": "existential",
   "dialogue_trees": [
     {
       "id": "ambient_solo_renffr",
       "category": "existential",
       "eventKey": "ambient.renffr",
-      "mode": "solo",
       "speakers": [
         "npc_aware"
       ],
@@ -19,13 +18,13 @@
           "speaker": "npc_aware",
           "text": "I pretended I didn't. We all pretend."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "ambient_solo_election",
       "category": "existential",
       "eventKey": "ambient.election",
-      "mode": "solo",
       "speakers": [
         "voter_a"
       ],
@@ -38,7 +37,12 @@
           "speaker": "voter_a",
           "text": "Election year!"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "existential"
   ]
 }
