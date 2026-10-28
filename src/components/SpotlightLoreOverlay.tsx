@@ -60,10 +60,10 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
-    const duration = lineIndex < 0 ? 2400 : lineDuration(LINES[lineIndex] ?? '');
+    const duration = lineIndex < 0 ? 2400 : lineIndex === LINES.length ? 2800 : lineDuration(LINES[lineIndex] ?? '');
     const timer = window.setTimeout(() => {
       if (completed.current) return;
-      if (lineIndex === LINES.length - 1) {
+      if (lineIndex === LINES.length) {
         completed.current = true;
         finishRef.current(scene.id, 'complete');
       } else {
@@ -131,6 +131,10 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
             {lineIndex + 1} / {LINES.length}
           </div>
         </>
+      ) : lineIndex === LINES.length ? (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md border border-amber-400/70 bg-stone-950/90 px-4 py-2 text-sm font-bold text-amber-100" role="status">
+          A confused round of applause. The star takes a bow.
+        </div>
       ) : scene.phase === 'ready' ? (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/85 px-4 py-2 text-sm text-amber-100">
           An awkward silence. Someone clears their throat...
