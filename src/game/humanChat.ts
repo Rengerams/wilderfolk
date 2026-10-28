@@ -45,6 +45,11 @@ export type ChatSpeaker = {
   chatDialogueSessionKey?: string;
   isJuvenile?: boolean;
   name?: string;
+  /** Read-only contextual eligibility hints, supplied by the real Entity. */
+  pregnant?: boolean;
+  partnerId?: number;
+  childrenIds?: readonly number[];
+  residenceBuildingId?: number;
 };
 
 /** A participant is busy while either a visible line or paired dialogue session is active. */
