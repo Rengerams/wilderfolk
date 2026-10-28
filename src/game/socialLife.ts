@@ -42,8 +42,10 @@ export interface SocialImpulse {
   company?: Entity;
   /** Suggest staying near home residence. */
   stayHome?: boolean;
-  /** Floating chat bubble text. */
-  bubble?: string;
+  /** Exact outcome-based dialogue content key; prose is owned only by JSON. */
+  dialogueEvent?: string;
+  /** Source selection roll, keeping the previous person/day authored-text choice. */
+  dialogueRoll?: number;
 }
 
 export type SocialBuildingPicker = (
@@ -186,7 +188,8 @@ export function pickSocialImpulse(
     return {
       motive: 'sick_day',
       stayHome: hasHome,
-      bubble: personDayRoll(entity.id, tick, 701) < 0.5 ? 'I need rest…' : 'Not feeling well.',
+      dialogueEvent: 'social.impulse.sick_day',
+      dialogueRoll: personDayRoll(entity.id, tick, 701),
     };
   }
 
@@ -197,13 +200,14 @@ export function pickSocialImpulse(
       return {
         motive: 'grief',
         building: church,
-        bubble: personDayRoll(entity.id, tick, 703) < 0.5 ? 'I miss them…' : 'A quiet prayer.',
+        dialogueEvent: 'social.impulse.grief.church',
+        dialogueRoll: personDayRoll(entity.id, tick, 703),
       };
     }
     return {
       motive: 'grief',
       stayHome: hasHome,
-      bubble: 'Leave me a while…',
+      dialogueEvent: 'social.impulse.grief.home',
     };
   }
 
@@ -213,15 +217,14 @@ export function pickSocialImpulse(
     hasHome &&
     personDayRoll(entity.id, tick, 704) < SOCIAL_IMPULSE_CONFIG.HARSH_WEATHER_STAY_HOME_CHANCE
   ) {
-    let weatherBubble = 'Dust and heat.';
-    if (state.weather === WeatherType.Storm) weatherBubble = 'Awful storm.';
-    else if (state.weather === WeatherType.Snow) weatherBubble = 'Too cold out.';
-    else if (state.weather === WeatherType.Rain) weatherBubble = 'Rain… maybe later.';
+    const weatherKind = state.weather === WeatherType.Storm ? 'storm'
+      : state.weather === WeatherType.Snow ? 'snow'
+        : state.weather === WeatherType.Rain ? 'rain' : 'drought';
 
     return {
       motive: 'bad_weather',
       stayHome: true,
-      bubble: weatherBubble,
+      dialogueEvent: `social.impulse.bad_weather.${weatherKind}`,
     };
   }
 
@@ -230,7 +233,8 @@ export function pickSocialImpulse(
     return {
       motive: 'elder_rest',
       stayHome: true,
-      bubble: personDayRoll(entity.id, tick, 706) < 0.4 ? 'My knees…' : 'Porch is fine.',
+      dialogueEvent: 'social.impulse.elder_rest',
+      dialogueRoll: personDayRoll(entity.id, tick, 706) < 0.4 ? 0.25 : 0.75,
     };
   }
 
@@ -249,13 +253,13 @@ export function pickSocialImpulse(
         motive: 'care_pregnant',
         building: hospital,
         company: spouse,
-        bubble: 'Easy now…',
+        dialogueEvent: 'social.impulse.care_pregnant.to_hospital',
       };
     }
     return {
       motive: 'care_pregnant',
       company: spouse,
-      bubble: 'How are you feeling?',
+      dialogueEvent: 'social.impulse.care_pregnant.check_spouse',
     };
   }
 
@@ -263,10 +267,10 @@ export function pickSocialImpulse(
   if (entity.pregnant && personDayRoll(entity.id, tick, 709) < 0.45) {
     const hospital = pickSocialBuilding([BuildingType.Hospital], entity.id + 1);
     if (hospital && hour >= 10 && hour < 17) {
-      return { motive: 'hospital_visit', building: hospital, bubble: 'Check-up…' };
+      return { motive: 'hospital_visit', building: hospital, dialogueEvent: 'social.impulse.hospital_visit.checkup' };
     }
     if (hasHome && hour >= EVENING_START) {
-      return { motive: 'care_pregnant', stayHome: true, bubble: 'Need to sit.' };
+      return { motive: 'care_pregnant', stayHome: true, dialogueEvent: 'social.impulse.care_pregnant.rest' };
     }
   }
 
@@ -283,7 +287,8 @@ export function pickSocialImpulse(
       return {
         motive: 'sunday_service',
         building: church,
-        bubble: personDayRoll(entity.id, tick, 711) < 0.5 ? 'Bless this day.' : 'Amen.',
+        dialogueEvent: 'social.impulse.sunday_service',
+        dialogueRoll: personDayRoll(entity.id, tick, 711),
       };
     }
   }
@@ -308,11 +313,9 @@ export function pickSocialImpulse(
       return {
         motive: 'civic_petition',
         building: hall,
-        bubble: isGrieving(entity, tick)
-          ? 'I must speak to the hall…'
-          : foodAid
-            ? 'We need grain stores…'
-            : 'A petition for the officials.',
+        dialogueEvent: isGrieving(entity, tick)
+          ? 'social.impulse.civic_petition.grief'
+          : foodAid ? 'social.impulse.civic_petition.food' : 'social.impulse.civic_petition.general',
       };
     }
   }
@@ -328,7 +331,7 @@ export function pickSocialImpulse(
     return {
       motive: 'hospital_visit',
       building: hospital,
-      bubble: entity.pregnant ? 'The midwives…' : 'I need a doctor.',
+      dialogueEvent: entity.pregnant ? 'social.impulse.hospital_visit.midwives' : 'social.impulse.hospital_visit.doctor',
     };
   }
 
@@ -341,7 +344,7 @@ export function pickSocialImpulse(
     return {
       motive: 'birthday',
       building: tavern,
-      bubble: 'It is my day!',
+      dialogueEvent: 'social.impulse.birthday',
     };
   }
 
@@ -355,12 +358,9 @@ export function pickSocialImpulse(
       return {
         motive: 'market_errand',
         building: market,
-        bubble:
-          market.type === BuildingType.Well
-            ? 'Need water.'
-            : personDayRoll(entity.id, tick, 714) < 0.5
-              ? 'A few errands.'
-              : 'What is the price?',
+        dialogueEvent: market.type === BuildingType.Well
+          ? 'social.impulse.market_errand.well' : 'social.impulse.market_errand.other',
+        dialogueRoll: market.type === BuildingType.Well ? undefined : personDayRoll(entity.id, tick, 714),
       };
     }
   }
@@ -378,7 +378,8 @@ export function pickSocialImpulse(
     return {
       motive: 'comfort_neighbor',
       company: weary,
-      bubble: personDayRoll(entity.id, tick, 717) < 0.5 ? 'You look tired.' : 'I am here.',
+      dialogueEvent: 'social.impulse.comfort_neighbor',
+      dialogueRoll: personDayRoll(entity.id, tick, 717),
     };
   }
 
@@ -403,7 +404,8 @@ export function pickSocialImpulse(
       return {
         motive: 'day_off',
         building: haunt,
-        bubble: personDayRoll(entity.id, tick, 737) < 0.5 ? 'A day off.' : 'Anyone about?',
+        dialogueEvent: 'social.impulse.day_off',
+        dialogueRoll: personDayRoll(entity.id, tick, 737),
       };
     }
   }
