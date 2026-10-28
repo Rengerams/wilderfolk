@@ -5,6 +5,16 @@ Purpose: one decision → one owner module → one definition of each function.
 
 Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAIN_ARCHITECTURE.md).
 
+## Non-gameplay test harness owners
+
+| Responsibility | Sole owner | Invocation |
+|---|---|---|
+| CI and standard/slow gate routing | `scripts/test.mjs` | `npm run test:standard`, `npm test -- colony-integration`, `npm test -- full` |
+| Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
+| Stall-verdict unit regressions | `tests/longRunStallVerdict.test.ts` | Standard Vitest |
+| Terrain bake fixture | `tests/groundLook.bands.test.ts` | Pristine cached maps and pixels |
+| Save payload fixture | `tests/saveLoad.valueIntegrity.test.ts` | Independent clones of the real payload |
+
 ## Decision owners (authoritative)
 
 | Decision | True owner | Cadence | Key entry functions |

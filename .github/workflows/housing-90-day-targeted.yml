@@ -5,6 +5,10 @@ on:
     branches: ["main"]
     paths:
       - "tests/longRunStallVerdict.test.ts"
+      - "tests/longRunColony.integration.test.ts"
+      - "src/game/virtualPlayer.ts"
+      - "src/game/dailyBuildingEconomy.ts"
+      - "src/game/simulation/humanNeeds.ts"
       - "src/game/residencySelection.ts"
       - "src/game/residencyReconciliation.ts"
       - "src/game/residencyOccupancy.ts"
@@ -20,4 +24,4 @@ jobs:
           node-version: 26.12.1
           cache: npm
       - run: npm ci
-      - run: npm test -- unit tests/longRunStallVerdict.test.ts
+      - run: npm test -- colony-integration

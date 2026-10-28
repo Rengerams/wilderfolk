@@ -4,6 +4,13 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'src/game/residency*'
+      - 'src/game/household*'
+      - 'src/game/leaderHouse.ts'
+      - 'src/game/commuteReach.ts'
+      - 'scripts/benchmark-housing-pipeline.mts'
+      - '.github/workflows/housing-performance-compare.yml'
   push:
     branches:
       - base44/setup-4bdf1c9f

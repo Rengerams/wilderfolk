@@ -67,10 +67,26 @@ async function bakeMap(
   return contexts.captured;
 }
 
-/** Generate a preset and bake it. */
-async function bake(preset: MapPreset, view?: { x: number; y: number; width: number; height: number }): Promise<{ map: WorldMap; img: CapturedImage }> {
+const bakedPresets = new Map<MapPreset, { map: WorldMap; img: CapturedImage }>();
+
+/** Reuse full-map bakes without sharing mutable maps or pixels. */
+async function bake(
+  preset: MapPreset,
+  view?: { x: number; y: number; width: number; height: number },
+  fresh = false,
+): Promise<{ map: WorldMap; img: CapturedImage }> {
+  const cached = !view && !fresh ? bakedPresets.get(preset) : undefined;
+  if (cached) return {
+    map: structuredClone(cached.map),
+    img: { ...cached.img, data: new Uint8ClampedArray(cached.img.data) },
+  };
   const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, preset);
-  return { map, img: await bakeMap(map, view) };
+  const img = await bakeMap(map, view);
+  if (!view && !fresh) bakedPresets.set(preset, {
+    map: structuredClone(map),
+    img: { ...img, data: new Uint8ClampedArray(img.data) },
+  });
+  return { map, img };
 }
 
 /** FNV-1a over the pixels — cheap equality for a 1280×960 surface. */
@@ -237,7 +253,7 @@ describe('the ground bake paints the classification it is drawn under', () => {
     // what the chunked bake builds on (`renderer/terrain.ts` bakes one canvas per visible 256 px
     // chunk, at the world step the camera zoom asks for).
     const whole = await bake(MapPreset.Continental);
-    const again = await bake(MapPreset.Continental);
+    const again = await bake(MapPreset.Continental, undefined, true);
     expect(hashPixels(again.img.data)).toBe(hashPixels(whole.img.data));
 
     const view = { x: 300, y: 200, width: 320, height: 240 };

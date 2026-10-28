@@ -51,9 +51,10 @@ const STEP = {
    */
   check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs',
   dup: 'jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"',
-  unit: 'vitest run --exclude tests/fullYear.integration.test.ts',
+  unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
+  colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
   types: 'tsc -p tsconfig.vitest.json --noEmit',
   /**
    * `scripts/` is deliberately NOT a lint target here, and the narrowing is
@@ -117,7 +118,7 @@ const STEP = {
 const GATE = {
   standard: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
   all: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'invariants'],
+  full: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -135,6 +136,7 @@ const ALIAS = {
   owners: ['owners'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
+  'colony-integration': ['colonyIntegrationTest'],
   browser: ['browser'],
   build: ['build'],
   watch: ['watch'],
@@ -146,12 +148,13 @@ wilderfolk test runner - one entry point, choose with args
   npm test                        standard gate: check -> owners -> cycles --strict -> dup -> types -> lint -> unit
   npm test -- standard            same as above
   npm test -- all                 same steps as standard
-  npm test -- full                standard + invariant-test + invariants
+  npm test -- full                standard + year and colony integration + invariants
   npm test -- accept              build + the real-browser gate
 
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path
   npm test -- unit-all            vitest including the full-year integration file
   npm test -- invariant-test      just tests/fullYear.integration.test.ts
+  npm test -- colony-integration  dedicated 90-day producer regression
   npm test -- invariants          the 360-day run (docs/log/full-year-*.jsonl)
   npm test -- types               tsc on the vitest project
   npm test -- lint [--fix]        oxlint, type-aware
