@@ -38,7 +38,8 @@ import { normalizeVenueSchedule } from './venueSchedule';
 import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldEvents';
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
-import { adoptSimSeedFromWorld, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
+import { adoptSimSeedFromWorld, getSimSeed, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
+import { rollLegacySettlerTraits, validSettlerTraits } from './settlerTraits';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
@@ -105,6 +106,32 @@ function repairLoadedHumanGround(world: WorldState): number {
 /** The serialized `_version` text `buildSaveData` writes, in `JSON.stringify`'s own encoding. */
 /** Last release with a save layout supported by the current load migrations. */
 const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
+
+/**
+ * Legacy DNA — a settler saved before traits existed carries none, and the trait effects have to
+ * apply to them from the first tick, so the missing baseline is filled on load.
+ *
+ * The fill is derived from the colony seed and each citizen's own id (`rollLegacySettlerTraits`), so
+ * it is stable for a save file and does not draw from the live `settlerTraits` stream. Saved DNA is
+ * never rerolled: a valid 1–3 trait set (including a shorter one) is left exactly as written, and
+ * only unknown/duplicate entries are dropped.
+ */
+function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
+  let filled = 0;
+  for (const entity of entities) {
+    // A cursed settler may be saved in moon form, which is still the same person and their DNA.
+    if (!entity.alive) continue;
+    if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
+    const saved = entity.traits;
+    const kept = validSettlerTraits(saved);
+    if (kept.length > 0 && kept.length === (Array.isArray(saved) ? saved.length : 0)) continue;
+    entity.traits = kept.length > 0
+      ? kept
+      : rollLegacySettlerTraits(colonySeed, entity.id, entity.gender);
+    filled++;
+  }
+  return filled;
+}
 
 /** Restore entity fields that must survive save/load (see ENTITY_PERSISTED_FIELDS). */
 function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): void {
@@ -1562,6 +1589,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // Read the copy, like every other payload field in this body, so the load cannot hand the caller's
     // snapshot object back to the live RNG registry.
     restoreSimRng(source.simRng);
+    // Runs here because the seed it derives from is now the loaded colony's own (`worldMap.seed`,
+    // with a valid saved `simRng.seed` winning), and it never draws from a live stream.
+    backfillLegacySettlerDNA(world.entities, getSimSeed());
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }

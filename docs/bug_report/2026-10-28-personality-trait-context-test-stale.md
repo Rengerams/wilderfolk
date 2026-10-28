@@ -1,7 +1,7 @@
 # Trait evaluation regression test referenced obsolete contexts
 
 - Bug: a newly added regression assertion expected a drawback from a context that no longer has catalog effects.
-- Status: investigating
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-10-28
 - Version/build: 0.6.5.1; PR #85 unmerged Phase A
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-28 — investigating: assertion fixed against an actual reachable catalog context; rerun pending.
+- 2026-10-28 — resolved: the corrected assertion passes at the current head.
 
 ## Observed behavior
 `npm run test:standard` ran 2,582 tests, with 2,579 passing, 2 skipped and 1 failing. The test for three-trait trade-offs expected `factor < 1` at `civic/negotiation`, but the three traits in that fixture no longer contribute in that context and correctly yield factor 1.
@@ -38,4 +39,4 @@ None. No state changes and no persisted fields added in PR A.
 
 ## Verification result
 - FAIL: initial `npm run test:standard` on commit `1b6e8cf`.
-- NOT RUN: full rerun on this fix and merge reconciliation.
+- PASS: `npx vitest run tests/personality.traitEvaluation.test.ts` on branch `codebot-tasks`.

@@ -253,7 +253,7 @@ function tickBuildingProgress(state: WorldState): void {
       // Unstaffed production buildings crawl; houses/roads/wells still self-build slowly.
       const buildMultiplier =
         workers > 0 ? 1 + workers * 0.35 : isPassiveBuild(building.type) ? 0.55 : 0.22;
-      const skillMult = getWorkerSkillMultiplier(state, building, entityById);
+      const skillMult = getWorkerSkillMultiplier(state, building, entityById, 'construction');
 
       building.constructionProgress +=
         baseRate * buildMultiplier * globalMult * skillMult * ordinaryWorkHours;

@@ -76,15 +76,15 @@ export const SIMULATION_DECISIONS = {
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence (read-only projection); personality/traitEffectCatalog.ts owns TRAIT_EFFECTS',
     cadence: 'on-demand',
-    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Existing domain owners may import it directly in later phases.',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Phase B consumes it directly at existing owners: the crew multiplier (skills.ts, production and builder/construction contexts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts), the per-soldier militia defence factor (militiaBalance.ts), the danger sites — hunt reach and closing speed (humanHuntingBehavior.ts) and flight speed (humanTick.ts) — and the player work drain (humanPhysiology.ts, physiology/labor). Each site applies the returned factor alone inside the new-effect cap; no legacy DNA multiplier survives beside it.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller; no integration sites or scheduled invocations in phase A',
-    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee branch), humanPhysiology.advanceHumanNeeds (labor drain)',
+    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',
     cadence: 'realtime',
-    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection.',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. Work-shift stamina loss is divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain; walking keeps its base drain.',
     writes: [
       'human.needs',
       'human.needs.nutrition',
@@ -103,7 +103,7 @@ export const SIMULATION_DECISIONS = {
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killForeignCaptiveFromExhaustion, killFromStarvation, fract, freeHuntFoodGain, humanEnergyLoss',
     cadence: 'realtime',
-    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner.',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. humanEnergyLoss is DNA-free: its base, cold, home and hospital terms are unchanged and no trait multiplies captive energy. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
     writes: [
       'resources.food',
       'economyLedger.consumed.meals',
@@ -144,19 +144,19 @@ export const SIMULATION_DECISIONS = {
   construction: {
     owner: 'buildingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
     cadence: 'work',
-    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase',
+    cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. the crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
     writes: [
       'building.constructionProgress',
       'building.occupants (construction crew)',
       'building.buildAnimTimer',
     ],
     scheduledFrom: 'tickLayerDaily.tickBuildingProgress (progress); assign layer + commands (crew membership)',
-    testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts',
+    testFile: 'tests/commands.validation.test.ts, tests/demolish.roundtrip.test.ts, tests/personality.workIntegration.test.ts',
   },
   production: {
-    owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax',
+    owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'system/daily — farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test',
+    cadenceNote: 'system/daily — farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
     writes: [
       'resources',
       'economyLedger.produced',
@@ -165,7 +165,7 @@ export const SIMULATION_DECISIONS = {
       'storageMax',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts',
+    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',

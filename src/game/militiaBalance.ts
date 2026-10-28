@@ -24,6 +24,11 @@ import {
 import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './residencyOccupancy';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
+
+/** Each already-mustered soldier's own defensive DNA, applied to that soldier's base only. */
+const DEFENSE_CONTEXT: TraitContext = { kind: 'danger', activity: 'defense' };
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
@@ -103,10 +108,6 @@ export function canBeMustered(entity: Entity): boolean {
   return entity.alive && isPlayerHuman(entity) && !entity.isJuvenile && !isImprisoned(entity) && entity.job === JobType.Soldier && !entity.raidDeploymentId;
 }
 
-function countMusterableAdults(entities: Entity[]): number {
-  return entities.filter((e) => canBeMustered(e)).length;
-}
-
 export function computeMilitiaBreakdown(
   state: WorldState,
   entities: Entity[],
@@ -128,9 +129,10 @@ export function computeMilitiaBreakdown(
     };
   }
 
-  const adultCount = countMusterableAdults(entities);
+  const mustered = entities.filter(canBeMustered);
+  const adultCount = mustered.length;
   const staffedGuards = getBarracksGuardCount(state, state.buildings);
-  const activeIds = new Set(entities.filter(canBeMustered).map((soldier) => soldier.id));
+  const activeIds = new Set(mustered.map((soldier) => soldier.id));
   const guardCount = state.buildings.filter((building) => building.type === BuildingType.Barracks && building.completed && building.faction !== 'rival')
     .reduce((total, building) => total + building.occupants.filter((id) => activeIds.has(id)).length, 0);
   const spearTier = getMilitiaSpearTier(state);
@@ -156,9 +158,16 @@ export function computeMilitiaBreakdown(
     };
   }
 
-  // Calculate raw total first; round ONLY at the end to avoid cumulative rounding drift
-  const base = adultCount * MILITIA_BALANCE.basePerAdult;
-  lines.push(`${adultCount} adults × ${MILITIA_BALANCE.basePerAdult} = ${base}`);
+  // Each mustered soldier is priced with their own bounded DNA factor, never one army-wide bonus.
+  const plainBase = adultCount * MILITIA_BALANCE.basePerAdult;
+  let base = 0;
+  for (const soldier of mustered) {
+    base += MILITIA_BALANCE.basePerAdult * evaluateTraitInfluence(soldier, DEFENSE_CONTEXT).factor;
+  }
+  lines.push(`${adultCount} adults × ${MILITIA_BALANCE.basePerAdult} = ${Math.round(base)}`);
+  if (base !== plainBase) {
+    lines.push(`defender traits (per-soldier DNA) → ${Math.round(base)}`);
+  }
 
   let rawTotal = base * spearMultiplier;
 
@@ -194,23 +203,6 @@ export function computeMilitiaBreakdown(
     const perGuard = guardBonus / guardCount;
     // Show 1 decimal to avoid misleading integer rounding (e.g. 14.0, 14.5)
     lines.push(`+ ${guardBonus} barracks guards (${guardCount} staffed × ${perGuard.toFixed(1)})`);
-  }
-
-  // Chivalrous settlers add a protective edge to the whole militia. Only settlers who can actually
-  // be mustered count — a rival, visitor, child or prisoner carrying the trait must not raise *your*
-  // strength (and `resolveDefenseRatio` turns that into a raid outcome), so this uses the same
-  // `canBeMustered` predicate as the count above.
-  const chivalrous = entities.filter(
-    (e) => canBeMustered(e) && e.traits?.includes('chivalrous'),
-  ).length;
-  if (chivalrous > 0) {
-    const bonus = Math.round(rawTotal * 0.08);
-    rawTotal += bonus;
-    // The bonus is a flat 8 % of the raw total, applied once — the line used to read
-    // "(N × 8 %)", claiming per-protector scaling the arithmetic never did. Whether it
-    // *should* scale per protector is a balance question for the owner, recorded open in
-    // the report; this label states what the code does.
-    lines.push(`+ ${bonus} chivalrous (flat +8%, ${chivalrous} protector${chivalrous === 1 ? '' : 's'})`);
   }
 
   const militiaStrength = Math.round(rawTotal);

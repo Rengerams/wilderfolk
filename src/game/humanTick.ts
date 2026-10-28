@@ -107,7 +107,12 @@ import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
 import { traitMultiplier } from './settlerTraits';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
 import type { TickContext } from './simulation/simulationTypes';
+
+/** The catalog context behind how fast a settler breaks off from a threat and runs. */
+const ESCAPE_CONTEXT = { kind: 'danger', activity: 'escape' } as const satisfies TraitContext;
 
 import {
   findClosestAdaptiveInRadius,
@@ -868,7 +873,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const fdx = entity.x - huntingWere.x;
       const fdy = entity.y - huntingWere.y;
       const fdist = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
-      const fleeMult = humanFleeMult * traitMultiplier(entity, 'timid', 1.35);
+      const fleeMult = humanFleeMult * evaluateTraitInfluence(entity, ESCAPE_CONTEXT).factor;
       entity.vx = (fdx / fdist) * config.speed * 1.6 * fleeMult;
       entity.vy = (fdy / fdist) * config.speed * 1.6 * fleeMult;
       faceVelocity(entity);

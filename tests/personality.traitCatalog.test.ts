@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAIT_POOL } from '../src/game/settlerTraits';
 import { TRAIT_EFFECTS } from '../src/game/personality/traitEffectCatalog';
+import type { TraitEffect, TraitEffects } from '../src/game/personality/traitEffectCatalog';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
 describe('personality trait effect catalog', () => {
@@ -12,12 +13,18 @@ describe('personality trait effect catalog', () => {
   it('gives each trait a situational benefit, drawback and unique stable reason IDs', () => {
     const ids = new Set<string>();
     for (const trait of TRAIT_POOL) {
-      const { benefit, drawback } = TRAIT_EFFECTS[trait];
+      const { benefit, drawback, also }: TraitEffects = TRAIT_EFFECTS[trait];
       expect(benefit.factorDelta >= 0 && benefit.tendencyDelta >= 0).toBe(true);
       expect(drawback.factorDelta <= 0 && drawback.tendencyDelta <= 0).toBe(true);
       expect(benefit.factorDelta + benefit.tendencyDelta).toBeGreaterThan(0);
       expect(drawback.factorDelta + drawback.tendencyDelta).toBeLessThan(0);
-      for (const [effect, direction] of [[benefit, 'benefit'], [drawback, 'drawback']] as const) {
+      const entries: ReadonlyArray<readonly [TraitEffect, 'benefit' | 'drawback']> = [
+        [benefit, 'benefit'],
+        [drawback, 'drawback'],
+        ...(also ?? []).map((effect): readonly [TraitEffect, 'benefit' | 'drawback'] =>
+          [effect, effect.tendencyDelta >= 0 ? 'benefit' : 'drawback']),
+      ];
+      for (const [effect, direction] of entries) {
         expect(effect.effectId).toMatch(/^[a-z]+\.[a-zA-Z]+$/);
         expect(ids.has(effect.effectId)).toBe(false);
         ids.add(effect.effectId);
@@ -34,7 +41,22 @@ describe('personality trait effect catalog', () => {
         }
       }
     }
-    expect(ids.size).toBe(28);
+    expect(ids.size).toBe(29);
+  });
+
+  it('prices the migrated danger sites inside the bounded factor', () => {
+    for (const [trait, activity] of [
+      ['brave', 'hunting'],
+      ['brave', 'pursuit'],
+      ['timid', 'escape'],
+    ] as const) {
+      const factor = evaluateTraitInfluence(
+        { traits: [trait] },
+        { kind: 'danger', activity },
+      ).factor;
+      expect(factor, `${trait} ${activity}`).toBeGreaterThan(1);
+      expect(factor, `${trait} ${activity}`).toBeLessThanOrEqual(1.15);
+    }
   });
 
   it('keeps unrelated traits neutral instead of granting blanket bonuses', () => {

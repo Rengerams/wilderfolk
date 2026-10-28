@@ -1,6 +1,6 @@
 import type { SettlerTrait } from '../gameTypes';
 import { TRAIT_EFFECTS } from './traitEffectCatalog';
-import type { TraitContext } from './traitEffectCatalog';
+import type { TraitContext, TraitEffect, TraitEffects } from './traitEffectCatalog';
 
 export interface TraitSubject {
   readonly traits?: readonly SettlerTrait[] | null;
@@ -80,9 +80,17 @@ export function evaluateTraitInfluence(
     if ((i > 0 && first === candidate) || (i > 1 && second === candidate)) continue;
     const trait = candidate as SettlerTrait;
 
-    const effects = TRAIT_EFFECTS[trait];
-    for (let j = 0; j < 2; j++) {
-      const effect = j === 0 ? effects.benefit : effects.drawback;
+    const effects: TraitEffects = TRAIT_EFFECTS[trait];
+    const extra = effects.also;
+    const effectCount = extra === undefined ? 2 : 2 + extra.length;
+    for (let j = 0; j < effectCount; j++) {
+      let effect: TraitEffect = effects.benefit;
+      if (j === 1) effect = effects.drawback;
+      else if (j > 1) {
+        const additional = extra?.[j - 2];
+        if (additional === undefined) continue;
+        effect = additional;
+      }
       const when = effect.when;
       if (when.kind !== context.kind) continue;
       if (when.kind === 'work') {
@@ -99,14 +107,13 @@ export function evaluateTraitInfluence(
         reasons.push(Object.freeze({
           trait,
           effectId: effect.effectId,
-          direction: j === 0 ? 'benefit' : 'drawback',
+          direction: j === 0 ? 'benefit' : j === 1 ? 'drawback' : effect.tendencyDelta >= 0 ? 'benefit' : 'drawback',
         }));
       }
     }
   }
 
-  if (positiveFactor === 0 && negativeFactor === 0 &&
-      positiveTendency === 0 && negativeTendency === 0) {
+  if (positiveFactor === 0 && negativeFactor === 0 && positiveTendency === 0 && negativeTendency === 0) {
     return explain ? NEUTRAL_EXPLAINED : NEUTRAL;
   }
 
