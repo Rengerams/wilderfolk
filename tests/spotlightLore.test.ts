@@ -49,6 +49,12 @@ function readyScene(world: ReturnType<typeof makeFixture>['world'], girl: Entity
   const slots = adults.slice(0, 6).map((adult, index) => ({
     humanId: adult.id, x: girl.x + index * 6, y: girl.y + 20,
   }));
+  // A ready fixture must be physically ready, not just carry the phase label.
+  // Otherwise it hides attendance bugs and makes save-normalization tests unrealistic.
+  slots.forEach((slot, index) => {
+    adults[index].x = slot.x;
+    adults[index].y = slot.y;
+  });
   return {
     id: `spotlight:${girl.id}`, heroineId: girl.id, performerIds: adults.slice(0, 6).map((h) => h.id),
     phase: 'ready', startedAtTick: world.tick - 3, readyAtTick: world.tick,
@@ -158,6 +164,26 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     world.festival = { ...world.festival, active: true } as NonNullable<typeof world.festival>;
     tickSpotlightGathering(world, index);
     expect(world.spotlightLore).toBeNull();
+  });
+
+  it('aborts a ready performance if a singer or heroine moves away before the pause handoff', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    const index = new Map(world.entities.map((human) => [human.id, human]));
+    const resourcesBefore = structuredClone(world.resources);
+    const eventsBefore = world.eventLog.length;
+
+    world.spotlightLore = readyScene(world, girl, adults);
+    adults[0].x += 30;
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore).toBeNull();
+
+    world.spotlightLore = readyScene(world, girl, adults);
+    girl.x += 30;
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore).toBeNull();
+    expect(world.resources).toEqual(resourcesBefore);
+    expect(world.eventLog).toHaveLength(eventsBefore);
   });
 
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
@@ -326,6 +352,32 @@ describe('spotlight lore — saved state and worker mirrors', () => {
     world.spotlightLore = structuredClone(scene);
     normalizeSpotlightLoreOnLoad(world);
     expect(world.spotlightLore).toBeNull();
+  });
+
+  it('rejects a saved ready scene with a dispersed cast but preserves gathering state', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+
+    const ready = readyScene(world, girl, adults);
+    adults[0].x += 30;
+    world.spotlightLore = ready;
+    normalizeSpotlightLoreOnLoad(world);
+    expect(world.spotlightLore).toBeNull();
+
+    readyScene(world, girl, adults);
+    girl.y += 30;
+    world.spotlightLore = ready;
+    normalizeSpotlightLoreOnLoad(world);
+    expect(world.spotlightLore).toBeNull();
+
+    girl.y -= 30;
+    const gathering = readyScene(world, girl, adults);
+    gathering.phase = 'gathering';
+    gathering.readyAtTick = undefined;
+    adults[0].x += 30;
+    world.spotlightLore = gathering;
+    normalizeSpotlightLoreOnLoad(world);
+    expect(world.spotlightLore).toEqual(gathering);
   });
 
   it('normalizes missing and corrupt data safely; roundtrips a valid active scene', () => {
