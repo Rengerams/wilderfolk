@@ -544,6 +544,8 @@ export interface DialogueRequest {
   treeId?: string;
   speaker: ChatSpeaker;
   partner?: ChatSpeaker | null;
+  /** Optional resolver for immediate release of the interrupted paired session. */
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined;
   tick: number;
   priority?: 'ambient' | 'scripted';
   durationHours?: number;
@@ -565,8 +567,8 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
     : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
   const selected = explicit ?? choices[Math.min(choices.length - 1, Math.max(0, Math.floor(roll * choices.length)))]!;
   if (request.priority === 'scripted') {
-    prepareScriptedDialogue(speaker);
-    if (partner) prepareScriptedDialogue(partner);
+    prepareScriptedDialogue(speaker, request.resolvePartner);
+    if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
   }
   const tree = request.variables ? {
     ...selected,
