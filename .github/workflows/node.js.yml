@@ -2,40 +2,39 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
 
-      # Verbeterde caching: onthoudt downloads, zelfs als package-lock.json licht verandert
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
+permissions:
+  contents: read
+
+# New commits supersede outdated runs of the same branch.
+concurrency:
+  group: node-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4.4.0
 
-      - name: Use Node.js 26.12.1
+      - name: Use Node.js 26.12.1 (with npm cache)
         uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
+          cache: npm
 
-      # Snelle caching van de npm-pakketten
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      # Installeer pakketten zonder trage audits
+      # setup-node's built-in npm cache removes the redundant actions/cache action
+      # which failed lockfile identity verification before jobs could even start.
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      # Voer tests en de build uit
-      - name: Run Tests and Build
-        run: npm run test:standard && npm run build
+      - name: Run tests
+        run: npm run test:standard
+
+      - name: Build
+        run: npm run build

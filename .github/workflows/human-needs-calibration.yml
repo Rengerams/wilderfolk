@@ -31,7 +31,7 @@ jobs:
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=${{ matrix.days }} --seed=12345 --bot
       - name: Upload diagnostic colony logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: needs-colony-${{ matrix.days }}d
           path: docs/log/**
