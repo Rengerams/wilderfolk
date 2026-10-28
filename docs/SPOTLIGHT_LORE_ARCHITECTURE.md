@@ -49,6 +49,10 @@ The stage's current script contains 31 sequential caption lines. Durations are 3
 
 Ordinary home preference, home/hotel commute, school/work relocation, social/free roam, secondary hunting, child leisure, patient movement and idle stamina-break movement must not overwrite the scripted gathering vector of selected participants. `humanTick` resolves a single `inSpotlightGathering` flag from the saved participant IDs. That flag protects only the participating entities: nonparticipants' AI is unchanged. Genuine danger and flee behavior retain higher priority, and unsafe events should abort the scene rather than transport characters. This resolves the source-level P2 bug where weekend stay-home logic took over movement after the spotlight branch. Regression uses a weekend home-preferring resident and the **real `gameTick` path**.
 
+### Live render-camera positioning (Codex third P2)
+
+The existing GameLoop keeps smoothing its rendered camera while paused. React's `view.camera` may be stale because the game session intentionally skips React updates for presentation-only frames. The spotlight stage therefore reads the current `loop.getView().camera` through an accessor each animation frame; it projects the **already resolved** speaker/heroine positions using the canonical `worldToScreen` and updates three HTML styles only (halo, ring and speech bubble). This animation frame belongs solely to the mounted stage and is cancelled on unmount. It does not rerender React, scan every settler, write entity movement or advance the simulation.
+
 ### Session isolation (Codex P2 #4401308629)
 
 `spotlightReturnRef` belongs to the **current running colony session**, never to global save data. `App.tsx` invalidates it **before** either `replaceSession` call (new game or loaded save), because otherwise the subsequent `!scene` effect would mistakenly treat a loaded world as the old scene completing. Ordinary completion consumes the snapshot one time via `takeSpotlightReturn`. The loaded world's view and pause/speed must remain untouched. `tests/spotlightReturnState.test.ts` covers one-shot consumption and invalidation; the real React load flow still needs browser verification.
@@ -99,6 +103,6 @@ This does not create romance, XP, relationships, physical voice audio, special s
 - Existing ownership, import cycle, TypeScript, standard tests and build: rely on **finished CI status**, not assumed PASS.
 - Full browser run with active worker, viewport zoom, pause/skip, actual actor movement, load-during-scene and fresh-session controls remains a release gate.
 
-Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md).
+Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive; [camera easing projection](bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md).md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md).
 
 **Acceptance:** keep the roadmap item **unchecked** until PR #91 is merged into `main`. Architecture describes the branch; it is not evidence of production readiness.
