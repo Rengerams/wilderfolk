@@ -8,6 +8,8 @@ import workDialogueJson from './data/work.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
+import { seededRandomForRun } from './simRng';
+import { isDialogueBusy, startDialogueTreeChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = [
   'work',
   'needs',
@@ -28,7 +30,9 @@ export interface DialogueLine {
 export interface DialogueTree {
   id: string;
   category: DialogueCategory;
-  speakers: readonly [string, string];
+  speakers: readonly string[];
+  eventKey?: string;
+  mode?: 'solo' | 'pair';
   lines: readonly DialogueLine[];
 }
 
@@ -101,6 +105,7 @@ export const canonicalDialogueBank = buildCanonicalDialogueBank(DIALOGUE_SOURCE_
 let bank: DialogueBankFile | null = null;
 let treesByCategory = new Map<DialogueCategory, DialogueTree[]>();
 let treesById = new Map<string, DialogueTree>();
+let treesByEvent = new Map<string, readonly DialogueTree[]>();
 let loadPromise: Promise<void> | null = null;
 
 /** Headless sims/tests can read the same split sources from disk if imports are unavailable. */
@@ -123,6 +128,7 @@ async function loadDialogueFromDisk(): Promise<boolean> {
 function indexDialogueBank(next: DialogueBankFile): void {
   const nextTreesByCategory = new Map<DialogueCategory, DialogueTree[]>();
   const nextTreesById = new Map<string, DialogueTree>();
+  const nextTreesByEvent = new Map<string, DialogueTree[]>();
 
   for (const tree of next.dialogue_trees) {
     if (!isDialogueCategory(tree.category)) {
@@ -130,6 +136,16 @@ function indexDialogueBank(next: DialogueBankFile): void {
     }
     if (nextTreesById.has(tree.id)) {
       throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
+    }
+    const mode = tree.mode ?? (tree.speakers.length === 1 ? 'solo' : 'pair');
+    if ((mode === 'solo' ? 1 : 2) !== tree.speakers.length || !tree.lines.length || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
+      throw new Error(`[dialogue] Invalid roles or lines for ${tree.id}`);
+    }
+    if (tree.eventKey) {
+      const key = `${tree.eventKey}:${mode}`;
+      const entries = nextTreesByEvent.get(key) ?? [];
+      entries.push(tree);
+      nextTreesByEvent.set(key, entries);
     }
     const list = nextTreesByCategory.get(tree.category) ?? [];
     list.push(tree);
@@ -144,6 +160,7 @@ function indexDialogueBank(next: DialogueBankFile): void {
   };
   treesByCategory = nextTreesByCategory;
   treesById = nextTreesById;
+  treesByEvent = nextTreesByEvent;
 }
 
 /** Install the statically bundled split dialogue sources if nothing is loaded yet. */
@@ -294,6 +311,123 @@ export function getDialogueTreeById(id: string): DialogueTree | undefined {
 export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 {
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
+
+
+export interface DialogueRequest {
+  eventKey: string;
+  speaker: ChatSpeaker;
+  partner?: ChatSpeaker | null;
+  tick: number;
+  priority?: 'ambient' | 'scripted';
+}
+
+export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
+  const { eventKey, speaker, tick } = request;
+  const partner = request.partner ?? null;
+  if (isDialogueBusy(speaker) || (partner && isDialogueBusy(partner))) return false;
+  if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
+  const mode = partner ? 'pair' : 'solo';
+  const choices = treesByEvent.get(eventKey + ':' + mode);
+  if (!choices?.length) return false;
+  const roll = seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick);
+  const tree = choices[Math.floor(roll * choices.length)]!;
+  startDialogueTreeChat(speaker, partner, tree, mode === 'solo');
+  return true;
+}
+
+function ambientEventKey(context: HumanChatContext): string {
+  return 'ambient.' + (context === 'pregnant' ? 'pregnancy' : context);
+}
+
+export function maybeDialogueChat(
+  entity: ChatSpeaker,
+  partner: ChatSpeaker | null,
+  context: HumanChatContext,
+  tick: number,
+  chance: number,
+  options: ChatPickOptions = {},
+): void {
+  // See `startDialogueTreeChat`: the busy test is the owner predicate, not the visible-line counter
+  if (isDialogueBusy(entity) || (partner && isDialogueBusy(partner))) return;
+  if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
+
+  requestDialogue({ eventKey: ambientEventKey(context), speaker: entity, partner, tick });
+}
+
+/** Weighted pool of chat contexts — random pick, optional light bias from world state. */
+export function pickRandomChatContext(
+  entity: Pick<ChatSpeaker, 'isJuvenile' | 'id'>,
+  tick: number,
+  options: ChatPickOptions = {},
+  extra?: {
+    pregnant?: boolean;
+    renffr?: boolean;
+    workHour?: boolean;
+    night?: boolean;
+  },
+): HumanChatContext {
+  // Base weights: mostly social / work / home so trees across the bank get used.
+  const pool: HumanChatContext[] = [
+    'social', 'social', 'social', 'social',
+    'work', 'work',
+    'home', 'home',
+  ];
+  if (options.foodLow) pool.push('food', 'food');
+  if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
+  if (options.festivalActive) pool.push('festival', 'festival');
+  if (entity.isJuvenile) pool.push('child', 'child', 'school');
+  if (extra?.pregnant) pool.push('pregnant');
+  if (extra?.renffr) pool.push('renffr', 'renffr');
+  if (extra?.workHour) pool.push('work', 'work');
+  if (extra?.night) pool.push('home', 'sleep', 'sleep');
+  if (options.weather === 'rain' || options.weather === 'storm') pool.push('winter');
+  return pool[Math.floor(seededRandomForRun(`chat-context:${entity.id}:${tick}`) * pool.length)]!;
+}
+
+/**
+ * Ambient dialogue — random time, random context, optional random nearby partner.
+ * Not gated to work hours / evening / “arrived at building”.
+ *
+ * @param chancePerTick raw chance this tick (e.g. 0.012 ≈ occasional chatter)
+ */
+export function tryAmbientRandomDialogue(
+  entity: ChatSpeaker,
+  nearbyCandidates: ChatSpeaker[],
+  tick: number,
+  chancePerTick: number,
+  options: ChatPickOptions = {},
+  extra?: {
+    pregnant?: boolean;
+    renffr?: boolean;
+    workHour?: boolean;
+    night?: boolean;
+  },
+): void {
+  // Owner predicate, not the visible-line counter — the candidate must not be mid-conversation
+  if (isDialogueBusy(entity)) return;
+  if (seededRandomForRun(`chat-ambient:${entity.id}:${tick}`) > chancePerTick) return;
+
+  const context = pickRandomChatContext(entity, tick, options, extra);
+  
+  // 🚀 OPTIMIZED: Single-pass random partner selection instead of .filter()
+  let partner: ChatSpeaker | null = null;
+  if (nearbyCandidates.length > 0) {
+    // Try to find a free partner randomly without allocating a new array
+    let attempts = 0;
+    const maxAttempts = Math.min(nearbyCandidates.length, 5); // Limit attempts to avoid infinite loops in dense crowds
+    while (attempts < maxAttempts) {
+      const candidate = nearbyCandidates[Math.floor(seededRandomForRun(`chat-cand:${entity.id}:${tick}:${attempts}`) * nearbyCandidates.length)];
+      if (candidate && candidate.id !== entity.id && !isDialogueBusy(candidate)) {
+        partner = candidate;
+        break;
+      }
+      attempts++;
+    }
+  }
+
+  maybeDialogueChat(entity, partner, context, tick, 1, options);
+}
+
 
 // Eager install keeps the first worker/main-thread chat tick deterministic.
 ensureDialogueBankFromBundle();
