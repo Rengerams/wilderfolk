@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { TICKS_PER_DAY, killHuman } from '../src/game/dayCycle';
 import { human } from '../src/test/factories';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';

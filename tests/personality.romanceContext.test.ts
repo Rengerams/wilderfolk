@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { EntityType, JobType, Season } from '../src/game/gameTypes';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 import { initGame } from '../src/game/worldGen';

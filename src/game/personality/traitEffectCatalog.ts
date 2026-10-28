@@ -1,4 +1,5 @@
-import type { JobType, SettlerTrait } from '../gameTypes';
+import type { JobType } from '../gameTypes';
+import type { SettlerTrait } from '../settlerTraits';
 
 /** A person as far as DNA rules are concerned: never the whole entity or world state. */
 export interface TraitSubject {

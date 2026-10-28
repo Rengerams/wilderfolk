@@ -1,4 +1,4 @@
-import type { SettlerTrait } from '../gameTypes';
+import type { SettlerTrait } from '../settlerTraits';
 import { TRAIT_EFFECTS, TRAIT_OPPOSITIONS } from './traitEffectCatalog';
 import type {
   ExactTraitContext,

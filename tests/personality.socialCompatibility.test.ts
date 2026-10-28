@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
+import type { Entity, WorldState } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import { personDayRoll } from '../src/game/humanSchedule';
