@@ -63,7 +63,9 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
       state.worldMap, state.buildings,
       girl.x + Math.cos(angle) * radius, girl.y + Math.sin(angle) * radius,
     );
-    if (!point) return false;
+    if (!point || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < 12)) {
+      return false;
+    }
     slots.push({ humanId: chorus[i].id, x: point.x, y: point.y });
   }
   const scene: SpotlightLoreState = {
