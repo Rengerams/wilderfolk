@@ -28,7 +28,6 @@ import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
 import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
 import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
-import type { Season, WeatherType } from './gameTypes';
 
 import { seededRandomForRun } from './simRng';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
@@ -192,7 +191,6 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
 export const canonicalDialogueBank = buildCanonicalDialogueBank(DIALOGUE_SOURCE_FILES);
 
 let bank: DialogueBankFile | null = null;
-let treesByCategory = new Map<DialogueCategory, DialogueTree[]>();
 let treesById = new Map<string, DialogueTree>();
 let treesByEvent = new Map<string, readonly DialogueTree[]>();
 let loadPromise: Promise<void> | null = null;
@@ -218,7 +216,6 @@ function indexDialogueBank(next: DialogueBankFile): void {
   if (next.version !== DIALOGUE_SCHEMA_VERSION) {
     throw new Error(`[dialogue] Unsupported dialogue bank version: ${next.version}`);
   }
-  const nextTreesByCategory = new Map<DialogueCategory, DialogueTree[]>();
   const nextTreesById = new Map<string, DialogueTree>();
   const nextTreesByEvent = new Map<string, DialogueTree[]>();
 
@@ -239,9 +236,6 @@ function indexDialogueBank(next: DialogueBankFile): void {
     const entries = nextTreesByEvent.get(key) ?? [];
     entries.push(tree);
     nextTreesByEvent.set(key, entries);
-    const list = nextTreesByCategory.get(tree.category) ?? [];
-    list.push(tree);
-    nextTreesByCategory.set(tree.category, list);
     nextTreesById.set(tree.id, tree);
   }
 
@@ -250,7 +244,6 @@ function indexDialogueBank(next: DialogueBankFile): void {
     dialogue_trees: [...next.dialogue_trees],
     categories: [...next.categories],
   };
-  treesByCategory = nextTreesByCategory;
   treesById = nextTreesById;
   treesByEvent = nextTreesByEvent;
 }
@@ -315,87 +308,6 @@ export function getDialogueTrees(): readonly DialogueTree[] {
 
 export function getDialogueCategories(): readonly DialogueCategory[] {
   return requireBank().categories;
-}
-
-const CONTEXT_CATEGORY: Partial<Record<string, DialogueCategory | DialogueCategory[]>> = {
-  work: 'work',
-  guard: 'work',
-  hunt: 'work',
-  home: 'needs',
-  sleep: 'needs',
-  food: 'needs',
-  pregnant: 'needs',
-  child: 'social',
-  social: 'social',
-  festival: ['festival', 'social'],
-  courtship: 'social',
-  affair: 'chaos',
-  visitor: 'social',
-  rival: 'social',
-  school: 'social',
-  fear: 'chaos',
-  renffr: 'existential',
-  winter: 'environment',
-  election: 'existential',
-};
-
-// 🔄 TYPE UNIFICATION: Use gameTypes to prevent drift with ChatPickOptions
-export type DialoguePickHints = {
-  season?: Season;
-  weather?: WeatherType;
-  festivalActive?: boolean;
-  foodLow?: boolean;
-};
-
-export function resolveDialogueCategories(
-  context: string,
-  hints?: DialoguePickHints,
-): DialogueCategory[] {
-  const mapped = CONTEXT_CATEGORY[context];
-  const fallback: DialogueCategory[] = ['social'];
-  const base: DialogueCategory[] = Array.isArray(mapped) ? mapped : mapped ? [mapped] : fallback;
-  const out = new Set<DialogueCategory>(base);
-  
-  if (hints?.festivalActive) out.add('festival');
-  if (hints?.foodLow) out.add('needs');
-  if (hints?.season === 'winter') out.add('environment');
-  if (hints?.weather === 'rain' || hints?.weather === 'snow' || hints?.weather === 'storm') {
-    out.add('environment');
-  }
-  if (hints?.weather === 'drought') out.add('needs');
-  
-  return [...out];
-}
-
-export function pickDialogueTree(
-  context: string,
-  entityId: number,
-  tick: number,
-  hints?: DialoguePickHints,
-): DialogueTree | null {
-  const trees = getDialogueTrees();
-  if (trees.length === 0) return null;
-
-  const categories = resolveDialogueCategories(context, hints);
-  const pool: DialogueTree[] = [];
-  
-  for (const category of categories) {
-    const list = treesByCategory.get(category);
-    if (list) {
-      // 🚀 OPTIMIZED: Safe iteration prevents "Maximum call stack size exceeded" 
-      // errors that can occur with pool.push(...list) on large arrays.
-      for (const tree of list) {
-        pool.push(tree);
-      }
-    }
-  }
-  
-  const usePool = pool.length > 0 ? pool : [...trees];
-
-  const seed = entityId * 47 + tick * 13;
-  const index = Math.abs(seed) % usePool.length;
-
-  return usePool[index]!;
 }
 
 /**
