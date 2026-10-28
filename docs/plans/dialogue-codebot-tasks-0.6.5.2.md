@@ -81,7 +81,7 @@ The following table is a required checklist. Add every other discovered speech-e
 
 | AS-IS source and real symbol / behavior | TO-BE scene keys (minimum) | Mutation/eligibility that MUST remain in original owner | PR |
 | --- | --- | --- | --- |
-| `humanChat.ts` `DEFAULT_FALLBACK_LINES`, `FALLBACK_CHAT_LINES`, `pickRandomChatContext` and `maybeDialogueChat` | `ambient.social`, `ambient.work`, `ambient.needs`, `ambient.environment`, `ambient.festival` (+ existing contexts where reachable) | Keep actual ambient roll and bedtime gate in human tick; no hardcoded “emergency chat” from TS | A |
+| `humanChat.ts` `DEFAULT_FALLBACK_LINES`, `FALLBACK_CHAT_LINES`, `pickRandomChatContext` and `maybeDialogueChat` | All 19 existing `HumanChatContext` values via explicit `ambient.*` event keys (including home, work, guard, courtship, rival, visitor, school, child, affair, food, winter, renffr, fear, sleep, pregnant, festival, election, hunt and social) | Keep actual ambient roll and bedtime gate in human tick; no hardcoded “emergency chat” from TS | A |
 | `humanTick.ts` `simSettlerChat`/`simSettlerPairChat`/`tryAmbientRandomDialogue` | All supported ambient keys | Existing pair dedup, conditions, schedule and adaptive neighbour candidates | A |
 | `socialLife.ts` `tryWorkplaceBanter`, `tryNeighborGreeting` | `workplace.banter` (solo/pair), `neighbor.greeting` (pair) | Work shift, proximity, time, existing trait probability | B |
 | `socialLife.ts` `SocialImpulse.bubble` + `humanLeisureBehavior.ts` impulse rendering | `social.impulse` keyed by specific motive (e.g. sick/grief/weather/care/service; **no conflicting generic line**) | `pickSocialImpulse` remains only motive/route decider; no duplicate rest/venue choices | B |
@@ -117,7 +117,7 @@ Treat `affair`, `courtship`, `festival`, `visitor` and `rival` existing ambient 
 - `tests/dialogue.bankIntegrity.test.ts`
 - `tests/dialogue.eventRouting.test.ts`
 - `tests/dialogue.sessionModes.test.ts`
-- Add one or a few canonical event JSON files only if needed for immediately reachable ambient solo/pair coverage; never add unused placeholder sources.
+- Add the real canonical event JSON scenes needed for **every reachable ambient event-key/mode combination**, especially solo when no eligible partner is present; never add unused placeholder sources. Keep the existing 19-context mapping complete and do not suppress ordinary chatter as a shortcut.
 
 **EDIT**
 - `src/game/dialogueTrees.ts` — validate JSON sources; indexed eventKey + mode lookup; typed `requestDialogue` and `tickDialogue`; deterministic relevant context selection; no category-wide fallback; compile once.
