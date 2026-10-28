@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * A civic petition is resolved once per colony day, by the town-hall owner.
  *
@@ -20,7 +21,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences } from '../src/game/townHall';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 
