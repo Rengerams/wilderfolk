@@ -9,7 +9,7 @@ import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { isDialogueBusy } from './humanChat';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
@@ -218,7 +218,7 @@ export function resolveCivicPetition(
     if (spent <= 0) return { kind: 'none' };
     creditHumanNutritionFromFood(petitioner, spent);
     addFloatingText(state, petitioner.x, petitioner.y - 14, `+${spent} food (aid)`, '#86efac', 'brief');
-    requestDialogue({ eventKey: 'townHall.foodAid', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 831), durationHours: 50 / 9, priority: 'scripted' });
+    requestDialogue({ eventKey: 'townHall.foodAid', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 831), durationHours: dialogueHoursFromNominalTicks(50), priority: 'scripted' });
     addReputation(state, 1);
     return { kind: 'aid_food', amount: spent };
   }
@@ -230,7 +230,7 @@ export function resolveCivicPetition(
     && personDayRoll(petitioner.id, state.tick, 823) < 0.55
   ) {
     adjustHumanStaminaFromEnergy(petitioner, 6);
-    requestDialogue({ eventKey: 'townHall.heard', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 832), durationHours: 52 / 9, priority: 'scripted' });
+    requestDialogue({ eventKey: 'townHall.heard', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 832), durationHours: dialogueHoursFromNominalTicks(52), priority: 'scripted' });
     addFloatingText(state, hall.x + hall.width / 2, hall.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
     addReputation(state, 1);
     return { kind: 'heard' };
@@ -243,10 +243,10 @@ export function resolveCivicPetition(
   // audience itself still happens and still grants its reputation.
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
     if (!isDialogueBusy(petitioner)) {
-      requestDialogue({ eventKey: 'townHall.audience.petitioner', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 833), durationHours: 16 / 3 });
+      requestDialogue({ eventKey: 'townHall.audience.petitioner', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 833), durationHours: dialogueHoursFromNominalTicks(48) });
     }
     if (!isDialogueBusy(leader)) {
-      requestDialogue({ eventKey: 'townHall.audience.leader', speaker: leader, tick: state.tick, selectionRoll: personDayRoll(leader.id, state.tick, 834), durationHours: 16 / 3 });
+      requestDialogue({ eventKey: 'townHall.audience.leader', speaker: leader, tick: state.tick, selectionRoll: personDayRoll(leader.id, state.tick, 834), durationHours: dialogueHoursFromNominalTicks(48) });
     }
     addReputation(state, 1);
     return { kind: 'leader_audience' };
@@ -262,12 +262,12 @@ export function resolveCivicPetition(
     state.resources.gold -= amount;
     adjustHumanStaminaFromEnergy(petitioner, 5);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
-    requestDialogue({ eventKey: 'townHall.goldAid', speaker: petitioner, tick: state.tick, durationHours: 40 / 9, priority: 'scripted' });
+    requestDialogue({ eventKey: 'townHall.goldAid', speaker: petitioner, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
     return { kind: 'aid_gold', amount };
   }
 
   if (personDayRoll(petitioner.id, state.tick, 826) < 0.25) {
-    requestDialogue({ eventKey: 'townHall.generic', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 835), durationHours: 40 / 9, priority: 'scripted' });
+    requestDialogue({ eventKey: 'townHall.generic', speaker: petitioner, tick: state.tick, selectionRoll: personDayRoll(petitioner.id, state.tick, 835), durationHours: dialogueHoursFromNominalTicks(40), priority: 'scripted' });
     return { kind: 'heard' };
   }
 
@@ -299,7 +299,7 @@ export function officialHandlePetitioners(
   if (petitioners.length === 0) return false;
 
   if (!isDialogueBusy(official) && personDayRoll(official.id, state.tick, 836) < 0.4) {
-    requestDialogue({ eventKey: 'townHall.official', speaker: official, tick: state.tick, selectionRoll: personDayRoll(official.id, state.tick, 837), durationHours: 44 / 9 });
+    requestDialogue({ eventKey: 'townHall.official', speaker: official, tick: state.tick, selectionRoll: personDayRoll(official.id, state.tick, 837), durationHours: dialogueHoursFromNominalTicks(44) });
   }
   return true;
 }
