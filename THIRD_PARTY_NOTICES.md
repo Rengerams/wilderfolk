@@ -3,6 +3,14 @@
 Wilderfolk's source code and original materials are subject to the [Wilderfolk Permission-Required License](LICENSE) — Copyright (c) 2026 Renffr. Permission must be requested before reuse, modification, redistribution, or commercial use.
 This file lists every third-party asset shipped with the game and its license.
 
+## Cethiel tileable grass textures (CC0)
+
+| Local assets | Artwork | Creator | License | Source |
+|---|---|---|---|---|
+| `public/sprites/terrain/cethiel/Grass_01.png` … `Grass_04.png` | Tileable Grass Textures — Set 1 (four 512×512 albedo images) | [Cethiel](https://opengameart.org/users/cethiel) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | [Original OpenGameArt pack](https://opengameart.org/content/tileable-grass-textures-set-1) |
+
+The four files exactly match the originals in the user-supplied CC0 ZIP (verified against all four Git blob SHA-1 hashes). The archive's normal maps are not currently included because Wilderfolk's Canvas terrain shader only uses colour textures. The runtime ships the local files and never loads them from third-party servers.
+
 ## Nature artwork (CC0)
 
 | Local assets | Artwork | Creator | License | Source |
