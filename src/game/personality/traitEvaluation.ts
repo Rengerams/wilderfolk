@@ -55,7 +55,7 @@ export function evaluateTraitInfluence(
   const reasons: TraitReason[] | undefined = explain ? [] : undefined;
 
   for (let i = 0; i < traits.length && i < MAX_TRAITS; i++) {
-    const trait = traits[i];
+    const trait = traits[i] as SettlerTrait;
     if ((i > 0 && traits[0] === trait) || (i > 1 && traits[1] === trait)) continue;
     if (!Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, trait)) continue;
 

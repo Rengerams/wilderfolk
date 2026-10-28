@@ -11,9 +11,9 @@ describe('pure personality influence evaluation', () => {
     expect(evaluateTraitInfluence({ traits: [] }, defense)).toEqual({ factor: 1, tendency: 0 });
     expect(evaluateTraitInfluence({ traits: null }, defense, { includeReasons: true }))
       .toEqual({ factor: 1, tendency: 0, reasons: [] });
-    expect(evaluateTraitInfluence({ traits: ['not_a_trait', '__proto__'] as SettlerTrait[] }, defense))
+    expect(evaluateTraitInfluence({ traits: ['not_a_trait', '__proto__'] as unknown as SettlerTrait[] }, defense))
       .toEqual({ factor: 1, tendency: 0 });
-    expect(evaluateTraitInfluence({ traits: ['toString'] as SettlerTrait[] }, defense))
+    expect(evaluateTraitInfluence({ traits: ['toString'] as unknown as SettlerTrait[] }, defense))
       .toEqual({ factor: 1, tendency: 0 });
     expect(evaluateTraitInfluence({ traits: ['fierce'] }, defense)).not.toHaveProperty('reasons');
   });
