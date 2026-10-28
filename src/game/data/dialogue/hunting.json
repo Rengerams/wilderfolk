@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "category": "work",
+  "dialogue_trees": [
+    {
+      "id": "evt_hunting_scarce_0",
+      "category": "work",
+      "eventKey": "hunting.scarce",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Game's getting scarce…"
+        }
+      ]
+    },
+    {
+      "id": "evt_hunting_thinTrails_0",
+      "category": "work",
+      "eventKey": "hunting.thinTrails",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Thin trails today…"
+        }
+      ]
+    }
+  ]
+}
