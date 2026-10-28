@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Spotlight applause (PR #91):** Added a 6.1-second excerpt of the supplied cheering audio on the mute/volume-aware SFX bus, a 6.4-second finale, visible clapping icons and a small bow; skip/load safely stops playback. CI pending.
+- **Spotlight applause (PR #91):** Added a 6.1-second excerpt of the supplied cheering audio on the game-settings-aware SFX bus, a 6.4-second finale, visible clapping icons and a small bow; skip/load safely stops playback. CI pending.
 
 - **Fixed (PR #91):** Constrained rare Spotlight gathering slots to playable map bounds and rejected invalid placement before recording a 90-day cooldown; added an edge-placement regression.
 
