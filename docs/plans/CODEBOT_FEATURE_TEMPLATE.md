@@ -136,7 +136,7 @@ Write **one concrete data/control pipeline** for this feature, replacing every p
 
 ### 2.1 Module and state ownership — mandatory
 
-**List distinct *new* modules only when the existing owners cannot reasonably hold the new responsibility.** Prefer a small focused `src/game/<feature>/...` module over enlarging an unrelated giant file. But do **not** create a new manager, dispatcher, scheduler, registry, shared state, or indirection purely to make files look modular.
+**Prefer new feature-specific modules for genuinely new rules and calculations**, with small direct call-site integrations in established systems. Keep existing domain state writers authoritative; do not transplant their decisions into a new feature module. If a behavior already has one correct canonical owner, reuse it directly instead of splitting the same rule into duplicate modules. Avoid expanding giant existing files when a focused new function clearly has its own responsibility. Do **not** create a new manager, dispatcher, scheduler, registry, shared mutable state or indirection purely for cosmetics.
 
 | Module | CREATE / EDIT / KEEP | Only responsibility | Public function(s) | Permitted state writes | Called from |
 | --- | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Write **one concrete data/control pipeline** for this feature, replacing every p
 
 Hard requirements:
 
-- **One source of truth. One rule, one canonical implementation, one authorized writer.** Do not add aliases, compatibility proxies, duplicate wrappers, barrel `index.ts` files, re-exports, duplicate configuration tables or parallel state. Imports must point directly to the owning module.
+- **One source of truth. One rule, one canonical implementation, one authorized writer.** Do not add aliases, compatibility proxies, duplicate wrappers, barrel `index.ts` files, re-exports, duplicate configuration tables or parallel state. Imports must point directly to the owning module. The feature module must not import a peer's private implementation just to obtain shared data; pass a narrow typed projection from the coordinating owner.
 - Register **every new or touched function** in `OWNERSHIP_OVERVIEW.md` with its real owning file and responsibility. Amend existing rows when behavior changes; never register a hypothetical future function.
 - Update `src/game/simulation/decisionRegistry.ts` **in every implementation PR**. Set actual decision key/owner, real caller and cadence, accurate `writes`, and existing test references. Pure read-only projections must have `writes: []`. Do not invent a cadence/tick or grant broad write access.
 - Explicitly distinguish **pure calculations** from **mutations**. Views are read-only; player changes use the existing typed worker-command route. No UI direct writes to world simulation state.
@@ -167,7 +167,7 @@ Hard requirements:
 | Save and worker requirements | `[MIGRATION / CLONE / DELTA]` |
 | Complexity and memory budget | `[BASELINE + TARGET OR JUSTIFIED LIMIT]` |
 
-**State transition example to replace:** `[INITIAL STATE]` + `[VALID ACTION]` → `[ONE VALID NEW STATE]`; repeated/invalid actions → `[EXPLICIT IDPOTENT OR REJECTED RESULT]`.
+**State transition example to replace:** `[INITIAL STATE]` + `[VALID ACTION]` → `[ONE VALID NEW STATE]`; repeated/invalid actions → `[EXPLICIT IDEMPOTENT OR REJECTED RESULT]`.
 
 ### 2.3 AS-IS → TO-BE function and module migration map — required
 
@@ -365,13 +365,15 @@ For **every** implementation PR, always edit:
 
 - **No new whole-world loop** where an existing indexed pass/event/owner already knows the affected entities.
 - Calculate on the **actual existing cadence**, not a new polling tick. Prefer event-driven updates to global daily recomputation.
-- No nested `population × building` or `population × population` searches introduced in hot paths. Reuse relevant per-tick/per-day indices and caches. Avoid `entities.find` per entity/worker.
+- No nested `population × building` or `population × population` searches introduced in hot paths. Reuse relevant per-tick/per-day indices and caches. Avoid `entities.find` per entity/worker. A feature module must not scan all other features' state internally; obtain narrow context from its existing orchestrating caller.
 - Pure evaluators should be deterministic and cheap; no hidden time, RNG, mutation, I/O, allocations of explanation arrays or strings per ordinary hot-path invocation.
 - Bound growing lists, counters, event records and caches. Define invalidation/cleanup for any new cache; beware save, reset, entity removal and rollback.
 - Preserve the game's existing seeded behavior unless an intentional change is in scope. Record the changed semantics, not just test snapshots.
 - Compare equivalent seeded runs of representative small/medium/larger colonies **if** a hot path changes. Record measured time, memory and test conditions; don't invent an optimization percentage.
 - Keep automated tests **bounded and predictable**. Do not gate every PR on a 360-day colony run or a suite prone to the 45-minute CI timeout; test the narrowest invariant first and reserve bigger seeded runs for high-risk integration.
 - Do not change tests to accept broken gameplay (e.g. starving colonies) just to make CI green. Fix the owning game logic or report the evidenced blocker.
+
+**Module separation audit:** check relevant import/cycle detection already supported by `package.json` (for example, `npm run audit:deps:cycles` when present), report pre-existing cycles separately and treat every new feature-level cycle as a design failure. Tests must cover each pure module's contract independently and the real existing owner integration; passing end-to-end tests alone is not enough to demonstrate isolated responsibilities.
 
 **Measurement table:**
 
@@ -465,9 +467,13 @@ Next smallest PR:
 
 - [ ] Current branch/code examined; relevant AGENTS, shell and architecture rules read.
 - [ ] Feature/non-goals and every acceptance criterion are fully specified.
+- [ ] **AS-IS** shows verified existing files, functions, callers, cadence, writes and current missing behavior; **TO-BE** shows the new complete data/control path.
+- [ ] Every changed function has an **AS-IS → TO-BE** mapping with unique owner, exact direct callers, state-write permissions and the phase where it is changed/removed.
+- [ ] **Module boundaries** identify responsibilities, typed inputs/outputs, allowed and forbidden imports/writes, plus a directional dependency diagram with no cycles.
+- [ ] **Phase matrix** defines starting architecture, migration/cutover, authoritative runtime after each PR, boundary tests and rollback handling.
 - [ ] One explicit pipeline; one rule/one owner/one writer; no aliases, re-exports, wrapper-only facades, duplicated state or speculative general-purpose manager.
 - [ ] New code is in focused modules **when a genuinely distinct responsibility exists**, while established owners remain canonical.
-- [ ] No extra scheduler, world scan, quadratic hot path or unbounded records.
+- [ ] No extra scheduler, world scan, quadratic hot path or unbounded records; cross-feature interactions are coordinated at one existing caller using narrow data rather than deep imports.
 - [ ] State transitions are deterministic, guarded and idempotent where appropriate.
 - [ ] Each PR that adds persisted data ships complete migration, preserved old saves, worker/rollback parity and tests.
 - [ ] Real game events/UI use existing authoritative channels; combat events also reach the general event log.
