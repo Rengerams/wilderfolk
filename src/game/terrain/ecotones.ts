@@ -12,6 +12,12 @@ const smooth = (v: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+/** Minimal climate field ownership: world gen can sample before the full WorldMap exists. */
+export type EcotoneTerrainFields = Pick<WorldMap,
+  'cols' | 'rows' | 'elevation' | 'moisture' | 'temperature' | 'seaLevel'
+  | 'riverDist' | 'waterCols' | 'waterRows' | 'moistureForestThreshold'
+  | 'moistureDarkForestThreshold'>;
+
 export interface EcotoneClimate {
   forest: number;
   denseForest: number;
@@ -24,7 +30,7 @@ export interface EcotoneClimate {
  * Continuous climate fractions at a world point. Every sample uses canonical
  * map fields; labels only forbid invalid habitats such as open water.
  */
-export function sampleEcotone(map: WorldMap, x: number, y: number): EcotoneClimate {
+export function sampleEcotone(map: EcotoneTerrainFields, x: number, y: number): EcotoneClimate {
   const { cols, rows, elevation, moisture, temperature, riverDist } = map;
   if (!cols || !rows || !elevation || !moisture || !temperature) {
     return { forest: 0, denseForest: 0, dry: 0, riparian: 0, alpineFade: 1 };
