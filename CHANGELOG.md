@@ -2,6 +2,8 @@
 
 ## 0.6.6.0[Unreleased]
 
+- **CC0 natural ground detail (28 October 2026):** Curate 14 low-memory 512px colour images from the user's 50-texture rubberduck CC0 archive (original pack has another 50 normal maps). New v4 terrain draws seven of these natural albedos for sand, soils, gravel, stone, straw and shingle, with moisture/height-weighted transitions and absolute-world sampling that prevents chunk seams. No building textures or normal maps loaded, and older saves keep their ground rendering.
+
 - **CC0 grass ground textures (28 October 2026):** Import the user's four original 512×512 Cethiel grass albedos, verified byte-identical against the supplied archive; sample world-aligned image detail in v4 Whittaker terrain with climate-driven transitions across meadows, open grass, forest and dense forest, preserving 2.5D chunk seams and older terrain recipes.
 
 - **Nature decor cleanup (28 October 2026):** New version-4 worlds no longer generate mushrooms, bones, water lilies, flowers, ferns, reeds, cattails, dry scrub or tiny decorative berry bushes; surviving scenery retains its weighted biome coverage. Harvestable blueberry trees and historical v1–v3 maps remain unchanged.
