@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { canonicalDialogueBank, requestDialogue } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
 import {
   resetDialogueSessions, tickHumanChat, type ChatSpeaker,
 } from '../src/game/humanChat';
@@ -74,6 +74,35 @@ describe('single dialogue event routing', () => {
     })).toBe(true);
     expect(a.chatPhrase).toContain('Prosperity favors Mara');
     expect(a.chatPhrase).not.toContain('{leader}');
+  });
+
+  it('uses pregnancy JSON only for a real mother and reciprocal partner', () => {
+    const mother = { ...speaker(1601), pregnant: true, partnerId: 1602 };
+    const partner = { ...speaker(1602), partnerId: 1601 };
+    maybeDialogueChat(mother, partner, 'pregnant', 30, 1);
+    expect(mother.chatDialogueSessionKey).toBe(partner.chatDialogueSessionKey);
+    expect(mother.chatPhrase).toContain('baby');
+    expect(partner.chatPartnerId).toBe(mother.id);
+  });
+
+  it('uses family lines for real married partners without inventing family bonds', () => {
+    const a = { ...speaker(1701), partnerId: 1702 };
+    const b = { ...speaker(1702), partnerId: 1701 };
+    maybeDialogueChat(a, b, 'home', 32, 1);
+    expect(a.chatPhrase).toBeDefined();
+    expect(a.chatDialogueSessionKey).toBe(b.chatDialogueSessionKey);
+    const c = speaker(1703);
+    maybeDialogueChat(c, null, 'home', 33, 1);
+    expect(c.chatPhrase).toBeDefined();
+    expect(c.chatDialogueSessionKey).not.toBe(a.chatDialogueSessionKey);
+  });
+
+  it('chooses famine lines only under the existing food-low ambient context', () => {
+    const a = speaker(1801);
+    maybeDialogueChat(a, null, 'food', 45, 1, { foodLow: true });
+    expect(a.chatPhrase).toBeDefined();
+    const famine = canonicalDialogueBank.dialogue_trees.find((tree) => tree.id === 'wf_one_way_starving_monologue')!;
+    expect(a.chatPhrase).toContain(famine.lines[0]!.text);
   });
 
   it('retains outcome-specific social impulse content', () => {
