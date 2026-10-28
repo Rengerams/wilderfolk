@@ -110,14 +110,17 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
     }
     if (Math.hypot(actor.x - slot.x, actor.y - slot.y) <= SPOTLIGHT_ARRIVAL_DISTANCE) arrived++;
   }
+  const heroineArrived = Math.hypot(heroine.x - scene.gatherX, heroine.y - scene.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE;
   if (scene.phase === 'ready') {
-    if (state.tick - (scene.readyAtTick ?? state.tick) > SPOTLIGHT_READY_TIMEOUT_TICKS) {
+    // Emergency steering may move an actor off stage during worker/React pause handoff.
+    // Never freeze a half-empty performance: danger keeps priority, but the scene aborts.
+    if (arrived !== scene.slots.length || !heroineArrived ||
+        state.tick - (scene.readyAtTick ?? state.tick) > SPOTLIGHT_READY_TIMEOUT_TICKS) {
       finishSpotlightLore(state, scene.id, 'aborted');
     }
     return;
   }
-  if (arrived === scene.slots.length &&
-      Math.hypot(heroine.x - scene.gatherX, heroine.y - scene.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE) {
+  if (arrived === scene.slots.length && heroineArrived) {
     scene.phase = 'ready';
     scene.readyAtTick = state.tick;
   } else if (state.tick - scene.startedAtTick > SPOTLIGHT_GATHER_TIMEOUT_TICKS) {
@@ -181,5 +184,12 @@ export function normalizeSpotlightLoreOnLoad(state: WorldState): void {
   if (!heroine || !eligibleGirl(heroine) || s.performerIds.some((id) => {
     const actor = actors.get(id);
     return !actor || !eligibleChorus(actor);
-  })) state.spotlightLore = null;
+  }) || (s.phase === 'ready' && (
+    // A save must not resume a ready performance with a dispersed cast.
+    !(Math.hypot(heroine.x - s.gatherX, heroine.y - s.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE) ||
+    s.slots.some((slot) => {
+      const actor = actors.get(slot.humanId);
+      return !actor || !(Math.hypot(actor.x - slot.x, actor.y - slot.y) <= SPOTLIGHT_ARRIVAL_DISTANCE);
+    })
+  ))) state.spotlightLore = null;
 }
