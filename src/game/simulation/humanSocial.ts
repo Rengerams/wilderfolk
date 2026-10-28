@@ -4,11 +4,11 @@ import { EntityType } from '../gameTypes';
 import { isPlayerHuman } from '../playerHuman';
 import {
   isDialogueBusy,
-  maybeDialogueChat,
   type ChatSpeaker,
   type HumanChatContext,
   type ChatPickOptions,
 } from '../humanChat';
+import { maybeDialogueChat } from '../dialogueTrees';
 import {
   forEachAdaptiveInRadius,
   socialAdaptiveOptions,
