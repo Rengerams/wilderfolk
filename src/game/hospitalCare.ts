@@ -1,7 +1,7 @@
-import { personDayRoll } from './simRng';
 /**
  * Hospital ↔ people: visits, treatments, doctor-on-duty care.
  */
+import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
