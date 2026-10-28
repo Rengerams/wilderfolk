@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "category": "needs",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_home",
+      "category": "needs",
+      "eventKey": "ambient.home",
+      "mode": "solo",
+      "speakers": [
+        "npc_humiliated"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_humiliated",
+          "text": "I peed myself because someone was using the bathroom."
+        },
+        {
+          "speaker": "npc_humiliated",
+          "text": "It was the principle of the thing."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_pregnancy",
+      "category": "needs",
+      "eventKey": "ambient.pregnancy",
+      "mode": "solo",
+      "speakers": [
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "So tired…"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Baby's restless."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_sleep",
+      "category": "needs",
+      "eventKey": "ambient.sleep",
+      "mode": "solo",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Long day…"
+        },
+        {
+          "speaker": "settler",
+          "text": "Home sweet home."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_food",
+      "category": "needs",
+      "eventKey": "ambient.food",
+      "mode": "solo",
+      "speakers": [
+        "hungry_settler"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Cupboards bare…"
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Hunters must bring more."
+        }
+      ]
+    }
+  ]
+}
