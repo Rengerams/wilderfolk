@@ -39,6 +39,9 @@ export const DIALOGUE_CATEGORIES = [
   'chaos',
   'environment',
   'festival',
+  'family',
+  'famine',
+  'pregnancy',
 ] as const;
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
@@ -63,10 +66,19 @@ export interface DialogueBankFile {
   categories: DialogueCategory[];
 }
 
+export const DIALOGUE_SCHEMA_VERSION = '1.3';
+
+interface DialogueSourceTree extends Omit<DialogueTree, 'mode'> {
+  eventKey: string;
+  conversation_type: 'one_way' | 'two_way';
+}
+
 interface DialogueSourceFile {
   version: string;
+  game: string;
   category: DialogueCategory;
-  dialogue_trees: DialogueTree[];
+  categories: DialogueCategory[];
+  dialogue_trees: DialogueSourceTree[];
 }
 
 const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
@@ -140,26 +152,33 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
   const seenIds = new Set<string>();
 
   for (const source of sources) {
-    if (!isDialogueCategory(source.category)) {
-      throw new Error(`[dialogue] Unsupported source category: ${String(source.category)}`);
+    if (source.version !== DIALOGUE_SCHEMA_VERSION || source.game !== 'Wilderfolk Sim') {
+      throw new Error(`[dialogue] Unsupported source schema: ${source.category} v${source.version}`);
+    }
+    if (!isDialogueCategory(source.category) || source.categories?.length !== 1 || source.categories[0] !== source.category) {
+      throw new Error(`[dialogue] Invalid source categories: ${String(source.category)}`);
     }
     for (const tree of source.dialogue_trees) {
-      if (!tree.eventKey || (tree.mode !== 'solo' && tree.mode !== 'pair')) {
-        throw new Error(`[dialogue] Missing event key or mode for ${tree.id}`);
+      if (tree.category !== source.category || !tree.eventKey?.trim()) {
+        throw new Error(`[dialogue] Invalid category or event key: ${tree.id}`);
       }
-      if (tree.category !== source.category) {
-        throw new Error(`[dialogue] Tree ${tree.id} is ${tree.category} inside ${source.category}.json`);
+      if (seenIds.has(tree.id)) throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
+      if (tree.conversation_type !== 'one_way' && tree.conversation_type !== 'two_way') {
+        throw new Error(`[dialogue] Invalid conversation type: ${tree.id}`);
       }
-      if (seenIds.has(tree.id)) {
-        throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
+      const mode = tree.conversation_type === 'one_way' ? 'solo' : 'pair';
+      if (tree.speakers.length !== (mode === 'solo' ? 1 : 2) || !tree.lines.length
+        || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
+        throw new Error(`[dialogue] Invalid speaker roles or lines: ${tree.id}`);
       }
+      const { conversation_type: _conversationType, ...scene } = tree;
+      dialogue_trees.push({ ...scene, mode });
       seenIds.add(tree.id);
-      dialogue_trees.push(tree);
     }
   }
 
   return {
-    version: 'split-1.1',
+    version: DIALOGUE_SCHEMA_VERSION,
     dialogue_trees,
     categories: [...DIALOGUE_CATEGORIES],
   };
@@ -192,6 +211,9 @@ async function loadDialogueFromDisk(): Promise<boolean> {
 }
 
 function indexDialogueBank(next: DialogueBankFile): void {
+  if (next.version !== DIALOGUE_SCHEMA_VERSION) {
+    throw new Error(`[dialogue] Unsupported dialogue bank version: ${next.version}`);
+  }
   const nextTreesByCategory = new Map<DialogueCategory, DialogueTree[]>();
   const nextTreesById = new Map<string, DialogueTree>();
   const nextTreesByEvent = new Map<string, DialogueTree[]>();
@@ -203,7 +225,8 @@ function indexDialogueBank(next: DialogueBankFile): void {
     if (nextTreesById.has(tree.id)) {
       throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
     }
-    const mode = tree.mode ?? (tree.speakers.length === 1 ? 'solo' : 'pair');
+    const mode = tree.mode;
+    if (mode !== 'solo' && mode !== 'pair') throw new Error(`[dialogue] Missing compiled mode for ${tree.id}`);
     if ((mode === 'solo' ? 1 : 2) !== tree.speakers.length || !tree.lines.length || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
       throw new Error(`[dialogue] Invalid roles or lines for ${tree.id}`);
     }
@@ -246,6 +269,9 @@ export function isDialogueBankReady(): boolean {
 
 /** Install pre-serialized dialogue data (e.g. the worker’s canonical static bundle). */
 export function installDialogueBankPayload(payload: DialogueBankFile): void {
+  if (payload.version !== DIALOGUE_SCHEMA_VERSION) {
+    throw new Error(`[dialogue] Unsupported dialogue bank version: ${payload.version}`);
+  }
   indexDialogueBank(payload);
 }
 
