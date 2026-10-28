@@ -163,7 +163,7 @@ export const SIMULATION_DECISIONS = {
       'storageMax',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts',
+    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts',
   },
   villageRequests: {
     owner: 'groupEvents.ts — tickVillageRequests, resolveVillageRequest (ONLY request generation, expiry, and resolution owner)',

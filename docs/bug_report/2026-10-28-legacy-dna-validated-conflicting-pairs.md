@@ -37,4 +37,4 @@ The validator re-implemented a partial subset of the allocation rules instead of
 None. Valid saved sets are unchanged; only conflicting pairs are trimmed, keeping the trait the save wrote first.
 
 ## Verification result
-`tests/personality.legacyDNA.test.ts` — PASS: Brave/Timid and Gregarious/Timid keep only their first trait, and the existing valid-set and canonical-derivation cases still pass.
+`tests/personality.legacyDNA.test.ts` — PASS: Brave/Timid and Gregarious/Timid keep only their first trait, and the existing valid-set and canonical-derivation cases still pass. A legacy payload written with a conflicting pair loads without it: `['brave', 'timid']` becomes `['brave']` and `['gregarious', 'timid', 'hardy']` becomes `['gregarious', 'hardy']`.

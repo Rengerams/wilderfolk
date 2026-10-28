@@ -38,4 +38,4 @@ The construction branch was reached only after the production-job guard, so a jo
 None.
 
 ## Verification result
-`tests/personality.workIntegration.test.ts` — PASS: a House site prices Resourceful at the catalog factor, a trait-free crew stays at 1, and a Builder at skill 100 reaches the documented 3x ceiling before DNA.
+`tests/personality.workIntegration.test.ts` — PASS: a House site prices Resourceful at the catalog factor, a trait-free crew stays at 1, and a Builder at skill 100 reaches the documented 3x ceiling before DNA. Driven through a real colony day, an unfinished House raised by a Resourceful crew advances by exactly the catalog factor over the same plain crew, while a Greenthumb crew matches the plain one.

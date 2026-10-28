@@ -53,7 +53,8 @@ export function gainSkill(
   amount: number,
   entityById?: Map<number, Entity>,
 ) {
-  const human = entityById?.get(humanId) ?? state.entities.find((e) => e.id === humanId);
+  // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
+  const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
   if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
   const skills = ensureEntitySkills(human);
   skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);

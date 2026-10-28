@@ -131,6 +131,61 @@ describe('the crew multiplier prices the trade DNA once', () => {
   });
 });
 
+/**
+ * One incomplete House raised for a single real colony day by one builder.
+ *
+ * A house has no production job, so this is the proof that the construction DNA reaches the daily
+ * progress and not only the multiplier in isolation.
+ */
+function houseProgressAfterOneDay(traits: SettlerTrait[]): number {
+  const state = initGame({ seed: FIXTURE_SEED });
+  // A short day keeps the site unfinished, so its progress is still measurable after one tick.
+  state.workSchedule = { startHour: 9, endHour: 12 };
+  const cfg = BUILDING_CONFIGS[BuildingType.House];
+  const site = building(SITE_ID, BuildingType.House, {
+    width: cfg.width,
+    height: cfg.height,
+    completed: false,
+    constructionProgress: 0,
+  });
+  state.buildings.push(site);
+
+  const adults = state.entities.filter((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
+  expect(adults.length, 'fixture premise: the colony starts with adult settlers').toBeGreaterThan(0);
+  for (const settler of adults) {
+    // Every settler the assignment layer may add to the crew, so the crew count cannot dilute the factor.
+    settler.traits = traits;
+    settler.skills = { [JobType.Builder]: 0 };
+  }
+  const builder = adults[0];
+  builder.job = JobType.Builder;
+  builder.workerBuildingId = SITE_ID;
+  site.occupants = [builder.id];
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
+
+  gameTick(state);
+  return state.buildings.find((b) => b.id === SITE_ID)!.constructionProgress;
+}
+
+describe('the real construction day prices the builder DNA on a jobless site', () => {
+  it('a resourceful builder raises more of a house than an otherwise identical plain one', () => {
+    const plain = houseProgressAfterOneDay([]);
+    const resourceful = houseProgressAfterOneDay(['resourceful']);
+
+    expect(plain, 'fixture premise: the house site advanced').toBeGreaterThan(0);
+    expect(plain, 'fixture premise: the site is still under construction').toBeLessThan(100);
+    const factor = evaluateTraitInfluence(
+      { traits: ['resourceful'] },
+      { kind: 'work', job: JobType.Builder, action: 'construction' },
+    ).factor;
+    expect(resourceful / plain).toBeCloseTo(factor, 6);
+  });
+
+  it('leaves a farmer\'s DNA out of raising the house', () => {
+    expect(houseProgressAfterOneDay(['greenthumb'])).toBeCloseTo(houseProgressAfterOneDay([]), 6);
+  });
+});
+
 /** The default colony's whole settler roster — enough workers for the harvest to clear its integer. */
 const FARM_WORKERS = 2;
 const START_FOOD = 100;

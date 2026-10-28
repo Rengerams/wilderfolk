@@ -110,6 +110,11 @@ describe('a legacy settler without DNA gains canonical traits', () => {
     expect(firstHumanTraitsAfterLoad(['fierce', 'stoic', 'lucky'])).toEqual(['fierce', 'stoic', 'lucky']);
   });
 
+  it('refuses mutually exclusive DNA at load instead of entering the simulation', () => {
+    expect(firstHumanTraitsAfterLoad(['brave', 'timid'])).toEqual(['brave']);
+    expect(firstHumanTraitsAfterLoad(['gregarious', 'timid', 'hardy'])).toEqual(['gregarious', 'hardy']);
+  });
+
   it('normalizes malformed DNA deterministically', () => {
     // A recognized trait survives; the unknown id and the duplicate are dropped, and the empty slots
     // are not filled in.

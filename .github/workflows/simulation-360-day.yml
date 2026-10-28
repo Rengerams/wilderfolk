@@ -1,0 +1,46 @@
+name: 360-day simulation gate
+
+# The standard gate stops at the unit tier, so its green tick says nothing about a full year of
+# simulation. This separate workflow runs the real 360-day paths for changes that can move them.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/game/**
+      - scripts/run-full-year.mts
+      - scripts/colonyHealth.ts
+      - tests/fullYear.integration.test.ts
+      - tests/longRunColony.integration.test.ts
+      - .github/workflows/simulation-360-day.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulation-360-day-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-year:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4.4.0
+
+      - name: Use Node.js 26.12.1 (with npm cache)
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Full-year integration test (360 days through gameTick)
+        run: npm run test:full-year:test
+
+      - name: Seeded 360-day colony harness with invariant checkpoints
+        run: npm run test:full-year

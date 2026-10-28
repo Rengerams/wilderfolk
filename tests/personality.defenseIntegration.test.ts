@@ -7,10 +7,8 @@
  *    muster guards are unchanged.
  * 2. The free-roam hunt range is the catalog's hunting factor — a brave settler reaches game beyond
  *    an otherwise identical plain one, driven through the real `tickHumanHunting`.
- * 3. The flight speed reads the catalog's escape context, and no longer a raw `timid` literal.
- *    `tickHumans` — the only caller of the flight branch — has no unit harness (it needs a full
- *    `TickContext`, grids included), so this case pins the source wiring and the catalog direction
- *    instead of claiming a driven frame.
+ * 3. The flight speed reads the catalog's escape context: in a driven `tickHumans` frame the catalog
+ *    factor is the whole difference between two otherwise identical settlers.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -272,29 +270,28 @@ function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
 }
 
 describe('flight reads the catalog escape context', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/game/humanTick.ts'), 'utf8');
+  it('makes the catalog factor the whole speed difference in a driven frame', () => {
+    const plain = fleeFromHowler([]);
+    expect(plain.speed, 'fixture premise: the settler actually fled the howler').toBeGreaterThan(0);
 
-  it('no longer multiplies a raw timid literal into the flee speed', () => {
-    expect(source).not.toMatch(/traitMultiplier\(entity, 'timid', 1\.35\)/);
-    expect(source).toMatch(/evaluateTraitInfluence\(entity, ESCAPE_CONTEXT\)/);
+    for (const traits of [['timid'], ['brave'], ['lucky']] as SettlerTrait[][]) {
+      const factor = evaluateTraitInfluence({ traits }, ESCAPE).factor;
+      expect(factor, JSON.stringify(traits)).not.toBe(1);
+      const fled = fleeFromHowler(traits);
+      expect(fled.speed / plain.speed, JSON.stringify(traits)).toBeCloseTo(factor, 6);
+    }
   });
 
   it('keeps a risk-aware settler faster and a reckless one slower, as the catalog states', () => {
-    const timid = evaluateTraitInfluence({ traits: ['timid'] }, ESCAPE).factor;
-    expect(timid).toBeGreaterThan(1);
-    expect(timid).toBeLessThanOrEqual(1.15);
-    expect(evaluateTraitInfluence({ traits: ['brave'] }, ESCAPE).factor).toBeLessThan(1);
-    expect(evaluateTraitInfluence({ traits: ['lucky'] }, ESCAPE).factor).toBeLessThan(1);
-    expect(evaluateTraitInfluence({ traits: ['stoic'] }, ESCAPE)).toEqual({ factor: 1, tendency: 0 });
-  });
-
-  it('makes a risk-aware settler outrun a reckless one in a driven frame', () => {
     const timid = fleeFromHowler(['timid']);
     const plain = fleeFromHowler([]);
     const brave = fleeFromHowler(['brave']);
 
-    expect(plain.speed, 'fixture premise: the settler actually fled the howler').toBeGreaterThan(0);
     expect(timid.speed).toBeGreaterThan(plain.speed);
     expect(brave.speed).toBeLessThan(plain.speed);
+  });
+
+  it('leaves a settler whose traits say nothing about flight at the plain speed', () => {
+    expect(fleeFromHowler(['stoic']).speed).toBeCloseTo(fleeFromHowler([]).speed, 6);
   });
 });

@@ -13,6 +13,7 @@
 ## Status history
 - 2026-10-28 — open: reported by review as a P2 performance and correctness risk.
 - 2026-10-28 — resolved: a supplied index is authoritative and dead occupants are neutral.
+- 2026-10-28 — closed for the shift credit too: `gainSkill` no longer scans the world for an id the supplied index lacks.
 
 ## Observed behavior
 `entityById?.get(id) ?? state.entities.find((e) => e.id === id)` scanned the whole population whenever an id was missing from the supplied map. The daily construction map indexes living entities only, so a stale slot could both cost an O(N) scan per occupant and find a dead entity in the backing array, adding its DNA to the average.
@@ -29,13 +30,13 @@ A supplied index is authoritative: an id it lacks is a stale crew slot and contr
 Review trace on `src/game/skills.ts:113`; the new regression also covers the no-index path, which resolves the same dead entity and must stay neutral.
 
 ## Root cause
-`??` treated a missing map entry as "look elsewhere" instead of "this slot is empty", and the resolved entity was never checked for `alive`.
+`??` treated a missing map entry as "look elsewhere" instead of "this slot is empty", and the resolved entity was never checked for `alive`. The same fallback survived in `gainSkill`, the per-worker shift credit behind `rewardBuildingWork` and `rewardProductionSkills`.
 
 ## Fix / proposed fix
-`const h = entityById ? entityById.get(id) : state.entities.find(...)` with a `!h || !h.alive` guard that adds the neutral factor. No new index was introduced; the existing caller-supplied map is reused.
+`const h = entityById ? entityById.get(id) : state.entities.find(...)` with a `!h || !h.alive` guard that adds the neutral factor, and `gainSkill` now resolves through the supplied index alone. No new index was introduced; the existing caller-supplied map is reused.
 
 ## Save/migration impact
 None.
 
 ## Verification result
-`tests/personality.workIntegration.test.ts` — PASS: with an empty index the multiplier is exactly 1, and the no-index scan also returns 1 for the dead body.
+`tests/personality.workIntegration.test.ts` — PASS: with an empty index the multiplier is exactly 1, and the no-index scan also returns 1 for the dead body. `tests/workSkillAttribution.accrual.test.ts` — PASS: a shift credit leaves a worker the supplied index does not name untouched, while an index that names them pays the standard shift.
