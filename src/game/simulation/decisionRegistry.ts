@@ -60,6 +60,10 @@ export type DecisionKey =
   | 'pregnancyBirth'
   | 'moonHowler'
   | 'leadership'
+  | 'raidCombat'
+  | 'raidRecovery'
+  | 'raidCaptivity'
+  | 'valleyChronicle'
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
@@ -265,6 +269,38 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'tickLayerDaily.ts → syncLeaderHouseResidency; villageLeadership election flow',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts',
+  },
+  raidCombat: {
+    owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
+    cadence: 'realtime',
+    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; events are written through the ordinary Chronicle owner.',
+    writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
+    scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
+    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts',
+  },
+  raidRecovery: {
+    owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',
+    cadence: 'realtime',
+    cadenceNote: 'Recovery starts at actual raid resolution and advances on subsequent game ticks; remembered settlement-fate diplomacy executes only on the relevant command. isSettlementDestroyed is read-only.',
+    writes: ['raidRecovery', 'building.health (through building removal owner)', 'rivalSettlements.diplomacyMemory', 'eventLog (through logEvent)'],
+    scheduledFrom: 'frontierCombat.ts → beginRaidRecovery/rememberRivalDisposition; gameTick.ts → tickRaidRecovery; captivity decisions → rememberRivalDisposition',
+    testFile: 'tests/warfare.lifecycle.test.ts',
+  },
+  raidCaptivity: {
+    owner: 'warPrisoners.ts — captureRaidPrisoners, resolveWarPrisoner, applyWarCommunityReaction; warPrisonerCustody.ts — recordWarPrisonerOutcome, departWarPrisoner',
+    cadence: 'player-command',
+    cadenceNote: 'Capture occurs after resolved combat, custody outcomes via commands, and escape/release cleanup through existing prison paths; no duplicate custody loop.',
+    writes: ['human.warCaptive', 'human.prisonBuildingId', 'raidPrisonerHistory', 'rivalSettlements.population', 'building.occupants (through prison owner)', 'eventLog (through logEvent)'],
+    scheduledFrom: 'frontierCombat.ts → captureRaidPrisoners; simWorker/commands.ts → resolveWarPrisoner; prison escape/removal owners → departWarPrisoner',
+    testFile: 'tests/warfare.lifecycle.test.ts',
+  },
+  valleyChronicle: {
+    owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
+    cadence: 'daily',
+    cadenceNote: 'Only the daily tick unlocks historical chapters; UI displays saved chapter IDs without a Legacy Goals projection or new achievement decisions.',
+    writes: ['chronicleChapters', 'resources (through resourceUtils)', 'economyLedger.produced (via recordFoodProduced)', 'eventLog (through logEvent)'],
+    scheduledFrom: 'tickLayerDaily.ts → advanceValleyChronicle; Progress sidebar reads historical chapters',
+    testFile: 'tests/valleyChronicle.foodLedger.test.ts',
   },
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
