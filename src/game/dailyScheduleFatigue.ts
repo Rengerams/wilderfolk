@@ -1,4 +1,5 @@
 import type { Entity, WorldState } from './gameTypes';
+import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
@@ -58,6 +59,7 @@ function formatHours(hours: number): string {
 export function resolveDailyVillageScheduleFatigue(
   state: WorldState,
   humans: readonly Entity[],
+  moonHowlers: readonly Entity[] = [],
 ): void {
   const results: FatigueResult[] = [];
   // The standard work window is the same for every settler in this pass — `state.workSchedule` is
@@ -65,8 +67,15 @@ export function resolveDailyVillageScheduleFatigue(
   // so it is derived once instead of twice per settler.
   const targetHours = getScheduleTargetHours(state);
 
-  for (const human of humans) {
+  // Moon Howler is still the same settler: record yesterday's human work even if
+  // the form change at 23:00 moved them out of the Human bucket at midnight.
+  // Reuse the already bucketed wolves; never traverse the full population again.
+  for (let i = 0; i < humans.length + moonHowlers.length; i++) {
+    const inMoonForm = i >= humans.length;
+    const human = inMoonForm ? moonHowlers[i - humans.length] : humans[i];
     if (!human.alive || human.isJuvenile) continue;
+    if (inMoonForm && (human.type !== EntityType.Werewolf || !human.moonHowlerCursed
+      || !human.moonHowlerSaved || human.faction)) continue;
     const result = resolveDailyScheduleFatigue(human, state, targetHours);
     if (Math.abs(result.fatigueAfter - result.fatigueBefore) >= MEANINGFUL_FATIGUE_CHANGE) {
       results.push(result);
