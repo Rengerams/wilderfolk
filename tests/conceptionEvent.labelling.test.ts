@@ -34,8 +34,8 @@ import { LIFECYCLE_CONFIG, tickPregnancyAndBirth } from '../src/game/simulation/
 import { collectDashboard } from '../src/game/dashboardData';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { TICKS_PER_DAY, ticksForDays } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
-import { seededRandomForRun } from '../src/game/simRng';
+
+import { seededRandomForRun, personDayRoll } from '../src/game/simRng';
 import { byType } from '../src/test/factories';
 
 const MOTHER_ID = 1;
