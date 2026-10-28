@@ -50,9 +50,12 @@ export class TrackPlayer {
     bus: AudioBus,
     volume: number,
     fadeInSec = 1.2,
+    shouldStart: () => boolean = () => true,
   ): Promise<boolean> {
-    if (audioGraph.isMuted) return false;
+    if (audioGraph.isMuted || !shouldStart()) return false;
     const buffer = await loadSample(url);
+    // A Spotlight cue may have superseded an in-flight music request during decoding.
+    if (!shouldStart()) return false;
     const parent = audioGraph.bus(bus);
     if (!buffer || !parent) return false;
 
