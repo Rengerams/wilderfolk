@@ -31,7 +31,7 @@ import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
 import { seededRandomForRun } from './simRng';
-import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
+import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, tickHumanChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = [
   'work',
   'needs',
@@ -610,6 +610,14 @@ function contextualAmbientScene(
     }
   }
   return { eventKey: 'ambient.' + (context === 'pregnant' ? 'pregnancy' : context) };
+}
+
+/** One existing tick dispatch; humanChat remains the only field-writing session executor. */
+export function tickDialogue(
+  entity: ChatSpeaker,
+  resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
+): void {
+  tickHumanChat(entity, resolvePartner);
 }
 
 export function maybeDialogueChat(
