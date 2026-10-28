@@ -3,15 +3,19 @@
  * Dialogue text must not remain over a citizen for most of an in-game day after
  * the production cadence changed from one to three ticks per clock hour.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   isDialogueBusy,
   tickHumanChat,
+  resetDialogueSessions,
   ticksForDialogueLine,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { TICKS_PER_HOUR } from '../src/game/dayCycle';
-import { requestDialogue } from '../src/game/dialogueTrees';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { dialogueHoursFromNominalTicks, requestDialogue } from '../src/game/dialogueTrees';
+
+beforeEach(resetDialogueSessions);
+afterEach(resetDialogueSessions);
 
 describe('human chat duration at production cadence', () => {
   it('converts a short line from legacy tick duration into bounded game hours', () => {
@@ -52,4 +56,50 @@ describe('human chat duration at production cadence', () => {
     expect(speaker.chatPhrase).toBeUndefined();
     expect(isDialogueBusy(speaker)).toBe(false);
   });
+
+  it('preserves actual legacy speech tick lifetimes for migrated domain captions', () => {
+    // Before the JSON cutover, these were passed to sayHumanChatPhrase in nominal
+    // ticks and scaled by the current simulation clock. The new request must
+    // preserve that effective duration, not treat nominal ticks as game hours.
+    const cases = [
+      { eventKey: 'hospital.patient.other', nominalTicks: 48 },
+      { eventKey: 'hospital.doctor', nominalTicks: 44 },
+      { eventKey: 'hotel.arrival', nominalTicks: 50 },
+      { eventKey: 'hotel.service.welcome', nominalTicks: 44 },
+      { eventKey: 'hunting.scarce', nominalTicks: 48 },
+      { eventKey: 'hunting.thinTrails', nominalTicks: 40 },
+      { eventKey: 'townHall.foodAid', nominalTicks: 50 },
+      { eventKey: 'townHall.heard', nominalTicks: 52 },
+      { eventKey: 'townHall.audience.leader', nominalTicks: 48 },
+      { eventKey: 'townHall.goldAid', nominalTicks: 40 },
+      { eventKey: 'townHall.official', nominalTicks: 44 },
+      { eventKey: 'renffr.omen', nominalTicks: 150 },
+    ] as const;
+
+    for (const [index, scene] of cases.entries()) {
+      const expectedTicks = Math.max(4, Math.round(scene.nominalTicks * PER_TICK_RATE_SCALE));
+      const durationHours = dialogueHoursFromNominalTicks(scene.nominalTicks);
+      expect(Math.round(durationHours * TICKS_PER_HOUR)).toBe(expectedTicks);
+
+      const speaker: ChatSpeaker = { id: 7100 + index };
+      expect(requestDialogue({
+        eventKey: scene.eventKey, speaker, tick: 100 + index,
+        durationHours, priority: 'scripted', selectionRoll: 0,
+      })).toBe(true);
+      expect(speaker.chatTicks).toBe(expectedTicks);
+      expect(isDialogueBusy(speaker)).toBe(true);
+
+      for (let elapsed = 1; elapsed < expectedTicks; elapsed++) {
+        tickHumanChat(speaker);
+        expect(speaker.chatTicks).toBe(expectedTicks - elapsed);
+        expect(isDialogueBusy(speaker)).toBe(true);
+      }
+      tickHumanChat(speaker);
+      expect(speaker.chatPhrase).toBeUndefined();
+      expect(speaker.chatTicks).toBeUndefined();
+      expect(speaker.chatDialogueSessionKey).toBeUndefined();
+      expect(isDialogueBusy(speaker)).toBe(false);
+    }
+  });
+
 });
