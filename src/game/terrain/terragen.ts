@@ -701,7 +701,7 @@ function carveRivers(
  * a channel and 0 is dry, which is why nothing here takes a square root of it.
  */
 function buildWaterField(
-  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3,
+  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3 | 4,
 ): { coverage: Float32Array; wCols: number; wRows: number } {
   const cell = WATER_CELL;
   const wCols = Math.ceil((cols * TERRAIN_CELL) / cell);
