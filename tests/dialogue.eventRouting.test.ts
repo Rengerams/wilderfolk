@@ -102,7 +102,7 @@ describe('single dialogue event routing', () => {
     maybeDialogueChat(a, null, 'food', 45, 1, { foodLow: true });
     expect(a.chatPhrase).toBeDefined();
     const famine = canonicalDialogueBank.dialogue_trees.find((tree) => tree.id === 'wf_one_way_starving_monologue')!;
-    expect(a.chatPhrase).toContain(famine.lines[0]!.text);
+    expect(a.chatPhrase?.replaceAll('\n', ' ')).toBe(famine.lines[0]!.text);
   });
 
   it('retains outcome-specific social impulse content', () => {
