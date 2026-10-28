@@ -34,6 +34,7 @@
 - [x] **Terrain v4 river effect parity:** flow-aligned river surface details also render in v4 terrain, not just v3 ([#86](https://github.com/Rengerams/wilderfolk/pull/86)).
 - [x] **DNA phase A — shared trait catalog:** all fourteen traits have contextual benefits and drawbacks evaluated by one deterministic, bounded, read-only owner ([#85](https://github.com/Rengerams/wilderfolk/pull/85)).
 - [x] **DNA phase B — live work, school and danger effects:** the catalog now influences production, construction, schooling, research, apprenticeships, militia, hunting, pursuit, escape and work stamina; legacy settlers get deterministic DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
+- [x] **DNA phase C — exact social/family/civic parity cutover:** feuds, workplace banter, courtship, married/youth conception, civic prisoner reactions and spousal grief now use the single catalog/evaluator; legacy gameplay numbers and seeded decision owners are preserved ([#97](https://github.com/Rengerams/wilderfolk/pull/97)).
 
 ## 1. Warfare design goals — implemented
 
@@ -104,14 +105,15 @@
 
 The raid overhaul is an implemented **aggregate simulation**, not a tactical battle system. Existing Watchtowers already contribute passive barricade defense and early warning. Active turret fire, projectile combat, manual combat and physical siege minigames are **not planned**.
 
-## 11. DNA traits — phases A and B implemented; remaining integrations open
+## 11. DNA traits — phases A, B and C implemented; broader personality features open
 
 **Codebot implementation:** [Executable PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md) · [architecture](docs/plans/personality-career-single-pipeline-0.6.5.2.md). Every PR must update both ownership registries and follow [the bug-report protocol](docs/bug_report/readme.md).
 
 - [x] The existing inherited identity system assigns **three DNA traits from fourteen**, with established selected trait effects.
 - [x] All **fourteen canonical traits** have catalogued positive and negative context effects, stable explanation identifiers and a shared bounded, deterministic evaluator; this is implemented infrastructure, not evidence that every gameplay context already consumes it ([#85](https://github.com/Rengerams/wilderfolk/pull/85)).
 - [x] The shared evaluator is consumed by real production/construction crews, apprenticeship training, school-day credits, research, individual militia strength, hunting/pursuit/escape and on-shift stamina. Older saves receive stable DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
-- [ ] Complete the remaining canonical DNA integration in social, romance, family, leisure and diplomatic decisions while preserving existing gameplay effects; PR [#95](https://github.com/Rengerams/wilderfolk/pull/95) is open, not yet accepted.
+- [x] The six **existing** social/romance/family/civic legacy DNA consumers are migrated with exact gameplay/RNG parity and an empty registered legacy-audit inventory in merged PR [#97](https://github.com/Rengerams/wilderfolk/pull/97).
+- [ ] Additional off-duty/leisure choices, fidelity and parenting behaviors, life-event reactions and personal-memory features **beyond the six migrated PR-C rules** need their own future implementation and tests; they were deliberately excluded from the parity-only PR C.
 - [ ] Trait aptitudes and acquired experience combine without permanently locking professions or making one DNA set universally superior.
 - [ ] Personality influences leisure, friendships, romance, fidelity, parenting, reactions to life events and personal development; existing relationships and experiences remain important rather than one trait determining a choice.
 - [ ] Inspectors explain applicable DNA strengths, disadvantages and contextual behavior using the character's existing traits and history.
@@ -210,14 +212,14 @@ This roadmap records **feature availability only**. Specifications and implement
 | Terrain relief and 2.5D display | [#76](https://github.com/Rengerams/wilderfolk/pull/76), [#77](https://github.com/Rengerams/wilderfolk/pull/77) | Ridgeline and valley shading, elevated cached mesh chunks, grounded vegetation and accurate inverse-picking of raised surfaces | `src/game/terrainAtlas.ts`, `docs/TERRAIN_ARCHITECTURE.md` |
 | Biome transitions and nature artwork | [#79](https://github.com/Rengerams/wilderfolk/pull/79) | Climate-weighted ecotones, textured vegetation and bundled licensed terrain/nature assets for new generation-v4 maps | `src/game/renderer/`, `public/sprites/nature/`, `THIRD_PARTY_NOTICES.md` |
 | CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
-| Canonical DNA catalog and Phase B consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90) | Fourteen positive/negative trait definitions, bounded pure evaluator, real production/school/militia/hunting/physiology integration and deterministic old-save DNA migration; social/family and career-history extensions still pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
+| Canonical DNA catalog and phases B/C consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90), [#97](https://github.com/Rengerams/wilderfolk/pull/97) | Fourteen contextual positive/negative traits; bounded pure evaluator; work/school/militia/hunting/physiology integration; deterministic old-save DNA backfill; six exact-parity social/family/civic integrations. Career history and broader personality features remain pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
 | Existing settler reasons and priority alerts | Existing UI/system owners | The inspector projects schedule, activity, movement and blocked-work reasons; the alert strip provides ranked actionable warnings. Neither is the full configurable explainability system | `src/components/SelectedEntityPanel.tsx`, `src/game/priorityAlerts.ts`, `src/components/AlertBar.tsx` |
 
 ### 21.1 Feature backlog beyond merged scope
 
 These describe **unimplemented or incomplete features**, not test activities or implementation plans. Previously merged implementations remain accepted.
 
-- [ ] **Whole-life DNA personalities (remaining phases):** complete contextual leisure, relationships, fidelity, parental priorities and persistent experiences beyond merged DNA phases A–B (§11).
+- [ ] **Whole-life DNA personalities (remaining phases):** expand contextual leisure, fidelity, parental priorities and persistent experiences beyond the six canonical migrations in merged DNA phases A–C (§11).
 - [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
 - [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).
 - [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
