@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental plays on normal music bus and fades for applause; asset deployment remains outstanding.
+- **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental streams through the normal music bus and fades before applause; the audio asset must still be deployed.
 
 
 - **Spotlight applause (PR #91):** Added a 6.1-second excerpt of the supplied cheering audio on the game-settings-aware SFX bus, a 6.4-second finale, visible clapping icons and a small bow; skipping scenes or loading saves safely stops playback. CI pending.
