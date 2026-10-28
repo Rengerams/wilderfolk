@@ -29,6 +29,15 @@ export const TERRAIN_MATERIAL_PATHS = {
 
 export type NaturalTerrainMaterial = keyof typeof TERRAIN_MATERIAL_PATHS;
 
+// The original Cethiel pack. Dirt_03 has parallel ruts: keep it available for
+// future deliberate path/farm painting, never random-repeat it as natural soil.
+export const DIRT_TEXTURE_PATHS = {
+  loam: '/sprites/terrain/cethiel/Dirt_01.png',
+  coarseSoil: '/sprites/terrain/cethiel/Dirt_02.png',
+  rutted: '/sprites/terrain/cethiel/Dirt_03.png',
+  leafLitter: '/sprites/terrain/cethiel/Dirt_04.png',
+} as const;
+
 export const GRASS_TEXTURE_PATHS = [
   '/sprites/terrain/cethiel/Grass_03.png', // open grass, readable individual leaves
   '/sprites/terrain/cethiel/Grass_04.png', // flower-rich meadow cover
@@ -53,7 +62,7 @@ export type GroundGrassTextures = readonly [
 
 const decoded = new WeakMap<HTMLImageElement, GroundGrassTexture>();
 
-function decodeGrassTexture(image: HTMLImageElement): GroundGrassTexture | null {
+function decodeTerrainAlbedo(image: HTMLImageElement): GroundGrassTexture | null {
   const cached = decoded.get(image);
   if (cached) return cached;
   if (typeof document === 'undefined' || !image.width || !image.height) return null;
@@ -94,8 +103,8 @@ export function loadedGrassTextures(): GroundGrassTextures | null {
   const c = getSprite(GRASS_TEXTURE_PATHS[2]);
   const d = getSprite(GRASS_TEXTURE_PATHS[3]);
   if (!a || !b || !c || !d) return null;
-  const aa = decodeGrassTexture(a), bb = decodeGrassTexture(b);
-  const cc = decodeGrassTexture(c), dd = decodeGrassTexture(d);
+  const aa = decodeTerrainAlbedo(a), bb = decodeTerrainAlbedo(b);
+  const cc = decodeTerrainAlbedo(c), dd = decodeTerrainAlbedo(d);
   return aa && bb && cc && dd ? [aa, bb, cc, dd] : null;
 }
 
@@ -112,9 +121,9 @@ export function loadedTerrainMaterials(): LoadedTerrainMaterials | null {
   const pebbles = getSprite(TERRAIN_MATERIAL_PATHS.pebbles);
   if (!sand || !soil || !drySoil || !gravel || !rock || !straw || !pebbles) return null;
   const values = [
-    decodeGrassTexture(sand), decodeGrassTexture(soil), decodeGrassTexture(drySoil),
-    decodeGrassTexture(gravel), decodeGrassTexture(rock),
-    decodeGrassTexture(straw), decodeGrassTexture(pebbles),
+    decodeTerrainAlbedo(sand), decodeTerrainAlbedo(soil), decodeTerrainAlbedo(drySoil),
+    decodeTerrainAlbedo(gravel), decodeTerrainAlbedo(rock),
+    decodeTerrainAlbedo(straw), decodeTerrainAlbedo(pebbles),
   ];
   if (values.some((texture) => !texture)) return null;
   return {
@@ -139,6 +148,25 @@ export function sampleTerrainMaterial(
   out[0] = texture.pixels[i] - texture.mean[0];
   out[1] = texture.pixels[i + 1] - texture.mean[1];
   out[2] = texture.pixels[i + 2] - texture.mean[2];
+}
+
+/** Three natural ground variants; the directional Dirt_03 is deliberately excluded. */
+export interface CethielDirtTextures {
+  loam: GroundGrassTexture;
+  coarseSoil: GroundGrassTexture;
+  leafLitter: GroundGrassTexture;
+}
+
+/** Decodes the three appropriate dirt images through the shared albedo cache. */
+export function loadedDirtTextures(): CethielDirtTextures | null {
+  const loam = getSprite(DIRT_TEXTURE_PATHS.loam);
+  const coarse = getSprite(DIRT_TEXTURE_PATHS.coarseSoil);
+  const leaves = getSprite(DIRT_TEXTURE_PATHS.leafLitter);
+  if (!loam || !coarse || !leaves) return null;
+  const a = decodeTerrainAlbedo(loam);
+  const b = decodeTerrainAlbedo(coarse);
+  const c = decodeTerrainAlbedo(leaves);
+  return a && b && c ? { loam: a, coarseSoil: b, leafLitter: c } : null;
 }
 
 function smooth01(t: number): number {
