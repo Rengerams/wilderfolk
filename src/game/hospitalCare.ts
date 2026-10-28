@@ -211,7 +211,7 @@ export function treatPatientAtHospital(
     );
   }
   if (!isDialogueBusy(patient) && personDayRoll(patient.id, state.tick, 904) < 0.2) {
-    requestDialogue({ eventKey: patient.pregnant ? 'hospital.patient.pregnant' : 'hospital.patient.other', speaker: patient, tick: state.tick, durationHours: 16 / 3 });
+    requestDialogue({ eventKey: patient.pregnant ? 'hospital.patient.pregnant' : 'hospital.patient.other', speaker: patient, tick: state.tick, durationHours: 16 / 3, selectionRoll: personDayRoll(patient.id, state.tick, 905) });
   }
   return true;
 }
@@ -244,7 +244,7 @@ export function doctorTreatNearby(
 
   const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
   if (ok && !isDialogueBusy(doctor) && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
-    requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: 44 / 9 });
+    requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: 44 / 9, selectionRoll: personDayRoll(doctor.id, state.tick, 907) });
   }
   return ok;
 }
