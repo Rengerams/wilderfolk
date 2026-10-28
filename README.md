@@ -139,7 +139,7 @@ Frontier warfare now brings more detailed outcomes, permanent rival losses, and 
 ### Battles That Leave Their Mark
 
 * Successful raids can permanently reduce rival populations.
-* Overwhelming victories can eliminate rival settlements under the current combat rules; the player-choice and two-sided destruction redesign is planned for v0.6.6.0.
+* Overwhelming victories can eliminate rival settlements under the current combat rules; the player-choice and two-sided destruction redesign is planned for v0.6.5.2.
 * Destroyed camps lose their structures and associated events.
 * Named casualties are recorded when identifiable characters are killed.
 * Battle outcomes include losses, spoils, victories, and defeats.
@@ -223,7 +223,7 @@ The people of Wilderfolk have richer stories outside their jobs.
 * **More varied leisure:** villagers spend free time at home, at community venues or in attractive places instead of crowding the center of the map.
 * **Better gatherings:** festivals and ceremonies spread attendees more naturally across the available area.
 
-The broader personality-driven DNA system is a **future v0.6.6.0 proposal**, not part of this release.
+The broader personality-driven DNA system is a **future v0.6.5.2 proposal**, not part of this release.
 
 ---
 
@@ -258,7 +258,7 @@ The broader personality-driven DNA system is a **future v0.6.6.0 proposal**, not
 * **Developer builds only:** optional CPU profiling and diagnostics for investigating slowdowns; these tools are hidden in production releases.
 * Expanded regression coverage, typechecking and build checks.
 
-**Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.6.0 roadmap](roadmap_V.0.6.6.0.md)**. They are not shipped v0.6.5.1 features.
+**Important:** live named casualties displayed in green/red inside the raid overview, player-confirmed destruction of defeated rivals, enemy destruction of the player's entire city, raid prisoners and valley-wide consequences of those choices belong to the **[v0.6.5.2 roadmap](roadmap_V.0.6.5.2.md)**. They are not shipped v0.6.5.1 features.
 
 ---
 
