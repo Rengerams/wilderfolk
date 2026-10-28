@@ -68,7 +68,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Raze confirmation presentation | `components/RazeConfirmation.tsx` | UI on a persisted pending raid decision | `RazeConfirmation` — neutral explanation of removal, displacement and witnessed diplomacy; delegates confirm/cancel to `App`, never writes world state. |
 | Raid growth scaling | `frontierCombat.ts` | raid queue | `getRaidGrowthScale`, `getRaidLootScale`, `raiseRaidLootToFloor`, `rollOutgoingRaidSpoils`, `RAID_GROWTH_BASE_ADULTS`, `RAID_LOOT_MAX_SCALE`, `multiplyRaidLoot` |
 | Raid truce and founding cooldown | `frontierCombat.ts` | command (treaty) / rival founding | `applyTruceToRival`, `rollFoundingRaidCooldownDays`, `cancelPendingRaidsForRival`, `cancelPendingOutgoingRaidsForRival` |
-| Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers; the work-shift banter chance reads `evaluateTraitInfluence`'s `social`/`workplaceBanter` chance override |
+| Casual social feedback | `humanSocial.ts` / `socialLife.ts` | staggered-social | chat / greeting helpers; `tryWorkplaceBanter` reads `evaluateTraitInfluence`'s `social`/`workplaceBanter` chance override |
 | Youth love | `humanRelationships.ts` | new-calendar-day | `advanceYouthLove`, `reconcileYouthLove` |
 | Courtship / marriage | `humanRelationships.ts` | staggered-social (approach) + new-calendar-day (reconciliation) | `findCourtshipPartner`, `bindCourtship`, `reconcileCourtships`, `tryCompleteCourtshipMarriage` |
 | Affairs / scandal | `humanRelationships.ts` | daily + staggered + caught-in-act | `tryDailyAffairEncounter`, `canPursueSecretAffair`, `exposeAffair`, … |
