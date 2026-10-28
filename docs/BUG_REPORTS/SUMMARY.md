@@ -1912,3 +1912,8 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 ## 2026-10-28 — Design incompatibility resolved
 
 - **Legacy Goals in an open-ended simulator:** [report](../bug_report/2026-10-28-legacy-goals-conflict-with-open-ended-simulator.md). Removed the finite achievement projection and UI while preserving Chronicle history and existing saves. **Resolved in source; runtime checks not run.**
+
+## 2026-10-28 — Personality phase A review findings
+
+- **Personality TypeScript gate failure — investigating:** The initial PR #85 evaluator and two intentionally invalid DNA fixtures failed TS7053/TS2352. Type fixes committed; final rerun pending. [Report](../bug_report/2026-10-28-personality-phase-a-typescript-compile.md).
+- **Unsafe non-string DNA coercion — investigating:** The new evaluator could coerce malformed array items during catalog lookup; a string guard and focused regression were added. Final rerun pending. [Report](../bug_report/2026-10-28-personality-unsafe-dna-coercion.md).
