@@ -1135,6 +1135,17 @@ export function bakeWhittakerGround(
         b = b * (1 - edgeStrength);
       }
 
+      // Snow is strongly reflective even on a shaded mountainside. Retain the
+      // silhouette and cast shadows, but prevent north-facing snowfields from
+      // disappearing into the grey rock palette at the steepest cold crests.
+      if (!isWater) {
+        const brightSnow = clamp((snowAmountAt(hn, te) - 0.78) / 0.22, 0, 1);
+        const bounce = brightSnow * 0.65;
+        r += (215 - r) * bounce;
+        g += (225 - g) * bounce;
+        b += (237 - b) * bounce;
+      }
+
       const off = (py * W + px) * 4;
       d[off] = r;
       d[off + 1] = g;
