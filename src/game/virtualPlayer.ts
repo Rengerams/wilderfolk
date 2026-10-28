@@ -563,9 +563,10 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // A Silo lowers spoilage and contributes food without extra farmhands.
-  // Stop adding silos once the authoritative economy has no spoilage left.
+  // Extra Silo capacity is useful only when food storage is nearly full.
+  // Spoilage alone cannot outrank expanding real food production.
   if (measuredDeficit && (state.foodSpoilageRate ?? 0) > 0
+    && storageNearlyFull(state, 'food')
     && !isUnderConstruction(state, BuildingType.Silo)
     && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Silo].cost)) {
     const spot = findPlacementSpot(state, BuildingType.Silo, 0);
