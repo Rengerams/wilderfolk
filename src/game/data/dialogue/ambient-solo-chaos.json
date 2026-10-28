@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "category": "chaos",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_affair",
+      "category": "chaos",
+      "eventKey": "ambient.affair",
+      "mode": "solo",
+      "speakers": [
+        "lover_a"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Shh…"
+        },
+        {
+          "speaker": "lover_a",
+          "text": "After dark…"
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_fear",
+      "category": "chaos",
+      "eventKey": "ambient.fear",
+      "mode": "solo",
+      "speakers": [
+        "npc_arsonist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_arsonist",
+          "text": "Started a fire trying to make toast."
+        },
+        {
+          "speaker": "npc_arsonist",
+          "text": "I was just holding it near the stove for moral support."
+        }
+      ]
+    }
+  ]
+}
