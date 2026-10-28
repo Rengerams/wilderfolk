@@ -8,7 +8,6 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
 
 const ROOT = process.cwd();
 const errors = [];
@@ -36,40 +35,33 @@ const rootDialoguePath = 'src/game/dialogueTrees.ts';
 const dialogueFiles = new Set();
 for (const file of sourceFiles) {
   const name = slash(file);
-  const source = ts.createSourceFile(name, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true,
-    name.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  function scan(node) {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      const imported = node.moduleSpecifier.text;
-      if (name === rootDialoguePath && imported.endsWith('.json')) {
-        const target = path.posix.normalize(path.posix.join('src/game', imported));
-        dialogueFiles.add(target);
-      }
-      if (imported.endsWith('humanChat') && name !== rootDialoguePath) {
-        const bindings = node.importClause?.namedBindings;
-        if (bindings && ts.isNamedImports(bindings) && bindings.elements.some(
-          (entry) => ['startDialogueTreeChat', 'prepareScriptedDialogue'].includes(entry.propertyName?.text ?? entry.name.text),
-        )) errors.push(`${name}: mutable chat-session internals imported outside dialogueTrees.ts`);
-      }
+  const original = readFileSync(file, 'utf8');
+  // Lightweight source-level ratchet. Unlike compiler AST APIs this works
+  // with the project's installed native TypeScript 7 CLI package.
+  const code = original.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+  if (name === rootDialoguePath) {
+    for (const match of original.matchAll(/from\s+['"](\.\/data\/[^'"]+\.json)['"]/g)) {
+      const target = path.posix.normalize(path.posix.join('src/game', match[1]));
+      dialogueFiles.add(target);
     }
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)
-      && node.expression.text === 'sayHumanChatPhrase') {
-      errors.push(`${name}: legacy direct speech call`);
-    }
-    if (ts.isBinaryExpression(node) && ts.isPropertyAccessExpression(node.left)
-      && speechFields.has(node.left.name.text)
-      && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment
-      && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
-      && !allowedChatFieldMutation.has(name)) {
-      errors.push(`${name}: unauthorized ${node.left.name.text} write`);
-    }
-    if (name === 'src/game/socialLife.ts' && ts.isPropertyAssignment(node)
-      && (node.name.getText(source) === 'bubble' || node.name.getText(source) === 'chatPhrase')) {
-      errors.push(`${name}: social motive owns prose instead of an event key`);
-    }
-    ts.forEachChild(node, scan);
   }
-  scan(source);
+  if (name !== rootDialoguePath && /from\s+['"][^'"]*humanChat['"]/.test(original)) {
+    const importSections = [...original.matchAll(/import\s*\{([^}]+)\}\s*from\s+['"][^'"]*humanChat['"]/g)];
+    if (importSections.some((m) => /\b(?:startDialogueTreeChat|prepareScriptedDialogue)\b/.test(m[1]))) {
+      errors.push(`${name}: mutable chat-session internals imported outside dialogueTrees.ts`);
+    }
+  }
+  if (/\bsayHumanChatPhrase\s*\(/.test(code)) {
+    errors.push(`${name}: legacy direct speech call`);
+  }
+  if (!allowedChatFieldMutation.has(name)) {
+    for (const match of code.matchAll(/\.\s*(chatPhrase|chatTicks|chatPartnerId|chatDialogueSessionKey)\s*(?:=(?!=)|\+\+|--|\+=|-=)/g)) {
+      errors.push(`${name}: unauthorized ${match[1]} write`);
+    }
+  }
+  if (name === 'src/game/socialLife.ts' && /\b(?:bubble|chatPhrase)\s*:/.test(code)) {
+    errors.push(`${name}: social motive owns prose instead of an event key`);
+  }
 }
 
 const dataFiles = walk(resolve('src/game/data'), ['.json']);
