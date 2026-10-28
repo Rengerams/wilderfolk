@@ -313,7 +313,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Only derived for a genuinely destroyed settlement; one bounded scan of retained Chronicle events and one player-entity scan per report render. No tick, scheduler, RNG, state changes or additional save fields.',
     writes: [],
     scheduledFrom: 'components/WarfareStatus.tsx → buildRaidTerminalReport when raidRecovery.status is destroyed; App.tsx → RazeConfirmation for an existing pending raid',
-    testFile: 'tests/raidTerminalReport.test.tsx',
+    testFile: 'tests/raidTerminalReport.test.ts',
   },
   valleyChronicle: {
     owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
