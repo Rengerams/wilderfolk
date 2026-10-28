@@ -30,128 +30,57 @@ export const Relationship = {
 } as const;
 
 export const Time = {
-  /** 12 simulation ticks per clock hour give commuters finer steps without speeding up the real-time tick rate. */
   TICKS_PER_HOUR: 12,
-  /** 24 = one calendar day per sim day; keeps all math in whole days. */
   HOURS_PER_DAY: 24,
-  /** 360 = 4 seasons × 90 days; chosen over 365 so every season and year divide evenly. */
   DAYS_PER_YEAR: 360,
-  /** 90 = DAYS_PER_YEAR / 4. A season is exactly a quarter of the year. */
   DAYS_PER_SEASON: 90,
 } as const;
 
 // Convenience top-level exports for common calendar math
 export const HOURS_PER_DAY = Time.HOURS_PER_DAY;
-export const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
+const DAYS_PER_SEASON = Time.DAYS_PER_SEASON;
 
-/** Human needs & consumption tuning. */
+
 export const Human = {
-  /**
-   * Roughly 3 food/adult/day follows 24h × 1.2 nutrition/h, modest
-   * work/walking extras, and 10 nutrition restored per food in the needs owner.
-   */
   DAILY_FOOD_CONSUMPTION: 3,
-  /**
-   * Foreign war captives retain the legacy four-hour meal check.
-   * Player settlers use the nutrition intent and cooldown in humanPhysiology.ts.
-   */
   MEAL_CHECK_INTERVAL_HOURS: 4,
-  /**
-   * Energy threshold only for foreign captive meals; not used for player nutrition.
-   */
   HUNGER_MEAL_THRESHOLD: 0.9,
-  /**
-   * Legacy foreign captive energy restoration. Player meals credit nutrition via
-   * HUMAN_NEEDS.NUTRITION_RESTORED_PER_FOOD_UNIT.
-   */
   MEAL_ENERGY_RESTORE: 65,
 } as const;
 
 export const Immigration = {
-  /** Ages a lone adult, or a couple's lead adult, can arrive with. */
   ADULT_AGE_MIN: 18,
   ADULT_AGE_MAX: 65,
-  /**
-   * A lone arrival this young is a youth. 12 is the floor the age owner already uses for youth
-   * love and fertility, so such a settler can be courted but not married on arrival.
-   */
   YOUTH_AGE_MIN: 12,
   YOUTH_AGE_MAX: 17,
-  /** Chance an arriving party is one youth instead of an adult or a couple. */
   LONE_YOUTH_CHANCE: 0.1,
-  /** Chance that an otherwise single arrival is a married couple. */
   COUPLE_CHANCE: 0.12,
-  /** Chance the wife of an arriving couple is already expecting. */
   PREGNANT_WIFE_CHANCE: 0.4,
-  /** Chance an arriving couple brings children (only when the colony has room for them). */
   FAMILY_WITH_CHILD_CHANCE: 0.6,
-  /** Children are under `HUMAN_ADULT_MIN_AGE`, so they enrol at school and graduate there. */
   CHILD_AGE_MIN: 0,
   CHILD_AGE_MAX: 11,
-  /** Up to two children per family; the caller's free-slot count caps it further. */
   FAMILY_MAX_CHILDREN: 2,
 } as const;
 
-/**
- * The age a settler must reach before school means anything.
- *
- * Owner (2026-09-29): *"well stages its not logic if a zero year old go to school"*, proposing the
- * ladder `0-2 baby / 2-6 toddler / 6-12 child / 12-18 juvenile`.
- *
- * School had **no minimum age at all**: `humanTick` gated the school run on `entity.isJuvenile` alone,
- * and that flag is `age < HUMAN_ADULT_MIN_AGE` (18) — true from birth. So a newborn was eligible for
- * a school shift and would walk to one whenever a school was in range; the only thing that ever
- * stopped it was the building being absent or too far, which is why it reads as an intermittent
- * absurdity rather than a constant one.
- *
- * 6 is the owner's own number for the start of the "child" band, and it is the first of their four
- * stages that implies schooling. Deliberately **not** a new global age ladder: the simulation's bands
- * stay as they are (`HUMAN_ADULT_MIN_AGE` = graduation = `HUMAN_ADULT_MIN_AGE` 18 = adult) and this
- * is one gate on one activity — a baby does not go to school. Turning the other three stages into real
- * mechanics is a separate, balance-affecting decision.
- */
+
 export const SCHOOL_MIN_AGE = 6;
 
-/** Tamed-animal care tuning. */
+
 export const Animal = {
-  /**
-   * 0.15 = a tamed animal eats 15% of a human's daily portion (0.45 food/day).
-   * Empirical — chosen by playtesting so a small herd (~5 pets) costs ~2 food/day
-   * without out-competing the village pantry.
-   */
   FOOD_RATIO_OF_HUMAN: 0.15,
 } as const;
 
-/**
- * Prison guard duty (owner: `prisonGuardDuty.ts`, daily cadence; roster: `prisonShifts.ts`).
- *
- * The roster owns the shifts — three nine-hour windows with a one-hour handover — and the guard count
- * that covers them. What stays tuning is the price of a gap: while the Prison holds prisoners and any
- * hour of the day has no guard on it, that hour carries this escape risk.
- */
+
 export const Prison = {
-  /**
-   * 0.05 = per-unguarded-hour escape chance. Empirical/tuning: one guard of three leaves two shifts
-   * open, which frees a prisoner most days.
-   */
+ 
   ESCAPE_CHANCE_PER_UNGUARDED_HOUR: 0.05,
 } as const;
 
-/**
- * Valley ecology stage ladder (Stable → Strained → Damaged → Collapse).
- *
- * The single switch for the whole ladder: turn it off to park the valley at a quiet 'stable', with
- * no transitions, notifications, focus hints, or hunt/farm/illness effects.
- */
 export const ValleyEcology = {
   ENABLED: true,
 } as const;
 
-/**
- * Famine desperation comedy (2026-09-08, developer joke feature).
- * When the larder is empty, the most desperate settler may lunge at a
- * neighbour's foot.
- */
+
 export const Famine = {
   // The nutrition threshold for famine desperation is owned by HUMAN_NEEDS.
   /** Daily chance (per desperate settler) of attempting a foot-bite while stores are empty. */
