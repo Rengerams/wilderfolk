@@ -170,10 +170,7 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
   return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
 }
 
-/** Sustained shortage according to completed-day food ledgers, not stock alone.
- * A brief good harvest cannot cancel a month of underproduction: natural
- * immigration and children continue eating through that temporary recovery.
- */
+/** Persist the measured monthly deficit across a briefly positive food-supply week. */
 function isMeasuredFoodDeficit(state: WorldState): boolean {
   const recent = getRecentFoodFlow(state);
   if (recent == null) return false;
