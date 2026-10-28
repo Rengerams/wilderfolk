@@ -47,31 +47,138 @@ export const DIALOGUE_CATEGORIES = [
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
 
+export const DIALOGUE_EVENT_KEYS = [
+  'ambient.social',
+  'ambient.home',
+  'ambient.courtship',
+  'ambient.work',
+  'ambient.visitor',
+  'ambient.rival',
+  'ambient.hunt',
+  'ambient.child',
+  'ambient.school',
+  'ambient.pregnancy',
+  'ambient.affair',
+  'ambient.sleep',
+  'ambient.renffr',
+  'ambient.fear',
+  'ambient.winter',
+  'ambient.festival',
+  'ambient.guard',
+  'ambient.food',
+  'ambient.election',
+  'family.daily',
+  'famine.hunger',
+  'pregnancy.daily',
+  'workplace.banter.solo',
+  'workplace.banter.start',
+  'workplace.banter.reply',
+  'workplace.banter',
+  'neighbor.greeting.start',
+  'neighbor.greeting.reply',
+  'neighbor.greeting',
+  'child.play',
+  'hunting.scarce',
+  'hunting.thinTrails',
+  'hotel.arrival',
+  'hotel.service.busy',
+  'hotel.service.welcome',
+  'hospital.patient.pregnant',
+  'hospital.patient.other',
+  'hospital.doctor',
+  'townHall.foodAid',
+  'townHall.heard',
+  'townHall.audience.petitioner',
+  'townHall.audience.leader',
+  'townHall.goldAid',
+  'townHall.generic',
+  'townHall.official',
+  'marriage.accepted',
+  'renffr.omen',
+  'election.buildup',
+  'election.ceremony',
+  'election.tension',
+  'election.winner',
+  'social.impulse.sick_day',
+  'social.impulse.grief.church',
+  'social.impulse.grief.home',
+  'social.impulse.bad_weather.drought',
+  'social.impulse.bad_weather.storm',
+  'social.impulse.bad_weather.snow',
+  'social.impulse.bad_weather.rain',
+  'social.impulse.elder_rest',
+  'social.impulse.care_pregnant.to_hospital',
+  'social.impulse.care_pregnant.check_spouse',
+  'social.impulse.care_pregnant.rest',
+  'social.impulse.hospital_visit.checkup',
+  'social.impulse.hospital_visit.midwives',
+  'social.impulse.hospital_visit.doctor',
+  'social.impulse.sunday_service',
+  'social.impulse.civic_petition.grief',
+  'social.impulse.civic_petition.food',
+  'social.impulse.civic_petition.general',
+  'social.impulse.birthday',
+  'social.impulse.market_errand.well',
+  'social.impulse.market_errand.other',
+  'social.impulse.comfort_neighbor',
+  'social.impulse.day_off',
+  'visitor.poi.market',
+  'visitor.poi.hall',
+  'visitor.poi.church',
+  'visitor.poi.study',
+  'visitor.poi.hunt',
+  'visitor.poi.trail',
+  'visitor.poi.campfire',
+  'visitor.poi.homes',
+  'visitor.poi.help',
+  'visitor.poi.shelter',
+  'visitor.poi.stage',
+  'visitor.poi.show',
+  'visitor.poi.square',
+  'visitor.poi.well',
+  'visitor.poi.shrine',
+  'visitor.poi.notes',
+  'visitor.poi.visit',
+  'visitor.poi.road',
+  'visitor.poi.plea',
+  'visitor.performer',
+] as const;
+
+export type DialogueEventKey = (typeof DIALOGUE_EVENT_KEYS)[number];
+const DIALOGUE_EVENT_KEY_SET: ReadonlySet<string> = new Set(DIALOGUE_EVENT_KEYS);
+
 export interface DialogueLine {
-  speaker: string;
-  text: string;
+  readonly speaker: string;
+  readonly text: string;
 }
 
-export interface DialogueTree {
+type DialogueTreeBase = Readonly<{
   id: string;
   category: DialogueCategory;
-  speakers: readonly string[];
-  eventKey?: string;
-  mode?: 'solo' | 'pair';
+  eventKey: DialogueEventKey;
   lines: readonly DialogueLine[];
-}
+}>;
+
+export type DialogueTree = DialogueTreeBase & (
+  | Readonly<{ mode: 'solo'; speakers: readonly [string] }>
+  | Readonly<{ mode: 'pair'; speakers: readonly [string, string] }>
+);
 
 export interface DialogueBankFile {
-  version: string;
-  dialogue_trees: DialogueTree[];
-  categories: DialogueCategory[];
+  readonly version: string;
+  readonly dialogue_trees: readonly DialogueTree[];
+  readonly categories: readonly DialogueCategory[];
 }
 
 export const DIALOGUE_SCHEMA_VERSION = '1.3';
 
-interface DialogueSourceTree extends Omit<DialogueTree, 'mode'> {
-  eventKey: string;
+interface DialogueSourceTree {
+  id: string;
+  category: DialogueCategory;
+  eventKey: DialogueEventKey;
   conversation_type: 'one_way' | 'two_way';
+  speakers: readonly string[];
+  lines: readonly DialogueLine[];
 }
 
 interface DialogueSourceFile {
@@ -150,6 +257,14 @@ function isDialogueCategory(value: string): value is DialogueCategory {
   return (DIALOGUE_CATEGORIES as readonly string[]).includes(value);
 }
 
+function freezeDialogueTree(tree: DialogueTree): DialogueTree {
+  const lines = Object.freeze(tree.lines.map((line) => Object.freeze({ ...line })));
+  if (tree.mode === 'solo') {
+    return Object.freeze({ ...tree, speakers: Object.freeze([tree.speakers[0]] as const), lines });
+  }
+  return Object.freeze({ ...tree, speakers: Object.freeze([tree.speakers[0], tree.speakers[1]] as const), lines });
+}
+
 function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): DialogueBankFile {
   const dialogue_trees: DialogueTree[] = [];
   const seenIds = new Set<string>();
@@ -162,7 +277,7 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
       throw new Error(`[dialogue] Invalid source categories: ${String(source.category)}`);
     }
     for (const tree of source.dialogue_trees) {
-      if (tree.category !== source.category || !tree.eventKey?.trim()) {
+      if (tree.category !== source.category || !DIALOGUE_EVENT_KEY_SET.has(tree.eventKey)) {
         throw new Error(`[dialogue] Invalid category or event key: ${tree.id}`);
       }
       if (seenIds.has(tree.id)) throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
@@ -175,16 +290,19 @@ function buildCanonicalDialogueBank(sources: readonly DialogueSourceFile[]): Dia
         throw new Error(`[dialogue] Invalid speaker roles or lines: ${tree.id}`);
       }
       const { conversation_type: _conversationType, ...scene } = tree;
-      dialogue_trees.push({ ...scene, mode });
+      const compiled: DialogueTree = mode === 'solo'
+        ? { ...scene, mode: 'solo', speakers: [tree.speakers[0]!] }
+        : { ...scene, mode: 'pair', speakers: [tree.speakers[0]!, tree.speakers[1]!] };
+      dialogue_trees.push(freezeDialogueTree(compiled));
       seenIds.add(tree.id);
     }
   }
 
-  return {
+  return Object.freeze({
     version: DIALOGUE_SCHEMA_VERSION,
-    dialogue_trees,
-    categories: [...DIALOGUE_CATEGORIES],
-  };
+    dialogue_trees: Object.freeze(dialogue_trees),
+    categories: Object.freeze([...DIALOGUE_CATEGORIES]),
+  });
 }
 
 /** Canonical content payload shared by the main thread and worker. */
@@ -218,6 +336,7 @@ function indexDialogueBank(next: DialogueBankFile): void {
   }
   const nextTreesById = new Map<string, DialogueTree>();
   const nextTreesByEvent = new Map<string, DialogueTree[]>();
+  const frozenTrees: DialogueTree[] = [];
 
   for (const tree of next.dialogue_trees) {
     if (!isDialogueCategory(tree.category)) {
@@ -231,21 +350,23 @@ function indexDialogueBank(next: DialogueBankFile): void {
     if ((mode === 'solo' ? 1 : 2) !== tree.speakers.length || !tree.lines.length || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
       throw new Error(`[dialogue] Invalid roles or lines for ${tree.id}`);
     }
-    if (!tree.eventKey) throw new Error(`[dialogue] Missing event key for ${tree.id}`);
-    const key = `${tree.eventKey}:${mode}`;
+    if (!DIALOGUE_EVENT_KEY_SET.has(tree.eventKey)) throw new Error(`[dialogue] Invalid event key for ${tree.id}`);
+    const frozen = freezeDialogueTree(tree);
+    const key = `${frozen.eventKey}:${mode}`;
     const entries = nextTreesByEvent.get(key) ?? [];
-    entries.push(tree);
+    entries.push(frozen);
     nextTreesByEvent.set(key, entries);
-    nextTreesById.set(tree.id, tree);
+    nextTreesById.set(frozen.id, frozen);
+    frozenTrees.push(frozen);
   }
 
-  bank = {
-    ...next,
-    dialogue_trees: [...next.dialogue_trees],
-    categories: [...next.categories],
-  };
+  bank = Object.freeze({
+    version: next.version,
+    dialogue_trees: Object.freeze(frozenTrees),
+    categories: Object.freeze([...next.categories]),
+  });
   treesById = nextTreesById;
-  treesByEvent = nextTreesByEvent;
+  treesByEvent = new Map([...nextTreesByEvent].map(([key, entries]) => [key, Object.freeze(entries)]));
 }
 
 /** Install the statically bundled split dialogue sources if nothing is loaded yet. */
@@ -466,7 +587,7 @@ export function dialogueHoursFromNominalTicks(nominalTicks: number): number {
 }
 
 export interface DialogueRequest {
-  eventKey: string;
+  eventKey: DialogueEventKey;
   /** Exact vetted variant within the event pool (for outcome-dependent content). */
   treeId?: string;
   speaker: ChatSpeaker;
@@ -497,10 +618,10 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
     prepareScriptedDialogue(speaker, request.resolvePartner);
     if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
   }
-  const tree = request.variables ? {
+  const tree: DialogueTree = request.variables ? freezeDialogueTree({
     ...selected,
     lines: selected.lines.map((line) => ({ ...line, text: line.text.replace(/\{([a-zA-Z]+)\}/g, (match, name: string) => request.variables?.[name] ?? match) })),
-  } : selected;
+  }) : selected;
   startDialogueTreeChat(speaker, partner, tree, mode === 'solo', request.durationHours);
   return true;
 }
@@ -514,7 +635,7 @@ function contextualAmbientScene(
   partner: ChatSpeaker | null,
   context: HumanChatContext,
   options: ChatPickOptions,
-): { eventKey: string; treeId?: string } {
+): { eventKey: DialogueEventKey; treeId?: string } {
   if (context === 'pregnant' && entity.pregnant) {
     if (!partner) return { eventKey: 'pregnancy.daily', treeId: 'wf_pregnant_mother_waddle' };
     if (entity.partnerId === partner.id && partner.partnerId === entity.id) {
@@ -536,7 +657,7 @@ function contextualAmbientScene(
       return { eventKey: 'family.daily' };
     }
   }
-  return { eventKey: 'ambient.' + (context === 'pregnant' ? 'pregnancy' : context) };
+  return { eventKey: `ambient.${context === 'pregnant' ? 'pregnancy' : context}` };
 }
 
 /** One existing tick dispatch; humanChat remains the only field-writing session executor. */
