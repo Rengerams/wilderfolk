@@ -653,7 +653,8 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       // Ground from every chunk first; the next chunk must not erase props crossing its edge.
       for (const chunk of chunks) {
         if (!chunk.decor) continue;
-        const topMargin = heightMesh ? DECOR_RAISED_TOP_MARGIN : DECOR_CHUNK_MARGIN;
+        const topMargin = supportsTerrainHeightMesh(state.worldMap)
+          ? DECOR_RAISED_TOP_MARGIN : DECOR_CHUNK_MARGIN;
         const [decorSx, decorSy] = worldToScreen(
           chunk.worldX - DECOR_CHUNK_MARGIN,
           chunk.worldY - topMargin,
