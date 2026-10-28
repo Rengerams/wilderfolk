@@ -1,0 +1,46 @@
+name: Import verified Cethiel CC0 grass sources
+on:
+  push:
+    branches:
+      - feat/biome-ecotone-transitions-20261028
+    paths:
+      - .github/workflows/import-cethiel-grass.yml
+permissions:
+  contents: write
+jobs:
+  import-art:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Fetch artist's original four CC0 texture files, verify against supplied ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/sprites/terrain/cethiel
+          base='https://raw.githubusercontent.com/majikayogames/SimpleTerrain/main/addons/SimpleTerrain/assets/textures/CC0%20Tileable%20Grass%20Textures%20Set%20By%20Cethiel'
+          for num in 01 02 03 04; do
+            curl --fail --location --retry 3 --silent --show-error "$base/Grass_${num}.png" -o "public/sprites/terrain/cethiel/Grass_${num}.png"
+          done
+          printf '%s\n' \
+            '44d33b144f4115f7da7322d863b482bd4ca45bec  public/sprites/terrain/cethiel/Grass_01.png' \
+            'a9410424821a92d5e96808d7631e94085eb57694  public/sprites/terrain/cethiel/Grass_02.png' \
+            '6df88a8d5bb792c61ec7e1b46b021699237a095b  public/sprites/terrain/cethiel/Grass_03.png' \
+            '76a5810aea510690403dd5d4adffb9bd17c75d51  public/sprites/terrain/cethiel/Grass_04.png' \
+            | while read -r expected file; do
+                actual="$(git hash-object "$file")"
+                [ "$actual" = "$expected" ] || { echo "::error::Asset mismatch: $file"; exit 1; }
+              done
+      - name: Commit exact source assets to this feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/sprites/terrain/cethiel
+          if ! git diff --cached --quiet; then
+            git commit -m "assets(CC0): add original Cethiel grass albedo PNGs"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
