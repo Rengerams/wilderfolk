@@ -59,7 +59,7 @@ function extractFact(fn, sources) {
   const src = sources.get(fn.file);
   if (src === undefined) throw new Error('Missing source file in graph: ' + fn.file);
   if (!Number.isInteger(fn.bodyEnd) || !Number.isInteger(fn.bodyStart)) {
-    throw new Error('Call graph is stale: regenerate it with bodyStart/bodyEnd fields');
+    throw new Error('Missing call-graph body span: ' + fn.file + ':' + fn.line + ' ' + fn.name + ' (start=' + fn.bodyStart + ', end=' + fn.bodyEnd + ')');
   }
   const lines = src.split('\n');
   const body = lines.slice(fn.line - 1, fn.bodyEnd).join('\n');
