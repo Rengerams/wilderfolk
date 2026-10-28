@@ -52,7 +52,7 @@ import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOpt
 import { startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
-import { traitMultiplier } from '../settlerTraits';
+import { evaluateTraitInfluence } from '../personality/traitEvaluation';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
@@ -844,7 +844,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const fertility = getFemaleFertility(entity.age);
       if (together && fertility > 0) {
         const baseChance = bothAtSharedHome ? HUMAN_DAILY_PREGNANCY_CHANCE_HOME : HUMAN_DAILY_PREGNANCY_CHANCE_NEAR;
-        if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * traitMultiplier(entity, 'lucky', 1.15)) {
+        if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * evaluateTraitInfluence(entity, { kind: 'family', activity: 'conception', exact: true }).factor) {
           startMarriedPregnancy(state, entity, partner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
@@ -884,7 +884,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const youthMultiplier = getYouthConceptionMultiplier(entity.age);
       if (nearYouthPartner && fertility > 0 && youthMultiplier > 0) {
         const chance =
-          HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * traitMultiplier(entity, 'lucky', 1.15);
+          HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * evaluateTraitInfluence(entity, { kind: 'family', activity: 'conception', exact: true }).factor;
         if (personDayRoll(entity.id, state.tick, 604) < chance) {
           startYouthPregnancy(state, entity, youthPartner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');

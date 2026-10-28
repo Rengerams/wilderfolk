@@ -16,6 +16,7 @@ import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -58,8 +59,13 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
 export function applyWarCommunityReaction(state: WorldState,
   choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string): void {
   const villagers = state.entities.filter((person) => person.alive && isPlayerHuman(person));
-  const empathetic = villagers.filter((person) => person.traits?.some((trait) => trait === 'nurturing' || trait === 'chivalrous')).length;
-  const fierce = villagers.filter((person) => person.traits?.includes('fierce')).length;
+  let empathetic = 0;
+  let fierce = 0;
+  for (const person of villagers) {
+    const voices = evaluateTraitInfluence(person, { kind: 'civic', activity: 'mercy', exact: true });
+    empathetic += voices.restraintVoice ?? 0;
+    fierce += voices.severityVoice ?? 0;
+  }
   const activeWar = state.rivalSettlements.some((rival) => rival.id === rivalId && rival.atWarWithPlayer);
   const recentAttack = state.raidBattleReports?.some((report) => report.rivalId === rivalId && report.side === 'defense'
     && report.resolvedAtTick <= state.tick && report.resolvedAtTick >= state.tick - 30 * TICKS_PER_DAY) ?? false;

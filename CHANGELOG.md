@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **DNA PR C:** Moved legacy courtship, conception, banter, grief, feud clashes and prisoner votes into the one trait catalog/evaluator with exact gameplay parity and a zero-legacy source audit.
+
 - **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.

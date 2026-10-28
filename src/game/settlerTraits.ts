@@ -1,9 +1,8 @@
 /**
  * Settler personality traits — a trait catalog that makes each villager
  * feel like an individual. Traits are assigned at creation (1–3 per settler),
- * inherited partly from parents, and read as `traitMultiplier` by the owners
- * still on it (conception, social banter, mercy); the rest reads the
- * personality evaluator.
+ * inherited partly from parents. Gameplay effects are calculated through the
+ * single personality catalog/evaluator; this module owns genotype allocation.
  */
 import type { Entity, SettlerTrait } from './gameTypes';
 import { createSeededRng, getSimRng, type RngStream } from './simRng';
@@ -287,11 +286,6 @@ export function inheritSettlerTraits(
   }
 
   return inherited;
-}
-
-/** Modifier when the trait is present; otherwise 1.0. */
-export function traitMultiplier(entity: Entity, trait: SettlerTrait, whenPresent: number): number {
-  return entity.traits?.includes(trait) ? whenPresent : 1.0;
 }
 
 /** True when the entity carries the given trait. */

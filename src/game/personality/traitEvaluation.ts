@@ -16,6 +16,12 @@ export interface TraitInfluence {
   readonly factor: number;
   readonly tendency: number;
   readonly reasons?: readonly TraitReason[];
+  readonly courtshipFactors?: readonly [number, number, number];
+  readonly banterChance?: number;
+  readonly griefDays?: number;
+  readonly restraintVoice?: 0 | 1;
+  readonly severityVoice?: 0 | 1;
+  readonly clashCount?: number;
 }
 
 export interface TraitEvaluationOptions {
@@ -36,12 +42,84 @@ const NEUTRAL_EXPLAINED: TraitInfluence = Object.freeze({
   reasons: EMPTY_REASONS,
 });
 
+/** Static catalog projection: never rebuild cross-person pairs during social passes. */
+const CROSS_PERSON_CLASHES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> =
+  (Object.keys(TRAIT_EFFECTS) as SettlerTrait[]).flatMap((trait) => {
+    const profile: TraitEffects = TRAIT_EFFECTS[trait];
+    const pairs: Array<readonly [SettlerTrait, SettlerTrait]> = [];
+    for (const effect of profile.legacyExact ?? []) {
+      if (effect.decision === 'conflict') pairs.push([trait, effect.other]);
+    }
+    return pairs;
+  });
+
+/** Exact legacy context read: pure, no RNG, no extra owner or rebalancing. */
+function evaluateExactInfluence(subject: TraitSubject, context: TraitContext): TraitInfluence {
+  const traits = Array.isArray(subject.traits) ? subject.traits : [];
+  if (context.kind === 'social' && context.activity === 'conflict') {
+    const other = Array.isArray(context.other?.traits) ? context.other.traits : [];
+    let clashes = 0;
+    for (const [left, right] of CROSS_PERSON_CLASHES) {
+      if ((traits.includes(left) && other.includes(right)) || (traits.includes(right) && other.includes(left))) {
+        clashes++;
+      }
+    }
+    return { factor: 1, tendency: 0, clashCount: clashes };
+  }
+
+  let factor = 1;
+  let banterChance: number | undefined;
+  let griefDays: number | undefined;
+  let restraintVoice: 0 | 1 = 0;
+  let severityVoice: 0 | 1 = 0;
+  let courtship0 = 1;
+  let courtship1 = 1;
+  let courtship2 = 1;
+  for (let i = 0; i < traits.length && i < MAX_TRAITS; i++) {
+    const trait = traits[i];
+    if (typeof trait !== 'string' || !Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, trait)) continue;
+    if (traits.indexOf(trait) !== i) continue;
+    const profile: TraitEffects = TRAIT_EFFECTS[trait as SettlerTrait];
+    for (const rule of profile.legacyExact ?? []) {
+      if (context.kind === 'social' && context.activity === 'courtship' && rule.decision === 'courtship') {
+        if (rule.position === 0) courtship0 = rule.multiplier;
+        else if (rule.position === 1) courtship1 = rule.multiplier;
+        else courtship2 = rule.multiplier;
+      } else if (context.kind === 'family' && context.activity === 'conception' && rule.decision === 'conception') {
+        factor *= rule.multiplier;
+      } else if (context.kind === 'social' && context.activity === 'workplaceBanter' && rule.decision === 'workplaceBanter') {
+        banterChance = rule.chance;
+      } else if (context.kind === 'family' && context.activity === 'bereavement' && rule.decision === 'bereavement') {
+        griefDays = rule.days;
+      } else if (context.kind === 'civic' && context.activity === 'mercy' && rule.decision === 'mercy') {
+        if (rule.voice === 'restraint') restraintVoice = 1;
+        else severityVoice = 1;
+      }
+    }
+  }
+
+  if (context.kind === 'social' && context.activity === 'courtship') {
+    return { factor: 1, tendency: 0, courtshipFactors: [courtship0, courtship1, courtship2] };
+  }
+  if (context.kind === 'social' && context.activity === 'workplaceBanter') {
+    return { factor: 1, tendency: 0, banterChance };
+  }
+  if (context.kind === 'family' && context.activity === 'bereavement') {
+    return { factor: 1, tendency: 0, griefDays };
+  }
+  if (context.kind === 'civic' && context.activity === 'mercy') {
+    return { factor: 1, tendency: 0, restraintVoice, severityVoice };
+  }
+  return { factor, tendency: 0 };
+}
+
 // Read-only projection: no clocks, random rolls, entity writes or other world state.
 export function evaluateTraitInfluence(
   subject: TraitSubject,
   context: TraitContext,
   options?: TraitEvaluationOptions,
 ): TraitInfluence {
+  if ('exact' in context && context.exact === true) return evaluateExactInfluence(subject, context);
   const explain = options?.includeReasons === true;
   const traits = subject.traits;
   if (!Array.isArray(traits) || traits.length === 0) {

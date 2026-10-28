@@ -14,6 +14,7 @@ import { hasResidenceAssignment } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
 import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
 import { listPlayerResidences } from './residencySelection';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
 export function isKillableSettlerEntity(entity: Entity): boolean {
@@ -95,7 +96,7 @@ export function finalizeHumanDeath(
         }
         // About a week of mourning when we know the tick — stoic settlers recover sooner.
         if (tick != null) {
-          const griefDays = partner.traits?.includes('stoic') ? 5 : 7;
+          const griefDays = evaluateTraitInfluence(partner, { kind: 'family', activity: 'bereavement', exact: true }).griefDays ?? 7;
           partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * griefDays);
         }
         if (partner.moonHowlerSaved?.partnerId === entity.id) {

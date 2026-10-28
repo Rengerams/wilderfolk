@@ -15,6 +15,7 @@ import {
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { isMarriedOrExpecting } from './civilStatus';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
 
 export type SocialMotive =
   | 'sick_day'
@@ -421,7 +422,7 @@ export function tryWorkplaceBanter(
   if (!Number.isFinite(hour) || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
 
-  const banterChance = entity.traits?.includes('intuitive') ? 0.11 : 0.08;
+  const banterChance = evaluateTraitInfluence(entity, { kind: 'social', activity: 'workplaceBanter', exact: true }).banterChance ?? 0.08;
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
   const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));

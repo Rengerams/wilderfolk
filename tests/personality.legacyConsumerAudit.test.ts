@@ -1,11 +1,13 @@
 /**
  * Transitional PR B → PR C inventory of legacy DNA rules in executable source.
  *
- * This is a ratchet, not a permanent exception. PR C migrates the listed sites
- * into traitEffectCatalog/traitEvaluation and changes EXPECTED to {}.
+ * This is a permanent regression guard: PR C migrated the last listed sites
+ * into traitEffectCatalog/traitEvaluation: EXPECTED is now {}.
  * The source scan remains active afterward, so reintroducing an inline DNA
  * multiplier, direct per-trait rule or duplicate compatibility table fails CI.
  *
+ * Genetic allocation/inheritance in settlerTraits.ts and the canonical evaluator's
+ * internal DNA lookup are deliberately excluded: they own DNA interpretation.
  * Genetic allocation and inheritance in settlerTraits.ts are deliberately
  * excluded from the direct trait-check ban; they are not gameplay bonuses.
  *
@@ -20,20 +22,7 @@ const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
 
 /** Finite known pre-PR-C debt; the PR C exit value MUST be {}. */
-const EXPECTED: Readonly<Record<string, number>> = {
-  'src/game/settlerTraits.ts|legacyMultiplierDefinition': 1,
-  'src/game/humanTick.ts|legacyMultiplierImport': 1,
-  'src/game/humanTick.ts|legacyMultiplierCall': 3,
-  'src/game/simulation/humanRelationships.ts|legacyMultiplierImport': 1,
-  'src/game/simulation/humanRelationships.ts|legacyMultiplierCall': 2,
-  'src/game/relationships.ts|legacyPairTable': 1,
-  'src/game/relationships.ts|legacyPairHelperDefinition': 1,
-  'src/game/relationships.ts|legacyPairHelperCall': 1,
-  'src/game/socialLife.ts|directTraitIncludes': 1,
-  'src/game/humanLifecycleCleanup.ts|directTraitIncludes': 1,
-  'src/game/warPrisoners.ts|directTraitIncludes': 1,
-  'src/game/warPrisoners.ts|directTraitSome': 1,
-};
+const EXPECTED: Readonly<Record<string, number>> = {}
 
 function sourcePaths(directory: string): string[] {
   const result: string[] = [];
@@ -76,7 +65,7 @@ function legacyInventory(): Record<string, number> {
     record(path, 'legacyPairHelperCall',
       count(/\btraitClashCount\s*\(/g) - pairDefinitions);
 
-    if (path !== 'src/game/settlerTraits.ts') {
+    if (path !== 'src/game/settlerTraits.ts' && path !== 'src/game/personality/traitEvaluation.ts') {
       record(path, 'directTraitIncludes', count(/\btraits\s*(?:\?\.|\.)\s*includes\s*\(/g));
       record(path, 'directTraitSome', count(/\btraits\s*(?:\?\.|\.)\s*some\s*\(/g));
     }
