@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
+
+
 - **Changed:** Courtship pace, married and youth conception, work banter, spousal grief, prisoner mercy voices and social feuds read their trait rules from one personality catalog at the exact historical values, the legacy DNA scan now reports zero, and play is unchanged.
 
 - **Changed:** Aligned the feature roadmap with merged DNA phases A and B, the illustrated strategic map, v4 river rendering and existing alerts; unmerged personality, career and disabled disaster features remain open.
