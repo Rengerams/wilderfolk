@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createEntity } from '../src/game/entityFactory';
-import { BuildingType, EntityType, type Building, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, PATH_CELL, TerrainType, type Building, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay, getCalendarDay, isWeekend, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { gameTick } from '../src/game/gameTick';
+import { getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
-import { initGame } from '../src/game/worldGen';
+import { createBuilding, initGame } from '../src/game/worldGen';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
   normalizeSpotlightLoreOnLoad, tickSpotlightGathering,
@@ -316,6 +318,58 @@ describe('spotlight lore — established affairs must not steal movement', () =>
     expect(world.spotlightLore?.phase).toBe('gathering');
     expect(actor.x, 'ordinary tryst would steer right; spotlight must steer left').toBeLessThan(before);
     expect(actor.indoorBuildingId).toBeUndefined();
+  });
+});
+
+describe('spotlight lore — actors navigate real obstacles', () => {
+  it.each(['wall', 'water'] as const)('routes a stage participant around a completed %s obstacle', (kind) => {
+    const world = initGame({ seed: 63231, size: 'medium', width: 960, height: 720, skipTerrain: true });
+    const day = 96;
+    const at16 = day * TICKS_PER_DAY + 16 * TICKS_PER_HOUR;
+    world.worldMap = testWorldMap({
+      tilesX: 96, tilesY: 72, seed: 8033,
+      tileType: (x, y) => kind === 'water' && x === 50 && y === 35 ? TerrainType.River : undefined,
+    });
+    const wall = createBuilding(BuildingType.Wall, 505, 355, 901);
+    Object.assign(wall, { width: PATH_CELL, height: PATH_CELL, completed: true, constructionProgress: 100 });
+    world.buildings = kind === 'wall' ? [wall] : [];
+
+    const girl = createEntity(EntityType.Human, 445, 355, 120001, undefined, true, {
+      name: 'Ada', gender: 'female', ageYears: 14, colonyDay: day,
+    });
+    const audience = Array.from({ length: 8 }, (_, i) => createEntity(
+      EntityType.Human, i === 0 ? 485 : 425 + i * 6, i === 0 ? 355 : 385,
+      120002 + i, undefined, false,
+      { name: `Singer${i}`, gender: 'male', ageYears: 28, colonyDay: day },
+    ));
+    const actor = audience[0];
+    world.entities = [girl, ...audience];
+    rebuildEntityByIdMap(world);
+    invalidateCachedEntityByType(world);
+    world.tick = at16 - 1;
+    world.dayInYear = getCalendarDay(at16);
+    world.lastProcessedCalendarDay = getAbsoluteCalendarDay(at16);
+    world.spotlightLore = {
+      id: `obstacle-${kind}`, heroineId: girl.id, performerIds: audience.map((h) => h.id),
+      phase: 'gathering', startedAtTick: world.tick, gatherX: girl.x, gatherY: girl.y,
+      slots: audience.map((h) => ({ humanId: h.id, x: h.id === actor.id ? 525 : h.x, y: h.y })),
+    };
+
+    const grid = getPathGrid(world.worldMap, world.buildings);
+    expect(grid.blocked[35 * grid.cols + 50]).toBe(1);
+    expect(lineCrossesBlocked(grid, actor.x, actor.y, 525, 355)).toBe(true);
+
+    // A straight-only actor hits the obstacle; the shared route owner must detour and arrive.
+    for (let step = 0; step < 40 && world.spotlightLore?.phase === 'gathering'; step++) {
+      const before = { x: actor.x, y: actor.y };
+      gameTick(world);
+      const tileX = Math.floor(actor.x / PATH_CELL);
+      const tileY = Math.floor(actor.y / PATH_CELL);
+      expect(grid.blocked[tileY * grid.cols + tileX], 'stage walking must never enter blocked ground').toBe(0);
+      expect(Math.hypot(actor.x - before.x, actor.y - before.y), 'only one normal walk step per tick').toBeLessThanOrEqual(9.6 + 0.001);
+    }
+    expect(world.spotlightLore?.phase).toBe('ready');
+    expect(Math.hypot(actor.x - 525, actor.y - 355)).toBeLessThanOrEqual(11);
   });
 });
 
