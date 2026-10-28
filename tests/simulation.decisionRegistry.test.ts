@@ -38,6 +38,7 @@ const REQUIRED_DECISIONS = [
   'raidCombat',
   'raidRecovery',
   'raidCaptivity',
+  'raidTerminalPresentation',
   'valleyChronicle',
   'terrainRiverSurface',
   'commands',
@@ -80,7 +81,7 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'terrainRiverSurface' || key === 'traitInfluence') {
+      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'raidTerminalPresentation') {
         expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
         expect(row.writes).toEqual([]);
       } else {

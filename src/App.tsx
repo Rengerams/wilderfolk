@@ -81,6 +81,7 @@ import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
+import RazeConfirmation from './components/RazeConfirmation';
 import { downloadSaveFile } from './game/saveLoad';
 import { downloadChronicleLog } from './game/eventLogExport';
 
@@ -188,6 +189,7 @@ export default function App() {
   // The dialog follows authoritative combat events rather than a fake countdown.
   const [battleReport, setBattleReport] = useState<{ rivalName: string; raidId?: string; baselineId: number; incoming?: boolean } | null>(null);
   const [razeConfirmationId, setRazeConfirmationId] = useState<string | null>(null);
+  const razeSubmittingRef = useRef(false);
   const [view, setView] = useState<ViewState>(() => createInitialViewForWorld(world));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
@@ -2264,14 +2266,20 @@ export default function App() {
                   <div className="flex flex-wrap gap-2">
                     <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'mercy' }); setBattleReport(null); }}>Withdraw</button>
                     <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'tribute' }); setBattleReport(null); }}>Demand one-time tribute</button>
-                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(pending.raidId)}>Raze settlement</button>
+                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { razeSubmittingRef.current = false; setRazeConfirmationId(pending.raidId); }}>Raze settlement</button>
                   </div>
                   {razeConfirmationId === pending.raidId && (
-                    <div className="space-y-2 rounded border border-stone-600 p-3">
-                      <p className="text-stone-200">Raze {battleReport.rivalName}?</p>
-                      <button type="button" className="mr-2 rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' }); setRazeConfirmationId(null); setBattleReport(null); }}>Confirm raze</button>
-                      <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => setRazeConfirmationId(null)}>Cancel</button>
-                    </div>
+                    <RazeConfirmation
+                      pending={pending}
+                      onConfirm={() => {
+                        if (razeSubmittingRef.current) return;
+                        razeSubmittingRef.current = true;
+                        applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' });
+                        setRazeConfirmationId(null);
+                        setBattleReport(null);
+                      }}
+                      onCancel={() => { razeSubmittingRef.current = false; setRazeConfirmationId(null); }}
+                    />
                   )}
                 </div>
               )}
