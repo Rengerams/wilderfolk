@@ -4,11 +4,11 @@ import { EntityType } from '../gameTypes';
 import { isPlayerHuman } from '../playerHuman';
 import {
   isDialogueBusy,
-  maybeDialogueChat,
   type ChatSpeaker,
   type HumanChatContext,
   type ChatPickOptions,
 } from '../humanChat';
+import { maybeDialogueChat } from '../dialogueTrees';
 import {
   forEachAdaptiveInRadius,
   socialAdaptiveOptions,
@@ -16,18 +16,6 @@ import {
   SOCIAL_BANTER_RADIUS,
 } from '../adaptiveSpatialQuery';
 import type { EntitySpatialGrid } from '../spatialGrid';
-
-/** Single-sided dialogue roll — partner may be null for self-directed remarks. */
-export function simSettlerChat(
-  entity: Entity,
-  partner: Entity | null,
-  context: HumanChatContext,
-  chance: number,
-  tick: number,
-  chatHints: ChatPickOptions,
-): void {
-  maybeDialogueChat(entity, partner, context, tick, chance, chatHints);
-}
 
 /**
  * Pair banter — only the lower-ID side initiates the roll,
@@ -42,7 +30,7 @@ export function simSettlerPairChat(
   chatHints: ChatPickOptions,
 ): void {
   if (entityA.id < entityB.id) {
-    simSettlerChat(entityA, entityB, context, chance, tick, chatHints);
+    maybeDialogueChat(entityA, entityB, context, tick, chance, chatHints);
   }
 }
 

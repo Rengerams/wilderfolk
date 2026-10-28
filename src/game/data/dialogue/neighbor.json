@@ -1,0 +1,150 @@
+{
+  "version": "1.3",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "evt_neighbor_greeting_start_0",
+      "category": "social",
+      "eventKey": "neighbor.greeting.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_start_1",
+      "category": "social",
+      "eventKey": "neighbor.greeting.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_0",
+      "category": "social",
+      "eventKey": "neighbor.greeting.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_1",
+      "category": "social",
+      "eventKey": "neighbor.greeting.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_00",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_01",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_10",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_11",
+      "category": "social",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "social"
+  ]
+}

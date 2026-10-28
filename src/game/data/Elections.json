@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "needs",
   "dialogue_trees": [
@@ -23,7 +23,8 @@
           "speaker": "settler",
           "text": "It was the principle of the thing."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_bed",
@@ -45,7 +46,8 @@
           "speaker": "settler",
           "text": "And admit defeat? I have standards."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_potato",
@@ -67,7 +69,8 @@
           "speaker": "hungry_settler",
           "text": "Four whole tiles away. Might as well be across the river."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_berries",
@@ -89,7 +92,8 @@
           "speaker": "forager",
           "text": "I forgot I could eat without putting them in a storage crate first."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_home_arrival",
@@ -111,7 +115,8 @@
           "speaker": "settler",
           "text": "Best part of the entire day."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_home_cozy",
@@ -133,7 +138,8 @@
           "speaker": "settler",
           "text": "Nothing beats a quiet evening under a solid roof."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_food_crisis",
@@ -155,7 +161,8 @@
           "speaker": "hungry_settler",
           "text": "Send word to the hunters before we start boiling leather."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_pregnant",
@@ -177,7 +184,8 @@
           "speaker": "expectant_mother",
           "text": "Soon we won't be sleeping through the night for a year."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_needs_shared_blanket",
@@ -211,7 +219,8 @@
           "speaker": "housemate",
           "text": "Not with that attitude."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_needs_stew",
@@ -233,7 +242,8 @@
           "speaker": "cook",
           "text": "Serve the courage first. The turnips need time."
         }
-      ]
+      ],
+      "conversation_type": "two_way"
     }
   ],
   "categories": [

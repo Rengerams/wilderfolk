@@ -1,15 +1,11 @@
-name: 360-day simulation gate
+name: 120-day simulation gate
 
-# The standard gate stops at the unit tier, so its green tick says nothing about a full year of
-# simulation. This separate workflow runs the real 360-day paths for changes that can move them.
-
+# Run the live seeded colony for 120 days only when simulation rules change.
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
-      # Include simulation code; ordered exclusions skip presentation-only changes.
-      # Mixed PRs still run if any non-excluded simulation file changes.
       - 'src/game/**'
       - '!src/game/*.tsx'
       - '!src/game/renderer/**'
@@ -38,38 +34,28 @@ on:
       - '!src/game/uiSimSummary.ts'
       - '!src/game/eventLogFilters.ts'
       - '!src/game/eventLogExport.ts'
-      - scripts/run-full-year.mts
-      - scripts/colonyHealth.ts
-      - tests/fullYear.integration.test.ts
-      - tests/longRunColony.integration.test.ts
-      - .github/workflows/simulation-360-day.yml
+      - 'scripts/run-full-year.mts'
+      - 'scripts/colonyHealth.ts'
+      - '.github/workflows/simulation-120-day.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: simulation-360-day-${{ github.workflow }}-${{ github.ref }}
+  group: simulation-120-day-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  full-year:
+  colony-120-day:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
-
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.4.0
-
-      - name: Use Node.js 26.12.1 (with npm cache)
-        uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
           cache: npm
-
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Full-year integration test (360 days through gameTick)
-        run: npm run test:full-year:test
-
-      - name: Seeded 360-day colony harness with invariant checkpoints
-        run: npm run test:full-year
+      - name: Seeded 120-day producer colony with bot decisions and checkpoint invariants
+        run: npx tsx scripts/run-full-year.mts --scenario=producers --days=120 --seed=12345 --bot

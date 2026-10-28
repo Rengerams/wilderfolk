@@ -1,0 +1,49 @@
+name: PR93 dialogue branch validation
+
+on:
+  push:
+    branches:
+      - docs/dialogue-single-pipeline-20261028
+
+permissions:
+  contents: read
+
+# Only the newest branch revision should consume runner time.
+concurrency:
+  group: dialogue-pr93-branch
+  cancel-in-progress: true
+
+jobs:
+  dialogue-focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate dialogue source ownership and schema
+        run: node scripts/check-dialogue-ownership.mjs
+      - name: Run focused dialogue regressions
+        run: npx vitest run tests/dialogue.bankIntegrity.test.ts tests/dialogue.sessionModes.test.ts tests/dialogue.domainEvents.test.ts tests/dialogue.workerSaveParity.test.ts tests/dialogue.legacyElectionsAudit.test.ts tests/dialogue.performance.test.ts tests/dialogue.schema13.test.ts tests/dialogue.eventRouting.test.ts tests/dialogue.visitorPerformer.test.ts tests/dialogue.socialEvents.test.ts tests/humanChat.duration.test.ts tests/low_chat.test.ts tests/pairDialogue.orphanReclaim.test.ts tests/dialogueBusy.forcedLineGates.test.ts tests/duplicationA.remaining.test.ts tests/frontierCombat.raidGold.test.ts
+      - name: Typecheck including tests
+        run: npm run test:types
+      - name: Compile and bundle production app
+        run: npm run build
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Standard tests including dialogue ownership ratchet
+        run: npm run test:standard
+      - name: Build and typecheck
+        run: npm run build

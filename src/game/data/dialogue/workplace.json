@@ -1,0 +1,180 @@
+{
+  "version": "1.3",
+  "category": "work",
+  "dialogue_trees": [
+    {
+      "id": "evt_workplace_banter_solo_0",
+      "category": "work",
+      "eventKey": "workplace.banter.solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Long morning."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_solo_1",
+      "category": "work",
+      "eventKey": "workplace.banter.solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Almost midday."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_start_0",
+      "category": "work",
+      "eventKey": "workplace.banter.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_start_1",
+      "category": "work",
+      "eventKey": "workplace.banter.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_reply_0",
+      "category": "work",
+      "eventKey": "workplace.banter.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_reply_1",
+      "category": "work",
+      "eventKey": "workplace.banter.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_00",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_01",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_10",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_11",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "work"
+  ]
+}

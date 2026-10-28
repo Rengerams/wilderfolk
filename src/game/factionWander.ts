@@ -5,7 +5,8 @@
 import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getPlayerCampCenter } from './frontierCombat';
-import { TICKS_PER_DAY, getHourOfDay, isNightHour } from './dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour } from './dayCycle';
+import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { getSimRng } from './simRng';
 import { faceVelocity } from './simulation/movementSteering';
 import { applyHumanWalkStep } from './simulation/humanMovement';
@@ -281,38 +282,25 @@ function ensureWanderState(
   return wander;
 }
 
-/** Tiny flavor when a visitor arrives at a village point of interest. */
-function maybeArriveFlavor(entity: Entity, phase: VisitPhase, label?: string): void {
+/** Only POI labels emitted by pickPoiForKind are accepted as event keys. */
+type VisitorPoiLabel = Extract<DialogueEventKey, `visitor.poi.${string}`> extends `visitor.poi.${infer Label}` ? Label : never;
+const VISITOR_POI_LABELS = new Set([
+  'market', 'hall', 'church', 'study', 'hunt', 'trail', 'campfire', 'homes',
+  'help', 'shelter', 'stage', 'show', 'square', 'well', 'shrine', 'notes',
+  'visit', 'road', 'plea',
+]);
+
+/** Arrival/performer cadence and RNG belong to faction wander, speech content to JSON. */
+function maybeArriveFlavor(entity: Entity, phase: VisitPhase, tick: number, label?: string): void {
   if (phase !== 'loiter_poi' || !label) return;
   if (getSimRng('factionWander')() > 0.35) return;
-  // Soft one-shot bubble via chat system if present
-  const lines: Record<string, string[]> = {
-    market: ['Fine goods?', 'What is the price?', 'We bring cloth.', 'Trade?'],
-    hall: ['Is the elder here?', 'We seek audience.', 'Greetings, village.'],
-    church: ['Bless this place.', 'We light a candle.', 'Peace upon you.'],
-    study: ['May we read?', 'Curious craft…', 'Share a map?'],
-    hunt: ['Tracks nearby.', 'Good hunting ground.', 'Deer that way.'],
-    trail: ['Quiet woods.', 'Keep watch.', 'Smell of game.'],
-    campfire: ['Warm hearth?', 'Stories for bread?', 'Long road.'],
-    homes: ['Strong walls.', 'Children laugh here.', 'Fine houses.'],
-    help: ['We need shelter…', 'Any work for food?', 'Please, the cold…'],
-    shelter: ['Water, please.', 'A moment of rest.', 'Kind strangers?'],
-    stage: ['A song for coin!', 'Gather round!', 'Dance with us!'],
-    show: ['Ta-da!', 'Encore?', 'Music!'],
-    square: ['Busy square.', 'Hello!', 'Nice village.'],
-    well: ['Fresh water.', 'A drink first.', 'Ah…'],
-    shrine: ['We pray.', 'Sacred quiet.', 'Amen.'],
-    notes: ['Interesting…', 'Write that down.', 'Hmm.'],
-    visit: ['Hello there.', 'Fine day.', 'Pardon us.'],
-    road: ['Dusty boots.', 'Which way?', 'Onward.'],
-    plea: ['Mercy…', 'We fled fire.', 'Any room?'],
-    camp: [],
-  };
-  const pool = lines[label] ?? lines.visit;
-  if (!pool.length) return;
-  const phrase = pool[Math.floor(getSimRng('factionWander')() * pool.length)];
-  entity.chatPhrase = phrase;
-  entity.chatTicks = 18 + Math.floor(getSimRng('factionWander')() * 10);
+  const poi = (VISITOR_POI_LABELS.has(label) ? label : 'visit') as VisitorPoiLabel;
+  const selectionRoll = getSimRng('factionWander')();
+  const durationTicks = 18 + Math.floor(getSimRng('factionWander')() * 10);
+  requestDialogue({
+    eventKey: `visitor.poi.${poi}`, speaker: entity, tick,
+    selectionRoll, durationHours: durationTicks / TICKS_PER_HOUR,
+  });
 }
 
 export function tickFactionCampWander(
@@ -340,8 +328,11 @@ export function tickFactionCampWander(
       entity.spriteAngle = (entity.spriteAngle ?? 0) + 0.7;
     }
     if (state.tick % 20 === 0 && getSimRng('factionWander')() < 0.4) {
-      entity.chatPhrase = ['♪ La la~', 'Clap along!', 'A tune!', 'Bravo?'][Math.floor(getSimRng('factionWander')() * 4)];
-      entity.chatTicks = 14;
+      requestDialogue({
+        eventKey: 'visitor.performer', speaker: entity, tick: state.tick,
+        selectionRoll: getSimRng('factionWander')(),
+        durationHours: 14 / TICKS_PER_HOUR,
+      });
     }
     return;
   }
@@ -365,7 +356,7 @@ export function tickFactionCampWander(
         'loiter_poi',
         visitorGroup?.kind ?? 'nomads',
       );
-      maybeArriveFlavor(entity, 'loiter_poi', wander.poiLabel);
+      maybeArriveFlavor(entity, 'loiter_poi', state.tick, wander.poiLabel);
       entity.vx = 0;
       entity.vy = 0;
       return;

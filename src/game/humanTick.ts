@@ -35,10 +35,9 @@ import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalend
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
-  tickHumanChat,
-  tryAmbientRandomDialogue,
   type HumanChatContext,
 } from './humanChat';
+import { maybeDialogueChat, tickDialogue, tryAmbientRandomDialogue } from './dialogueTrees';
 import { advanceHumanWalkAnim } from './humanSprites';
 
 import { isRenffrGossipActive } from './renffrStar';
@@ -98,12 +97,13 @@ import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, set
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, humanEnergyLoss, killForeignCaptiveFromExhaustion, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
-import { simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat } from './simulation/humanSocial';
+import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
 import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
+
 
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { ExactTraitContext, TraitContext } from './personality/traitEffectCatalog';
@@ -114,6 +114,7 @@ const ESCAPE_CONTEXT = { kind: 'danger', activity: 'escape' } as const satisfies
 
 /** The catalog context behind how fast a courting pair makes progress. */
 const COURTSHIP_PROGRESS_CONTEXT = { kind: 'social', activity: 'courtshipProgress' } as const satisfies ExactTraitContext;
+
 
 import {
   findClosestAdaptiveInRadius,
@@ -337,7 +338,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     context: HumanChatContext,
     chance: number,
     partner: Entity | null = null,
-  ) => simSettlerChat(entity, partner, context, chance, state.tick, chatHints);
+  ) => maybeDialogueChat(entity, partner, context, state.tick, chance, chatHints);
 
   const settlerPairChat = (
     entityA: Entity,
@@ -676,7 +677,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           applyHumanWalkStep(entity, 1);
         }
       }
-      tickHumanChat(entity, resolveChatPartner);
+      tickDialogue(entity, resolveChatPartner);
       advancePregnancy(entity, conceivedToday);
       syncEntityGrids(ctx, entity);
       continue;
@@ -691,7 +692,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Verified sleep suppresses ambient speech; scripted dialogue remains owned by the dialogue tree.
-    tickHumanChat(entity, resolveChatPartner);
+    tickDialogue(entity, resolveChatPartner);
     if (sleepingForNeeds) endAmbientHumanChat(entity);
 
     if (

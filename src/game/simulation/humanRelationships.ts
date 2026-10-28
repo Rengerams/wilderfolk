@@ -58,7 +58,7 @@ import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
-import { sayHumanChatPhrase } from '../humanChat';
+import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees';
 import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun } from '../simRng';
@@ -67,6 +67,7 @@ import { addReputation } from '../simHelpers';
 
 /** The catalog context behind a married or youth conception roll. */
 const CONCEPTION_CONTEXT = { kind: 'family', activity: 'conception' } as const satisfies ExactTraitContext;
+
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -1716,8 +1717,8 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   const married2 = humanDisplayName(partner);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
-  sayHumanChatPhrase(entity, 'Yes!', 8);
-  sayHumanChatPhrase(partner, 'Yes!', 8);
+  requestDialogue({ eventKey: 'marriage.accepted', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });
+  requestDialogue({ eventKey: 'marriage.accepted', speaker: partner, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });
   syncPartnerResidence(entity, partner, residences, playerHumans);
   return true;
 }

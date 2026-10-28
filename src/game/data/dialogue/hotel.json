@@ -1,0 +1,70 @@
+{
+  "version": "1.3",
+  "category": "needs",
+  "dialogue_trees": [
+    {
+      "id": "evt_hotel_arrival_0",
+      "category": "needs",
+      "eventKey": "hotel.arrival",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A soft bed…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_arrival_1",
+      "category": "needs",
+      "eventKey": "hotel.arrival",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Room for the night."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_service_busy_0",
+      "category": "needs",
+      "eventKey": "hotel.service.busy",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy night — rooms nearly full."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_service_welcome_0",
+      "category": "needs",
+      "eventKey": "hotel.service.welcome",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Welcome, traveler."
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "needs"
+  ]
+}

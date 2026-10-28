@@ -1,0 +1,29 @@
+{
+  "version": "1.3",
+  "category": "festival",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_festival",
+      "category": "festival",
+      "eventKey": "ambient.festival",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ],
+      "conversation_type": "one_way"
+    }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "festival"
+  ]
+}

@@ -29,6 +29,8 @@ const REQUIRED_DECISIONS = [
   'production',
   'villageRequests',
   'socialFeedback',
+  'dialogueContent',
+  'dialogueSessions',
   'courtship',
   'affairs',
   'conception',
@@ -81,7 +83,7 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'raidTerminalPresentation') {
+      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'raidTerminalPresentation' || key === 'dialogueContent') {
         expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
         expect(row.writes).toEqual([]);
       } else {
@@ -133,6 +135,12 @@ describe('simulation decision registry', () => {
     expect(isPropertyWritePermitted('raidCaptivity', 'raidPrisonerHistory')).toBe(true);
     expect(isPropertyWritePermitted('valleyChronicle', 'chronicleChapters')).toBe(true);
     expect(isPropertyWritePermitted('terrainRiverSurface', 'worldMap.riverDist')).toBe(false);
+    expect(isPropertyWritePermitted('dialogueContent', 'chatPhrase')).toBe(false);
+    expect(isPropertyWritePermitted('socialFeedback', 'chatTicks')).toBe(false);
+    expect(isPropertyWritePermitted('dialogueSessions', 'human.chatPhrase')).toBe(true);
+    expect(isPropertyWritePermitted('dialogueSessions', 'human.chatTicks')).toBe(true);
+    expect(isPropertyWritePermitted('dialogueSessions', 'human.chatPartnerId')).toBe(true);
+    expect(isPropertyWritePermitted('dialogueSessions', 'human.chatDialogueSessionKey')).toBe(true);
   });
 
   it('names test files that exist — the registry is the ownership contract, so a stale pointer lies', () => {

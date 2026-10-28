@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "environment",
   "dialogue_trees": [
@@ -23,7 +23,9 @@
           "speaker": "npc_damp",
           "text": "It is simply my indoor weather now. I do not question it."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_tornado",
@@ -45,7 +47,9 @@
           "speaker": "npc_calm",
           "text": "It was a really good sandwich."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_winter_cold",
@@ -67,7 +71,9 @@
           "speaker": "settler",
           "text": "Boots frozen."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_winter_wood",
@@ -89,7 +95,9 @@
           "speaker": "settler",
           "text": "Spring feels far."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_winter_snow",
@@ -111,7 +119,9 @@
           "speaker": "settler",
           "text": "So cold…"
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_weather_rain",
@@ -133,7 +143,9 @@
           "speaker": "settler",
           "text": "Rain'll pass."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_weather_snow",
@@ -155,7 +167,9 @@
           "speaker": "settler",
           "text": "Cold out."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_weather_drought",
@@ -177,7 +191,9 @@
           "speaker": "farmer",
           "text": "Hungry yet?"
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_environment_moon_rain",
@@ -211,7 +227,9 @@
           "speaker": "npc_practical",
           "text": "I am frightened of many things. Wet clothes are not making the list."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_environment_frog",
@@ -233,7 +251,9 @@
           "speaker": "rainwatcher",
           "text": "Then they have better weather sense than the council."
         }
-      ]
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
     }
   ],
   "categories": [
