@@ -586,7 +586,7 @@ function buildRiverSurfaceFields(map: WorldMap): {
   const riverFlowMask = new Float32Array(n);
   const riverRapids = new Float32Array(n);
   const coverage = map.riverDist;
-  if (map.generationVersion !== 3 || !coverage || !cols || !rows) {
+  if ((map.generationVersion ?? 1) < 3 || !coverage || !cols || !rows) {
     return { riverPhase, riverFlowMask, riverRapids };
   }
 

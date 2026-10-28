@@ -23,6 +23,7 @@ export const DECISION_CADENCES = [
   'pregnancy-progress',
   'full-moon-event',
   'player-command',
+  'render',
 ] as const;
 
 export type DecisionCadence = (typeof DECISION_CADENCES)[number];
@@ -64,6 +65,7 @@ export type DecisionKey =
   | 'raidRecovery'
   | 'raidCaptivity'
   | 'valleyChronicle'
+  | 'terrainRiverSurface'
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
@@ -301,6 +303,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['chronicleChapters', 'resources (through resourceUtils)', 'economyLedger.produced (via recordFoodProduced)', 'eventLog (through logEvent)'],
     scheduledFrom: 'tickLayerDaily.ts → advanceValleyChronicle; Progress sidebar reads historical chapters',
     testFile: 'tests/valleyChronicle.foodLedger.test.ts',
+  },
+  terrainRiverSurface: {
+    owner: 'renderer/whittakerTerrain.ts — buildRiverSurfaceFields, buildWhittakerFields, bakeWhittakerGround, sampleRiverPhase',
+    cadence: 'render',
+    cadenceNote: 'Read-only map-cache prepass and budgeted chunk baking, not simulation ticks.',
+    writes: [],
+    scheduledFrom: 'renderer/terrain.ts → buildWhittakerFields on map cache change; bakeWhittakerGround for uncached ground chunks',
+    testFile: 'tests/terrain.riverMaterials.test.ts',
   },
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
