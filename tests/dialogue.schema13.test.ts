@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  bindNumberedPresentationSpeakers,
   canonicalDialogueBank,
   DIALOGUE_SCHEMA_VERSION,
   readPresentationDialogue,
@@ -56,9 +57,14 @@ describe('v1.3 dialogue source contract', () => {
 
       for (const tree of source.dialogue_trees) {
         expect(tree.category, tree.id).toBe(source.category);
-        expect(tree.conversation_type, tree.id).toBe(
-          tree.speakers.length === 1 ? 'one_way' : 'two_way',
-        );
+        if (tree.conversation_type === 'group') {
+          expect(tree.eventKey?.trim(), tree.id).toBeTruthy();
+          expect(() => readPresentationDialogue(source, tree.eventKey!), tree.id).not.toThrow();
+        } else {
+          expect(tree.conversation_type, tree.id).toBe(
+            tree.speakers.length === 1 ? 'one_way' : 'two_way',
+          );
+        }
         expect(tree.mode, tree.id).toBeUndefined();
         expect(tree.lines.length, tree.id).toBeGreaterThan(0);
         expect(new Set(tree.speakers).size, tree.id).toBe(tree.speakers.length);
@@ -74,7 +80,9 @@ describe('v1.3 dialogue source contract', () => {
   it('compiles one unique runtime bank and keeps the legacy Elections duplicate inactive', () => {
     const files = readSources();
     const active = files.filter(({ path }) => path !== 'Elections.json');
-    const sourceIds = active.flatMap(({ source }) => source.dialogue_trees.map((tree) => tree.id));
+    // Paused group-caption scenes are intentionally outside the ambient solo/pair bank.
+    const sourceIds = active.flatMap(({ source }) =>
+      source.dialogue_trees.filter((tree) => tree.conversation_type !== 'group').map((tree) => tree.id));
     const compiledIds = canonicalDialogueBank.dialogue_trees.map((tree) => tree.id);
 
     expect(canonicalDialogueBank.version).toBe('1.3');
@@ -117,6 +125,51 @@ describe('PR #91 group-caption JSON compatibility', () => {
     expect(scene.lines[1]?.durationMs).toBeUndefined();
     expect(Object.isFrozen(scene)).toBe(true);
     expect(Object.isFrozen(scene.lines)).toBe(true);
+  });
+
+  it('binds exactly the numbered roles to real performer IDs, leaving extra gathered villagers silent', () => {
+    const roles = Array.from({ length: 6 }, (_, i) => `speaker_${i + 1}`);
+    const source = {
+      version: '1.3',
+      game: 'Wilderfolk Sim',
+      category: 'festival',
+      categories: ['festival'],
+      dialogue_trees: [{
+        id: 'spotlight.lore.performance',
+        category: 'festival',
+        eventKey: 'spotlight.lore',
+        conversation_type: 'group',
+        speakers: roles,
+        lines: Array.from({ length: 31 }, (_, i) => ({
+          speaker: roles[i % roles.length],
+          text: `Line ${i + 1}`,
+        })),
+      }],
+    };
+    const presentation = readPresentationDialogue(source, 'spotlight.lore');
+    const performers = [102, 107, 109, 114, 120, 123, 130, 135];
+    const bound = bindNumberedPresentationSpeakers(presentation, performers);
+    expect(bound).toHaveLength(31);
+    expect(bound.map((line) => line.speakerId)).toEqual(
+      Array.from({ length: 31 }, (_, i) => performers[i % 6]),
+    );
+    expect(bound.map((line) => line.text)).toEqual(
+      Array.from({ length: 31 }, (_, i) => `Line ${i + 1}`),
+    );
+    expect(new Set(bound.map((line) => line.speakerId)).size).toBe(6);
+    expect(bound.some((line) => line.speakerId === 130 || line.speakerId === 135)).toBe(false);
+    expect(Object.isFrozen(bound)).toBe(true);
+    expect(performers).toHaveLength(8);
+
+    expect(() => bindNumberedPresentationSpeakers(presentation, performers.slice(0, 5)))
+      .toThrow(/Not enough real performers/);
+    expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, 102]))
+      .toThrow(/Invalid or duplicate/);
+    expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, -1]))
+      .toThrow(/Invalid or duplicate/);
+    const nonNumbered = readPresentationDialogue(groupSource, 'spotlight.theLook');
+    expect(() => bindNumberedPresentationSpeakers(nonNumbered, performers))
+      .toThrow(/must be sequential/);
   });
 
   it('does not write to human chat state or create a new gameplay chat session', () => {
