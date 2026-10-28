@@ -34,6 +34,7 @@
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
 - **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
 - **Fixed (#72, 28 October 2026):** Food-deficit autopilot holds spare housing, upgrades Farms and uses researched or available producers. Silos require nearly full food storage. Fishing jobs gain priority; the colony check covers 150 days.
+- **Fixed (#72 / #81):** Extra Silos trigger at 90% food storage occupancy, even without a production deficit or spoilage; no parallel Silo builds and no low-inventory Silo decisions. Food-first workforce remains unchanged.
 - **Fixed (#72):** Measured food shortages retain the rolling month-long deficit across a brief surplus week, avoiding premature recruitment and paused food expansion; regression coverage pins the decision.
 
 
