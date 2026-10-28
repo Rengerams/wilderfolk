@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Spotlight audit (PR #91):** Fixed lost cinematic zoom on centered targets, prevented stale background music from playing over the score, and restricted the speaking chorus to eligible adult men. Added targeted regressions.
+
 - **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental streams through the normal music bus and fades before applause; the audio asset must still be deployed.
 
 
