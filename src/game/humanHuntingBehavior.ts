@@ -10,7 +10,7 @@ import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 import { valleyStageIndex } from './ecologyStage';
 import { personDayRoll } from './dayCycle';
-import { sayHumanChatPhrase } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
 import { HUMAN_NEEDS, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
@@ -195,7 +195,7 @@ export function tickHumanHunting(
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 811) < 0.012
       ) {
-        sayHumanChatPhrase(entity, "Game's getting scarce…", 48);
+        requestDialogue({ eventKey: 'hunting.scarce', speaker: entity, tick: state.tick, durationHours: 16 / 3, priority: 'scripted' });
       }
     } else {
       entity.huntTargetId = undefined;
@@ -204,7 +204,7 @@ export function tickHumanHunting(
         isJobHunter &&
         personDayRoll(entity.id, state.tick, 812) < 0.02
       ) {
-        sayHumanChatPhrase(entity, 'Thin trails today…', 40);
+        requestDialogue({ eventKey: 'hunting.thinTrails', speaker: entity, tick: state.tick, durationHours: 40 / 9, priority: 'scripted' });
       }
     }
   } else if (
