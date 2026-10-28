@@ -346,7 +346,7 @@ function indexDialogueBank(next: DialogueBankFile): void {
       throw new Error(`[dialogue] Duplicate dialogue tree id: ${tree.id}`);
     }
     const mode = tree.mode;
-    if (mode !== 'solo' && mode !== 'pair') throw new Error(`[dialogue] Missing compiled mode for ${tree.id}`);
+    if (mode !== 'solo' && mode !== 'pair') throw new Error('[dialogue] Missing compiled mode');
     if ((mode === 'solo' ? 1 : 2) !== tree.speakers.length || !tree.lines.length || tree.lines.some((line) => !tree.speakers.includes(line.speaker) || !line.text.trim())) {
       throw new Error(`[dialogue] Invalid roles or lines for ${tree.id}`);
     }
