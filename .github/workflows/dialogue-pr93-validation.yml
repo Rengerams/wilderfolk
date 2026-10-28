@@ -27,7 +27,7 @@ jobs:
       - name: Validate dialogue source ownership and schema
         run: node scripts/check-dialogue-ownership.mjs
       - name: Run focused dialogue regressions
-        run: npx vitest run tests/dialogue.schema13.test.ts tests/dialogue.eventRouting.test.ts tests/dialogue.visitorPerformer.test.ts tests/dialogue.socialEvents.test.ts tests/humanChat.duration.test.ts tests/low_chat.test.ts tests/pairDialogue.orphanReclaim.test.ts
+        run: npx vitest run tests/dialogue.schema13.test.ts tests/dialogue.eventRouting.test.ts tests/dialogue.visitorPerformer.test.ts tests/dialogue.socialEvents.test.ts tests/humanChat.duration.test.ts tests/low_chat.test.ts tests/pairDialogue.orphanReclaim.test.ts tests/dialogueBusy.forcedLineGates.test.ts tests/duplicationA.remaining.test.ts tests/frontierCombat.raidGold.test.ts
       - name: Typecheck including tests
         run: npm run test:types
       - name: Compile and bundle production app
