@@ -7,7 +7,7 @@ import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, spotlightFrameAt, spotlightPoseOffset, spotlightSpeakerId,
 } from './spotlightChoreography';
-import { spotlightFarewellDestination, spotlightFarewellPosition } from './spotlightFarewell';
+import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 
 type EndReason = 'complete' | 'skipped';
 
@@ -50,10 +50,12 @@ export default function SpotlightLoreOverlay({
   const cast = useMemo(() => {
     const actorIds = new Set([scene.heroineId, ...scene.performerIds]);
     return new Map(world.entities.filter((entity) => actorIds.has(entity.id)).map((entity) => [entity.id, entity]));
-  }, [world.entities, scene.heroineId, scene.performerIds]);
+  }, [scene.id, scene.phase]);
   const girl = cast.get(scene.heroineId) ?? resolveEntity(world, scene.heroineId);
   const departure = useMemo(() => spotlightFarewellDestination(world, scene),
-    [world.worldMap, world.buildings, world.width, world.height, scene]);
+    [scene.id, scene.phase]);
+  const poseRadius = useMemo(() => spotlightSafePoseRadius(world, { x: scene.gatherX, y: scene.gatherY }),
+    [scene.id, scene.phase]);
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
@@ -87,7 +89,7 @@ export default function SpotlightLoreOverlay({
         setStageKind(step.kind);
       }
 
-      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress);
+      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, poseRadius);
       const walked = spotlightFarewellPosition(from, departure, step.farewellProgress);
       const x = walked.x + pose.x;
       const y = walked.y + pose.y;
@@ -160,8 +162,7 @@ export default function SpotlightLoreOverlay({
       window.cancelAnimationFrame(frameHandle);
       callbacks.current.onPresentation(null);
     };
-  }, [scene.id, scene.phase, scene.heroineId, scene.gatherX, scene.gatherY, scene.slots, scene.performerIds,
-    departure, girl, cast, canvasRef, world.width, world.height, world.worldMap]);
+  }, [scene.id, scene.phase]);
 
   const line = lineIndex >= 0 ? SPOTLIGHT_CAPTIONS[lineIndex] : null;
   const speakingId = line ? spotlightSpeakerId(line.speaker, scene.heroineId, scene.performerIds) : null;
