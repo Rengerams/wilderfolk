@@ -39,7 +39,7 @@ The common evaluator answers "how does this DNA influence *this* decision?"; it 
 
 ### Data flow
 
-`@
+```text
 Stored Entity.traits (14 canonical IDs / max 3)
                   |
           traitEffectCatalog.ts
@@ -63,7 +63,7 @@ Stored Entity.traits (14 canonical IDs / max 3)
     careerProgression (only NEW history/milestones)
                   |
     presentation (same evaluation, read-only)
-`@
+```
 
 **Important:** career progression is a separate *state transition* for career milestones, not a second trait evaluator. It uses the central evaluator as one input alongside actual shifts, skill, schooling and existing apprenticeship status. No global per-tick "personality AI" loop.
 
@@ -89,7 +89,7 @@ A **small** required change to existing modules is unavoidable to make the new r
 
 The evaluator accepts an exhaustive discriminated context rather than anonymous percentage strings:
 
-`@
+```ts
 type TraitContext =
   | { kind: 'work'; job: JobType; action: 'production' | 'construction' | 'training' }
   | { kind: 'school'; activity: 'learning' | 'teaching' | 'research' }
@@ -106,7 +106,7 @@ interface TraitInfluence {
   readonly tendency: number;     // signed capped preference, where appropriate
   readonly reasons: readonly { trait: SettlerTrait; effectId: string; direction: 'benefit' | 'drawback' }[];
 }
-`@
+```
 
 These shapes are a **design contract**, to be refined against existing TypeScript import cycles, not pre-existing APIs. `evaluateTraitInfluence` should accept only the fields actually required by a context: prefer read-only entity projections and job/relationship context over passing the whole `WorldState`. Avoid allocating explanations in hot production/movement loops: use an option to omit reason collection, or compute it only for the inspector. This is one function with optional read-only explanation, **not separate functions with duplicated arithmetic**.
 
