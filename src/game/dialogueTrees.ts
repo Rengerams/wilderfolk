@@ -16,7 +16,7 @@ import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
 import { seededRandomForRun } from './simRng';
-import { isDialogueBusy, startDialogueTreeChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
+import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = [
   'work',
   'needs',
@@ -342,19 +342,29 @@ export interface DialogueRequest {
   partner?: ChatSpeaker | null;
   tick: number;
   priority?: 'ambient' | 'scripted';
+  durationHours?: number;
+  variables?: Readonly<Record<string, string>>;
 }
 
 export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const { eventKey, speaker, tick } = request;
   const partner = request.partner ?? null;
-  if (isDialogueBusy(speaker) || (partner && isDialogueBusy(partner))) return false;
+  if (request.priority !== 'scripted' && (isDialogueBusy(speaker) || (partner && isDialogueBusy(partner)))) return false;
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const mode = partner ? 'pair' : 'solo';
   const choices = treesByEvent.get(eventKey + ':' + mode);
   if (!choices?.length) return false;
   const roll = seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick);
-  const tree = choices[Math.floor(roll * choices.length)]!;
-  startDialogueTreeChat(speaker, partner, tree, mode === 'solo');
+  const selected = choices[Math.floor(roll * choices.length)]!;
+  if (request.priority === 'scripted') {
+    prepareScriptedDialogue(speaker);
+    if (partner) prepareScriptedDialogue(partner);
+  }
+  const tree = request.variables ? {
+    ...selected,
+    lines: selected.lines.map((line) => ({ ...line, text: line.text.replace(/\{([a-zA-Z]+)\}/g, (match, name: string) => request.variables?.[name] ?? match) })),
+  } : selected;
+  startDialogueTreeChat(speaker, partner, tree, mode === 'solo', request.durationHours);
   return true;
 }
 
