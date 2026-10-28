@@ -682,8 +682,6 @@ function main() {
     fn.cadence = owner?.decision.cadence ?? null;
     fn.callerCount = callers[fn.index].length;
     fn.calleeCount = callees[fn.index].length;
-    delete fn.bodyStart;
-    delete fn.bodyEnd;
   }
 
   const payload = {
