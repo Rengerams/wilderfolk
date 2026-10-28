@@ -78,7 +78,7 @@ export function resolveDailyScheduleFatigue(
   // (see `getScheduleLastWorkedHours`). Without it the only record of attendance was destroyed
   // here, and production fell back to counting assigned bodies parked at home or asleep.
   entity.scheduleLastWorkedHours = workedHours;
-  entity.scheduleLastWorkedSiteId = entity.scheduleWorkedSiteIdToday ?? -1;
+  entity.scheduleLastWorkedSiteId = workedHours > 0 ? (entity.scheduleWorkedSiteIdToday ?? -1) : undefined;
   entity.scheduleWorkedSiteIdToday = undefined;
   entity.scheduleWorkedTicksToday = 0;
   return { workedHours, fatigueBefore, fatigueAfter };

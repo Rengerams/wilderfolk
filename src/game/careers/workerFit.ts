@@ -19,6 +19,6 @@ export function evaluateWorkerFit(
   return {
     creditedDays,
     traitFactor: influence.factor,
-    reasons: influence.reasons,
+    reasons: influence.reasons?.map((reason) => reason.effectId),
   };
 }

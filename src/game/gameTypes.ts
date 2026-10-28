@@ -11,6 +11,8 @@ import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 import type { SimRngSnapshot } from './simRng';
 import type { SettlerTrait } from './settlerTraits';
+import type { CareerHistory } from './careers/careerHistory';
+import type { CareerMilestones } from './careers/careerProgression';
 
 export { BuildingType, BUILDING_CONFIGS } from './buildings';
 export type { Building, BuildingConfig, StaffingMode } from './buildings';
@@ -253,9 +255,6 @@ export interface MoonHowlerSavedState {
   huntTargetId?: number;
   combatTicks?: number;
 }
-
-import type { CareerHistory } from './careers/careerHistory';
-import type { CareerMilestones } from './careers/careerProgression';
 
 export interface Entity {
   id: number;

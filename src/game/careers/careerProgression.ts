@@ -1,6 +1,6 @@
 import type { Entity, JobType } from '../gameTypes';
 import { JobType as Jobs } from '../gameTypes';
-import { MAX_CAREER_DAY } from './careerHistory';
+import { MAX_CAREER_DAY, type CareerHistory } from './careerHistory';
 
 export type CareerTier = 'practiced' | 'experienced' | 'master';
 export interface CareerMilestone {
@@ -13,7 +13,7 @@ export type CareerMilestones = Partial<Record<JobType, CareerMilestone>>;
 /** Work thresholds grant descriptive history, never a skill or staffing advantage. */
 export const CAREER_TIER_DAYS = { practiced: 15, experienced: 60, master: 180 } as const;
 
-export function normalizeCareerMilestones(raw: unknown): CareerMilestones | undefined {
+export function normalizeCareerMilestones(raw: unknown, history?: CareerHistory): CareerMilestones | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   if (Object.keys(raw).length > Object.values(Jobs).length) return undefined;
@@ -30,7 +30,8 @@ export function normalizeCareerMilestones(raw: unknown): CareerMilestones | unde
       typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= MAX_CAREER_DAY;
     const milestone: CareerMilestone = {};
     if (validDay(trained)) milestone.trainedAtDay = trained;
-    if ((tier === 'practiced' || tier === 'experienced' || tier === 'master') && validDay(tierDay)) {
+    if ((tier === 'practiced' || tier === 'experienced' || tier === 'master')
+      && validDay(tierDay) && (history?.[job]?.days ?? 0) >= CAREER_TIER_DAYS[tier]) {
       milestone.tier = tier;
       milestone.tierAtDay = tierDay;
     }

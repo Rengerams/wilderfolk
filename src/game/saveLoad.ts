@@ -154,7 +154,7 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
   }
   if (entity.type === EntityType.Human || entity.type === EntityType.Werewolf) {
     entity.careerHistory = normalizeCareerHistory(saved.careerHistory);
-    entity.careerMilestones = normalizeCareerMilestones(saved.careerMilestones);
+    entity.careerMilestones = normalizeCareerMilestones(saved.careerMilestones, entity.careerHistory);
     const validSite = (id: unknown): id is number =>
       typeof id === 'number' && Number.isSafeInteger(id) && (id === -1 || id >= 0);
     entity.scheduleWorkedSiteIdToday = validSite(saved.scheduleWorkedSiteIdToday)
