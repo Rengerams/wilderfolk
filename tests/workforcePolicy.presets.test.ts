@@ -161,10 +161,9 @@ describe('workforce policy — manual assignment stays authoritative', () => {
 
   it('never donates a hand-placed worker during rebalance under any preset', () => {
     for (const preset of WORKFORCE_PRESETS) {
-      const quarryCrew = [
-        human(1, { workerBuildingId: 11, job: JobType.Miner }),
-        human(2, { workerBuildingId: 11, job: JobType.Miner }),
-      ];
+      const quarryCrew = [1, 2].map((id) =>
+        human(id, { workerBuildingId: 11, job: JobType.Miner }),
+      );
       const manual = human(3, { workerBuildingId: 14, job: JobType.Merchant });
       const quarry = building(11, BuildingType.Quarry, { occupants: [1, 2] });
       // A single hand-placed worker in a manual-staffing Store — a rebalance donor must skip it.
