@@ -184,7 +184,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/villageRequests.test.ts, tests/workerCommand.roundtrip.test.ts, tests/gameWorker.transport.test.ts',
   },
   socialFeedback: {
-    owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerChat, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting',
+    owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting',
     cadence: 'realtime',
     cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at existing work/morning/stagger gates; the dialogue router selects text and humanChat executes sessions. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
     writes: ['floatingTexts (hearts)', 'small courtship progress'],
