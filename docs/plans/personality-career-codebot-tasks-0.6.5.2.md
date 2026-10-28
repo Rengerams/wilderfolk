@@ -136,43 +136,95 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 
 ### PR C — social/romance/family life, no second relationship engine
 
-**Non-negotiable (28 October 2026): zero PR C gameplay/balance changes.** This is a *source-of-rules* migration, not permission to remove, weaken or invent any existing effect. PR B's already merged balancing is out of scope. Before editing, establish golden AS-IS outputs for all legacy PR C sites. The single catalog stores as many *extra context-specific multipliers* per trait as a live decision actually needs, using an explicit exact-parity mode within `evaluateTraitInfluence` for old values outside its ordinary 0.85..1.15 cap. No new global cap or replacement trait engine. The 14 DNA types are **not** eligibility gates: an eligible non-Lucky mother can conceive at her original chance, and the baby's existing independent inheritance logic is unchanged.
+**Implementation status:** NOT DONE. PR B is merged; PR C remains six explicitly identified legacy decision owners. This is an **exact gameplay-parity migration, not a balance pass**. Read the original architecture [§4.1 PR C gameplay-parity override](personality-career-single-pipeline-0.6.5.2.md#41-pr-c-exact-gameplay-preserving-migration-binding-design-contract) before touching code. The numeric PR B rebalances are already accepted and MUST NOT be reverted.
 
-**Existing numbers and decisions to preserve:**
-- Courtship: Gregarious ×1.4, Timid ×0.7, Graceful ×1.2, same multiplication order and all non-DNA modifiers.
-- Married and youth conception: Lucky ×1.15, same chance/seeded roll/eligibility; affair conception currently has **no** Lucky multiplier, preserve that.
-- Intuitive work banter: 0.11 versus ordinary 0.08; identical chance comparison/deterministic draw.
-- Spousal grief: Stoic 5 days versus ordinary 7; affair grief remains 3. No extra Nurturing grief effect in this parity phase.
-- Captivity/raid outcome reactions: Nurturing **or** Chivalrous = one restraint vote; Fierce = one separate severity vote, even when also counted for restraint. War threat and leadership/reputation logic untouched.
-- Social feud: all five old cross-person incompatibility pairs, same 0..5 clash count, zero-clash no-RNG guard, probability scale 0.00005, existing pair limits; genotype's two opposite-pair restrictions remain separately in `settlerTraits.ts`. The single evaluator needs a pair-aware read-only result; bounded `factor`/`tendency` are insufficient to encode exact clash counts or discrete civic voices.
+**Current working state (28 October 2026):** `implement-pr-c` already has `tests/personality.legacyConsumerAudit.test.ts` with **12 registered legacy findings in six source files**; that is **not zero-debt**. Its code still uses the direct multiplier helper in `humanTick.ts` and `simulation/humanRelationships.ts`, direct Intuitive/Stoic/Nurturing/Chivalrous/Fierce trait checks, and the separate five-pair feud table. The detailed PR #94 instructions are incorporated below so the bot has one complete executable checklist. No implementation or test pass is claimed by this document.
 
-**Mandatory no-legacy proof:** `tests/personality.legacyConsumerAudit.test.ts` inventories the current known PR C legacy sites. It already rejects **new/unregistered** direct multiplier, pair-table and `traits.includes/some` rule sites. PR C must replace the entire finite allowlist with an **empty** expected inventory in the same commit that deletes every old consumer, including obsolete `settlerTraits.traitMultiplier`; no suppression or permanent exemption. Keep this test in the standard suite. Add seeded behavior-parity tests and record old/new results for all six owner paths. If parity is impossible, stop and report the exact mismatch instead of silently accepting a rebalance.
+**One-sentence task for the coding bot:** Move **all six** remaining legacy DNA calculations into the one `personality/traitEffectCatalog.ts` and one `evaluateTraitInfluence` pipeline, keeping *exactly the same* live effect, RNG calls, decision outcomes, prerequisites, owners and save behavior, then make the executable legacy scan report **zero**.
 
+#### C.0 Pre-flight: branch, baseline and pinned old behavior
 
-**EDIT**
-- `src/game/relationships.ts`
-- `src/game/socialLife.ts`
-- `src/game/simulation/humanRelationships.ts`
-- `src/game/humanTick.ts`, `src/game/warPrisoners.ts`, `src/game/humanLifecycleCleanup.ts` (existing rule owners)
-- `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts` (extra canonical contextual values and exact/pair output)
-- `src/game/settlerTraits.ts` (retire unused numeric legacy helper after all callers are gone)
-- Narrow existing family/care consumer only if the evaluated behavior is actually used.
-- Both registries; `CHANGELOG.md`.
+1. **Active implementation branch is `implement-pr-c`; PR #94 (`docs/pr-c-dna-parity-and-legacy-audit-2026-10-28`) is a separate, currently unmerged design/gate PR.** First compare the current source and audit test against PR #94, then incorporate its **design and safety-gate changes** into this branch without overwriting concurrent commits (via a clean merge/rebase or precise cherry-pick). Target a separate implementation PR against `main`; if PR #94 is still open, explicitly declare that dependency and do not merge PR C before it. Include relevant PR #92 type-ownership changes where present. Record actual commit SHAs and re-read real code before any implementation.
+2. Read `src/game/personality/{traitEffectCatalog,traitEvaluation}.ts`, `src/game/settlerTraits.ts`, each of the six owners named in C.2–C.7, `tests/personality.legacyConsumerAudit.test.ts`, relevant social/conception/grief/war tests, and both ownership registries. Record HEAD SHA and note that `SettlerTrait` may now be owned directly by `settlerTraits.ts`. Never add another trait type or re-export.
+3. **Before changing any owner logic**, create/capture executable golden AS-IS fixtures. At least one real-domain assertion per row below, including explicit old expected numbers **derived from the existing implementation**, neutral/no-trait behavior, combined traits and the current seeded random comparison. Commit or stage these tests independently so later changes cannot move the baseline silently.
+4. Run baseline focused suites: `npx vitest run tests/relationships.feudSources.test.ts tests/relationships.friendCapAndFeudEnd.test.ts tests/relationships.feudCleanup.test.ts tests/youthConception.ageFloor.test.ts tests/conceptionEvent.labelling.test.ts tests/humanLifecycle.test.ts tests/personality.traitCatalog.test.ts tests/personality.legacyConsumerAudit.test.ts`. These test filenames exist on the inspected base; if renamed, find their canonical current replacements. Preserve the baseline results as PR evidence.
+5. Inspect `TRAIT_EFFECTS` `benefit`/`drawback`/`also`: it currently models bounded `factorDelta` and `tendencyDelta` only. **Do not encode ×1.4 or ×0.7 as additive deltas, or clamp them to 0.85..1.15.** Also avoid adding new effects to unrelated gameplay actions; PR C is not an invitation to invent features.
 
-**CREATE**
-- `tests/personality.socialCompatibility.test.ts`
-- `tests/personality.romanceContext.test.ts`
-- `tests/personality.familyContext.test.ts`
-- Modify `tests/personality.legacyConsumerAudit.test.ts`: change the expected legacy inventory to **zero** in PR C; never keep a permanent allowlist.
-- Optional `src/game/personality/lifeExperience.ts` **only** for a genuinely absent bounded memory type. Prefer existing `friendships`, `feuds`, `pastPartnerTicks`, grief and scandal state; avoid parallel copies.
+#### C.1 Implement the central rule/result representation FIRST
 
-**ACCEPT WHEN**
-- Existing pair eligibility, youth/adult age rules, partner exclusivity, friendship/feud reciprocity, affine caps, affair encounter daily windows, pregnancy and grief cooldowns remain authoritative.
-- Trait biases affect social motives and relationship decisions but never force cheating, permanent loyalty, predetermined marriages or good/evil scoring.
-- Each memory transition is event-driven and once-only with bounded storage. **If `lifeExperience.ts` adds saved fields, include Entity types, save schema, load normalization, worker rollback cloning and focused old-save/round-trip tests in PR C itself**; never defer them to D/E. If existing history suffices, do not create the optional module or new state at all.
-- All six migrated PR C legacy behaviors match baseline exactly, including eligible non-Lucky conception and independent DNA inheritance, both conception branches, unaffected affair conception, pair-clash/RNG parity, civic double-category voting and 5/7/3-day grief.
-- No direct legacy DNA consumers or legacy helper remain anywhere in executable `src/game/**`; the source audit has an empty inventory and still scans all modules.
-- Existing relationship, affair, conception and social tests pass deterministically.
+**Files to edit:** `src/game/personality/traitEffectCatalog.ts` and `src/game/personality/traitEvaluation.ts`. Add tests in `tests/personality.traitCatalog.test.ts`, `tests/personality.traitEvaluation.test.ts` or new relevant targeted suites.
+
+- Preserve all **14** `SettlerTrait` IDs and existing ordinary catalog data. Keep ordinary bounded/diminishing-return calculations exactly as before for PR B contexts. Add a **typed `legacyExact` entry family within the existing `TRAIT_EFFECTS[trait]` records** (or an equivalent single-record discriminated representation). `legacyExact` is *part of the same catalog*, not a second registry. A trait can have several separately identified contexts. An existing `also` record is not sufficient as-is because its tests and evaluator assume bounded additive deltas.
+- Represent these **different mathematical operations accurately**: (a) exact multiplicative factor at a named context, (b) exact chance override for a named context, (c) exact duration in days, (d) two independent integer civic votes, and (e) symmetric cross-person clash contributions. Do not overload `factor` with unrelated integers or silently multiply generic `tendency` into chance.
+- Extend `TraitContext` with six *distinct* exact-parity activities: `social/courtshipProgress`, `social/workplaceBanter`, `social/feudClash` (requires a narrow readonly `other.traits` subject), `family/conception`, `family/spousalBereavement`, and `civic/communityReaction`. Ordinary `social/courtship`, `social/conflict`, `family/bereavement` and `civic/mercy` stay bounded and untouched. Implement the precisely typed return rules from architecture §4.1.3; never use a generic context as an accidental second modifier. Use the **same exported `evaluateTraitInfluence` function** for all; a typed optional exact/discrete result or a context-discriminated return is permitted. The normal neutral answer remains `factor: 1, tendency: 0`, with an exact neutral/no-vote/no-clash result when a discrete context requires it.
+- Existing generic `social/courtship` Timid/Graceful and `family/bereavement` Stoic/Nurturing records keep their **ordinary** bounded semantics. Exact PR C entries live under the distinct activity IDs above. The evaluator dispatches **either exact or ordinary mode**, never both on one decision. Other existing ordinary contexts remain untouched.
+- Keep each of the five **cross-person** clash pairs in the catalog **once**, not in `relationships.ts`. Do **not** modify the two within-person incompatible genetic pairs in `settlerTraits.ts`.
+- The evaluator must remain pure, deterministic, no RNG, no entity/world mutation, and no `state.entities` lookup. On hot social/pair paths avoid temporary arrays/maps, unbounded scans, per-call strings and constructing `reasons` unless requested. Do not create a wrapper evaluator, second event owner or scheduler.
+- **C.1 gate:** golden evaluation tests prove 1.4/0.7/1.2, 1.15/1, 0.11/0.08, 5/7, category votes 0/1 and symmetric integer clash counts **before** replacing each original caller. Additional catalog entries must retain exhaustiveness (14 IDs), unique reason IDs and valid positive/negative ordinary descriptions.
+
+#### C.1a Do not guess the implementation (exact per-site read contract)
+
+After C.1, the coding bot must verify these **six concrete return shapes** before touching consumers. They are all returned by the **same** `evaluateTraitInfluence` function; they are **not** six helper evaluators:
+
+| Context | Exactly what the caller reads | No-DNA result |
+| --- | --- | --- |
+| `social/courtshipProgress` | `exact.orderedFactors` in **Gregarious, Timid, Graceful** order; multiply separately at the existing three slots | `[1, 1, 1]` |
+| `family/conception` | `exact.multiplier` for **the eligible mother** at the married/youth sites only | `1` |
+| `social/workplaceBanter` | `exact.chanceOverride ?? 0.08`; **0.11** comes solely from the catalog | `undefined` override |
+| `family/spousalBereavement` | `exact.durationDaysOverride ?? 7`, then original `Math.max` | `undefined` override |
+| `civic/communityReaction` | `exact.restraintVoice` and `exact.severityVoice`, aggregated once per eligible villager | `0, 0` |
+| `social/feudClash` | `exact.clashCount` for subject + readonly other subject, before original RNG guard | `0` |
+
+Use the exact catalog payload family, activity names and selection behavior in architecture §4.1.3. Keep the ordinary bounded `factor/tendency` algorithm unchanged; it must **not** be multiplied alongside these exact outputs. Pair-clash and civic rules require discrete results; treating them as arbitrary scalar multipliers would lose game mechanics. The existing genetic incompatibility restrictions remain in `settlerTraits.ts`.
+
+**PR C coding order (do not skip a gate):** (1) pin all six AS-IS owner outcomes in tests; (2) extend catalog/types/evaluator and test the six exact returns plus ordinary-context nonregression; (3) migrate relationship clashes; (4) workplace banter; (5) courtship; (6) married/youth conception; (7) civic reaction; (8) grief; (9) remove `traitMultiplier` and the old pair table; (10) set legacy inventory to `{}`, run focused + standard checks and verify the final diff. Stop rather than rebalance if any owner golden test fails.
+
+#### C.2 Migrate `relationships.advanceSocialRelationships` → `driftIntoFeud`
+
+- **AS-IS:** `TRAIT_CLASHES` has exactly **five unordered cross-person** pairs: Brave–Timid; Gregarious–Timid; Gregarious–Stoic; Fierce–Stoic; Chivalrous–Fierce. `traitClashCount(a,b)` counts all satisfied pairs; `clashes === 0` exits **without calling RNG**, otherwise exactly one `rng()` draw is compared against `clashes * 0.00005`. Feud amount **30**. Existing feud/friend cap, pair budget, key ordering and reciprocal updates remain.
+- **TO-BE:** remove both `TRAIT_CLASHES` and `traitClashCount` from this owner; call `evaluateTraitInfluence` once with the two readonly trait subjects and `social/feudClash`, use its exact `clashCount`. Keep the original early exits and the **same single RNG call at the same point**. Do not use a sum of two unary `social/conflict` factors: that is not equivalent to cross-trait clashes.
+- **Proof:** `tests/personality.socialCompatibility.test.ts` must cover all five edges, reversed settler order, no clash, multiple applicable clashes, empty DNA, existing reciprocal feud logic, RNG draw count **0 for a zero-clash eligible pair and 1 when clash > 0**, and unchanged `0.00005` scale.
+
+#### C.3 Migrate `socialLife.tryWorkplaceBanter`
+
+- **AS-IS:** `entity.traits?.includes('intuitive') ? 0.11 : 0.08`. `personDayRoll(entity.id,tick,720)`; no banter when dead/off day shift/outside 11–13/busy. Partner search and message behavior are unchanged.
+- **TO-BE:** use `evaluateTraitInfluence(entity,{kind:'social',activity:'workplaceBanter'})` once at the existing decision and read the **exact Intuitive chance 0.11** from the catalog; absent/unrelated DNA uses the unchanged ordinary base chance `0.08`. Do not approximate using a clamped factor or introduce an RNG call.
+- **Proof:** with deterministic `personDayRoll` inputs, assert the same pass/fail boundary and dialog activity, eligible/intuitive, eligible/other DNA and ineligible conditions in `tests/personality.socialCompatibility.test.ts`.
+
+#### C.4 Migrate `humanTick.tickHumans` courtship progress
+
+- **AS-IS:** when the already-eligible initiating settler's `id < closest.id`, the existing rate uses **their own DNA only**, multiplying **Gregarious ×1.4, Timid ×0.7, Graceful ×1.2** in that order; festival ×2, performers ×1.35, living-together ×1.5 and `PER_TICK_RATE_SCALE` surround those factors. Existing relationship binding, speech and marriage completion remain.
+- **TO-BE:** add exact `social/courtshipProgress` entries in the catalog (Gregarious is missing; Timid/Graceful existing generic records are **not** numeric substitutes). Replace the three inline `traitMultiplier` calls with **one evaluator call** for `entity`. Keep the original factor order and non-DNA operation order; if combining floating-point products changes thresholds, use a fixed ordered output from that one evaluator and demonstrate identical seeded outcomes. Do **not** add `closest`'s DNA to this old rate.
+- **Proof:** `tests/personality.romanceContext.test.ts` pins old/new single trait, combined allowed traits, neutral DNA, unchanged time and partner gates, exact progress and deterministic seeded outcomes. Preserve the current existing courtship tests.
+
+#### C.5 Migrate `simulation/humanRelationships.tryDailyConception`
+
+- **AS-IS:** for eligible mothers, **married** (seeded `personDayRoll(...,603)`) and **youth-love** (seed 604) branches multiply the preexisting baseline ×`traitMultiplier(entity,'lucky',1.15)`. The **affair** conception branch (seed 605) does **not** use Lucky. Age/fertility, proximity, partner, cooldown and energy guards are non-DNA.
+- **TO-BE:** add the **exact** Lucky ×1.15 under `family/conception` in the catalog; call the evaluator at each of the two original sites, keeping both independent probability formulas and roll locations. `factor = 1` for a non-Lucky mother, **never probability zero**. Do not change `startMarriedPregnancy`, `startYouthPregnancy`, `startAffairPregnancy`, `humanLifecycle`, traits inheritance or birth RNG. Lucky parentage must **not** force Lucky children.
+- **Proof:** `tests/personality.romanceContext.test.ts` verifies pre/post probability equality for married/youth/affair, eligible non-Lucky conceptions, neutral trait, Lucky, combined traits, ineligible conditions, roll salt 603/604/605, number of draws, untouched pregnancy state and genetically independent children.
+
+#### C.6 Migrate `warPrisoners.applyWarCommunityReaction`
+
+- **AS-IS:** scan only `alive && isPlayerHuman` villagers. **One** restraint voice if Nurturing **OR** Chivalrous, **one** severity voice if Fierce; Nurturing+Chivalrous is **not two** restraint voices. Fierce may overlap with restraint on the same villager. `threatVoices = ceil(villagers.length / 4)` only when attacked/at war; coercive choices are execution/tribute/raze; `tribute` uses half intensity; existing merit/reputation caps and event text stay.
+- **TO-BE:** add catalog-owned `civic/communityReaction` discrete weights and return `restraintVoice: 0|1`, `severityVoice: 0|1` per **eligible villager**. Apply `evaluateTraitInfluence` once per member inside the **existing** selected-villager pass; aggregate to the same two counts, and keep unchanged opinion formula, leader mutation and log text. No extra full-entity scan or moral judgment.
+- **Proof:** `tests/personality.civicContext.test.ts` covers no DNA, each of three traits, Nurturing+Chivalrous deduplication, Fierce+Nurturing both categories, live/dead/rival/captive exclusions **as actually coded**, all five outcomes, under-threat and neutral-war cases, caps and original text/merit/reputation outputs.
+
+#### C.7 Migrate `humanLifecycleCleanup.reconcileFamilyReferencesAfterRemoval` grief
+
+- **AS-IS:** when the dead partner has a live spouse and `tick != null`, spouse grief is **5 days if Stoic, else 7**. `Math.max(prior griefUntilTick, tick + TICKS_PER_DAY * griefDays)` prevents shortening an existing interval. A live secret lover gets **3 days** independently.
+- **TO-BE:** the existing owner reads an exact `family/spousalBereavement` duration from the central evaluator. The Stoic rule is 5 days; neutral/non-Stoic remains 7. **Do not activate Nurturing's existing generic grief drawback as an extra duration effect** during parity migration. Keep live spouse/lover lookup, widowed status transitions, optional tick and `Math.max` unchanged.
+- **Proof:** `tests/personality.familyContext.test.ts` compares 5/7/3-day outcomes, absence of tick, existing longer grief interval, partner death and affair death, mixed Stoic+Nurturing and neutral cases; update the existing `tests/humanLifecycle.test.ts` only to preserve true old behavior.
+
+#### C.8 Remove legacy symbols, prove no drift, complete documentation
+
+1. Delete the `traitMultiplier` numeric helper in `settlerTraits.ts` **only after all production imports are gone**. Keep genetics, existing `hasTrait` identity query and inheritance logic as appropriate; never delete a useful genetic API just to silence a pattern.
+2. Change `EXPECTED` in `tests/personality.legacyConsumerAudit.test.ts` to the **empty object `{}`**, retain the entire source tree scan and fail on **every** old direct multiplier/trait `includes`/`some` gameplay rule or duplicate compatibility table. Do **not** whitelist relocated legacy consumers in a different file or weaken scan expressions. Scan `src/game/**` manually as an additional check for renamed/decorated legacy access not covered by existing regex.
+3. Do not change other systems (DNA roll/inheritance, player-vs-foreign needs, schooling, production, defense, pathfinding, UI) beyond verified necessary import cleanup. **Do not add new state fields** for this refactor: existing save fields, worker transport and Moon Howler restoration remain authoritative; verify round-trip and RNG registry stability.
+4. Update **both** `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` **as implemented**, `CHANGELOG.md`, and bug reports (new `docs/bug_report/` report for each genuinely discovered defect, linked from `docs/BUG_REPORTS/SUMMARY.md`; don't invent a defect for planned refactoring). PR description must state **new and updated bug report counts**, old/new tested numbers and the fixed head SHA.
+5. Run focused owner tests + `npx vitest run tests/personality.legacyConsumerAudit.test.ts tests/personality.traitCatalog.test.ts tests/personality.traitEvaluation.test.ts tests/personality.socialCompatibility.test.ts tests/personality.romanceContext.test.ts tests/personality.familyContext.test.ts tests/personality.civicContext.test.ts`, `npm run test:types`, `npm run lint`, `node scripts/test.mjs owners`, `npm run test:standard`, and `npm run build`. Check seeded continuation and worker/save parity. Run the longer colony suites **only when their touched gameplay owners justify it**, not as a replacement for targeted parity tests.
+6. **Stop and report**, do not mark done or merge, if one seeded decision differs, a non-Lucky mother loses conception, a pair changes RNG consumption, a grief/vote count differs, the legacy scan is nonempty, TypeScript/ownership checks fail, or a new O(population²) cost appears. Do not adjust golden expected results or document a mismatch as "intentional rebalancing": the user has forbidden gameplay changes for PR C.
+
+**PR C DONE means:** same gameplay for all six domains with the old multipliers/conditions and *zero* inline DNA-rule consumers; the full canonical catalog/evaluator is now the only numeric/compatibility source; all 14 traits are still defined and ordinary PR B effects unchanged; no new writers or persistent fields; standard CI, targeted parity tests and ownership gates pass. **A green source scan alone is not evidence of behavioral parity.**
 
 ### PR D — actual careers, history, mentorship integration and job fit
 
