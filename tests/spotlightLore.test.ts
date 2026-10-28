@@ -5,7 +5,7 @@ import { getAbsoluteCalendarDay, getCalendarDay, isWeekend, TICKS_PER_DAY, TICKS
 import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { gameTick } from '../src/game/gameTick';
-import { getPathGrid, lineCrossesBlocked } from '../src/game/pathfinding';
+import { getPathGrid, lineCrossesBlocked, resetPathGridCaches } from '../src/game/pathfinding';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
@@ -102,6 +102,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     const { world, girl, adults } = makeFixture();
     world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
     world.buildings = [];
+    resetPathGridCaches();
     girl.x = 30;
     girl.y = 360;
     world.entities = [girl, ...adults.slice(0, 6)];
