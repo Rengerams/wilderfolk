@@ -5,10 +5,10 @@
 - **Changed:** Consolidated the terrain architecture into one reference covering generation v1–v4, hydrology, 2.5D rendering, saved-world contracts and verification; retired superseded terrain design notes.
 
 - **Removed:** Legacy Goals and their completion counter; historical Chronicle chapters remain in the open-ended simulator.
-- **Registered:** Ordinary Chronicle raid events and combat decision owners, with a save/reload regression test.
+- **Registered:** Ordinary Chronicle raid events and combat decision owners, with a save-and-reload regression test.
 
 
-- **Raid documentation (28 October 2026):** Removed the optional advanced-siege feature from the v0.6.5.2 roadmap. Kept only the two outstanding raid UI additions (expanded terminal report and neutral raze confirmation), with their implementation and regression approach in `docs/plans/raid-ui-final-report-and-raze-confirmation-0.6.5.2.md`.
+- **Raid documentation (28 October 2026):** Removed optional advanced siege from the roadmap; kept the expanded terminal report and neutral raze confirmation as pending raid UI work, with implementation and regression plans documented separately.
 
 
 - **Resource-worker recovery (#72):** When stone or wood reaches zero, assign one idle worker to an unmanned Quarry or Lumber Mill before filling new construction crews. Keep manual staffing and existing jobs intact.
