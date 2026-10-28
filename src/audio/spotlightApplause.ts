@@ -1,15 +1,12 @@
 import { audioGraph } from './graph';
 import { loadSample } from './sampleLoader';
-import { spotlightCrowdPartA } from './assets/spotlightCrowdA';
-import { spotlightCrowdPartB } from './assets/spotlightCrowdB';
-import { spotlightCrowdPartC } from './assets/spotlightCrowdC';
+import { TRACKS, TRACK_VOLUMES } from './tracks';
 
 // 6.1 s excerpt with a 0.5 s fade from the owner's uploaded crowd-cheering recording.
 export const SPOTLIGHT_APPLAUSE_CLIP_MS = 6100;
-export const SPOTLIGHT_APPLAUSE_AUDIO_URL =
-  'data:audio/ogg;base64,' + spotlightCrowdPartA + spotlightCrowdPartB + spotlightCrowdPartC;
+export const SPOTLIGHT_APPLAUSE_AUDIO_URL = TRACKS.spotlightApplause;
 
-const APPLAUSE_GAIN = 0.42;
+const APPLAUSE_GAIN = TRACK_VOLUMES.spotlightApplause;
 const FADE_OUT_SECONDS = 0.35;
 
 /** Optional warm-up; failure only disables the sound, never the Spotlight scene. */
