@@ -498,6 +498,23 @@ export default function App() {
     }
   }, [gameplayActive, sessionRevision, world.tick, world.width, world.height, world.spotlightLore, world.spotlightLore?.phase, loopRef]);
 
+  /** Visual follow target only: GameLoop's existing camera interpolation remains the sole owner. */
+  const aimSpotlightCamera = useCallback((x: number, y: number) => {
+    const loop = loopRef.current;
+    if (!loop || loop.getWorld().spotlightLore?.phase !== 'ready') return;
+    const current = loop.getView();
+    if (Math.hypot(current.camera.targetX - x, current.camera.targetY - y) < 0.2) return;
+    const aimed = focusCameraOn(current, x, y, 1.75);
+    const canvas = canvasRef.current;
+    loop.setView({
+      ...current,
+      camera: clampCameraTarget(aimed.camera,
+        loop.getWorld().width, loop.getWorld().height,
+        canvas?.clientWidth ?? loop.getWorld().width,
+        canvas?.clientHeight ?? loop.getWorld().height),
+    });
+  }, [loopRef, canvasRef]);
+
   const finishSpotlight = useCallback((sceneId: string, reason: 'complete' | 'skipped') => {
     if (loopRef.current?.getWorld().spotlightLore?.id !== sceneId) return;
     applyGameAction({ proto: 1, op: 'finishSpotlightLore', sceneId, reason });
@@ -1471,6 +1488,8 @@ export default function App() {
               world={world}
               getCamera={() => loopRef.current?.getView().camera ?? view.camera}
               canvasRef={canvasRef}
+              onCameraTarget={aimSpotlightCamera}
+              onPresentation={(projection) => loopRef.current?.setSpotlightPresentation(projection)}
               onFinish={finishSpotlight}
             />
           )}
