@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import type { Camera, Entity, SpotlightLoreState, WorldState } from '../game/gameTypes';
 import { resolveEntity, worldToScreen } from '../game/viewState';
 import { terrainRiseAt } from '../game/terrainAtlas';
@@ -175,7 +176,10 @@ export default function SpotlightLoreOverlay({
       const onScreen = project(x, y);
       if (blackoutRef.current) {
         blackoutRef.current.style.opacity = String(step.kind === 'intro' ? opening.blackoutOpacity : 0);
-        const hole = `radial-gradient(ellipse 94px 122px at ${onScreen.x}px ${onScreen.y - 38}px,
+        const rect = canvasRef.current?.getBoundingClientRect();
+        const viewX = (rect?.left ?? 0) + onScreen.x;
+        const viewY = (rect?.top ?? 0) + onScreen.y - 38;
+        const hole = `radial-gradient(ellipse 94px 122px at ${viewX}px ${viewY}px,
           transparent 0%, transparent 45%, black 100%)`;
         blackoutRef.current.style.maskImage = opening.spotlightVisible ? hole : 'none';
         blackoutRef.current.style.webkitMaskImage = opening.spotlightVisible ? hole : 'none';
@@ -271,9 +275,10 @@ export default function SpotlightLoreOverlay({
   return (
     <div className="pointer-events-auto absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
       <div ref={radialRef} className="absolute inset-0 transition-opacity duration-700" aria-hidden="true" />
-      {scene.phase === 'ready' && (
-        <div ref={blackoutRef} className="pointer-events-none absolute inset-0 z-[30] bg-black"
-          style={{ opacity: 1 }} aria-hidden="true" />
+      {scene.phase === 'ready' && typeof document !== 'undefined' && createPortal(
+        <div ref={blackoutRef} className="pointer-events-none fixed inset-0 z-[9999] bg-black"
+          style={{ opacity: 1 }} aria-hidden="true" />,
+        document.body,
       )}
       <div ref={ringRef}
         className="absolute z-[31] h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
