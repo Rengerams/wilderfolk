@@ -30,6 +30,8 @@ jobs:
         run: npx vitest run tests/dialogue.schema13.test.ts tests/dialogue.eventRouting.test.ts tests/dialogue.visitorPerformer.test.ts tests/dialogue.socialEvents.test.ts tests/humanChat.duration.test.ts tests/low_chat.test.ts tests/pairDialogue.orphanReclaim.test.ts
       - name: Typecheck including tests
         run: npm run test:types
+      - name: Compile and bundle production app
+        run: npm run build
 
   validate:
     runs-on: ubuntu-latest
