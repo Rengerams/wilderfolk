@@ -26,6 +26,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Missing dialogue participant crashes the simulation](../bug_report/2026-10-28-dialogue-cleanup-undefined-partner-crash.md):** completed pair dialogue cleanup dereferenced an absent actor after the session key was cleared. PR #93 adds key and participant guards plus a deterministic missing-partner regression; final CI pending.
 
+**2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight presentation jumps from actual actor to saved target](../bug_report/2026-10-28-spotlight-presentation-origin-snap.md):** Fixed on PR #91 branch by using the heroine's actual stage position for visual poses and farewell, avoiding a possible 11-world-unit snap. Browser verification pending.

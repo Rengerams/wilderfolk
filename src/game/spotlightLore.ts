@@ -60,11 +60,13 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   for (let i = 0; i < chorus.length; i++) {
     const angle = Math.PI * (0.12 + 0.76 * i / Math.max(1, chorus.length - 1));
     const radius = 27 + (i % 2) * 9;
+    const candidateX = Math.max(0, Math.min(state.width - 1, girl.x + Math.cos(angle) * radius));
+    const candidateY = Math.max(0, Math.min(state.height - 1, girl.y + Math.sin(angle) * radius));
     const point = nearestWalkableWorldPoint(
-      state.worldMap, state.buildings,
-      girl.x + Math.cos(angle) * radius, girl.y + Math.sin(angle) * radius,
+      state.worldMap, state.buildings, candidateX, candidateY,
     );
-    if (!point || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < 12)) {
+    if (!point || point.x < 0 || point.x >= state.width || point.y < 0 || point.y >= state.height
+      || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < 12)) {
       return false;
     }
     slots.push({ humanId: chorus[i].id, x: point.x, y: point.y });

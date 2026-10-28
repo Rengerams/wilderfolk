@@ -98,6 +98,32 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(false);
   });
 
+  it('never accepts off-map chorus slots and never consumes cooldown on rejected edge placement', () => {
+    for (const placement of ['left', 'bottom'] as const) {
+      const { world, girl, adults } = makeFixture();
+      girl.x = placement === 'left' ? 4 : world.width / 2;
+      girl.y = placement === 'bottom' ? world.height - 4 : world.height / 2;
+      for (const [index, actor] of adults.entries()) {
+        actor.x = Math.max(0, Math.min(world.width - 1, girl.x + 12 + index * 2));
+        actor.y = Math.max(0, Math.min(world.height - 1, girl.y - 8));
+      }
+      world.tick = pickEligibleTick(world);
+      const started = maybeStartSpotlightLore(world);
+      if (started) {
+        expect(world.spotlightLore?.slots).toHaveLength(adults.length);
+        for (const slot of world.spotlightLore!.slots) {
+          expect(slot.x).toBeGreaterThanOrEqual(0);
+          expect(slot.x).toBeLessThan(world.width);
+          expect(slot.y).toBeGreaterThanOrEqual(0);
+          expect(slot.y).toBeLessThan(world.height);
+        }
+      } else {
+        expect(world.spotlightLore).toBeNull();
+        expect(world.spotlightLoreLastDay).toBeUndefined();
+      }
+    }
+  });
+
   it('will not select an adult heroine, fewer than six chorus members, or a colony in combat', () => {
     const { world, girl, adults } = makeFixture();
     world.tick = pickEligibleTick(world);

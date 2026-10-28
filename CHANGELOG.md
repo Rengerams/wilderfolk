@@ -2,13 +2,15 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #91):** Constrained rare Spotlight gathering slots to playable map bounds and rejected invalid placement before recording a 90-day cooldown; added an edge-placement regression.
+
 - **Spotlight follow-up (PR #91):** Anchored visual poses to the heroine's actual arrival position to prevent a first-frame jump; skipped unchanged caption state updates during intro and applause. No game-state or save changes.
 
-- **Spotlight choreography (PR #91):** Moved the scene to 44 canonical JSON captions. Added the heroine's two replies, two 7-second walks, bounded hearts and kiss marks, and a safe departing finale with a smoothly following camera. Tests/browser verification pending.
+- **Spotlight choreography (PR #91):** Moved the scene to 44 canonical JSON captions. Added the heroine's two replies, two 7-second walks, bounded hearts and kiss marks, and a safe departing finale with a smoothly following camera. Presentation verification pending.
 
 - **Spotlight timing (PR #91):** Moved the weekend rare-event roll from 16:00 to 19:00; eligibility, 7.5% chance, 90-day cooldown and rewards remain unchanged.
 
-- **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; CI/browser verification pending.
+- **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; Automated and visual verification pending.
 
 - **Tests:** Corrected the real-tick spotlight `ready` fixture to keep every performer on stage while testing home-commute priority. Preserved strict live attendance rules.
 
@@ -17,7 +19,7 @@
 - **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
 - **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
 
-- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head Node.js CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 
@@ -34,7 +36,7 @@
 
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
-- **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final PR-head Node.js CI completed successfully; browser Spotlight acceptance remains separate.
+- **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final PR-head node CI completed successfully; browser Spotlight acceptance remains separate.
 - **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
 - **Dialogue cleanup:** Removed the obsolete category-wide picker and its allocation-heavy category index; preserved ten conflicting historic election captions outside the active bank.
 - **Fixed:** Migrated scripted speech now keeps its original effective tick duration using the current simulation clock; added regression coverage for 12 care, lodging, hunting, civic and omen captions.
