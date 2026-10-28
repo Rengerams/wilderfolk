@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, BUILDING_CONFIGS } from '../src/game/gameTypes';
 import { createBuilding, createEntity } from '../src/game/worldGen';
-import { assignMissingWorkers, countWorkersAtBuilding } from '../src/game/workforce';
+import { assignMissingWorkers, countWorkersAtBuilding, findOverstaffedDonorBuilding } from '../src/game/workforce';
 
 describe('automatic Barracks staffing', () => {
   it('fills all guard posts from eligible idle adults', () => {
@@ -40,4 +40,29 @@ describe('automatic Barracks staffing', () => {
     expect(countWorkersAtBuilding(settlers, donor.id)).toBeGreaterThanOrEqual(1);
     expect(settlers.filter((h) => h.workerBuildingId === barracks.id && h.lastAutoJobTransferTick === 100).length).toBeGreaterThan(0);
   });
+
+  it.each([BuildingType.Quarry, BuildingType.Barracks, BuildingType.Prison])(
+    'does not propose a protected %s crew as an automatic donor',
+    (criticalType) => {
+      const donor = createBuilding(criticalType, 140, 100, 8);
+      donor.completed = true;
+      donor.staffingMode = 'auto';
+      const farm = createBuilding(BuildingType.Farm, 100, 100, 7);
+      farm.completed = true;
+      farm.staffingMode = 'auto';
+      const protectedCount = Math.min(3, BUILDING_CONFIGS[criticalType].maxOccupants);
+      const settlers = Array.from({ length: protectedCount }, (_, i) => createEntity(
+        EntityType.Human, 100 + i, 100, 1000 + i, 400, false,
+        { gender: 'male', name: `Worker${i}`, surname: 'Test', ageYears: 30, colonyDay: 0 },
+      ));
+      for (const worker of settlers) worker.workerBuildingId = donor.id;
+
+      // The Virtual Player uses this preflight; the actual automatic rebalancer
+      // must agree and preserve minimum stone/guard coverage.
+      expect(findOverstaffedDonorBuilding([donor, farm], settlers, farm.id, 100)).toBeUndefined();
+      assignMissingWorkers(settlers, [donor, farm], { tick: 100 });
+      expect(countWorkersAtBuilding(settlers, donor.id)).toBe(protectedCount);
+      expect(countWorkersAtBuilding(settlers, farm.id)).toBe(0);
+    },
+  );
 });
