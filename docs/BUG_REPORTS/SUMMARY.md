@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight actor blocked by wall or water](../bug_report/2026-10-28-spotlight-gathering-obstacle-routing.md):** Fixed in PR #91 code: participants now follow the existing cached A* path steering around completed walls and water, with single-step real-tick regressions. CI/browser verification pending.
+
 **2026-10-28 — [Ready spotlight real-tick fixture starts dispersed](../bug_report/2026-10-28-spotlight-ready-test-fixture-dispersed.md):** Test-only PR #91 failure: the ready-stage home-commute regression placed every singer far from their stage slot, causing the correctly enforced attendance guard to abort. Rebuilt physically valid ready slots while retaining the steering check; CI rerun pending.
 
 **2026-10-28 — [Ready spotlight can lose actors before presentation](../bug_report/2026-10-28-spotlight-ready-cast-dispersed.md):** Fixed in code on PR #91; validate current cast proximity during ready and on save reload, while allowing still-gathering actors to travel. CI/browser pending.
