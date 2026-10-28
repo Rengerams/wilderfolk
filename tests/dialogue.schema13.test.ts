@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalDialogueBank,
   DIALOGUE_SCHEMA_VERSION,
+  readPresentationDialogue,
 } from '../src/game/dialogueTrees';
 
 type JsonScene = {
@@ -84,5 +85,67 @@ describe('v1.3 dialogue source contract', () => {
     for (const tree of canonicalDialogueBank.dialogue_trees) {
       expect(tree.mode).toBe(tree.speakers.length === 1 ? 'solo' : 'pair');
     }
+  });
+});
+
+describe('PR #91 group-caption JSON compatibility', () => {
+  const groupSource = {
+    version: '1.3',
+    game: 'Wilderfolk Sim',
+    category: 'spotlight',
+    categories: ['spotlight'],
+    dialogue_trees: [{
+      id: 'spotlight_example',
+      category: 'spotlight',
+      eventKey: 'spotlight.theLook',
+      conversation_type: 'group',
+      speakers: ['chorus', 'heroine', 'narrator'],
+      lines: [
+        { speaker: 'chorus', text: 'Welcome to the village!', durationMs: 3200 },
+        { speaker: 'narrator', text: 'An awkward pause.' },
+        { speaker: 'heroine', text: 'Is everyone looking at me?' },
+      ],
+    }],
+  } as const;
+
+  it('returns ordered lines, role tags, and optional real-time caption timings', () => {
+    const scene = readPresentationDialogue(groupSource, 'spotlight.theLook');
+    expect(scene.id).toBe('spotlight_example');
+    expect(scene.speakers).toEqual(['chorus', 'heroine', 'narrator']);
+    expect(scene.lines.map(({ speaker }) => speaker)).toEqual(['chorus', 'narrator', 'heroine']);
+    expect(scene.lines[0]).toEqual({ speaker: 'chorus', text: 'Welcome to the village!', durationMs: 3200 });
+    expect(scene.lines[1]?.durationMs).toBeUndefined();
+    expect(Object.isFrozen(scene)).toBe(true);
+    expect(Object.isFrozen(scene.lines)).toBe(true);
+  });
+
+  it('does not write to human chat state or create a new gameplay chat session', () => {
+    const speaker = { id: 491, chatPhrase: 'Still talking', chatTicks: 8 };
+    const before = { ...speaker };
+    readPresentationDialogue(groupSource, 'spotlight.theLook');
+    expect(speaker).toEqual(before);
+  });
+
+  it('rejects missing, duplicate or malformed group events instead of reusing ambient lines', () => {
+    expect(() => readPresentationDialogue(groupSource, 'spotlight.missing')).toThrow(/Missing presentation event key/);
+    expect(() => readPresentationDialogue({ ...groupSource, version: '1.2' }, 'spotlight.theLook')).toThrow(/Invalid 1.3/);
+    expect(() => readPresentationDialogue({
+      ...groupSource,
+      dialogue_trees: [groupSource.dialogue_trees[0], groupSource.dialogue_trees[0]],
+    }, 'spotlight.theLook')).toThrow(/duplicate presentation tree ID/);
+    expect(() => readPresentationDialogue({
+      ...groupSource,
+      dialogue_trees: [{
+        ...groupSource.dialogue_trees[0],
+        lines: [{ speaker: 'stranger', text: 'Wrong voice.' }],
+      }],
+    }, 'spotlight.theLook')).toThrow(/Invalid presentation tree/);
+    expect(() => readPresentationDialogue({
+      ...groupSource,
+      dialogue_trees: [{
+        ...groupSource.dialogue_trees[0],
+        lines: [{ speaker: 'chorus', text: 'Too fast', durationMs: 0 }],
+      }],
+    }, 'spotlight.theLook')).toThrow(/Invalid presentation tree/);
   });
 });
