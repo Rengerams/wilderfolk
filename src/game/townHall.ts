@@ -8,7 +8,8 @@ import { addFloatingText, addNotification } from './simEffects';
 import { logEvent } from './eventLog';
 import { getVillageLeader } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
-import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_NEEDS, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 
@@ -217,11 +218,7 @@ export function resolveCivicPetition(
     if (spent <= 0) return { kind: 'none' };
     creditHumanNutritionFromFood(petitioner, spent);
     addFloatingText(state, petitioner.x, petitioner.y - 14, `+${spent} food (aid)`, '#86efac', 'brief');
-    sayHumanChatPhrase(
-      petitioner,
-      personDayRoll(petitioner.id, state.tick, 831) < 0.5 ? 'The hall will help us.' : 'Thank the officials.',
-      50,
-    );
+    requestDialogue({ eventKey: 'townHall.foodAid', speaker: petitioner, tick: state.tick, durationHours: 50 / 9, priority: 'scripted' });
     addReputation(state, 1);
     return { kind: 'aid_food', amount: spent };
   }
@@ -233,11 +230,7 @@ export function resolveCivicPetition(
     && personDayRoll(petitioner.id, state.tick, 823) < 0.55
   ) {
     adjustHumanStaminaFromEnergy(petitioner, 6);
-    sayHumanChatPhrase(
-      petitioner,
-      personDayRoll(petitioner.id, state.tick, 832) < 0.5 ? 'They listened…' : 'The record is noted.',
-      52,
-    );
+    requestDialogue({ eventKey: 'townHall.heard', speaker: petitioner, tick: state.tick, durationHours: 52 / 9, priority: 'scripted' });
     addFloatingText(state, hall.x + hall.width / 2, hall.y - 10, '📜 Petition heard', '#93c5fd', 'brief');
     addReputation(state, 1);
     return { kind: 'heard' };
@@ -250,18 +243,10 @@ export function resolveCivicPetition(
   // audience itself still happens and still grants its reputation.
   if (leaderHere && personDayRoll(petitioner.id, state.tick, 824) < 0.35) {
     if (!isDialogueBusy(petitioner)) {
-      sayHumanChatPhrase(
-        petitioner,
-        personDayRoll(petitioner.id, state.tick, 833) < 0.5 ? 'A word with the leader.' : 'I trust our chief.',
-        48,
-      );
+      requestDialogue({ eventKey: 'townHall.audience.petitioner', speaker: petitioner, tick: state.tick, durationHours: 16 / 3 });
     }
     if (!isDialogueBusy(leader)) {
-      sayHumanChatPhrase(
-        leader,
-        personDayRoll(leader.id, state.tick, 834) < 0.5 ? 'Speak freely.' : 'We will see it done.',
-        48,
-      );
+      requestDialogue({ eventKey: 'townHall.audience.leader', speaker: leader, tick: state.tick, durationHours: 16 / 3 });
     }
     addReputation(state, 1);
     return { kind: 'leader_audience' };
@@ -277,16 +262,12 @@ export function resolveCivicPetition(
     state.resources.gold -= amount;
     adjustHumanStaminaFromEnergy(petitioner, 5);
     addFloatingText(state, petitioner.x, petitioner.y - 12, '🪙 Stipend', '#fde047', 'brief');
-    sayHumanChatPhrase(petitioner, 'A coin for the road.', 40);
+    requestDialogue({ eventKey: 'townHall.goldAid', speaker: petitioner, tick: state.tick, durationHours: 40 / 9, priority: 'scripted' });
     return { kind: 'aid_gold', amount };
   }
 
   if (personDayRoll(petitioner.id, state.tick, 826) < 0.25) {
-    sayHumanChatPhrase(
-      petitioner,
-      personDayRoll(petitioner.id, state.tick, 835) < 0.5 ? 'Busy halls today.' : 'Papers and plans…',
-      40,
-    );
+    requestDialogue({ eventKey: 'townHall.generic', speaker: petitioner, tick: state.tick, durationHours: 40 / 9, priority: 'scripted' });
     return { kind: 'heard' };
   }
 
@@ -318,11 +299,7 @@ export function officialHandlePetitioners(
   if (petitioners.length === 0) return false;
 
   if (!isDialogueBusy(official) && personDayRoll(official.id, state.tick, 836) < 0.4) {
-    sayHumanChatPhrase(
-      official,
-      personDayRoll(official.id, state.tick, 837) < 0.5 ? 'Next, please.' : 'The village hears you.',
-      44,
-    );
+    requestDialogue({ eventKey: 'townHall.official', speaker: official, tick: state.tick, durationHours: 44 / 9 });
   }
   return true;
 }
