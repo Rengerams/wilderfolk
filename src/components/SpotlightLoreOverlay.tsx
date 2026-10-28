@@ -95,7 +95,7 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
+    <div className="pointer-events-auto absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
       <div
         className="absolute inset-0 transition-opacity duration-700"
         aria-hidden="true"
