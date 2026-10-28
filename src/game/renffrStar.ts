@@ -1,16 +1,10 @@
 import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycle';
-import { sayHumanChatPhrase } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
 import { mulberry32Advance, mulberry32Draw } from './simRng';
 
-/** Lines spoken the night an omen appears (assigned directly to settlers). */
-export const RENFFR_OMEN_LINES = [
-  'I saw the mark of Renffr in the stars tonight… the harvest will be plentiful.',
-  'Did you see it? Renffr — written across the sky!',
-  'The letters fell apart… what does Renffr want?',
-  'My grandmother spoke of Renffr on nights like this.',
-];
+const RENFFR_OMEN_SPEAKER_COUNT = 4;
 
 const RENFFR_GOSSIP_DAYS = 3;
 
@@ -83,9 +77,9 @@ export function beginRenffrSettlerChatter(state: WorldState, entities: readonly 
   if (humans.length === 0) return;
 
   const shuffled = shuffleArray(humans, renffrRng(state, 0x52e1));
-  const count = Math.min(RENFFR_OMEN_LINES.length, shuffled.length);
+  const count = Math.min(RENFFR_OMEN_SPEAKER_COUNT, shuffled.length);
   for (let i = 0; i < count; i++) {
-    sayHumanChatPhrase(shuffled[i], RENFFR_OMEN_LINES[i], 150);
+    requestDialogue({ eventKey: 'renffr.omen', speaker: shuffled[i], tick: state.tick, durationHours: 50 / 3, priority: 'scripted', selectionRoll: i / RENFFR_OMEN_SPEAKER_COUNT });
   }
 }
 
