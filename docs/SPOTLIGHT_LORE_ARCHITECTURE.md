@@ -103,6 +103,6 @@ This does not create romance, XP, relationships, physical voice audio, special s
 - Existing ownership, import cycle, TypeScript, standard tests and build: rely on **finished CI status**, not assumed PASS.
 - Full browser run with active worker, viewport zoom, pause/skip, actual actor movement, load-during-scene and fresh-session controls remains a release gate.
 
-Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive; [camera easing projection](bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md).md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md).
+Relevant reviewed bug reports: [premature six-of-eight staging](bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md), [home-commute override](bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md), [old-colony UI restoration](bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md), and [camera easing projection](bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md).
 
 **Acceptance:** keep the roadmap item **unchecked** until PR #91 is merged into `main`. Architecture describes the branch; it is not evidence of production readiness.
