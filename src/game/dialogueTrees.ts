@@ -577,7 +577,7 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   if (request.treeId && (!explicit || !choices.includes(explicit))) return false;
   const roll = request.selectionRoll ?? (request.treeId ? 0
     : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
-  const selected = explicit ?? choices[Math.min(choices.length - 1, Math.max(0, Math.floor(roll * choices.length)))]!;
+  const selected = explicit ?? choices[Math.max(0, Math.min(choices.length - 1, Math.floor(roll * choices.length)))]!;
   if (request.priority === 'scripted') {
     prepareScriptedDialogue(speaker, request.resolvePartner);
     if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
