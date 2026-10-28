@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI:** Population performance now runs full game-day cycles on staffed producer colonies with the hourly VirtualPlayer; optional half-year stress runs are manual and include real career-credit checks.
+
 - **Changed:** Moon Howler transformation, new curses and the full-moon cure window now begin at 22:00 (previously 23:00), with reversion still at 06:00. Ordinary village night hours are unchanged.
 
 - **Fixed:** Full-moon shifts settle at midnight even while the worker is transformed. Verified farmer work earns career experience after dawn, even if the vacated job was filled; wolf hunting earns none.

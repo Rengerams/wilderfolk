@@ -6,11 +6,20 @@ on:
     paths:
       - 'src/game/**'
       - 'scripts/perf-at-pop.ts'
+      - 'scripts/perf-population-colony.mts'
       - 'scripts/simCityProfile.ts'
       - 'scripts/compare-population-benchmarks.mjs'
+      - 'scripts/compare-population-colony.mjs'
       - '.github/workflows/perf-population-large.yml'
       - '.github/workflows/perf-population-reusable.yml'
   workflow_dispatch:
+    inputs:
+      days:
+        description: 'In-game days for manual stress test (180 = half-year)'
+        required: true
+        type: choice
+        options: ['2', '180']
+        default: '180'
 
 permissions:
   contents: read
@@ -26,3 +35,4 @@ jobs:
     with:
       tier: large
       population: 1800
+      days: ${{ github.event_name == 'workflow_dispatch' && fromJSON(inputs.days) || 2 }}

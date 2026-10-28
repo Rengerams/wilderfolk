@@ -9,6 +9,9 @@ on:
       population:
         required: true
         type: number
+      days:
+        required: true
+        type: number
 
 permissions:
   contents: read
@@ -16,15 +19,13 @@ permissions:
 jobs:
   compare:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: ${{ inputs.days == 180 && 360 || 60 }}
     env:
       PERF_POPS: ${{ inputs.population }}
       PERF_SEED: '12345'
-      PERF_TICKS: '72'
+      PERF_DAYS: ${{ inputs.days }}
       PERF_WARMUP: '12'
       SIM_FULL_SIM: '0'
-      PERF_PROFILE: '0'
-      PERF_ROUNDTRIP: '0'
 
     steps:
       - uses: actions/checkout@v4.4.0
@@ -36,7 +37,7 @@ jobs:
           node-version: '26.12.1'
           cache: npm
 
-      - name: Select immutable commits and output directory
+      - name: Select commits and report directory
         shell: bash
         env:
           BASE_REVISION: ${{ github.event.pull_request.base.sha || 'main' }}
@@ -49,36 +50,40 @@ jobs:
           echo "REPORT_DIR=$RUNNER_TEMP/population-perf-$TIER" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/population-perf-$TIER"
 
-      - name: Benchmark baseline commit
+      - name: Benchmark baseline with identical colony harness
+        if: inputs.days != 180
         shell: bash
         run: |
           set -euo pipefail
           git checkout --detach "$BASE_SHA"
+          git show "$HEAD_SHA:scripts/perf-population-colony.mts" > scripts/perf-population-colony.mts
           npm ci --prefer-offline --no-audit --no-fund
-          PERF_REPORT="$REPORT_DIR/baseline.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/baseline.resources" \
-            node --import tsx scripts/perf-at-pop.ts 2>&1 | tee "$REPORT_DIR/baseline.log"
+          PERF_EXPECT_CAREER=0 PERF_REPORT="$REPORT_DIR/baseline.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/baseline.resources" \
+            node --import tsx scripts/perf-population-colony.mts 2>&1 | tee "$REPORT_DIR/baseline.log"
 
-      - name: Benchmark PR commit
+      - name: Benchmark PR with real simulation and VirtualPlayer
         shell: bash
         run: |
           set -euo pipefail
           git checkout --detach "$HEAD_SHA"
           npm ci --prefer-offline --no-audit --no-fund
-          PERF_REPORT="$REPORT_DIR/pr.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/pr.resources" \
-            node --import tsx scripts/perf-at-pop.ts 2>&1 | tee "$REPORT_DIR/pr.log"
+          PERF_EXPECT_CAREER=1 PERF_REPORT="$REPORT_DIR/pr.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/pr.resources" \
+            node --import tsx scripts/perf-population-colony.mts 2>&1 | tee "$REPORT_DIR/pr.log"
 
-      - name: Validate measurements and publish comparison
+      - name: Validate simulation and publish timing comparison
         shell: bash
         run: |
-          node scripts/compare-population-benchmarks.mjs \
-            "$REPORT_DIR/baseline.json" "$REPORT_DIR/pr.json" "$PERF_POPS" \
-            "$REPORT_DIR/baseline.resources" "$REPORT_DIR/pr.resources"
+          node scripts/compare-population-colony.mjs \
+            "$([[ '${{ inputs.days }}' == '180' ]] && echo none || echo "$REPORT_DIR/baseline.json")" \
+            "$REPORT_DIR/pr.json" "$PERF_POPS" "$PERF_DAYS" \
+            "$([[ '${{ inputs.days }}' == '180' ]] && echo none || echo "$REPORT_DIR/baseline.resources")" \
+            "$REPORT_DIR/pr.resources"
 
-      - name: Upload raw benchmark evidence
+      - name: Upload raw simulation and timing evidence
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: population-perf-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: population-perf-${{ inputs.tier }}-${{ inputs.days }}d-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/population-perf-${{ inputs.tier }}/
           if-no-files-found: warn
           retention-days: 14
