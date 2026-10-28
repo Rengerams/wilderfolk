@@ -9,13 +9,13 @@
         "height": 645,
         "sampled": 185760,
         "mean": [
-          94,
-          110,
-          79
+          108,
+          118,
+          85
         ],
-        "blueShare": 0.10852174849267872,
-        "greenShare": 0.5820844099913868,
-        "distinctColors": 809
+        "blueShare": 0.0678832902670112,
+        "greenShare": 0.6491763565891473,
+        "distinctColors": 813
       },
       "screenshot": "docs/terrain-qa/meadows.jpg"
     },
@@ -28,13 +28,13 @@
         "height": 645,
         "sampled": 185760,
         "mean": [
-          95,
-          114,
-          88
+          82,
+          105,
+          75
         ],
-        "blueShare": 0.18924956933677864,
-        "greenShare": 0.5310885012919897,
-        "distinctColors": 799
+        "blueShare": 0.17127476313522824,
+        "greenShare": 0.596150947459087,
+        "distinctColors": 776
       },
       "screenshot": "docs/terrain-qa/black-forest.jpg"
     },
@@ -47,13 +47,13 @@
         "height": 645,
         "sampled": 185760,
         "mean": [
-          142,
-          141,
-          126
+          130,
+          134,
+          99
         ],
-        "blueShare": 0.1492301894918174,
-        "greenShare": 0.3038921188630491,
-        "distinctColors": 662
+        "blueShare": 0.06701119724375539,
+        "greenShare": 0.6595176571920758,
+        "distinctColors": 798
       },
       "screenshot": "docs/terrain-qa/arabia.jpg"
     },
@@ -66,13 +66,13 @@
         "height": 645,
         "sampled": 185760,
         "mean": [
-          99,
-          122,
-          104
+          108,
+          119,
+          94
         ],
-        "blueShare": 0.27434862187769166,
-        "greenShare": 0.4665051679586563,
-        "distinctColors": 807
+        "blueShare": 0.10435508182601205,
+        "greenShare": 0.49209732988802757,
+        "distinctColors": 754
       },
       "screenshot": "docs/terrain-qa/highland.jpg"
     },
@@ -85,13 +85,13 @@
         "height": 645,
         "sampled": 185760,
         "mean": [
-          85,
-          119,
-          111
+          94,
+          120,
+          98
         ],
-        "blueShare": 0.42666343669250645,
-        "greenShare": 0.4035206718346253,
-        "distinctColors": 798
+        "blueShare": 0.25785422049956935,
+        "greenShare": 0.5229166666666667,
+        "distinctColors": 808
       },
       "screenshot": "docs/terrain-qa/scandinavia.jpg"
     }
