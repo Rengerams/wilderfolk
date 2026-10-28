@@ -98,6 +98,20 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(false);
   });
 
+  it('casts a chorus of actual adult men, not female neighbours who also happen to be nearby', () => {
+    const { world, adults } = makeFixture();
+    // Six eligible adult men, two ineligible adult women right beside the stage.
+    adults[6].gender = 'female';
+    adults[7].gender = 'female';
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    expect(world.spotlightLore?.performerIds).toHaveLength(6);
+    const maleIds = adults.slice(0, 6).map((adult) => adult.id);
+    expect(world.spotlightLore?.performerIds).toEqual(maleIds);
+    expect(world.spotlightLore?.performerIds.every((id) =>
+      world.entities.find((entity) => entity.id === id)?.gender === 'male')).toBe(true);
+  });
+
   it('clamps a valid six-person open-ground lineup at the left border', () => {
     const { world, girl, adults } = makeFixture();
     world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
