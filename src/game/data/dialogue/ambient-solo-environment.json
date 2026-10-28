@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "category": "environment",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_winter",
+      "category": "environment",
+      "eventKey": "ambient.winter",
+      "mode": "solo",
+      "speakers": [
+        "npc_damp"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_damp",
+          "text": "It's raining inside my house again."
+        },
+        {
+          "speaker": "npc_damp",
+          "text": "It is simply my indoor weather now. I do not question it."
+        }
+      ]
+    }
+  ]
+}
