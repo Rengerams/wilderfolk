@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * Daily affair gossip produces a rumour, never an unwitnessed "caught in the act".
  *
@@ -21,7 +22,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { exposeAffair, tryDailyAffairGossip } from '../src/game/simulation/humanRelationships';
 
 const CHEATER_ID = 1;
