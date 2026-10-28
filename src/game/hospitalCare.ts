@@ -7,7 +7,7 @@ import { personDayRoll, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { addReputation } from './simHelpers';
 import { isDialogueBusy } from './humanChat';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
@@ -211,7 +211,7 @@ export function treatPatientAtHospital(
     );
   }
   if (!isDialogueBusy(patient) && personDayRoll(patient.id, state.tick, 904) < 0.2) {
-    requestDialogue({ eventKey: patient.pregnant ? 'hospital.patient.pregnant' : 'hospital.patient.other', speaker: patient, tick: state.tick, durationHours: 16 / 3, selectionRoll: personDayRoll(patient.id, state.tick, 905) });
+    requestDialogue({ eventKey: patient.pregnant ? 'hospital.patient.pregnant' : 'hospital.patient.other', speaker: patient, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(48), selectionRoll: personDayRoll(patient.id, state.tick, 905) });
   }
   return true;
 }
@@ -244,7 +244,7 @@ export function doctorTreatNearby(
 
   const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
   if (ok && !isDialogueBusy(doctor) && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
-    requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: 44 / 9, selectionRoll: personDayRoll(doctor.id, state.tick, 907) });
+    requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(44), selectionRoll: personDayRoll(doctor.id, state.tick, 907) });
   }
   return ok;
 }
