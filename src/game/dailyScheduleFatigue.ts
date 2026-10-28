@@ -67,9 +67,7 @@ export function resolveDailyVillageScheduleFatigue(
   // so it is derived once instead of twice per settler.
   const targetHours = getScheduleTargetHours(state);
 
-  // Moon Howler is still the same settler: record yesterday's human work even if
-  // the form change at 23:00 moved them out of the Human bucket at midnight.
-  // Reuse the already bucketed wolves; never traverse the full population again.
+  // Settle a transformed settler's previous human shift at midnight.
   for (let i = 0; i < humans.length + moonHowlers.length; i++) {
     const inMoonForm = i >= humans.length;
     const human = inMoonForm ? moonHowlers[i - humans.length] : humans[i];
