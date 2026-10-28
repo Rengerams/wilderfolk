@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Rare village spotlight (PR #91):** A young villager draws a comic chorus of neighbours; camera focus, genuine gathering, a paced paused-scene performance and skip/resume run without game rewards. Pending verification and merge.
+
 - **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
 
 - **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
