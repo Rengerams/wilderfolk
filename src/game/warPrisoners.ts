@@ -16,6 +16,7 @@ import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
+import { initialHumanNeeds } from './simulation/humanPhysiology';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { ExactTraitContext } from './personality/traitEffectCatalog';
 
@@ -133,6 +134,8 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     person.job = JobType.Settler;
     person.occupation = undefined;
     person.warCaptive = undefined;
+    // Genuine player needs begin at recruitment, not while imprisoned.
+    person.needs = initialHumanNeeds(person.energy, person.maxEnergy);
     assignMissingResidences(state.entities.filter(isPlayerHuman), state.buildings, state.entities, undefined, state.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(state, ledger));
   }

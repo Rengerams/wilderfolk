@@ -60,13 +60,14 @@ describe('single human meal transaction', () => {
     expect(eater.needs!.severeHungerTicks).toBe(0);
   });
 
-  it('feeds foreign war captives without creating player physiology state', () => {
+  it('provides one prison ration without restoring energy or creating physiology', () => {
     const state = world(12);
     const captive = person({ faction: 'rival', warCaptive: { raidId: 'raid-test', originRivalId: 'rival-test', capturedAtTick: 0, recruitAfterTick: 100, attempts: 0 }, energy: 180, needs: undefined });
     expect(tryEatColonyMeal(captive, state, 8)).toBe(true);
     expect(state.resources.food).toBe(11);
     expect(state.economyLedger?.consumed.meals).toBe(1);
-    expect(captive.energy).toBeGreaterThan(180);
+    expect(captive.energy).toBe(180);
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(false);
     expect(captive.needs).toBeUndefined();
     const visitor = person({ faction: 'rival', warCaptive: undefined, energy: 180, needs: undefined });
     expect(tryEatColonyMeal(visitor, state, 8)).toBe(false);

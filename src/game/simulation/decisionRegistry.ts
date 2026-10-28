@@ -102,9 +102,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts',
   },
   humanMeals: {
-    owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killForeignCaptiveFromExhaustion, killFromStarvation, fract, freeHuntFoodGain, humanEnergyLoss',
+    owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
     cadence: 'realtime',
-    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. humanEnergyLoss is DNA-free: its base, cold, home and hospital terms are unchanged and no trait multiplies captive energy. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives consume one daily ration without stamina or energy changes. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. Foreign captive metabolism and exhaustion deaths are retired: prisoners do not work or roam. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
     writes: [
       'resources.food',
       'economyLedger.consumed.meals',
