@@ -483,7 +483,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     building.completed && building.faction !== 'rival'
     && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
   );
-  const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick);
+  const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
   if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) return null;
   return {
     command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
@@ -714,7 +714,7 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
       && countWorkersAtBuilding(state.entities, building.id) === 0,
     );
     if (!producer) continue;
-    const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick);
+    const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
     if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
