@@ -12,8 +12,8 @@ import {
   snapToGrid,
   type Camera,
   type WorldState,
-  type WorldMap,
 } from '../game/gameEngine';
+import type { WorldMap } from '../game/gameTypes';
 import { screenToWorld, worldToScreen, type ViewState } from '../game/viewState';
 import { terrainRiseAt } from '../game/terrainAtlas';
 import { snapBuildingCenter } from '../game/buildingRotation';
