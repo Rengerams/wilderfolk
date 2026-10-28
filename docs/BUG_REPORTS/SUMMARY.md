@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight real-tick test fixture retained stale entity index](../bug_report/2026-10-28-spotlight-test-fixture-stale-entity-index.md):** Test-only defect on PR #91: a replaced settler population had the previous colony's ID/type cache, causing false scene abortion. Fixture now rebuilds indexes; CI confirmation pending.
+
 **2026-10-28 — [Spotlight halo and captions drift while paused camera eases](../bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md):** Fixed on PR #91 by tracking the live render camera on a scene-scoped animation frame, without extra simulation ticks or React frame commits; browser validation pending.
 
 **2026-10-28 — [Spotlight gathering overridden by home commute](../bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md):** Fixed on PR #91: selected performers retain gathering movement over ordinary weekend home, leisure and work commute. Real-tick regression added; CI/browser validation pending.
