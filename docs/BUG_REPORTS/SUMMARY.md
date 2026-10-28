@@ -12,6 +12,10 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Spotlight presentation jumps from actual actor to saved target](../bug_report/2026-10-28-spotlight-presentation-origin-snap.md):** Fixed on PR #91 branch by using the heroine's actual stage position for visual poses and farewell, avoiding a possible 11-world-unit snap. Browser verification pending.
+
+**2026-10-28 — [Spotlight intro repeats unchanged React caption updates](../bug_report/2026-10-28-spotlight-redundant-caption-update.md):** Fixed on PR #91 branch by normalizing null captions before change comparison. Browser/profiler verification pending.
+
 **2026-10-28 — [Spotlight React captions bypass canonical JSON](../bug_report/2026-10-28-spotlight-caption-source-duplicated.md):** Fixed in PR #91 source by one validated JSON script and heroine-aware scene adapter; targeted tests authored, CI/browser verification pending.
 
 **2026-10-28 — [Spotlight actor blocked by wall or water](../bug_report/2026-10-28-spotlight-gathering-obstacle-routing.md):** Fixed in PR #91 code: participants now follow the existing cached A* path steering around completed walls and water, with single-step real-tick regressions. CI/browser verification pending.
