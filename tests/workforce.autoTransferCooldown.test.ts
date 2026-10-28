@@ -92,6 +92,19 @@ describe('two-month automatic job stability', () => {
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
   });
 
+  it('does not claim a protected food crew is a transferable donor for autoplay', () => {
+    const farm = building(10, BuildingType.Farm, { occupants: [1, 2, 3] });
+    const empty = building(11, BuildingType.Greenhouse);
+    const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: farm.id }));
+    // Manual staffing can still request an eligible worker, but auto-staff cannot take
+    // one and then repeat the rejected transfer every in-game hour.
+    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100)?.id).toBe(farm.id);
+    expect(findOverstaffedDonorBuilding([farm, empty], workers, empty.id, 100, true)).toBeUndefined();
+    rebalanceJobWorkers(workers, [farm, empty], undefined, 100);
+    expect(farm.occupants).toHaveLength(3);
+    expect(empty.occupants).toHaveLength(0);
+  });
+
   it('does not move recently assigned workers, but allows transfers again after 60 days', () => {
     const farm = building(10, BuildingType.Farm, { occupants: [1, 2] });
     const quarry = building(11, BuildingType.Quarry, { occupants: [] });
