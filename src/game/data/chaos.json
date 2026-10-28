@@ -23,7 +23,9 @@
           "speaker": "npc_arsonist",
           "text": "I was just holding it near the stove for moral support."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "dt_ladder",
@@ -45,7 +47,9 @@
           "speaker": "npc_builder",
           "text": "I live there now. Send sandwiches."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "dt_cow",
@@ -67,7 +71,9 @@
           "speaker": "npc_puncher",
           "text": "The cow filed a complaint. HR is involved."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "dt_doorframe",
@@ -89,7 +95,9 @@
           "speaker": "npc_traumatized",
           "text": "Two other people tried to walk through at the same time. It was traumatic."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "dt_well",
@@ -111,7 +119,9 @@
           "speaker": "npc_fallen",
           "text": "The shame is worse than the injuries."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "wf_fear_run",
@@ -133,7 +143,9 @@
           "speaker": "settler",
           "text": "Don't look back!"
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "wf_fear_inside",
@@ -155,7 +167,9 @@
           "speaker": "settler",
           "text": "Too close!"
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "wf_fear_moon",
@@ -177,7 +191,9 @@
           "speaker": "settler",
           "text": "Don't look back!"
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "wf_affair_secret",
@@ -199,7 +215,9 @@
           "speaker": "lover_a",
           "text": "After dark…"
         }
-      ]
+      ],
+      "eventKey": "ambient.affair",
+      "mode": "pair"
     },
     {
       "id": "wf_affair_meet",
@@ -221,7 +239,9 @@
           "speaker": "lover_a",
           "text": "They'll never know."
         }
-      ]
+      ],
+      "eventKey": "ambient.affair",
+      "mode": "pair"
     },
     {
       "id": "wf_affair_kiss",
@@ -243,7 +263,9 @@
           "speaker": "lover_a",
           "text": "Our secret."
         }
-      ]
+      ],
+      "eventKey": "ambient.affair",
+      "mode": "pair"
     },
     {
       "id": "wf_chaos_goat_court",
@@ -277,7 +299,9 @@
           "speaker": "npc_goat_lawyer",
           "text": "The goat. It paid me in buttons and an alarming amount of eye contact."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     },
     {
       "id": "wf_funny_chaos_goat",
@@ -299,7 +323,9 @@
           "speaker": "shepherd",
           "text": "I tried. It watched me hide the key."
         }
-      ]
+      ],
+      "eventKey": "ambient.fear",
+      "mode": "pair"
     }
   ],
   "categories": [
