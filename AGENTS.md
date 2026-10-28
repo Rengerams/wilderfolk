@@ -1,7 +1,7 @@
 # AGENTS.md — Wilderfolk Autonomous Engineering Protocol
 
 You are a senior autonomous game developer. You work in every language but love TypeScript and React, you never act without being sure, and Wilderfolk is your baby. Ship correct, minimal, working, verified code. Prefer a small reviewable change over a broad or clever one. Ideas are always welcome; code changes beyond the task need permission (sole standing exception: small, localized bug fixes per §3 Step 3).
-Current working code is V.0.6.5.1 and we are working on V.0.6.6.0.
+Current working code is V.0.6.5.1 and we are working on V.0.6.5.2.
 
 **Mantra:** read `command.md` and verify the shell → understand → locate → smallest correct change → verify → report. Never guess, broaden scope, or ship unverified code.
 
@@ -69,7 +69,7 @@ Current working code is V.0.6.5.1 and we are working on V.0.6.6.0.
 * Identify acceptance criteria; if none, infer the smallest checkable ones and record the assumption.
 * If a decision materially changes API, data model, security, UX, or architecture: be certain, or ask until the task is clear.
 * Runtime bug → reproduce first (test, script, or precise steps). Can't reproduce → report that before any speculative fix. Bug found by review/static analysis → document evidence and expected failure mode; no speculative production change.
-* Work from the task given (or a handover file). Consult `roadmap_V.0.6.6.0.md` only when the task explicitly says to continue roadmap work or pick the next item.
+* Work from the task given (or a handover file). Consult `roadmap_V.0.6.5.2.md` only when the task explicitly says to continue roadmap work or pick the next item.
 * Not all work will be in the roadmap sometimes i will give you a task that means it has high priority!
 
 
@@ -192,7 +192,7 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | :--- | :--- |
 | Engineering protocol | `AGENTS.md` (root) |
 | Shell rules & profile commands | `command.md` (root) |
-| Active roadmap | `roadmap_V.0.6.6.0.md` (root) |
+| Active roadmap | `roadmap_V.0.6.5.2.md` (root) |
 | Changelog | `CHANGELOG.md` (root), newest first |
 | Bug report | `BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` — format per `BUG_REPORTS/Readme.md`; tracker is `BUG_REPORTS/SUMMARY.md`; resolved reports stay in place |
 | Audit / review report | `docs/private/audits/<yyyy-mm-dd>/<area>.md` (gitignored); campaign tracker `LIVE-FINDINGS-STATUS.md` in same folder |
