@@ -3,6 +3,7 @@
  * `WorldMap.decorations` (Teraforge's L3 layer), ported from Teraforge `render.ts`.
  */
 import type { TerrainDecoration, WorldMap } from '../gameTypes';
+import { terrainRiseAt } from '../terrainAtlas';
 import { clamp } from '../terrain/noise';
 
 /**
@@ -295,7 +296,9 @@ export function bakeDecorInRect(
         ctx.save();
         // Same shape as the live draw this replaces — translate to the prop, scale the canvas, draw
         // around the origin — so a scale of 1 bakes the art the frame used to draw directly.
-        ctx.translate((d.x - rect.x) * scale, (d.y - rect.y) * scale);
+        // Decorative props are vertical sprites, not flattened terrain decals: raise their
+        // roots rather than distorting their shapes with the ground mesh.
+        ctx.translate((d.x - rect.x) * scale, (d.y - rect.y - terrainRiseAt(map, d.x, d.y)) * scale);
         ctx.scale(scale, scale);
         drawProp(ctx, d, d.scale, d.variant, d.flipX);
         ctx.restore();
