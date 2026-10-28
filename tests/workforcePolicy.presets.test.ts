@@ -143,16 +143,16 @@ describe('workforce policy — manual assignment stays authoritative', () => {
 
   it('never donates a hand-placed worker during rebalance under any preset', () => {
     for (const preset of WORKFORCE_PRESETS) {
-      const farmCrew = [1, 2, 4, 5].map((id) =>
-        human(id, { workerBuildingId: 11, job: JobType.Farmer }),
+      const quarryCrew = [1, 2].map((id) =>
+        human(id, { workerBuildingId: 11, job: JobType.Miner }),
       );
       const manual = human(3, { workerBuildingId: 14, job: JobType.Merchant });
-      const farm = building(11, BuildingType.Farm, { occupants: [1, 2, 4, 5] });
+      const quarry = building(11, BuildingType.Quarry, { occupants: [1, 2] });
       // A single hand-placed worker in a manual-staffing Store — a rebalance donor must skip it.
       const store = building(14, BuildingType.Store, { occupants: [3], staffingMode: 'manual' });
       const empty = building(15, BuildingType.LumberMill);
 
-      rebalanceJobWorkers([...farmCrew, manual], [farm, store, empty], preset);
+      rebalanceJobWorkers([...quarryCrew, manual], [quarry, store, empty], preset);
 
       expect(store.occupants, `preset "${preset}" store`).toEqual([3]);
       expect(manual.workerBuildingId, `preset "${preset}" manual home`).toBe(14);
