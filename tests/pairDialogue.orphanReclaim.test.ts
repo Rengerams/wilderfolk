@@ -19,11 +19,10 @@ import type { Entity } from '../src/game/gameTypes';
 import {
   isDialogueBusy,
   resetDialogueSessions,
-  sayHumanChatPhrase,
   startDialogueTreeChat,
   tickHumanChat,
 } from '../src/game/humanChat';
-import { getDialogueTreeById } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, requestDialogue } from '../src/game/dialogueTrees';
 import { killHuman } from '../src/game/humanLifecycleCleanup';
 import { transformToWerewolfForm } from '../src/game/moonHowler';
 
@@ -113,7 +112,10 @@ describe('paired dialogue — idle half reclaim (F-chat-1)', () => {
     expect(isDialogueBusy(idle)).toBe(true);
 
     // Resolver supplied: no tick may be needed for the counterpart to be let go.
-    sayHumanChatPhrase(speaking, 'A forced line', 12, resolveSpeaking);
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker: speaking, tick: 90,
+      priority: 'scripted', resolvePartner: resolveSpeaking,
+    })).toBe(true);
 
     expect(speaking.chatTicks ?? 0).toBeGreaterThan(0);
     expect(speaking.chatDialogueSessionKey).toBeUndefined();
