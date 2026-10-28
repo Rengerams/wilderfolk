@@ -5,6 +5,8 @@ import { getAbsoluteCalendarDay, getCalendarDay, isWeekend, TICKS_PER_DAY, TICKS
 import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { gameTick } from '../src/game/gameTick';
+import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { initGame } from '../src/game/worldGen';
 import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
@@ -152,6 +154,12 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
       { name: `Audience${i}`, ageYears: 28 },
     ));
     world.entities = [girl, ...adults];
+    // initGame already populated its tick-persistent ID/type caches with the
+    // founder and wildlife entities. Replacing its entire population in a test
+    // must also rebuild the authoritative lookup, otherwise the real tick
+    // treats the new heroine as missing and aborts this otherwise valid scene.
+    rebuildEntityByIdMap(world);
+    invalidateCachedEntityByType(world);
     // 16:00 on a weekend; find a deterministic actor who prefers home.
     let member: Entity | undefined;
     for (let day = 96; day < 160; day++) {
