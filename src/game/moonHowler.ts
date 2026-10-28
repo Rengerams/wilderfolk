@@ -13,7 +13,7 @@ import {
   isFullMoonDay,
   isFullMoonNight,
   NIGHT_END,
-  NIGHT_START,
+  MOON_HOWLER_NIGHT_START,
 } from './daycycleconstants';
 import {
   assignMissingResidences,
@@ -156,7 +156,7 @@ export function shouldApplyNewMoonHowlerCurse(
   return (
     activeCursed === 0
     && humanCount > 5
-    && hourOfDay === NIGHT_START
+    && hourOfDay === MOON_HOWLER_NIGHT_START
     && isFullMoonNight(colonyDay, hourOfDay)
     && rng() < MOON_HOWLER_REPLACEMENT_CHANCE
   );
