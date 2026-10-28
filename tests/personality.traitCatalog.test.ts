@@ -25,6 +25,13 @@ describe('personality trait effect catalog', () => {
         expect(influence.reasons).toEqual([{ trait, effectId: effect.effectId, direction }]);
         expect(influence.factor).toBeGreaterThanOrEqual(0.85);
         expect(influence.factor).toBeLessThanOrEqual(1.15);
+        if (direction === 'benefit') {
+          expect(influence.factor, effect.effectId).toBeGreaterThan(1);
+          expect(influence.tendency, effect.effectId).toBeGreaterThan(0);
+        } else {
+          expect(influence.factor, effect.effectId).toBeLessThan(1);
+          expect(influence.tendency, effect.effectId).toBeLessThan(0);
+        }
       }
     }
     expect(ids.size).toBe(28);

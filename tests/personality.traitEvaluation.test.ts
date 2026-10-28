@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SettlerTrait } from '../src/game/gameTypes';
-import { getSimRng, snapshotSimRng } from '../src/game/simRng';
+import { snapshotSimRng } from '../src/game/simRng';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
 describe('pure personality influence evaluation', () => {
@@ -16,6 +16,11 @@ describe('pure personality influence evaluation', () => {
     expect(evaluateTraitInfluence({ traits: ['toString'] as unknown as SettlerTrait[] }, defense))
       .toEqual({ factor: 1, tendency: 0 });
     expect(evaluateTraitInfluence({ traits: ['fierce'] }, defense)).not.toHaveProperty('reasons');
+    const unsafe = { toString(): never { throw new Error('invalid DNA must not be coerced'); } };
+    const withMalformedElement = { traits: [unsafe, 'fierce', null] as unknown as SettlerTrait[] };
+    expect(evaluateTraitInfluence(withMalformedElement, defense)).toEqual(
+      evaluateTraitInfluence({ traits: ['fierce'] }, defense),
+    );
   });
 
   it('does not multiply duplicate traits or process beyond the canonical three slots', () => {
@@ -43,6 +48,21 @@ describe('pure personality influence evaluation', () => {
     }
   });
 
+  it('handles three-trait trade-offs without amplifying opposite modifiers', () => {
+    const context = { kind: 'civic', activity: 'negotiation' } as const;
+    const group = { traits: ['lucky', 'chivalrous', 'intuitive'] as const };
+    const result = evaluateTraitInfluence(group, context);
+    expect(Number.isFinite(result.factor)).toBe(true);
+    expect(result.factor).toBeGreaterThanOrEqual(0.85);
+    expect(result.factor).toBeLessThan(1);
+    expect(result.tendency).toBeLessThan(0);
+    expect(result).toEqual(evaluateTraitInfluence({ traits: ['intuitive', 'lucky', 'chivalrous'] }, context));
+
+    const mixed = evaluateTraitInfluence({ traits: ['hardy', 'graceful'] }, { kind: 'physiology', activity: 'labor' });
+    expect(mixed.factor).toBeGreaterThan(0.85);
+    expect(mixed.factor).toBeLessThan(1.15);
+  });
+
   it('leaves nested subject and context untouched and freezes opt-in explanations', () => {
     const traits = Object.freeze(['chivalrous', 'fierce'] as const);
     const subject = Object.freeze({ traits });
@@ -59,7 +79,6 @@ describe('pure personality influence evaluation', () => {
   });
 
   it('never reads, creates or advances a simulation RNG stream', () => {
-    getSimRng('traitEvaluation.test')();
     const snapshot = snapshotSimRng();
     evaluateTraitInfluence({ traits: ['lucky', 'brave', 'greenthumb'] }, { kind: 'danger', activity: 'hunting' });
     evaluateTraitInfluence({ traits: ['fierce'] }, defense, { includeReasons: true });
