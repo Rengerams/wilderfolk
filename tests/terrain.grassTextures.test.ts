@@ -32,7 +32,7 @@ const textures: GroundGrassTextures = [
   texture(35, 65, 28, 2),
 ];
 
-const sample = (x: number, y: number, moisture: number, preset = MapPreset.Meadows) => {
+const sample = (x: number, y: number, moisture: number, preset: MapPreset = MapPreset.Meadows) => {
   const out: [number, number, number] = [0, 0, 0];
   grassDetailAt(textures, x, y, moisture, 0.56, 0.78, preset, out);
   return out;
