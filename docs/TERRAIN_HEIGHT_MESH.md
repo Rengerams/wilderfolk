@@ -33,7 +33,7 @@ stacks on the relief material / vegetation grounding pass (PR #76).
 ## Pointer and accessibility
 
 - `unprojectTerrainY()` solves `projectedY = worldY - terrainRiseAt(map,worldX,worldY)`
-  by contraction iteration; it corrects build ghosts, clicks and selection.
+  by bounded bisection; it corrects build ghosts, clicks and selection.
 - Keyboard cursor events and the DOM cursor marker use the same terrain height.
 - Plain camera panning, viewport chunk planning and world simulation retain the
   existing XY coordinate system. The camera itself has **not** been rotated or
