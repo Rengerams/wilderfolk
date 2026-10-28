@@ -3,7 +3,9 @@ import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_POSE_MS, SPOTLIGHT_STEPS, SPOTLIGHT_TOTAL_MS,
   SPOTLIGHT_FIRST_CHORUS_START, SPOTLIGHT_FIRST_CHORUS_END, SPOTLIGHT_BRIDGE_START,
   SPOTLIGHT_FAREWELL_START, SPOTLIGHT_APPLAUSE_START, spotlightFrameAt,
-  spotlightPoseOffset, SPOTLIGHT_PRESENTATION,
+  spotlightPoseOffset, SPOTLIGHT_PRESENTATION, SPOTLIGHT_INTRO_MS,
+  SPOTLIGHT_CAMERA_FOCUS_MS, SPOTLIGHT_MUSIC_CUE_MS,
+  SPOTLIGHT_LIGHT_CUE_MS, SPOTLIGHT_REVEAL_START_MS, spotlightOpeningFrame,
 } from '../src/components/spotlightChoreography';
 import {
   spotlightFarewellPosition, spotlightFarewellDestination, spotlightSafePoseRadius,
@@ -41,6 +43,23 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
       Array.from({ length: 6 }, (_, i) => 12 + i))).toThrow();
     expect(Object.isFrozen(bindNumberedPresentationSpeakers(SPOTLIGHT_PRESENTATION,
       Array.from({ length: 6 }, (_, i) => 12 + i), 6))).toBe(true);
+  });
+
+  it('starts black, moves camera invisibly, lights heroine, starts music and reveals before speech', () => {
+    expect(SPOTLIGHT_INTRO_MS).toBe(4800);
+    expect(SPOTLIGHT_CAMERA_FOCUS_MS).toBeLessThan(SPOTLIGHT_LIGHT_CUE_MS);
+    expect(SPOTLIGHT_LIGHT_CUE_MS).toBeLessThan(SPOTLIGHT_MUSIC_CUE_MS);
+    expect(SPOTLIGHT_MUSIC_CUE_MS).toBeLessThan(SPOTLIGHT_REVEAL_START_MS);
+    expect(spotlightOpeningFrame(0)).toEqual({
+      blackoutOpacity: 1, spotlightVisible: false, cameraShouldFocus: false, musicShouldStart: false,
+    });
+    expect(spotlightOpeningFrame(SPOTLIGHT_CAMERA_FOCUS_MS).cameraShouldFocus).toBe(true);
+    expect(spotlightOpeningFrame(SPOTLIGHT_LIGHT_CUE_MS).spotlightVisible).toBe(true);
+    expect(spotlightOpeningFrame(SPOTLIGHT_MUSIC_CUE_MS).musicShouldStart).toBe(true);
+    expect(spotlightOpeningFrame(SPOTLIGHT_REVEAL_START_MS).blackoutOpacity).toBe(1);
+    expect(spotlightOpeningFrame(SPOTLIGHT_INTRO_MS).blackoutOpacity).toBe(0);
+    expect(spotlightFrameAt(SPOTLIGHT_INTRO_MS - 1).kind).toBe('intro');
+    expect(spotlightFrameAt(SPOTLIGHT_INTRO_MS).kind).toBe('caption');
   });
 
   it('holds two complete 7000ms solos and resumes the next caption only after the hold ends', () => {
