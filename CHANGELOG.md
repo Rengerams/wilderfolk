@@ -4,8 +4,9 @@
 
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
-- **Dialogue checks:** Added source ownership and schema integrity guards; 43 focused regressions and test typecheck passed on PR #93. Standard suite and release build remain pending.
+- **Dialogue checks:** Added event-key bank, session, domain, worker/save, election-archive and p50/p95 tests; focused dialogue/type/build gates passed. Final standard-suite acceptance remains pending.
 - **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
+- **Dialogue cleanup:** Removed the obsolete category-wide picker and its allocation-heavy category index; preserved ten conflicting historic election captions outside the active bank.
 - **Fixed:** Migrated scripted speech now keeps its original effective tick duration using the current simulation clock; added regression coverage for 12 care, lodging, hunting, civic and omen captions.
 - **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
 
