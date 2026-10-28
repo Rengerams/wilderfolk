@@ -6,7 +6,8 @@ import { BuildingType, JobType } from './gameTypes';
 import { personDayRoll, PRODUCTION_INTERVAL, TICKS_PER_DAY } from './dayCycle';
 import { addFloatingText } from './simEffects';
 import { addReputation } from './simHelpers';
-import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
@@ -210,14 +211,7 @@ export function treatPatientAtHospital(
     );
   }
   if (!isDialogueBusy(patient) && personDayRoll(patient.id, state.tick, 904) < 0.2) {
-    const lineRoll = personDayRoll(patient.id, state.tick, 905);
-    sayHumanChatPhrase(
-      patient,
-      patient.pregnant
-        ? (lineRoll < 0.5 ? 'The child is well…' : 'Thank you, doctor.')
-        : (lineRoll < 0.5 ? 'I feel better.' : 'Medicine helps.'),
-      48,
-    );
+    requestDialogue({ eventKey: patient.pregnant ? 'hospital.patient.pregnant' : 'hospital.patient.other', speaker: patient, tick: state.tick, durationHours: 16 / 3 });
   }
   return true;
 }
@@ -250,11 +244,7 @@ export function doctorTreatNearby(
 
   const ok = treatPatientAtHospital(state, best, hospital, { doctorPresent: true });
   if (ok && !isDialogueBusy(doctor) && personDayRoll(doctor.id, state.tick, 906) < 0.3) {
-    sayHumanChatPhrase(
-      doctor,
-      personDayRoll(doctor.id, state.tick, 907) < 0.5 ? 'Rest and drink water.' : 'You will mend.',
-      44,
-    );
+    requestDialogue({ eventKey: 'hospital.doctor', speaker: doctor, tick: state.tick, durationHours: 44 / 9 });
   }
   return ok;
 }
