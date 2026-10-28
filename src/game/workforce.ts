@@ -781,12 +781,27 @@ export function assignMissingWorkers(
   worldSlices?: Pick<
     WorldState,
     'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
-  > & Partial<Pick<WorldState, 'tick'>>,
+  > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
 ): void {
   const prepStart = profileStart();
   const alive = prepareWorkforce(humans, buildings);
   profileEnd('workforce.prepare', prepStart);
   const policy = getWorkforcePolicy(worldSlices ?? {});
+  // Reserve one idle producer when a core material is exhausted, before builders
+  // consume every free hand. Existing jobs and manual staffing are untouched.
+  if (worldSlices?.resources) {
+    for (const [resource, type] of [
+      ['wood', BuildingType.LumberMill],
+      ['stone', BuildingType.Quarry],
+    ] as const) {
+      if (worldSlices.resources[resource] > 0) continue;
+      const producer = buildings.find((site) =>
+        site.completed && site.faction !== 'rival' && site.type === type
+        && !isManualStaffingBuilding(site) && countWorkersAtBuilding(alive, site.id) === 0,
+      );
+      if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices);
+    }
+  }
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   profileEnd('workforce.construction', constructionStart);

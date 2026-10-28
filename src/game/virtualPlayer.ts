@@ -170,11 +170,15 @@ function hasFoodMargin(state: WorldState, days: number): boolean {
   return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
 }
 
-/** Sustained shortage according to the economy's own completed-day records. */
+/** Persist the measured monthly deficit across a briefly positive food-supply week. */
 function isMeasuredFoodDeficit(state: WorldState): boolean {
-  const flow = getRecentFoodFlow(state);
-  return flow != null && flow.consumedPerDay > 0
-    && flow.netPerDay < -flow.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO;
+  const recent = getRecentFoodFlow(state);
+  if (recent == null) return false;
+  if (recent.consumedPerDay > 0
+    && recent.netPerDay < -recent.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO) return true;
+  const month = getRecentFoodFlow(state, 30);
+  return month != null && month.days >= 14 && month.consumedPerDay > 0
+    && month.netPerDay < -month.consumedPerDay * VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO;
 }
 
 /** Spare assignable beds the village keeps ahead of need (`VirtualPlayer.SPARE_BED_*`). */
@@ -544,6 +548,11 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // The Mill is a passive boost to *all* food producers. Its tech, materials
   // and placement still go through the respective game owners.
   if (measuredDeficit && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
+    && isBuildingTechUnlocked(
+      BUILDING_CONFIGS[BuildingType.Mill].unlockRequirement!,
+      state.unlockedTechs,
+      state.researchNodes,
+    )
     && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Mill].cost)) {
     const spot = findPlacementSpot(state, BuildingType.Mill, 0);
     if (spot) {
@@ -568,17 +577,29 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  if (!shortOnFood && hasFoodProducer(state) && !wantMore) return null;
+  if (!shortOnFood && !measuredDeficit && hasFoodProducer(state) && !wantMore) return null;
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   if (unstaffedFoodProducer) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
-  // Advanced agriculture offers a better-performing alternative to yet another
-  // Farm, when the player has actually unlocked the Greenhouse.
-  const foodCandidates = measuredDeficit && built > 0
-    ? [BuildingType.Greenhouse, ...FOOD_PRODUCER_TYPES.filter((type) => type !== BuildingType.Greenhouse)]
+  // Diversify deficits into available food sites, gated by research, water and safe prey.
+  // Farms remain the fallback; no fictitious food or wildlife is created.
+  const diversify = measuredDeficit && built > 0;
+  const healthyWildlife = getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD;
+  const foodCandidates: readonly BuildingType[] = diversify
+    ? [
+      BuildingType.Greenhouse,
+      ...(completedProducerCount(state, BuildingType.FishingSpot) === 0 ? [BuildingType.FishingSpot] : []),
+      ...(healthyWildlife && completedProducerCount(state, BuildingType.HuntingSpot) === 0
+        ? [BuildingType.HuntingSpot] : []),
+      BuildingType.Farm,
+      BuildingType.FishingSpot,
+      ...(healthyWildlife ? [BuildingType.HuntingSpot] : []),
+    ]
     : FOOD_PRODUCER_TYPES;
   for (const type of foodCandidates) {
-    if (!shortOnFood && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
+    const requirement = BUILDING_CONFIGS[type].unlockRequirement;
+    if (requirement && !isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) continue;
+    if (!shortOnFood && !measuredDeficit && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
     if (!spot) continue;

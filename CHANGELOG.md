@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Resource-worker recovery (#72):** When stone or wood reaches zero, assign one idle worker to an unmanned Quarry or Lumber Mill before filling new construction crews. Keep manual staffing and existing jobs intact.
+
+- **CI workforce and terrain (PR #72):** Align food and Quarry staffing tests with real Farm capacity; use industrial surplus for Quarry recovery and preserve snow colours on mountain crests.
+
 - **Terrain browser review (28 October 2026):** Hide the map grid by default; reduce excessive bright rock art without altering path obstacles; require clear five-preset browser screenshots before visual approval.
 
 - **CC0 soil and leaf litter (28 October 2026):** Added four verified Cethiel dirt textures. Version 4 blends fine soil, coarse dirt and leaf litter; the rut texture is reserved for authored paths. Legacy maps retain their existing materials.
@@ -47,6 +51,9 @@
 
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
 - **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
+- **Fixed (#72, 28 October 2026):** Food-deficit autopilot holds spare housing, upgrades Farms and uses researched or available producers. Silos require nearly full food storage. Fishing jobs gain priority; the colony check covers 150 days.
+- **Fixed (#72 and #81):** Extra Silos trigger at 90% food storage, not a shortage. Only one Silo may be under construction; food-first staffing stays intact.
+- **Fixed (#72):** Measured food shortages retain the rolling month-long deficit across a brief surplus week, avoiding premature recruitment and paused food expansion; regression coverage pins the decision.
 
 
 - **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.

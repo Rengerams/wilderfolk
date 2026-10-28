@@ -33,6 +33,7 @@ import {
   DEFAULT_WORKFORCE_POLICY,
   getWorkforcePolicy,
   normalizeWorkforcePolicy,
+  jobBuildingPriorityForPolicy,
   setWorkforcePolicy,
   WORKFORCE_PRESETS,
   type WorkforcePreset,
@@ -99,6 +100,23 @@ describe('workforce policy — assignment order', () => {
       );
       expect(settler.workerBuildingId, `preset "${preset}" home assignment`).toBe(receiver?.id);
     }
+  });
+
+  it('prioritises a Fishing Spot over non-food industry in the survival preset', () => {
+    expect(jobBuildingPriorityForPolicy('survival', BuildingType.FishingSpot))
+      .toBeLessThan(jobBuildingPriorityForPolicy('survival', BuildingType.LumberMill));
+    for (const preset of WORKFORCE_PRESETS) {
+      // Fishing is a genuine staffed food workplace, not an unranked fallback.
+      expect(jobBuildingPriorityForPolicy(preset, BuildingType.FishingSpot))
+        .toBeLessThan(Number.MAX_SAFE_INTEGER);
+    }
+
+    const fish = building(21, BuildingType.FishingSpot);
+    const lumber = building(22, BuildingType.LumberMill);
+    const settler = human(1);
+    assignMissingWorkers([settler], [lumber, fish], policySlices('survival'));
+    expect(settler.workerBuildingId).toBe(fish.id);
+    expect(fish.occupants).toContain(settler.id);
   });
 
   it('changes the assignment when only the preset changes', () => {
