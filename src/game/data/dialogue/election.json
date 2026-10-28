@@ -1,12 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.3",
   "category": "existential",
   "dialogue_trees": [
     {
       "id": "evt_election_buildup_0",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -15,13 +14,13 @@
           "speaker": "speaker",
           "text": "Election next year — will {leader} keep the crown?"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_buildup_1",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -30,13 +29,13 @@
           "speaker": "speaker",
           "text": "I hear {candidateA} is gaining support…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_buildup_2",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -45,13 +44,13 @@
           "speaker": "speaker",
           "text": "{candidateB} served well — worth watching."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_buildup_3",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -60,13 +59,13 @@
           "speaker": "speaker",
           "text": "The village buzzes about {leader}, {candidateA}, and {candidateB}."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_buildup_4",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -75,13 +74,13 @@
           "speaker": "speaker",
           "text": "Who will lead us after {leader}?"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_buildup_5",
       "category": "existential",
       "eventKey": "election.buildup",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -90,13 +89,13 @@
           "speaker": "speaker",
           "text": "{candidateC} might surprise us next election."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_0",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -105,13 +104,13 @@
           "speaker": "speaker",
           "text": "Who will it be — {leader} or {candidateA}?"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_1",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -120,13 +119,13 @@
           "speaker": "speaker",
           "text": "{candidateA} has the merit, I think."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_2",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -135,13 +134,13 @@
           "speaker": "speaker",
           "text": "The Hall favors {candidateB}…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_3",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -150,13 +149,13 @@
           "speaker": "speaker",
           "text": "Time for a fresh village head?"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_4",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -165,13 +164,13 @@
           "speaker": "speaker",
           "text": "I’m voting {candidateA} in my heart."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_ceremony_5",
       "category": "existential",
       "eventKey": "election.ceremony",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -180,13 +179,13 @@
           "speaker": "speaker",
           "text": "{candidateB} deserves a chance."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_tension_0",
       "category": "existential",
       "eventKey": "election.tension",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -195,13 +194,13 @@
           "speaker": "speaker",
           "text": "Quiet… they’re about to announce…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_tension_1",
       "category": "existential",
       "eventKey": "election.tension",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -210,13 +209,13 @@
           "speaker": "speaker",
           "text": "My heart is pounding…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_tension_2",
       "category": "existential",
       "eventKey": "election.tension",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -225,13 +224,13 @@
           "speaker": "speaker",
           "text": "Who did the merit favor?"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_tension_3",
       "category": "existential",
       "eventKey": "election.tension",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -240,13 +239,13 @@
           "speaker": "speaker",
           "text": "Shh — here comes the result…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_election_winner_0",
       "category": "existential",
       "eventKey": "election.winner",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -255,7 +254,12 @@
           "speaker": "speaker",
           "text": "I will serve the village!"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "existential"
   ]
 }
