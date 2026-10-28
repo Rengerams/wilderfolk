@@ -59,6 +59,7 @@ function verifyAuditLog(report, path, side) {
   assert(sameCounts(countBy(bot, 'op'), report.botByOperation),
     side + ': VirtualPlayer command totals disagree with audit log');
   const uniqueDays = new Set();
+  const accumulatedByJob = {};
   for (const [index, snapshot] of report.daySnapshots.entries()) {
     assert(snapshot.day === index + 1 && snapshot.invariantErrors === 0,
       side + ': missing or invalid day ' + (index + 1));
@@ -70,14 +71,19 @@ function verifyAuditLog(report, path, side) {
       side + ': invalid daily performance sample');
     assert(sum(Object.values(snapshot.newCreditsByJob)) === snapshot.newCreditsToday,
       side + ': daily career totals do not add up');
-    assert(sameCounts(snapshot.creditedByJob, index + 1 === days ? report.careerByJob : snapshot.creditedByJob),
-      side + ': missing career attribution for final day');
+    for (const [job, count] of Object.entries(snapshot.newCreditsByJob)) {
+      accumulatedByJob[job] = (accumulatedByJob[job] ?? 0) + count;
+    }
+    assert(sameCounts(snapshot.creditedByJob, accumulatedByJob),
+      side + ': cumulative professional history does not match daily increments');
     assert(daily[index].day === snapshot.day &&
       daily[index].creditedDays === snapshot.creditedDays &&
       daily[index].newCreditsToday === snapshot.newCreditsToday,
       side + ': daily JSONL does not match structured report');
     uniqueDays.add(snapshot.day);
   }
+  assert(sameCounts(accumulatedByJob, report.careerByJob),
+    side + ': day-by-day career counts differ from the final history');
   assert(uniqueDays.size === days &&
     sum(report.daySnapshots.map(d => d.newCreditsToday)) === report.careerEventCount &&
     report.daySnapshots.at(-1).creditedDays === report.careerEventCount,
