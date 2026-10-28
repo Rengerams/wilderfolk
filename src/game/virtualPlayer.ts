@@ -584,11 +584,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
   if (unstaffedFoodProducer) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
-  // In a prolonged deficit, exploit different sustainable food sources instead
-  // of building only Farms: greenhouses where research permits, river fishing
-  // where the placement owner finds water, and one Hunting Spot only when there
-  // is safe reachable prey and the ecosystem is healthy. Farm remains the
-  // reliable fallback; no invented fish/wildlife supplies are created.
+  // Diversify deficits into available food sites, gated by research, water and safe prey.
+  // Farms remain the fallback; no fictitious food or wildlife is created.
   const diversify = measuredDeficit && built > 0;
   const healthyWildlife = getEcosystemHealth(state) >= VirtualPlayer.ECOLOGY_HEALTHY_THRESHOLD;
   const foodCandidates: readonly BuildingType[] = diversify
