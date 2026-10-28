@@ -3,6 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Added:** Read-only personality influence evaluation for all fourteen inherited traits, with situational benefits, drawbacks, bounded stacking and optional explanations. Existing gameplay and saves remain unchanged.
+- **Fixed:** Canonical trait evaluation order prevents last-bit floating-point differences when the same inherited traits appear in different DNA slots.
 
 - **Fixed:** Version-4 rivers now inherit flow-aligned highlights and localized waterfall rapids from v3, without changing saved maps, water collisions or chunk caching.
 

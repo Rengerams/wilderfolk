@@ -54,10 +54,31 @@ export function evaluateTraitInfluence(
   let negativeTendency = 0;
   const reasons: TraitReason[] | undefined = explain ? [] : undefined;
 
+  // Canonical order makes floating-point accumulation independent of DNA slot order.
+  let first: unknown = traits[0];
+  let second: unknown = traits[1];
+  let third: unknown = traits[2];
+  if (typeof second === 'string' && (typeof first !== 'string' || second < first)) {
+    const previous = first;
+    first = second;
+    second = previous;
+  }
+  if (typeof third === 'string' && (typeof first !== 'string' || third < first)) {
+    const previous = first;
+    first = third;
+    third = previous;
+  }
+  if (typeof third === 'string' && (typeof second !== 'string' || third < second)) {
+    const previous = second;
+    second = third;
+    third = previous;
+  }
+
   for (let i = 0; i < traits.length && i < MAX_TRAITS; i++) {
-    const trait = traits[i] as SettlerTrait;
-    if ((i > 0 && traits[0] === trait) || (i > 1 && traits[1] === trait)) continue;
-    if (typeof trait !== 'string' || !Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, trait)) continue;
+    const candidate = i === 0 ? first : i === 1 ? second : third;
+    if (typeof candidate !== 'string' || !Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, candidate)) continue;
+    if ((i > 0 && first === candidate) || (i > 1 && second === candidate)) continue;
+    const trait = candidate as SettlerTrait;
 
     const effects = TRAIT_EFFECTS[trait];
     for (let j = 0; j < 2; j++) {

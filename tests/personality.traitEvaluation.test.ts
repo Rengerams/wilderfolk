@@ -56,7 +56,19 @@ describe('pure personality influence evaluation', () => {
     expect(result.factor).toBeGreaterThanOrEqual(0.85);
     expect(result.factor).toBeLessThan(1);
     expect(result.tendency).toBeLessThan(0);
-    expect(result).toEqual(evaluateTraitInfluence({ traits: ['fierce', 'stoic', 'chivalrous'] }, context));
+    const permutations = [
+      ['stoic', 'fierce', 'chivalrous'],
+      ['fierce', 'stoic', 'chivalrous'],
+      ['fierce', 'chivalrous', 'stoic'],
+      ['chivalrous', 'fierce', 'stoic'],
+      ['chivalrous', 'stoic', 'fierce'],
+    ] as const;
+    for (const traits of permutations) {
+      expect(evaluateTraitInfluence({ traits }, context)).toEqual(result);
+      expect(evaluateTraitInfluence({ traits }, context, { includeReasons: true })).toEqual(
+        evaluateTraitInfluence(group, context, { includeReasons: true }),
+      );
+    }
 
     const mixed = evaluateTraitInfluence({ traits: ['hardy', 'graceful'] }, { kind: 'physiology', activity: 'labor' });
     expect(mixed.factor).toBeGreaterThan(0.85);
