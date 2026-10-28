@@ -21,6 +21,7 @@ export const TRACKS = {
   growlAlt: audioUrl('audio/ambient/animals/growl-1.wav'),
   beastVoice: audioUrl('audio/ambient/animals/voice.wav'),
   beastVoiceAlt: audioUrl('audio/ambient/animals/voice-1.wav'),
+  spotlightApplause: audioUrl('audio/sfx/spotlight-applause.ogg'),
 } as const;
 
 export const TRACK_VOLUMES = {
@@ -33,6 +34,7 @@ export const TRACK_VOLUMES = {
   wolfHowl: 0.28,
   growl: 0.2,
   beastVoice: 0.18,
+  spotlightApplause: 0.42,
 } as const;
 
 export const ALL_TRACK_URLS = Object.values(TRACKS);
