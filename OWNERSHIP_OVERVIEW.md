@@ -524,3 +524,9 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Game: weatherVisualPreferences.ts | `src/game/weatherVisualPreferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Application: main.tsx | `src/main.tsx` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Test support: setup.ts | `src/test/setup.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
+
+## PR #72 — food-deficit test fixture ownership (28 October 2026)
+
+| Sole owning file | Named helper | Responsibility |
+|---|---|---|
+| `tests/virtualPlayerHealthVerdict.test.ts` | `deficitVillage` | Local regression fixture for measured food deficits; sets up a colony with fully upgraded staffed farms and controlled food-flow history for Mill, Silo, Greenhouse, Hunting Spot, Farm and spare-housing decision tests. This is test-only setup, not a production decision owner. |
