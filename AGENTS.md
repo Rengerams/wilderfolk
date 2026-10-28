@@ -57,6 +57,7 @@ Current working code is V.0.6.5.1. The next development target version we are wo
 * **Do not thrash.** Same check fails twice without progress → stop, capture the error, explain what was tried, report the blocker or ask one focused question.
 * **One owner per function, always.** Before touching or creating a function, look it up in `OWNERSHIP_OVERVIEW.md`; if it is missing, add it with its owner. Never give a function a second owner (§3 Step 3, §5.9).
 * **Both registries, every implementation PR.** Inspect and update `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in the same change. Register the real owner, entrypoint, cadence, caller, allowed writes and tests; pure read-only calculations get `writes: []`. No second owner or fabricated tick.
+* **One canonical combat history.** Raid dispatch, fighting, casualties, surrender, fate decisions and outcomes belong in `WorldState.eventLog` via `eventLog.logEvent`, with accurate combat metadata. Dedicated battle reports summarize that record but never replace it.
 * **Log every change in `CHANGELOG.md` (§8).**
 * **Comments: max 2 lines.** A comment is a label (what/contract/constraint), never a story. Anything longer — the why, the history, the alternatives — goes in `CHANGELOG.md` (§5.8).
 * **Think twice, don't be lazy.** If you find something broken, don't say "not mine" — fix it (if small) or report it. Be creative, but ask before anything big.
