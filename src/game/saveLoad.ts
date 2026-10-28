@@ -54,6 +54,7 @@ import { enrichTradeRoute, scheduleTradeRouteDeparture } from './tradeCaravans';
 import { clearAllFactionWanderStates } from './factionWander';
 import { rebuildBeautyGridFromWorld } from './beautyGrid';
 import { validateVillageLeaderOnLoad } from './villageLeadership';
+import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
@@ -1688,6 +1689,7 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     world.electionBuildupNotifiedYear = (parsed.electionBuildupNotifiedYear as number | null | undefined) ?? null;
     world.electionCeremony = (parsed.electionCeremony as WorldState['electionCeremony']) ?? null;
     validateVillageLeaderOnLoad(world);
+    normalizeSpotlightLoreOnLoad(world);
     ensureValleyEcologyOnLoad(world);
     migrateVillageForgeOnLoad(world);
     repairJuvenileAssignmentsOnLoad(world);
