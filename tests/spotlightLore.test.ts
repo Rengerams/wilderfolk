@@ -13,6 +13,7 @@ import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
   normalizeSpotlightLoreOnLoad, tickSpotlightGathering,
 } from '../src/game/spotlightLore';
+import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { createFallbackSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
@@ -311,6 +312,26 @@ describe('spotlight lore — established affairs must not steal movement', () =>
 });
 
 describe('spotlight lore — saved state and worker mirrors', () => {
+  it('finishes a paused ready scene through the typed worker command exactly once', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    world.spotlightLore = readyScene(world, girl, adults);
+    world.paused = true;
+    const sceneId = world.spotlightLore.id;
+    const eventCount = world.eventLog.length;
+    const resourceBefore = structuredClone(world.resources);
+
+    expect(applyWorkerCommand(world, { proto: 1, op: 'finishSpotlightLore', sceneId: 'previous-scene', reason: 'complete' }).spotlightLore?.id).toBe(sceneId);
+    expect(world.eventLog).toHaveLength(eventCount);
+    applyWorkerCommand(world, { proto: 1, op: 'finishSpotlightLore', sceneId, reason: 'complete' });
+    expect(world.spotlightLore).toBeNull();
+    expect(world.eventLog).toHaveLength(eventCount + 1);
+    applyWorkerCommand(world, { proto: 1, op: 'finishSpotlightLore', sceneId, reason: 'complete' });
+    expect(world.eventLog).toHaveLength(eventCount + 1);
+    expect(world.paused).toBe(true); // React owns restoration, not the worker command.
+    expect(world.resources).toEqual(resourceBefore);
+  });
+
   it('preserves compact active state in a worker delta, without sharing mutable slots', () => {
     const { world, girl, adults } = makeFixture();
     world.tick = TICKS_PER_DAY * 120;
