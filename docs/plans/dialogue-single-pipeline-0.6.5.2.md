@@ -1,9 +1,14 @@
 # Wilderfolk — Dialogue single-pipeline architecture (0.6.5.2)
 
-**Status:** DESIGN / NOT IMPLEMENTED. **Snapshot reviewed:** main, 28 October 2026. **Target:** 0.6.5.2 (current application: 0.6.5.1).  
+**Status:** IMPLEMENTED ON PR #93 BRANCH (phases A–D); final standard CI and merge acceptance pending. **Baseline reviewed:** main, 28 October 2026. **Target:** 0.6.5.2.  
 **Companion execution plan:** [Dialogue codebot tasks](dialogue-codebot-tasks-0.6.5.2.md).  
 **Template:** [CODEBOT_FEATURE_TEMPLATE](CODEBOT_FEATURE_TEMPLATE.md). **Comparable precedent:** [DNA/personality/career architecture](personality-career-single-pipeline-0.6.5.2.md) and its coding-agent tasks.  
-**Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`. This is an implementation design, not a claim of completed migration.
+**Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`. The architecture is implemented on PR #93; release completion requires final checks and merge, and PR #91 overlay integration remains a separate follow-up.
+
+
+**PR #93 implementation evidence (28 October 2026):** Canonical JSON bank, exact eventKey+mode request gateway, one humanChat session writer, migrated domain triggers, shared worker bank and old-save reclaim logic are present. The unused category-wide `pickDialogueTree` selector was removed. Regression suites now include bank integrity, session modes, domain routing, real save/load recovery, legacy Elections quarantine and an indexed lookup p50/p95 microbenchmark. These are implementation facts, not a claim of final CI or historic before/after performance parity.
+
+**Intentional content exception:** All ten `Elections.json` IDs already exist in `needs.json`, but all ten authorings differ in lines or speaker metadata. The historical file remains unimported and intact; explicit source tests and a source guard enforce this quarantine. Deleting or silently remapping it would lose content or change live dialogue probabilities.
 
 ## 0. Contract, problem, scope
 
@@ -16,7 +21,7 @@
 | Event trigger owners | Remain in their existing domain files; dialogue never decides whether an election, marriage, illness, hospital treatment or hunt occurs. |
 | Persistence | No new persisted fields proposed. Existing `Entity.chatPhrase`, `chatTicks`, `chatPartnerId` and `chatDialogueSessionKey` and their current transport/reset semantics must be audited and retained or migrated in the same PR as a change. |
 | Non-goals | Rewrite event decisions, alter event probabilities, add gameplay rewards, add generic event managers, persist conversation histories, alter Chronicle logging, implement language generation/LLMs or invent new game events. |
-| Delivery | Four small, ordered implementation PRs A→B→C→D, each an atomic cutover for its migrated call sites. |
+| Delivery | Phases A→B→C→D are implemented together in PR #93 rather than four merges; final acceptance still requires an integrated, passing standard suite. |
 
 **Problem.** JSON dialogue trees exist but are only one of several paths producing speech bubbles. TypeScript files also embed literal speech, choose text locally, or write chat fields directly. Existing broad categories mix unrelated events, and three authored event files are not part of the loaded bank. That creates duplicated text ownership, role mismatch, context drift, and inconsistent session interruption/duration. The goal is *one authoritative speech-request entrypoint*, not a second event simulator.
 
@@ -303,14 +308,14 @@ The codebot must follow `docs/plans/dialogue-codebot-tasks-0.6.5.2.md` for exact
 
 ## PR #91 compatibility — JSON-authored group captions (schema v1.3)
 
-PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) owns the real Spotlight Lore scene (eligibility, 6–10 adults, gathering, camera, pause, captions, skip, save/worker state and Chronicle) and now supplies the **only** authored screenplay at `src/game/data/dialogue/spotlight-lore.json` (commit `89460fbc`). Keep all 31 authored text lines in PR #91; do not duplicate or rewrite them in PR #93.
+PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) owns the real Spotlight Lore scene (eligibility, 6–10 adults, gathering, camera, pause, captions, skip, save/worker state and Chronicle) and now supplies the **only** authored screenplay at `src/game/data/dialogue/spotlight-lore.json` (31 lines, ten authored speaking roles). Keep all 31 authored text lines in PR #91; do not duplicate or rewrite them in PR #93.
 
-The checked-in source uses `version:"1.3"`, `game:"Wilderfolk Sim"`, `category:"festival"`, `categories:["festival"]`, `id:"spotlight.lore.performance"`, `eventKey:"spotlight.lore"`, `conversation_type:"group"`, and six ordered named roles `speaker_1` to `speaker_6`. All 31 caption lines contain an explicit `speaker` and unchanged `text`; none defines `durationMs`.
+The checked-in source uses `version:"1.3"`, `game:"Wilderfolk Sim"`, `category:"festival"`, `categories:["festival"]`, `id:"spotlight.lore.performance"`, `eventKey:"spotlight.lore"`, `conversation_type:"group"`, and ten ordered named roles `speaker_1` to `speaker_10`. All 31 caption lines contain an explicit `speaker` and unchanged `text`; none defines `durationMs`.
 
 The reusable, read-only functions in `src/game/dialogueTrees.ts` are:
 
 - `readPresentationDialogue(spotlightLoreJson, 'spotlight.lore')`: validates 1.3 JSON, matching categories and group content, returns immutable ordered role-tagged lines, never inserts the scene into the ambient one-way/two-way chat bank.
-- `bindNumberedPresentationSpeakers(presentation, scene.performerIds)`: validates a cast of **6–10 unique, positive real adult IDs**, assigns numbered roles in source order (`speaker_1`→first actor, etc.), and never assumes role count equals cast size. If the JSON declares **more roles than gathered adults**, the extra roles deterministically reuse existing actors in order (modulo cast length), without creating new actors. If the cast has more adults than JSON roles (as in PR #91's six-role script), extra adults remain silent. Output lines contain `speakerId`, `speaker`, `text` and optional `durationMs`.
+- `bindNumberedPresentationSpeakers(presentation, scene.performerIds)`: validates a cast of **6–10 unique, positive real adult IDs**, assigns numbered roles in source order (`speaker_1`→first actor, etc.), and never assumes role count equals cast size. If the JSON declares **more roles than gathered adults**, the extra roles deterministically reuse existing actors in order (modulo cast length), without creating new actors. Because the script has ten roles, every cast member in a group of six to ten adults receives at least one line; roles exceeding the present cast size recycle the real actors. Output lines contain `speakerId`, `speaker`, `text` and optional `durationMs`.
 
 The **existing** PR #91 `SpotlightLoreOverlay.tsx` remains the only wall-clock scene owner. Once the branches are integrated, it imports PR #91's JSON, parses it once at module initialization, binds real actors for the current scene, and uses the bound speakerId in place of `lineIndex % scene.performerIds.length`. It renders the same line text, speaker name, camera projection, stage, intro (2400 ms), applause (2800 ms), skip and completion. With no authored `durationMs`, keep the original `Math.max(3000, Math.min(5300, 1900 + text.length * 43))` pacing. This does not use `requestDialogue`, `humanChat.ts`, `chatPhrase/chatTicks`, a second clock, or RNG.
 
