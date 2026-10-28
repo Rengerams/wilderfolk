@@ -1917,18 +1917,18 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 ## 2026-10-28 — Personality phase A review findings
 
-- **Personality TypeScript gate failure — investigating:** The initial PR #85 evaluator and two intentionally invalid DNA fixtures failed TS7053/TS2352. Type fixes committed; final rerun pending. [Report](../bug_report/2026-10-28-personality-phase-a-typescript-compile.md).
-- **Unsafe non-string DNA coercion — investigating:** The new evaluator could coerce malformed array items during catalog lookup; a string guard and focused regression were added. Final rerun pending. [Report](../bug_report/2026-10-28-personality-unsafe-dna-coercion.md).
+- **Personality TypeScript gate failure — resolved:** The initial PR #85 evaluator and two intentionally invalid DNA fixtures failed TS7053/TS2352; the type fixes compile clean on `codebot-tasks`. [Report](../bug_report/2026-10-28-personality-phase-a-typescript-compile.md).
+- **Unsafe non-string DNA coercion — resolved:** A malformed array item could be coerced during catalog lookup; the string guard and its throwing-`toString` regression pass. [Report](../bug_report/2026-10-28-personality-unsafe-dna-coercion.md).
 
-- **Stale personality trait-context test — investigating:** The phase-A three-trait regression checked an obsolete diplomacy effect after the context correction; fixture now checks a real social-reconciliation drawback. Full CI rerun pending. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
-- **Trait order causes floating-point drift — investigating:** Three traits with the same aggregate effects produced a different last-bit tendency when their input order changed; now processed in canonical order without allocations, with six-permutation regression. [Report](../bug_report/2026-10-28-personality-trait-order-floating-point-drift.md).
+- **Stale personality trait-context test — resolved:** The phase-A three-trait regression checked an obsolete diplomacy effect; the fixture now checks a reachable social-reconciliation drawback and passes. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
+- **Trait order causes floating-point drift — resolved:** Canonical-order accumulation keeps the six input permutations bit-identical, with the permutation regression passing. [Report](../bug_report/2026-10-28-personality-trait-order-floating-point-drift.md).
 
 ## 2026-10-28 — Personality phase B trait integration findings
 
-Two defects the phase-B integration audit found in pre-existing trait wiring. Both are reported only; neither is fixed on this branch, because each would change gameplay balance outside the integration's scope.
+Two defects the phase-B integration audit found in pre-existing trait wiring. Both are now fixed: the promises were corrected, and Hardy's endurance reaches a player settler through the catalog the physiology owner already reads.
 
-- **Nurturing maturation boost is dead code — open:** The trait's "children mature faster" rule lives in `getSchoolAgeMultiplier`, which has no caller anywhere in the repository, so the trait's only live effect is the captive-fate empathy count. [Report](../bug_report/2026-10-28-nurturing-maturation-boost-has-no-caller.md).
-- **Energy descriptions describe a foreign-captive-only path — open:** Hardy, Greenthumb's winter term and Fierce are read only inside `humanEnergyLoss`, whose single caller is guarded to foreign war captives; player settlers run the trait-free physiology path, so the inspector promises an effect a player settler never gets. [Report](../bug_report/2026-10-28-trait-descriptions-describe-foreign-captive-only-energy.md).
+- **Nurturing maturation boost was dead code — resolved:** The trait's "children mature faster" rule lived in `getSchoolAgeMultiplier`, which no caller reached. The retired helper and its constant are gone, since aging is calendar-only by an earlier shipped decision, the description now names the mercy vote the trait really drives, and the research tip no longer promises faster maturation. [Report](../bug_report/2026-10-28-nurturing-maturation-boost-has-no-caller.md).
+- **Energy descriptions described a foreign-captive-only path — resolved:** Hardy's endurance is now applied to a player settler's own work drain through the catalog's physiology/labor factor, and the Hardy, Greenthumb and Fierce copy names the effects the game performs. Captive legacy energy is untouched. [Report](../bug_report/2026-10-28-trait-descriptions-describe-foreign-captive-only-energy.md).
 
 ## 2026-10-28 — Illustrated New Frontier strategic map
 

@@ -74,15 +74,15 @@ export const SIMULATION_DECISIONS = {
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence (read-only projection); personality/traitEffectCatalog.ts owns TRAIT_EFFECTS',
     cadence: 'on-demand',
-    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Phase B consumes it directly at four existing owners: the crew multiplier (skills.ts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts) and the danger sites — hunt range/chase (humanHuntingBehavior.ts) and flight speed (humanTick.ts). Each site multiplies the returned factor alone; none adds a second trait term of its own.',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Phase B consumes it directly at four existing owners: the crew multiplier (skills.ts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts) and the danger sites — hunt range/chase (humanHuntingBehavior.ts) and flight speed (humanTick.ts) — and the player work drain (humanPhysiology.ts, physiology/labor). Each site applies the returned factor alone; none adds a second trait term of its own.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, humanHuntingBehavior.tickHumanHunting, humanTick.tickHumans (flee branch)',
-    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.legacyDNA.test.ts',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, humanHuntingBehavior.tickHumanHunting, humanTick.tickHumans (flee branch), humanPhysiology.advanceHumanNeeds (labor drain)',
+    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',
     cadence: 'realtime',
-    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection.',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. Negative stamina rates are divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain.',
     writes: [
       'human.needs',
       'human.needs.nutrition',
@@ -101,7 +101,7 @@ export const SIMULATION_DECISIONS = {
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killForeignCaptiveFromExhaustion, killFromStarvation, fract, freeHuntFoodGain, humanEnergyLoss',
     cadence: 'realtime',
-    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. Audited in phase B: the trait terms inside humanEnergyLoss (greenthumb winter resistance, hardy and fierce loss reduction) are reached only from the foreign-captive branch of humanTick, so the player-human physiology owner carries no trait factor and those legacy values are left exactly as they are.',
+    cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives retain legacy meal/energy semantics. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. The trait terms inside humanEnergyLoss (greenthumb winter resistance, hardy and fierce loss reduction) stay captive-only legacy and are unchanged; player settlers read the catalog labor factor in humanPhysiology instead.',
     writes: [
       'resources.food',
       'economyLedger.consumed.meals',

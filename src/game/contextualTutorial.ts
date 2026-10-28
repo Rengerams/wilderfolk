@@ -157,7 +157,7 @@ export const CONTEXTUAL_TUTORIALS: Record<ContextualTutorialId, ContextualTutori
     id: 'research_started',
     icon: '🔬',
     title: 'Research started',
-    detail: 'Progress accumulates over time. Educated graduates speed research. Staff a School so children attend and mature faster. Completed tech unlocks new buildings and upgrades.',
+    detail: 'Progress accumulates over time. Educated graduates speed research. Staff a School so children attend and graduate schooled. Completed tech unlocks new buildings and upgrades.',
     action: { label: 'Research tab', id: 'open_research' },
   },
   research_complete: {

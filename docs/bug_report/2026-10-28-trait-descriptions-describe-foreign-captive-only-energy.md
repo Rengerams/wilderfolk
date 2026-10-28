@@ -1,7 +1,7 @@
 # Hardy, Greenthumb and Fierce descriptions describe an energy path only foreign captives take
 
 - Bug: three trait descriptions promise an energy-loss benefit that the code applies only in the foreign-captive branch of the human tick, so a player settler never receives it.
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-10-28
 - Version/build: 0.6.5.1 sources on branch `codebot-tasks` (personality/career 0.6.5.2, PR B)
@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-28 — open: `traitMultiplier` calls for these three traits exist only inside `humanEnergyLoss`, whose single live caller is guarded by `entity.warCaptive && !isPlayerHuman`.
+- 2026-10-28 — resolved: the player physiology owner reads the catalog's physiology/labor factor on its work drain, so Hardy finally reaches a player settler, and Greenthumb and Fierce describe the effects they really carry. Typecheck, lint, build and the trait suites pass.
 
 ## Observed behavior
 The inspector shows:
@@ -37,14 +38,20 @@ A trait description shown in the inspector must reflect an effect the player's o
 - The `humanMeals` entry in `src/game/simulation/decisionRegistry.ts` records the same finding from the Phase B audit.
 
 ## Root cause
-The energy model for player humans moved to `humanPhysiology.ts` while `humanEnergyLoss` kept its legacy trait terms for foreign captives; the descriptions were never updated to match which population the rule serves.
+The energy model for player humans moved to `humanPhysiology.ts` while `humanEnergyLoss` kept its legacy trait terms for foreign captives; the descriptions were never updated to match which population the rule serves. A further gap: Hardy had no reachable effect for a player at all, because the catalog entry that describes its endurance was itself unconsumed.
 
 ## Fix / proposed fix
-Not fixed here: giving player settlers a Hardy/Fierce energy benefit changes survival balance and belongs to the physiology owner, not to the Phase B trait integration. The minimal safe change is to reword the three descriptions to the effect the owner really performs (Greenthumb's farm yield, Hardy's and Fierce's remaining live effects), and, separately, decide with the owner whether the energy term should be ported into `humanPhysiology.advanceHumanNeeds`.
+Fixed in two minimal parts, both inside the owners the report names.
+1. `humanPhysiology.advanceHumanNeeds` divides a negative stamina rate by the catalog's `physiology`/`labor` factor. That is the first live consumer of Hardy's endurance entry, and it also makes Graceful's existing heavy-labor drawback reachable. No hand-written trait multiplier was added: the catalog stays the single source.
+2. Copy now names live effects: Hardy "tires more slowly on hard work", Greenthumb "a patient hand with crops — farms yield more", Fierce "presses for severity over a captive and quarrels easily" (the war-reaction and feud-clash rules it really drives).
+The captive `humanEnergyLoss` terms are untouched, so foreign-captive legacy behaviour is unchanged.
 
 ## Save/migration impact
-None for copy-only rewordings. A physiology port would need its own balance pass and no persisted field.
+None. Only derived stamina changes; no persisted field, save key or migration is touched.
 
 ## Verification result
-- PASS: static trace above (call site guarded to foreign captives).
-- NOT RUN: an in-game energy comparison; no fix is in this PR.
+- PASS: `tests/personality.physiologyIntegration.test.ts` drives the real mutator: after two hours of work a Hardy settler keeps more stamina than a plain one, a Graceful settler keeps less, and an untraited settler stays on the documented 9-per-hour drain.
+- PASS: the same file asserts the Hardy, Fierce, Greenthumb and Nurturing descriptions no longer promise energy, winter or maturation effects.
+- PASS: `npm run test:types`, `npm run lint`, `npm run build`, and the 22 changed-module suites (191 tests) plus the three personality suites (18 tests).
+- PASS: `tests/humanNeeds.calibration.test.ts` and `tests/humanNeeds.mealRule.test.ts` still hold the untraited calibration and the captive meal rule.
+- NOT RUN: a multi-day player-visible survival comparison of a Hardy colony; the balance delta is the catalog's own 6% labor factor, not a new tuned number.

@@ -16,8 +16,6 @@ import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 
-/** School days before faster maturation kicks in. */
-export const SCHOOL_MIN_DAYS_FOR_BOOST = 3;
 /** School days for basic graduation perks. */
 export const SCHOOL_GRADUATION_DAYS = 120;
 /** School days for the intermediate education tier. */
@@ -377,23 +375,6 @@ export function describeSchoolingSummary(
     : `${summary.enrolled} of ${summary.schoolAge} school-age children have a seat`
       + (summary.classHours ? ` · ${summary.inClassNow} in class now.` : '.');
   return { headline, lines, notes };
-}
-
-/** Maturation multiplier while a child is actively attending a staffed school. */
-export function getSchoolAgeMultiplier(
-  child: Entity,
-  buildings: Building[],
-  nurturingCount = 0,
-): number {
-  if (child.type !== EntityType.Human || !child.isJuvenile || findStaffedSchools(buildings).length === 0) {
-    return 1;
-  }
-  const days = child.schoolDays ?? 0;
-  if (days < SCHOOL_MIN_DAYS_FOR_BOOST) return 1;
-  const schoolBoost = Math.min(1, days / SCHOOL_FULL_EDUCATION_DAYS);
-  // Nurturing settlers in the village help every child mature a bit faster.
-  const nurtureBoost = Math.min(0.2, nurturingCount * 0.04);
-  return 1 + schoolBoost + nurtureBoost;
 }
 
 export function creditChildSchoolDay(child: Entity): void {

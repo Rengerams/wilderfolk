@@ -22,7 +22,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'hardy',
     label: 'Hardy',
     emoji: '💪',
-    description: 'Loses energy 15% slower — works the frontier longer.',
+    description: 'Tires more slowly on hard work — endures the longest shifts.',
   },
   brave: {
     id: 'brave',
@@ -46,7 +46,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'greenthumb',
     label: 'Greenthumb',
     emoji: '🌿',
-    description: 'Farms yield more and winters cost less.',
+    description: 'A patient hand with crops — farms yield more.',
   },
   lucky: {
     id: 'lucky',
@@ -58,7 +58,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'nurturing',
     label: 'Nurturing',
     emoji: '💗',
-    description: 'Children mature faster while they live in the village.',
+    description: 'Soft-hearted — speaks for mercy when a captive is judged.',
   },
   insightful: {
     id: 'insightful',
@@ -100,7 +100,7 @@ export const TRAIT_DEFS: Readonly<Record<SettlerTrait, TraitDef>> = {
     id: 'fierce',
     label: 'Fierce',
     emoji: '🔥',
-    description: 'Passionate and determined — burns energy slower on the job.',
+    description: 'Hot-blooded — presses for severity over a captive and quarrels easily.',
   },
 };
 
