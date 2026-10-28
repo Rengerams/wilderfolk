@@ -1468,7 +1468,7 @@ export default function App() {
               key={world.spotlightLore.id}
               scene={world.spotlightLore}
               world={world}
-              camera={view.camera}
+              getCamera={() => loopRef.current?.getView().camera ?? view.camera}
               canvasRef={canvasRef}
               onFinish={finishSpotlight}
             />
