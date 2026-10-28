@@ -22,6 +22,7 @@ import {
 import { generateWorldMap } from './terrainGen';
 
 import { tileAt } from './terrain/terrainGrid';
+import { treeEcotoneAt } from './terrain/ecotones';
 import { valueNoise } from './terrain/noise';
 import {
   enableSeededGlobalRandom,
@@ -709,7 +710,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   }
 
   // 4. Tree Clusters & Forest Fills
-  if (state.worldMap?.generationVersion !== 3) {
+  if ((state.worldMap?.generationVersion ?? 1) < 3) {
     for (let c = 0; c < 12; c++) {
       const cx = width * 0.12 + simRandom() * width * 0.76;
       const cy = height * 0.12 + simRandom() * height * 0.76;
@@ -736,7 +737,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     const tw = width / map.width;
     const th = height / map.height;
 
-    if (map.generationVersion === 3) {
+    if ((map.generationVersion ?? 0) >= 3) {
       // Jittered staggered sites remove the visible tree grid while retaining predictable density.
       const spacing = 29;
       const climateSeed = map.terrainSeed ?? map.seed;
@@ -746,16 +747,23 @@ export function initGame(options: InitGameOptions = {}): WorldState {
           const px = sx + (simRandom() - 0.5) * spacing * 0.46;
           const py = sy + (simRandom() - 0.5) * spacing * 0.46;
           const biome = getTileAtWorld(state, px, py)?.type;
-          const density = biome === TerrainType.DarkForest ? 0.54
+          // Revision 4 fades recruitment and canopy type through the local climate
+          // rather than jumping from 3.5% grassland to 40% forest in one 10px tile.
+          // Older recipes retain the exact original RNG sequence and tree positions.
+          const ecotone = map.generationVersion === 4 && biome != null
+            ? treeEcotoneAt(map, px, py, biome)
+            : null;
+          const density = ecotone?.density ?? (biome === TerrainType.DarkForest ? 0.54
             : biome === TerrainType.Forest ? 0.40
               : biome === TerrainType.RiverBank ? 0.08
-                : biome === TerrainType.Grassland ? 0.035 : 0;
+                : biome === TerrainType.Grassland ? 0.035 : 0);
           if (density === 0) continue;
           const grove = valueNoise(px * 0.0025, py * 0.0025, climateSeed + 1881);
           if (simRandom() >= density * (0.38 + grove * 1.18)) continue;
           if (!isPassableWildlifePosition(state, px, py, 4)) continue;
           const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
-          tree.spriteVariant = simRandom() < (biome === TerrainType.DarkForest ? 0.78 : 0.28) ? 1 : 0;
+          tree.spriteVariant = simRandom() < (ecotone?.tallChance
+            ?? (biome === TerrainType.DarkForest ? 0.78 : 0.28)) ? 1 : 0;
           state.entities.push(tree);
           indexLivingEntity(state, tree);
         }

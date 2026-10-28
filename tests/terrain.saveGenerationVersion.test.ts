@@ -11,13 +11,30 @@ describe('compact map generation revision', () => {
     const world = initGame({ seed: 34567, size: MapSize.Medium, preset: MapPreset.Oasis });
     const save = buildSaveData(world, createInitialView(world.width, world.height));
     const compact = save.worldMap as { _generationVersion?: number };
-    expect(compact._generationVersion).toBe(3);
+    expect(compact._generationVersion).toBe(4);
     const parsed = parseSaveJson(JSON.stringify(save));
     expect(parsed.valid).toBe(true);
     if (!parsed.valid) return;
     const restored = loadGameFromParsed(parsed.parsed)?.world.worldMap;
-    expect(restored?.generationVersion).toBe(3);
+    expect(restored?.generationVersion).toBe(4);
     expect(restored?.elevation).toEqual(world.worldMap!.elevation);
+  }, 240_000);
+
+  it('preserves revision-three saved rivers and forests rather than replaying v4', () => {
+    const world = initGame({ seed: 54321, size: MapSize.Medium, preset: MapPreset.Highland });
+    world.worldMap = generateWorldMap(
+      world.width, world.height, world.worldMap!.seed, MapSize.Medium,
+      MapPreset.Highland, undefined, 3,
+    );
+    const oldMap = world.worldMap;
+    const save = buildSaveData(world, createInitialView(world.width, world.height));
+    const parsed = parseSaveJson(JSON.stringify(save));
+    expect(parsed.valid).toBe(true);
+    if (!parsed.valid) return;
+    const loaded = loadGameFromParsed(parsed.parsed)?.world.worldMap;
+    expect(loaded?.generationVersion).toBe(3);
+    expect(loaded?.elevation).toEqual(oldMap.elevation);
+    expect(loaded?.decorations).toEqual(oldMap.decorations);
   }, 240_000);
 
   it('regenerates a revision-two compact save using its original recipe', () => {

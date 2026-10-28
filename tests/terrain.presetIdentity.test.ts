@@ -8,7 +8,8 @@ const SEEDS = [1234, 98765];
 
 function make(preset: MapPreset, seed: number): WorldMap {
   const dims = MAP_SIZE_DIMENSIONS[MapSize.Medium];
-  return generateRawTerrain(dims.width, dims.height, seed, MapSize.Medium, preset);
+  // Pin the current v4 recipe; generateRawTerrain's default remains v3 for old fixtures.
+  return generateRawTerrain(dims.width, dims.height, seed, MapSize.Medium, preset, undefined, 4);
 }
 
 function terrainShare(map: WorldMap, kinds: readonly TerrainType[]): number {
@@ -33,7 +34,7 @@ describe('new-game preset landscape contracts', () => {
       const maps = new Map<MapPreset, WorldMap>();
       for (const preset of Object.values(MapPreset)) {
         const map = make(preset, seed);
-        expect(map.generationVersion).toBe(3);
+        expect(map.generationVersion).toBe(4);
         maps.set(preset, map);
       }
       const get = (preset: MapPreset) => maps.get(preset)!;
@@ -94,7 +95,7 @@ describe('new-game preset landscape contracts', () => {
       );
       const fresh = make(MapPreset.Oasis, seed);
       expect(old.generationVersion).toBe(1);
-      expect(fresh.generationVersion).toBe(3);
+      expect(fresh.generationVersion).toBe(4);
       const center = Math.floor(old.rows! / 2) * old.cols! + Math.floor(old.cols! / 2);
       expect(old.elevation![center]).not.toBe(fresh.elevation![center]);
     }

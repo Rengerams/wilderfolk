@@ -13,7 +13,9 @@ import {
   type Camera,
   type WorldState,
 } from '../game/gameEngine';
+import type { WorldMap } from '../game/gameTypes';
 import { screenToWorld, worldToScreen, type ViewState } from '../game/viewState';
+import { supportsTerrainHeightMesh, terrainRiseAt } from '../game/terrainAtlas';
 import { snapBuildingCenter } from '../game/buildingRotation';
 import { getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
 import { getPlaceBuildingFailureLabel } from '../game/buildingPlacementLabels';
@@ -227,6 +229,7 @@ export function mapCursorClientPoint(
   canvasWidth: number,
   canvasHeight: number,
   canvasRect: CanvasRect,
+  map: WorldMap | null = null,
 ): { clientX: number; clientY: number } {
   if (canvasWidth <= 0 || canvasHeight <= 0 || canvasRect.width <= 0 || canvasRect.height <= 0) {
     return {
@@ -234,7 +237,9 @@ export function mapCursorClientPoint(
       clientY: canvasRect.top + canvasRect.height / 2,
     };
   }
-  const [screenX, screenY] = worldToScreen(cursor.x, cursor.y, camera, canvasWidth, canvasHeight);
+  const [screenX, screenY] = worldToScreen(
+    cursor.x, cursor.y - (supportsTerrainHeightMesh(map) ? terrainRiseAt(map, cursor.x, cursor.y) : 0), camera, canvasWidth, canvasHeight,
+  );
   return {
     clientX: canvasRect.left + screenX * (canvasRect.width / canvasWidth),
     clientY: canvasRect.top + screenY * (canvasRect.height / canvasHeight),
@@ -286,6 +291,7 @@ function dispatchCursorPointerEvent(
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
+  map: WorldMap | null,
 ): void {
   const { clientX, clientY } = mapCursorClientPoint(
     cursor,
@@ -293,6 +299,7 @@ function dispatchCursorPointerEvent(
     canvasWidth,
     canvasHeight,
     canvas.getBoundingClientRect(),
+    map,
   );
   canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY }));
 }
@@ -389,10 +396,10 @@ export function useMapKeyboardCursor({
 
       // Show it: the pointer's own hover path puts the placement ghost (with the owner's verdict) or
       // the hovered-building highlight on the canvas, wherever the keyboard cursor is.
-      dispatchCursorPointerEvent(canvas, 'mousemove', next, camera, width, height);
+      dispatchCursorPointerEvent(canvas, 'mousemove', next, camera, width, height, world.worldMap);
       if (intent.type === 'activate') {
         // Place or select exactly as a click does — same handler, same coordinates, no new command.
-        dispatchCursorPointerEvent(canvas, 'click', next, camera, width, height);
+        dispatchCursorPointerEvent(canvas, 'click', next, camera, width, height, world.worldMap);
       }
 
       setAnnouncement(describeMapCursor(world, viewRef.current, next));
@@ -413,7 +420,8 @@ export function useMapKeyboardCursor({
       if (marker && cursor && viewport) {
         const [screenX, screenY] = worldToScreen(
           cursor.x,
-          cursor.y,
+          cursor.y - (supportsTerrainHeightMesh(worldRef.current.worldMap)
+            ? terrainRiseAt(worldRef.current.worldMap, cursor.x, cursor.y) : 0),
           viewport.camera,
           viewport.width,
           viewport.height,
@@ -427,7 +435,7 @@ export function useMapKeyboardCursor({
     };
     frame = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(frame);
-  }, [active, markerRef, readViewport]);
+  }, [active, markerRef, readViewport, worldRef]);
 
   return { onKeyDown, active, announcement };
 }

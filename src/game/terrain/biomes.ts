@@ -42,6 +42,27 @@ export type SpriteType =
   | 'lilypad' | 'driftwood' | 'bones' | 'cattail'
   | 'fruit_tree' | 'scrub' | 'dirt_patch';
 
+/**
+ * Small L3 decorations explicitly retired from new (v4) worlds.
+ *
+ * Keep their SpriteType names and the original BIOMES tables unchanged: compact
+ * v1–v3 saves regenerate from those historical tables, and their saved decor can
+ * still be rendered. This filter is only applied by the v4 placement/renderer.
+ *
+ * 'berries' is a visual ground prop, NOT a harvestable blueberry tree entity.
+ */
+export const RETIRED_V4_DECOR_TYPES: ReadonlySet<SpriteType> = new Set<SpriteType>([
+  'mushroom',
+  'bones',
+  'lilypad',
+  'flower',
+  'fern',
+  'reed',
+  'cattail',
+  'scrub',
+  'berries',
+]);
+
 /** Decor types that are trees and are left to Wilderfolk's entity system. */
 export const TREE_SPRITE_TYPES = new Set<SpriteType>(['oak', 'pine', 'palm', 'dead_tree', 'fruit_tree']);
 
