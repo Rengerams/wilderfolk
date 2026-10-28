@@ -52,14 +52,20 @@ export default function SpotlightLoreOverlay({
     return new Map(world.entities.filter((entity) => actorIds.has(entity.id)).map((entity) => [entity.id, entity]));
   }, [scene.id, scene.phase]);
   const girl = cast.get(scene.heroineId) ?? resolveEntity(world, scene.heroineId);
-  const departure = useMemo(() => spotlightFarewellDestination(world, scene),
-    [scene.id, scene.phase]);
-  const poseRadius = useMemo(() => spotlightSafePoseRadius(world, { x: scene.gatherX, y: scene.gatherY }),
+  // Ready actors may stand within 11 units of their slots: start where the real sprite is drawn.
+  const stageOrigin = useMemo(() => ({
+    x: girl?.x ?? scene.gatherX,
+    y: girl?.y ?? scene.gatherY,
+  }), [scene.id, scene.phase]);
+  const departure = useMemo(() => spotlightFarewellDestination(world, {
+    ...scene, gatherX: stageOrigin.x, gatherY: stageOrigin.y,
+  }), [scene.id, scene.phase]);
+  const poseRadius = useMemo(() => spotlightSafePoseRadius(world, stageOrigin),
     [scene.id, scene.phase]);
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
-    const from = { x: scene.gatherX, y: scene.gatherY };
+    const from = stageOrigin;
     let frameHandle = 0;
     let previousIndex = -1;
     let previousKind: 'intro' | 'caption' | 'pose' | 'applause' | null = null;
@@ -82,9 +88,10 @@ export default function SpotlightLoreOverlay({
         callbacks.current.onFinish(scene.id, 'complete');
         return;
       }
-      if (step.lineIndex !== previousIndex) {
-        previousIndex = step.lineIndex ?? -1;
-        setLineIndex(previousIndex);
+      const nextIndex = step.lineIndex ?? -1;
+      if (nextIndex !== previousIndex) {
+        previousIndex = nextIndex;
+        setLineIndex(nextIndex);
       }
       if (step.kind !== previousKind) {
         previousKind = step.kind;
