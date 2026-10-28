@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { MapPreset } from '../src/game/gameTypes';
 import {
   GRASS_TEXTURE_PATHS,
+  TERRAIN_MATERIAL_PATHS,
   grassDetailAt,
+  sampleTerrainMaterial,
   type GroundGrassTexture,
   type GroundGrassTextures,
 } from '../src/game/renderer/grassTextures';
@@ -65,6 +67,33 @@ describe('authored grass albedo in v4 biome blending', () => {
       }
       previous = current;
     }
+  });
+
+  it('registers only the curated seven nature albedos for the ground shader', () => {
+    expect(TERRAIN_MATERIAL_PATHS).toEqual({
+      sand: '/sprites/terrain/rubberduck/246.jpg',
+      soil: '/sprites/terrain/rubberduck/206.jpg',
+      drySoil: '/sprites/terrain/rubberduck/217.jpg',
+      gravel: '/sprites/terrain/rubberduck/232.jpg',
+      rock: '/sprites/terrain/rubberduck/235.jpg',
+      straw: '/sprites/terrain/rubberduck/210.jpg',
+      pebbles: '/sprites/terrain/rubberduck/215.jpg',
+    });
+    expect(new Set(Object.values(TERRAIN_MATERIAL_PATHS)).size).toBe(7);
+  });
+
+  it('samples actual earth/rock albedo detail with absolute-world wrapping', () => {
+    const material = texture(52, 65, 54, 1.7);
+    const delta: [number, number, number] = [0, 0, 0];
+    sampleTerrainMaterial(material, 255, 256, delta);
+    const sample = [...delta];
+    sampleTerrainMaterial(material, 257, 258, delta);
+    expect(delta).toEqual(sample);
+    sampleTerrainMaterial(material, 0, 0, delta);
+    expect(delta).not.toEqual(sample);
+    // A soil surface remains a *detail*, rather than painting over the
+    // Whittaker biome's temperature/moisture colour.
+    expect(delta.every((v) => Math.abs(v) < 60)).toBe(true);
   });
 
   it('makes flower-rich grass a meadow choice, not a default for dark forest', () => {
