@@ -116,7 +116,7 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
     }
     if (Math.hypot(actor.x - slot.x, actor.y - slot.y) <= 11) arrived++;
   }
-  if (arrived >= SPOTLIGHT_MIN_CHORUS) {
+  if (arrived === scene.slots.length) {
     scene.phase = 'ready';
     scene.readyAtTick = state.tick;
   } else if (state.tick - scene.startedAtTick > SPOTLIGHT_GATHER_TIMEOUT_TICKS) {
