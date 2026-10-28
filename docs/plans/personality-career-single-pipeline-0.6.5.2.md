@@ -1,6 +1,6 @@
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
-**Implementation status (28 October 2026):** PR A and PR B are merged; **PR C is implemented in [#97](https://github.com/Rengerams/wilderfolk/pull/97), pending merge**, while PR D (career history/progression/fit) and PR E (inspector) remain unimplemented. This is the authoritative architecture, not executable code. Historical AS-IS code examples below describe their original baselines; always verify live code before implementing PR D.
+**Implementation status (28 October 2026):** PR A and PR B are merged; **PR C is implemented and merged through [#97](https://github.com/Rengerams/wilderfolk/pull/97)**, while PR D (career history/progression/fit) and PR E (inspector) remain unimplemented. This is the authoritative architecture, not executable code. Historical AS-IS code examples below describe their original baselines; always verify live code before implementing PR D.
 
 **Codebot: start with [the executable PR tickets and gates](personality-career-codebot-tasks-0.6.5.2.md).** They define exact files, stage ordering, mandatory updates to **both** `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in **every** implementation PR, focused tests, stop conditions and required bug reporting using `docs/bug_report/readme.md` (including the single historical index). The present document defines the architecture and design decisions; the linked task sheet defines the work.
 **Scope:** roadmap §11 (DNA and whole-life personality) plus §16 (professions, education and career paths; previously §17).
@@ -23,7 +23,7 @@
 
 **Correction to the 9 October legacy proposal:** `docs/plans/settler-trait-effects-2026-10-09.md` is a historical plan, not current implementation truth. Its claim that Nurturing, Insightful, Chivalrous and Intuitive are unused is now stale: they are read in education, militia, war-prisoner and social code. Its blanket "ten traits learn -6%" and symmetrical opposite-pair percentages are not adopted: they would penalize nearly every worker irrespective of context. Do not turn that older document into a second specification or table.
 
-**Current progress after PR #97:** DNA inheritance, the 14-trait canonical catalog/evaluator, PR-B work/school/combat consumers and PR-C's six exact-parity social/family/civic migrations exist in code. PR #97 is still awaiting merge. **Not yet implemented:** persistent event-backed career work history, career milestones/specializations, advisory worker-fit explanations and the PR-E inspector. Additional leisure, parenting, personal-memory and relationship behaviors beyond the six PR-C parity sites are separate future scope, not hidden PR-D requirements.
+**Current progress after PR #97:** DNA inheritance, the 14-trait canonical catalog/evaluator, PR-B work/school/combat consumers and PR-C's six exact-parity social/family/civic migrations exist in code. PR #97 is merged into `main` (merge commit `110c6430`). **Not yet implemented:** persistent event-backed career work history, career milestones/specializations, advisory worker-fit explanations and the PR-E inspector. Additional leisure, parenting, personal-memory and relationship behaviors beyond the six PR-C parity sites are separate future scope, not hidden PR-D requirements.
 
 ## 2. Core architectural decision
 
@@ -118,7 +118,7 @@ These shapes are a **design contract**, to be refined against existing TypeScrip
 
 **Authority / precedence (28 October 2026):** PR B's already-approved, merged numeric rebalance remains unchanged. **PR C is strictly a rule-ownership refactor; it must not rebalance any existing social, conception, family, feud or prisoner/civic behavior.** This section supersedes broad "old multipliers may be retired" wording **for PR C only**. Retire the *inline code*, **not** the old effect. Do not add new gameplay bonuses, penalties, decisions, cooldowns, or optional memories while migrating these six behaviors.
 
-**Implementer and PR topology (28 October 2026):** PR [#94](https://github.com/Rengerams/wilderfolk/pull/94) is the authoritative architecture/test gate. PR [#95](https://github.com/Rengerams/wilderfolk/pull/95) is the **implementation** PR. It was initially stacked on #94 but its base may be retargeted; **check its actual base and included commits before merge**. Apply the [PR C coding-agent execution checklist](personality-career-codebot-tasks-0.6.5.2.md#pr-c--socialromancefamily-life-no-second-relationship-engine) to **PR #95**, not the unrelated `implement-pr-c` branch. Correct any #95 code that diverges from this design; never dilute §4.1 to retroactively approve a partial implementation. Merge #94 before #95 and retarget/retest #95 on the final base. Neither a submitted PR nor an empty legacy scan proves that PR C is completed.
+**Completed PR topology (28 October 2026):** PR [#94](https://github.com/Rengerams/wilderfolk/pull/94) established the binding architecture/test gate and was merged. PR [#95](https://github.com/Rengerams/wilderfolk/pull/95) closed without merge. The **definitive implementation PR [#97](https://github.com/Rengerams/wilderfolk/pull/97)** merged to `main` as `110c6430`, preserving all six exact legacy behaviors and the executable zero-debt audit. The [PR-C coding-agent execution checklist](personality-career-codebot-tasks-0.6.5.2.md) is now historical proof/reference, **not a new PR-C task**. Start PR D on updated `main`; do not reopen PR #95 or start a parallel PR-C pipeline.
 
 #### 4.1.1 One catalog with as many contextual values as needed
 
@@ -306,7 +306,7 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 - Tests: real worked production, full-store shift skill, construction-only Resourceful context, direct school/research and apprentice effects, seeded hunting/escape, genuine labor vs walking, separate foreign-captive energy, per-eligible-soldier militia influence, exact non-DNA baselines and zero double DNA terms. Include stable old-save backfill and Moon Howler form coverage.
 - **Acceptance:** behavior is observable in real existing owner paths; no legacy DNA factor remains active in PR B domains, no duplicate state writer and no new unbounded iteration. Document numeric rebalancing and verify with bounded seeded colony comparisons.
 
-### PR C — Social and whole-life personality
+### PR C — IMPLEMENTED AND MERGED (#97): social and existing whole-life personality effects
 - **Gameplay-parity migration, not a rebalance:** implement §4.1 exactly, including additional catalog-only exact multipliers for currently existing social/family/civic contexts; no changes to old chances, durations, case selection or RNG draw pattern. Keep the PR B rebalance already merged.
 - **Strict legacy exit gate:** the legacy consumer audit allowlist becomes empty in PR C; seeded baseline/trait combinations and all five cross-person clash cases must match the old implementation.
 - In **PR C**, apply the single evaluator only to the **six already-live legacy decisions** listed in §4.1.2: existing feud-clash probability, workplace banter, initiating-partner courtship progress, married/youth conception (not affair), prisoner/community reaction and spouse bereavement. **Do not add new off-duty, affair-approach, friendship, parenting or care behavior in this parity-only PR**; their current owners and any preexisting ordinary effects remain unchanged. New optional contextual features require separately approved later work.
@@ -314,7 +314,7 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 - **No `lifeExperience.ts` or new persisted fields in PR C.** This is a strict source-of-rules migration; longer-term memory/progression is separate future scope and requires its own architecture, persistence/migration and tests.
 - **Acceptance:** same seed/events generate reproducible choices; different traits measurably bias outcomes without forcing them; no split pair references or extra affinity systems.
 
-### PR D — Career histories and progression (NOT IMPLEMENTED; start after PR #97 merges)
+### PR D — Career histories and progression (NOT IMPLEMENTED; next stage on merged `main`)
 - Add `careerHistory.ts`, `careerProgression.ts` and `workerFit.ts`, wired at the existing successful shift-credit, daily and staffing selection points.
 - Retain `apprenticeships.ts`, `education.ts` and `skills.ts` as sole writers of apprenticeship, school and skill data.
 - Tests: once-per-day credit, manual assignment stability, no skill/career phantom credit for idle workers, optional apprenticeships, skill milestones, 18-year employment boundary, no pathological automatic transfers.
