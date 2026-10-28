@@ -394,6 +394,101 @@ export function pickDialogueTree(
   return usePool[index]!;
 }
 
+/**
+ * Timed, presentation-only dialogue (e.g. PR #91's paused Spotlight Lore).
+ * This is NOT an Entity chat session: the caller owns its wall-clock timing,
+ * real actor mapping, pause/camera/skip, and world state.
+ */
+export interface PresentationDialogueLine extends DialogueLine {
+  /** Optional authored wall-clock caption duration, not simulation ticks. */
+  durationMs?: number;
+}
+
+export interface PresentationDialogueScene {
+  readonly id: string;
+  readonly eventKey: string;
+  readonly speakers: readonly string[];
+  readonly lines: readonly PresentationDialogueLine[];
+}
+
+interface PresentationDialogueSource {
+  version: string;
+  game: string;
+  category: string;
+  categories: string[];
+  dialogue_trees: Array<{
+    id: string;
+    category: string;
+    eventKey: string;
+    conversation_type: string;
+    speakers: string[];
+    lines: PresentationDialogueLine[];
+  }>;
+}
+
+/**
+ * Parse PR-owned 1.3 JSON without importing it into an ambient-chat bank.
+ *
+ * PR #91 imports its own JSON and calls this once at module initialization.
+ * A group scene may identify many named roles (or one rotating "chorus" role),
+ * but it never touches chatPhrase, chatTicks, the simulation clock or RNG.
+ * Missing/ambiguous event keys and invalid content fail closed with an error.
+ */
+export function readPresentationDialogue(
+  rawSource: unknown,
+  eventKey: string,
+): PresentationDialogueScene {
+  if (!rawSource || typeof rawSource !== 'object' || Array.isArray(rawSource)) {
+    throw new Error('[dialogue] Invalid presentation source');
+  }
+  const source = rawSource as PresentationDialogueSource;
+  if (source.version !== DIALOGUE_SCHEMA_VERSION || source.game !== 'Wilderfolk Sim'
+    || typeof source.category !== 'string' || !source.category.trim()
+    || !Array.isArray(source.categories) || source.categories.length !== 1
+    || source.categories[0] !== source.category || !Array.isArray(source.dialogue_trees)) {
+    throw new Error('[dialogue] Invalid 1.3 presentation source header');
+  }
+  if (typeof eventKey !== 'string' || !eventKey.trim()) {
+    throw new Error('[dialogue] Presentation event key is required');
+  }
+  const ids = new Set<string>();
+  let selected: PresentationDialogueScene | undefined;
+  for (const tree of source.dialogue_trees) {
+    if (!tree || typeof tree.id !== 'string' || !tree.id.trim() || ids.has(tree.id)) {
+      throw new Error('[dialogue] Invalid or duplicate presentation tree ID');
+    }
+    ids.add(tree.id);
+    if (tree.category !== source.category || typeof tree.eventKey !== 'string' || !tree.eventKey.trim()
+      || tree.conversation_type !== 'group'
+      || !Array.isArray(tree.speakers) || tree.speakers.length < 1
+      || tree.speakers.length > 16
+      || tree.speakers.some((role) => typeof role !== 'string' || !role.trim())
+      || new Set(tree.speakers).size !== tree.speakers.length
+      || !Array.isArray(tree.lines) || tree.lines.length < 1 || tree.lines.length > 512
+      || tree.lines.some((line) => !line || typeof line.text !== 'string' || !line.text.trim()
+        || !tree.speakers.includes(line.speaker)
+        || (line.durationMs !== undefined && (!Number.isInteger(line.durationMs)
+          || line.durationMs < 250 || line.durationMs > 60000)))) {
+      throw new Error(\`[dialogue] Invalid presentation tree: \${tree.id}\`);
+    }
+    if (tree.eventKey === eventKey) {
+      if (selected) throw new Error(\`[dialogue] Ambiguous presentation event key: \${eventKey}\`);
+      selected = {
+        id: tree.id,
+        eventKey,
+        speakers: Object.freeze([...tree.speakers]),
+        lines: Object.freeze(tree.lines.map((line) => Object.freeze({
+          speaker: line.speaker,
+          text: line.text,
+          ...(line.durationMs === undefined ? {} : { durationMs: line.durationMs }),
+        }))),
+      };
+    }
+  }
+  if (!selected) throw new Error(\`[dialogue] Missing presentation event key: \${eventKey}\`);
+  return Object.freeze(selected);
+}
+
 export function getDialogueTreeById(id: string): DialogueTree | undefined {
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   return treesById.get(id);
