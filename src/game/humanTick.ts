@@ -616,6 +616,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
       !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
+    // Only the selected actors receive exclusive gathering movement; everyone else
+    // keeps the normal commute, social and work priority rules.
+    const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
     const cell = isPrisoner ? buildingById.get(entity.prisonBuildingId!) : undefined;
@@ -800,18 +803,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'takeBreak';
 
     const stayIn =
+      !inSpotlightGathering &&
       !festivalGathering &&
       !onTavernShift &&
       !onMoonPriestShift &&
       (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
         || (recoveringSleep && !onJobShift));
 
-    const allowFreeRoam = !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
+    const allowFreeRoam = !inSpotlightGathering && !takingNeedsBreak && (festivalGathering || (!onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !stayIn));
     const socialBlockedByJob = isInnkeeper
       ? onTavernShift
       : ordinaryWorkplace && isWorkScheduleHour(workSchedule, hourOfDay) && goWorkTime;
     const socialTime =
-      !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
+      !inSpotlightGathering && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && (
         (!socialBlockedByJob && allowSocialLifeFor(workSchedule, hourOfDay, false, state.tick)) ||
         (allowFreeRoam && isPlayerHuman(entity))
       );
@@ -835,6 +839,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !onJobShift &&
       !huntingWere &&
       !inElectionCeremony &&
+      !inSpotlightGathering &&
       !festivalGathering &&
       hasResidenceAssignment(entity)
         ? lodgingHotelFor(entity, updatedBuildings, allHumans, state.tick)
@@ -870,7 +875,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       suppressIdle = true;
       onSchedule = true;
       settlerChat(entity, 'fear', 0.14 * PER_TICK_RATE_SCALE);
-    } else if (spotlightGather && spotlightActorIds?.has(entity.id)) {
+    } else if (spotlightGather && inSpotlightGathering) {
       const target = getSpotlightGatherTarget(spotlightGather, entity.id);
       if (target) {
         const dx = target.x - entity.x;
@@ -930,7 +935,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Home commute — or, for a settler the walk home would strand, the hotel bed instead.
-    if (!huntingWere && !inElectionCeremony && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && stayIn && hasResidenceAssignment(entity)) {
+    if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && !onJobShift && !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && stayIn && hasResidenceAssignment(entity)) {
       const residence = buildingById.get(entity.residenceBuildingId!);
       if (lodgingHotel) {
         commuteHumanToBuilding(entity, lodgingHotel, config.speed, false, WORK_COMMUTE_RUSH);
@@ -943,7 +948,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     } else if (
       hospitalCommuteDue && workplace &&
-      !huntingWere && !inElectionCeremony && !festivalGathering
+      !huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering
     ) {
       // Doctors travel for their own 00–08 / 08–16 / 16–24 shift,
       // including the evening before a midnight duty. Never pull
@@ -954,6 +959,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (
       !huntingWere &&
       !inElectionCeremony &&
+      !inSpotlightGathering &&
       !festivalGathering &&
       goWorkTime &&
       workplace &&
@@ -981,7 +987,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
         suppressIdle = true;
       }
-    } else if (!huntingWere && !inElectionCeremony && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
+    } else if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering && (onSchoolShift || schoolCommuteDue) && !isInnkeeper && schoolTarget) {
       commuteHumanToBuilding(entity, schoolTarget, config.speed, false, WORK_COMMUTE_RUSH);
       onSchedule = true;
       suppressIdle = true;
@@ -1014,6 +1020,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (
       !huntingWere &&
       !inElectionCeremony &&
+      !inSpotlightGathering &&
       !festivalGathering &&
       (goWorkTime || onWorkCommuteHours) &&
       workplace?.type === BuildingType.HuntingSpot &&
@@ -1067,6 +1074,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     } else if (
       !huntingWere &&
       !inElectionCeremony &&
+      !inSpotlightGathering &&
       !festivalGathering &&
       !offDutyPrisonGuard &&
       (goWorkTime || onWorkCommuteHours || prisonShift != null) &&
@@ -1096,12 +1104,14 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
-    if (!allowFreeRoam && onSchedule && !huntingWere) {
+    if (!inSpotlightGathering && !allowFreeRoam && onSchedule && !huntingWere) {
       entity.vx *= 0.85;
       entity.vy *= 0.85;
     }
 
-    const huntingSuppressIdle = tickHumanHunting(
+    const huntingSuppressIdle = inSpotlightGathering
+      ? suppressIdle
+      : tickHumanHunting(
       state,
       ctx,
       entity,
@@ -1275,6 +1285,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.partnerId != null;
 
     if (
+      !inSpotlightGathering &&
       canPursueSecretAffair(entity, hourOfDay, workplace, updatedBuildings, entityById, state.tick, workSchedule) &&
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
@@ -1423,7 +1434,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onDayJobShift: onDayJobShift || onOfficialShift,
       onHotelShift,
     });
-    if (!huntingWere && !inElectionCeremony && !festivalGathering) {
+    if (!huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering) {
       tickHumanHospitalPatientCare({
         state,
         entity,
@@ -1453,7 +1464,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Free time & leisure
     if (
-      tickHumanChildLeisure({
+      !inSpotlightGathering && tickHumanChildLeisure({
         state,
         entity,
         speed: config.speed,
@@ -1801,7 +1812,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Idle stamina recovery requires an actual stationary break; keep danger,
     // scheduled duty and ceremonies free to override it.
-    if (takingNeedsBreak && !huntingWere && !inElectionCeremony && !festivalGathering &&
+    if (takingNeedsBreak && !inSpotlightGathering && !huntingWere && !inElectionCeremony && !inSpotlightGathering && !festivalGathering &&
       !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !entity.raidDeploymentId) {
       entity.vx = 0;
       entity.vy = 0;
