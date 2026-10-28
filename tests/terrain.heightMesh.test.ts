@@ -11,6 +11,7 @@ import type { CanvasSurface } from '../src/game/canvasLayer';
 
 const oldOffscreen = (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas;
 let triangleDraws = 0;
+const clipVertices: [number, number][] = [];
 
 class FakeCanvas {
   width: number;
@@ -22,7 +23,8 @@ class FakeCanvas {
   getContext() {
     return {
       imageSmoothingEnabled: false,
-      save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {},
+      save() {}, restore() {}, beginPath() {},
+      moveTo(x: number, y: number) { clipVertices.push([x, y]); }, lineTo() {},
       closePath() {}, clip() {}, transform() {},
       drawImage() { triangleDraws++; },
     };
@@ -81,6 +83,18 @@ describe('triangulated 2.5D ground', () => {
       expect(Math.abs(terrainRiseAt(map, x, 256 - 1e-4)
         - terrainRiseAt(map, x, 256 + 1e-4))).toBeLessThan(0.002);
     }
+  });
+
+  it('overlaps the antialiased triangle clip by a subpixel margin (no black diagonal grid)', () => {
+    const map = gradedMap();
+    map.elevation!.fill(0.2);
+    const src = new FakeCanvas(128, 128) as unknown as CanvasSurface;
+    clipVertices.length = 0;
+    bakeHeightMeshSurface(src, map, { x: 0, y: 0, width: 64, height: 64 });
+    expect(clipVertices).toHaveLength(2 * (64 / TERRAIN_HEIGHT_MESH_STEP) ** 2);
+    // Without the deliberate overlap, clip vertices land exactly on x=0
+    // and y=HEIGHT_MESH_TOP_PAD, leaving half-alpha cracks between triangles.
+    expect(clipVertices.some(([x, y]) => x < 0 || y < HEIGHT_MESH_TOP_PAD)).toBe(true);
   });
 
   it('projects a ground chunk once as a bounded grid of affine source triangles', () => {
