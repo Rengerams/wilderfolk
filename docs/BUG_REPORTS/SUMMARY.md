@@ -1909,4 +1909,6 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 **Merge / verification:** The PR branch includes current `main` and has no merge conflict (commit `8b8d6381`). At that commit, [seeded colony calibration](https://github.com/Rengerams/wilderfolk/actions/runs/40648292406) passed for 7, 30 and 90 days, and the [housing-performance comparison](https://github.com/Rengerams/wilderfolk/actions/runs/40648292377) passed. The [full Node.js CI run](https://github.com/Rengerams/wilderfolk/actions/runs/40648292294) was still running when this entry was written; real-game screenshots and Huge-map FPS measurements remain unverified. The [terrain acceptance document](../TERRAIN_RIVER_SURFACE_FOLLOWUP.md) lists the visual and performance gates. Do not equate review resolution with final acceptance.
 
-| 2026-10-28 | [Legacy Goals conflict with open-ended simulator](../bug_report/2026-10-28-legacy-goals-conflict-with-open-ended-simulator.md) | Finite Legacy Goals appeared in the history panel despite the absence of a simulator win condition. | Resolved in source: removed the goal projection and UI; runtime checks not run. |
+## 2026-10-28 — Design incompatibility resolved
+
+- **Legacy Goals in an open-ended simulator:** [report](../bug_report/2026-10-28-legacy-goals-conflict-with-open-ended-simulator.md). Removed the finite achievement projection and UI while preserving Chronicle history and existing saves. **Resolved in source; runtime checks not run.**
