@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { canonicalDialogueBank, DIALOGUE_EVENT_KEYS, maybeDialogueChat, requestDialogue, type DialogueEventKey } from '../src/game/dialogueTrees';
 import {
-  resetDialogueSessions, tickHumanChat, type ChatSpeaker,
+  formatChatLine, resetDialogueSessions, tickHumanChat, type ChatSpeaker,
 } from '../src/game/humanChat';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
@@ -47,10 +47,11 @@ describe('single dialogue event routing', () => {
         eventKey, treeId: tree.id, speaker: a, partner: tree.mode === 'pair' ? b : null,
         tick: 450, selectionRoll: 0,
       }), eventKey).toBe(true);
-      const text = a.chatPhrase ?? b.chatPhrase;
-      expect(text, eventKey).toBeTruthy();
-      expect(text?.replaceAll('\\n', ' ').trim(), eventKey)
-        .toContain(tree.lines[0]!.text.replaceAll(/\\s+/g, ' ').slice(0, 8));
+      const firstLine = tree.lines[0]!;
+      const active = tree.mode === 'solo' || firstLine.speaker === tree.speakers[0] ? a : b;
+      expect(active.chatPhrase, eventKey).toBe(
+        tree.mode === 'solo' ? formatChatLine(firstLine.text) : formatChatLine(firstLine.text, active),
+      );
       const incompatible = canonicalDialogueBank.dialogue_trees.find((candidate) =>
         candidate.mode === tree.mode && candidate.eventKey !== eventKey);
       if (incompatible) {
