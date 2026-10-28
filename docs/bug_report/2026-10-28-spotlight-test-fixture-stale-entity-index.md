@@ -32,7 +32,7 @@ GitHub Actions output: 1 failed / 396 passed test files, 2602 passed individual 
 Test-fixture inconsistency: direct `world.entities = ...` assignment bypassed existing entity-index ownership and lifecycle rules. Not evidence that production code loses selected spotlight participants.
 
 ## Fix / proposed fix
-In the regression only, call `rebuildEntityByIdMap(world)` and `invalidateCachedEntityByType(world)` immediately after replacing `world.entities`. Leave production index and spotlight behavior unchanged.
+In the regression only, call `rebuildEntityByIdMap(world)` and `invalidateCachedEntityByType(world)` immediately after replacing `world.entities`. Also align actors' birth calendar and the processed-day marker with the simulated weekend afternoon, avoiding unrelated daily ageing. Leave production index and spotlight behavior unchanged.
 
 ## Save/migration impact
 None. No runtime schema, save or worker changes.
