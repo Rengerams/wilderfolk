@@ -31,7 +31,7 @@ import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy } from './humanChat';
-import { requestDialogue } from './dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { seededRandomForRun } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
@@ -375,7 +375,7 @@ export function checkInVisitor(
   if (!isDialogueBusy(visitor)) {
     // A stateless roll keyed on the guest and the tick, matching the chat convention used
     // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
-    requestDialogue({ eventKey: 'hotel.arrival', speaker: visitor, tick: state.tick, durationHours: 50 / 9, selectionRoll: seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) });
+    requestDialogue({ eventKey: 'hotel.arrival', speaker: visitor, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(50), selectionRoll: seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) });
   }
   return true;
 }
@@ -534,7 +534,7 @@ export function hotelierGreetGuests(
   // Once per clock hour — not every sub-hour tick (avoids greeting spam after day stretch)
   if (!isStartOfClockHour(state.tick)) return;
   if (personDayRoll(hotelier.id, state.tick, 913 + getHourOfDay(state.tick)) > 0.35) return;
-  requestDialogue({ eventKey: guests >= 3 ? 'hotel.service.busy' : 'hotel.service.welcome', speaker: hotelier, tick: state.tick, durationHours: 44 / 9 });
+  requestDialogue({ eventKey: guests >= 3 ? 'hotel.service.busy' : 'hotel.service.welcome', speaker: hotelier, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(44) });
 }
 
 /** One hotel's roster — a view for the building inspector, derived like the school's. */
