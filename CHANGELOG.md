@@ -2,7 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Dialogue pipeline (28 October 2026):** Introduced event-keyed speech routing and version-1.3 scene metadata, with single- and two-speaker validation. Gameplay migration and regression verification continue.
+- **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
+- **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
+- **Dialogue checks:** Added source ownership, schema integrity, paired-role and contextual-scene regression guards. Full compilation and test verification remain pending.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
