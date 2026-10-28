@@ -86,9 +86,9 @@ export const SIMULATION_DECISIONS = {
   careerHistory: {
     owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
     cadence: 'daily',
-    cadenceNote: 'No independent pass: credits only settled-site attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. No construction inference or full-storage gating.',
+    cadenceNote: 'No independent pass: credits only previously settled and verified site/job attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. Current staffing may differ after a Moon Howler night. No construction inference or full-storage gating.',
     writes: ['human.careerHistory', 'human.careerHistory[job].days', 'human.careerHistory[job].lastDay'],
-    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours and indexed completed-site validation',
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours, previous-day site/job provenance and indexed completed-site validation',
     testFile: 'tests/careers.history.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   careerProgression: {
