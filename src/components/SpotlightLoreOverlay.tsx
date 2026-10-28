@@ -5,7 +5,7 @@ import { terrainRiseAt } from '../game/terrainAtlas';
 import { formatChatLine } from '../game/humanChat';
 import { bindNumberedPresentationSpeakers } from '../game/dialogueTrees';
 import { preloadSpotlightApplause, playSpotlightApplause } from '../audio/spotlightApplause';
-import { preloadSpotlightMusic, playSpotlightMusic } from '../audio/spotlightMusic';
+import { preloadSpotlightMusic, playSpotlightMusic, type SpotlightMusicPlayback } from '../audio/spotlightMusic';
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
@@ -47,7 +47,7 @@ export default function SpotlightLoreOverlay({
   const particleRef = useRef<HTMLDivElement | null>(null);
   const applauseRef = useRef<HTMLDivElement | null>(null);
   const applauseSoundRef = useRef<{ stop: () => void } | null>(null);
-  const musicSoundRef = useRef<{ stop: () => void } | null>(null);
+  const musicSoundRef = useRef<SpotlightMusicPlayback | null>(null);
   const blackoutRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -101,6 +101,8 @@ export default function SpotlightLoreOverlay({
     let previousKind: 'intro' | 'caption' | 'pose' | 'applause' | null = null;
     let startTime: number | null = null;
     let soundtrackStarted = false;
+    let soundtrackFaded = false;
+    let soundtrackStopped = false;
     const men = scene.slots.filter((slot) => cast.get(slot.humanId)?.gender === 'male');
     const effectTargets = men.length > 0 ? men : scene.slots;
     const chorusMean = effectTargets.reduce(
@@ -121,12 +123,18 @@ export default function SpotlightLoreOverlay({
           musicSoundRef.current = playSpotlightMusic();
         }
       }
-      if (step.kind === 'applause' && musicSoundRef.current) {
-        musicSoundRef.current.stop();
-        musicSoundRef.current = null;
+      if (!soundtrackFaded && elapsed >= SPOTLIGHT_APPLAUSE_START - 1400) {
+        soundtrackFaded = true;
+        musicSoundRef.current?.fadeOut(1.4);
+      }
+      if (step.kind === 'applause' && !soundtrackStopped) {
+        soundtrackStopped = true;
+        musicSoundRef.current?.stop(false);
       }
       if (step.finished) {
         completed.current = true;
+        musicSoundRef.current?.stop();
+        musicSoundRef.current = null;
         callbacks.current.onPresentation(null);
         callbacks.current.onFinish(scene.id, 'complete');
         return;
