@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MapPreset } from '../src/game/gameTypes';
 import {
+  DIRT_TEXTURE_PATHS,
   GRASS_TEXTURE_PATHS,
   TERRAIN_MATERIAL_PATHS,
   grassDetailAt,
@@ -67,6 +68,17 @@ describe('authored grass albedo in v4 biome blending', () => {
       }
       previous = current;
     }
+  });
+
+  it('registers all four original dirt images but excludes directional tracks from biome detail', () => {
+    expect(DIRT_TEXTURE_PATHS).toEqual({
+      loam: '/sprites/terrain/cethiel/Dirt_01.png',
+      coarseSoil: '/sprites/terrain/cethiel/Dirt_02.png',
+      rutted: '/sprites/terrain/cethiel/Dirt_03.png',
+      leafLitter: '/sprites/terrain/cethiel/Dirt_04.png',
+    });
+    expect(Object.keys(DIRT_TEXTURE_PATHS)).toHaveLength(4);
+    expect(DIRT_TEXTURE_PATHS.rutted).not.toBe(DIRT_TEXTURE_PATHS.loam);
   });
 
   it('registers only the curated seven nature albedos for the ground shader', () => {
