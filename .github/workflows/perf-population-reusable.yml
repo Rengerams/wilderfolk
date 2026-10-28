@@ -69,6 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git clean -f -- scripts/perf-population-colony.mts
           git checkout --detach "$HEAD_SHA"
           npm ci --prefer-offline --no-audit --no-fund
           PERF_EXPECT_CAREER=1 PERF_REPORT="$REPORT_DIR/pr.json" /usr/bin/time -f 'peak_rss_kib=%M\nelapsed_seconds=%e' -o "$REPORT_DIR/pr.resources" \
