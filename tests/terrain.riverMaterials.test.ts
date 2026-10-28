@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MapPreset, MapSize } from '../src/game/gameTypes';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { WATER_CELL } from '../src/game/terrain/terrainGrid';
-import { bakeWhittakerGround, buildWhittakerFields } from '../src/game/renderer/whittakerTerrain';
+import { bakeWhittakerGround, buildWhittakerFields, sampleRiverPhase } from '../src/game/renderer/whittakerTerrain';
 
 type Image = { data: Uint8ClampedArray; width: number; height: number };
 let captured: Image | null = null;
@@ -25,6 +25,25 @@ afterAll(() => {
 });
 
 describe('revision-three river surface details', () => {
+  it('keeps river wave phase stable when a bank cell has no assigned flow', () => {
+    // A long channel can already have traveled 1,200px. The unassigned cell next
+    // to it has phase zero; sampling the phase directly would drop to ~778px at
+    // x=0.4, bending and compressing the waves toward the bank.
+    const phase = new Float32Array([1200, 0, 1204, 0]);
+    const assigned = new Float32Array([1, 0, 1, 0]);
+    expect(sampleRiverPhase(phase, assigned, 2, 2, 0.4, 0.5)).toBeCloseTo(1202, 5);
+    expect(sampleRiverPhase(phase, assigned, 2, 2, 0, 0)).toBe(1200);
+    expect(sampleRiverPhase(phase, assigned, 2, 2, 0.6, 0.5)).toBeNull();
+    expect(phase).toEqual(new Float32Array([1200, 0, 1204, 0]));
+    expect(assigned).toEqual(new Float32Array([1, 0, 1, 0]));
+
+    // On fully directed water there must be no change to the normal smooth
+    // interpolation of genuine phases on both sides of the sample.
+    const flowing = new Float32Array([1200, 1210, 1200, 1210]);
+    const fullMask = new Float32Array([1, 1, 1, 1]);
+    expect(sampleRiverPhase(flowing, fullMask, 2, 2, 0.4, 0.5)).toBeCloseTo(1203.52, 5);
+  });
+
   it('derives deterministic flow from existing river paths without editing gameplay water', () => {
     const map = generateRawTerrain(1280, 960, 1234, MapSize.Medium, MapPreset.Rivers);
     const originalWater = Float32Array.from(map.riverDist!);
