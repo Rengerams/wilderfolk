@@ -1,6 +1,6 @@
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
-**Status: implementation proposal only. Nothing described here is implemented by this document.**
+**Implementation status (28 October 2026):** PR A and PR B are merged; **PR C is implemented in [#97](https://github.com/Rengerams/wilderfolk/pull/97), pending merge**, while PR D (career history/progression/fit) and PR E (inspector) remain unimplemented. This is the authoritative architecture, not executable code. Historical AS-IS code examples below describe their original baselines; always verify live code before implementing PR D.
 
 **Codebot: start with [the executable PR tickets and gates](personality-career-codebot-tasks-0.6.5.2.md).** They define exact files, stage ordering, mandatory updates to **both** `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in **every** implementation PR, focused tests, stop conditions and required bug reporting using `docs/bug_report/readme.md` (including the single historical index). The present document defines the architecture and design decisions; the linked task sheet defines the work.
 **Scope:** roadmap §11 (DNA and whole-life personality) plus §16 (professions, education and career paths; previously §17).
@@ -23,7 +23,7 @@
 
 **Correction to the 9 October legacy proposal:** `docs/plans/settler-trait-effects-2026-10-09.md` is a historical plan, not current implementation truth. Its claim that Nurturing, Insightful, Chivalrous and Intuitive are unused is now stale: they are read in education, militia, war-prisoner and social code. Its blanket "ten traits learn -6%" and symmetrical opposite-pair percentages are not adopted: they would penalize nearly every worker irrespective of context. Do not turn that older document into a second specification or table.
 
-**What is already real:** DNA inheritance; human/family and feud systems; school and graduation; apprenticeship; job skills; workforce assignment; selected trait bonuses. **What is not yet real as an integrated feature:** common trait benefits/drawbacks, context-sensitive whole-life priorities, player-readable causal factors, work history, career specializations and progression based on experience.
+**Current progress after PR #97:** DNA inheritance, the 14-trait canonical catalog/evaluator, PR-B work/school/combat consumers and PR-C's six exact-parity social/family/civic migrations exist in code. PR #97 is still awaiting merge. **Not yet implemented:** persistent event-backed career work history, career milestones/specializations, advisory worker-fit explanations and the PR-E inspector. Additional leisure, parenting, personal-memory and relationship behaviors beyond the six PR-C parity sites are separate future scope, not hidden PR-D requirements.
 
 ## 2. Core architectural decision
 
@@ -51,9 +51,9 @@ Stored Entity.traits (14 canonical IDs / max 3)
        evaluateTraitInfluence
    context + subject + optional other
                   |
-        bounded readonly outcome
-        factor, weighted tendency,
-        reason IDs and source traits
+        readonly outcome: bounded factor/tendency
+        OR typed `exact` parity result for PR-C sites;
+        optional reason IDs only on demand
                   |
    +--------------+---------------+--------------+
    |              |               |              |
@@ -75,7 +75,7 @@ Stored Entity.traits (14 canonical IDs / max 3)
 | --- | --- | --- |
 | `src/game/personality/traitEffectCatalog.ts` | One `satisfies Record<SettlerTrait, TraitEffects>` table for all 14 IDs, typed domain effects, contextual plus/minus trade-offs and named caps. No new trait names/labels; those still belong to `settlerTraits.ts`. | `TRAIT_EFFECTS` and effect types used by evaluator |
 | `src/game/personality/traitEvaluation.ts` | **Only** numeric/qualitative trait-combination pipeline. Merge up to three contributions, apply diminishing returns and caps, return a frozen/read-only result with stable reason IDs. No writes or RNG. | `evaluateTraitInfluence`, `TraitContext`, `TraitInfluence` |
-| `src/game/personality/lifeExperience.ts` | Small **optional** experience-memory writer for meaningful past outcomes not already represented by `friendships`, `feuds`, `pastPartnerTicks`, `griefUntilTick` or `scandalCooldownUntilTick`. One bounded once-per-event transition; no second relationship history. | `recordLifeExperience` and one bounded storage type |
+| `src/game/personality/lifeExperience.ts` | **Deferred optional future feature, excluded from PR C and PR D.** Only if separately approved: a compact event-backed memory for meaningful outcomes not already captured by existing relationship state; no second relationship history. | `recordLifeExperience` only in its own future approved PR |
 | `src/game/careers/careerHistory.ts` | **Only** writer for new per-job completed-shift totals and milestone timestamps, based on an already-accepted work credit. Retains idempotency by job + absolute calendar day. | `recordCareerWork`, `CareerHistory` |
 | `src/game/careers/careerProgression.ts` | Event-driven milestone decision only on real credited work or training achievements, using existing skill, education, apprenticeship and career history. No extra daily scan, job assignment or skill writes. | `advanceCareerProgression`, `CareerMilestone` |
 | `src/game/careers/workerFit.ts` | Pure single ranking/explanation projection for *available* vacancies, reading `evaluateTraitInfluence` + existing skill/commute/availability. Ranking is advisory and must not override hard eligibility or player/manual staffing. | `evaluateWorkerFit`, `WorkerFitReason` |
@@ -286,11 +286,11 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 
 1. **Seeded repeatability:** the pure evaluator consumes no RNG and no global current time. Existing decisions continue using their existing `getSimRng` / `personDayRoll` source and their existing number of decision opportunities. If cadence or RNG draw count changes, treat it as a deliberate, tested gameplay migration.
 2. **Stable genetics:** maintain all fourteen trait IDs and the existing inheritance/roll ownership. Do not reroll existing settlers or normalize all old characters to three traits during a save load.
-3. **Mandatory same-PR save migration:** old games load with all new *applicable* properties. New effects derive from existing DNA; valid saved traits remain unchanged. If a truly old human has no DNA array, deterministically allocate canonical baseline traits using a local ID/seed migration stream without consuming the active simulation RNG. Add optional saved career/memory fields to `Entity`, `ENTITY_PERSISTED_FIELDS` and the existing `saveLoad.ts` normalization **in the same PR** as the new field (PR C for optional life memory, PR D for careers); missing fields default neutrally and compactly, with no fabricated historical shifts or events. Validate corrupt values, prove load→save→load idempotency and retain support for existing save versions. Review `simWorker/simPrep.ts` nested clone rollback, complete-entity `simBuffers/simDelta.ts`, and Moon Howler form restoration.
+3. **Mandatory same-PR save migration:** old games load with all new *applicable* properties. New effects derive from existing DNA; valid saved traits remain unchanged. If a truly old human has no DNA array, deterministically allocate canonical baseline traits using a local ID/seed migration stream without consuming the active simulation RNG. Add any optional saved career/memory field to `Entity`, `ENTITY_PERSISTED_FIELDS` and the existing `saveLoad.ts` normalization **in the same PR** as that field (PR D for careers; any personal-memory feature requires its own later approved PR, **not PR C or D**); missing fields default neutrally and compactly, with no fabricated historical shifts or events. Validate corrupt values, prove load→save→load idempotency and retain support for existing save versions. Review `simWorker/simPrep.ts` nested clone rollback, complete-entity `simBuffers/simDelta.ts`, and Moon Howler form restoration.
 4. **Worker parity:** all writes happen within the authoritative simulation tick/command owner and flow through the existing worker/save-delta mechanism; React cannot maintain a second mutable history.
 5. **No new global scans or impure reads:** at most three DNA effects per context, using existing indexes/attendance and readonly projections, no per-call Maps/Sets/reason arrays in hot paths. The existing `readSkill` calls `ensureEntitySkills` and can mutate an entity: the pure evaluator, pure worker fit and inspector must read `entity.skills?.[job] ?? 0` instead. Process career thresholds on work/training events, not a daily full-population scan; only create explanatory reasons for the selected inspector.
 6. **No universal best DNA:** compare all 14 profiles in each supported context and allow job skills, training and context to outweigh trait modifiers. Cap multi-trait stacking.
-7. **No duplicate bonuses:** inventory old Resourceful, Chivalrous, conception, research, captive-energy, hunt and social trait branches. Their **numeric bonuses are not protected**; remove the legacy rule at the same time the canonical evaluator becomes the only active trait-effect source. Keep non-DNA baseline behavior and owner guards. PR B handles economy/education/physiology/militia; PR C handles social/civic/romance.
+7. **No duplicate bonuses, with phase-specific numeric rules:** PR B was the approved rebalance: its old Resourceful, global Chivalrous, research, captive-energy, hunt and escape numbers were **not protected** and were replaced by the canonical bounded evaluator. **PR C is different:** its existing conception, feud, workplace banter, courtship, civic mercy and bereavement numeric rules **must remain exactly unchanged**, via typed `legacyExact` catalog entries; preserve RNG, eligibility and owners and never stack ordinary bounded effects on those exact decisions. PR D must consume the existing canonical API without revisiting either completed migration.
 8. **No extra ticking machinery:** extend existing daily shift/social/relationship and selected event call sites, not the main game loop with an entire new character decision loop.
 
 ## 10. Implementation sequence and acceptance
@@ -314,13 +314,13 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 - **No `lifeExperience.ts` or new persisted fields in PR C.** This is a strict source-of-rules migration; longer-term memory/progression is separate future scope and requires its own architecture, persistence/migration and tests.
 - **Acceptance:** same seed/events generate reproducible choices; different traits measurably bias outcomes without forcing them; no split pair references or extra affinity systems.
 
-### PR D — Career histories and progression
+### PR D — Career histories and progression (NOT IMPLEMENTED; start after PR #97 merges)
 - Add `careerHistory.ts`, `careerProgression.ts` and `workerFit.ts`, wired at the existing successful shift-credit, daily and staffing selection points.
 - Retain `apprenticeships.ts`, `education.ts` and `skills.ts` as sole writers of apprenticeship, school and skill data.
 - Tests: once-per-day credit, manual assignment stability, no skill/career phantom credit for idle workers, optional apprenticeships, skill milestones, 18-year employment boundary, no pathological automatic transfers.
 - **Acceptance:** two same-age classmates may develop different credible careers from real shifts, skill, opportunity and DNA — without changing jobs spontaneously.
 
-### PR E — Transparent UI, documentation and save integration
+### PR E — Transparent UI, documentation and end-to-end save verification
 - Add `PersonalityCareerDetails.tsx`, show factors from the same evaluator and concise *Why this worker?* reasons in the existing UI.
 - Update **both** `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` in **each PR A–E**, including pure read-only and UI phases; update `CHANGELOG.md` alongside the implementation. Mark roadmap §11 / §16 items complete **only after corresponding code is merged**.
 - Tests: old-save hydration, worker/main-thread parity, no stale UI values, save→load, retained inheritance and age constraints, performance budget on representative colony sizes.
