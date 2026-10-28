@@ -1,6 +1,6 @@
 # Roads, walls, gates and navigation — implementation architecture
 
-**Wilderfolk 0.6.6.0 / PR #59 / Issue #49**  
+**Wilderfolk 0.6.5.2 / PR #59 / Issue #49**  
 **Status:** implementation merged into `main` and accepted as PR #59 on 27 October 2026; follow-up fixes #65/#66 are also merged. Verification scope limitations below remain historical, not an open PR status.  
 **Source of truth:** code on the branch, `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, and [issue #49](https://github.com/Rengerams/wilderfolk/issues/49). This document describes the architecture *as implemented*, including limits, rather than proposing a second infrastructure system.
 
