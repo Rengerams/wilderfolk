@@ -23,7 +23,9 @@
           "speaker": "settler",
           "text": "Glad to be back."
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     },
     {
       "id": "wf_festival_work",
@@ -45,7 +47,9 @@
           "speaker": "laborer",
           "text": "Good yield."
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     },
     {
       "id": "wf_festival_feast_scene",
@@ -67,7 +71,9 @@
           "speaker": "reveler",
           "text": "Music tonight!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     },
     {
       "id": "wf_festival_cheers_scene",
@@ -89,7 +95,9 @@
           "speaker": "reveler",
           "text": "Flags up!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     },
     {
       "id": "wf_festival_best_scene",
@@ -111,7 +119,9 @@
           "speaker": "reveler",
           "text": "What a feast!"
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     },
     {
       "id": "wf_funny_festival_turnip",
@@ -133,7 +143,9 @@
           "speaker": "reveler",
           "text": "At last, a vegetable that understands presentation."
         }
-      ]
+      ],
+      "eventKey": "ambient.festival",
+      "mode": "pair"
     }
   ],
   "categories": [
