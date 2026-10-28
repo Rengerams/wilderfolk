@@ -8,11 +8,8 @@
  * also what keeps the two different `FIXTURE_SEED` values and the three different `FULL_MOON_DAY`
  * expressions from colliding.
  *
- * `NIGHT_START` and `TICKS_PER_DAY` were imported from different paths in different source files
- * (`../src/game/dayCycle` vs `../src/game/dayCycleConstants` / `../src/game/dayCycleClock`). Both
- * paths are kept below; `dayCycle` merely re-exports the very same bindings, so the `const` re-binds
- * at the top of the `rare`/`rngThreading`/`syncFormsEquivalence` describes are aliases for an
- * identical value, not new fixtures.
+ * The Moon Howler start hour is imported directly from its true owner,
+ * independently of the village's ordinary night start.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
@@ -26,12 +23,12 @@ import {
   WeatherType,
 } from '../src/game/gameTypes';
 import type { BigNewsItem, Building, Entity, WorldState } from '../src/game/gameTypes';
-import { DAYS_PER_YEAR, NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { TICKS_PER_DAY as TICKS_PER_DAY_FROM_CLOCK } from '../src/game/dayCycleClock';
 import {
   DAYS_PER_MOON_CYCLE,
   NIGHT_END,
-  NIGHT_START as NIGHT_START_FROM_CONSTANTS,
+  MOON_HOWLER_NIGHT_START,
 } from '../src/game/daycycleconstants';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
@@ -70,7 +67,7 @@ describe('Moon Howler restored physiology clock', () => {
   it('does not debit a full werewolf night as human nutrition after dawn', () => {
     const state = initGame({ size: MapSize.Medium, seed: 61 });
     const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
-    const transformTick = 23 * TICKS_PER_HOUR;
+    const transformTick = MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     const dawnTick = 30 * TICKS_PER_HOUR;
     settler.needs = {
       nutrition: 80, rest: 85, stamina: 60,
@@ -135,13 +132,13 @@ describe('moonHowler.byTypeReuse.test.ts', () => {
       // nightfall hour so syncMoonHowlerForms converts them.
       const victim = humans[0];
       victim.moonHowlerCursed = true;
-      // Full moon nightfall (NIGHT_START) — transform window.
+      // Full moon nightfall (MOON_HOWLER_NIGHT_START) — transform window.
       const result = tickMoonHowlerCycle(
         state,
         alive,
         state.buildings,
         14, // colonyDay — a full-moon day
-        NIGHT_START, // nightfall — transform hour
+        MOON_HOWLER_NIGHT_START, // nightfall — transform hour
         new Map(alive.map((e) => [e.id, e])),
         byType,
       );
@@ -172,7 +169,7 @@ describe('moonHowler.cureChance.test.ts', () => {
 
 /**
  * Regression: the Moon Howler curse can only be broken during the full-moon
- * NIGHT (23:00 → before 06:00), while the cursed settler is still in 🌝 form —
+ * NIGHT (22:00 → before 06:00), while the cursed settler is still in 🌝 form —
  * never at 7am work start.
  *
  * The sim has gated the Church exorcism to the night window since 3854df70,
@@ -183,9 +180,11 @@ describe('moonHowler.cureChance.test.ts', () => {
  */
 describe('moonHowler.cureWindow.test.ts', () => {
   describe('Moon Howler cure window — night only, not 7am', () => {
-    it('allows the cure through the full-moon night (20:00 → before 06:00)', () => {
-      // 11pm on a full-moon day (day 0 ≡ 0 mod 14)
+    it('allows the cure through the full-moon night (22:00 → before 06:00)', () => {
+      // Night begins at 22:00 on the full-moon day, not at the ordinary 23:00 night start.
       expect(isMoonHowlerCureWindow(0, 20)).toBe(false);
+      expect(isMoonHowlerCureWindow(0, 21)).toBe(false);
+      expect(isMoonHowlerCureWindow(0, 22)).toBe(true);
       expect(isMoonHowlerCureWindow(0, 23)).toBe(true);
       // Pre-dawn hours of the following morning are still the same full-moon night
       expect(isMoonHowlerCureWindow(1, 0)).toBe(true);
@@ -204,7 +203,8 @@ describe('moonHowler.cureWindow.test.ts', () => {
     });
 
     it('keeps the transform/revert anchors consistent with the window', () => {
-      expect(isMoonHowlerTransformTick(0, NIGHT_START)).toBe(true); // transform at 11pm
+      expect(isMoonHowlerTransformTick(0, MOON_HOWLER_NIGHT_START)).toBe(true); // transform at 22:00
+      expect(isMoonHowlerTransformTick(0, 23)).toBe(false); // already in wolf form
       expect(isMoonHowlerRevertTick(6)).toBe(true); // revert at 6am
       expect(isMoonHowlerRevertTick(7)).toBe(false); // already human by 7am
     });
@@ -298,7 +298,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0, // full-moon night
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
       );
       expect(res.skippedReason).toBe('priest_too_far');
@@ -312,7 +312,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.1, // roll < cure (0.35) → cured
       );
@@ -328,7 +328,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.1,
       );
@@ -341,7 +341,7 @@ describe('moonHowler.exorcism.test.ts', () => {
       f.state.villageLeaderId = f.priest.id;
       f.priest.occupation = LEADER_OCCUPATION;
       const res = tryMoonHowlerChurchCures(
-        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        f.state, f.entities, f.buildings, 0, MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])), () => 0.1,
       );
       expect(res.outcome).toBe('cured');
@@ -355,7 +355,7 @@ describe('moonHowler.exorcism.test.ts', () => {
       f.state.villageLeaderId = f.priest.id;
       f.priest.occupation = LEADER_OCCUPATION;
       const res = tryMoonHowlerChurchCures(
-        f.state, f.entities, f.buildings, 0, NIGHT_START,
+        f.state, f.entities, f.buildings, 0, MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])), () => 0.9,
       );
       expect(res.outcome).toBe('priest_fled');
@@ -396,7 +396,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         entities,
         buildings,
         0,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(entities.map((e) => [e.id, e])),
         () => 0.49,
       );
@@ -412,7 +412,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.49, // priest_killed, no guard to save
       );
@@ -428,7 +428,7 @@ describe('moonHowler.exorcism.test.ts', () => {
         f.entities,
         f.buildings,
         0,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(f.entities.map((e) => [e.id, e])),
         () => 0.49,
       );
@@ -447,7 +447,7 @@ describe('moonHowler.exorcism.test.ts', () => {
  * `buildingRotation.isEntityOnBuilding` gives every other consumer. A howler within that margin
  * therefore counted as outdoors and the sweep never forced it away.
  *
- * Driven through the real owner (`tickMoonHowlerCycle` at a full-moon `NIGHT_START`, which is the cure
+ * Driven through the real owner (`tickMoonHowlerCycle` at a full-moon `MOON_HOWLER_NIGHT_START`, which is the cure
  * window) rather than by calling the helper, so the test fails if the sweep stops delegating.
  */
 describe('moonHowler.indoorsPad.test.ts', () => {
@@ -489,7 +489,7 @@ describe('moonHowler.indoorsPad.test.ts', () => {
 
     state.year = Math.floor(FULL_MOON_DAY / DAYS_PER_YEAR);
     state.dayInYear = FULL_MOON_DAY % DAYS_PER_YEAR;
-    state.tick = FULL_MOON_DAY * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+    state.tick = FULL_MOON_DAY * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     return { state, howler: settler, building };
   }
 
@@ -507,7 +507,7 @@ describe('moonHowler.indoorsPad.test.ts', () => {
         state.entities,
         state.buildings,
         FULL_MOON_DAY,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         new Map(state.entities.map((e) => [e.id, e])),
         undefined,
         () => 0.5,
@@ -534,10 +534,7 @@ describe('moonHowler.indoorsPad.test.ts', () => {
  * replacements are deterministic.
  */
 describe('moonHowler.rare.test.ts', () => {
-  // This file imported `NIGHT_START` from `../src/game/dayCycleConstants`; `dayCycle` re-exports the
-  // very same const, so this re-bind keeps the original path meaningful and the bodies verbatim.
-  const NIGHT_START = NIGHT_START_FROM_CONSTANTS;
-  const FULL_MOON_NIGHTFALL = { colonyDay: DAYS_PER_MOON_CYCLE, hourOfDay: NIGHT_START };
+  const FULL_MOON_NIGHTFALL = { colonyDay: DAYS_PER_MOON_CYCLE, hourOfDay: MOON_HOWLER_NIGHT_START };
 
   function human(id: number, overrides: Partial<Entity> = {}): Entity {
     return {
@@ -572,7 +569,7 @@ describe('moonHowler.rare.test.ts', () => {
     return {
       entities,
       buildings: [],
-      tick: DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR,
+      tick: DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR,
       paused: false,
       speed: 1,
       width: 400,
@@ -676,7 +673,7 @@ describe('moonHowler.rare.test.ts', () => {
     it('the base gates still hold regardless of rng', () => {
       const { colonyDay, hourOfDay } = FULL_MOON_NIGHTFALL;
       expect(shouldApplyNewMoonHowlerCurse(colonyDay, hourOfDay, 5, 0, () => 0.001)).toBe(false); // too few humans
-      expect(shouldApplyNewMoonHowlerCurse(colonyDay, NIGHT_START - 1, 10, 0, () => 0.001)).toBe(false); // wrong hour
+      expect(shouldApplyNewMoonHowlerCurse(colonyDay, MOON_HOWLER_NIGHT_START - 1, 10, 0, () => 0.001)).toBe(false); // wrong hour
       expect(shouldApplyNewMoonHowlerCurse(1, hourOfDay, 10, 0, () => 0.001)).toBe(false); // not full moon
     });
 
@@ -769,7 +766,7 @@ describe('moonHowler.rngThreading.test.ts', () => {
   const FIXTURE_SEED = 20_260_917;
   const START_X = 500;
   const START_Y = 500;
-  /** A full-moon `NIGHT_START`, which is when `syncMoonHowlerForms` transforms. */
+  /** A full-moon `MOON_HOWLER_NIGHT_START`, which is when `syncMoonHowlerForms` transforms. */
   const FULL_MOON_DAY = DAYS_PER_MOON_CYCLE * 4;
 
   /** `rng() === 0` twice → angle 0, distance 40 → due east of the start. */
@@ -804,8 +801,8 @@ describe('moonHowler.rngThreading.test.ts', () => {
       const buildings: Building[] = [];
 
       const sync = syncMoonHowlerForms(
-        [entity], FULL_MOON_DAY, NIGHT_START, buildings, 1200, 900,
-        FULL_MOON_DAY * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR, null, ZERO_RNG,
+        [entity], FULL_MOON_DAY, MOON_HOWLER_NIGHT_START, buildings, 1200, 900,
+        FULL_MOON_DAY * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR, null, ZERO_RNG,
       );
 
       expect(sync.transformed).toHaveLength(1);
@@ -820,7 +817,7 @@ describe('moonHowler.rngThreading.test.ts', () => {
       state.buildings = [];
       state.year = Math.floor(FULL_MOON_DAY / DAYS_PER_YEAR);
       state.dayInYear = FULL_MOON_DAY % DAYS_PER_YEAR;
-      state.tick = FULL_MOON_DAY * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+      state.tick = FULL_MOON_DAY * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
 
       const raw = JSON.stringify(buildSaveData(state, createInitialView(state.width, state.height)));
       expect(parseSaveJson(raw).valid).toBe(true);
@@ -954,11 +951,8 @@ describe('moonHowler.staleLeaderOccupation.test.ts', () => {
  * so the file does not depend on the reference agreeing with itself.
  */
 describe('moonHowler.syncFormsEquivalence.test.ts', () => {
-  // This file imported `NIGHT_START` from `../src/game/dayCycleConstants`; `dayCycle` re-exports the
-  // very same const, so this re-bind keeps the original path meaningful and the bodies verbatim.
-  const NIGHT_START = NIGHT_START_FROM_CONSTANTS;
   const FIXTURE_SEED = 20_260_920;
-  /** Day 14 is a full-moon day (`isFullMoonDay`); `NIGHT_START` (20) is inside the full-moon night. */
+  /** Day 14 is a full-moon day (`isFullMoonDay`); Moon Howler starts at 22:00. */
   const FULL_MOON_DAY = DAYS_PER_MOON_CYCLE;
   const ORDINARY_DAY = 3;
   /** Any tick inside the full-moon night; only the prison restore reads it (sentence still active). */
@@ -1289,13 +1283,13 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   }
 
   describe('syncMoonHowlerForms is equivalent to its pre-N-6 body (N-6)', () => {
-    it('full-moon NIGHT_START: the cursed settler transforms and the night falls', () => {
+    it('full-moon MOON_HOWLER_NIGHT_START: the cursed settler transforms and the night falls', () => {
       const source = buildSettlementWorld();
       // Sanity on the fixture itself: a full-moon night is when the transform direction can run.
-      expect(shouldMoonHowlerTransform(FULL_MOON_DAY, NIGHT_START)).toBe(true);
-      expect(isMoonHowlerTransformTick(FULL_MOON_DAY, NIGHT_START)).toBe(true);
+      expect(shouldMoonHowlerTransform(FULL_MOON_DAY, MOON_HOWLER_NIGHT_START)).toBe(true);
+      expect(isMoonHowlerTransformTick(FULL_MOON_DAY, MOON_HOWLER_NIGHT_START)).toBe(true);
 
-      const { actual, world } = differential(source, FULL_MOON_DAY, NIGHT_START);
+      const { actual, world } = differential(source, FULL_MOON_DAY, MOON_HOWLER_NIGHT_START);
 
       expect(actual.transformedIds).toEqual([CURSED_SETTLER_ID]);
       expect(actual.revertedIds).toEqual([]);
@@ -1309,12 +1303,12 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
       expect(entityById(world, JUVENILE_CURSED_ID).type).toBe(EntityType.Human);
     });
 
-    it('full-moon NIGHT_START on the next tick: an howler already abroad keeps the night fallen', () => {
-      // NIGHT_START spans three ticks, so ticks 2 and 3 of the hour find every cursed settler already
+    it('full-moon MOON_HOWLER_NIGHT_START on the next tick: an howler already abroad keeps the night fallen', () => {
+      // MOON_HOWLER_NIGHT_START spans three ticks, so ticks 2 and 3 of the hour find every cursed settler already
       // transformed: `transformed` is empty and only `huntingTonight` can keep `nightFall` true.
       const source = buildSettlementWorld({ cursedSettlerAlreadyTransformed: true });
 
-      const { actual } = differential(source, FULL_MOON_DAY, NIGHT_START);
+      const { actual } = differential(source, FULL_MOON_DAY, MOON_HOWLER_NIGHT_START);
 
       expect(actual.transformedIds).toEqual([]);
       expect(actual.revertedIds).toEqual([]);
@@ -1364,13 +1358,13 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
     it('full-moon night past the transform hour: the night flag needs the transform hour', () => {
       const source = buildSettlementWorld();
 
-      const { actual } = differential(source, FULL_MOON_DAY, NIGHT_START + 1);
+      const { actual } = differential(source, FULL_MOON_DAY, MOON_HOWLER_NIGHT_START + 1);
 
       // Still a full-moon night, so cursed settlers keep transforming …
       expect(actual.transformedIds).toEqual([CURSED_SETTLER_ID]);
-      // … but `nightFall` is `transformTick && (...)`, and only NIGHT_START is the transform tick.
-      expect(shouldMoonHowlerTransform(FULL_MOON_DAY, NIGHT_START + 1)).toBe(true);
-      expect(isMoonHowlerTransformTick(FULL_MOON_DAY, NIGHT_START + 1)).toBe(false);
+      // … but `nightFall` is `transformTick && (...)`, and only MOON_HOWLER_NIGHT_START is the transform tick.
+      expect(shouldMoonHowlerTransform(FULL_MOON_DAY, MOON_HOWLER_NIGHT_START + 1)).toBe(true);
+      expect(isMoonHowlerTransformTick(FULL_MOON_DAY, MOON_HOWLER_NIGHT_START + 1)).toBe(false);
       expect(actual.nightFall).toBe(false);
     });
 
