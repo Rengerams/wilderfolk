@@ -37,6 +37,26 @@ describe('solo, paired and forced dialogue sessions', () => {
     expect(isDialogueBusy(b)).toBe(false);
   });
 
+  it('reclaims a paired session after its partner disappears without dereferencing missing actors', () => {
+    const a = actor(18);
+    const b = actor(19);
+    expect(requestDialogue({
+      eventKey: 'neighbor.greeting', speaker: a, partner: b, tick: 12,
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
+    const missingPartner = (_id: number): undefined => undefined;
+    expect(() => {
+      for (let i = 0; i < 4; i++) tickDialogue(a, missingPartner);
+    }).not.toThrow();
+    expect(a.chatDialogueSessionKey).toBeUndefined();
+    expect(b.chatDialogueSessionKey).toBeUndefined();
+    expect(a.chatPartnerId).toBeUndefined();
+    expect(b.chatPartnerId).toBeUndefined();
+    expect(isDialogueBusy(a)).toBe(false);
+    expect(isDialogueBusy(b)).toBe(false);
+    expect(requestDialogue({ eventKey: 'ambient.social', speaker: a, tick: 13 })).toBe(true);
+  });
+
   it('scripted speech interrupts and releases a paired session through the real resolver', () => {
     const a = actor(4);
     const b = actor(5);
