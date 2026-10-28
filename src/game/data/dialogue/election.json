@@ -1,0 +1,261 @@
+{
+  "version": "1.0",
+  "category": "existential",
+  "dialogue_trees": [
+    {
+      "id": "evt_election_buildup_0",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Election next year — will {leader} keep the crown?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_1",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I hear {candidateA} is gaining support…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_2",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} served well — worth watching."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_3",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village buzzes about {leader}, {candidateA}, and {candidateB}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_4",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will lead us after {leader}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_5",
+      "category": "existential",
+      "eventKey": "election.buildup",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateC} might surprise us next election."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_0",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will it be — {leader} or {candidateA}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_1",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateA} has the merit, I think."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_2",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The Hall favors {candidateB}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_3",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Time for a fresh village head?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_4",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I’m voting {candidateA} in my heart."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_5",
+      "category": "existential",
+      "eventKey": "election.ceremony",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} deserves a chance."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_0",
+      "category": "existential",
+      "eventKey": "election.tension",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Quiet… they’re about to announce…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_1",
+      "category": "existential",
+      "eventKey": "election.tension",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My heart is pounding…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_2",
+      "category": "existential",
+      "eventKey": "election.tension",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who did the merit favor?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_3",
+      "category": "existential",
+      "eventKey": "election.tension",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Shh — here comes the result…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_winner_0",
+      "category": "existential",
+      "eventKey": "election.winner",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I will serve the village!"
+        }
+      ]
+    }
+  ]
+}
