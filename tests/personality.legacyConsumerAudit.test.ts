@@ -6,7 +6,7 @@
  * The AST scan remains active afterwards: added legacy rules make CI fail.
  *
  * The scan excludes historical docs and the genetics owner's own structural
- * \`traits.includes\` allocation/inheritance checks, which are not gameplay bonuses.
+ * `traits.includes` allocation/inheritance checks, which are not gameplay bonuses.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
