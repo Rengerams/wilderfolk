@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "chaos",
   "dialogue_trees": [
@@ -25,7 +25,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_ladder",
@@ -49,7 +49,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_cow",
@@ -73,7 +73,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_doorframe",
@@ -97,7 +97,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_well",
@@ -121,7 +121,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_fear_run",
@@ -145,7 +145,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_fear_inside",
@@ -169,7 +169,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_fear_moon",
@@ -193,7 +193,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_affair_secret",
@@ -217,7 +217,7 @@
         }
       ],
       "eventKey": "ambient.affair",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_affair_meet",
@@ -241,7 +241,7 @@
         }
       ],
       "eventKey": "ambient.affair",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_affair_kiss",
@@ -265,7 +265,7 @@
         }
       ],
       "eventKey": "ambient.affair",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_chaos_goat_court",
@@ -301,7 +301,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_chaos_goat",
@@ -325,7 +325,7 @@
         }
       ],
       "eventKey": "ambient.fear",
-      "mode": "pair"
+      "conversation_type": "two_way"
     }
   ],
   "categories": [
