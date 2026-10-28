@@ -216,8 +216,10 @@ export default function CitizenOverviewScreen({
        * to another subject is its own icon, not a chip inside a panel.
        */
       centered
-      widthClassName="w-[min(58rem,calc(100vw-3rem))] max-w-[calc(100vw-3rem)]"
-      maxBodyClassName="max-h-[70vh]"
+      widthClassName={activeNav === 'frontier'
+        ? 'w-[calc(100vw-2rem)] max-w-3xl'
+        : 'w-[min(58rem,calc(100vw-3rem))] max-w-[calc(100vw-3rem)]'}
+      maxBodyClassName={activeNav === 'frontier' ? 'max-h-[calc(92vh-4rem)]' : 'max-h-[70vh]'}
     >
         <div>
           {/* The citizen summary belongs to the *Village* subject: it counts people, work, homes, life,
