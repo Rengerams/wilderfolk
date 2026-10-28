@@ -22,6 +22,7 @@ import {
 import { generateWorldMap } from './terrainGen';
 
 import { tileAt } from './terrain/terrainGrid';
+import { valueNoise } from './terrain/noise';
 import {
   enableSeededGlobalRandom,
   getSimRng,
@@ -267,7 +268,7 @@ export function spawnGrassPatch(
 
     if (gx < 0 || gx > width || gy < 0 || gy > height) continue;
     if (state.worldMap && !isPassableWildlifePosition(state, gx, gy, 4)) continue;
-    if (state.worldMap?.generationVersion === 2) {
+    if ((state.worldMap?.generationVersion ?? 1) >= 2) {
       const biome = getTileAtWorld(state, gx, gy)?.type;
       if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
           && biome !== TerrainType.Grassland && biome !== TerrainType.RiverBank) continue;
@@ -708,23 +709,25 @@ export function initGame(options: InitGameOptions = {}): WorldState {
   }
 
   // 4. Tree Clusters & Forest Fills
-  for (let c = 0; c < 12; c++) {
-    const cx = width * 0.12 + simRandom() * width * 0.76;
-    const cy = height * 0.12 + simRandom() * height * 0.76;
-    for (let i = 0; i < 14; i++) {
-      const angle = simRandom() * Math.PI * 2;
-      const dist = simRandom() * 72;
-      const tx = cx + Math.cos(angle) * dist;
-      const ty = cy + Math.sin(angle) * dist;
-      if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
-      if (state.worldMap?.generationVersion === 2) {
-        const biome = getTileAtWorld(state, tx, ty)?.type;
-        if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
-            && biome !== TerrainType.Grassland) continue;
+  if (state.worldMap?.generationVersion !== 3) {
+    for (let c = 0; c < 12; c++) {
+      const cx = width * 0.12 + simRandom() * width * 0.76;
+      const cy = height * 0.12 + simRandom() * height * 0.76;
+      for (let i = 0; i < 14; i++) {
+        const angle = simRandom() * Math.PI * 2;
+        const dist = simRandom() * 72;
+        const tx = cx + Math.cos(angle) * dist;
+        const ty = cy + Math.sin(angle) * dist;
+        if (!isPassableWildlifePosition(state, tx, ty, 4)) continue;
+        if ((state.worldMap?.generationVersion ?? 1) >= 2) {
+          const biome = getTileAtWorld(state, tx, ty)?.type;
+          if (biome !== TerrainType.Forest && biome !== TerrainType.DarkForest
+              && biome !== TerrainType.Grassland) continue;
+        }
+        const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
+        state.entities.push(tree);
+        indexLivingEntity(state, tree);
       }
-      const tree = createEntity(EntityType.Tree, tx, ty, state.nextEntityId++);
-      state.entities.push(tree);
-      indexLivingEntity(state, tree);
     }
   }
 
@@ -733,21 +736,48 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     const tw = width / map.width;
     const th = height / map.height;
 
-    for (let ty = 0; ty < map.height; ty += 2) {
-      for (let tx = 0; tx < map.width; tx += 2) {
-        const t = tileAt(map, tx, ty);
-        if (!t) continue;
-        const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
-        if (!isForest || simRandom() > 0.22) continue;
-
-        const px = (tx + 0.35 + simRandom() * 0.3) * tw;
-        const py = (ty + 0.35 + simRandom() * 0.3) * th;
-        if (!isPassableWildlifePosition(state, px, py, 4)) continue;
-
-        const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
-        state.entities.push(tree);
-        indexLivingEntity(state, tree);
+    if (map.generationVersion === 3) {
+      // Jittered staggered sites remove the visible tree grid while retaining predictable density.
+      const spacing = 29;
+      const climateSeed = map.terrainSeed ?? map.seed;
+      for (let row = 0, sy = spacing / 2; sy < height - spacing / 2; row++, sy += spacing) {
+        const shift = row % 2 === 0 ? 0 : spacing / 2;
+        for (let sx = spacing / 2 + shift; sx < width - spacing / 2; sx += spacing) {
+          const px = sx + (simRandom() - 0.5) * spacing * 0.46;
+          const py = sy + (simRandom() - 0.5) * spacing * 0.46;
+          const biome = getTileAtWorld(state, px, py)?.type;
+          const density = biome === TerrainType.DarkForest ? 0.54
+            : biome === TerrainType.Forest ? 0.40
+              : biome === TerrainType.RiverBank ? 0.08
+                : biome === TerrainType.Grassland ? 0.035 : 0;
+          if (density === 0) continue;
+          const grove = valueNoise(px * 0.0025, py * 0.0025, climateSeed + 1881);
+          if (simRandom() >= density * (0.38 + grove * 1.18)) continue;
+          if (!isPassableWildlifePosition(state, px, py, 4)) continue;
+          const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
+          tree.spriteVariant = simRandom() < (biome === TerrainType.DarkForest ? 0.78 : 0.28) ? 1 : 0;
+          state.entities.push(tree);
+          indexLivingEntity(state, tree);
+        }
       }
+    } else {
+      for (let ty = 0; ty < map.height; ty += 2) {
+        for (let tx = 0; tx < map.width; tx += 2) {
+          const t = tileAt(map, tx, ty);
+          if (!t) continue;
+          const isForest = t.type === TerrainType.Forest || t.type === TerrainType.DarkForest;
+          if (!isForest || simRandom() > 0.22) continue;
+  
+          const px = (tx + 0.35 + simRandom() * 0.3) * tw;
+          const py = (ty + 0.35 + simRandom() * 0.3) * th;
+          if (!isPassableWildlifePosition(state, px, py, 4)) continue;
+  
+          const tree = createEntity(EntityType.Tree, px, py, state.nextEntityId++);
+          state.entities.push(tree);
+          indexLivingEntity(state, tree);
+        }
+      }
+
     }
   }
 
@@ -768,7 +798,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     state, size, centerX, centerY,
     (world, x, y, margin) => {
       if (!isPassableWildlifePosition(world, x, y, margin)) return false;
-      if (world.worldMap?.generationVersion !== 2) return true;
+      if ((world.worldMap?.generationVersion ?? 1) < 2) return true;
       const biome = getTileAtWorld(world, x, y)?.type;
       return biome === TerrainType.Forest || biome === TerrainType.DarkForest
         || biome === TerrainType.Grassland;

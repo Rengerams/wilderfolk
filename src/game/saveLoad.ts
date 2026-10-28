@@ -490,7 +490,7 @@ function restoreWorldMapFromSave(parsed: {
   const wm = parsed.worldMap;
   const overrides = wm._overrides;
   const storedTerrainSeed = isFiniteNumber(wm._terrainSeed) ? wm._terrainSeed : undefined;
-  const generationVersion: 1 | 2 = wm._generationVersion === 2 ? 2 : 1;
+  const generationVersion: 1 | 2 | 3 = wm._generationVersion === 3 ? 3 : wm._generationVersion === 2 ? 2 : 1;
   /** Regenerate the valley, with the save's recorded seed when it has one. */
   const regenerateTerrain = (terrainSeed?: number): WorldState['worldMap'] => {
     if (isUsableMapTileCount(wm.width) && isUsableMapTileCount(wm.height)) {

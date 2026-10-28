@@ -122,7 +122,7 @@ Foreign `warCaptive` feeding intentionally remains on legacy energy and canonica
 
 **Historical pre-merge gate:** this section records verification that was requested before PR #62 was merged. **PR #62 is now merged and accepted.** Continue these tests as post-merge release-hardening checks. Do not conceal starvation with artificial replenishment, weaken invariant checks or claim a passing current run based on an earlier commit.
 
-**References:** `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, `docs/plans/human-needs-issue-61-2026-10-26.md`, `CHANGELOG.md`, `roadmap_V.0.6.6.0.md`.
+**References:** `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, `docs/plans/human-needs-issue-61-2026-10-26.md`, `CHANGELOG.md`, `roadmap_V.0.6.5.2.md`.
 ## 9. Producer-colony remediation and measured failures (27 October 2026)
 
 GitHub Actions job `121955079228`, seed 12345, 30 simulated days, **before** the remediation:

@@ -1,6 +1,6 @@
 # Wilderfolk terrain architecture
 
-**Scope and acceptance:** terrain-preset implementation PR #63 merged into `main` and was accepted on 27 October 2026. This is an engineering description, not a claim that all new artwork/biomes have passed visual playtests.
+**Scope and acceptance:** terrain-preset implementation PR #63 merged into `main` and was accepted on 27 October 2026. A subsequent version-3 naturalism upgrade is proposed separately and awaits CI and visual playtesting; do not mistake this document for an acceptance statement.
 
 **Authority:** `AGENTS.md` governs changes; `OWNERSHIP_OVERVIEW.md` registers each function with one owning module. `src/game/terrain/terrainGrid.ts` owns the tile projection, `src/game/terrain/terragen.ts` owns generation, and the renderer owns presentation. Do not introduce another terrain classifier, save generator or convenience re-export.
 
@@ -67,13 +67,13 @@ The configured start resources remain unchanged across presets. More realistic s
 
 ### Hydrology
 
-`terrain/hydrology.ts` owns depression filling, downhill drainage and accumulated catchment. `carveRivers` selects headwaters and follows that network into joined channels; channel width follows catchment, not arbitrary per-frame decoration. For generation version 2, `buildWaterField` rasterizes **segments connecting consecutive river points** and interpolates width along each segment. Legacy generation retains its original point-stamping behaviour. `classifyTile` and the shader both use the resulting water coverage.
+`terrain/hydrology.ts` owns depression filling, downhill drainage and accumulated catchment. `carveRivers` selects headwaters and follows that network into joined channels; channel width follows catchment, not arbitrary per-frame decoration. Version 2 rasterizes linear water segments with interpolated widths. Version 3 interpolates the segment centreline with a half-step Catmull–Rom curve before rasterizing its water coverage; the underlying drainage graph and stored polylines are unchanged. Version 1 keeps point stamping. `classifyTile` and the shader both use the resulting water coverage.
 
-River water is painted in the **continuous ground shader**. The static decor pass no longer adds a second vector line on top of the water. Water masks, water-tile classification and colour should be tested together: a pretty blue ribbon is not sufficient if pathfinding still considers it dry land.
+River water is painted in the **continuous ground shader**. In version 3 the shader reserves blue water primarily for the gameplay channel (`riverDist > 0.55`) and paints the adjoining riparian ground as wet soil. Version 3 also propagates a bounded moisture gradient away from river cells, permitting riparian biome transitions. The static decor pass does not add a second vector river stroke. Water masks, water-tile classification and colour should be tested together: a pretty blue ribbon is not sufficient if pathfinding still considers it dry land.
 
 ### Biome and object selection
 
-`decorBiomeForTile` chooses allowed ground props from the canonical tile type at the prop position, while the coarse biome may supply meadow detail. New-generation forest floor density is intentionally reduced so tiny vector bushes, mushrooms and rocks do not visually compete with the full-height, harvestable tree sprites. Water and river tiles receive no terrestrial decor props. New-world ambient tree clusters, ordinary grass and blueberry trees are also restricted to suitable terrain. Tree sprites are entities, not a second static forest layer.
+`decorBiomeForTile` chooses allowed ground props from the canonical tile type at the prop position, while the coarse biome may supply meadow detail. New-generation forest floor density is intentionally reduced so tiny vector bushes, mushrooms and rocks do not visually compete with the full-height, harvestable tree sprites. Water and river tiles receive no terrestrial decor props. New-world ambient tree clusters, ordinary grass and blueberry trees are also restricted to suitable terrain. Tree sprites are entities, not a second static forest layer. Version-3 worlds place harvestable trees on staggered and jittered sites, with noise-modulated groves and glades, low-density riparian trees, and weighted sprite variants. Existing versions keep their original spawn sequences.
 
 ## 4. Renderer and 2.5D lighting
 
@@ -108,7 +108,8 @@ Relevant regression coverage includes `tests/terragen.riverGeneration.test.ts`, 
 2. Sparse terrain overrides are authoritative for gameplay, but the continuous colour shader primarily reads underlying climate/height fields. A cleared campsite or edited tile may need a separate blended surface treatment to match its new gameplay label perfectly; avoid changing hydrology simply to paint an override.
 3. Static decor is baked from generation-time points. Building placement and later landscaping need explicit decor invalidation/removal if persistent ground props are found under new structures.
 4. Per-preset weather and daily ambient temperature are outside this rendering/generator change.
-5. Actual readability, chunk-seam quality and framerate remain recommended **post-merge** in-game visual checks on representative seeds, zoom levels and map sizes.
+5. Actual readability, chunk-seam quality and framerate require in-game visual checks on representative seeds, zoom levels and map sizes; the version-3 PR does not yet establish their results.
+6. Real species-specific tree artwork, sprites for streams/rapids and truly eroded valley geometry require further art or simulation work beyond the version-3 improvements.
 
 ## 8. Extension checklist
 

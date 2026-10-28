@@ -1,6 +1,6 @@
-# Wilderfolk v0.6.6.0 — Warfare, Survival & Reputation Roadmap
+# Wilderfolk v0.6.5.2 — Warfare, Survival & Reputation Roadmap
 
-**Target version:** 0.6.6.0  
+**Target version:** 0.6.5.2  
 **Scope:** Raid gameplay, settlement destruction and recovery, player choices, valley diplomacy, named battle casualties, and leadership merit.
 
 **Acceptance policy (27 October 2026): merged = accepted** in Wilderfolk. A merged PR is accepted work, even when broader release-level testing or further enhancements remain. See [§23](#23-overhaul-acceptance-register--27-october-2026) for the actual merged code and additions.
@@ -194,7 +194,7 @@ Implement inside the existing game owners where possible; avoid parallel raid or
 7. **Death/memorials:** keep player burial logic separate from enemy combat casualty recording.
 8. **Chronicle/alerts:** log events once, distinguish raid phases and consequences, make crucial decisions persistent and visible.
 9. **Save migration:** consider saves containing enemy graves or already-pending raid outcomes and design safe defaults rather than silently erasing records.
-10. **Versioning/docs:** ship this only when verified; move future features from this roadmap into v0.6.6.0 release notes once working.
+10. **Versioning/docs:** ship this only when verified; move future features from this roadmap into v0.6.5.2 release notes once working.
 
 ### Implementation checkpoint — 26 October 2026
 
@@ -231,7 +231,7 @@ Automated lifecycle and migration checks cover these transitions. Browser checks
 
 ## 10. Definition of done
 
-v0.6.6.0 is ready to announce these mechanics only when **the game logic, user choice, visual feedback, recovery/game-over flow, reputation consequences, leadership scoring, persistence, automated tests and actual gameplay checks** all agree.
+v0.6.5.2 is ready to announce these mechanics only when **the game logic, user choice, visual feedback, recovery/game-over flow, reputation consequences, leadership scoring, persistence, automated tests and actual gameplay checks** all agree.
 
 **No gameplay changes are made by this roadmap document.**
 
@@ -450,7 +450,7 @@ The player should be able to build an attractive, connected settlement where roa
 - Raiders must be able to target **gates, weak sections and breach points**, rather than treating a fully enclosed city as magically invulnerable.
 - Defenders need reachable positions and routes. A wall without a workable gate should not trap the entire village or create free defense points.
 - The raid overview should explain which tower provided support, where a breach occurred, and how fortifications affected the result.
-- Fortifications should contribute to the **v0.6.6.0 devastation model**: well-defended towns are harder to wipe out, but sufficiently strong enemies can still destroy walls and towers.
+- Fortifications should contribute to the **v0.6.5.2 devastation model**: well-defended towns are harder to wipe out, but sufficiently strong enemies can still destroy walls and towers.
 - Do not duplicate the existing aggregate militia/defense score with an unbounded second bonus. Balance physical defense effects against current combat resolution.
 
 ### 13.6 Building UX and visual polish
@@ -669,7 +669,7 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 ### High priority — Roads, walls, gates and navigation overhaul (Issue #49; 26 October 2026)
 
-**Status: [x] MERGED AND ACCEPTED (27 October 2026; PR #59).** Follow-up fixes #65/#66 are also merged. The recorded PR validation includes 2,436 passing tests, annual integration and three-zoom visual checks; this is historical PR evidence, not a new current-main CI claim. [Issue #49](https://github.com/Rengerams/wilderfolk/issues/49) is the authoritative technical audit and implementation contract, with the owner-approved scope changes recorded in the implementation brief. One coordinated implementation pipeline in v0.6.6.0. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
+**Status: [x] MERGED AND ACCEPTED (27 October 2026; PR #59).** Follow-up fixes #65/#66 are also merged. The recorded PR validation includes 2,436 passing tests, annual integration and three-zoom visual checks; this is historical PR evidence, not a new current-main CI claim. [Issue #49](https://github.com/Rengerams/wilderfolk/issues/49) is the authoritative technical audit and implementation contract, with the owner-approved scope changes recorded in the implementation brief. One coordinated implementation pipeline in v0.6.5.2. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
 
 - [x] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
 - [x] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.
@@ -721,7 +721,7 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 ## 23. Overhaul acceptance register — 27 October 2026
 
-**Project rule: merged = accepted.** This register describes **merged code on `main`**, not stale draft language in earlier technical briefs. The entire 0.6.6.0 release still has separate requirements; accepted PRs are not automatically evidence of unrun scenarios or performance improvements.
+**Project rule: merged = accepted.** This register describes **merged code on `main`**, not stale draft language in earlier technical briefs. The entire 0.6.5.2 release still has separate requirements; accepted PRs are not automatically evidence of unrun scenarios or performance improvements.
 
 | Area | Merged and accepted PRs | Added/changed behavior in current code | Primary references |
 | --- | --- | --- | --- |
@@ -746,4 +746,4 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 ### 23.2 Canonical document and audit boundary
 
-The root `roadmap_V.0.6.6.0.md` is canonical. The old `docs/roadmap_V.0.6.6.0.md` copy is synchronized with it to remove contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.
+The root `roadmap_V.0.6.5.2.md` is canonical. The redundant `docs/` roadmap copy was removed to prevent contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.
