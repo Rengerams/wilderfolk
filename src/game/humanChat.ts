@@ -161,7 +161,7 @@ function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: Chat
   const session = dialogueSessions.get(key);
   dialogueSessions.delete(key);
   for (const participant of [entityA, entityB, session?.entityARef, session?.entityBRef]) {
-    if (participant?.chatDialogueSessionKey !== key) continue;
+    if (!participant || participant.chatDialogueSessionKey !== key) continue;
     participant.chatDialogueSessionKey = undefined;
     participant.chatPartnerId = undefined;
     clearEntityChat(participant);
@@ -372,7 +372,7 @@ export function tickHumanChat(
     // `advanceDialogue` returning false means the session is gone (a forced phrase reclaimed it, or the
     // partner vanished). Release both halves, not just this one.
     const goneKey = entity.chatDialogueSessionKey;
-    if (!dialogueSessions.has(goneKey)) {
+    if (goneKey && !dialogueSessions.has(goneKey)) {
       const partnerId = entity.chatPartnerId;
       const counterpart = partnerId != null ? resolvePartner?.(partnerId) ?? undefined : undefined;
       clearDialogueSession(goneKey, entity, counterpart);
