@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Established affair steals spotlight gathering movement](../bug_report/2026-10-28-spotlight-established-affair-overrides-movement.md):** Fixed on PR #91: ongoing mutual affairs cannot overwrite the stage-bound actor's velocity; a real-tick opposite-direction tryst regression was added. CI/browser validation pending.
+
 **2026-10-28 — [Spotlight real-tick test fixture retained stale entity index](../bug_report/2026-10-28-spotlight-test-fixture-stale-entity-index.md):** Test-only defect on PR #91: a replaced settler population had the previous colony's ID/type cache, causing false scene abortion. Fixture now rebuilds indexes; CI confirmation pending.
 
 **2026-10-28 — [Spotlight halo and captions drift while paused camera eases](../bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md):** Fixed on PR #91 by tracking the live render camera on a scene-scoped animation frame, without extra simulation ticks or React frame commits; browser validation pending.
