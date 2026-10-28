@@ -20,6 +20,7 @@ import {
 
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
+  'traitInfluence',
   'humanPhysiology',
   'humanMeals',
   'workforce',
@@ -78,7 +79,11 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      expect(row.writes.length, `writes of "${key}"`).toBeGreaterThan(0);
+      if (key === 'traitInfluence') {
+        expect(row.writes, 'traitInfluence is a read-only projection').toEqual([]);
+      } else {
+        expect(row.writes.length, `writes of "${key}"`).toBeGreaterThan(0);
+      }
       for (const field of row.writes) {
         expect(field.trim().length, `write field of "${key}"`).toBeGreaterThan(0);
       }
@@ -111,6 +116,8 @@ describe('simulation decision registry', () => {
   });
 
   it('keeps qualified property writes distinct across simulation owners', () => {
+    expect(isPropertyWritePermitted('traitInfluence', 'human.skills')).toBe(false);
+    expect(isPropertyWritePermitted('traitInfluence', 'human.traits')).toBe(false);
     expect(isPropertyWritePermitted('workforce', 'building.occupants')).toBe(true);
     expect(isPropertyWritePermitted('workforce', 'human.job')).toBe(true);
     expect(isPropertyWritePermitted('workforce', 'job')).toBe(true);
