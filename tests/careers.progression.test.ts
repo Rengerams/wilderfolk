@@ -33,7 +33,7 @@ describe('career milestone progression', () => {
   it('normalizes unsupported or fabricated milestone codes without legacy work history', () => {
     expect(normalizeCareerMilestones({ farmer: { tier: 'master', tierAtDay: 4 } })).toBeUndefined();
     expect(normalizeCareerMilestones({ farmer: { tier: 'master', tierAtDay: 4 } },
-      { farmer: { days: 180, lastDay: 4 } })).toEqual({ farmer: { tier: 'master', tierAtDay: 4 } });
+      { farmer: { days: 180, lastDay: 180 } })).toEqual({ farmer: { tier: 'master', tierAtDay: 4 } });
     expect(normalizeCareerMilestones({ doctor: { trainedAtDay: 9, tier: 'wizard', tierAtDay: 2 } }))
       .toEqual({ doctor: { trainedAtDay: 9 } });
     expect(normalizeCareerMilestones({ doctor: { trainedAtDay: Infinity } })).toBeUndefined();

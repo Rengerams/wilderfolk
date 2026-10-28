@@ -1,5 +1,5 @@
-import type { Entity, JobType } from '../gameTypes';
-import { JobType as Jobs } from '../gameTypes';
+import type { Entity } from '../gameTypes';
+import { JobType } from '../gameTypes';
 import { MAX_CAREER_DAY, type CareerHistory } from './careerHistory';
 
 export type CareerTier = 'practiced' | 'experienced' | 'master';
@@ -16,10 +16,10 @@ export const CAREER_TIER_DAYS = { practiced: 15, experienced: 60, master: 180 } 
 export function normalizeCareerMilestones(raw: unknown, history?: CareerHistory): CareerMilestones | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-  if (Object.keys(raw).length > Object.values(Jobs).length) return undefined;
+  if (Object.keys(raw).length > Object.values(JobType).length) return undefined;
   const out: CareerMilestones = {};
-  for (const job of Object.values(Jobs)) {
-    if (job === Jobs.Settler || job === Jobs.Guard) continue;
+  for (const job of Object.values(JobType)) {
+    if (job === JobType.Settler || job === JobType.Guard) continue;
     const row = (raw as Record<string, unknown>)[job];
     if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
     const item = row as Record<string, unknown>;

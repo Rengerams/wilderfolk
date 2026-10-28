@@ -1,5 +1,5 @@
-import type { Building, Entity, JobType } from '../gameTypes';
-import { BUILDING_JOB_TYPES, EntityType, JobType as Jobs } from '../gameTypes';
+import type { Building, Entity } from '../gameTypes';
+import { BUILDING_JOB_TYPES, EntityType, JobType } from '../gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 
 /** Compact, genuine worked shifts. One credit per person, profession and settled day. */
@@ -15,17 +15,18 @@ export type CareerHistory = Partial<Record<JobType, CareerJobHistory>>;
 export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-  if (Object.keys(raw).length > Object.values(Jobs).length) return undefined;
+  if (Object.keys(raw).length > Object.values(JobType).length) return undefined;
   const out: CareerHistory = {};
-  for (const job of Object.values(Jobs)) {
-    if (job === Jobs.Settler || job === Jobs.Guard) continue;
+  for (const job of Object.values(JobType)) {
+    if (job === JobType.Settler || job === JobType.Guard) continue;
     const row = (raw as Record<string, unknown>)[job];
     if (row === undefined) continue;
     if (row === null || typeof row !== 'object' || Array.isArray(row)) continue;
     const { days, lastDay } = row as Record<string, unknown>;
     if (!Number.isSafeInteger(days) || (days as number) < 1 || (days as number) > MAX_CREDITED_DAYS
       || !Number.isSafeInteger(lastDay) || (lastDay as number) < 0
-      || (lastDay as number) > MAX_CAREER_DAY) continue;
+      || (lastDay as number) > MAX_CAREER_DAY
+      || (days as number) > (lastDay as number) + 1) continue;
     out[job] = { days: days as number, lastDay: lastDay as number };
   }
   return Object.keys(out).length ? out : undefined;
