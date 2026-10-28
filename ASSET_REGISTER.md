@@ -26,6 +26,8 @@ levels of 255** when the first pass did it that way.
 
 ### Outside this tree
 
+`public/maps/new-frontier.webp` — player-supplied illustrated parchment map, displayed by `StrategicWorldMap.tsx` beneath live rival markers. The optimized WebP is a presentation asset only: it does not determine spawn, gameplay terrain or travel distance. Origin: user-provided artwork.
+
 `public/logo.png` — the only shipped asset outside `public/sprites/`. Largest use is the 128 CSS px
 loading splash (`App.tsx`), so the bound is 256 device px at 2×; the favicon and
 `apple-touch-icon` need 180 px. Resized from 1024×1024 to **512×512** (2× the bound), 1 568 KiB →
