@@ -496,6 +496,24 @@ describe('food-chain decisions under a recorded deficit', () => {
     return state;
   }
 
+  it('keeps expanding food despite a positive week when the completed month still has a serious deficit', () => {
+    // A short harvest recovery can conceal the earlier depletion and ongoing immigration.
+    // Twenty-three deficit days outweigh a strong final week; do not resume optional growth.
+    const foodHistory = Array.from({ length: 30 }, (_, index) => ({
+      day: index + 1,
+      produced: { farms: index < 23 ? 25 : 85 },
+      consumed: { meals: 60 },
+    }));
+    const state = deficitVillage({
+      tick: 31 * TICKS_PER_DAY,
+      foodHistory,
+      foodSpoilageRate: 0,
+    });
+    expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
   it('builds a Mill when its research is available to amplify existing farms', () => {
     const state = deficitVillage({
       researchNodes: [researchNode({ id: 'agriculture_2', researched: true })],
