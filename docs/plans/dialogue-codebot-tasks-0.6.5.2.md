@@ -1,18 +1,27 @@
 # Coding-agent execution — dialogue trees single pipeline 0.6.5.2
 
-**Task class:** REFACTOR + CONTENT MIGRATION. **Status:** IMPLEMENTED IN PR #93 BRANCH; final verification and merge pending.  
+**Task class:** REFACTOR + CONTENT MIGRATION. **Status:** IMPLEMENTED AND MERGED — PR [#93](https://github.com/Rengerams/wilderfolk/pull/93), 28 October 2026 (`a97704e1`). PR-head CI passed; separate browser/Spotlight checks are not implied.  
 **Design authority:** [Dialogue AS-IS / TO-BE architecture](dialogue-single-pipeline-0.6.5.2.md).  
 **Required style:** [Wilderfolk feature codebot template](CODEBOT_FEATURE_TEMPLATE.md); follow the DNA [architecture](personality-career-single-pipeline-0.6.5.2.md) + [execution tasks](personality-career-codebot-tasks-0.6.5.2.md) separation.  
 **Application version:** current 0.6.5.1; next development target **0.6.5.2** (`AGENTS.md`). **Implementation:** phases A–D consolidated in PR #93; original four-merge delivery sequencing is superseded by the combined review.  
 **Do not** modify gameplay implementation in response to this document alone without an implementation task. Do not claim that writing this plan completes the feature.
 
-## PR #93 implementation checkpoint
+## PR #93 implementation checkpoint — MERGED
 
-- **Implemented in branch:** canonical 1.3 event/mode bank, domain cutovers A–D, one chat-state owner, validated 6–10 actor presentation binder, worker bundle install, session cleanup and deterministic content choice.
+- [x] **PR A — typed JSON 1.3 bank and ambient speech gateway.**
+- [x] **PR B — social, nature and visitor event cutover.**
+- [x] **PR C — civic, health, lodging, marriage and pregnancy cutover.**
+- [x] **PR D — election, omen and legacy-selector retirement.**
+- [x] **Merged on `main`**, commit `a97704e1`; PR-head Node.js CI, dedicated dialogue validation and 120-day producer-bot simulation all completed successfully.
+- [ ] **Separate PR #91 Spotlight overlay integration** (including updated heroine/cue choreography) remains open; browser Worker/visual end-to-end behavior is not established by PR #93.
+
+
+
+- **Implemented and merged:** canonical 1.3 event/mode bank, domain cutovers A–D, one chat-state owner, validated 6–10 actor presentation binder, worker bundle install, session cleanup and deterministic content choice.
 - **Legacy retired:** category-wide `pickDialogueTree` function and its old selection test; no active `sayHumanChatPhrase` production callers.
 - **Legacy content decision:** all ten `Elections.json` IDs overlap `needs.json` but all ten historical versions differ, so the file stays quarantined, preserved and regression-tested instead of being silently removed.
 - **Additional implementation tests:** `dialogue.bankIntegrity`, `dialogue.sessionModes`, `dialogue.domainEvents`, `dialogue.workerSaveParity`, `dialogue.legacyElectionsAudit`, and `dialogue.performance` (current p50/p95 only).
-- **Release acceptance not yet asserted:** full standard CI, build at final head and merge; a code change or a newly added test alone is not proof it passed. Actual PR #91 overlay UI wiring remains a separate branch integration after PR #93.
+- **PR-head acceptance evidence:** Node.js CI, dialogue-branch validation and seeded 120-day producer-bot workflow passed on `eede8f0`; merged as `a97704e1`. A separate real browser Worker/visual test was not claimed. Actual PR #91 overlay wiring remains a separate integration.
 
 ## PR #93 typed content contract and context routing (28 October 2026)
 
@@ -20,7 +29,7 @@
 - **Compiled contract:** `DialogueTree` is readonly with mandatory `eventKey`, mandatory discriminated `solo`/`pair` mode and matching 1/2 speakers. Both the bundle and any worker/deserialized payload are checked against the explicit key registry and copied into nested frozen scenes, speakers and lines.
 - **Domain correctness:** original event gates stay in their owners; the exact `eventKey` plus optional `treeId` selects only matching authored content. Regression tests enumerate all keys, sample specific outcomes and reject mismatched variants; none invent new speech timing or event RNG.
 - **Worker:** `gameWorker.ts` installs the bundled `canonicalDialogueBank` at module initialization. Worker/main serialization parity tests now exercise every compiled tree. This validates content parity, **not** a live browser Worker round trip; live validation remains pending.
-- **Spotlight PR #91:** not integrated in this change, as requested. Full standard/120-day and browser-worker acceptance pending.
+- **Spotlight PR #91:** remains unmerged and requires updated heroine/cue-aware overlay integration. The PR #93 head passed Node.js CI and 120-day simulation; real browser-worker visual acceptance remains outside this PR.
 
 ## PR #93 follow-up acceptance hardening (28 October 2026)
 
@@ -28,7 +37,7 @@
 - **Chat sessions:** `humanChat.ts` retains the actual paired participants in the existing unsaved session Map, freeing both synchronously on scripted interruption even without a caller resolver. Same tick cadence and chat fields; `tests/dialogue.sessionModes.test.ts` pins immediate release.
 - **Spotlight:** `bindNumberedPresentationSpeakers` now rejects presentations leaving any gathered actor silent. The PR #91 source still owns 31 captions and ten roles; `tests/dialogue.schema13.test.ts` validates cast sizes 6–10 with all actors speaking. Actual overlay hookup belongs to PR #91 after integration.
 - **Domain and save/worker:** `tests/dialogue.domainEvents.test.ts` exercises real hospital and Town Hall outcome functions in addition to content routing; `tests/dialogue.workerSaveParity.test.ts` exercises serialized bank request parity and paired save/load orphan recovery. Full real Worker thread execution and visual tests remain unverified; do not claim otherwise.
-- **Verification status:** changes committed on PR #93; full standard CI, 120-day workflow, strict cycle audit and production build at the final HEAD still require successful runs before merge.
+- **Verification status (merged):** final PR-head Node.js CI, dedicated dialogue branch checks and 120-day producer-bot workflow passed; merged into `main` as `a97704e1`. These runs do not prove a browser Worker-thread or Spotlight UI walkthrough.
 
 ## 0. Mandatory preflight — do this before editing
 
@@ -329,4 +338,4 @@ The **whole refactor is complete only after PR D has merged** and the final stat
 5. Tests: assert actual JSON's exact 31-line text **and order** against the previous overlay (do not duplicate 31 strings in another new file), speaker_1→performerIds[0] through speaker_10→performerIds[9] for a ten-person cast, 6–10 real actors with safe reuse for smaller casts, abort/skip once, wall-clock while simulation is paused, save/reload and no simulated chat-field changes. Run focused dialogue and Spotlight tests, typecheck, build and standard suite. Report actual results; do not claim pass before running.
 6. Update the relevant ownership rows, decision registry, changelog, bug-report summary/real counts and PR body when implementation is complete. Do not alter PR #91's domain eligibility, event frequency, real movement, world/save/worker model, Chronicle rules or gameplay balance.
 
-**Branch dependency at 2026-10-28:** PR #91 owns the overlay and JSON; PR #93 owns the functions and tests. This means PR #93's helper can be merged independently, but the actual overlay import and replacement of `LINES` requires the branches to be integrated. Do not merge all of PR #91 into PR #93 or introduce a broken cross-branch dependency merely to mark the overlay as done.
+**Integration status (28 October 2026):** PR #93 is merged on `main` and owns the shared presentation functions. PR #91 is still open and owns Spotlight's JSON, heroine/cues and React overlay. Integrate the current 44-caption script and explicit heroine role on the PR #91 branch, not by rewriting the completed PR #93 migration. Keep this separate follow-up until integrated and verified.

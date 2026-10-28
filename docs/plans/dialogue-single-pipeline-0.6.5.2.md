@@ -1,16 +1,16 @@
 # Wilderfolk — Dialogue single-pipeline architecture (0.6.5.2)
 
-**Status:** IMPLEMENTED ON PR #93 BRANCH (phases A–D); final standard CI and merge acceptance pending. **Baseline reviewed:** main, 28 October 2026. **Target:** 0.6.5.2.  
+**Status:** IMPLEMENTED AND MERGED in PR [#93](https://github.com/Rengerams/wilderfolk/pull/93) (phases A–D, 28 October 2026, `a97704e1`). Final PR-head CI/120-day simulation passed; browser/Spotlight UI follow-up is separate. **Baseline reviewed:** main, 28 October 2026. **Target:** 0.6.5.2.  
 **Companion execution plan:** [Dialogue codebot tasks](dialogue-codebot-tasks-0.6.5.2.md).  
 **Template:** [CODEBOT_FEATURE_TEMPLATE](CODEBOT_FEATURE_TEMPLATE.md). **Comparable precedent:** [DNA/personality/career architecture](personality-career-single-pipeline-0.6.5.2.md) and its coding-agent tasks.  
-**Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`. The architecture is implemented on PR #93; release completion requires final checks and merge, and PR #91 overlay integration remains a separate follow-up.
+**Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`. The architecture is merged on `main` via PR #93; PR #91 overlay integration and browser-only behavior remain separate follow-ups.
 
 
 **PR #93 implementation evidence (28 October 2026):** Canonical JSON bank, exact eventKey+mode request gateway, one humanChat session writer, migrated domain triggers, shared worker bank and old-save reclaim logic are present. The unused category-wide `pickDialogueTree` selector was removed. Regression suites now include bank integrity, session modes, domain routing, real save/load recovery, legacy Elections quarantine and an indexed lookup p50/p95 microbenchmark. These are implementation facts, not a claim of final CI or historic before/after performance parity.
 
-**Acceptance hardening on PR #93 (28 October 2026):** The PR now adds a real 120-day seeded bot-driven producer gate instead of restoring 360-day CI, immediate paired-session interruption cleanup in the sole `humanChat` writer, all-speaker participation for six-to-ten-person Spotlight casts, direct hospital/Town Hall handler regressions and serialized bank plus paired save/load tests. These are committed changes, **not** evidence of a passing final full CI, real Worker-thread transport, or a completed PR #91 overlay hookup.
+**Acceptance hardening on PR #93 (28 October 2026):** The PR now adds a real 120-day seeded bot-driven producer gate instead of restoring 360-day CI, immediate paired-session interruption cleanup in the sole `humanChat` writer, all-speaker participation for six-to-ten-person Spotlight casts, direct hospital/Town Hall handler regressions and serialized bank plus paired save/load tests. These are committed changes, **not** by themselves evidence of real Worker-thread transport or a completed PR #91 overlay hookup; final PR-head CI and the 120-day simulation subsequently passed.
 
-**Typed/immutable contract hardening (PR #93, 28 October 2026):** `DialogueEventKey` is now the explicit 94-key authored union, including context-specific social and visitor outcomes. `DialogueTree` requires eventKey and discriminated solo/pair modes; both source compilation and worker payload installation validate keys, freeze the canonical bank and all tree/line/speaker arrays, and index by exact eventKey plus mode. Domain event conditions remain where they were; an explicit treeId must belong to that key and mode or the speech request is refused. Existing worker module initialization installs `canonicalDialogueBank`, while App preloads the same sources; all-tree serialized parity tests are added. Actual browser Worker-thread transport and final CI remain pending. Spotlight overlay hookup stays deferred to PR #91.
+**Typed/immutable contract hardening (PR #93, 28 October 2026):** `DialogueEventKey` is now the explicit 94-key authored union, including context-specific social and visitor outcomes. `DialogueTree` requires eventKey and discriminated solo/pair modes; both source compilation and worker payload installation validate keys, freeze the canonical bank and all tree/line/speaker arrays, and index by exact eventKey plus mode. Domain event conditions remain where they were; an explicit treeId must belong to that key and mode or the speech request is refused. Existing worker module initialization installs `canonicalDialogueBank`, while App preloads the same sources; all-tree serialized parity tests are added. Actual browser Worker-thread transport remains unverified; final PR-head CI and 120-day simulation passed. Spotlight overlay hookup stays deferred to PR #91.
 
 **Intentional content exception:** All ten `Elections.json` IDs already exist in `needs.json`, but all ten authorings differ in lines or speaker metadata. The historical file remains unimported and intact; explicit source tests and a source guard enforce this quarantine. Deleting or silently remapping it would lose content or change live dialogue probabilities.
 
@@ -25,7 +25,7 @@
 | Event trigger owners | Remain in their existing domain files; dialogue never decides whether an election, marriage, illness, hospital treatment or hunt occurs. |
 | Persistence | No new persisted fields proposed. Existing `Entity.chatPhrase`, `chatTicks`, `chatPartnerId` and `chatDialogueSessionKey` and their current transport/reset semantics must be audited and retained or migrated in the same PR as a change. |
 | Non-goals | Rewrite event decisions, alter event probabilities, add gameplay rewards, add generic event managers, persist conversation histories, alter Chronicle logging, implement language generation/LLMs or invent new game events. |
-| Delivery | Phases A→B→C→D are implemented together in PR #93 rather than four merges; final acceptance still requires an integrated, passing standard suite. |
+| Delivery | Phases A→B→C→D are implemented together in PR #93 rather than four merges; final PR-head CI and 120-day simulation passed before the merge. |
 
 **Problem.** JSON dialogue trees exist but are only one of several paths producing speech bubbles. TypeScript files also embed literal speech, choose text locally, or write chat fields directly. Existing broad categories mix unrelated events, and three authored event files are not part of the loaded bank. That creates duplicated text ownership, role mismatch, context drift, and inconsistent session interruption/duration. The goal is *one authoritative speech-request entrypoint*, not a second event simulator.
 
@@ -299,15 +299,17 @@ Every **implementation PR** updates both `OWNERSHIP_OVERVIEW.md` and `src/game/s
 
 The codebot must follow `docs/plans/dialogue-codebot-tasks-0.6.5.2.md` for exact phase order, file inventory, checks and reporting. **No code implementation is established by this document.**
 
-## 8. Final review gate
+## 8. Final review gate — PR #93 merged
 
-- [ ] One public speech-request pipeline and one chat-state writer; no TS-authored dialogue strings in production or direct scattered writes.
-- [ ] Each identified source event has the correct eventKey and available mode, including family/famine/pregnancy and election/omen; no broad wrong-context fallback.
-- [ ] Every migrated source's old call/import and TS text removed **in the activating PR**, not “later”.
-- [ ] Existing event triggers, probabilities, domain writes, logging, rendering, deterministic RNG, workers and save semantics preserved.
-- [ ] All old-session/lifecycle/busy/sleep protections and focused regression tests pass.
-- [ ] No new hot-loop scans, duplicated banks, import cycles or unbounded session data.
-- [ ] Each implementation PR contains both ownership registries, changelog, bug-report accounting, test evidence and handover; no roadmap completion before merge.
+- [x] One public speech-request pipeline and one chat-state writer; retired production TS-authored dialogue and direct scattered writes.
+- [x] Event-appropriate typed keys/modes cover migrated social, family, famine, pregnancy, election and omen scenes with fail-closed selection.
+- [x] Old production selection paths retired in the consolidated A–D PR.
+- [x] Existing gameplay event owners, probabilities, domain writes, logging, rendering and save behavior retained in the migrated scope.
+- [x] Paired session/busy/sleep protections and focused regression coverage included; final PR-head Node.js CI passed.
+- [x] Indexed bank avoids per-request full-bank scans; static ownership and 120-day producer-bot gates passed on PR head.
+- [x] Both ownership registries, changelog, bug-report records and architecture updated; PR #93 merged into `main`.
+
+**Separate follow-up:** the current PR #91 Spotlight choreography (44 captions and explicit heroine role) still needs its live overlay integration and browser acceptance; do not count it as part of PR #93.
 
 
 ## PR #91 compatibility — JSON-authored group captions (schema v1.3)
@@ -323,4 +325,4 @@ The reusable, read-only functions in `src/game/dialogueTrees.ts` are:
 
 The **existing** PR #91 `SpotlightLoreOverlay.tsx` remains the only wall-clock scene owner. Once the branches are integrated, it imports PR #91's JSON, parses it once at module initialization, binds real actors for the current scene, and uses the bound speakerId in place of `lineIndex % scene.performerIds.length`. It renders the same line text, speaker name, camera projection, stage, intro (2400 ms), applause (2800 ms), skip and completion. With no authored `durationMs`, keep the original `Math.max(3000, Math.min(5300, 1900 + text.length * 43))` pacing. This does not use `requestDialogue`, `humanChat.ts`, `chatPhrase/chatTicks`, a second clock, or RNG.
 
-**Branch coordination:** PR #93 does not contain PR #91's overlay or content file; therefore its tests cover the mapper and schema, but the actual React-overlay wiring must be committed after the two branch contents are available together (for example, after PR #93 merges and PR #91 rebases). No cross-branch import is allowed on an unmerged branch. PR #91's actual 31 lines must be regression-checked against the former array, followed by pause/skip/reload and visual verification. No gameplay/save/worker changes are authorized by the dialogue integration.
+**Integration coordination:** PR #93 has merged; PR #91 remains open with its own evolving Spotlight presentation. The original 31-line contract above describes the initial source at PR #93 implementation time, not the current PR #91 44-caption heroine/cue script. Update the PR #91 overlay to use the merged presentation helpers without dropping new authored lines, while retaining pause/skip/reload and visual acceptance requirements. No gameplay/save/worker changes are authorized by this dialogue hookup.
