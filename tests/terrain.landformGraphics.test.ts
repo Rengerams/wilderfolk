@@ -4,14 +4,14 @@ import { bakeWhittakerGround, buildWhittakerFields } from '../src/game/renderer/
 
 interface CapturedImage { data: Uint8ClampedArray; width: number; height: number }
 const existingDocument = (globalThis as { document?: unknown }).document;
-let captured: CapturedImage | null = null;
+const capture: { image: CapturedImage | null } = { image: null };
 
 beforeAll(() => {
   const context = {
     createImageData: (width: number, height: number): CapturedImage => ({
       width, height, data: new Uint8ClampedArray(width * height * 4),
     }),
-    putImageData: (image: CapturedImage) => { captured = image; },
+    putImageData: (image: CapturedImage) => { capture.image = image; },
   };
   (globalThis as { document?: unknown }).document = {
     createElement: () => ({ getContext: () => context, width: 0, height: 0 }),
@@ -29,11 +29,11 @@ describe('landform graphic uplift', () => {
     const original = Float32Array.from(map.elevation!);
     const fields = buildWhittakerFields(map)!;
     const bake = () => {
-      captured = null;
+      capture.image = null;
       bakeWhittakerGround(map, 240, 240, map.seaLevel!, 0,
         { x: 48, y: 48, width: 64, height: 64 }, fields);
-      if (!captured) throw new Error('no ground pixels');
-      return Uint8ClampedArray.from(captured.data);
+      if (!capture.image) throw new Error('no ground pixels');
+      return Uint8ClampedArray.from(capture.image.data);
     };
 
     // Keep exactly the same terrain, lighting inputs except its visible grade.
@@ -63,11 +63,11 @@ describe('landform graphic uplift', () => {
     }
     const fields = buildWhittakerFields(map)!;
     const bake = (x: number, width: number) => {
-      captured = null;
+      capture.image = null;
       bakeWhittakerGround(map, 320, 320, map.seaLevel!, 0,
         { x, y: 64, width, height: 48 }, fields);
-      if (!captured) throw new Error('no ground pixels');
-      return Uint8ClampedArray.from(captured.data);
+      if (!capture.image) throw new Error('no ground pixels');
+      return Uint8ClampedArray.from(capture.image.data);
     };
     const full = bake(64, 128);
     const first = bake(64, 64);
