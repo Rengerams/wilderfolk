@@ -141,7 +141,7 @@ describe('simulation decision registry', () => {
     // shipped. A reader (or a linter) following a pointer that 404s learns nothing about coverage.
     const named: string[] = [];
     for (const key of REQUIRED_DECISIONS) {
-      const matches = SIMULATION_DECISIONS[key].testFile.match(/tests\/[A-Za-z0-9_.-]+\.test\.tsx?/g) ?? [];
+      const matches = SIMULATION_DECISIONS[key].testFile.match(/tests\/[A-Za-z0-9_.-]+\.test\.ts/g) ?? [];
       for (const match of matches) named.push(match);
     }
 
