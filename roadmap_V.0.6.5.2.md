@@ -3,7 +3,7 @@
 **Target version:** 0.6.5.2  
 **Scope:** Warfare and rivals, housing and families, human needs and food, roads and fortifications, terrain/biomes, village life, simulation performance and graphics.
 
-**Acceptance policy (27 October 2026): merged = accepted** in Wilderfolk. A merged PR is accepted work, even when broader release-level testing or further enhancements remain. See [§23](#23-merged-feature-implementation-register--27-october-2026) for the actual merged code and additions.
+**Acceptance policy: merged = accepted.** Features implemented by a PR merged into `main` are marked `[x]`. See [§23](#23-merged-feature-implementation-register--28-october-2026) for the implementation register.
 
 ## Version 0.6.5.2 — feature implementation overview (28 October 2026)
 
