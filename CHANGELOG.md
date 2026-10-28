@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
+
 - **Dialogue contract (28 October 2026):** Restricted speech requests to 94 authored event keys, made one- and two-speaker scene types mandatory and froze both application and worker banks. Added all-event selection and serialization parity regressions; no gameplay or save changes.
 
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
