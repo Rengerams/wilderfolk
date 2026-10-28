@@ -10,7 +10,6 @@ import { addHuntVisual } from './huntvisuals';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 import { valleyStageIndex } from './ecologyStage';
-
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
