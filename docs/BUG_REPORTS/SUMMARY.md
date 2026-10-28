@@ -14,6 +14,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Solo dialogue never releases without resolver](../bug_report/2026-10-28-solo-dialogue-session-never-releases-without-resolver.md):** solo JSON lines could reach zero ticks while retaining their live session key when no resolver was passed; PR #93 now advances/clears solo sessions without synthesizing a partner. CI and worker/save verification pending.
 
+**2026-10-28 — [Dialogue migration inflated caption duration](../bug_report/2026-10-28-dialogue-migration-duration-inflation.md):** nominal legacy speech ticks were mistaken for game hours (hospital: 4 → 64 effective ticks); PR #93 converts through the authoritative clock and adds a 12-scene duration/busy-release regression. CI verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
