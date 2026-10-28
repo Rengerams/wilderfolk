@@ -23,6 +23,7 @@ import eventMarriageDialogueJson from './data/dialogue/marriage.json' with { typ
 import eventRenffr_omenDialogueJson from './data/dialogue/renffr-omen.json' with { type: 'json' };
 import eventElectionDialogueJson from './data/dialogue/election.json' with { type: 'json' };
 import eventSocial_impulseDialogueJson from './data/dialogue/social-impulse.json' with { type: 'json' };
+import eventVisitorDialogueJson from './data/dialogue/visitor.json' with { type: 'json' };
 import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
 import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
 import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
@@ -107,6 +108,7 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   eventRenffr_omenDialogueJson as unknown as DialogueSourceFile,
   eventElectionDialogueJson as unknown as DialogueSourceFile,
   eventSocial_impulseDialogueJson as unknown as DialogueSourceFile,
+  eventVisitorDialogueJson as unknown as DialogueSourceFile,
   eventFamilyDialogueJson as unknown as DialogueSourceFile,
   eventFamineDialogueJson as unknown as DialogueSourceFile,
   eventPregnancyDialogueJson as unknown as DialogueSourceFile,
@@ -138,6 +140,7 @@ const DIALOGUE_SOURCE_FILE_NAMES = [
   'dialogue/renffr-omen.json',
   'dialogue/election.json',
   'dialogue/social-impulse.json',
+  'dialogue/visitor.json',
   'Family.json',
   'Famine.json',
   'pregnancy.json',
