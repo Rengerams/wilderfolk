@@ -98,6 +98,28 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(false);
   });
 
+  it('clamps a valid six-person open-ground lineup at the left border', () => {
+    const { world, girl, adults } = makeFixture();
+    world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
+    world.buildings = [];
+    girl.x = 30;
+    girl.y = 360;
+    world.entities = [girl, ...adults.slice(0, 6)];
+    for (const [index, actor] of adults.slice(0, 6).entries()) {
+      actor.x = 42 + index * 2;
+      actor.y = 352;
+    }
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    expect(world.spotlightLore?.slots).toHaveLength(6);
+    for (const slot of world.spotlightLore!.slots) {
+      expect(slot.x).toBeGreaterThanOrEqual(0);
+      expect(slot.x).toBeLessThan(world.width);
+      expect(slot.y).toBeGreaterThanOrEqual(0);
+      expect(slot.y).toBeLessThan(world.height);
+    }
+  });
+
   it('never accepts off-map chorus slots and never consumes cooldown on rejected edge placement', () => {
     for (const placement of ['left', 'bottom'] as const) {
       const { world, girl, adults } = makeFixture();
