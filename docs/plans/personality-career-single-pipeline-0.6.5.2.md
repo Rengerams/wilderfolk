@@ -83,7 +83,7 @@ Stored Entity.traits (14 canonical IDs / max 3)
 
 A **small** required change to existing modules is unavoidable to make the new rules take effect: add direct imports and one narrowly scoped call at the existing decision/credit point. The implementation logic remains in new modules. Do not rewrite or relocate existing school, affair, apprenticeship, staffing, housing or production algorithms.
 
-**Ownership registration:** document each new exported function and writer in `OWNERSHIP_OVERVIEW.md`. Extend `simulation/decisionRegistry.ts` only for **new write-owning domains** (career history/milestones and, if approved, distinct life-experience storage); keep trait evaluation outside the decision registry because it is a pure read-only projection. Existing social/production keys continue to own the actual choices and state changes.
+**Mandatory dual registration in every implementation PR:** update both `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` for each phase A–E. Register the pure `traitInfluence` evaluator with its sole owner, `writes: []`, and on-demand caller metadata, without adding a simulation tick. Update existing registry decisions for changed integrations; register new career-history, career-progression and (if needed) life-experience writers under distinct keys with exact write sets. Every changed function still has one owner and no writer is duplicated.
 
 ## 4. Single typed evaluation contract
 
@@ -218,7 +218,7 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 
 ### PR E — Transparent UI, documentation and save integration
 - Add `PersonalityCareerDetails.tsx`, show factors from the same evaluator and concise *Why this worker?* reasons in the existing UI.
-- Update `OWNERSHIP_OVERVIEW.md`, `simulation/decisionRegistry.ts` only for genuinely new mutation owners, `CHANGELOG.md` and roadmap §11 / §16 implementation flags **only after corresponding PRs are merged**.
+- Update **both** `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` in **each PR A–E**, including pure read-only and UI phases; update `CHANGELOG.md` alongside the implementation. Mark roadmap §11 / §16 items complete **only after corresponding code is merged**.
 - Tests: old-save hydration, worker/main-thread parity, no stale UI values, save→load, retained inheritance and age constraints, performance budget on representative colony sizes.
 - **Acceptance:** clear user-visible pros/cons and skill/career explanations, no gameplay rules copied into JSX.
 
