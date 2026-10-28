@@ -66,6 +66,7 @@ export type DecisionKey =
   | 'raidCombat'
   | 'raidRecovery'
   | 'raidCaptivity'
+  | 'raidTerminalPresentation'
   | 'valleyChronicle'
   | 'terrainRiverSurface'
   | 'commands';
@@ -305,6 +306,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['human.warCaptive', 'human.prisonBuildingId', 'raidPrisonerHistory', 'rivalSettlements.population', 'building.occupants (through prison owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'frontierCombat.ts → captureRaidPrisoners; simWorker/commands.ts → resolveWarPrisoner; prison escape/removal owners → departWarPrisoner',
     testFile: 'tests/warfare.lifecycle.test.ts',
+  },
+  raidTerminalPresentation: {
+    owner: 'raidTerminalReport.ts — buildRaidTerminalReport (pure read-only projection); components/WarfareStatus.tsx and components/RazeConfirmation.tsx own display only',
+    cadence: 'on-demand',
+    cadenceNote: 'Only derived for a genuinely destroyed settlement; one bounded scan of retained Chronicle events and one player-entity scan per report render. No tick, scheduler, RNG, state changes or additional save fields.',
+    writes: [],
+    scheduledFrom: 'components/WarfareStatus.tsx → buildRaidTerminalReport when raidRecovery.status is destroyed; App.tsx → RazeConfirmation for an existing pending raid',
+    testFile: 'tests/raidTerminalReport.test.tsx',
   },
   valleyChronicle: {
     owner: 'valleyChronicle.ts — advanceValleyChronicle; components/tabPanels/ValleyChroniclePanel.tsx is read-only',
