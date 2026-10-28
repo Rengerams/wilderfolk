@@ -64,8 +64,10 @@ export default function SpotlightLoreOverlay({
     let previousIndex = -1;
     let previousKind: 'intro' | 'caption' | 'pose' | 'applause' | null = null;
     let startTime: number | null = null;
-    const chorusMean = scene.slots.reduce(
-      (mean, slot) => ({ x: mean.x + slot.x / scene.slots.length, y: mean.y + slot.y / scene.slots.length }),
+    const men = scene.slots.filter((slot) => cast.get(slot.humanId)?.gender === 'male');
+    const effectTargets = men.length > 0 ? men : scene.slots;
+    const chorusMean = effectTargets.reduce(
+      (mean, slot) => ({ x: mean.x + slot.x / effectTargets.length, y: mean.y + slot.y / effectTargets.length }),
       { x: 0, y: 0 },
     );
 
