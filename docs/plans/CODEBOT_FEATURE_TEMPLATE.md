@@ -169,6 +169,75 @@ Hard requirements:
 
 **State transition example to replace:** `[INITIAL STATE]` + `[VALID ACTION]` → `[ONE VALID NEW STATE]`; repeated/invalid actions → `[EXPLICIT IDPOTENT OR REJECTED RESULT]`.
 
+### 2.3 AS-IS → TO-BE function and module migration map — required
+
+This is the **binding bridge** from the current architecture (§1.1) to the final architecture (§2). Map every changed responsibility, not just new files. No unexplained placeholder or shadow implementation.
+
+| Existing owner + function (AS-IS) | KEEP / MODIFY / REMOVE / NEW | Final owner + function (TO-BE) | Direct callers / imports changed | State write responsibility | Phase / PR | Cutover and regression test |
+| --- | --- | --- | --- | --- | --- | --- |
+| `[actual existing function or NONE]` | `[one action]` | `[actual/clearly proposed function]` | `[specific callers]` | `[exact fields or []]` | `[A/B/C]` | `[old path removed? exact test]` |
+
+For **every** new or changed public function, write a proposed TypeScript signature or reference its existing one, with narrow input/output types, guards, whether it may mutate state, the unique owner and its concrete caller. Do not invent aliases to preserve a convenient old import; migrate all verified callers to the canonical owner and remove obsolete imports in the same phase.
+
+**Old → new rule ownership:** `[name the exact existing calculations/branches retained or replaced, where they move, and when duplicated branches are removed]`.
+
+**Dependency change:** `[which imports are added or removed; direction of each edge; explicitly show no new circular import]`.
+
+**Cutover:** `[which PR makes the new flow authoritative, and how it avoids dual ticking, dual writes or old/new systems both executing]`.
+
+### 2.4 Module boundaries and isolation — mandatory, even for small features
+
+The target is **independent feature modules in the architectural sense**: each has one focused reason to change, owns its own rules, and exchanges typed inputs/results through explicit APIs. "Independent" does **not** mean the module creates its own world, scheduler, RNG or copy of a neighbour's data. Reuse existing authoritative systems through direct owner imports; only one system performs each write.
+
+**Define each feature boundary:**
+
+| Module / bounded context | Owns (rules, functions, state fields) | Explicit inputs | Public output / events | Allowed direct dependencies | Forbidden dependencies / writes | Execution trigger |
+| --- | --- | --- | --- | --- | --- | --- |
+| `[src/game/<feature>/<module>.ts OR existing owner]` | `[exactly one responsibility; fields or []]` | `[narrow readonly types]` | `[typed result, recorded event, or command]` | `[verified owning paths]` | `[other subsystem internals and fields]` | `[existing caller/cadence]` |
+
+**Required dependency diagram (replace with real file names):**
+
+```text
+Existing gameTick / command owner             [already authoritative]
+            |
+            v direct invocation
+Feature integration function (single owner)  [NEW/MODIFY]
+            |
+            v typed arguments
+Feature rules / pure calculations             [NEW/MODIFY; writes: []]
+            |
+            v typed result to existing domain owner
+Existing authoritative writer                [KEEP/MODIFY]
+            |
+            v current save + worker + UI projection
+Existing presentation                         [KEEP/MODIFY]
+
+No reverse import from a lower-level pure rule to the game tick / UI.
+No lateral circular imports between features.
+No shared mutable singleton, duplicate domain rule, facade or re-export.
+```
+
+**Allowed dependency direction:** orchestration/worker command → domain integration → focused pure rules; the authoritative owner writes its own state; view/UI reads projections. When two feature domains interact, specify the **one caller that coordinates them** and the typed data passed across the boundary. Neither domain may import the other's internals or mutate the other's saved state. Shared primitives may be imported directly from their established owner; never create an alias module or generic cross-feature manager just to move imports.
+
+**Isolation checks (must be concrete, not just a slogan):**
+- **Single responsibility:** `[what each module is allowed to do; what it explicitly must not do]`.
+- **No spaghetti imports:** `[show direct imports and explain any new cross-domain edge; no feature-module import cycle]`.
+- **State ownership:** `[exact fields written, and by whom; pure modules return results only]`.
+- **No hidden coordination:** `[which existing tick/command owner calls the modules; no independent timers or parallel pipelines]`.
+- **Public contract stability:** `[which direct consumers must be updated when an API changes; migrations done together, not hidden behind compatibility aliases]`.
+- **Test isolation:** `[pure module unit tests without WorldState where possible; integration tests at the actual boundary; module import-cycle audit]`.
+- **Smallest meaningful split:** `[why a NEW module is justified; if not, why extending the existing canonical module avoids fragmentation]`.
+
+A proposal FAILS this section if it merely creates more folders while old and new owners both implement the same calculation, if feature modules deeply import each other, or if one "helper" becomes a god module handling unrelated game decisions.
+
+### 2.5 TO-BE acceptance and boundary proof
+
+- **New behavior:** `[sample initial state + action/event → expected observable state/result that AS-IS cannot produce]`.
+- **Single active pipeline:** `[which writer is authoritative, which old branches/duplicate callers retire, and in which phase]`.
+- **Compatibility:** `[valid old saves, deterministic RNG, worker and fallback, entity cleanup, other systems' invariants]`.
+- **Performance:** `[frequency per function, number of entities/buildings/pairs examined, allocations, state growth limits, measured baseline or NOT MEASURED]`.
+- **Architecture registration:** `[OWNERSHIP_OVERVIEW rows and decisionRegistry keys/cadence/scheduledFrom/writes/testFile]`.
+
 ## 3. Persistence, migration and worker parity — mandatory when state changes
 
 **No delayed migration phase.** The PR that **first introduces a persisted field** also delivers its type, save schema, normalization/migration, worker/rollback safety, and regression tests. Otherwise mark this section **N/A — no new persisted state**, with evidence.
