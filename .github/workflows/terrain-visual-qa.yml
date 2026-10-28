@@ -49,5 +49,10 @@ jobs:
           git add docs/terrain-qa/*.jpg docs/terrain-qa/REPORT.json
           if ! git diff --cached --quiet; then
             git commit -m 'docs(graphics): capture verified real-browser biome render previews'
+            # The review branch may receive unrelated fixes during the browser job.
+            # Replay this screenshot commit on the latest head instead of rejecting
+            # a valid non-fast-forward push or force-overwriting the user's changes.
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
