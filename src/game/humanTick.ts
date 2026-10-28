@@ -95,7 +95,7 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
+import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, humanEnergyLoss, killForeignCaptiveFromExhaustion, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
@@ -887,9 +887,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         const dy = target.y - entity.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 9) {
-          entity.vx = (dx / dist) * config.speed * 1.2;
-          entity.vy = (dy / dist) * config.speed * 1.2;
-          faceVelocity(entity);
+          // Route steering writes velocity only; the normal human walk applies one collision-safe step.
+          const route = steerWithPath(entity, target.x, target.y, config.speed * 1.2, `spotlight_${spotlightGather.id}_${entity.id}`);
+          if (route === 'direct') {
+            entity.vx = (dx / dist) * config.speed * 1.2;
+            entity.vy = (dy / dist) * config.speed * 1.2;
+            faceVelocity(entity);
+          }
         } else {
           entity.vx = 0;
           entity.vy = 0;
