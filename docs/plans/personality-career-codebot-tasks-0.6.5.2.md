@@ -88,6 +88,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - `tests/personality.workIntegration.test.ts`
 - `tests/personality.educationIntegration.test.ts`
 - `tests/personality.defenseIntegration.test.ts`
+- `tests/personality.legacyDNA.test.ts` — a genuine old saved human without traits gains stable canonical DNA; pre-existing 1–3 valid traits stay unchanged, with unchanged live RNG snapshot.
 
 **POTENTIAL EXISTING INTEGRATIONS (verify precise live owner before editing)**
 - `src/game/skills.ts`: `rewardBuildingWork`, `getWorkerSkillMultiplier` — preserve credit when storage is full.
@@ -136,12 +137,13 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - `tests/careers.history.test.ts`
 - `tests/careers.progression.test.ts`
 - `tests/careers.workerFit.test.ts`
+- `tests/personalityCareer.oldSaveMigration.test.ts` — load an old save lacking new career fields, validate corrupt values, retain skills, verify migration is idempotent and prove worker prep rollback and save round-trip.
 
 **EDIT**
 - `src/game/skills.ts` only for an integration point proven to represent actual attendance; **never treat each call to `gainSkill`, `rewardBuildingWork` or two construction skill awards as a separate work day**. Prefer the already-collected `scheduleLastWorkedHours` / per-building attendance pass in `dailyBuildingEconomy.ts`, verifying exact phase order and eligibility.
 - `src/game/tickLayerDaily.ts` **only if truly necessary**. Prefer event-driven milestone reconciliation when the canonical work-credit or apprenticeship completion event is accepted: no extra daily full-population scan or new clock.
 - `src/game/workforce.ts` only as optional tie-break for already eligible **idle** candidates, not global job swaps.
-- `src/game/gameTypes.ts`, `src/game/saveSchema.ts` and `src/game/saveLoad.ts` **in PR D**, for every newly persisted career property and an idempotent old-save migration; inspect `simWorker/simPrep.ts` and `simBuffers/simDelta.ts` and adjust only verified missing deep-clone/transport behavior.
+- `src/game/gameTypes.ts`, `src/game/saveSchema.ts` and `src/game/saveLoad.ts` **in PR D**,  for every newly persisted career property and an idempotent old-save migration; inspect `simWorker/simPrep.ts` and `simBuffers/simDelta.ts` and adjust only verified missing deep-clone/transport behavior.
 - Both registries and `CHANGELOG.md`.
 
 **REQUIRED**
@@ -174,7 +176,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - All fourteen traits have real reachable advantages and drawbacks with focused tests; bounded career data persists. Existing valid DNA remains unchanged; old saves with missing DNA receive deterministic canonical traits without consuming live RNG.
 - Updated owner tables, registry keys, call/cadence/write lists and actual tested links agree.
 
-## 2.1 Performance and semantics proof (all implementation phases)
+## 3. Performance and semantics proof (all implementation phases)
 
 - **No new global tick pass.** Normal trait evaluation has constant work: at most three saved traits and a small compile-time/static effect table; no full-world lookups, pathfinding, sorting, RNG, text formatting or heap allocation for explanations. Read-only inspector reasons may allocate *only for the selected person*.
 - **No quadratic worker matching.** Reuse the existing `entityById`, staffing indexes, attendance maps and the existing idle-candidate loop; evaluate fit only for a candidate already visited by that loop. Do not build a whole-person × whole-building score matrix or re-rank settled workers.
@@ -185,7 +187,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - **Keep test runtime bounded:** run targeted real integration tests and a representative short seeded continuation first. Do not put a compulsory 360-day colony or an unbounded stress scenario in every PR CI gate; expand only when the touched owner justifies it, recording exact duration and pass/failure.
 - **No fake progress from old saves:** the derived trait rules become available immediately without modifying stored DNA. Work history starts at a neutral baseline unless there is proven saved event evidence; existing skill and titles still determine real work decisions.
 
-## 3. Checks and PR reporting
+## 4. Checks and PR reporting
 
 Discover actual commands and existing suite names; do not invent tests and report them as already passing. Baseline examples:
 
