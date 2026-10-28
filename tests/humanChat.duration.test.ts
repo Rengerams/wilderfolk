@@ -6,12 +6,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   isDialogueBusy,
-  sayHumanChatPhrase,
   tickHumanChat,
   ticksForDialogueLine,
   type ChatSpeaker,
 } from '../src/game/humanChat';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { requestDialogue } from '../src/game/dialogueTrees';
 
 describe('human chat duration at production cadence', () => {
   it('converts a short line from legacy tick duration into bounded game hours', () => {
@@ -20,9 +20,12 @@ describe('human chat duration at production cadence', () => {
     expect(woodLineTicks).toBeLessThanOrEqual(4 * TICKS_PER_HOUR);
   });
 
-  it('expires a direct short phrase promptly and clears the renderer-visible state', () => {
+  it('expires a one-line event caption promptly and clears the renderer-visible state', () => {
     const speaker: ChatSpeaker = { id: 71 };
-    sayHumanChatPhrase(speaker, 'Morning!', 12);
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker, tick: 1,
+      priority: 'scripted', durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
 
     expect(speaker.chatTicks).toBe(4);
     for (let tick = 0; tick < 4; tick++) {
