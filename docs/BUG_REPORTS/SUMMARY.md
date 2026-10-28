@@ -16,6 +16,12 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Dialogue migration inflated caption duration](../bug_report/2026-10-28-dialogue-migration-duration-inflation.md):** nominal legacy speech ticks were mistaken for game hours (hospital: 4 → 64 effective ticks); PR #93 converts through the authoritative clock and adds a 12-scene duration/busy-release regression. CI verification pending.
 
+**2026-10-28 — [Scripted pair interruption delayed partner release](../bug_report/2026-10-28-scripted-pair-interruption-delayed-release.md):** scripted announcements without a resolver could leave the interrupted partner busy until its next tick. PR #93 now releases both actors immediately; regression added, CI pending.
+
+**2026-10-28 — [Spotlight cast included silent adults](../bug_report/2026-10-28-spotlight-cast-silent-actors.md):** a six-role presentation accepted eight gathered actors, leaving two without dialogue. PR #93 now requires every gathered adult to speak; 31-line six-to-ten-cast regression added, CI pending.
+
+**2026-10-28 — [Simulation PR gate deleted](../bug_report/2026-10-28-simulation-pr-gate-deleted.md):** PR #93 removed the simulation workflow without a replacement. A user-approved 120-day seeded producer-bot gate has been added; workflow run pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
