@@ -200,10 +200,10 @@ export const SIMULATION_DECISIONS = {
   spotlightLore: {
     owner: 'spotlightLore.ts — maybeStartSpotlightLore, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
     cadence: 'realtime',
-    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection, all-actor arrival and eligibility/proximity through ready, load-time ready cast validation and typed finish; stage movement in humanTick uses cached pathfinding velocity and one normal walk step; UI-only timing scoped to session revision',
+    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection, all-actor arrival and eligibility/proximity through ready, load-time ready cast validation and typed finish; stage movement in humanTick uses cached pathfinding velocity and one normal walk step; read-only UI choreography owns its independent wall-clock 44-caption cue timeline and camera projection, and writes no WorldState',
     writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)'],
     scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads the gathering target and delegates obstacle steering to pathfinding.steerWithPath (single humanTick movement integration); simWorker/commands.ts delegates finishSpotlightLore',
-    testFile: 'tests/spotlightLore.test.ts',
+    testFile: 'tests/spotlightLore.test.ts, tests/spotlightChoreography.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
