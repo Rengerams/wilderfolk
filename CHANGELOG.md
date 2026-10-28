@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
+
+- **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
+
+- **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
+
 - **Settler DNA at work (28 October 2026):** Genes now shape real production crews, construction, school learning, research, apprenticeship training, militia defence, hunting range and flight from predators. Settlers saved without DNA gain stable traits on load.
 
 - **Fixed:** Hardy now slows a settler's own work drain, so endurance reaches the people the inspector shows, and Greenthumb, Nurturing and Fierce describe effects the game performs instead of the captive-only and maturation promises they never kept.
@@ -13,9 +19,6 @@
 - **Fixed:** A crew slot naming a settler who is gone no longer halves a building's trait bonus, and a settler saved in Moon Howler form now receives its DNA on load.
 
 - **Fixed:** Endurance DNA now prices a worked shift only, so Hardy and Graceful leave ordinary walking on its documented drain.
-- **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
-
-- **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
 
