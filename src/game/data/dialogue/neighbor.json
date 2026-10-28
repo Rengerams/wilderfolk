@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "evt_neighbor_greeting_start_0",
+      "category": "social",
+      "eventKey": "neighbor.greeting.start",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        }
+      ]
+    },
+    {
+      "id": "evt_neighbor_greeting_start_1",
+      "category": "social",
+      "eventKey": "neighbor.greeting.start",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        }
+      ]
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_0",
+      "category": "social",
+      "eventKey": "neighbor.greeting.reply",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning."
+        }
+      ]
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_1",
+      "category": "social",
+      "eventKey": "neighbor.greeting.reply",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "And to you."
+        }
+      ]
+    }
+  ]
+}
