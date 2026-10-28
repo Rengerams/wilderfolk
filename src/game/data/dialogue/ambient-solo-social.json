@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_social",
+      "category": "social",
+      "eventKey": "ambient.social",
+      "mode": "solo",
+      "speakers": [
+        "npc_chicken_friend"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "My best friend is a chicken. His name is Greg."
+        },
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "He named himself. I just respected his choice."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_courtship",
+      "category": "social",
+      "eventKey": "ambient.courtship",
+      "mode": "solo",
+      "speakers": [
+        "suitor"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Walk with me?"
+        },
+        {
+          "speaker": "suitor",
+          "text": "Moon looks kind tonight."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_visitor",
+      "category": "social",
+      "eventKey": "ambient.visitor",
+      "mode": "solo",
+      "speakers": [
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        },
+        {
+          "speaker": "visitor",
+          "text": "Your reputation travels."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_rival",
+      "category": "social",
+      "eventKey": "ambient.rival",
+      "mode": "solo",
+      "speakers": [
+        "rival"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "rival",
+          "text": "Bold settlers."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_child",
+      "category": "social",
+      "eventKey": "ambient.child",
+      "mode": "solo",
+      "speakers": [
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Mama!"
+        },
+        {
+          "speaker": "child",
+          "text": "Race you!"
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_school",
+      "category": "social",
+      "eventKey": "ambient.school",
+      "mode": "solo",
+      "speakers": [
+        "pupil"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Lesson time!"
+        },
+        {
+          "speaker": "pupil",
+          "text": "I learned!"
+        }
+      ]
+    }
+  ]
+}
