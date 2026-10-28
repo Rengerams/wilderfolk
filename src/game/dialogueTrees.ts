@@ -489,6 +489,42 @@ export function readPresentationDialogue(
   return Object.freeze(selected);
 }
 
+/**
+ * Resolve the ordered speaker_1 ... speaker_N roles of a group presentation to
+ * its real adult performers. Extra gathered performers remain non-speaking.
+ * Called when preparing the stage, never from a simulation tick.
+ */
+export interface BoundPresentationDialogueLine extends PresentationDialogueLine {
+  readonly speakerId: number;
+}
+
+export function bindNumberedPresentationSpeakers(
+  presentation: PresentationDialogueScene,
+  performerIds: readonly number[],
+): readonly BoundPresentationDialogueLine[] {
+  if (!Array.isArray(performerIds) || presentation.speakers.length > performerIds.length) {
+    throw new Error('[dialogue] Not enough real performers for presentation');
+  }
+  for (let i = 0; i < presentation.speakers.length; i++) {
+    if (presentation.speakers[i] !== `speaker_${i + 1}`) {
+      throw new Error('[dialogue] Numbered presentation speaker roles must be sequential');
+    }
+  }
+  const cast = performerIds.slice(0, presentation.speakers.length);
+  if (cast.some((id) => !Number.isSafeInteger(id) || id < 1)
+    || new Set(cast).size !== cast.length) {
+    throw new Error('[dialogue] Invalid or duplicate presentation performer IDs');
+  }
+  return Object.freeze(presentation.lines.map((line) => {
+    const index = presentation.speakers.indexOf(line.speaker);
+    if (index < 0) throw new Error('[dialogue] Undeclared presentation speaker');
+    return Object.freeze({
+      ...line,
+      speakerId: cast[index]!,
+    });
+  }));
+}
+
 export function getDialogueTreeById(id: string): DialogueTree | undefined {
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   return treesById.get(id);
