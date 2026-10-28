@@ -524,10 +524,19 @@ describe('food-chain decisions under a recorded deficit', () => {
     expect(choice?.reason).toContain('Mill');
   });
 
-  it('builds a Silo when spoilage persists and mill research is not available', () => {
+  it('builds a Silo when spoilage persists and food storage is nearly full', () => {
     const state = deficitVillage({ foodSpoilageRate: 0.008 });
+    state.resources.food = state.storageMax.food;
     expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
       op: 'startBuilding', type: BuildingType.Silo,
+    });
+  });
+
+  it('prioritises food production instead of a Silo while stores are empty', () => {
+    const state = deficitVillage({ foodSpoilageRate: 0.008 });
+    state.resources.food = 0;
+    expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
     });
   });
 
