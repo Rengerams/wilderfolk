@@ -65,6 +65,13 @@ def main() -> int:
                                     device_scale_factor=1, reduced_motion="reduce")
             page.set_default_navigation_timeout(120000)
             page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+            # Run the real game with its supported "tutorials off" preference.
+            # Clicking hidden tutorial controls after startup was unreliable:
+            # the contextual card could reappear after terrain finished baking.
+            page.add_init_script("""() => {
+              localStorage.setItem('wilderfolk-tutorials-enabled', '0');
+              localStorage.setItem('wilderfolk-tutorial-choice', '0');
+            }""")
             page.goto(BASE_URL, wait_until="domcontentloaded", timeout=120000)
             if assets is None:
                 assets = inspect_albedos(page)
@@ -84,9 +91,9 @@ def main() -> int:
                      "gameplay HUD", 120000)
             if page.evaluate("() => document.body.textContent.includes('Quick start')"):
                 click_text(page, "skip")
-            # The old capture showed three tutorial panels over nearly the
-            # entire mountain/shoreline. Dismiss them using the game UI before
-            # measuring actual exposed scene pixels.
+            # The first capture had tutorial cards hiding the terrain. Above,
+            # browser storage disables tutorials through the same public user
+            # preference the options screen uses; no CSS masking or mocked frame.
             for _ in range(3):
                 click_text(page, "turn off all tutorials")
                 click_text(page, "got it")
