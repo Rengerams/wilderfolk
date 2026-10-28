@@ -1,0 +1,25 @@
+name: PR93 dialogue branch validation
+
+on:
+  push:
+    branches:
+      - docs/dialogue-single-pipeline-20261028
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Standard tests including dialogue ownership ratchet
+        run: npm run test:standard
+      - name: Build and typecheck
+        run: npm run build
