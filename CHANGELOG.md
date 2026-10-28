@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Terrain graphics (28 October 2026):** Expose rock on steep upland slopes, brighten ridges, shade valleys and ground trees, grass and selection effects at the same elevation as settlers. Render-only; no terrain regeneration or save changes.
+- **Terrain river materials (#75, 28 October 2026):** Added flow-aligned glints, waterfall rapids and patchy silt banks. Fixed shore-phase compression by normalizing against assigned flow cells; added regression coverage and registered render-function owners. Generation and saves unchanged.
 
 - **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.
 - **Terrain (merged #73):** Seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
