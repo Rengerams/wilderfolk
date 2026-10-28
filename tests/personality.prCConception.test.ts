@@ -4,7 +4,7 @@ import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
-import { TICKS_PER_DAY, ticksForDays } from '../src/game/dayCycleClock';
+import { ticksForDays } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/humanSchedule';
 
 const MOTHER = 7001;
@@ -46,7 +46,7 @@ function passingDay(salt: number): number {
 }
 
 describe('PR C conception migration retains non-Lucky eligibility', () => {
-  it.each([[], ['lucky'], ['stoic']] as const)('allows married pregnancy without Lucky requirement: %j', (traits) => {
+  it.each([{ traits: [] }, { traits: ['lucky'] }, { traits: ['stoic'] }] as const)('allows married pregnancy without Lucky requirement: $traits', ({ traits }) => {
     const mother = settler(MOTHER, [...traits], { partnerId: FATHER });
     const father = settler(FATHER, [], { partnerId: MOTHER });
     const { state, ctx } = fixture(mother, father);
