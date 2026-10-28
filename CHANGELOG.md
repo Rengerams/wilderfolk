@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI workforce and terrain (PR #72):** Align food and Quarry staffing tests with real Farm capacity; use industrial surplus for Quarry recovery and preserve snow colours on mountain crests.
+
 - **Terrain river materials (#75, 28 October 2026):** Added flow-aligned glints, waterfall rapids and patchy silt banks. Fixed shore-phase compression by normalizing against assigned flow cells; added regression coverage and registered render-function owners. Generation and saves unchanged.
 
 - **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.

@@ -109,27 +109,30 @@ describe('zero stone with an unmanned Quarry', () => {
     expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 
-  it('crews it from an over-crewed donor, so a colony with every hand at work still digs stone', () => {
+  it('transfers excess lumberjacks to an empty Quarry without leaving the mill unstaffed', () => {
     const quarry = placeCompletedProducer(zeroStoneColony(), BuildingType.Quarry);
     const quarryId = quarry.building.id;
     let world = quarry.world;
-    // Every hand employed, none of them recently auto-assigned: the rebalance is the only door left.
-    const farm = placeCompletedProducer(world, BuildingType.Farm);
-    world = farm.world;
+    // A Lumber Mill can donate one hand while keeping production alive.
+    // A Farm with two workers cannot donate without risking the food supply.
+    world.resources.stone = BUILDING_CONFIGS[BuildingType.LumberMill].cost.stone ?? 0;
+    const mill = placeCompletedProducer(world, BuildingType.LumberMill);
+    world = mill.world;
+    world.resources.stone = 0;
     for (const settler of adults(world)) {
-      settler.workerBuildingId = farm.building.id;
-      settler.job = JobType.Farmer;
+      settler.workerBuildingId = mill.building.id;
+      settler.job = JobType.Lumberjack;
       settler.lastAutoJobTransferTick = undefined;
     }
     expect(
-      countWorkersAtBuilding(world.entities, farm.building.id),
-      'the donor must hold at least two hands',
+      countWorkersAtBuilding(world.entities, mill.building.id),
+      'a normal producer must have surplus staff',
     ).toBeGreaterThanOrEqual(2);
 
     world = runDays(world, DAYS_RUN);
 
     expect(countWorkersAtBuilding(world.entities, quarryId), 'a rebalanced hand must work the Quarry').toBeGreaterThan(0);
-    expect(countWorkersAtBuilding(world.entities, farm.building.id), 'the donor keeps a hand').toBeGreaterThan(0);
+    expect(countWorkersAtBuilding(world.entities, mill.building.id), 'the mill must keep one worker').toBeGreaterThan(0);
     expect(Math.floor(world.resources.stone), 'the Quarry must make stone').toBeGreaterThan(0);
   }, TEST_TIMEOUT_MS);
 
