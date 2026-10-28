@@ -8,7 +8,8 @@ const SEEDS = [1234, 98765];
 
 function make(preset: MapPreset, seed: number): WorldMap {
   const dims = MAP_SIZE_DIMENSIONS[MapSize.Medium];
-  return generateRawTerrain(dims.width, dims.height, seed, MapSize.Medium, preset);
+  // Pin the current v4 recipe; generateRawTerrain's default remains v3 for old fixtures.
+  return generateRawTerrain(dims.width, dims.height, seed, MapSize.Medium, preset, undefined, 4);
 }
 
 function terrainShare(map: WorldMap, kinds: readonly TerrainType[]): number {
