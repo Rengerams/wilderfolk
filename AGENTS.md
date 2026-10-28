@@ -56,6 +56,7 @@ Current working code is V.0.6.5.1. The next development target version we are wo
 * **Never commit secrets** — tokens, keys, passwords, personal data, sensitive logs — in source, config, output, or diffs.
 * **Do not thrash.** Same check fails twice without progress → stop, capture the error, explain what was tried, report the blocker or ask one focused question.
 * **One owner per function, always.** Before touching or creating a function, look it up in `OWNERSHIP_OVERVIEW.md`; if it is missing, add it with its owner. Never give a function a second owner (§3 Step 3, §5.9).
+* **Both registries, every implementation PR.** Inspect and update `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in the same change. Register the real owner, entrypoint, cadence, caller, allowed writes and tests; pure read-only calculations get `writes: []`. No second owner or fabricated tick.
 * **Log every change in `CHANGELOG.md` (§8).**
 * **Comments: max 2 lines.** A comment is a label (what/contract/constraint), never a story. Anything longer — the why, the history, the alternatives — goes in `CHANGELOG.md` (§5.8).
 * **Think twice, don't be lazy.** If you find something broken, don't say "not mine" — fix it (if small) or report it. Be creative, but ask before anything big.
@@ -91,7 +92,7 @@ Targeted reconnaissance, not whole-repo reading:
   2. Listed → that module is its sole owner. Change it there; never fork or shadow it elsewhere.
   3. Not listed → add a row (function, owning module, one-line responsibility) before you finish.
   4. Owner conflict (two candidates, or the task implies a move) → stop and ask the owner; a function never has two owners and ownership is never reassigned silently.
-* **Unrelated bug found:** small → fix it now; otherwise file a report per the existing report format in `docs/BUG_REPORTS/` and update `docs/BUG_REPORTS/SUMMARY.md`; continue your task unless the owner redirects you.
+* **Any discovered bug:** first consult `docs/bug_report/readme.md` (required reporting protocol). New reports go to `docs/bug_report/`; de-duplicate against historical `docs/BUG_REPORTS/`, and add/update the single index at `docs/BUG_REPORTS/SUMMARY.md`. Reproduce and document even if fixed immediately. For an unrelated small bug, follow §3 scope policy; otherwise file it open/blocked.
 
 ### Step 4 — Verify
 Scale verification to the blast radius. Discover commands from package scripts (`npm run` lists them); never invent script names or flags.
@@ -194,7 +195,7 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | Shell rules & profile commands | `docs/command.md` (under docs/) |
 | Active roadmap | `roadmap_V.0.6.5.2.md` (root) |
 | Changelog | `CHANGELOG.md` (root), newest first |
-| Bug report | `docs/BUG_REPORTS/<yyyy-mm-dd>-<slug>.md` — follow an existing report's format; tracker is `docs/BUG_REPORTS/SUMMARY.md`; resolved reports stay in place |
+| New bug report | `docs/bug_report/<yyyy-mm-dd>-<slug>.md` — mandatory protocol: `docs/bug_report/readme.md`; historical reports stay in `docs/BUG_REPORTS/`; single tracker: `docs/BUG_REPORTS/SUMMARY.md` |
 | Audit / review report | `docs/private/audits/<yyyy-mm-dd>/<area>.md` (gitignored); campaign tracker `LIVE-FINDINGS-STATUS.md` in same folder |
 | Implementation plan | `docs/plans/<topic>-<yyyy-mm-dd>.md` |
 | Session handover | `docs/HANDOVER-<topic>-<yyyy-mm-dd>.md` |
@@ -212,7 +213,7 @@ One entry per noticeable change (user behavior, gameplay, visible UI, saved data
 When explicitly on roadmap work, update the item on completion. Register new features and significant changes in `roadmap_V.0.6.5.2.md`, positively, in the existing format; the full account goes in `CHANGELOG.md`.
 
 ### Bug reports
-Use an existing report in `docs/BUG_REPORTS/` for fields, severity, and reproduction format; add the new report to `docs/BUG_REPORTS/SUMMARY.md`. Add a `// BUG:` comment only where that convention already exists. Never invent or restructure roadmap, changelog, or bug-report files.
+Read `docs/bug_report/readme.md` **before documenting any defect**. Register each newly found distinct bug in `docs/bug_report/`, using its required template, and add a link/status to the **single** existing index at `docs/BUG_REPORTS/SUMMARY.md`; cross-check historical `docs/BUG_REPORTS/` and the new folder first to prevent duplicates. Record even bugs fixed during the same task. Keep historical reports in place and the roadmap for feature implementation only. Add a `// BUG:` comment only where that convention already exists.
 
 ### Scratch and `tmp/`
 Must not outlive its use: delete or promote before the session ends. `npm run clean` (dry) / `clean:apply` empties `tmp/`, `dist/`, and automation browser profiles in the OS temp dir wholesale — there is deliberately no keep-list. `npm run check:source` fails on zero-byte files and source archives under `src/`, `tests/`, `scripts/`, `config/`.
@@ -243,8 +244,9 @@ Prioritize broken invariants, wrong complexity, edge cases, leaks, races, state 
 * [ ] No secrets committed, no destructive changes executed.
 * [ ] New helpers/dependencies justified by repository evidence; one source of truth maintained.
 * [ ] Every function touched or created is in `OWNERSHIP_OVERVIEW.md` with exactly one owner; missing rows added, no owner reassigned without approval.
+* [ ] Both architecture registers updated: `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts`; every touched decision has accurate cadence, call path, write permissions and test references.
 * [ ] `CHANGELOG.md` entry created for noticeable changes (under 300 chars, no file paths/extensions/links); roadmap updated if working on roadmap items.
-* [ ] Bugs follow an existing `docs/BUG_REPORTS/` report's format and are indexed in `docs/BUG_REPORTS/SUMMARY.md` (or blocker reported).
+* [ ] Any discovered defects were de-duplicated and reported using `docs/bug_report/readme.md` in `docs/bug_report/`; their index entry was added or updated in `docs/BUG_REPORTS/SUMMARY.md` (or blocker accurately reported).
 * [ ] Game behavior verified through `scripts/autoplay_playwright_probe.py` / `src/game/virtualPlayer.ts` (extended if needed) — no private harness or probe created.
 * [ ] Verification run: TypeScript check (`npm run test:types`), lint (`npm run lint`), and build (`npm run build`) passing clean; full test suite run only if touching core architecture or required per §5.10.
 * [ ] No new comment exceeds 2 lines; rationale documented in `CHANGELOG.md`, not code comments.
