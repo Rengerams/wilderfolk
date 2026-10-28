@@ -31,7 +31,8 @@ import { isOnWalkableRoadAt, steerWithPath } from './pathfinding';
 import { applyHumanWalkStep } from './simulation/humanMovement';
 import { logEvent } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
-import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
+import { isDialogueBusy } from './humanChat';
+import { requestDialogue } from './dialogueTrees';
 import { gainSkill } from './skills';
 import { seededRandomForRun } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
@@ -372,13 +373,7 @@ export function checkInVisitor(
   if (!isDialogueBusy(visitor)) {
     // A stateless roll keyed on the guest and the tick, matching the chat convention used
     // elsewhere (`humanChat`), so the greeting is reproducible instead of seedless.
-    sayHumanChatPhrase(
-      visitor,
-      seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) < 0.5
-        ? 'A soft bed…'
-        : 'Room for the night.',
-      50,
-    );
+    requestDialogue({ eventKey: 'hotel.arrival', speaker: visitor, tick: state.tick, durationHours: 50 / 9, selectionRoll: seededRandomForRun(`hotel-greeting:${visitor.id}:${state.tick}`) });
   }
   return true;
 }
@@ -537,11 +532,7 @@ export function hotelierGreetGuests(
   // Once per clock hour — not every sub-hour tick (avoids greeting spam after day stretch)
   if (!isStartOfClockHour(state.tick)) return;
   if (personDayRoll(hotelier.id, state.tick, 913 + getHourOfDay(state.tick)) > 0.35) return;
-  sayHumanChatPhrase(
-    hotelier,
-    guests >= 3 ? 'Busy night — rooms nearly full.' : 'Welcome, traveler.',
-    44,
-  );
+  requestDialogue({ eventKey: guests >= 3 ? 'hotel.service.busy' : 'hotel.service.welcome', speaker: hotelier, tick: state.tick, durationHours: 44 / 9 });
 }
 
 /** One hotel's roster — a view for the building inspector, derived like the school's. */
