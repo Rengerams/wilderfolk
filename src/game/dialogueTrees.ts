@@ -12,6 +12,20 @@ import ambientSoloChaosJson from './data/dialogue/ambient-solo-chaos.json' with 
 import ambientSoloExistentialJson from './data/dialogue/ambient-solo-existential.json' with { type: 'json' };
 import ambientSoloEnvironmentJson from './data/dialogue/ambient-solo-environment.json' with { type: 'json' };
 import ambientSoloFestivalJson from './data/dialogue/ambient-solo-festival.json' with { type: 'json' };
+import eventWorkplaceDialogueJson from './data/dialogue/workplace.json' with { type: 'json' };
+import eventNeighborDialogueJson from './data/dialogue/neighbor.json' with { type: 'json' };
+import eventChild_playDialogueJson from './data/dialogue/child-play.json' with { type: 'json' };
+import eventHuntingDialogueJson from './data/dialogue/hunting.json' with { type: 'json' };
+import eventHotelDialogueJson from './data/dialogue/hotel.json' with { type: 'json' };
+import eventHospitalDialogueJson from './data/dialogue/hospital.json' with { type: 'json' };
+import eventTown_hallDialogueJson from './data/dialogue/town-hall.json' with { type: 'json' };
+import eventMarriageDialogueJson from './data/dialogue/marriage.json' with { type: 'json' };
+import eventRenffr_omenDialogueJson from './data/dialogue/renffr-omen.json' with { type: 'json' };
+import eventElectionDialogueJson from './data/dialogue/election.json' with { type: 'json' };
+import eventSocial_impulseDialogueJson from './data/dialogue/social-impulse.json' with { type: 'json' };
+import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
+import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
+import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
@@ -70,6 +84,20 @@ const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
   ambientSoloExistentialJson as unknown as DialogueSourceFile,
   ambientSoloEnvironmentJson as unknown as DialogueSourceFile,
   ambientSoloFestivalJson as unknown as DialogueSourceFile,
+  eventWorkplaceDialogueJson as unknown as DialogueSourceFile,
+  eventNeighborDialogueJson as unknown as DialogueSourceFile,
+  eventChild_playDialogueJson as unknown as DialogueSourceFile,
+  eventHuntingDialogueJson as unknown as DialogueSourceFile,
+  eventHotelDialogueJson as unknown as DialogueSourceFile,
+  eventHospitalDialogueJson as unknown as DialogueSourceFile,
+  eventTown_hallDialogueJson as unknown as DialogueSourceFile,
+  eventMarriageDialogueJson as unknown as DialogueSourceFile,
+  eventRenffr_omenDialogueJson as unknown as DialogueSourceFile,
+  eventElectionDialogueJson as unknown as DialogueSourceFile,
+  eventSocial_impulseDialogueJson as unknown as DialogueSourceFile,
+  eventFamilyDialogueJson as unknown as DialogueSourceFile,
+  eventFamineDialogueJson as unknown as DialogueSourceFile,
+  eventPregnancyDialogueJson as unknown as DialogueSourceFile,
 ];
 
 const DIALOGUE_SOURCE_FILE_NAMES = [
@@ -87,6 +115,20 @@ const DIALOGUE_SOURCE_FILE_NAMES = [
   'dialogue/ambient-solo-existential.json',
   'dialogue/ambient-solo-environment.json',
   'dialogue/ambient-solo-festival.json',
+  'dialogue/workplace.json',
+  'dialogue/neighbor.json',
+  'dialogue/child-play.json',
+  'dialogue/hunting.json',
+  'dialogue/hotel.json',
+  'dialogue/hospital.json',
+  'dialogue/town-hall.json',
+  'dialogue/marriage.json',
+  'dialogue/renffr-omen.json',
+  'dialogue/election.json',
+  'dialogue/social-impulse.json',
+  'Family.json',
+  'Famine.json',
+  'pregnancy.json',
 ] as const;
 
 function isDialogueCategory(value: string): value is DialogueCategory {
@@ -344,6 +386,7 @@ export interface DialogueRequest {
   priority?: 'ambient' | 'scripted';
   durationHours?: number;
   variables?: Readonly<Record<string, string>>;
+  selectionRoll?: number;
 }
 
 export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
@@ -354,8 +397,8 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const mode = partner ? 'pair' : 'solo';
   const choices = treesByEvent.get(eventKey + ':' + mode);
   if (!choices?.length) return false;
-  const roll = seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick);
-  const selected = choices[Math.floor(roll * choices.length)]!;
+  const roll = request.selectionRoll ?? seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick);
+  const selected = choices[Math.min(choices.length - 1, Math.max(0, Math.floor(roll * choices.length)))]!;
   if (request.priority === 'scripted') {
     prepareScriptedDialogue(speaker);
     if (partner) prepareScriptedDialogue(partner);
