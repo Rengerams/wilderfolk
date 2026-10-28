@@ -23,7 +23,7 @@
  */
 import type { WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
-import { grassDetailAt, loadedGrassTextures } from './grassTextures';
+import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, sampleTerrainMaterial } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
 import {
@@ -814,7 +814,10 @@ export function bakeWhittakerGround(
   const d = img.data;
   // Decode artist-authored CC0 grass once per loaded image, never inside the pixel loop.
   const grassTextures = map.generationVersion === 4 ? loadedGrassTextures() : null;
+  const naturalMaterials = map.generationVersion === 4 ? loadedTerrainMaterials() : null;
+  // Reuse both RGB scratch tuples across all pixels; do not allocate inside the bake loops.
   const grassDetail: [number, number, number] = [0, 0, 0];
+  const materialDetail: [number, number, number] = [0, 0, 0];
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const wx = originX + px * pxStep;
@@ -920,10 +923,24 @@ export function bakeWhittakerGround(
         const grassW = Math.max(0, 1 - snowW - stoneW - sandW - dryW);
 
         if (sandW > 0.005) {
-          const ripple = Math.sin(wx * 0.22 + valueNoise(wx * 0.06, wy * 0.06, seed + 6666) * 16);
-          const dune = (valueNoise(wx * 0.03, wy * 0.03, seed + 6667) - 0.5) * 14;
-          const m = (ripple * 5 + dune + bandDetail(wx, wy, seed + 6668, ROUGHNESS_OCTAVE_PX.sand[0], pxStep) * 9) * sandW;
-          r += m; g += m * 0.8; b += m * 0.5;
+          if (naturalMaterials) {
+            sampleTerrainMaterial(naturalMaterials.sand, wx, wy, materialDetail);
+            const k = sandW * 0.72;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            // Underwater pebbles and wet shingle gently fade into sandy shoreline.
+            const shingle = sandW * fade((nearWater - 0.22) / 0.65) * 0.30;
+            if (shingle > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.pebbles, wx, wy, materialDetail);
+              r += materialDetail[0] * shingle;
+              g += materialDetail[1] * shingle;
+              b += materialDetail[2] * shingle;
+            }
+          } else {
+            const ripple = Math.sin(wx * 0.22 + valueNoise(wx * 0.06, wy * 0.06, seed + 6666) * 16);
+            const dune = (valueNoise(wx * 0.03, wy * 0.03, seed + 6667) - 0.5) * 14;
+            const m = (ripple * 5 + dune + bandDetail(wx, wy, seed + 6668, ROUGHNESS_OCTAVE_PX.sand[0], pxStep) * 9) * sandW;
+            r += m; g += m * 0.8; b += m * 0.5;
+          }
         }
         if (snowW > 0.005) {
           const drift = bandDetail(wx + wy * 0.25, wy - wx * 0.1, seed + 8882, ROUGHNESS_OCTAVE_PX.snow[0], pxStep);
@@ -932,18 +949,46 @@ export function bakeWhittakerGround(
           r += m * 0.85; g += m * 0.9; b += m;
         }
         if (stoneW > 0.005) {
-          const crack = valueNoise(wx * 0.22 + wy * 0.08, wy * 0.3 - wx * 0.11, seed + 7770);
-          const seam = Math.abs(crack - 0.5) < 0.035 ? -16 : 0;
-          const strata = Math.sin(e * 150) * 4;
-          const ledge = bandDetail(wx + wy * 0.5, wy - wx * 0.2, seed + 7772, ROUGHNESS_OCTAVE_PX.rock[0], pxStep) * 26;
-          const m = (seam + strata + ledge) * stoneW;
-          r += m; g += m * 0.98; b += m * 0.94;
+          if (naturalMaterials) {
+            const cliff = fade((hn - LAND_BANDS.rocky) / Math.max(0.01, LAND_BANDS.mountains - LAND_BANDS.rocky));
+            sampleTerrainMaterial(naturalMaterials.gravel, wx, wy, materialDetail);
+            const k = stoneW * (1 - cliff) * 0.65;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            if (cliff > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.rock, wx, wy, materialDetail);
+              const ledge = stoneW * cliff * 0.76;
+              r += materialDetail[0] * ledge;
+              g += materialDetail[1] * ledge;
+              b += materialDetail[2] * ledge;
+            }
+          } else {
+            const crack = valueNoise(wx * 0.22 + wy * 0.08, wy * 0.3 - wx * 0.11, seed + 7770);
+            const seam = Math.abs(crack - 0.5) < 0.035 ? -16 : 0;
+            const strata = Math.sin(e * 150) * 4;
+            const ledge = bandDetail(wx + wy * 0.5, wy - wx * 0.2, seed + 7772, ROUGHNESS_OCTAVE_PX.rock[0], pxStep) * 26;
+            const m = (seam + strata + ledge) * stoneW;
+            r += m; g += m * 0.98; b += m * 0.94;
+          }
         }
         if (dryW > 0.005) {
-          const grain = (valueNoise(wx * 0.34, wy * 0.34, seed + 4444) - 0.5) * 40;
-          const patch = bandDetail(wx, wy, seed + 4446, ROUGHNESS_OCTAVE_PX.dirt[0], pxStep) * 44;
-          const m = (grain + patch) * dryW;
-          r += m; g += m * 0.8; b += m * 0.6;
+          if (naturalMaterials) {
+            const dryFraction = fade((dryMoistureCut + 0.035 - mo) / 0.21);
+            sampleTerrainMaterial(naturalMaterials.soil, wx, wy, materialDetail);
+            const k = dryW * (1 - dryFraction) * 0.76;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            if (dryFraction > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.drySoil, wx, wy, materialDetail);
+              const dryK = dryW * dryFraction * 0.79;
+              r += materialDetail[0] * dryK;
+              g += materialDetail[1] * dryK;
+              b += materialDetail[2] * dryK;
+            }
+          } else {
+            const grain = (valueNoise(wx * 0.34, wy * 0.34, seed + 4444) - 0.5) * 40;
+            const patch = bandDetail(wx, wy, seed + 4446, ROUGHNESS_OCTAVE_PX.dirt[0], pxStep) * 44;
+            const m = (grain + patch) * dryW;
+            r += m; g += m * 0.8; b += m * 0.6;
+          }
         }
         if (grassW > 0.005) {
           if (grassTextures) {
@@ -961,6 +1006,17 @@ export function bakeWhittakerGround(
             r += grassDetail[0] * textureStrength;
             g += grassDetail[1] * textureStrength;
             b += grassDetail[2] * textureStrength;
+            // Dry meadow margins get straw instead of a hard grass/dirt cutoff.
+            const dryStraw = naturalMaterials
+              ? grassW * fade((dryMoistureCut + 0.07 - mo) / 0.21)
+                * fade((te - 0.42) / 0.25) * 0.38
+              : 0;
+            if (dryStraw > 0.005 && naturalMaterials) {
+              sampleTerrainMaterial(naturalMaterials.straw, wx, wy, materialDetail);
+              r += materialDetail[0] * dryStraw;
+              g += materialDetail[1] * dryStraw;
+              b += materialDetail[2] * dryStraw;
+            }
           } else {
             // Headless tests and an asset that failed to preload retain safe
             // deterministic procedural detail instead of leaving blank ground.
