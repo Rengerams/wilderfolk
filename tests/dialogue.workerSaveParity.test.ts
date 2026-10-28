@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { canonicalDialogueBank, getDialogueTreeById, installDialogueBankPayload, requestDialogue } from '../src/game/dialogueTrees';
-import { isDialogueBusy, resetDialogueSessions, tickHumanChat } from '../src/game/humanChat';
+import { isDialogueBusy, resetDialogueSessions, tickHumanChat, type ChatSpeaker } from '../src/game/humanChat';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { initGame } from '../src/game/worldGen';
@@ -42,4 +42,53 @@ describe('main/worker and old-save dialogue compatibility', () => {
     expect(entity.chatDialogueSessionKey).toBeUndefined();
     expect(isDialogueBusy(entity)).toBe(false);
   });
+  it('selects identical captions and durations from serialized worker and main banks', () => {
+    const snapshot = JSON.parse(JSON.stringify(canonicalDialogueBank)) as typeof canonicalDialogueBank;
+    const workerSpeaker: ChatSpeaker = { id: 3101 };
+    installDialogueBankPayload(snapshot);
+    expect(requestDialogue({
+      eventKey: 'hospital.doctor', speaker: workerSpeaker, tick: 302, selectionRoll: 0.75,
+    })).toBe(true);
+    const workerLine = workerSpeaker.chatPhrase;
+    const workerTicks = workerSpeaker.chatTicks;
+    resetDialogueSessions();
+
+    installDialogueBankPayload(canonicalDialogueBank);
+    const mainSpeaker: ChatSpeaker = { id: 3101 };
+    expect(requestDialogue({
+      eventKey: 'hospital.doctor', speaker: mainSpeaker, tick: 302, selectionRoll: 0.75,
+    })).toBe(true);
+    expect(mainSpeaker.chatPhrase).toBe(workerLine);
+    expect(mainSpeaker.chatTicks).toBe(workerTicks);
+    expect(mainSpeaker.chatDialogueSessionKey).toBe(workerSpeaker.chatDialogueSessionKey);
+  });
+
+  it('reclaims both partners after a real paired-dialogue save and load', () => {
+    const world = initGame({ seed: 74212 });
+    const humans = world.entities.filter((entity) => entity.alive && entity.type === 'human');
+    expect(humans.length).toBeGreaterThanOrEqual(2);
+    if (humans.length < 2) return;
+    const [a, b] = humans;
+    expect(requestDialogue({
+      eventKey: 'neighbor.greeting', speaker: a, partner: b, tick: world.tick,
+    })).toBe(true);
+    const payload = buildSaveData(world, createInitialView(world.width, world.height));
+    const restored = loadGameFromParsedOutcome(JSON.parse(JSON.stringify(payload)) as Record<string, unknown>);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    resetDialogueSessions();
+    const restoredA = restored.world.entities.find((entity) => entity.id === a.id);
+    const restoredB = restored.world.entities.find((entity) => entity.id === b.id);
+    expect(restoredA).toBeDefined();
+    expect(restoredB).toBeDefined();
+    if (!restoredA || !restoredB) return;
+    const resolve = (id: number) => id === restoredA.id ? restoredA : id === restoredB.id ? restoredB : undefined;
+    tickHumanChat(restoredA, resolve);
+    tickHumanChat(restoredB, resolve);
+    expect(restoredA.chatDialogueSessionKey).toBeUndefined();
+    expect(restoredB.chatDialogueSessionKey).toBeUndefined();
+    expect(isDialogueBusy(restoredA)).toBe(false);
+    expect(isDialogueBusy(restoredB)).toBe(false);
+  });
+
 });
