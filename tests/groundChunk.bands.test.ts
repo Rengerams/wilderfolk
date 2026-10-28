@@ -241,7 +241,9 @@ describe('the ground fill is budgeted per frame, and a season change costs nothi
       drawGround(destination, snapshot(Season.Spring), view.width, view.height);
       // A frame may overshoot the budget by at most the one-row minimum that keeps the fill moving.
       expect(counts.paintedPixels, `frame ${frames}`).toBeLessThanOrEqual(GROUND_BAKE_PIXEL_BUDGET + CHUNK);
-      if (counts.drawnWidths.some((w) => w <= CHUNK / 2)) sawCoarseCover = true;
+      // In 2.5D, even a coarse preview is projected to a full-world-width mesh;
+      // verify that it reaches the viewport while the full bake is still running.
+      if (groundDraws() > 0 && counts.paintedPixels > 0) sawCoarseCover = true;
       if (groundDraws() > 0) groundWasDrawn = true;
       if (counts.paintedPixels === 0) break;
     }

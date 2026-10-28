@@ -23,6 +23,7 @@
  */
 import type { WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
+import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, loadedDirtTextures, sampleTerrainMaterial } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
 import {
@@ -837,6 +838,13 @@ export function bakeWhittakerGround(
 
   const img = ctx.createImageData(W, H);
   const d = img.data;
+  // Decode artist-authored CC0 grass once per loaded image, never inside the pixel loop.
+  const grassTextures = map.generationVersion === 4 ? loadedGrassTextures() : null;
+  const naturalMaterials = map.generationVersion === 4 ? loadedTerrainMaterials() : null;
+  const dirtTextures = map.generationVersion === 4 ? loadedDirtTextures() : null;
+  // Reuse both RGB scratch tuples across all pixels; do not allocate inside the bake loops.
+  const grassDetail: [number, number, number] = [0, 0, 0];
+  const materialDetail: [number, number, number] = [0, 0, 0];
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const wx = originX + px * pxStep;
@@ -886,8 +894,8 @@ export function bakeWhittakerGround(
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
       const coverage = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-      const rd = map.generationVersion === 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
-      const isWater = aboveSea < 0 || (map.generationVersion === 3 && rd > 0.55);
+      const rd = (map.generationVersion ?? 0) >= 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
+      const isWater = aboveSea < 0 || ((map.generationVersion ?? 0) >= 3 && rd > 0.55);
 
       let [r, g, b] = groundColor(
         e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
@@ -923,7 +931,163 @@ export function bakeWhittakerGround(
       // of grass, dirt and stone squares between the ridges. The colour ramp was always continuous
       // in these fields; now the material is too, so a material edge lands on a shoreline or a
       // hillside instead of on the lattice.
-      if (!isWater) {
+      // V4 uses continuous material weights instead of selecting a single texture
+      // family by if/else. Every term is an absolute-world-coordinate function, so
+      // adjacent chunk bakes remain pixel-identical and no materials pop at biome cuts.
+      if (!isWater && map.generationVersion === 4) {
+        const fade = (v: number): number => {
+          const t = clamp(v, 0, 1);
+          return t * t * (3 - 2 * t);
+        };
+        const snowW = fade(snowAmountAt(hn, te));
+        const stoneW = (1 - snowW)
+          * fade((hn - (LAND_BANDS.hills - 0.06)) / (LAND_BANDS.rocky - LAND_BANDS.hills + 0.14));
+        const beachT = clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1);
+        const sandStrength = Math.max(1 - beachT, nearWater * 0.35 * clamp(1 - hn / 0.12, 0, 1));
+        const sandW = (1 - snowW - stoneW) * fade(sandStrength);
+        const dryW = (1 - snowW - stoneW - sandW)
+          * fade((dryMoistureCut + 0.085 - mo) / 0.17);
+        const grassW = Math.max(0, 1 - snowW - stoneW - sandW - dryW);
+
+        if (sandW > 0.005) {
+          if (naturalMaterials) {
+            sampleTerrainMaterial(naturalMaterials.sand, wx, wy, materialDetail);
+            const k = sandW * 0.72;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            // Underwater pebbles and wet shingle gently fade into sandy shoreline.
+            const shingle = sandW * fade((nearWater - 0.22) / 0.65) * 0.30;
+            if (shingle > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.pebbles, wx, wy, materialDetail);
+              r += materialDetail[0] * shingle;
+              g += materialDetail[1] * shingle;
+              b += materialDetail[2] * shingle;
+            }
+          } else {
+            const ripple = Math.sin(wx * 0.22 + valueNoise(wx * 0.06, wy * 0.06, seed + 6666) * 16);
+            const dune = (valueNoise(wx * 0.03, wy * 0.03, seed + 6667) - 0.5) * 14;
+            const m = (ripple * 5 + dune + bandDetail(wx, wy, seed + 6668, ROUGHNESS_OCTAVE_PX.sand[0], pxStep) * 9) * sandW;
+            r += m; g += m * 0.8; b += m * 0.5;
+          }
+        }
+        if (snowW > 0.005) {
+          const drift = bandDetail(wx + wy * 0.25, wy - wx * 0.1, seed + 8882, ROUGHNESS_OCTAVE_PX.snow[0], pxStep);
+          const sparkle = valueNoise(wx * 1.6, wy * 1.6, seed + 8880) > 0.88 ? 10 : 0;
+          const m = (drift * 17 + sparkle) * snowW;
+          r += m * 0.85; g += m * 0.9; b += m;
+        }
+        if (stoneW > 0.005) {
+          if (naturalMaterials) {
+            const cliff = fade((hn - LAND_BANDS.rocky) / Math.max(0.01, LAND_BANDS.mountains - LAND_BANDS.rocky));
+            sampleTerrainMaterial(naturalMaterials.gravel, wx, wy, materialDetail);
+            const k = stoneW * (1 - cliff) * 0.65;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            if (cliff > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.rock, wx, wy, materialDetail);
+              const ledge = stoneW * cliff * 0.76;
+              r += materialDetail[0] * ledge;
+              g += materialDetail[1] * ledge;
+              b += materialDetail[2] * ledge;
+            }
+          } else {
+            const crack = valueNoise(wx * 0.22 + wy * 0.08, wy * 0.3 - wx * 0.11, seed + 7770);
+            const seam = Math.abs(crack - 0.5) < 0.035 ? -16 : 0;
+            const strata = Math.sin(e * 150) * 4;
+            const ledge = bandDetail(wx + wy * 0.5, wy - wx * 0.2, seed + 7772, ROUGHNESS_OCTAVE_PX.rock[0], pxStep) * 26;
+            const m = (seam + strata + ledge) * stoneW;
+            r += m; g += m * 0.98; b += m * 0.94;
+          }
+        }
+        if (dryW > 0.005) {
+          if (dirtTextures) {
+            // The supplied CC0 dirt pack is painted for close top-down views:
+            // damp fine loam gives way continuously to drier, stony dirt.
+            // The rutted image is *not* used as random terrain detail.
+            const wet = fade((mo - (dryMoistureCut - 0.10)) / 0.20);
+            sampleTerrainMaterial(dirtTextures.loam, wx, wy, materialDetail);
+            const loamK = dryW * wet * 0.76;
+            r += materialDetail[0] * loamK;
+            g += materialDetail[1] * loamK;
+            b += materialDetail[2] * loamK;
+            if (wet < 0.995) {
+              sampleTerrainMaterial(dirtTextures.coarseSoil, wx, wy, materialDetail);
+              const coarseK = dryW * (1 - wet) * 0.73;
+              r += materialDetail[0] * coarseK;
+              g += materialDetail[1] * coarseK;
+              b += materialDetail[2] * coarseK;
+            }
+          } else if (naturalMaterials) {
+            const dryFraction = fade((dryMoistureCut + 0.035 - mo) / 0.21);
+            sampleTerrainMaterial(naturalMaterials.soil, wx, wy, materialDetail);
+            const k = dryW * (1 - dryFraction) * 0.76;
+            r += materialDetail[0] * k; g += materialDetail[1] * k; b += materialDetail[2] * k;
+            if (dryFraction > 0.005) {
+              sampleTerrainMaterial(naturalMaterials.drySoil, wx, wy, materialDetail);
+              const dryK = dryW * dryFraction * 0.79;
+              r += materialDetail[0] * dryK;
+              g += materialDetail[1] * dryK;
+              b += materialDetail[2] * dryK;
+            }
+          } else {
+            const grain = (valueNoise(wx * 0.34, wy * 0.34, seed + 4444) - 0.5) * 40;
+            const patch = bandDetail(wx, wy, seed + 4446, ROUGHNESS_OCTAVE_PX.dirt[0], pxStep) * 44;
+            const m = (grain + patch) * dryW;
+            r += m; g += m * 0.8; b += m * 0.6;
+          }
+        }
+        if (grassW > 0.005) {
+          if (grassTextures) {
+            // Four tileable 512px albedos by Cethiel: open grass, flower-rich meadow,
+            // forest floor and dense leaves. Moisture controls their proportions,
+            // never the coarse tile label. Delta-from-mean preserves climate colour.
+            grassDetailAt(
+              grassTextures, wx, wy, mo,
+              map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST,
+              map.moistureDarkForestThreshold
+                ?? (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST) + 0.12,
+              map.preset, grassDetail,
+            );
+            const textureStrength = grassW * 0.86;
+            r += grassDetail[0] * textureStrength;
+            g += grassDetail[1] * textureStrength;
+            b += grassDetail[2] * textureStrength;
+            // Dense forests carry leaf litter even where live grass continues:
+            // blend the artist's brown foliage texture rather than stamping
+            // isolated vector leaves or sharp "forest" tiles.
+            if (dirtTextures) {
+              const forestCut = map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST;
+              const litter = grassW * fade((mo - (forestCut - 0.12)) / 0.30)
+                * (1 - fade((hn - (LAND_BANDS.hills - 0.05)) / 0.20))
+                * 0.42;
+              if (litter > 0.005) {
+                sampleTerrainMaterial(dirtTextures.leafLitter, wx, wy, materialDetail);
+                r += materialDetail[0] * litter;
+                g += materialDetail[1] * litter;
+                b += materialDetail[2] * litter;
+              }
+            }
+            // Dry meadow margins get straw instead of a hard grass/dirt cutoff.
+            const dryStraw = naturalMaterials
+              ? grassW * fade((dryMoistureCut + 0.07 - mo) / 0.21)
+                * fade((te - 0.42) / 0.25) * 0.38
+              : 0;
+            if (dryStraw > 0.005 && naturalMaterials) {
+              sampleTerrainMaterial(naturalMaterials.straw, wx, wy, materialDetail);
+              r += materialDetail[0] * dryStraw;
+              g += materialDetail[1] * dryStraw;
+              b += materialDetail[2] * dryStraw;
+            }
+          } else {
+            // Headless tests and an asset that failed to preload retain safe
+            // deterministic procedural detail instead of leaving blank ground.
+            const clump = (valueNoise(wx * 0.048 + wy * 0.012, wy * 0.041 - wx * 0.009, seed + 2222) - 0.5) * (60 + mo * 44);
+            const patch = (valueNoise(wx * 0.035, wy * 0.035, seed + 2345) - 0.5) * (52 + mo * 36);
+            const streak = (valueNoise(wx * 0.17 + wy * 0.05, wy * 0.14 - wx * 0.03, seed + 2223) - 0.5) * 34;
+            const m = (clump + patch + streak) * grassW;
+            r += m * 0.32; g += m * 0.85; b += m * 0.2;
+          }
+        }
+        r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
+      } else if (!isWater) {
         const beachT = clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1);
         const sandStrength = Math.max(1 - beachT, nearWater * 0.35 * clamp(1 - hn / 0.12, 0, 1));
         const rockT = clamp((hn - LAND_BANDS.hills) / (LAND_BANDS.rocky - LAND_BANDS.hills), 0, 1);
@@ -1031,7 +1195,7 @@ export function bakeWhittakerGround(
 
       // River. The distance field is smooth, so the blend is curved rather than clamped, and its
       // core is deeper and darker than its shoulder — a channel with banks, not a flat sticker.
-      if (map.generationVersion === 3 && rd > 0.05) {
+      if ((map.generationVersion ?? 0) >= 3 && rd > 0.05) {
         // Exposed banks stay soil; the visible channel starts at the classifier's water threshold.
         const wetBank = clamp((rd - 0.05) / 0.28, 0, 1)
           * (1 - clamp((rd - 0.44) / 0.13, 0, 1));
@@ -1047,7 +1211,7 @@ export function bakeWhittakerGround(
           g = g * (1 - waterBlend) + (river[1] + surface * 1.1) * waterBlend;
           b = b * (1 - waterBlend) + (river[2] + surface * 1.4) * waterBlend;
         }
-      } else if (map.generationVersion !== 3 && rd > 0.03) {
+      } else if ((map.generationVersion ?? 0) < 3 && rd > 0.03) {
         const str = clamp((rd - 0.03) / 0.55, 0, 1) ** 0.75;
         const core = clamp((rd - 0.42) / 0.5, 0, 1);
         const river = lc(RIVER_EDGE, RIVER_CORE, core);
@@ -1106,6 +1270,17 @@ export function bakeWhittakerGround(
         r = r * (1 - edgeStrength);
         g = g * (1 - edgeStrength);
         b = b * (1 - edgeStrength);
+      }
+
+      // Snow is strongly reflective even on a shaded mountainside. Retain the
+      // silhouette and cast shadows, but prevent north-facing snowfields from
+      // disappearing into the grey rock palette at the steepest cold crests.
+      if (!isWater) {
+        const brightSnow = clamp((snowAmountAt(hn, te) - 0.78) / 0.22, 0, 1);
+        const bounce = brightSnow * 0.65;
+        r += (215 - r) * bounce;
+        g += (225 - g) * bounce;
+        b += (237 - b) * bounce;
       }
 
       const off = (py * W + px) * 4;
