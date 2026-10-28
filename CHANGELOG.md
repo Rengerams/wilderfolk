@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Removed:** Legacy Goals and their completion counter; historical Chronicle chapters remain in the open-ended simulator.
+- **Registered:** Ordinary Chronicle raid events and combat decision owners, with a save/reload regression test.
+
+
 - **Raid documentation (28 October 2026):** Removed the optional advanced-siege feature from the v0.6.5.2 roadmap. Kept only the two outstanding raid UI additions (expanded terminal report and neutral raze confirmation), with their implementation and regression approach in `docs/plans/raid-ui-final-report-and-raze-confirmation-0.6.5.2.md`.
 
 
