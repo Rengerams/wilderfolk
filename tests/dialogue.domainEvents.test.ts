@@ -1,4 +1,4 @@
-import { personDayRoll, getHourOfDay, isWorkHour } from '../src/game/dayCycle';
+import { personDayRoll, getHourOfDay, isWorkHour, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, EntityType, JobType, type Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';
@@ -111,11 +111,13 @@ describe('domain event-to-caption integration', () => {
     official.workerBuildingId = hall.id;
     petitioner.x = 100;
     petitioner.y = 107;
-    petitioner.needs = { ...petitioner.needs, nutrition: 0 };
+    expect(petitioner.needs).toBeDefined();
+    if (!petitioner.needs) return;
+    petitioner.needs.nutrition = 0;
     world.humanPopulation = Math.max(world.humanPopulation, 5);
     world.resources.food = 8;
     const tick = Array.from({ length: 5000 }, (_, i) => i + 1).find((candidate) => {
-      const day = Math.floor(candidate / 72);
+      const day = Math.floor(candidate / TICKS_PER_DAY);
       return isWorkHour(getHourOfDay(candidate))
         && personDayRoll(petitioner.id, candidate, 821 + day) <= 0.4
         && personDayRoll(petitioner.id, candidate, 822) < 0.45;
