@@ -916,7 +916,7 @@ function decorBiomeForTile(type: TerrainType, coarse: BiomeDef): BiomeDef {
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
-  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3,
+  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3 | 4,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -1001,7 +1001,7 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
   /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
   terrainSeed?: number,
-  generationVersion: 1 | 2 | 3 = 3,
+  generationVersion: 1 | 2 | 3 | 4 = 3,
 ): WorldMap {
   const settings = PRESET_SETTINGS[preset];
   const s = generationVersion >= 2 && preset === MapPreset.Rivers
