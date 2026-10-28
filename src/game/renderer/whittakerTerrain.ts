@@ -897,7 +897,59 @@ export function bakeWhittakerGround(
       // of grass, dirt and stone squares between the ridges. The colour ramp was always continuous
       // in these fields; now the material is too, so a material edge lands on a shoreline or a
       // hillside instead of on the lattice.
-      if (!isWater) {
+      // V4 uses continuous material weights instead of selecting a single texture
+      // family by if/else. Every term is an absolute-world-coordinate function, so
+      // adjacent chunk bakes remain pixel-identical and no materials pop at biome cuts.
+      if (!isWater && map.generationVersion === 4) {
+        const fade = (v: number): number => {
+          const t = clamp(v, 0, 1);
+          return t * t * (3 - 2 * t);
+        };
+        const snowW = fade(snowAmountAt(hn, te));
+        const stoneW = (1 - snowW)
+          * fade((hn - (LAND_BANDS.hills - 0.06)) / (LAND_BANDS.rocky - LAND_BANDS.hills + 0.14));
+        const beachT = clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1);
+        const sandStrength = Math.max(1 - beachT, nearWater * 0.35 * clamp(1 - hn / 0.12, 0, 1));
+        const sandW = (1 - snowW - stoneW) * fade(sandStrength);
+        const dryW = (1 - snowW - stoneW - sandW)
+          * fade((dryMoistureCut + 0.085 - mo) / 0.17);
+        const grassW = Math.max(0, 1 - snowW - stoneW - sandW - dryW);
+
+        if (sandW > 0.005) {
+          const ripple = Math.sin(wx * 0.22 + valueNoise(wx * 0.06, wy * 0.06, seed + 6666) * 16);
+          const dune = (valueNoise(wx * 0.03, wy * 0.03, seed + 6667) - 0.5) * 14;
+          const m = (ripple * 5 + dune + bandDetail(wx, wy, seed + 6668, ROUGHNESS_OCTAVE_PX.sand[0], pxStep) * 9) * sandW;
+          r += m; g += m * 0.8; b += m * 0.5;
+        }
+        if (snowW > 0.005) {
+          const drift = bandDetail(wx + wy * 0.25, wy - wx * 0.1, seed + 8882, ROUGHNESS_OCTAVE_PX.snow[0], pxStep);
+          const sparkle = valueNoise(wx * 1.6, wy * 1.6, seed + 8880) > 0.88 ? 10 : 0;
+          const m = (drift * 17 + sparkle) * snowW;
+          r += m * 0.85; g += m * 0.9; b += m;
+        }
+        if (stoneW > 0.005) {
+          const crack = valueNoise(wx * 0.22 + wy * 0.08, wy * 0.3 - wx * 0.11, seed + 7770);
+          const seam = Math.abs(crack - 0.5) < 0.035 ? -16 : 0;
+          const strata = Math.sin(e * 150) * 4;
+          const ledge = bandDetail(wx + wy * 0.5, wy - wx * 0.2, seed + 7772, ROUGHNESS_OCTAVE_PX.rock[0], pxStep) * 26;
+          const m = (seam + strata + ledge) * stoneW;
+          r += m; g += m * 0.98; b += m * 0.94;
+        }
+        if (dryW > 0.005) {
+          const grain = (valueNoise(wx * 0.34, wy * 0.34, seed + 4444) - 0.5) * 40;
+          const patch = bandDetail(wx, wy, seed + 4446, ROUGHNESS_OCTAVE_PX.dirt[0], pxStep) * 44;
+          const m = (grain + patch) * dryW;
+          r += m; g += m * 0.8; b += m * 0.6;
+        }
+        if (grassW > 0.005) {
+          const clump = (valueNoise(wx * 0.048 + wy * 0.012, wy * 0.041 - wx * 0.009, seed + 2222) - 0.5) * (60 + mo * 44);
+          const patch = (valueNoise(wx * 0.035, wy * 0.035, seed + 2345) - 0.5) * (52 + mo * 36);
+          const streak = (valueNoise(wx * 0.17 + wy * 0.05, wy * 0.14 - wx * 0.03, seed + 2223) - 0.5) * 34;
+          const m = (clump + patch + streak) * grassW;
+          r += m * 0.32; g += m * 0.85; b += m * 0.2;
+        }
+        r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
+      } else if (!isWater) {
         const beachT = clamp(hn / BEACH_BAND_OF_LAND_RANGE, 0, 1);
         const sandStrength = Math.max(1 - beachT, nearWater * 0.35 * clamp(1 - hn / 0.12, 0, 1));
         const rockT = clamp((hn - LAND_BANDS.hills) / (LAND_BANDS.rocky - LAND_BANDS.hills), 0, 1);
@@ -983,7 +1035,8 @@ export function bakeWhittakerGround(
         const upland = clamp((hn - 0.30) / 0.32, 0, 1);
         const slope = Math.hypot(sx, sy);
         const stoneExposure = clamp((slope - 0.035) / 0.115, 0, 1)
-          * upland * clamp((0.25 - rd) / 0.2, 0, 1);
+          * upland * clamp((0.25 - rd) / 0.2, 0, 1)
+          * (1 - snowAmountAt(hn, te));
         if (stoneExposure > 0.001) {
           // Broad aligned bands look like strata, not per-pixel salt-and-pepper noise.
           const strata = (valueNoise(wx * 0.075 + wy * 0.02, wy * 0.065, seed + 7017) - 0.5) * 32
