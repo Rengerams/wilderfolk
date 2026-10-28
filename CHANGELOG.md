@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Design/tests:** PR C must preserve current social DNA gameplay exactly, moving extra context multipliers into the single catalog; a source audit now rejects newly added legacy DNA consumers and must reach zero at cutover.
+- **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 
