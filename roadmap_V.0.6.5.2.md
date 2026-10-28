@@ -101,6 +101,8 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 
 ## 11. DNA traits — strengths, weaknesses and whole-game influence
 
+**Codebot implementation:** [Executable PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md) · [architecture](docs/plans/personality-career-single-pipeline-0.6.5.2.md). Every PR must update both ownership registries and follow [the bug-report protocol](docs/bug_report/readme.md).
+
 - [x] The existing inherited identity system assigns **three DNA traits from fourteen**, with established selected trait effects.
 - [ ] Every trait gains meaningful, bounded, context-relevant positive and negative influences across applicable production, skills, education, combat, diplomacy and social systems.
 - [ ] Trait aptitudes and acquired experience combine without permanently locking professions or making one DNA set universally superior.
@@ -137,6 +139,8 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 - [ ] Rare, understandable simulated emergencies (fires, storm/road damage, illness pressure) with practical recovery and emergency work priorities.
 
 ## 16. More meaningful professions, education and career paths — additional features open
+
+**Codebot implementation:** [Executable DNA + career PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md). Shared trait evaluation, separate bounded career-history owner; no aliases or re-exports.
 
 - [x] Existing school-age rules, age-18 adulthood, job skills, employment and selective apprenticeship mechanics remain the foundation.
 - [ ] Persistent adult work histories, experience milestones and meaningful progression for teachers, medics, builders, craftspeople and defenders.
