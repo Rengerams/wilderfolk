@@ -860,8 +860,8 @@ export function bakeWhittakerGround(
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
       const coverage = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-      const rd = map.generationVersion === 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
-      const isWater = aboveSea < 0 || (map.generationVersion === 3 && rd > 0.55);
+      const rd = (map.generationVersion ?? 0) >= 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
+      const isWater = aboveSea < 0 || ((map.generationVersion ?? 0) >= 3 && rd > 0.55);
 
       let [r, g, b] = groundColor(
         e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
@@ -1005,7 +1005,7 @@ export function bakeWhittakerGround(
 
       // River. The distance field is smooth, so the blend is curved rather than clamped, and its
       // core is deeper and darker than its shoulder — a channel with banks, not a flat sticker.
-      if (map.generationVersion === 3 && rd > 0.05) {
+      if ((map.generationVersion ?? 0) >= 3 && rd > 0.05) {
         // Exposed banks stay soil; the visible channel starts at the classifier's water threshold.
         const wetBank = clamp((rd - 0.05) / 0.28, 0, 1)
           * (1 - clamp((rd - 0.44) / 0.13, 0, 1));
@@ -1021,7 +1021,7 @@ export function bakeWhittakerGround(
           g = g * (1 - waterBlend) + (river[1] + surface * 1.1) * waterBlend;
           b = b * (1 - waterBlend) + (river[2] + surface * 1.4) * waterBlend;
         }
-      } else if (map.generationVersion !== 3 && rd > 0.03) {
+      } else if ((map.generationVersion ?? 0) < 3 && rd > 0.03) {
         const str = clamp((rd - 0.03) / 0.55, 0, 1) ** 0.75;
         const core = clamp((rd - 0.42) / 0.5, 0, 1);
         const river = lc(RIVER_EDGE, RIVER_CORE, core);
