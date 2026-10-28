@@ -12,7 +12,7 @@ Occasionally, an eligible female juvenile (12–17 years old) becomes the accide
 
 | Concern | Sole authority | Data and cadence |
 | --- | --- | --- |
-| Rare event rule, eligibility, deterministic lineup and slots | `src/game/spotlightLore.ts` | `maybeStartSpotlightLore`: O(1) inactive guard, deterministic daily roll at weekend 16:00, selection scan only when rare roll passes |
+| Rare event rule, eligibility, deterministic lineup and slots | `src/game/spotlightLore.ts` | `maybeStartSpotlightLore`: O(1) inactive guard, deterministic daily roll at weekend 19:00, selection scan only when rare roll passes |
 | Gathering progression, clean abort, one-time Chronicle event | `src/game/spotlightLore.ts` | `tickSpotlightGathering`, `finishSpotlightLore` |
 | Physical movement | `src/game/humanTick.ts` | `tickHumans` remains **the only** simulated x/y and velocity integrator |
 | Scheduling | `src/game/tickLayerRealtime.ts` | Calls start before `tickHumans` and checks arrival after it |
@@ -28,7 +28,7 @@ Occasionally, an eligible female juvenile (12–17 years old) becomes the accide
 
 ```text
 No active scene
-  └─ weekend 16:00 + no conflict + 90-day cooldown + seeded rare roll
+  └─ weekend 19:00 + no conflict + 90-day cooldown + seeded rare roll
       └─ eligible girl + 6–10 nearby adult players + walkable distinct slots
           └─ scene.phase = gathering, scene.startedAtTick = world.tick
               ├─ danger / invalid participant / timeout ⇒ abort + clear scene
