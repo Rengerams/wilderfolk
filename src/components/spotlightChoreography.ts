@@ -4,7 +4,32 @@ import { readPresentationDialogue } from '../game/dialogueTrees';
 export const SPOTLIGHT_PRESENTATION = readPresentationDialogue(spotlightSource, 'spotlight.lore');
 
 export const SPOTLIGHT_POSE_MS = 7000;
-export const SPOTLIGHT_INTRO_MS = 2400;
+/** Blackout precedes camera reveal, music and the first spoken line. */
+export const SPOTLIGHT_INTRO_MS = 4800;
+export const SPOTLIGHT_CAMERA_FOCUS_MS = 500;
+export const SPOTLIGHT_LIGHT_CUE_MS = 1450;
+export const SPOTLIGHT_MUSIC_CUE_MS = 1650;
+export const SPOTLIGHT_REVEAL_START_MS = 1850;
+export const SPOTLIGHT_REVEAL_DURATION_MS = SPOTLIGHT_INTRO_MS - SPOTLIGHT_REVEAL_START_MS;
+
+export interface SpotlightOpeningFrame {
+  readonly blackoutOpacity: number;
+  readonly spotlightVisible: boolean;
+  readonly cameraShouldFocus: boolean;
+  readonly musicShouldStart: boolean;
+}
+
+/** One shared wall-clock cue plan; blackout hides camera motion before the village reappears. */
+export function spotlightOpeningFrame(elapsedMs: number): SpotlightOpeningFrame {
+  const elapsed = Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0);
+  const reveal = Math.max(0, Math.min(1, (elapsed - SPOTLIGHT_REVEAL_START_MS) / SPOTLIGHT_REVEAL_DURATION_MS));
+  return {
+    blackoutOpacity: 1 - reveal * reveal * (3 - 2 * reveal),
+    spotlightVisible: elapsed >= SPOTLIGHT_LIGHT_CUE_MS,
+    cameraShouldFocus: elapsed >= SPOTLIGHT_CAMERA_FOCUS_MS,
+    musicShouldStart: elapsed >= SPOTLIGHT_MUSIC_CUE_MS,
+  };
+}
 /** Hold the actual 6.1-second audience cheering sample and a brief silent tail. */
 export const SPOTLIGHT_APPLAUSE_MS = 6400;
 
