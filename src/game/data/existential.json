@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.3",
   "game": "Wilderfolk Sim",
   "category": "existential",
   "dialogue_trees": [
@@ -25,7 +25,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_shirts",
@@ -49,7 +49,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_personality",
@@ -73,7 +73,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "dt_stare",
@@ -97,7 +97,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_renffr_stars",
@@ -121,7 +121,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_renffr_mark",
@@ -145,7 +145,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_renffr_letters",
@@ -169,7 +169,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_election_vote",
@@ -193,7 +193,7 @@
         }
       ],
       "eventKey": "ambient.election",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_election_speech",
@@ -217,7 +217,7 @@
         }
       ],
       "eventKey": "ambient.election",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_election_incumbent",
@@ -241,7 +241,7 @@
         }
       ],
       "eventKey": "ambient.election",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_existential_echo",
@@ -277,7 +277,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     },
     {
       "id": "wf_funny_existential_cloud",
@@ -301,7 +301,7 @@
         }
       ],
       "eventKey": "ambient.renffr",
-      "mode": "pair"
+      "conversation_type": "two_way"
     }
   ],
   "categories": [
