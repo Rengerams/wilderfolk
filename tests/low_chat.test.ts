@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Low-severity audit batch — regression tests for the findings fixed in this change.
  *
@@ -17,6 +16,7 @@ import { personDayRoll } from '../src/game/simRng';
  *   - L53 relationships: friendship records of dead settlers are pruned and do not
  *     lift the survivor's energy.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, GameEventLog, StoryEvent, WorldState } from '../src/game/gameTypes';
