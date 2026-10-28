@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
+
+
 - **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
 
 - **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
