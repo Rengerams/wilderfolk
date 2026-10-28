@@ -94,7 +94,7 @@ describe('new-game preset landscape contracts', () => {
       );
       const fresh = make(MapPreset.Oasis, seed);
       expect(old.generationVersion).toBe(1);
-      expect(fresh.generationVersion).toBe(3);
+      expect(fresh.generationVersion).toBe(4);
       const center = Math.floor(old.rows! / 2) * old.cols! + Math.floor(old.cols! / 2);
       expect(old.elevation![center]).not.toBe(fresh.elevation![center]);
     }
