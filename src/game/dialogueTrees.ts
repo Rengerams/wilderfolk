@@ -407,8 +407,7 @@ export function readPresentationDialogue(
 
 /**
  * Bind numbered presentation roles to 6–10 distinct, real gathered adults.
- * There may be fewer JSON roles than villagers (remaining villagers are silent),
- * or more JSON roles than villagers (a gathered adult voices additional roles).
+ * Every gathered actor must speak; excess JSON roles repeat real actors.
  * Never invent an actor, mutate gameplay fields, or consume RNG.
  */
 export interface BoundPresentationDialogueLine extends PresentationDialogueLine {
@@ -440,11 +439,15 @@ export function bindNumberedPresentationSpeakers(
     // Assign missing role slots to an already-present adult, in stable cast order.
     roleToActor.set(role, performerIds[i % performerIds.length]!);
   }
-  return Object.freeze(presentation.lines.map((line) => {
+  const bound = Object.freeze(presentation.lines.map((line) => {
     const speakerId = roleToActor.get(line.speaker);
     if (speakerId === undefined) throw new Error('[dialogue] Undeclared presentation speaker');
     return Object.freeze({ ...line, speakerId });
   }));
+  if (new Set(bound.map((line) => line.speakerId)).size !== performerIds.length) {
+    throw new Error('[dialogue] Every gathered performer must speak at least once');
+  }
+  return bound;
 }
 
 export function getDialogueTreeById(id: string): DialogueTree | undefined {
