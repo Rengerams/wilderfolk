@@ -540,6 +540,8 @@ export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 
 
 export interface DialogueRequest {
   eventKey: string;
+  /** Exact vetted variant within the event pool (for outcome-dependent content). */
+  treeId?: string;
   speaker: ChatSpeaker;
   partner?: ChatSpeaker | null;
   tick: number;
@@ -557,8 +559,11 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const mode = partner ? 'pair' : 'solo';
   const choices = treesByEvent.get(eventKey + ':' + mode);
   if (!choices?.length) return false;
-  const roll = request.selectionRoll ?? seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick);
-  const selected = choices[Math.min(choices.length - 1, Math.max(0, Math.floor(roll * choices.length)))]!;
+  const explicit = request.treeId ? treesById.get(request.treeId) : undefined;
+  if (request.treeId && (!explicit || !choices.includes(explicit))) return false;
+  const roll = request.selectionRoll ?? (request.treeId ? 0
+    : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
+  const selected = explicit ?? choices[Math.min(choices.length - 1, Math.max(0, Math.floor(roll * choices.length)))]!;
   if (request.priority === 'scripted') {
     prepareScriptedDialogue(speaker);
     if (partner) prepareScriptedDialogue(partner);
