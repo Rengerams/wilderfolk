@@ -973,6 +973,36 @@ export function bakeWhittakerGround(
         }
       }
 
+      // Pre-existing map-wide gradients also define *which material* covers a slope. A tall,
+      // steep face exposes stone while sheltered basins remain darker vegetation. This is a
+      // render-only choice: L0 pathfinding, biome labels and save recipes do not move.
+      const sx = sampleF(slopeX, cols, rows, tcx, tcy);
+      const sy = sampleF(slopeY, cols, rows, tcx, tcy);
+      const rl = sampleF(relief, cols, rows, tcx, tcy);
+      if (!isWater && rd < 0.25 && hn > 0.3) {
+        const upland = clamp((hn - 0.30) / 0.32, 0, 1);
+        const slope = Math.hypot(sx, sy);
+        const stoneExposure = clamp((slope - 0.035) / 0.115, 0, 1)
+          * upland * clamp((0.25 - rd) / 0.2, 0, 1);
+        if (stoneExposure > 0.001) {
+          // Broad aligned bands look like strata, not per-pixel salt-and-pepper noise.
+          const strata = (valueNoise(wx * 0.075 + wy * 0.02, wy * 0.065, seed + 7017) - 0.5) * 32
+            + Math.sin(e * 130) * 5;
+          const blend = stoneExposure * 0.76;
+          r += (115 + strata - r) * blend;
+          g += (111 + strata * 0.9 - g) * blend;
+          b += (105 + strata * 0.8 - b) * blend;
+        }
+
+        // Convex ridge crests catch a little extra daylight; concave valleys retain
+        // cool ambient shade. The relief field was already computed once for hillshading.
+        const ridge = clamp((rl - 0.008) / 0.052, 0, 1) * upland;
+        const valley = clamp((-rl - 0.007) / 0.050, 0, 1) * upland;
+        r = (r + ridge * 13) * (1 - valley * 0.18);
+        g = (g + ridge * 12) * (1 - valley * 0.16);
+        b = (b + ridge * 9) * (1 - valley * 0.12);
+      }
+
       // River. The distance field is smooth, so the blend is curved rather than clamped, and its
       // core is deeper and darker than its shoulder — a channel with banks, not a flat sticker.
       if (map.generationVersion === 3 && rd > 0.05) {
@@ -1005,10 +1035,7 @@ export function bakeWhittakerGround(
       // its gradient is zero and it came out exactly as bright as a plain. Lit faces warm up and
       // shaded faces cool down — the first version only darkened, which reads as grime rather than as
       // light.
-      const sx = sampleF(slopeX, cols, rows, tcx, tcy);
-      const sy = sampleF(slopeY, cols, rows, tcx, tcy);
       const reliefWeight = clamp((hn - LOWLAND_OF_LAND_RANGE) / RELIEF_FADE_OF_LAND_RANGE, 0, 1);
-      const rl = sampleF(relief, cols, rows, tcx, tcy);
       // Multidirectional hillshade (see `SHADE_LIGHTS`): the weighted sum of four azimuths, divided by
       // the primary's weight so a slope facing the primary keeps the shade a single-light model gave
       // it. One light left every face parallel to it flat — the grey-blob mountains.
