@@ -152,7 +152,7 @@ describe('spotlight lore — saved state and worker mirrors', () => {
     expect(outcome.world.spotlightLore).toEqual(world.spotlightLore);
     expect(outcome.world.spotlightLoreLastDay).toBe(118);
 
-    world.spotlightLore = { ...world.spotlightLore, slots: [{ humanId: 0, x: Number.NaN, y: 1 }] };
+    world.spotlightLore = { ...readyScene(world, girl, adults), slots: [{ humanId: 0, x: Number.NaN, y: 1 }] };
     normalizeSpotlightLoreOnLoad(world);
     expect(world.spotlightLore).toBeNull();
   });
