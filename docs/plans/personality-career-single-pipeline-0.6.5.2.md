@@ -1,6 +1,8 @@
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
 **Status: implementation proposal only. Nothing described here is implemented by this document.**
+
+**Codebot: start with [the executable PR tickets and gates](personality-career-codebot-tasks-0.6.5.2.md).** They define exact files, stage ordering, mandatory updates to **both** `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in **every** implementation PR, focused tests, stop conditions and required bug reporting using `docs/bug_report/readme.md` (including the single historical index). The present document defines the architecture and design decisions; the linked task sheet defines the work.
 **Scope:** roadmap §11 (DNA and whole-life personality) plus §16 (professions, education and career paths; previously §17).
 **Decision:** implement the two feature areas together through **one trait-effect evaluation pipeline**, while retaining distinct existing owners for social transitions, schooling, employment, apprenticeship, production, combat and save state. New rules live in dedicated new modules; old files receive only narrowly scoped, direct-import integration calls. No aliases, re-export barrels, second schedulers, parallel simulation state, or duplicated writers.
 
@@ -223,6 +225,8 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 - **Acceptance:** clear user-visible pros/cons and skill/career explanations, no gameplay rules copied into JSX.
 
 **Verification for implementation PRs:** use repository-declared TypeScript, lint, build and focused test scripts, plus relevant deterministic social/workforce/education/warfare suites. The roadmap records implemented features, **not** the verification checklist. This document remains an implementation plan until code merges.
+
+**Bug reporting is mandatory:** bugs found in any stage are logged using [the current bug protocol](../bug_report/readme.md), as individual files in `docs/bug_report/` and indexed in the existing `docs/BUG_REPORTS/SUMMARY.md`. Search for duplicates among current and historical reports before creating a new file. Report a defect even if fixed during the same PR; a failing test is not silently waived. Both ownership/decision registries must be updated in that PR.
 
 ## 11. Explicit exclusions and guardrails
 
