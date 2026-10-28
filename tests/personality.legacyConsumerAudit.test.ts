@@ -89,35 +89,138 @@ const isDeclarationKeyword = (token: Token | undefined): boolean =>
   token?.kind === SyntaxKind.LetKeyword ||
   token?.kind === SyntaxKind.VarKeyword;
 
-/** Local names assigned from a `.traits` read, so `const dna = e.traits; dna?.includes(...)` cannot hide. */
-function traitAliases(tokens: Token[]): ReadonlySet<string> {
-  const aliases = new Set<string>();
-  for (let index = 0; index + 2 < tokens.length; index += 1) {
-    if (!isDeclarationKeyword(tokens[index])) continue;
-    const name = tokens[index + 1];
-    if (name.kind !== SyntaxKind.Identifier) continue;
+interface TraitAssignment {
+  name: string;
+  from: number;
+}
 
-    let equalsAt = -1;
-    for (let cursor = index + 2; cursor < tokens.length && cursor < index + 10; cursor += 1) {
-      const kind = tokens[cursor].kind;
-      if (kind === SyntaxKind.EqualsToken) {
-        equalsAt = cursor;
-        break;
+/** Every `name = …` whose right-hand side may hold a `.traits` read: declarations and plain assignments. */
+function traitAssignments(tokens: Token[]): TraitAssignment[] {
+  const assignments: TraitAssignment[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (isDeclarationKeyword(token)) {
+      const name = tokens[index + 1];
+      if (name?.kind !== SyntaxKind.Identifier) continue;
+      for (let cursor = index + 2; cursor < tokens.length && cursor < index + 14; cursor += 1) {
+        const kind = tokens[cursor].kind;
+        if (kind === SyntaxKind.EqualsToken) {
+          assignments.push({ name: name.text, from: cursor + 1 });
+          break;
+        }
+        if (kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(tokens[cursor])) break;
       }
-      if (kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(tokens[cursor])) break;
+      continue;
     }
-    if (equalsAt < 0) continue;
+    if (token.kind !== SyntaxKind.EqualsToken) continue;
+    const name = tokens[index - 1];
+    if (name?.kind !== SyntaxKind.Identifier || isDot(tokens[index - 2])) continue;
+    assignments.push({ name: name.text, from: index + 1 });
+  }
+  return assignments;
+}
 
-    for (let cursor = equalsAt + 1; cursor < tokens.length && cursor < equalsAt + 40; cursor += 1) {
+/** End of the assignment's own expression, so a later statement cannot taint this name. */
+function assignmentEnd(tokens: Token[], from: number): number {
+  let depth = 0;
+  for (let cursor = from; cursor < tokens.length && cursor < from + 40; cursor += 1) {
+    const token = tokens[cursor];
+    if (
+      token.kind === SyntaxKind.OpenParenToken
+      || token.kind === SyntaxKind.OpenBracketToken
+      || token.kind === SyntaxKind.OpenBraceToken
+    ) {
+      depth += 1;
+      continue;
+    }
+    if (
+      token.kind === SyntaxKind.CloseParenToken
+      || token.kind === SyntaxKind.CloseBracketToken
+      || token.kind === SyntaxKind.CloseBraceToken
+    ) {
+      if (depth === 0) return cursor;
+      depth -= 1;
+      continue;
+    }
+    if (depth > 0) continue;
+    if (token.kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(token)) return cursor;
+    if (token.kind === SyntaxKind.Identifier && tokens[cursor + 1]?.kind === SyntaxKind.EqualsToken) return cursor;
+  }
+  return Math.min(tokens.length, from + 40);
+}
+
+/** `{ traits }` and `{ traits: dna }` bindings, so renaming a destructured read cannot hide it. */
+function destructuredTraitBindings(tokens: Token[]): { renamed: Set<string>; shorthand: boolean } {
+  const renamed = new Set<string>();
+  let shorthand = false;
+  for (let index = 0; index + 2 < tokens.length; index += 1) {
+    if (tokens[index].kind !== SyntaxKind.OpenBraceToken || !isDeclarationKeyword(tokens[index - 1])) continue;
+    for (let cursor = index + 1; cursor < tokens.length && cursor < index + 24; cursor += 1) {
       const token = tokens[cursor];
-      if (token.kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(token)) break;
-      if (token.kind === SyntaxKind.Identifier && token.text === 'traits' && isDot(tokens[cursor - 1])) {
-        aliases.add(name.text);
-        break;
+      if (token.kind === SyntaxKind.CloseBraceToken || token.kind === SyntaxKind.OpenBraceToken) break;
+      if (token.kind !== SyntaxKind.Identifier || token.text !== 'traits') continue;
+      const next = tokens[cursor + 1];
+      if (next?.kind === SyntaxKind.ColonToken && tokens[cursor + 2]?.kind === SyntaxKind.Identifier) {
+        renamed.add(tokens[cursor + 2].text);
+      } else if (
+        next?.kind === SyntaxKind.CommaToken
+        || next?.kind === SyntaxKind.CloseBraceToken
+        || next?.kind === SyntaxKind.EqualsToken
+      ) {
+        shorthand = true;
+      }
+    }
+  }
+  return { renamed, shorthand };
+}
+
+/** Local names assigned from a `.traits` read, following alias chains and repeated assignments. */
+function traitAliases(tokens: Token[]): ReadonlySet<string> {
+  const { renamed, shorthand } = destructuredTraitBindings(tokens);
+  const aliases = new Set<string>(renamed);
+  const tainted = (name: string): boolean => aliases.has(name) || (shorthand && name === 'traits');
+  const assignments = traitAssignments(tokens);
+
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const { name, from } of assignments) {
+      if (aliases.has(name)) continue;
+      const end = assignmentEnd(tokens, from);
+      let readsTraits = false;
+      for (let cursor = from; cursor < end; cursor += 1) {
+        if (tokens[cursor].kind === SyntaxKind.Identifier && tokens[cursor].text === 'traits' && isDot(tokens[cursor - 1])) {
+          readsTraits = true;
+          break;
+        }
+      }
+      if (readsTraits || copiesAlias(tokens, from, end, tainted)) {
+        aliases.add(name);
+        grew = true;
       }
     }
   }
   return aliases;
+}
+
+/** `const copy = dna;` / `dna ?? []` / `dna as SettlerTrait[]` keep the aliased array; `dna.length` does not. */
+function copiesAlias(
+  tokens: Token[],
+  from: number,
+  end: number,
+  tainted: (name: string) => boolean,
+): boolean {
+  const first = tokens[from];
+  if (first?.kind !== SyntaxKind.Identifier || isDot(tokens[from - 1]) || !tainted(first.text)) return false;
+  const next = tokens[from + 1];
+  if (from + 1 >= end || next === undefined) return true;
+  return next.kind === SyntaxKind.SemicolonToken
+    || next.kind === SyntaxKind.CloseBraceToken
+    || next.kind === SyntaxKind.CloseParenToken
+    || next.kind === SyntaxKind.CommaToken
+    || next.kind === SyntaxKind.QuestionQuestionToken
+    || next.kind === SyntaxKind.BarBarToken
+    || next.kind === SyntaxKind.AsKeyword;
 }
 
 function inventory(path: string, tokens: Token[]): Record<string, number> {
@@ -243,6 +346,28 @@ describe('no unregistered legacy DNA gameplay rules', () => {
       .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
     expect(findingsFor('src/game/regressionFixture.ts', ["const { traits } = entity;", "return traits?.includes('intuitive');"].join('\n')))
       .toEqual({ 'src/game/regressionFixture.ts|destructuredTraitIncludes': 1 });
+  });
+
+  it('still catches a legacy trait check behind repeated assignments', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', ['let dna;', 'dna = entity.traits;', "return dna.includes('stoic');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ['let dna = [];', 'dna = entity.traits;', "return dna.some((t) => t === 'fierce');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
+  });
+
+  it('follows alias chains and renamed destructuring', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', ['const source = entity.traits;', 'const copy = source;', "if (copy.includes('lucky')) return 1.15;"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ['const { traits: dna } = entity;', "return dna.includes('intuitive');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ['const { traits } = entity;', 'const copy = traits ?? [];', "return copy.includes('intuitive');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+  });
+
+  it('does not treat a value derived from the trait list as the list itself', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', ['const dna = entity.traits;', 'const count = dna.length;', "if (count.includes('x')) return 1;"].join('\n')))
+      .toEqual({});
+    expect(findingsFor('src/game/regressionFixture.ts', 'const note = 1; if (note.includes(2)) return note;')).toEqual({});
   });
 
   it('never mistakes an unrelated array for a DNA read', () => {

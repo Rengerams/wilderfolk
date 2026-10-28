@@ -4,6 +4,7 @@
 
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
 
+- **Changed:** The legacy DNA audit now follows local alias chains, repeated assignments and renamed destructuring, so indirect trait checks stay reported; no gameplay rules changed.
 
 - **Changed:** Courtship pace, married and youth conception, work banter, spousal grief, prisoner mercy voices and social feuds read their trait rules from one personality catalog at the exact historical values, the legacy DNA scan now reports zero, and play is unchanged.
 
