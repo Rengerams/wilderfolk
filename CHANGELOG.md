@@ -6,6 +6,10 @@
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
 - **Dialogue checks:** Added source ownership and schema integrity guards; 43 focused regressions and test typecheck passed on PR #93. Standard suite and release build remain pending.
 - **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
+- **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
+
+- **Fixed:** Population history now records iron alongside other resources on every sample; older snapshots without an iron field remain readable.
+- **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
 

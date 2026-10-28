@@ -1,4 +1,4 @@
-import type { SettlerTrait } from '../gameTypes';
+import type { SettlerTrait } from '../settlerTraits';
 import { TRAIT_EFFECTS } from './traitEffectCatalog';
 import type { TraitContext, TraitEffect, TraitEffects } from './traitEffectCatalog';
 

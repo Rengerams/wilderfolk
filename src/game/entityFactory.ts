@@ -1,5 +1,6 @@
 import { initialHumanNeeds } from './simulation/humanPhysiology';
-import type { Entity, SettlerTrait, WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
+import type { SettlerTrait } from './settlerTraits';
 import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,

@@ -12,7 +12,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
-import type { Entity, SettlerTrait } from '../src/game/gameTypes';
+import type { Entity } from '../src/game/gameTypes';
+import type { SettlerTrait } from '../src/game/settlerTraits';
 import {
   SCHOOL_DAY_MIN_TICKS,
   SCHOOL_HOURS_PER_DAY,

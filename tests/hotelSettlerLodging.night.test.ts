@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   BuildingType,
   EntityType,
-  HOTEL_GUEST_CAPACITY,
   JobType,
   Season,
   WeatherType,
 } from '../src/game/gameTypes';
+import { HOTEL_GUEST_CAPACITY } from '../src/game/hotelStay';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay } from '../src/game/dayCycleClock';

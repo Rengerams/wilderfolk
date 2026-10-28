@@ -16,6 +16,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
+
 **2026-10-28 — [V4 river-flow highlights missing](../bug_report/2026-10-28-v4-river-flow-material-gated-to-v3.md):** render-only v3 gate excluded v4 current glints and waterfall rapids. Proposed correction and targeted regressions on the PR branch; CI, browser visuals and FPS validation still pending.
 
 | Discovered | Reports | Resolved | Still open / pending |
