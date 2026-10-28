@@ -7,7 +7,13 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
-const GENETICS_OWNER = 'src/game/settlerTraits.ts';
+/** The DNA pipeline itself: allocation owner, catalog data and evaluator are its only legitimate readers. */
+const DNA_PIPELINE: ReadonlySet<string> = new Set([
+  'src/game/settlerTraits.ts',
+  'src/game/personality/traitEffectCatalog.ts',
+  'src/game/personality/traitEvaluation.ts',
+]);
+const inPipeline = (path: string): boolean => DNA_PIPELINE.has(path);
 
 /** PR C migrated every legacy consumer, so the inventory must stay empty. */
 const EXPECTED: Readonly<Record<string, number>> = {};
@@ -83,8 +89,40 @@ const isDeclarationKeyword = (token: Token | undefined): boolean =>
   token?.kind === SyntaxKind.LetKeyword ||
   token?.kind === SyntaxKind.VarKeyword;
 
+/** Local names assigned from a `.traits` read, so `const dna = e.traits; dna?.includes(...)` cannot hide. */
+function traitAliases(tokens: Token[]): ReadonlySet<string> {
+  const aliases = new Set<string>();
+  for (let index = 0; index + 2 < tokens.length; index += 1) {
+    if (!isDeclarationKeyword(tokens[index])) continue;
+    const name = tokens[index + 1];
+    if (name.kind !== SyntaxKind.Identifier) continue;
+
+    let equalsAt = -1;
+    for (let cursor = index + 2; cursor < tokens.length && cursor < index + 10; cursor += 1) {
+      const kind = tokens[cursor].kind;
+      if (kind === SyntaxKind.EqualsToken) {
+        equalsAt = cursor;
+        break;
+      }
+      if (kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(tokens[cursor])) break;
+    }
+    if (equalsAt < 0) continue;
+
+    for (let cursor = equalsAt + 1; cursor < tokens.length && cursor < equalsAt + 40; cursor += 1) {
+      const token = tokens[cursor];
+      if (token.kind === SyntaxKind.SemicolonToken || isDeclarationKeyword(token)) break;
+      if (token.kind === SyntaxKind.Identifier && token.text === 'traits' && isDot(tokens[cursor - 1])) {
+        aliases.add(name.text);
+        break;
+      }
+    }
+  }
+  return aliases;
+}
+
 function inventory(path: string, tokens: Token[]): Record<string, number> {
   const findings: Record<string, number> = {};
+  const aliases = traitAliases(tokens);
   const record = (kind: string): void => {
     const key = path + '|' + kind;
     findings[key] = (findings[key] ?? 0) + 1;
@@ -138,9 +176,21 @@ function inventory(path: string, tokens: Token[]): Record<string, number> {
       && subject?.kind === SyntaxKind.Identifier
       && subject.text === 'traits'
       && isDot(tokens[index - 3])
-      && path !== GENETICS_OWNER
+      && !inPipeline(path)
     ) {
       record(token.text === 'includes' ? 'directTraitIncludes' : 'directTraitSome');
+    }
+    if (
+      (token.text === 'includes' || token.text === 'some')
+      && called
+      && isDot(previous)
+      && subject?.kind === SyntaxKind.Identifier
+      && !inPipeline(path)
+    ) {
+      const aliased = aliases.has(subject.text);
+      const destructured = !aliased && subject.text === 'traits' && !isDot(tokens[index - 3]);
+      if (aliased) record(token.text === 'includes' ? 'aliasedTraitIncludes' : 'aliasedTraitSome');
+      if (destructured) record(token.text === 'includes' ? 'destructuredTraitIncludes' : 'destructuredTraitSome');
     }
   }
   return findings;
@@ -184,6 +234,23 @@ describe('no unregistered legacy DNA gameplay rules', () => {
       .toEqual({ 'src/game/regressionFixture.ts|directTraitSome': 1 });
   });
 
+  it('still catches a legacy trait check behind a local alias', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits;", "if (dna?.includes('lucky')) return 1.15;"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ["const dna = entity.traits ?? [];", "if (dna.some((t) => t === 'fierce')) return 1;"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitSome': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ["let dna: SettlerTrait[] = entity.traits;", "return dna.includes('stoic');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|aliasedTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', ["const { traits } = entity;", "return traits?.includes('intuitive');"].join('\n')))
+      .toEqual({ 'src/game/regressionFixture.ts|destructuredTraitIncludes': 1 });
+  });
+
+  it('never mistakes an unrelated array for a DNA read', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', 'const list = building.occupants; if (list.includes(3)) return 1;'))
+      .toEqual({});
+    expect(findingsFor('src/game/regressionFixture.ts', "if (TRAIT_POOL.includes('brave')) return 1;")).toEqual({});
+  });
+
   it('still catches a reintroduced pair table or pair helper', () => {
     const source = [
       "const TRAIT_CLASHES = [['brave', 'timid']];",
@@ -205,8 +272,12 @@ describe('no unregistered legacy DNA gameplay rules', () => {
     expect(findingsFor('src/game/regressionFixture.ts', source)).toEqual({});
   });
 
-  it('leaves the genetics owner its own allocation checks', () => {
-    expect(findingsFor(GENETICS_OWNER, "if (e.traits?.includes('brave')) return true;")).toEqual({});
+  it('leaves the DNA pipeline its own reads', () => {
+    for (const path of DNA_PIPELINE) {
+      expect(findingsFor(path, "if (e.traits?.includes('brave')) return true;"), path).toEqual({});
+      expect(findingsFor(path, ["const dna = e.traits;", "if (dna?.includes('brave')) return true;"].join('\n')), path)
+        .toEqual({});
+    }
     expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('brave')) return true;"))
       .toEqual({ 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
   });

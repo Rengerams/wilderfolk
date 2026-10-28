@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { SettlerTrait } from '../src/game/settlerTraits';
 import { TICKS_PER_DAY, killHuman } from '../src/game/dayCycle';
@@ -86,12 +84,42 @@ describe('spousal grief parity', () => {
     expect(widowGrief([])).toBe(REMOVAL_TICK + 7 * TICKS_PER_DAY);
   });
 
-  it('leaves the secret lover at 3 days and the ordinary bereavement projection untouched', () => {
-    const source = readFileSync(join(process.cwd(), 'src/game/humanLifecycleCleanup.ts'), 'utf8');
-    const loverLine = source.split('\n').find((line) => line.includes('lover.griefUntilTick'));
-    expect(loverLine).toBeDefined();
-    expect(loverLine).toContain('TICKS_PER_DAY * 3');
-    expect(loverLine).not.toContain('evaluateTraitInfluence');
+  it('leaves the secret lover at 3 days across a real death, shorter than the widow', () => {
+    const deathWindows = (loverTraits: Traits, widowTraits: Traits): { lover: number; widow: number } => {
+      const dead = human(1, {
+        gender: 'male',
+        age: 41,
+        partnerId: 3,
+        relationshipStatus: 'married',
+        affairPartnerId: 2,
+      });
+      const lover = human(2, {
+        gender: 'female',
+        age: 33,
+        affairPartnerId: 1,
+        traits: [...loverTraits],
+      });
+      const widow = human(3, {
+        gender: 'male',
+        age: 44,
+        partnerId: 1,
+        relationshipStatus: 'married',
+        traits: [...widowTraits],
+      });
+      const byId = new Map([[1, dead], [2, lover], [3, widow]]);
+      killHuman(dead, [], byId, REMOVAL_TICK);
+      return { lover: lover.griefUntilTick ?? -1, widow: widow.griefUntilTick ?? -1 };
+    };
+
+    expect(deathWindows([], [])).toEqual({
+      lover: REMOVAL_TICK + 3 * TICKS_PER_DAY,
+      widow: REMOVAL_TICK + 7 * TICKS_PER_DAY,
+    });
+    expect(deathWindows(['stoic'], ['stoic']), 'the secret-lover window is not the spousal trait window').toEqual({
+      lover: REMOVAL_TICK + 3 * TICKS_PER_DAY,
+      widow: REMOVAL_TICK + 5 * TICKS_PER_DAY,
+    });
+    expect(deathWindows(['brave'], []).lover).toBe(REMOVAL_TICK + 3 * TICKS_PER_DAY);
 
     const stoic = evaluateTraitInfluence({ traits: ['stoic'] }, BEREAVEMENT);
     expect(stoic.factor).toBeGreaterThan(1);

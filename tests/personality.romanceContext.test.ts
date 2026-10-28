@@ -7,6 +7,7 @@ import { EntityType, JobType, Season } from '../src/game/gameTypes';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
+import { tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
 import { courtshipRatePerHour, tryDailyConception } from '../src/game/simulation/humanRelationships';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { PER_TICK_RATE_SCALE } from '../src/game/dayCycleClock';
@@ -370,6 +371,68 @@ const affairPair = (traits: Traits): Entity[] => [
   settler(MOTHER_ID, 'female', traits, { affairPartnerId: LOVER_ID }),
   settler(LOVER_ID, 'male', [], { affairPartnerId: MOTHER_ID, x: 310 }),
 ];
+
+/** Real deliveries at the birth owner; the conception multiplier never writes DNA, so traits stay a draw. */
+function newbornTraits(traits: Traits, fatherTraits: Traits, births: number): Traits[] {
+  const state: WorldState = initGame({ seed: FIXTURE_SEED });
+  state.villageLeaderId = null;
+  const mother = settler(MOTHER_ID, 'female', traits, { relationshipStatus: 'expecting', partnerId: PARTNER_ID });
+  const father = settler(PARTNER_ID, 'male', fatherTraits, { relationshipStatus: 'expecting', partnerId: MOTHER_ID, x: 310 });
+  state.entities = [mother, father];
+  const entityById = new Map<number, Entity>([[mother.id, mother], [father.id, father]]);
+  const ctx: TickContext = {
+    width: state.width,
+    height: state.height,
+    hourOfDay: 8,
+    season: state.season,
+    grassMult: 1,
+    reproMult: 1,
+    winterPenalty: 1,
+    canHeat: true,
+    byType: byTypeBuckets([mother, father]),
+    aliveEntities: [mother, father],
+    newEntities: [],
+    updatedBuildings: state.buildings,
+    roadBuildings: [],
+    playerHumans: [mother, father],
+    entityById,
+    buildingById: new Map(state.buildings.map((building) => [building.id, building])),
+    predators: [],
+  };
+
+  const children: Traits[] = [];
+  for (let delivery = 0; delivery < births; delivery += 1) {
+    state.tick += 1;
+    ctx.newEntities.length = 0;
+    mother.pregnant = true;
+    mother.pregnantById = father.id;
+    mother.pregnancyFromYouthLove = undefined;
+    mother.pregnancyProgress = 0;
+    mother.pregnancyDueProgress = 1;
+    mother.relationshipStatus = 'expecting';
+    tickPregnancyAndBirth(state, ctx, mother, {
+      livingHumanAt: (id) => (id == null ? undefined : entityById.get(id)),
+    });
+    const child = ctx.newEntities.find((entity) => entity.type === EntityType.Human);
+    if (child) children.push(child.traits ?? []);
+  }
+  return children;
+}
+
+describe('newborn DNA at the real birth owner', () => {
+  it('never turns two Lucky parents into an automatically Lucky child', () => {
+    const children = newbornTraits(['lucky'], ['lucky'], 24);
+    expect(children.length).toBeGreaterThan(20);
+    for (const traits of children) {
+      expect(traits.length).toBeLessThanOrEqual(3);
+      expect(new Set(traits).size).toBe(traits.length);
+    }
+    expect(
+      children.some((traits) => !traits.includes('lucky')),
+      'inheritance stays a 50% draw, so a Lucky pair can raise a non-Lucky child',
+    ).toBe(true);
+  });
+});
 
 describe('conception rolls at the real owner boundary', () => {
   it('moves the married 603 roll by exactly the Lucky 1.15, and not the affair 605 roll', () => {
