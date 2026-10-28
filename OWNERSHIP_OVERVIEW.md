@@ -332,6 +332,7 @@ exports it.
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
+| Smooth v4 ecotone climate and tree recruitment weights | `terrain/ecotones.ts` | new-world generation / pure terrain queries | `smooth`, `sampleEcotone`, `treeEcotoneAt` — climate-derived visual probabilities only; tile classification and pathfinding stay owned by `terrainGrid.ts`. |
 | Terrain data model, tile projection and sparse overrides | `terrain/terrainGrid.ts` | generation, path/build updates and queries | `sampleElev`, `classifyTile`, `biomeEdgeDither`, `hasContinuousFields`, `worldToTile`, `tileToWorld`, `isInsideTileGrid`, `tileAt`, `tileTypeAt`, `tileTypeAtWorld`, `projectTile`, `setTileOverride`, `patchTile`, `isWalkableTerrainType`, `isTileBuildable`, `rebakePathCell`, `rebakeBuildCell`, `rebakeTerrainGrids` |
 | Versioned terrain generation, hydrological river geometry, riparian moisture and biome-aligned detail | `terrain/terragen.ts` | world generation, once per map | `latitudeCooling`, `spreadHeights`, `moistureCuts`, `arabianSpringCenters`, `shapePresetRelief`, `buildHeight`, `carveRivers`, `buildWaterField`, `flagRiverCells`, `assignBiomes`, `pickDecor`, `decorBiomeForTile`, `placeDecorations`, `legacyTerrainSeed`, `terrainSeedFor`, `generateRawTerrain` |
 | Terrain preset acceptance-test helpers | `tests/terrain.presetIdentity.test.ts` | test tier only | `make`, `terrainShare`, `waterShare` — construct seeded preset maps and measure classified terrain and water shares. |
