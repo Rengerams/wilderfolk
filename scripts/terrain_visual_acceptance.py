@@ -83,6 +83,13 @@ def main() -> int:
                      "gameplay HUD", 120000)
             if page.evaluate("() => document.body.textContent.includes('Quick start')"):
                 click_text(page, "skip")
+            # The old capture showed three tutorial panels over nearly the
+            # entire mountain/shoreline. Dismiss them using the game UI before
+            # measuring actual exposed scene pixels.
+            for _ in range(3):
+                click_text(page, "turn off all tutorials")
+                click_text(page, "got it")
+                click_text(page, "skip guide")
             zoom = 0.75
             set_camera_zoom(page, zoom)
             stats = page.evaluate(GROUND_STATS_JS)
