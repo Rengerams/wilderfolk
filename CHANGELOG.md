@@ -28,6 +28,7 @@
 - **Fixed (#62, pending CI verification):** Food-producer planning counts all settlers including children; the Virtual Player prioritizes eligible staffed Farm upgrades under measured deficits, protects after-cost reserves, and avoids auto-taming when food flow or valley ecology is unhealthy.
 - **Fixed (#62, pending 360-day verification):** Workforce assignment repairs a worker's job assignment when the workplace roster already contains them but the pointer was unset. Added targeted regression tests and seven-day food and verified farm staffing diagnostics.
 - **Fixed (#72, 28 October 2026):** During food deficits, auto-play postpones spare housing, improves staffed Farms and builds eligible Mills, Silos, Greenhouses, Fishing Spots or safe Hunting Spots. Workforce presets prioritize fishing jobs; the colony check includes day 150.
+- **Fixed (#72):** Measured food shortages retain the rolling month-long deficit across a brief surplus week, avoiding premature recruitment and paused food expansion; regression coverage pins the decision.
 
 
 - **Fixed (#62):** Berry foraging, fed-pet bonuses and grief comfort now change authoritative stamina instead of transient human energy; berry eligibility uses nutrition.
