@@ -23,7 +23,7 @@
  */
 import type { WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
-import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, sampleTerrainMaterial } from './grassTextures';
+import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, loadedDirtTextures, sampleTerrainMaterial } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
 // the same grid and break the landscape at the same heights and the same dryness it does.
 import {
@@ -815,6 +815,7 @@ export function bakeWhittakerGround(
   // Decode artist-authored CC0 grass once per loaded image, never inside the pixel loop.
   const grassTextures = map.generationVersion === 4 ? loadedGrassTextures() : null;
   const naturalMaterials = map.generationVersion === 4 ? loadedTerrainMaterials() : null;
+  const dirtTextures = map.generationVersion === 4 ? loadedDirtTextures() : null;
   // Reuse both RGB scratch tuples across all pixels; do not allocate inside the bake loops.
   const grassDetail: [number, number, number] = [0, 0, 0];
   const materialDetail: [number, number, number] = [0, 0, 0];
@@ -971,7 +972,24 @@ export function bakeWhittakerGround(
           }
         }
         if (dryW > 0.005) {
-          if (naturalMaterials) {
+          if (dirtTextures) {
+            // The supplied CC0 dirt pack is painted for close top-down views:
+            // damp fine loam gives way continuously to drier, stony dirt.
+            // The rutted image is *not* used as random terrain detail.
+            const wet = fade((mo - (dryMoistureCut - 0.10)) / 0.20);
+            sampleTerrainMaterial(dirtTextures.loam, wx, wy, materialDetail);
+            const loamK = dryW * wet * 0.76;
+            r += materialDetail[0] * loamK;
+            g += materialDetail[1] * loamK;
+            b += materialDetail[2] * loamK;
+            if (wet < 0.995) {
+              sampleTerrainMaterial(dirtTextures.coarseSoil, wx, wy, materialDetail);
+              const coarseK = dryW * (1 - wet) * 0.73;
+              r += materialDetail[0] * coarseK;
+              g += materialDetail[1] * coarseK;
+              b += materialDetail[2] * coarseK;
+            }
+          } else if (naturalMaterials) {
             const dryFraction = fade((dryMoistureCut + 0.035 - mo) / 0.21);
             sampleTerrainMaterial(naturalMaterials.soil, wx, wy, materialDetail);
             const k = dryW * (1 - dryFraction) * 0.76;
@@ -1006,6 +1024,21 @@ export function bakeWhittakerGround(
             r += grassDetail[0] * textureStrength;
             g += grassDetail[1] * textureStrength;
             b += grassDetail[2] * textureStrength;
+            // Dense forests carry leaf litter even where live grass continues:
+            // blend the artist's brown foliage texture rather than stamping
+            // isolated vector leaves or sharp "forest" tiles.
+            if (dirtTextures) {
+              const forestCut = map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST;
+              const litter = grassW * fade((mo - (forestCut - 0.12)) / 0.30)
+                * (1 - fade((hn - (LAND_BANDS.hills - 0.05)) / 0.20))
+                * 0.42;
+              if (litter > 0.005) {
+                sampleTerrainMaterial(dirtTextures.leafLitter, wx, wy, materialDetail);
+                r += materialDetail[0] * litter;
+                g += materialDetail[1] * litter;
+                b += materialDetail[2] * litter;
+              }
+            }
             // Dry meadow margins get straw instead of a hard grass/dirt cutoff.
             const dryStraw = naturalMaterials
               ? grassW * fade((dryMoistureCut + 0.07 - mo) / 0.21)
