@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Changed:** Aligned the feature roadmap with merged DNA phases A/B, the illustrated strategic map, v4 river rendering and existing alerts; unmerged personality, career and disabled disaster features remain open.
+- **Changed:** Aligned the feature roadmap with merged DNA phases A and B, the illustrated strategic map, v4 river rendering and existing alerts; unmerged personality, career and disabled disaster features remain open.
 
 - **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
 
