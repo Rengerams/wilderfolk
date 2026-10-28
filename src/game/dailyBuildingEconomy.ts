@@ -440,9 +440,7 @@ function tickBuildingProduction(
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
     const lastWorkedHours = getScheduleLastWorkedHours(h);
-    // Attribute *yesterday's* work to its witnessed site and trade, even if a
-    // Moon Howler night displaced the current job/seat before today's noon pass.
-    // This is the existing per-worker attendance loop, not a new colony scan.
+    // Use prior-shift site and trade even when today's assignment has changed.
     if (lastWorkedHours > 0 && h.scheduleLastWorkedSiteId != null && h.scheduleLastWorkedSiteId >= 0) {
       const attendedSite = buildingById.get(h.scheduleLastWorkedSiteId);
       const attendedJob = h.scheduleLastWorkedJob;
