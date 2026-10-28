@@ -121,6 +121,8 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/fox.png',
     '/sprites/tree.png',
     '/sprites/tree2.png',
+    // Artist-authored top-down conifers (Ansimuz, CC0). New-world vegetation uses real artwork.
+    '/sprites/nature/ansimuz/summer_pine_tree_tiles.png',
     '/sprites/blueberry_tree.png',
     '/sprites/grass.png',
     '/sprites/grass2.png',
