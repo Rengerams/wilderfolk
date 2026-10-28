@@ -3,6 +3,14 @@
 Wilderfolk's source code and original materials are subject to the [Wilderfolk Permission-Required License](LICENSE) — Copyright (c) 2026 Renffr. Permission must be requested before reuse, modification, redistribution, or commercial use.
 This file lists every third-party asset shipped with the game and its license.
 
+## rubberduck / para — 50 free textures 5 (CC0)
+
+| Local assets | Artwork | Creator | License | Source |
+|---|---|---|---|---|
+| `public/sprites/terrain/rubberduck/{201,206,209,210,215,217,218,231,232,233,234,235,241,246}.jpg` | Curated natural ground, stone, bark and cobble albedos, resized from 1024×1024 to 512×512 | [rubberduck](https://opengameart.org/content/50-free-textures-5-with-normalmaps); textures 201–225 originally from para's CC0 resources | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [50 free textures 5 — with normalmaps](https://opengameart.org/content/50-free-textures-5-with-normalmaps) |
+
+The user supplied the original 50-albedo + 50-normal archive `50_free_textures_5.zip` (SHA-256 `4b535f0e09a8bf4d62e81fe7b28cd099fe1586e74d0b5eede5ccc2f4fbde5b7a`). The one-time GitHub importer verified the public artist archive against that hash before extracting a safe, explicit 14-file allowlist. Seven images are preloaded for natural terrain; the other seven are reserved for subsequent building/road work. Metal panels, roof tiles, brick walls and all 50 normal maps are **not loaded at runtime**. All selected files are locally served.
+
 ## Cethiel tileable grass textures (CC0)
 
 | Local assets | Artwork | Creator | License | Source |
