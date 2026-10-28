@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.6.6.0[Unreleased]
+## 0.6.5.2 [Unreleased]
+
+- **Fixed (#72, 28 October 2026):** In measured food deficits the Virtual Player postpones speculative housing while still sheltering homeless settlers; improves staffed Farms before expanding, checks Mill research eligibility, uses available Mills and Silos, and diversifies eligible production among Greenhouses, Fishing Spots, safe Hunting Spots and Farms without inventing food. Fishing Spots now receive explicit food-job priority in workforce presets; the 7/30/150-day producer scenario is bounded to 12 minutes per job.
 
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
