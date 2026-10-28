@@ -24,7 +24,7 @@ afterAll(() => {
   (globalThis as { document?: unknown }).document = oldDocument;
 });
 
-describe('revision-three river surface details', () => {
+describe('generation-v3+ river surface details', () => {
   it('keeps river wave phase stable when a bank cell has no assigned flow', () => {
     // A long channel can already have traveled 1,200px. The unassigned cell next
     // to it has phase zero; sampling the phase directly would drop to ~778px at
@@ -69,6 +69,7 @@ describe('revision-three river surface details', () => {
     const old = buildWhittakerFields({ ...map, generationVersion: 2 })!;
     expect(old.riverFlowMask.every((v) => v === 0)).toBe(true);
     expect(old.riverRapids.every((v) => v === 0)).toBe(true);
+    expect(buildWhittakerFields({ ...map, generationVersion: 1 })!.riverFlowMask.every((v) => v === 0)).toBe(true);
   }, 120_000);
 
   it('localizes waterfall riffles and bakes identically across adjoining chunks', () => {
@@ -123,4 +124,64 @@ describe('revision-three river surface details', () => {
       }
     }
   }, 120_000);
+
+  it('paints v4 river flow and waterfall rapids without changing water or occupancy', () => {
+    const map = generateRawTerrain(1280, 960, 1234, MapSize.Medium, MapPreset.Rivers, undefined, 4);
+    expect(map.generationVersion).toBe(4);
+    const water = Float32Array.from(map.riverDist!);
+    const walk = Uint8Array.from(map.pathGrid!);
+    const build = Uint8Array.from(map.buildGrid!);
+    const rivers = JSON.stringify(map.rivers);
+    map.waterfalls = [];
+
+    const plain = buildWhittakerFields(map)!;
+    const repeated = buildWhittakerFields(map)!;
+    expect(plain.riverPhase).toEqual(repeated.riverPhase);
+    expect(plain.riverFlowMask).toEqual(repeated.riverFlowMask);
+    expect(plain.riverRapids.every((v) => v === 0)).toBe(true);
+    const wc = map.waterCols!, wr = map.waterRows!;
+    let selected = -1;
+    for (let y = 6; y < wr - 6 && selected < 0; y++) {
+      for (let x = 6; x < wc - 6; x++) {
+        const i = y * wc + x;
+        if (water[i] > 0.75 && plain.riverFlowMask[i] === 1) {
+          selected = i;
+          break;
+        }
+      }
+    }
+    expect(selected).toBeGreaterThanOrEqual(0);
+    if (selected < 0) return;
+    const cx = ((selected % wc) + 0.5) * WATER_CELL;
+    const cy = (Math.floor(selected / wc) + 0.5) * WATER_CELL;
+    map.waterfalls = [{ x: cx, y: cy, w: 12, drop: 0.2 }];
+    const rapid = buildWhittakerFields(map)!;
+    expect(rapid.riverRapids[selected]).toBeGreaterThan(0.5);
+    expect(rapid.riverRapids[0]).toBe(0);
+
+    const bake = (fields: typeof rapid, x: number, y: number, width: number, height: number): Image => {
+      captured = null;
+      bakeWhittakerGround(map, 1280, 960, map.seaLevel!, map.moistureBias ?? 0,
+        { x, y, width, height }, fields);
+      if (!captured) throw new Error('missing ground pixels');
+      return captured;
+    };
+    const x = Math.floor(cx - 48), y = Math.floor(cy - 24);
+    const whole = bake(rapid, x, y, 96, 48);
+    const withoutRapids = bake(plain, x, y, 96, 48);
+    expect(whole.data.some((v, i) => v !== withoutRapids.data[i])).toBe(true);
+    for (let half = 0; half < 2; half++) {
+      const chunk = bake(rapid, x + half * 48, y, 48, 48);
+      for (let row = 0; row < 48; row++) {
+        expect(chunk.data.subarray(row * 48 * 4, (row + 1) * 48 * 4)).toEqual(
+          whole.data.subarray((row * 96 + half * 48) * 4, (row * 96 + (half + 1) * 48) * 4),
+        );
+      }
+    }
+    expect(map.riverDist).toEqual(water);
+    expect(map.pathGrid).toEqual(walk);
+    expect(map.buildGrid).toEqual(build);
+    expect(JSON.stringify(map.rivers)).toBe(rivers);
+  }, 120_000);
+
 });
