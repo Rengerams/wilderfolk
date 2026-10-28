@@ -39,6 +39,7 @@ const REQUIRED_DECISIONS = [
   'raidRecovery',
   'raidCaptivity',
   'valleyChronicle',
+  'terrainRiverSurface',
   'commands',
 ] as const;
 
@@ -79,8 +80,9 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'traitInfluence') {
-        expect(row.writes, 'traitInfluence is a read-only projection').toEqual([]);
+      if (key === 'terrainRiverSurface' || key === 'traitInfluence') {
+        expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
+        expect(row.writes).toEqual([]);
       } else {
         expect(row.writes.length, `writes of "${key}"`).toBeGreaterThan(0);
       }
@@ -129,6 +131,7 @@ describe('simulation decision registry', () => {
     expect(isPropertyWritePermitted('raidRecovery', 'raidRecovery')).toBe(true);
     expect(isPropertyWritePermitted('raidCaptivity', 'raidPrisonerHistory')).toBe(true);
     expect(isPropertyWritePermitted('valleyChronicle', 'chronicleChapters')).toBe(true);
+    expect(isPropertyWritePermitted('terrainRiverSurface', 'worldMap.riverDist')).toBe(false);
   });
 
   it('names test files that exist — the registry is the ownership contract, so a stale pointer lies', () => {

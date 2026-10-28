@@ -49,14 +49,14 @@ describe('pure personality influence evaluation', () => {
   });
 
   it('handles three-trait trade-offs without amplifying opposite modifiers', () => {
-    const context = { kind: 'civic', activity: 'negotiation' } as const;
-    const group = { traits: ['lucky', 'chivalrous', 'intuitive'] as const };
+    const context = { kind: 'social', activity: 'reconciliation' } as const;
+    const group = { traits: ['stoic', 'chivalrous', 'fierce'] as const };
     const result = evaluateTraitInfluence(group, context);
     expect(Number.isFinite(result.factor)).toBe(true);
     expect(result.factor).toBeGreaterThanOrEqual(0.85);
     expect(result.factor).toBeLessThan(1);
     expect(result.tendency).toBeLessThan(0);
-    expect(result).toEqual(evaluateTraitInfluence({ traits: ['intuitive', 'lucky', 'chivalrous'] }, context));
+    expect(result).toEqual(evaluateTraitInfluence({ traits: ['fierce', 'stoic', 'chivalrous'] }, context));
 
     const mixed = evaluateTraitInfluence({ traits: ['hardy', 'graceful'] }, { kind: 'physiology', activity: 'labor' });
     expect(mixed.factor).toBeGreaterThan(0.85);

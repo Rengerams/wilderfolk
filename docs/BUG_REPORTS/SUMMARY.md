@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [V4 river-flow highlights missing](../bug_report/2026-10-28-v4-river-flow-material-gated-to-v3.md):** render-only v3 gate excluded v4 current glints and waterfall rapids. Proposed correction and targeted regressions on the PR branch; CI, browser visuals and FPS validation still pending.
+
 | Discovered | Reports | Resolved | Still open / pending |
 |---|---|---|---|
 | 2026-08-28 | 11 | 11 | — |
@@ -1917,3 +1919,5 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 - **Personality TypeScript gate failure — investigating:** The initial PR #85 evaluator and two intentionally invalid DNA fixtures failed TS7053/TS2352. Type fixes committed; final rerun pending. [Report](../bug_report/2026-10-28-personality-phase-a-typescript-compile.md).
 - **Unsafe non-string DNA coercion — investigating:** The new evaluator could coerce malformed array items during catalog lookup; a string guard and focused regression were added. Final rerun pending. [Report](../bug_report/2026-10-28-personality-unsafe-dna-coercion.md).
+
+- **Stale personality trait-context test — investigating:** The phase-A three-trait regression checked an obsolete diplomacy effect after the context correction; fixture now checks a real social-reconciliation drawback. Full CI rerun pending. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
