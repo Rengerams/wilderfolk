@@ -11,7 +11,8 @@ import {
 import { bakeWhittakerGround, buildWhittakerFields, type WhittakerFields } from './whittakerTerrain';
 import { bakeDecorInRect } from './decor';
 import { worldToScreen, screenToWorld } from '../viewState';
-import { TERRAIN_PALETTE } from '../terrainAtlas';
+import { TERRAIN_PALETTE, supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
+import { bakeHeightMeshSurface, HEIGHT_MESH_TOP_PAD } from './heightMesh';
 import { createCanvasSurface, disposeCanvasSurface, getCanvasContext, type CanvasSurface } from '../canvasLayer';
 import { hasContinuousFields } from '../terrain/terrainGrid';
 import { getSprite } from '../spriteLoader';
@@ -94,6 +95,9 @@ interface GroundChunk {
   canvas: CanvasSurface;
   /** Coarse stand-in drawn until `canvas` is complete, or null when the target step is already coarse. */
   preview: CanvasSurface | null;
+  /** Once-off mesh bakes: camera draw remains a plain image blit. */
+  projected: CanvasSurface | null;
+  previewProjected: CanvasSurface | null;
   previewStep: number;
   /** False until the stand-in has been baked once — it is not re-baked while the crisp pass runs. */
   previewReady: boolean;
@@ -118,6 +122,8 @@ let whittakerFields: WhittakerFields | null = null;
 function disposeGroundChunk(chunk: GroundChunk): void {
   disposeCanvasSurface(chunk.canvas);
   if (chunk.preview) disposeCanvasSurface(chunk.preview);
+  if (chunk.projected) disposeCanvasSurface(chunk.projected);
+  if (chunk.previewProjected) disposeCanvasSurface(chunk.previewProjected);
   if (chunk.decor) disposeCanvasSurface(chunk.decor);
 }
 
@@ -218,6 +224,7 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
   const map = state.worldMap;
   if (hasContinuousFields(map)) {
     const targetStep = targetGroundStep(state.camera.zoom);
+    const heightMesh = supportsTerrainHeightMesh(map);
     const chunkWorld = WHITTAKER_CHUNK_SIZE;
     const mapKey = `${map.seed}|${map.terrainSeed ?? ''}|v${map.generationVersion ?? 1}|${map.preset}|${state.width}x${state.height}|r${getTerrainRevision()}`;
     if (whittakerCacheKey !== mapKey) {
@@ -274,6 +281,8 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         preview: geometry.previewStep > targetStep
           ? createCanvasSurface(geometry.previewW, geometry.previewH)
           : null,
+        projected: null,
+        previewProjected: null,
         previewStep: geometry.previewStep,
         previewReady: false,
         decor: null,
@@ -340,6 +349,11 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       );
       if (!bakedPreview) break; // no continuous fields: the guard above already excluded this
       getCanvasContext(preview).drawImage(bakedPreview, 0, 0);
+      if (heightMesh) {
+        chunk.previewProjected = bakeHeightMeshSurface(preview, map, {
+          x: chunk.worldX, y: chunk.worldY, width: chunk.worldW, height: chunk.worldH,
+        });
+      }
       chunk.previewReady = true;
       budget -= previewPixels;
       covered++;
@@ -355,11 +369,15 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
       if (chunk.rowsBaked > 0) {
         // A canvas with rows already in it can stand in for the chunk; an empty one cannot.
         if (chunk.preview) disposeCanvasSurface(chunk.preview);
+        if (chunk.previewProjected) disposeCanvasSurface(chunk.previewProjected);
         chunk.preview = chunk.canvas;
+        chunk.previewProjected = chunk.projected;
         chunk.previewReady = true;
       } else {
         disposeCanvasSurface(chunk.canvas);
+        if (chunk.projected) disposeCanvasSurface(chunk.projected);
       }
+      chunk.projected = null;
       const rows = Math.max(1, Math.ceil(chunk.worldH / targetStep));
       chunk.canvas = createCanvasSurface(Math.max(1, Math.ceil(chunk.worldW / targetStep)), rows);
       chunk.rowsTotal = rows;
@@ -395,10 +413,22 @@ function buildTerrainCache(state: RenderSnapshot, cw: number, ch: number) {
         chunk.rowsBaked += baked.height;
         budget -= canvasW * baked.height;
       }
-      if (chunk.rowsBaked >= chunk.rowsTotal && chunk.preview) {
-        // The crisp canvas is whole, so the stand-in it replaced is dead weight.
-        disposeCanvasSurface(chunk.preview);
-        chunk.preview = null;
+      if (chunk.rowsBaked >= chunk.rowsTotal) {
+        // Warp once per completed chunk, never inside the animation frame's draw path.
+        // Both preview and final use the exact same terrain mesh / world XY coordinates.
+        if (heightMesh && !chunk.projected) {
+          chunk.projected = bakeHeightMeshSurface(chunk.canvas, map, {
+            x: chunk.worldX, y: chunk.worldY, width: chunk.worldW, height: chunk.worldH,
+          });
+        }
+        if (chunk.preview) {
+          disposeCanvasSurface(chunk.preview);
+          chunk.preview = null;
+        }
+        if (chunk.previewProjected) {
+          disposeCanvasSurface(chunk.previewProjected);
+          chunk.previewProjected = null;
+        }
       }
       if (budget <= 0) break;
     }
@@ -585,17 +615,27 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     if (whittakerChunks.size > 0) {
-      for (const chunk of whittakerChunks.values()) {
+      // Depth painter order: projected chunks overlap by up to HEIGHT_MESH_TOP_PAD above
+      // their original rect. The more southerly ground must cover the northerly one.
+      const chunks = [...whittakerChunks.values()].sort(
+        (a, b) => a.worldY - b.worldY || a.worldX - b.worldX,
+      );
+      for (const chunk of chunks) {
         // A crisp chunk is drawn at full resolution; until it is whole, its coarse stand-in covers the
         // same world rect, so the ground arrives early and sharpens in place. A chunk with neither is
         // simply not drawn yet.
-        const source = chunk.rowsBaked >= chunk.rowsTotal
-          ? chunk.canvas
+        const complete = chunk.rowsBaked >= chunk.rowsTotal;
+        const source = complete
+          ? chunk.projected ?? chunk.canvas
           : chunk.previewReady
-            ? chunk.preview
+            ? chunk.previewProjected ?? chunk.preview
             : null;
         if (!source) continue;
-        const [chunkSx, chunkSy] = worldToScreen(chunk.worldX, chunk.worldY, cam, cw, ch);
+        const projected = source === chunk.projected || source === chunk.previewProjected;
+        const [chunkSx, chunkSy] = worldToScreen(
+          chunk.worldX, chunk.worldY - (projected ? HEIGHT_MESH_TOP_PAD : 0),
+          cam, cw, ch,
+        );
         // Drawn at the WORLD rect it covers (not its canvas size — those differ whenever the bake
         // sub-samples), so chunk seams line up exactly.
         ctx.drawImage(
@@ -603,12 +643,12 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
           chunkSx,
           chunkSy,
           chunk.worldW * cam.zoom,
-          chunk.worldH * cam.zoom,
+          (chunk.worldH + (projected ? HEIGHT_MESH_TOP_PAD : 0)) * cam.zoom,
         );
       }
 
       // Ground from every chunk first; the next chunk must not erase props crossing its edge.
-      for (const chunk of whittakerChunks.values()) {
+      for (const chunk of chunks) {
         if (!chunk.decor) continue;
         const [decorSx, decorSy] = worldToScreen(
           chunk.worldX - DECOR_CHUNK_MARGIN,
@@ -686,7 +726,9 @@ function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot
     if (!tile.reinforced) continue;
     const tx = index % mapWidth;
     const ty = Math.floor(index / mapWidth);
-    const [sx, sy] = worldToScreen(tx * PATH_CELL, ty * PATH_CELL, state.camera, cw, ch);
+    const worldX = tx * PATH_CELL, worldY = ty * PATH_CELL;
+    const [sx, syBase] = worldToScreen(worldX, worldY, state.camera, cw, ch);
+    const sy = syBase - terrainRiseAt(state.worldMap, worldX, worldY) * state.camera.zoom;
     if (sx + size <= 0 || sy + size <= 0 || sx >= cw || sy >= ch) continue;
     ctx.drawImage(sprite, sx, sy, size, size);
   }
