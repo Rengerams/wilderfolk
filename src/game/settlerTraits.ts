@@ -5,10 +5,29 @@
  * still on it (conception, social banter, mercy); the rest reads the
  * personality evaluator.
  */
-import type { Entity, SettlerTrait } from './gameTypes';
 import { createSeededRng, getSimRng, type RngStream } from './simRng';
 
-export type { SettlerTrait };
+/** Single owner of the 14 saved settler DNA trait IDs. */
+export type SettlerTrait =
+  | 'hardy'
+  | 'brave'
+  | 'gregarious'
+  | 'timid'
+  | 'greenthumb'
+  | 'lucky'
+  | 'nurturing'
+  | 'insightful'
+  | 'chivalrous'
+  | 'resourceful'
+  | 'stoic'
+  | 'graceful'
+  | 'intuitive'
+  | 'fierce';
+
+/** Structural read-only input avoids a gameTypes → settlerTraits → gameTypes type cycle. */
+interface TraitCarrier {
+  readonly traits?: readonly SettlerTrait[] | null;
+}
 
 export interface TraitDef {
   readonly id: SettlerTrait;
@@ -264,8 +283,8 @@ const MAX_INHERITED = 3;
  * child, drawing from both parents and rejecting mutually exclusive traits.
  */
 export function inheritSettlerTraits(
-  mother?: Entity,
-  father?: Entity,
+  mother?: TraitCarrier,
+  father?: TraitCarrier,
 ): SettlerTrait[] {
   const inherited: SettlerTrait[] = [];
   const parents = [mother, father];
@@ -290,11 +309,11 @@ export function inheritSettlerTraits(
 }
 
 /** Modifier when the trait is present; otherwise 1.0. */
-export function traitMultiplier(entity: Entity, trait: SettlerTrait, whenPresent: number): number {
+export function traitMultiplier(entity: TraitCarrier, trait: SettlerTrait, whenPresent: number): number {
   return entity.traits?.includes(trait) ? whenPresent : 1.0;
 }
 
 /** True when the entity carries the given trait. */
-export function hasTrait(entity: Entity, trait: SettlerTrait): boolean {
+export function hasTrait(entity: TraitCarrier, trait: SettlerTrait): boolean {
   return entity.traits?.includes(trait) ?? false;
 }

@@ -27,7 +27,8 @@
  * another hotel's list, and the mutation is idempotent.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, EntityType, HOTEL_GUEST_CAPACITY } from '../src/game/gameTypes';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { HOTEL_GUEST_CAPACITY } from '../src/game/hotelStay';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';

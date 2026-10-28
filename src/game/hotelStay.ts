@@ -8,7 +8,6 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import {
   BuildingType,
   EntityType,
-  HOTEL_GUEST_CAPACITY,
   JobType,
 } from './gameTypes';
 import {
@@ -36,6 +35,9 @@ import { gainSkill } from './skills';
 import { seededRandomForRun } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { isVenueServiceHour } from './venueSchedule';
+
+/** Max sleepers at one staffed hotel overnight; visitors and settlers share beds. */
+export const HOTEL_GUEST_CAPACITY = 8;
 
 /** Walk-home time, in hours, below which a settler never looks for a hotel bed. */
 export const LODGING_MIN_COMMUTE_HOURS = 1.5;

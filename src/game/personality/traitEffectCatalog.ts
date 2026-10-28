@@ -1,4 +1,5 @@
-import type { JobType, SettlerTrait } from '../gameTypes';
+import type { JobType } from '../gameTypes';
+import type { SettlerTrait } from '../settlerTraits';
 
 // These are decision contexts, not additional schedules or persisted state.
 export type TraitContext =
