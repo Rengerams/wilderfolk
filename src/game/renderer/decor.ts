@@ -100,15 +100,11 @@ const PROP_ART: Partial<Record<TerrainDecoration['type'], DecorArtwork>> = {
   cattail: { sprite: '/sprites/grass2.png', width: 12, height: 17 },
   scrub: { sprite: '/sprites/grass2.png', width: 14, height: 11 },
   stump: { sprite: '/sprites/stump.png', width: 19, height: 14 },
-  log: { sprite: '/sprites/stump.png', width: 23, height: 13 },
+  log: { sprite: WOOD_PATH, width: 20, height: 13, crop: [96, 264, 60, 52] },
   driftwood: { sprite: '/sprites/stump.png', width: 20, height: 12 },
-  mushroom: { sprite: '/sprites/bush.png', width: 10, height: 10 },
   rock_small: { sprite: ROCK_PATH, width: 13, height: 11, crop: [80, 257, 64, 63] },
   rock_big: { sprite: ROCK_PATH, width: 27, height: 23, crop: [80, 257, 64, 63] },
   cactus: { sprite: CACTUS_PATH, width: 12, height: 22, crop: [100, 247, 37, 80] },
-  bones: { sprite: ROCK_PATH, width: 12, height: 9, crop: [80, 257, 64, 63] },
-  dirt_patch: { sprite: ROCK_PATH, width: 9, height: 7, crop: [80, 257, 64, 63] },
-  lilypad: { sprite: '/sprites/grass.png', width: 12, height: 6 },
 };
 function drawPropArtwork(ctx: CanvasRenderingContext2D, d: TerrainDecoration): void {
   const art = PROP_ART[d.type];
