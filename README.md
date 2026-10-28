@@ -454,7 +454,6 @@ While you enjoy the views, the simulation under the hood has been heavily optimi
 | 🎯 **Explainable Choices** | Story and diplomacy decisions now clearly explain why an action is blocked—such as missing resources or requirements—so you always know how to prepare. |
 | 🛡️ **Workforce Policies** | New strategic presets (Survival, Growth, Defense, Comfort) help you steer your village’s priorities, while manual overrides remain fully authoritative. |
 | 🗺️ **Logistics Overlay** | Use the **X** hotkey to view a new read-only overlay that highlights supply routes, commute pressure, and poorly connected buildings to optimize your layout. |
-| 🏅 **Legacy Goals** | The Valley Chronicle now tracks meaningful milestones—like surviving winter, keeping a promise, or recovering from a shortage—to celebrate your village’s history. |
 | 🚶 **"What Changed?" View** | The dashboard now highlights day-over-day changes in population, food storage, and wildlife, helping you spot trends in the food chain at a glance. |
 | 📈 **Performance & Health** | New integration-tested scenarios and performance metrics ensure the valley runs smoothly on Huge maps, with improved A* pathfinding accuracy and bundle optimizations. |
 | 🎭 **Living Characters** | Ten new male & female character variants and "famine desperation" behaviors bring more variety and drama to the community as your settlement ages. |
