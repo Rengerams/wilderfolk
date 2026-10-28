@@ -38,6 +38,7 @@ const REQUIRED_DECISIONS = [
   'raidCombat',
   'raidRecovery',
   'raidCaptivity',
+  'raidTerminalPresentation',
   'valleyChronicle',
   'terrainRiverSurface',
   'commands',
@@ -80,7 +81,7 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'terrainRiverSurface' || key === 'traitInfluence') {
+      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'raidTerminalPresentation') {
         expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
         expect(row.writes).toEqual([]);
       } else {
@@ -140,7 +141,7 @@ describe('simulation decision registry', () => {
     // shipped. A reader (or a linter) following a pointer that 404s learns nothing about coverage.
     const named: string[] = [];
     for (const key of REQUIRED_DECISIONS) {
-      const matches = SIMULATION_DECISIONS[key].testFile.match(/tests\/[A-Za-z0-9_.-]+\.test\.ts/g) ?? [];
+      const matches = SIMULATION_DECISIONS[key].testFile.match(/tests\/[A-Za-z0-9_.-]+\.test\.tsx?/g) ?? [];
       for (const match of matches) named.push(match);
     }
 
