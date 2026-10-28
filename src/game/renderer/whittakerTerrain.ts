@@ -119,6 +119,32 @@ const SNOW_TEMPERATURE_FADE = 0.08;
 const SNOW_BAND_OF_LAND_RANGE = 0.1;
 /** Height of the lowland band — everything below reads as plain rather than as slope. */
 const LOWLAND_OF_LAND_RANGE = 0.35;
+/** Land-range threshold and width for exposed upland rock. */
+const ROCK_UPLAND_START = 0.30;
+const ROCK_UPLAND_SPAN = 0.32;
+/** River-coverage window in which dry exposed faces receive material shading. */
+const ROCK_RIVER_MAX = 0.25;
+const ROCK_RIVER_FADE = 0.2;
+/** Slope in elevation units per terrain cell that exposes stone. */
+const ROCK_SLOPE_START = 0.035;
+const ROCK_SLOPE_SPAN = 0.115;
+const ROCK_EXPOSURE_MIN = 0.001;
+const ROCK_BLEND_MAX = 0.76;
+/** World-space sampling frequencies and colour amplitudes for strata. */
+const ROCK_STRATA_X_FREQ = 0.075;
+const ROCK_STRATA_DIAGONAL_FREQ = 0.02;
+const ROCK_STRATA_Y_FREQ = 0.065;
+const ROCK_STRATA_NOISE_GAIN = 32;
+const ROCK_STRATA_ELEVATION_FREQ = 130;
+const ROCK_STRATA_ELEVATION_GAIN = 5;
+/** Terrain relief thresholds and spans, in normalized elevation units. */
+const RIDGE_RELIEF_START = 0.008;
+const RIDGE_RELIEF_SPAN = 0.052;
+const VALLEY_RELIEF_START = 0.007;
+const VALLEY_RELIEF_SPAN = 0.050;
+const RIDGE_COLOR_GAIN: readonly Rgb = [13, 12, 9];
+const VALLEY_COLOR_DARKEN: readonly Rgb = [0.18, 0.16, 0.12];
+
 /**
  * Hillshade gain, against a slope expressed as elevation change per cell. Sized so a typical
  * mountainside reaches full light/shade and a plain stays flat.
@@ -1085,6 +1111,36 @@ export function bakeWhittakerGround(
         }
       }
 
+      // Read rock material and ridge light from existing fields; leave snowy crests exposed.
+      const sx = sampleF(slopeX, cols, rows, tcx, tcy);
+      const sy = sampleF(slopeY, cols, rows, tcx, tcy);
+      const rl = sampleF(relief, cols, rows, tcx, tcy);
+      if (!isWater && rd < ROCK_RIVER_MAX && hn > ROCK_UPLAND_START) {
+        const upland = clamp((hn - ROCK_UPLAND_START) / ROCK_UPLAND_SPAN, 0, 1);
+        const slope = Math.hypot(sx, sy);
+        const stoneExposure = clamp((slope - ROCK_SLOPE_START) / ROCK_SLOPE_SPAN, 0, 1)
+          * upland * clamp((ROCK_RIVER_MAX - rd) / ROCK_RIVER_FADE, 0, 1)
+          * (1 - snowAmountAt(hn, te));
+        if (stoneExposure > ROCK_EXPOSURE_MIN) {
+          const strata = (valueNoise(
+            wx * ROCK_STRATA_X_FREQ + wy * ROCK_STRATA_DIAGONAL_FREQ,
+            wy * ROCK_STRATA_Y_FREQ, seed + 7017,
+          ) - 0.5) * ROCK_STRATA_NOISE_GAIN
+            + Math.sin(e * ROCK_STRATA_ELEVATION_FREQ) * ROCK_STRATA_ELEVATION_GAIN;
+          const blend = stoneExposure * ROCK_BLEND_MAX;
+          r += (115 + strata - r) * blend;
+          g += (111 + strata * 0.9 - g) * blend;
+          b += (105 + strata * 0.8 - b) * blend;
+        }
+
+        // Ridges lift ambient light; valleys retain shade.
+        const ridge = clamp((rl - RIDGE_RELIEF_START) / RIDGE_RELIEF_SPAN, 0, 1) * upland;
+        const valley = clamp((-rl - VALLEY_RELIEF_START) / VALLEY_RELIEF_SPAN, 0, 1) * upland;
+        r = (r + ridge * RIDGE_COLOR_GAIN[0]) * (1 - valley * VALLEY_COLOR_DARKEN[0]);
+        g = (g + ridge * RIDGE_COLOR_GAIN[1]) * (1 - valley * VALLEY_COLOR_DARKEN[1]);
+        b = (b + ridge * RIDGE_COLOR_GAIN[2]) * (1 - valley * VALLEY_COLOR_DARKEN[2]);
+      }
+
       // River. The distance field is smooth, so the blend is curved rather than clamped, and its
       // core is deeper and darker than its shoulder — a channel with banks, not a flat sticker.
       if (map.generationVersion === 3 && rd > 0.05) {
@@ -1143,10 +1199,7 @@ export function bakeWhittakerGround(
       // its gradient is zero and it came out exactly as bright as a plain. Lit faces warm up and
       // shaded faces cool down — the first version only darkened, which reads as grime rather than as
       // light.
-      const sx = sampleF(slopeX, cols, rows, tcx, tcy);
-      const sy = sampleF(slopeY, cols, rows, tcx, tcy);
       const reliefWeight = clamp((hn - LOWLAND_OF_LAND_RANGE) / RELIEF_FADE_OF_LAND_RANGE, 0, 1);
-      const rl = sampleF(relief, cols, rows, tcx, tcy);
       // Multidirectional hillshade (see `SHADE_LIGHTS`): the weighted sum of four azimuths, divided by
       // the primary's weight so a slope facing the primary keeps the shade a single-light model gave
       // it. One light left every face parallel to it flat — the grey-blob mountains.
