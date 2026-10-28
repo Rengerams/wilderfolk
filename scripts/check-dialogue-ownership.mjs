@@ -51,6 +51,9 @@ for (const file of sourceFiles) {
       errors.push(`${name}: mutable chat-session internals imported outside dialogueTrees.ts`);
     }
   }
+  if (name === rootDialoguePath && /\\b(?:pickDialogueTree|resolveDialogueCategories)\\s*\\(/.test(code)) {
+    errors.push(`${name}: forbidden category-wide dialogue picker survived event-key migration`);
+  }
   if (/\bsayHumanChatPhrase\s*\(/.test(code)) {
     errors.push(`${name}: legacy direct speech call`);
   }
@@ -112,6 +115,25 @@ for (const filename of dataFiles) {
     }
     activeScenes++;
   }
+}
+// Historical Elections.json is not an election source: all ten IDs overlap
+// needs.json, but their original authored text/metadata differs and is retained.
+try {
+  const legacy = JSON.parse(readFileSync(resolve('src/game/data/Elections.json'), 'utf8'));
+  const needs = JSON.parse(readFileSync(resolve('src/game/data/needs.json'), 'utf8'));
+  const primary = new Map(needs.dialogue_trees.map((scene) => [scene.id, scene]));
+  const ids = new Set();
+  if (legacy.dialogue_trees.length !== 10) errors.push('Elections.json: expected ten quarantined historical scenes');
+  for (const scene of legacy.dialogue_trees) {
+    if (ids.has(scene.id) || !primary.has(scene.id)
+      || JSON.stringify(scene) === JSON.stringify(primary.get(scene.id))
+      || scene.category !== 'needs') {
+      errors.push(`Elections.json: invalid historical duplicate ${scene.id}`);
+    }
+    ids.add(scene.id);
+  }
+} catch (e) {
+  errors.push(`Elections.json: legacy duplication reconciliation failed (${e.message})`);
 }
 for (const file of dialogueFiles) {
   if (!existsSync(resolve(file))) errors.push(`${rootDialoguePath}: imported missing JSON source ${file}`);
