@@ -1,20 +1,13 @@
-/**
- * Transitional PR B → PR C audit of executable legacy DNA rule sites.
- *
- * This inventory is not a permanent exception. PR C MUST migrate every listed
- * site into traitEffectCatalog/traitEvaluation and change EXPECTED to {}.
- * The AST scan remains active afterwards: added legacy rules make CI fail.
- *
- * The scan excludes historical docs and the genetics owner's own structural
- * `traits.includes` allocation/inheritance checks, which are not gameplay bonuses.
- */
+// PR B → PR C legacy DNA ratchet: PR C migrates every site here and must set EXPECTED to {}.
+// Token-level scan so comments, strings and the genetics owner's own allocation checks never count.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { createScanner, LanguageVariant, SyntaxKind } from 'typescript/unstable/ast';
 import { describe, expect, it } from 'vitest';
-import * as ts from 'typescript';
 
 const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
+const GENETICS_OWNER = 'src/game/settlerTraits.ts';
 
 /** Explicit finite debt list for the already-implemented pre-PR-C rules. */
 const EXPECTED: Readonly<Record<string, number>> = {
@@ -32,6 +25,23 @@ const EXPECTED: Readonly<Record<string, number>> = {
   'src/game/warPrisoners.ts|directTraitSome': 1,
 };
 
+/** Tokens after which a `/` opens a regular expression literal rather than division. */
+const REGEX_PRECEDERS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.OpenParenToken,
+  SyntaxKind.OpenBracketToken,
+  SyntaxKind.OpenBraceToken,
+  SyntaxKind.CommaToken,
+  SyntaxKind.ColonToken,
+  SyntaxKind.SemicolonToken,
+  SyntaxKind.EqualsToken,
+  SyntaxKind.ReturnKeyword,
+]);
+
+interface Token {
+  kind: SyntaxKind;
+  text: string;
+}
+
 function sourcePaths(directory: string): string[] {
   const result: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -44,58 +54,127 @@ function sourcePaths(directory: string): string[] {
   return result;
 }
 
-function legacyInventory(): Record<string, number> {
+function tokenize(text: string): Token[] {
+  const scanner = createScanner(true, LanguageVariant.Standard, text);
+  const tokens: Token[] = [];
+  const templateDepths: number[] = [];
+  let previousKind: SyntaxKind | undefined;
+  let kind = scanner.scan();
+  while (kind !== SyntaxKind.EndOfFile) {
+    if (kind === SyntaxKind.SlashToken && previousKind !== undefined && REGEX_PRECEDERS.has(previousKind)) {
+      kind = scanner.reScanSlashToken();
+    }
+    if (kind === SyntaxKind.TemplateHead) templateDepths.push(0);
+    const templateDepth = templateDepths.length - 1;
+    if (kind === SyntaxKind.OpenBraceToken && templateDepth >= 0) templateDepths[templateDepth] += 1;
+    if (kind === SyntaxKind.CloseBraceToken && templateDepth >= 0) {
+      if (templateDepths[templateDepth] > 0) templateDepths[templateDepth] -= 1;
+      else {
+        // `}` closes a `${…}` substitution, so the scanner must resume the template tail.
+        kind = scanner.reScanTemplateToken(false);
+        if (kind === SyntaxKind.TemplateTail) templateDepths.pop();
+      }
+    }
+    const start = scanner.getTokenStart();
+    tokens.push({ kind, text: scanner.getTokenText() });
+    previousKind = kind;
+    kind = scanner.scan();
+    if (kind !== SyntaxKind.EndOfFile && scanner.getTokenStart() <= start) {
+      // A bare `#` outside a private name is zero-length; skip it so the scan cannot stall.
+      scanner.setText(text, start + 1);
+      kind = scanner.scan();
+    }
+  }
+  return tokens;
+}
+
+const isDot = (token: Token | undefined): boolean =>
+  token?.kind === SyntaxKind.DotToken || token?.kind === SyntaxKind.QuestionDotToken;
+
+const isDeclarationKeyword = (token: Token | undefined): boolean =>
+  token?.kind === SyntaxKind.ConstKeyword ||
+  token?.kind === SyntaxKind.LetKeyword ||
+  token?.kind === SyntaxKind.VarKeyword;
+
+function inventory(path: string, tokens: Token[]): Record<string, number> {
   const findings: Record<string, number> = {};
-  const record = (path: string, kind: string) => {
+  const record = (kind: string): void => {
     const key = path + '|' + kind;
     findings[key] = (findings[key] ?? 0) + 1;
   };
 
-  for (const full of sourcePaths(GAME_SRC)) {
-    const path = relative(ROOT, full).split(sep).join('/');
-    const source = ts.createSourceFile(
-      path, readFileSync(full, 'utf8'), ts.ScriptTarget.Latest, true,
-      path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-    );
-    const visit = (node: ts.Node): void => {
-      if (ts.isImportSpecifier(node)) {
-        const imported = node.propertyName?.text ?? node.name.text;
-        if (imported === 'traitMultiplier') record(path, 'legacyMultiplierImport');
-        if (imported === 'hasTrait') record(path, 'legacyHasTraitImport');
-      }
-      if (ts.isFunctionDeclaration(node) && node.name) {
-        if (node.name.text === 'traitMultiplier') record(path, 'legacyMultiplierDefinition');
-        if (node.name.text === 'traitClashCount') record(path, 'legacyPairHelperDefinition');
-      }
-      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'TRAIT_CLASHES') {
-        record(path, 'legacyPairTable');
-      }
-      if (ts.isCallExpression(node)) {
-        if (ts.isIdentifier(node.expression)) {
-          if (node.expression.text === 'traitMultiplier') record(path, 'legacyMultiplierCall');
-          if (node.expression.text === 'hasTrait') record(path, 'legacyHasTraitCall');
-          if (node.expression.text === 'traitClashCount') record(path, 'legacyPairHelperCall');
-        }
-        const method = node.expression;
-        if (
-          path !== 'src/game/settlerTraits.ts'
-          && ts.isPropertyAccessExpression(method)
-          && ts.isPropertyAccessExpression(method.expression)
-          && method.expression.name.text === 'traits'
-        ) {
-          if (method.name.text === 'includes') record(path, 'directTraitIncludes');
-          if (method.name.text === 'some') record(path, 'directTraitSome');
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
+  let inImportClause = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.kind === SyntaxKind.ImportKeyword) {
+      inImportClause = true;
+      continue;
+    }
+    if (
+      inImportClause
+      && (
+        token.kind === SyntaxKind.FromKeyword
+        || token.kind === SyntaxKind.SemicolonToken
+        || token.kind === SyntaxKind.StringLiteral
+        || token.kind === SyntaxKind.OpenParenToken
+      )
+    ) {
+      inImportClause = false;
+      continue;
+    }
+    if (token.kind !== SyntaxKind.Identifier) continue;
+
+    const previous = tokens[index - 1];
+    const declared = previous?.kind === SyntaxKind.FunctionKeyword;
+    const called = !declared && tokens[index + 1]?.kind === SyntaxKind.OpenParenToken;
+
+    if (token.text === 'traitMultiplier') {
+      if (inImportClause) record('legacyMultiplierImport');
+      else if (declared) record('legacyMultiplierDefinition');
+      else if (called) record('legacyMultiplierCall');
+    }
+    if (token.text === 'hasTrait') {
+      if (inImportClause) record('legacyHasTraitImport');
+      else if (called) record('legacyHasTraitCall');
+    }
+    if (token.text === 'traitClashCount') {
+      if (declared) record('legacyPairHelperDefinition');
+      else if (called) record('legacyPairHelperCall');
+    }
+    if (token.text === 'TRAIT_CLASHES' && isDeclarationKeyword(previous)) record('legacyPairTable');
+
+    const subject = tokens[index - 2];
+    if (
+      (token.text === 'includes' || token.text === 'some')
+      && called
+      && isDot(previous)
+      && subject?.kind === SyntaxKind.Identifier
+      && subject.text === 'traits'
+      && isDot(tokens[index - 3])
+      && path !== GENETICS_OWNER
+    ) {
+      record(token.text === 'includes' ? 'directTraitIncludes' : 'directTraitSome');
+    }
   }
   return findings;
 }
 
+function legacyInventory(): { files: number; findings: Record<string, number> } {
+  const findings: Record<string, number> = {};
+  const paths = sourcePaths(GAME_SRC);
+  for (const full of paths) {
+    const path = relative(ROOT, full).split(sep).join('/');
+    for (const [key, count] of Object.entries(inventory(path, tokenize(readFileSync(full, 'utf8'))))) {
+      findings[key] = (findings[key] ?? 0) + count;
+    }
+  }
+  return { files: paths.length, findings };
+}
+
 describe('no unregistered legacy DNA gameplay rules', () => {
   it('finds exactly the known PR C debt, never a new direct trait bonus or pair table', () => {
-    expect(legacyInventory()).toEqual(EXPECTED);
+    const { files, findings } = legacyInventory();
+    expect(files).toBeGreaterThan(100);
+    expect(findings).toEqual(EXPECTED);
   });
 });
