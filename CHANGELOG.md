@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added:** Final raid reports show the last recorded leader, survivors and retained village history; raze confirmation explains permanent removal, displacement and diplomatic witnesses. No new save fields.
+
 - **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
 
 - **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.

@@ -3,6 +3,7 @@ import type { WorldState } from '../game/gameTypes';
 import { formatCitizenName } from '../game/citizenId';
 import { getOpenPlayerBeds } from '../game/populationGrowth';
 import { daysUntilTick } from '../game/dayCycleClock';
+import { buildRaidTerminalReport } from '../game/raidTerminalReport';
 
 interface WarfareStatusProps {
   world: WorldState;
@@ -19,24 +20,61 @@ export default function WarfareStatus({ world, onPrisonerDecision, onRepair, onE
   const [showCaptives, setShowCaptives] = useState(false);
   const [confirmExecution, setConfirmExecution] = useState<number | null>(null);
   const recovery = world.raidRecovery;
-  const prisoners = useMemo(() => world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null), [world]);
+  const prisoners = useMemo(() => recovery?.status === 'destroyed' ? [] : world.entities.filter((person) => person.alive && person.warCaptive && person.prisonBuildingId != null), [world, recovery?.status]);
   const openBeds = useMemo(() => prisoners.length ? getOpenPlayerBeds(world) : 0, [world, prisoners.length]);
-  const buildingById = useMemo(() => new Map((world.raidRecovery ? world.buildings : []).map((home) => [home.id, home])), [world]);
-  if (recovery?.status === 'destroyed') {
-    const report = world.raidBattleReports?.find((entry) => entry.raidId === recovery.raidId);
-    return <div role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-6 text-stone-100">
-      <section className="max-w-2xl space-y-4 rounded-xl border border-rose-800 bg-stone-950 p-8">
+  const buildingById = useMemo(() => new Map((recovery?.status === 'recovering' ? world.buildings : []).map((home) => [home.id, home])), [world]);
+  const terminal = recovery?.status === 'destroyed' ? buildRaidTerminalReport(world) : null;
+  if (terminal && recovery) {
+    return <div role="dialog" aria-modal="true" aria-label="Settlement fallen" className="pointer-events-auto fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 p-3 text-stone-100 sm:p-6">
+      <section className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-xl border border-rose-800 bg-stone-950 p-4 sm:p-8">
         <h2 className="text-3xl font-bold text-rose-200">The settlement has fallen</h2>
         <p>{world.villageName} · year {world.year + 1}, day {world.dayInYear}</p>
         <p>{recovery.reason}</p>
-        <p>{report?.playerDeaths ?? 0} villagers fell in the final battle against {recovery.rivalName}. {world.entities.filter((person) => person.alive && !person.faction).length} inhabitants survived.</p>
-        {report?.playerFallen.map((name) => <p key={name} className="text-emerald-300">Village fallen: {name}</p>)}
-        <p>The simulation cannot resume. Export the final state to keep this result. Existing save files are not deleted.</p>
+        <div className="space-y-1">
+          <h3 className="font-semibold text-amber-200">Final leader</h3>
+          <p>{terminal.lastLeaderName
+            ? `${terminal.lastLeaderName} (#${terminal.lastLeaderId})`
+            : 'Last leader not recorded'}</p>
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-semibold text-amber-200">Battle and survivors</h3>
+          <p>{terminal.playerDeaths == null ? 'Final-battle casualties were not recorded.' : `${terminal.playerDeaths} villagers fell in the final battle against ${recovery.rivalName}.`} {terminal.survivors} inhabitants survived.</p>
+          {terminal.enemyDeaths != null && <p>Enemy losses: {terminal.enemyDeaths}.</p>}
+          {terminal.damagedBuildings != null && <p>Buildings damaged: {terminal.damagedBuildings}.</p>}
+          {terminal.playerFallen.map((name, index) => <p key={index} className="text-emerald-300">Village fallen: {name}</p>)}
+        </div>
+        <section aria-labelledby="terminal-chapters" className="space-y-2">
+          <h3 id="terminal-chapters" className="font-semibold text-amber-200">Recorded village chapters</h3>
+          {terminal.chapters.length > 0 ? (
+            <ul className="space-y-1">
+              {terminal.chapters.map((chapter) => (
+                <li key={chapter.id} className="rounded bg-stone-900/60 p-2 text-sm">
+                  <span className="font-semibold">{chapter.icon} {chapter.title}</span> — {chapter.detail}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-stone-400">No recorded chapters.</p>}
+        </section>
+        <section aria-labelledby="terminal-history" className="space-y-2">
+          <h3 id="terminal-history" className="font-semibold text-amber-200">Recent Chronicle highlights</h3>
+          {terminal.highlights.length > 0 ? (
+            <ol className="space-y-1">
+              {terminal.highlights.map((event) => (
+                <li key={event.id} className="rounded bg-stone-900/60 p-2 text-sm">
+                  <span className="text-stone-400">Year {event.year + 1}, day {event.day} · </span>
+                  {event.message}
+                </li>
+              ))}
+            </ol>
+          ) : <p className="text-sm text-stone-400">No retained Chronicle highlights.</p>}
+          <p className="text-xs text-stone-400">Only selected events still held in the Chronicle are shown.</p>
+        </section>
+        <p className="text-sm">This settlement cannot resume. Export its final state to preserve the history. Existing save files are not deleted.</p>
         <div className="flex flex-wrap gap-3">
-          <button onClick={onExport} className="rounded bg-amber-800 p-2">Export final save</button>
-          <button onClick={onChronicle} className="rounded bg-stone-700 p-2">View / export Chronicle</button>
-          <button onClick={() => { onExport(); onNewVillage(); }} className="rounded bg-emerald-900 p-2">Export &amp; start new village</button>
-          <button onClick={onMainMenu} className="rounded bg-stone-700 p-2">Return to main menu</button>
+          <button type="button" onClick={onExport} className="rounded bg-amber-800 p-2">Export final save</button>
+          <button type="button" onClick={onChronicle} className="rounded bg-stone-700 p-2">View / export Chronicle</button>
+          <button type="button" onClick={() => { onExport(); onNewVillage(); }} className="rounded bg-emerald-900 p-2">Export &amp; start new village</button>
+          <button type="button" onClick={onMainMenu} className="rounded bg-stone-700 p-2">Return to main menu</button>
         </div>
       </section>
     </div>;
