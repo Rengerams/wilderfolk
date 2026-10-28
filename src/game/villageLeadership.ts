@@ -747,7 +747,7 @@ export function tickElectionGossip(state: WorldState): void {
 
   const gossip = selectElectionGossip(state, tone);
   requestDialogue({
-    eventKey: 'election.' + tone, treeId: gossip.treeId, speaker,
+    eventKey: `election.${tone}`, treeId: gossip.treeId, speaker,
     tick: state.tick, priority: 'scripted', variables: gossip.variables,
     durationHours: dialogueHoursFromNominalTicks(110),
   });
