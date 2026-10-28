@@ -12,12 +12,13 @@ import { gameTick, initGame } from '../src/game/gameEngine';
 import { BUILDING_CONFIGS, BuildingType, JobType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { countWorkersAtBuilding } from '../src/game/workforce';
+import { assignMissingWorkers, countWorkersAtBuilding } from '../src/game/workforce';
 import { getPlayerCampCenter } from '../src/game/villageAnchor';
 import { getPlaceBuildingFailureReason, startBuilding } from '../src/game/buildingPlacementActions';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import { isPlayerHuman } from '../src/game/playerHuman';
+import { building, human } from '../src/test/factories';
 
 const COLONY_SEED = 4242;
 const DAYS_RUN = 6;
@@ -93,6 +94,18 @@ function runAutoplay(world: WorldState, days: number, quarryId: number): {
 }
 
 describe('zero stone with an unmanned Quarry', () => {
+  it('reserves a miner before an unfinished building takes every idle settler', () => {
+    const state = zeroStoneColony();
+    const workers = [human(1), human(2)];
+    const quarry = building(10, BuildingType.Quarry);
+    const house = building(11, BuildingType.House, { completed: false, constructionProgress: 0 });
+
+    assignMissingWorkers(workers, [house, quarry], state);
+    expect(countWorkersAtBuilding(workers, quarry.id)).toBe(1);
+    expect(house.occupants).toHaveLength(1);
+    expect(workers.filter((worker) => worker.workerBuildingId === quarry.id)).toHaveLength(1);
+  });
+
   it('crews it from an idle hand and digs stone from zero, with no command at all', () => {
     const placed = placeCompletedProducer(zeroStoneColony(), BuildingType.Quarry);
     const quarryId = placed.building.id;
