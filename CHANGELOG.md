@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head Node.js CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 
@@ -19,7 +19,7 @@
 
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
-- **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final PR-head Node.js CI completed successfully; browser Spotlight acceptance remains separate.
+- **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final PR-head node CI completed successfully; browser Spotlight acceptance remains separate.
 - **Dialogue fixes:** Repaired group-parser error strings, resolver-free solo session cleanup and seeded hospital and civic caption selection without changing gameplay event conditions.
 - **Dialogue cleanup:** Removed the obsolete category-wide picker and its allocation-heavy category index; preserved ten conflicting historic election captions outside the active bank.
 - **Fixed:** Migrated scripted speech now keeps its original effective tick duration using the current simulation clock; added regression coverage for 12 care, lodging, hunting, civic and omen captions.
