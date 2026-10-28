@@ -95,6 +95,31 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(false);
   });
 
+  it('waits for every selected chorus member, not only the minimum six', () => {
+    const { world, girl, adults } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120;
+    const slots = adults.map((h, i) => ({ humanId: h.id, x: girl.x + 14 * i, y: girl.y + 45 }));
+    world.spotlightLore = {
+      id: 'all-chorus-arrive', heroineId: girl.id,
+      performerIds: adults.map((h) => h.id),
+      phase: 'gathering', startedAtTick: world.tick,
+      gatherX: girl.x, gatherY: girl.y, slots,
+    };
+    for (let i = 0; i < 6; i++) {
+      adults[i].x = slots[i].x;
+      adults[i].y = slots[i].y;
+    }
+    const index = new Map(world.entities.map((h) => [h.id, h]));
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore?.phase).toBe('gathering');
+    for (let i = 6; i < adults.length; i++) {
+      adults[i].x = slots[i].x;
+      adults[i].y = slots[i].y;
+    }
+    tickSpotlightGathering(world, index);
+    expect(world.spotlightLore?.phase).toBe('ready');
+  });
+
   it('idempotently completes once and abandons missing/dead actors without rewards', () => {
     const { world, girl, adults } = makeFixture();
     world.tick = 72 * 200;
