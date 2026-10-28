@@ -107,13 +107,22 @@ describe('PR D compact old-save migration', () => {
     expect(person.careerMilestones?.hunter?.tier).toBe('experienced');
   });
 
-  it('does not consume a live RNG draw while migrating missing career data', () => {
+  it('does not consume extra live RNG draws when career fields are absent', () => {
     resetSimRng();
-    const payload = oldPayload();
-    const expected = structuredClone((payload.simRng as object));
-    load(payload);
-    const actual = snapshotSimRng();
-    expect(actual.owners).toEqual((expected as typeof actual).owners);
+    const legacy = oldPayload();
+    const control = structuredClone(legacy);
+    for (const entity of control.entities as Record<string, unknown>[]) {
+      if (entity.type !== EntityType.Human) continue;
+      entity.careerHistory = {};
+      entity.careerMilestones = {};
+    }
+    // The existing Moon Howler load path may legitimately create its own RNG stream.
+    // Compare the exact same save with versus without optional career fields instead.
+    load(control);
+    const expected = snapshotSimRng();
+    resetSimRng();
+    load(legacy);
+    expect(snapshotSimRng()).toEqual(expected);
   });
 
   it('retains legacy absent DNA behavior without inventing career experience', () => {
