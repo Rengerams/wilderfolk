@@ -36,7 +36,7 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   if (state.spotlightLore || state.paused || !state.worldMap ||
       state.electionCeremony || state.festival?.active ||
       state.pendingRaidEvents.length > 0 || state.pendingOutgoingRaidEvents.length > 0 ||
-      !isWeekend(state.tick) || getHourOfDay(state.tick) !== 16 ||
+      !isWeekend(state.tick) || getHourOfDay(state.tick) !== 19 ||
       !isStartOfClockHour(state.tick)) return false;
   const day = getAbsoluteCalendarDay(state.tick);
   if (day - (state.spotlightLoreLastDay ?? -100000) < SPOTLIGHT_COOLDOWN_DAYS) return false;
