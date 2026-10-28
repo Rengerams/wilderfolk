@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Affair cadence authority — SIMULATION_AUTHORITY.md §3/§4 + Objective 9 +
  * BUG 2026-08-20-affair-establishment-dual-cadence.
@@ -13,6 +12,7 @@ import { personDayRoll } from '../src/game/simRng';
  * a couple at 95 tryst progress completes to 100 in the staggered path without
  * ever establishing, then the daily owner establishes on its own roll.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
