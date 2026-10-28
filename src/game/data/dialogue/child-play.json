@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "category": "social",
+  "dialogue_trees": [
+    {
+      "id": "evt_child_play_0",
+      "category": "social",
+      "eventKey": "child.play",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Tag!"
+        }
+      ]
+    },
+    {
+      "id": "evt_child_play_1",
+      "category": "social",
+      "eventKey": "child.play",
+      "mode": "solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Wait for me!"
+        }
+      ]
+    }
+  ]
+}
