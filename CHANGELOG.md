@@ -2,7 +2,7 @@
 
 ## 0.6.6.0[Unreleased]
 
-- **Terrain river materials (28 October 2026):** Follow-up to merged #73: revision-3 channels now gain flow-aligned glints and waterfall-localized whitewater, with patchy deposited silt on exposed banks. Derived once per map for the chunked ground bake; no terrain regeneration or gameplay-water changes.
+- **Terrain river materials (28 October 2026):** Follow-up to #73: river glints track flow, rapids cluster around waterfalls, and silt textures vary along exposed banks. Derived once per map; terrain generation, save compatibility and gameplay water remain unchanged.
 
 - **Terrain (proposed):** New seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
