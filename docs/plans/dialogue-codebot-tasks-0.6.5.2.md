@@ -285,3 +285,19 @@ For each PR: record exact modified files, bugs, de-duplicated report links, resu
 A PR is not review-ready if it duplicates a source event's speech path, retains TS-authored lines for that migrated source, fails to free a paired session, changes gameplay event frequency/reward, adds a second writer/clock, drops existing JSON scenes, creates fake 2-person solo dialogue, introduces a bank/worker mismatch, omits either registry/changelog, or misses a confirmed bug report.
 
 The **whole refactor is complete only after PR D has merged** and the final static audit finds zero unauthorized spoken-text arrays/callers/direct writes. A valid completion report must include the final AS-IS→TO-BE diff, activated event-key inventory, tests and statuses, deterministic/performance findings, worker/save proof, ownership changes and bug-report counts. A document or open PR alone is **not** implementation.
+
+
+## PR #91 JSON captions — strict integration contract
+
+PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) owns the actual JSON screenplay for Spotlight Lore, including its 31 caption lines, and remains the event/gather/camera/pause/skip/Chronicle owner. PR #93 supplies **only** reusable version 1.3 presentation parsing in dialogueTrees.ts: readPresentationDialogue(source, eventKey). Do not author, move or duplicate PR #91's actual text here.
+
+Coding bot steps when PR #91 contributes its JSON:
+
+1. Import the PR #91 JSON in its SpotlightLoreOverlay (or a thin presentation adapter) and call readPresentationDialogue(json, 'spotlight.theLook') once at module initialization, never during React renders.
+2. Read the returned ordered caption lines: .text, .speaker and optional .durationMs. Preserve the existing presenter-controlled 6–10 performer IDs and rotation; use heroineId for heroine and render narrator text without a simulated speaker.
+3. Use .durationMs when present; otherwise retain the overlay's original 3.0–5.3-second text-length formula. Keep 2.4-second introduction, 2.8-second closing, session isolation and skip/completion exactly as PR #91 defines.
+4. Replace the PR #91 overlay's inline LINES array only when its JSON content is committed and tests prove the same caption count, ordering, role mapping and timing. Do not alter event trigger, participant selection, group movements, world state/save, Chronicle or game-worker logic.
+5. Group-source contract: version 1.3, game Wilderfolk Sim, category and singleton categories matching, one group conversation_type, eventKey, 1–16 roles in speakers and 1–512 lines using declared roles; durationMs optional 250–60000. This must not be forced into one_way or two_way; never call requestDialogue for a paused presentation or write chatPhrase/chatTicks. Missing or invalid content must be reported.
+6. Add PR #91 overlay integration tests for real performer mapping, pause wall-clock progression, skip once, reload/session isolation and no simulated speech state edits. tests/dialogue.schema13.test.ts in PR #93 already checks validation and immutable read-only output.
+
+Ownership: spotlightLore.ts determines the gameplay event, SpotlightLoreOverlay.tsx runs the existing caption timer, dialogueTrees.ts validates the authored JSON, humanChat.ts is not involved in paused overlay speech.
