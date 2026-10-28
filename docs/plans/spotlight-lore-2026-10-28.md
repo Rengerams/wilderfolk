@@ -1,13 +1,13 @@
 # Wilderfolk — The Look: rare juvenile spotlight lore (0.6.5.2)
 
 **Document type:** feature architecture and executable codebot implementation contract, derived from [CODEBOT_FEATURE_TEMPLATE.md](CODEBOT_FEATURE_TEMPLATE.md).  
-**Status:** Base Spotlight event implemented on PR #91 branch (not merged); **choreographed enhancement specified only, not yet coded or tested**. Historical AS-IS describes main before this feature; the new choreography contract at the top supersedes conflicting historical TO-BE details.  
+**Status:** Base Spotlight event and choreography implemented on PR #91 branch (not merged); focused tests authored, CI and browser not yet verified. Historical AS-IS describes main before this feature; the new choreography contract at the top supersedes conflicting historical TO-BE details.  
 **Authority:** AGENTS.md, docs/command.md, OWNERSHIP_OVERVIEW.md and simulation/decisionRegistry.ts.  
 **Evidence:** examined main at 688047375fb9a9ed966059d66c25add867912297 on 28 October 2026. Verify the live base again before editing.
 
 ## Choreography change request — implementation contract, 28 October 2026
 
-**Status: SPECIFIED, NOT IMPLEMENTED.** This section is the authoritative coding instruction for the **next** PR #91 implementation slice. The trigger stays **Saturday/Sunday 19:00, 7.5% deterministic roll and 90-day cooldown**. Do not edit runtime code merely because this document describes a future behavior. The earlier AS-IS and original TO-BE below are retained as historical context; where they disagree on timing, dialogue ownership or staging, **this choreography specification takes precedence**.
+**Status: IMPLEMENTED IN PR #91 SOURCE, NOT YET CI/BROWSER VERIFIED.** This section is the authoritative coding contract for the choreography implemented on the PR #91 branch. The trigger stays **Saturday/Sunday 19:00, 7.5% deterministic roll and 90-day cooldown**. Do not merge or mark release-complete without verified tests and browser playthrough. The earlier AS-IS and original TO-BE below are retained as historical context; where they disagree on timing, dialogue ownership or staging, **this choreography specification takes precedence**.
 
 ### A. Required chronological screenplay
 
@@ -55,7 +55,7 @@ The girl is a real **12–17-year-old** settler, and the 6–10 gathered adults 
 | Real UI | Browser smoke on the real map: six and ten performers, heroine's visible two interjections, both seven-second circles, chorus effects, final walk/camera tracking, skip/finish/reload; camera restore confirmed |
 | Governance | Update implementation architecture, owner overview, decision registry, `CHANGELOG.md` and PR #91 report after coding; bug reports and their index only when defects are actually confirmed; exact new/updated count in PR description |
 
-**Release gates:** focused presentation tests, schema/parser tests shared with PR #93, `npm run test:standard`, types, lint, production build, browser worker/fallback pause/skip/load smoke, and diff review for unrelated gameplay drift. Mark all as **NOT RUN** until results exist. Avoid code or test changes in PR #93 merely to stage this plan; integrate when both branches can share the same canonical dialogue contract.
+**Release gates still outstanding:** focused presentation tests, schema/parser tests shared with PR #93, `npm run test:standard`, types, lint, production build, browser worker/fallback pause/skip/load smoke, and diff review for unrelated gameplay drift. Mark all as **NOT RUN** until results exist. Avoid code or test changes in PR #93 merely to stage this plan; integrate when both branches can share the same canonical dialogue contract.
 
 ---
 
@@ -67,7 +67,7 @@ The girl is a real **12–17-year-old** settler, and the 6–10 gathered adults 
 | Result | Rarely, an eligible girl aged 12–17 is unexpectedly celebrated by 6–10 actual nearby villagers; they gather, the camera follows, and a comic call-and-response performance unfolds at a relaxed real-time pace. |
 | Origin | Direct user request, 28 October 2026; user explicitly allows pausing the simulation. |
 | Target version | 0.6.5.2 per current AGENTS.md; working baseline 0.6.5.1. |
-| Status | Base Spotlight gathering and timed overlay exist on PR #91; the two seven-second show-off circles, heroine replies, hearts/kisses and walkaway finale are PLANNED, NOT IMPLEMENTED. |
+| Status | PR #91 branch implements the base gathering and new two seven-second show-off circles, heroine replies, bounded hearts/kisses and the visual walkaway finale; CI/browser validation still required. |
 | Simulation owner | NEW focused src/game/spotlightLore.ts for eligibility, phase state and triggering; existing humanTick remains the movement writer. |
 | State | New optional WorldState.spotlightLore and spotlightLoreLastDay; no new per-entity fields. |
 | Save compatibility | Existing 0.6.5.0 and current-version saves continue to load via canonical migration and validation, in the PR introducing the fields. |
@@ -279,7 +279,7 @@ No scene → UI → sim back-import; no UI direct writes to entities/chat.
 2. Write the pure eligibility, rarity, performer selection and stable semicircle slot calculator with data-only unit tests. Use existing path walkability and stable seed utilities, no new global RNG.
 3. Add types and world state, canonical save/load normalization, worker delta and deep rollback copies; add actual old-save/worker proof **in this same change**.
 4. Wire one scheduler in tickLayerRealtime, movement in humanTick (normal AI and authoritative x/y writer), and idempotent typed finish/skip command; create real integration tests.
-5. **Next PR #91 enhancement:** replace the overlay's hardcoded `LINES` with canonical JSON 1.3 presentation reading, add explicit heroine binding and a separately typed ordered cue manifest, implement the two seven-second presentation-only loops, light comic stage particle effects and a safely bounded exit with camera following. Preserve the existing map, renderer, paused worker, live speaker positions and prior state restoration under skip/reload/switch/unmount. Full exact requirements are in the top choreography chapter.
+5. **Implemented in PR #91 (verification pending):** replaced the overlay's hardcoded `LINES` with canonical JSON 1.3 presentation reading, add explicit heroine binding and a separately typed ordered cue manifest, implement the two seven-second presentation-only loops, light comic stage particle effects and a safely bounded exit with camera following. Preserve the existing map, renderer, paused worker, live speaker positions and prior state restoration under skip/reload/switch/unmount. Full exact requirements are in the top choreography chapter.
 6. Update BOTH ownership overview and decisionRegistry, linked tests, brief changelog entry (<=300 chars; no file/path essay), this architecture if reality differs, and roadmap as **not completed until merged**. Read docs/bug_report/readme.md, file confirmed defects, update docs/BUG_REPORTS/SUMMARY.md. Include exact new/updated bug counts in PR body (0 if none).
 7. Run targeted Vitest, worker boundary, npm run test:standard, npm run test:types, npm run lint and npm run build only if currently declared; inspect npm scripts first. Check real browser/Playwright with overlays and worker enabled, 0.5x and 10x. Do not claim any check not actually run.
 8. Report PR URL, test results, screenshot/observation, baseline performance, any blockers; do not merge before green and review.
