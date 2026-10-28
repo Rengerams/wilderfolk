@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "category": "existential",
+  "dialogue_trees": [
+    {
+      "id": "ambient_solo_renffr",
+      "category": "existential",
+      "eventKey": "ambient.renffr",
+      "mode": "solo",
+      "speakers": [
+        "npc_aware"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_aware",
+          "text": "Pretty sure I saw a loading seam in the mountains yesterday."
+        },
+        {
+          "speaker": "npc_aware",
+          "text": "I pretended I didn't. We all pretend."
+        }
+      ]
+    },
+    {
+      "id": "ambient_solo_election",
+      "category": "existential",
+      "eventKey": "ambient.election",
+      "mode": "solo",
+      "speakers": [
+        "voter_a"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Election year!"
+        }
+      ]
+    }
+  ]
+}
