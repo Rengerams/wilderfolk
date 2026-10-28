@@ -34,6 +34,10 @@ const REQUIRED_DECISIONS = [
   'pregnancyBirth',
   'moonHowler',
   'leadership',
+  'raidCombat',
+  'raidRecovery',
+  'raidCaptivity',
+  'valleyChronicle',
   'commands',
 ] as const;
 
@@ -114,6 +118,10 @@ describe('simulation decision registry', () => {
     expect(isPropertyWritePermitted('workforce', 'entity.job')).toBe(false);
     expect(isPropertyWritePermitted('workforce', 'villageLeaderId')).toBe(false);
     expect(isPropertyWritePermitted('production', 'building.occupants')).toBe(false);
+    expect(isPropertyWritePermitted('raidCombat', 'raidBattleReports')).toBe(true);
+    expect(isPropertyWritePermitted('raidRecovery', 'raidRecovery')).toBe(true);
+    expect(isPropertyWritePermitted('raidCaptivity', 'raidPrisonerHistory')).toBe(true);
+    expect(isPropertyWritePermitted('valleyChronicle', 'chronicleChapters')).toBe(true);
   });
 
   it('names test files that exist — the registry is the ownership contract, so a stale pointer lies', () => {
