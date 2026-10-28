@@ -228,9 +228,10 @@ export function tickAdultLeisureMotive(args: {
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, nearbyAdults, [], args.pickSocialBuilding);
   let suppressIdle = args.suppressIdleInitial;
   if (impulse.motive !== 'none') {
-    if (impulse.bubble && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE && !isDialogueBusy(entity)) {
+    if (impulse.dialogueEvent && seededRandomForRun(`chat-bubble:${entity.id}:${state.tick}`) < 0.08 * PER_TICK_RATE_SCALE && !isDialogueBusy(entity)) {
       requestDialogue({
-        eventKey: `social.impulse.${impulse.motive}`, speaker: entity, tick: state.tick,
+        eventKey: impulse.dialogueEvent, speaker: entity, tick: state.tick,
+        selectionRoll: impulse.dialogueRoll,
         durationHours: 4 / TICKS_PER_HOUR,
       });
     }
