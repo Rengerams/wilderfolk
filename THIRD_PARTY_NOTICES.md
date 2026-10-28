@@ -36,7 +36,7 @@ The four files exactly match the originals in the user-supplied CC0 ZIP (verifie
 
 The nature images are shipped locally; there are no runtime third-party asset requests. New-world v4 decor does not create unrelated placeholder art for unsupported small nature props (mushrooms, bones, lilies, flowers, ferns, reeds, cattails, scrub or decorative berries). The Ansimuz RGB preview sheet is retained as a source reference, **not rendered** as a sprite, because its opaque background would create visible rectangles.
 
-## Audio (OpenGameArt.org)## Audio (OpenGameArt.org)
+## Audio (OpenGameArt.org)
 
 Royalty-free music and sound effects from [OpenGameArt.org](https://opengameart.org).
 Files live under `public/audio/`; track wiring is in `src/audio/tracks.ts`.
