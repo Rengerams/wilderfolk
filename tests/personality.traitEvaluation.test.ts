@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait, TraitContext } from '../src/game/personality/traitEffectCatalog';
+import type { SettlerTrait } from '../src/game/gameTypes';
+import type { TraitContext } from '../src/game/personality/traitEffectCatalog';
 import { JobType } from '../src/game/gameTypes';
 import { snapshotSimRng } from '../src/game/simRng';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';

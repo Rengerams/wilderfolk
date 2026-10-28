@@ -219,7 +219,19 @@ function courtFrame(
   if (options.festival) state.festival = { active: true, name: 'Harvest feast', daysLeft: 1 };
   if (options.performers) {
     state.visitorGroups = [
-      { id: 'troupe-1', name: 'Troupe', kind: 'performers', campX: 300, campY: 300, daysLeft: 2, entityIds: [] },
+      {
+        id: 'troupe-1',
+        name: 'Troupe',
+        kind: 'performers',
+        campX: 300,
+        campY: 300,
+        daysLeft: 2,
+        entityIds: [],
+        giftsGiven: 0,
+        tradesCompleted: 0,
+        refugeeResolved: false,
+        leaderTalked: false,
+      },
     ];
   }
   const humans = [a, b];
