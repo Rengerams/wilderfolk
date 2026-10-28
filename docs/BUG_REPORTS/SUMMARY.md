@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Visitor speech bypassed session ownership](../bug_report/2026-10-28-visitor-speech-bypassed-session-owner.md):** visitor arrivals and performers directly overwrote chatPhrase/chatTicks without checking a live session. PR #93 routes the unchanged captions through JSON and the single session writer; targeted CI and worker/browser verification still pending.
 
+**2026-10-28 — [Solo dialogue never releases without resolver](../bug_report/2026-10-28-solo-dialogue-session-never-releases-without-resolver.md):** solo JSON lines could reach zero ticks while retaining their live session key when no resolver was passed; PR #93 now advances/clears solo sessions without synthesizing a partner. CI and worker/save verification pending.
+
 ## At a glance
 
 **2026-10-28 — [V4 river-flow highlights missing](../bug_report/2026-10-28-v4-river-flow-material-gated-to-v3.md):** render-only v3 gate excluded v4 current glints and waterfall rapids. Proposed correction and targeted regressions on the PR branch; CI, browser visuals and FPS validation still pending.
