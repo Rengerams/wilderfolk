@@ -36,7 +36,7 @@ describe('social events use the one JSON dialogue session path', () => {
   });
 
   it('allows only solo workplace speech when no eligible coworker exists', () => {
-    const a = settler(331);
+    const a = settler(301);
     const tick = eligibleTick(a.id, 720, 0.08);
     tryWorkplaceBanter(a, [], tick, 12, true);
     expect(a.chatPhrase).toBeDefined();
