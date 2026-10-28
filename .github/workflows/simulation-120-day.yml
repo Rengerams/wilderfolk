@@ -1,0 +1,61 @@
+name: 120-day simulation gate
+
+# Run the live seeded colony for 120 days only when simulation rules change.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/game/**'
+      - '!src/game/*.tsx'
+      - '!src/game/renderer/**'
+      - '!src/game/renderer.ts'
+      - '!src/game/canvasLayer.ts'
+      - '!src/game/decorRender.ts'
+      - '!src/game/entityLayer.ts'
+      - '!src/game/terrainLayer.ts'
+      - '!src/game/stripRender.ts'
+      - '!src/game/entitySprites.ts'
+      - '!src/game/humanSprites.ts'
+      - '!src/game/spriteLoader.ts'
+      - '!src/game/huntvisuals.ts'
+      - '!src/game/introTimeline.ts'
+      - '!src/game/renffrStar.ts'
+      - '!src/game/villagePortrait.ts'
+      - '!src/game/weatherVisualPreferences.ts'
+      - '!src/game/buildingProgressDisplay.ts'
+      - '!src/game/dashboardData.ts'
+      - '!src/game/viewState.ts'
+      - '!src/game/humanStatus.ts'
+      - '!src/game/citizenOverview.ts'
+      - '!src/game/rivalDisplay.ts'
+      - '!src/game/focusHints.ts'
+      - '!src/game/logisticsOverlayData.ts'
+      - '!src/game/uiSimSummary.ts'
+      - '!src/game/eventLogFilters.ts'
+      - '!src/game/eventLogExport.ts'
+      - 'scripts/run-full-year.mts'
+      - 'scripts/colonyHealth.ts'
+      - '.github/workflows/simulation-120-day.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulation-120-day-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  colony-120-day:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Seeded 120-day producer colony with bot decisions and checkpoint invariants
+        run: npx tsx scripts/run-full-year.mts --scenario=producers --days=120 --seed=12345 --bot
