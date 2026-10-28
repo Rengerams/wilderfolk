@@ -142,8 +142,8 @@ const RIDGE_RELIEF_START = 0.008;
 const RIDGE_RELIEF_SPAN = 0.052;
 const VALLEY_RELIEF_START = 0.007;
 const VALLEY_RELIEF_SPAN = 0.050;
-const RIDGE_COLOR_GAIN: readonly Rgb = [13, 12, 9];
-const VALLEY_COLOR_DARKEN: readonly Rgb = [0.18, 0.16, 0.12];
+const RIDGE_COLOR_GAIN: Readonly<Rgb> = [13, 12, 9];
+const VALLEY_COLOR_DARKEN: Readonly<Rgb> = [0.18, 0.16, 0.12];
 
 /**
  * Hillshade gain, against a slope expressed as elevation change per cell. Sized so a typical
