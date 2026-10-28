@@ -31,6 +31,7 @@ import { readUtf8RelativeToModule } from './nodeRuntime';
 import type { Season, WeatherType } from './gameTypes';
 
 import { seededRandomForRun } from './simRng';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
 import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, tickHumanChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = [
   'work',
@@ -543,6 +544,11 @@ export function speakerRoleIndex(tree: DialogueTree, line: DialogueLine): 0 | 1 
   return line.speaker === tree.speakers[0] ? 0 : 1;
 }
 
+
+/** Keep effective bubble ticks when an existing nominal-tick speech event migrates to hours. */
+export function dialogueHoursFromNominalTicks(nominalTicks: number): number {
+  return Math.max(4, Math.round(nominalTicks * PER_TICK_RATE_SCALE)) / TICKS_PER_HOUR;
+}
 
 export interface DialogueRequest {
   eventKey: string;
