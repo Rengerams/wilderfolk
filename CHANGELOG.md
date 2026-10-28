@@ -7,6 +7,7 @@
 - **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
 
 - **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
+- **Changed:** Aligned the feature roadmap with merged DNA phases A and B, the illustrated strategic map, v4 river rendering and existing alerts; unmerged personality, career and disabled disaster features remain open.
 
 - **Refactor:** Moved the canonical DNA trait type and shared hotel-bed limit to their owning modules, with all production and test imports updated and no runtime rules changed.
 
