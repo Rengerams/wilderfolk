@@ -9,7 +9,7 @@ import {
 
 describe('Spotlight crowd applause — provided real audio on the SFX bus', () => {
   it('contains the exact valid six-second Opus excerpt in its static audio asset', () => {
-    expect(SPOTLIGHT_APPLAUSE_AUDIO_URL).toMatch(/audio\\/sfx\\/spotlight-applause\\.ogg$/);
+    expect(SPOTLIGHT_APPLAUSE_AUDIO_URL.endsWith('/audio/sfx/spotlight-applause.ogg')).toBe(true);
     const bytes = readFileSync(new URL('../public/audio/sfx/spotlight-applause.ogg', import.meta.url));
     expect(bytes).toHaveLength(8154);
     expect(bytes.toString('ascii', 0, 4)).toBe('OggS');
