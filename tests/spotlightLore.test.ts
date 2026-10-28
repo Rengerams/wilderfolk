@@ -65,6 +65,11 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(scene?.performerIds).toHaveLength(adults.length);
     expect(new Set(scene?.performerIds).size).toBe(adults.length);
     expect(scene?.slots).toHaveLength(adults.length);
+    for (let i = 0; i < scene!.slots.length; i++) {
+      for (let j = i + 1; j < scene!.slots.length; j++) {
+        expect(Math.hypot(scene!.slots[i].x - scene!.slots[j].x, scene!.slots[i].y - scene!.slots[j].y)).toBeGreaterThanOrEqual(12);
+      }
+    }
     expect(maybeStartSpotlightLore(world)).toBe(false);
     expect(getSpotlightGatherTarget(scene!, adults[0].id)).toBeTruthy();
     expect(getSpotlightGatherTarget(scene!, -999)).toBeNull();
