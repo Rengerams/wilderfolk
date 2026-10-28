@@ -57,6 +57,7 @@ export type DecisionKey =
   | 'production'
   | 'villageRequests'
   | 'socialFeedback'
+  | 'spotlightLore'
   | 'courtship'
   | 'affairs'
   | 'conception'
@@ -195,6 +196,14 @@ export const SIMULATION_DECISIONS = {
     ],
     scheduledFrom: 'humanTick.ts realtime path (simAmbientChatNeighbors staggered; settler/pair chat per tick)',
     testFile: 'tests/phase7.social.test.ts, tests/school.test.ts, tests/humanChat.ambientPairing.test.ts',
+  },
+  spotlightLore: {
+    owner: 'spotlightLore.ts — maybeStartSpotlightLore, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
+    cadence: 'realtime',
+    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend-day selection, bounded gathering and typed finish command; UI-only wall-clock presentation after pause',
+    writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)'],
+    scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads gathering target; simWorker/commands.ts delegates finishSpotlightLore',
+    testFile: 'tests/spotlightLore.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
