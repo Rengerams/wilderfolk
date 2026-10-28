@@ -1,7 +1,7 @@
 # Solo dialogue remains busy after its final line without a partner resolver
 
 - Bug: a standalone JSON dialogue retained its session key when ticked without a partner resolver.
-- Status: corrected on PR #93; tests/CI verification pending
+- Status: investigating — correction committed; focused regression passed, full CI pending
 - Severity: medium (session lifecycle; reproducible in headless and direct callers)
 - Date discovered: 2026-10-28
 - Version/build: Wilderfolk 0.6.5.2 dialogue migration branch
@@ -9,6 +9,11 @@
 - Area: dialogue lifecycle
 - Owner module: `src/game/humanChat.ts`
 - Related PR: [#93](https://github.com/Rengerams/wilderfolk/pull/93)
+
+## Status history
+
+- 2026-10-28 — investigating: code trace confirmed the defect and a targeted correction was committed to PR #93.
+- 2026-10-28 — focused regression passed in GitHub Actions run 40732825550; full standard, worker/save and live verification remain pending.
 
 ## Reproduction and observed behavior
 
