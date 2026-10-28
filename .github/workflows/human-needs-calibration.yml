@@ -9,6 +9,8 @@ on:
       - 'scripts/run-full-year.mts'
       - '.github/workflows/human-needs-calibration.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'
 
 jobs:
   seeded-colony:
@@ -17,9 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep the previous day-120 stockout checkpoint and verify recovery through day 150.
-        # Every job is bounded at 12 minutes; the 360-day colony soak remains opt-in.
-        days: [7, 30, 150]
+        # PR checkpoints; 150-day recovery runs weekly.
+        days: [7, 30]
     steps:
       - uses: actions/checkout@v4.4.0
       - uses: actions/setup-node@v4.4.0
@@ -34,5 +35,26 @@ jobs:
         uses: actions/upload-artifact@v4.6.2
         with:
           name: needs-colony-${{ matrix.days }}d
+          path: docs/log/**
+          if-no-files-found: ignore
+
+  recovery-150-day:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify 150-day food and housing recovery
+        run: npx tsx scripts/run-full-year.mts --scenario=producers --days=150 --seed=12345 --bot
+      - name: Upload diagnostic colony logs
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: needs-colony-150d
           path: docs/log/**
           if-no-files-found: ignore

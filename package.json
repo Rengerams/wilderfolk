@@ -40,7 +40,8 @@
     "deno:dev": "deno desktop --hmr --backend webview .",
     "deno:build:cef": "npm run build && deno desktop --backend cef --exclude node_modules --output ./deno/wilderfolk-cef .",
     "perf:compare-runtimes": "node scripts/compare-runtimes.mjs",
-    "tauri:windows:build": "tauri-windows-bundle build"
+    "tauri:windows:build": "tauri-windows-bundle build",
+    "build:ci": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build"
   },
   "packageManager": "",
   "dependencies": {

@@ -18,10 +18,15 @@ import { buildSaveData, loadGameFromParsedOutcome, describeSaveLoadOutcome } fro
 import { getSimSeed, resetSimRng, setSimSeed } from '../src/game/simRng';
 import type { WorldState } from '../src/game/gameTypes';
 
+let initialPayload: Record<string, unknown> | undefined;
+
 function realPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
-  return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
+  if (!initialPayload) {
+    const world = initGame({ seed: 4242 });
+    initialPayload = buildSaveData(world, createInitialView(world.width, world.height));
+  }
+  return structuredClone(initialPayload);
 }
 
 function buildWorld(payload: Record<string, unknown>): WorldState | null {

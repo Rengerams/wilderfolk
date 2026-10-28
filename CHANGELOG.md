@@ -5,6 +5,7 @@
 - **Settler DNA at work (28 October 2026):** Genes now shape real production crews, school learning, research, apprenticeship training, hunting range and flight from predators. Construction keeps its existing Resourceful bonus once, and settlers saved without DNA gain stable traits on load.
 
 - **Fixed:** Hardy now slows a settler's own work drain, so endurance reaches the people the inspector shows, and Greenthumb, Nurturing and Fierce describe effects the game performs instead of the captive-only and maturation promises they never kept.
+- **Tests:** Moved the 90-day colony regression to a separate integration tier, reused cloned terrain and save fixtures, and reduced duplicate CI checks without removing assertions or long-run release coverage.
 
 - **Changed:** Standardized pull-request descriptions to show exact counts and links for newly created and updated bug reports, including explicit zeroes.
 
