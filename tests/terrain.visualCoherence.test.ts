@@ -3,9 +3,15 @@ import { EntityType, MapPreset, MapSize, TerrainType, type WorldMap } from '../s
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { WATER_CELL, tileAt } from '../src/game/terrain/terrainGrid';
 import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
 import { buildWhittakerFields } from '../src/game/renderer/whittakerTerrain';
 
 describe('landscape rendering follows the simulation map', () => {
+  it('starts without a permanent grid over the natural landscape', () => {
+    const view = createInitialView(1280, 960);
+    expect(view.showGrid).toBe(false);
+    expect(view.buildMode).toBeNull();
+  });
   it('places biome-appropriate props rather than unrelated vegetation or river clutter', () => {
     const desertProps = new Set(['cactus', 'rock_small', 'rock_big', 'bones', 'tallgrass']);
     const forestProps = new Set(['bush', 'fern', 'flower', 'stump', 'mushroom', 'log', 'berries', 'dirt_patch']);
