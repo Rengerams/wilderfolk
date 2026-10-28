@@ -3,7 +3,7 @@ import type { ElectionCeremonyPhase, ElectionCeremonyState, Entity, WorldState }
 import { maybeOfferValleyDebate } from './storyEvents';
 import { recordElectionPromises, tickElectionPromises } from './electionPromises';
 import { BuildingType, EntityType } from './gameTypes';
-import { DAYS_PER_YEAR, PER_TICK_RATE_SCALE, getAgeInYears, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
+import { DAYS_PER_YEAR, getAgeInYears, isImprisoned, TICKS_PER_HOUR } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { logEvent } from './eventLog';
 import { addNotification } from './simEffects';
