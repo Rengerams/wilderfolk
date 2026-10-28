@@ -14,6 +14,8 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Assignment pulse | `tickLayerAssign.ts` | assignment (~4×/day) | `tickLayerAssign` |
 | Daily pulse | `tickLayerDaily.ts` | daily (once per colony day) | `tickLayerDaily` |
 | Indoor browser smoke | `scripts/autoplay_playwright_probe.py` | existing browser harness | `run_indoor_smoke`, `run_infrastructure_visual` — normal save-load, observed indoor patient assertion and infrastructure captures through the zoom controls. |
+| Context-specific personality effects | `src/game/personality/traitEffectCatalog.ts` | static read-only data | `TRAIT_EFFECTS`, `TraitContext`, `TraitEffects` — exhaustive positive/negative contexts for the fourteen canonical genetic traits; no new trait identity or persisted data. |
+| Trait influence evaluation | `src/game/personality/traitEvaluation.ts` | on-demand read-only projection | `evaluateTraitInfluence` — sole pure bounded combination and opt-in explanation owner, no mutations, no RNG, and no independent scheduler. |
 | Human tick pulse | `humanTick.ts` | realtime | `tickHumans` |
 | School enrollment, attendance and hours | `education.ts` | assignment and school-day ticks | `syncSchoolAssignments`, `findSchoolForChild`, `schoolCapacity`, `isSchoolTime`, `recordChildSchoolTick` |
 | Movement / pathfinding | `humanMovement.ts` (integration) + `pathfinding.ts` (grid, A*, steering, road mask) | realtime | `enterHumanBuilding`, `commuteHumanToBuilding`, `humanBuildingTarget`, `applyHumanWalkStep`, `steerWithPath`, `walkRoute`, `findPath`, `findRouteCostOutcome`, `isOnWalkableRoadAt`, `isWalkableRoad`, `buildPathGrid`, `buildingSignature`, `stampBuildingFootprint` |

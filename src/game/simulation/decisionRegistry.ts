@@ -24,6 +24,7 @@ export const DECISION_CADENCES = [
   'full-moon-event',
   'player-command',
   'render',
+  'on-demand',
 ] as const;
 
 export type DecisionCadence = (typeof DECISION_CADENCES)[number];
@@ -47,6 +48,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'traitInfluence'
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workforce'
@@ -69,6 +71,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  traitInfluence: {
+    owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence (read-only projection); personality/traitEffectCatalog.ts owns TRAIT_EFFECTS',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. Existing domain owners may import it directly in later phases.',
+    writes: [],
+    scheduledFrom: 'On-demand direct caller; no integration sites or scheduled invocations in phase A',
+    testFile: 'tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts',
+  },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore',
     cadence: 'realtime',

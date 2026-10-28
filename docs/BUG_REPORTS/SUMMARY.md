@@ -1915,6 +1915,13 @@ Two code-review findings in [PR #75](https://github.com/Rengerams/wilderfolk/pul
 
 - **Legacy Goals in an open-ended simulator:** [report](../bug_report/2026-10-28-legacy-goals-conflict-with-open-ended-simulator.md). Removed the finite achievement projection and UI while preserving Chronicle history and existing saves. **Resolved in source; runtime checks not run.**
 
+## 2026-10-28 — Personality phase A review findings
+
+- **Personality TypeScript gate failure — investigating:** The initial PR #85 evaluator and two intentionally invalid DNA fixtures failed TS7053/TS2352. Type fixes committed; final rerun pending. [Report](../bug_report/2026-10-28-personality-phase-a-typescript-compile.md).
+- **Unsafe non-string DNA coercion — investigating:** The new evaluator could coerce malformed array items during catalog lookup; a string guard and focused regression were added. Final rerun pending. [Report](../bug_report/2026-10-28-personality-unsafe-dna-coercion.md).
+
+- **Stale personality trait-context test — investigating:** The phase-A three-trait regression checked an obsolete diplomacy effect after the context correction; fixture now checks a real social-reconciliation drawback. Full CI rerun pending. [Report](../bug_report/2026-10-28-personality-trait-context-test-stale.md).
+- **Trait order causes floating-point drift — investigating:** Three traits with the same aggregate effects produced a different last-bit tendency when their input order changed; now processed in canonical order without allocations, with six-permutation regression. [Report](../bug_report/2026-10-28-personality-trait-order-floating-point-drift.md).
 ## 2026-10-28 — Illustrated New Frontier strategic map
 
 - **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
