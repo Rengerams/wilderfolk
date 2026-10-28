@@ -1,4 +1,3 @@
-import { personDayRoll } from '../src/game/simRng';
 /**
  * Youth conception age floor — ages 12 and 13 are eligible (owner decision, 2026-09-13).
  *
@@ -18,6 +17,7 @@ import { personDayRoll } from '../src/game/simRng';
  * stateless per settler and *day* (`personDayRoll`), so a passing branch is forced by
  * choosing the day rather than by stubbing randomness.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
