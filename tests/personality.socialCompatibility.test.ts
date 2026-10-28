@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait } from '../src/game/gameTypes';
+import type { Entity, SettlerTrait, WorldState } from '../src/game/gameTypes';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import { personDayRoll } from '../src/game/humanSchedule';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { tryWorkplaceBanter } from '../src/game/socialLife';
+import { advanceSocialRelationships, feudScore } from '../src/game/relationships';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 import { TRAIT_OPPOSITIONS } from '../src/game/personality/traitEffectCatalog';
 
@@ -145,6 +146,80 @@ describe('social incompatibility parity', () => {
     const b = { id: 52, traits: ['timid'] as const };
     expect(feudDecision(clashCount(a, b), oneClash)).toEqual({ started: true, draws: 1 });
     expect(feudDecision(clashCount(a, b), atThreshold).started).toBe(false);
+  });
+});
+
+/** The real owner needs a world for its event log and feud writers. */
+function feudWorld(): WorldState {
+  return {
+    entities: [],
+    buildings: [],
+    tick: TICKS_PER_DAY,
+    year: 1,
+    dayInYear: 1,
+    eventLog: [],
+    notifications: [],
+    bigNews: [],
+    storyFlags: {},
+    pendingStoryEvents: [],
+    resources: {},
+    floatingTexts: [],
+    nextFloatingTextId: 1,
+    villageReputation: 0,
+  } as unknown as WorldState;
+}
+
+/** Two housemates in one residence group: too small to spend a group-sampling draw. */
+function housemate(id: number, traits: Traits): Entity {
+  return {
+    id,
+    type: EntityType.Human,
+    name: `Settler${id}`,
+    alive: true,
+    energy: 100,
+    maxEnergy: 100,
+    residenceBuildingId: 10,
+    traits: [...traits],
+  } as Entity;
+}
+
+function feudAtOwner(traitsA: Traits, traitsB: Traits, roll: () => number) {
+  const a = housemate(1, traitsA);
+  const b = housemate(2, traitsB);
+  let draws = 0;
+  const counted = () => {
+    draws += 1;
+    return roll();
+  };
+  advanceSocialRelationships(feudWorld(), [a, b], undefined, counted);
+  return { draws, a, b };
+}
+
+describe('feud decisions at the real owner boundary', () => {
+  it('spends exactly one draw on a clashing pair and none on a clashless one', () => {
+    const clash = feudAtOwner(['fierce'], ['stoic'], () => 0);
+    expect(clash.draws).toBe(1);
+    expect(feudScore(clash.a, clash.b.id)).toBeGreaterThan(0);
+    expect(feudScore(clash.b, clash.a.id)).toBe(feudScore(clash.a, clash.b.id));
+
+    const calm = feudAtOwner(['hardy'], ['lucky'], () => 0);
+    expect(calm.draws).toBe(0);
+    expect(feudScore(calm.a, calm.b.id)).toBe(0);
+    expect(feudScore(calm.b, calm.a.id)).toBe(0);
+  });
+
+  it('scales the one threshold compare by the clash count it read', () => {
+    const triple = feudAtOwner(
+      ['brave', 'gregarious', 'fierce'],
+      ['timid', 'stoic', 'chivalrous'],
+      () => 0.0001,
+    );
+    expect(triple.draws).toBe(1);
+    expect(feudScore(triple.a, triple.b.id)).toBeGreaterThan(0);
+
+    const single = feudAtOwner(['brave'], ['timid'], () => 0.0001);
+    expect(single.draws, 'the draw still happens; only the compare fails').toBe(1);
+    expect(feudScore(single.a, single.b.id)).toBe(0);
   });
 });
 

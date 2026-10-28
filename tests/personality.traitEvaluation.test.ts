@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SettlerTrait } from '../src/game/gameTypes';
+import type { SettlerTrait, TraitContext } from '../src/game/personality/traitEffectCatalog';
+import { JobType } from '../src/game/gameTypes';
 import { snapshotSimRng } from '../src/game/simRng';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
@@ -139,5 +140,27 @@ describe('pure personality influence evaluation', () => {
     evaluateTraitInfluence({ traits: ['lucky', 'gregarious'] }, { kind: 'family', activity: 'conception' });
     evaluateTraitInfluence({ traits: ['brave'] }, { kind: 'social', activity: 'feudClash', other: { traits: ['timid'] } });
     expect(snapshotSimRng()).toEqual(snapshot);
+  });
+
+  it('keeps the ordinary PR B contexts bounded while the exact contexts stay discrete', () => {
+    const prBContexts: TraitContext[] = [
+      { kind: 'work', job: JobType.Builder, action: 'construction' },
+      { kind: 'work', job: JobType.Farmer, action: 'production' },
+      { kind: 'school', activity: 'research' },
+      { kind: 'danger', activity: 'defense' },
+      { kind: 'physiology', activity: 'labor' },
+      { kind: 'social', activity: 'courtship' },
+      { kind: 'family', activity: 'bereavement' },
+    ];
+    const dna: SettlerTrait[] = ['resourceful', 'chivalrous', 'insightful'];
+    for (const context of prBContexts) {
+      const influence = evaluateTraitInfluence({ traits: dna }, context);
+      expect(influence.factor, JSON.stringify(context)).toBeGreaterThanOrEqual(0.85);
+      expect(influence.factor, JSON.stringify(context)).toBeLessThanOrEqual(1.15);
+      expect(influence.tendency, JSON.stringify(context)).toBeGreaterThanOrEqual(-0.5);
+      expect(influence.tendency, JSON.stringify(context)).toBeLessThanOrEqual(0.5);
+      expect(influence.exact, JSON.stringify(context)).toBeUndefined();
+    }
+    expect(evaluateTraitInfluence({ traits: ['resourceful'] }, prBContexts[0]).factor).toBeGreaterThan(1);
   });
 });
