@@ -3,7 +3,7 @@
 **Target version:** 0.6.5.2  
 **Scope:** Warfare and rivals, housing and families, human needs and food, roads and fortifications, terrain/biomes, village life, simulation performance and graphics.
 
-**Acceptance policy: merged = accepted.** Features implemented by a PR merged into `main` are marked `[x]`. See [§23](#23-merged-feature-implementation-register--28-october-2026) for the implementation register.
+**Acceptance policy: merged = accepted.** Features implemented by a PR merged into `main` are marked `[x]`. See [§21](#21-merged-feature-implementation-register--28-october-2026) for the implementation register.
 
 ## Version 0.6.5.2 — feature implementation overview (28 October 2026)
 
@@ -34,7 +34,7 @@ This roadmap tracks **features and implemented behavior**, not a test or verific
 
 ### Remaining feature scope
 
-The previously pending features in #72, #75, #76, #77 and #79 are now implemented and listed above. Additional, not-yet-implemented gameplay features remain in §§11–19 and the feature backlog in §23.1.
+The previously pending features in #72, #75, #76, #77 and #79 are now implemented and listed above. Additional, not-yet-implemented gameplay features remain in §§11–18 and the feature backlog in §21.1.
 
 ## 1. Design goals
 
@@ -356,7 +356,9 @@ The whole-game personality expansion described here is still planned; existing t
 
 After a raid, the victor may capture surviving enemy combatants instead of automatically killing or releasing them. This is **separate from the choice to spare, demand terms from, or raze the rival settlement**. Prisoners are living characters with identities, affiliations and relationships where the simulation represents them individually. Abstract off-map troop losses must not be converted into invented prisoners.
 
-### 12.1 Taking captives
+**Implementation: [x] merged and accepted.** Capture, prison capacity, guard-dependent custody, individual Keep/Release/Offer to Join/Execute actions, persistence and contextual community/valley reactions are implemented by the existing warfare owners (`warPrisoners.ts`, `warPrisonerCustody.ts`, `raidAftermath.ts`, `WarfareStatus.tsx`). The following sections document existing behavior plus possible refinements; they are not separate unimplemented prisoner systems.
+
+### 12.1 Taking captives — implemented
 
 - Prisoners can be taken after a successful raid or a surrendered/repelled attack when survivors are available; winning does not guarantee a captive.
 - Make capture depend on the outcome, survival, surrender, the forces available to escort captives, and available **Prison** capacity. Do not silently exceed cell capacity or teleport arbitrary civilians into cells.
@@ -364,7 +366,7 @@ After a raid, the victor may capture surviving enemy combatants instead of autom
 - Captives remain alive, require food and guards, and can escape under the existing prison-watch mechanics. A missing guard is meaningful.
 - Capture decisions and prisoner fate must survive save/load, and cannot be awarded twice when a raid event or interface is replayed.
 
-### 12.2 What to do with prisoners
+### 12.2 What to do with prisoners — implemented
 
 At the end of a raid, present a **Prisoners of War** decision showing identifiable captives, their condition and available prison space. Provide actions without previews of reputation, election scores or moral judgements. Allow an action for each individual or a confirmed group action when appropriate.
 
@@ -377,7 +379,7 @@ At the end of a raid, present a **Prisoners of War** decision showing identifiab
 
 **Recruitment must be a choice made by the captive**, not an automatic conversion of enemy units into player settlers. Consider existing loyalty to home, bonds, conditions in custody, demonstrated mercy, personality, village attractiveness, and the history of the conflict. A refusal leaves the captive eligible for release or continued detention; repeated attempts must have cooldowns and diminishing chances. No prisoner decision should be universally optimal; outcomes depend on village composition and events.
 
-### 12.3 Individual and community consequences
+### 12.3 Individual and community consequences — implemented core
 
 - Friends and relatives may care about a captured or executed character; releasing a known captive can change diplomatic relations and future encounters.
 - The player's villagers should react to cruelty or generosity, influenced by their DNA traits, personal priorities and existing social bonds. Not everyone agrees with the leader's decision.
@@ -386,7 +388,7 @@ At the end of a raid, present a **Prisoners of War** decision showing identifiab
 - Captured enemies and executed prisoners **are not buried in the player's Graveyard**. Their names remain in the raid overview and Chronicle, with enemy labels distinct from villagers.
 - Prisoners may have an opportunity to join the player's settlement only as **adult, willing recruits**; on joining, carefully migrate faction, occupancy, employer eligibility, relationship links, and village citizenship without cloning the entity.
 
-### 12.4 Valley-wide reputation and political consequences
+### 12.4 Valley-wide reputation and political consequences — implemented core
 
 The valley remembers **how a victory was handled**, not just who won:
 
@@ -398,7 +400,7 @@ The valley remembers **how a victory was handled**, not just who won:
 - Reactions should be mediated by witnesses, reputation propagation and each rival's relationship with the player, rather than changing every faction uniformly or instantly.
 - Leadership merit and election support must reflect villagers' reactions, not simply award positive points for capturing or killing opponents.
 
-### 12.5 Prisoner interaction design
+### 12.5 Prisoner interaction design — individual actions implemented
 
 - Include a **post-raid outcome panel** with casualty lists (player names green, enemy names red) and a separate **Captured** section for survivors; never render a captured or released character as dead.
 - Provide **Keep**, **Release**, **Offer to Join** and **Execute** actions with clear availability rules and visible consequences.
@@ -407,7 +409,7 @@ The valley remembers **how a victory was handled**, not just who won:
 - Do not force players to resolve every captive immediately if the game can persist a pending choice; however, ensure a sensible, safe custody default.
 - Avoid breaking the game when a captured character's home settlement is destroyed in the same raid; release, recruitment and imprisonment must still remain logically consistent.
 
-### 12.6 Implementation and regression criteria
+### 12.6 Existing integration and game-state transitions — implemented
 
 - Reuse existing **Prison** capacity, guard shifts, escape rules, citizenship/faction owners, relationship rules, Chronicle and diplomacy systems; do not create a disconnected prison simulation.
 - Model captured, imprisoned, released, recruited, escaped and executed as explicit, validated transitions, with one durable event ID per decision.
@@ -419,7 +421,7 @@ The valley remembers **how a victory was handled**, not just who won:
 **Definition of done:** the player can take legitimate combatant prisoners, choose their fate, see individual and valley-wide consequences, and potentially gain willing new villagers—while every decision respects existing prison capacity, living characters, social systems and save compatibility.
 
 
-## 13. Roads, walls and towers — construction, visuals and real gameplay use
+## 13. Roads, walls and towers — implemented construction, navigation and passive defense
 
 The player should be able to build an attractive, connected settlement where roads genuinely guide travel and walls and towers genuinely defend it. Construction must feel precise and rewarding: visually connected pieces, useful previews, understandable costs, and predictable behavior after placement.
 
@@ -437,20 +439,18 @@ The player should be able to build an attractive, connected settlement where roa
 
 ### 13.2 Roads must actually affect settlement life
 
-- Settlers and carts should **prefer usable roads** when they provide a faster or safer route, but may walk off-road when appropriate; do not force ridiculous detours to stay on paths.
-- Road surface quality, width, condition, congestion, weather and terrain may influence travel speed and reliability within bounded, explainable limits.
-- Transporting goods from resource sites to workshops, stores, markets and residences should benefit from connected roads, where the existing logistics simulation supports that.
+- Settlers should **prefer usable roads** when they provide a faster route, but may walk off-road when appropriate; do not force ridiculous detours to stay on paths.
+- Road travel time depends on traversable terrain and actual completed road/bridge surfaces through the existing pathfinding and movement rules.
 - Roads should improve access to workplaces and services (schools, hospitals, wells, emergency response), not merely increase a vague settlement-wide score.
 - Bridges and gates must be genuine traversable connectors. A visually continuous road is **not** necessarily a reachable one if a gate is locked or the bridge is damaged.
-- Provide an **accessibility / route-debug overlay** showing disconnected buildings, bottlenecks, unreachable segments and frequently travelled routes.
+- Provide an **accessibility / route-debug overlay** showing disconnected buildings and unreachable walking routes.
 - Keep pathfinding performant in villages with 1,800+ settlers: graph updates on construction changes, bounded searches, caching/invalidation and no whole-map recalculation every tick.
 
 ### 13.3 Better road graphics
 
 - Use visually seamless **auto-tiling** for straight sections, bends, T-junctions, crossroads, dead ends, bridge joins and connections to building doors.
-- Make road edges fit the terrain with believable dirt, cobblestone, paving, mud, wear, wheel ruts and subtle vegetation transitions as appropriate to the selected type.
+- Make road edges fit the terrain with believable dirt, cobblestone, paving and subtle vegetation transitions as appropriate to the selected type.
 - Align bridges, slopes, shadows, lighting and isometric perspective with the current world art style.
-- Show subtle signs of use and weathering without making busy towns visually noisy or obscuring characters.
 - Keep the collision/navigation footprint aligned with the graphic: no road that looks walkable but is blocked, and no hidden gaps at corners.
 - Rendering and auto-tiling must update when neighboring tiles are placed, upgraded, damaged or removed.
 
@@ -487,7 +487,7 @@ The player should be able to build an attractive, connected settlement where roa
 - Derive any new adjacency/autotile/route caches on load; do **not** replace placed infrastructure or change valid paths without an explicit migration.
 - Integrate with existing placement, terrain, building state, pathfinding, rendering, workforce, defense and frontier combat owners instead of creating parallel simulations.
 - Test road dragging across valid/invalid tiles, costs/refunds, crossings, bridges, junctions, undo/cancel, demolition, map borders and terrain changes.
-- Test pathfinding before and after construction, a destroyed bridge, an open/closed gate, traffic congestion and a disconnected school/workplace.
+- Preserve pathfinding correctness before and after construction, with destroyed bridges, open/closed gates and disconnected schools or workplaces.
 - Preserve the existing build, save, wall/gate navigation and simulated Watchtower bonuses. Any later siege-outcome feature should test aggregate damage, recovery and once-only outcome application, not tower range attacks or unit combat.
 - Confirm visuals match pathfinding and collision, plus large-map performance at various zoom levels.
 - Run save → load → simulate → save → reload regression checks using existing settlements, including large cities.
@@ -495,25 +495,12 @@ The player should be able to build an attractive, connected settlement where roa
 **Definition of done:** roads are easy to draw, visibly join correctly and improve travel; walls and gates retain their map/navigation roles, and existing Watchtowers contribute passive defense and early warning to simulated raids. There is no active or tactical combat layer.
 
 
-## 14. Village logistics — supply routes, warehouses and bottlenecks
-
-Make transport and storage a real, readable part of managing a growing settlement.
-
-- Introduce **delivery priorities** for food, fuel, building materials and medical supplies. Essential consumption should not be blocked by a nonessential workshop requesting the same goods.
-- Give warehouses and markets meaningful **service areas** and transfer routes, integrated with the improved road network in Section 13. Avoid magically moving stock between distant buildings when the existing logistics model can represent transport.
-- Provide a **Supply Routes overlay**: shortage locations, overstocked stores, disconnected producers, average delivery distance and traffic choke points.
-- Allow sensible stock targets per warehouse or district, with an uncomplicated default mode for casual players.
-- Villagers should notice chronic shortages and adapt their daily routines; shortages can affect morale, work and health without arbitrary sudden deaths.
-- Optimize repeated producer/consumer matching with spatial indices and event-driven invalidation instead of rescanning every building for each villager.
-
-**Acceptance:** A farm connected to a nearby market can supply it more reliably than a disconnected distant farm, and the player can see *why* a shortage occurs. Existing saves retain all stock.
-
-## 15. Districts and neighbourhood identity
+## 14. Districts and neighbourhood identity
 
 Give large settlements a sense of place without requiring micromanagement.
 
 - Let players designate **districts** (e.g. Residential, Industrial, Farming, Civic or Defensive) with editable names and optional priorities. Districts are planning tools, not hard restrictions.
-- Show each district's population, workplaces, food access, school coverage, safety, beauty, traffic and happiness.
+- Show each district's population, workplaces, food access, school coverage, safety, beauty and happiness.
 - Add **neighbourhood identity**: residents form friendships through repeated local encounters, value well-maintained public spaces and remember major local events.
 - Support district-focused policies only when they can be integrated into existing workforce and resource owners; avoid contradictory global/local overrides.
 - Add a clear overlay and compact inspector, with no per-tick scanning of entire districts when nothing changed.
@@ -521,20 +508,20 @@ Give large settlements a sense of place without requiring micromanagement.
 
 **Acceptance:** Players can understand *which part* of the city has a problem and respond locally.
 
-## 16. Seasons, resilience and village emergencies
+## 15. Seasons, resilience and village emergencies
 
 Make weather and seasonal preparation more meaningful, with counterplay.
 
 - Build a clear **Seasonal Preparedness** panel showing expected food and fuel demand, shelter, healing capacity and critical supply buffers.
-- Add rare, telegraphed **local emergencies** appropriate to the simulation: warehouse fires, blocked roads, storm damage or illness pressure. No unavoidable random village wipeouts.
-- Builders, guards and available workers can be assigned **emergency priorities** such as repairing a bridge, containing fire or delivering food.
+- Add rare, telegraphed **local emergencies** appropriate to the simulation: building fires, blocked roads, storm damage or illness pressure. No unavoidable random village wipeouts.
+- Builders, guards and available workers can be assigned **emergency priorities** such as repairing a bridge, containing fire or restoring essential facilities.
 - Villagers react to dangerous conditions based on their traits, family bonds and practical ability; children should not automatically be assigned dangerous work.
 - Chronicle reports noteworthy emergencies, successful rescues and recovery, without flooding the log with small events.
 - Tie emergency routing to real roads, gates, walls and reachable destinations.
 
 **Acceptance:** A prepared player has understandable ways to prevent or mitigate harm, and recovery remains possible.
 
-## 17. More meaningful professions, education and career paths
+## 16. More meaningful professions, education and career paths
 
 Build on age-18 adulthood and the selective apprenticeship rules.
 
@@ -548,18 +535,18 @@ Build on age-18 adulthood and the selective apprenticeship rules.
 
 **Acceptance:** Two settlers can pursue different, credible life paths even when they are the same age and went to the same school.
 
-## 18. Simulation performance and large-colony scalability
+## 17. Simulation performance and large-colony scalability
 
 Preserve responsiveness as population and roads grow.
 
-### 18.1 Measure before optimizing
+### 17.1 Measure before optimizing
 
 - Create repeatable benchmarks for **250, 750, 1,800 and 3,000 settlers** on equivalent hardware and seeds, with browser and Windows desktop profiles.
 - Report **simulation tick duration (p50/p95/p99), dropped/over-budget ticks, UI frame time, render time, memory use and save/load duration** separately.
 - Use the existing performance profiler as the source of measurement; track before/after results for every major change.
 - Define a performance budget around the game's **one-second tick at 1×**, while ensuring UI animation stays responsive independently.
 
-### 18.2 Targeted improvements
+### 17.2 Targeted improvements
 
 - **Incremental spatial indexing:** use cached neighbourhood queries for social encounters, schooling, workplace selection, prisons, combat and services. Invalidate only affected regions.
 - **Event-driven building caches:** update housing, road connectivity, staffing availability and service coverage when relevant structures or assignments change.
@@ -570,7 +557,7 @@ Preserve responsiveness as population and roads grow.
 - **Memory and garbage collection:** reuse transient buffers, bound event histories and caches, and clean up entity links after deaths or building removal.
 - **Saves:** profile serialization size and time, retain a versioned migration path, and perform safe atomic/validated writes where the platform allows.
 
-### 18.3 Do not trade correctness for speed
+### 17.3 Do not trade correctness for speed
 
 - Maintain deterministic gameplay for a given seed and action sequence where the engine currently guarantees it.
 - Avoid a simulation that behaves differently simply because the camera is elsewhere or the game is minimized.
@@ -580,7 +567,7 @@ Preserve responsiveness as population and roads grow.
 
 **Acceptance:** Large colonies have fewer long-frame stalls and stable memory use, while simulation outcomes remain correct and reproducible.
 
-## 19. Player tools: explainability, alerts and safe automation
+## 18. Player tools: explainability, alerts and safe automation
 
 Improve usability without making the game play itself.
 
@@ -593,119 +580,27 @@ Improve usability without making the game play itself.
 
 **Acceptance:** The game tells the player both *what* is wrong and *what they can do about it*, without confusing predictions with certainties.
 
-## 20. Feature implementation order
+## 19. Feature implementation order
 
 Suggested implementation sequence to reduce integration risk:
 
 1. **Foundation:** benchmarks, event IDs, stable save migrations and shared typed APIs for traits, pathfinding and outcomes.
 2. **Simulation reliability:** incremental caches, performance profiling and save/load regression coverage.
 3. **Infrastructure:** road construction, connections, gates, walls and tower interactions (issue #49).
-4. **Village life:** human physiology and food-economy balance (issue #61), districts, logistics, careers and personality-driven priorities.
+4. **Village life:** human physiology and food-economy balance (issue #61), districts, careers and personality-driven priorities.
 5. **Warfare:** raid states, prisoner decisions, diplomacy, leadership merit and consequences.
 6. **Polish:** graphics, overlays, tutorials, accessibility, balancing and real-game playtesting.
 
 Split these milestones into independently testable changes with regression coverage and save compatibility checks. **Accepted foundation PRs:** #40 (housing), #58 (warfare), #59/#65/#66 (roads, walls and gates), #62 (human needs), #63 (terrain), #64 (state-copy performance), #67 (ownership cleanup), #68 (compatibility migration). Later release goals are distinct from acceptance of these merged PRs.
 
 
-## 21. Code-audited performance targets and developer-only diagnostics
-
-**Audit basis:** inspected `src/game/pathfinding.ts`, `src/game/spatialGrid.ts`, `src/game/gameLoop.ts`, `src/game/performanceProfiler.ts`, `src/components/SimulationDiagnosticsPanel.tsx`, `src/components/PerformanceProfilerPanel.tsx` and `src/App.tsx` on 19 October 2026. These are **optimization hypotheses from actual code**, not measured bottlenecks.
-
-### 21.1 Pathfinding allocations and invalidation — high priority
-
-- `pathfinding.ts` currently creates new `Map<number, number>` instances for A* `gScore` and `came` during searches. Benchmark allocation/GC churn under many simultaneous commuters and consider reusable generation-stamped typed arrays for dense grid indices.
-- The module already has a `pathCache`; inspect its key cardinality, hit rates, invalidation on road/bridge/gate construction, and memory bounds. Avoid implementing a second cache without evidence.
-- Path graph construction loops across tiles and buildings. Cache stable terrain and static obstacle layers, and incrementally patch only affected regions after placement, demolition or damage.
-- Measure route-replanning frequency by settler and failure reason. Coalesce identical requests and avoid repeated searches for unreachable goals until the relevant navigation topology changes.
-
-### 21.2 Spatial-grid update costs — high priority
-
-- `spatialGrid.ts` keeps per-entity cell mappings and provides spatial lookups already; do not replace it with another spatial index. Profile its **full synchronization/rebuild** versus incremental position updates and stale-entity sweeps.
-- Reuse scratch storage when safe; benchmark `Map`/`Set` churn against simpler indexed arrays or typed buffers.
-- Group repeated neighborhood lookups within one simulation stage and reuse immutable snapshots of nearby candidates; retain correctness when entities move or die mid-tick.
-- Measure with wildlife and vegetation included, not just human population, because grid density and moving populations vary dramatically by map.
-
-### 21.3 Rendering and state-transfer bottlenecks — high priority
-
-- `gameLoop.ts` drives a `requestAnimationFrame` render loop and exchanges simulation state with a worker. Profile worker message frequency, payload byte size, cloning cost and dropped frames.
-- The repository already has `renderSnapshot.ts` and `simBuffers/renderSoAEntities.ts`/`renderBufferPool.ts`. Compare delta/SoA reuse against full snapshots before proposing a new transport.
-- Profile viewport culling, per-entity sprite work, building sorting and compositing separately. Keep the existing rendering caches; optimize invalidation or hot loops that measurements identify.
-- Avoid rerendering expensive inspector UI from unrelated tick changes; use stable selectors and update rates where doing so preserves timely game feedback.
-
-### 21.4 Better performance measurement
-
-- The existing profiler collects section totals, calls, average and max duration. Extend benchmark reporting with **p50/p95/p99** stage timings and simulation tick budgets, while keeping bounded memory.
-- Compare cold startup, 5-minute warm run, accelerated simulation, active raids, large school populations, bad pathfinding situations, and save/reload.
-- Run representative 250/750/1,800/3,000-settler datasets and report **actual** time saved plus correctness outcomes. Never claim a percentage improvement based solely on a code reading.
-- Introduce performance regression gates with stable environment controls; avoid flaky timing assertions on shared CI runners.
-
-### 21.5 Developer-only performance analyzer (release requirement)
-
-**Player-facing production builds must not show a CPU profiler, diagnostics panel, or `?debug=1` backdoor.**
-
-- Developer builds (`import.meta.env.DEV`) may display diagnostic controls and run opt-in detailed profiling.
-- Production Windows installers and production web builds must hide the CPU profiler and diagnostic UI **regardless of query parameters or saved panel preferences**.
-- The gameplay simulation and lightweight safety checks must continue to work in production; only developer inspection/control access is restricted.
-- Ensure profiling is disabled by default, even in development, and causes no sampling overhead unless enabled.
-- Follow up by **tree-shaking or conditional imports** of developer-only profiler UI/code when practical, and verify production bundle contents.
-- Add release smoke tests that query `?debug=1` in production and assert the profiler/diagnostic controls remain absent, while the same tools remain usable in dev.
-- README/release notes should not advertise a developer CPU analyzer as a feature available to ordinary players.
-
-**Existing implementation (19 October 2026):** `src/App.tsx` now requires `import.meta.env.DEV` for `debugMode`; `PerformanceProfilerPanel.tsx` also returns `null` in non-development builds. Treat complete dev-only bundling and production smoke tests as still pending.
-
-**Definition of done:** measured performance improvements with zero simulation correctness regressions and no player access to developer performance tooling in release builds.
-
-
-### Implemented performance work — 20 October 2026
-
-- [x] **21.1:** reuse generation-stamped A* score/parent storage; retain up to 4,096 routes in the existing cache with LRU eviction, target/origin validation and existing topology invalidation.
-- [x] **18.2:** reuse staffing donor counts throughout rebalancing, updating eligibility after each transfer; avoid commute road scans when plain/road-speed bounds already decide eligibility.
-- [x] **21.2 (partial):** synchronize the human social grid from the existing human bucket instead of scanning wildlife and vegetation too. Full spatial reconciliation remains unchanged.
-- [x] **21.4 (partial):** report bounded per-stage p50/p95/p99 and one-second overruns; extend the existing population harness with fixed seeds, 250/750/1,800/3,000 tiers and optional save/reload checks.
-- [x] **21.3 (command responsiveness):** expensive gameplay commands execute on the worker; bounded edits retain previews. Queued commands drain tick requests, and recovery holds simulation work off the UI thread.
-- [x] **21.5 (bundling):** conditionally import developer panels only in development.
-
-**Accepted PR #64 (merged 27 October 2026):** configuration updates avoid whole-world clones, worker deltas omit unchanged history slices based on fingerprints, saves avoid an extra world copy and rollback has a profiler stage. These are verified implementation locations, **not** a measured FPS gain. Match small/large/history-heavy saved colonies and compare p50/p95/p99, payload size and command latency before changing rollback architecture. See `docs/plans/world-copy-optimization-2026-10-27.md`.
-
-Measurements and limitations: `docs/plans/performance-roadmap-2026-10-20.md`.
-
-
-### Housing architecture checkpoint — 25 October 2026 (PR #40)
-
-This is a cross-cutting housing dependency for the release, not a new warfare feature. The implementation contract and detailed rules live in [docs/HOUSING_ARCHITECTURE.md](docs/HOUSING_ARCHITECTURE.md); do not duplicate the full design in this roadmap.
-
-- [x] Consolidate ordinary housing decisions into the ordered `assignMissingResidences` pipeline with a shared `HousingLedger`: leader hold, integrity, guardianship, capacity, homeless placement, adult-child independence and commute optimization. Immediate leadership transitions retain a dedicated leader-only entry through the same move owner.
-- [x] Route load, immigration and player residence reconciliation through the leader phase within the full housing ledger. Preserve prisoners' beds when capacity is rebalanced.
-- [x] Set the original Leader's House to 20 fixed beds and allow at most one explicitly linked overflow annex after the main residence exceeds 20 occupants; do not promote an orphan annex to primary. The elected leader remains assigned to the original building.
-
-**Accepted:** PR #40 merged into `main` on 26 October 2026 (with follow-up #56 merged the same day). The housing overhaul is accepted; unchecked items above are extra verification or refinement targets, not an unmerged PR.
-
-
-### High priority — Roads, walls, gates and navigation overhaul (Issue #49; 26 October 2026)
-
-**Status: [x] MERGED AND ACCEPTED (27 October 2026; PR #59).** Follow-up fixes #65/#66 are also merged. The recorded PR validation includes 2,436 passing tests, annual integration and three-zoom visual checks; this is historical PR evidence, not a new current-main CI claim. [Issue #49](https://github.com/Rengerams/wilderfolk/issues/49) is the authoritative technical audit and implementation contract, with the owner-approved scope changes recorded in the implementation brief. One coordinated implementation pipeline in v0.6.5.2. The detailed technical audit supplied by the project owner is the implementation brief; the coding agent may improve its proposed architecture while preserving the mandatory behavior below. This is not a claim that the work has shipped.
-
-- [x] **Audit and architecture:** inspect `AGENTS.md`, `OWNERSHIP_OVERVIEW.md`, existing strip placement/topology/rendering, building commands, terrain rules, movement, existing saves and tests. Identify one authoritative owner per rule, root causes and the safest integration strategy.
-- [x] **Road construction UX:** click-and-drag produces one logical command, with continuous segments, reliable snapping, extensions, corners, T-junctions, crossroads, building entrances and faithful live previews. No silent gaps or mismatched preview/commit.
-- [x] **Terrain:** permit roads on ordinarily walkable ground without treating them as building foundations; retain impassable cliffs and water restrictions and explicit bridge rules.
-- [x] **Wall construction and gates:** easy continuous drag walls with exact visual/logical connections; insert gates into existing wall segments without manual demolition. Invalid insertion leaves the original wall intact.
-- [x] **Navigation correctness:** completed walls are impassable except through genuine openings/gates; no diagonal clipping, smoothing shortcuts or blocked-path straight-line fallback. No-path cases must stop or use established unreachable-target recovery.
-- [x] **Road travel benefit:** existing `ROAD_SPEED_MULT` applies only while traversing roads/bridges. Choose the fastest valid route using actual traversal costs, not simply the geometrically shortest line; preserve bounded-search performance, caching and determinism.
-- [x] **Bulk demolition:** single drag for many road/wall segments; one authoritative batch operation with accurate refunds, affected topology/collision/routes updated and ordinary buildings protected.
-- [x] **Rendering and assets:** topology-driven natural paths and connected defensive walls, including all corner/junction/end forms. Investigate current sprites first; any replacement assets must cost €0 and have verified commercial/redistribution licenses and appropriate registration.
-- [x] **Compatibility and scale:** keep older infrastructure saves loadable and IDs stable; validate deterministic rebuilding and repeat save/load, without requiring a real historical save or a full responsiveness benchmark at 1,800 settlers for this PR. Preserve established performance budgets and avoid new global per-tick A* scans.
-
-**Required coding standards:** no re-exports, redundant aliases or competing authoritative systems; name nontrivial constants near the top of their owning modules; reuse existing code where suitable; keep gameplay deterministic. Free/open-source libraries and sprites may be evaluated, but introduce no paid assets. No major unrelated gameplay changes without approval.
-
-**Definition of done:** connected roads work visually and logically; enclosed walls block ordinary movement; gates are passable; roads provide travel benefits; click-and-drag build and demolition work. PR #59 and fixes #65/#66 are accepted. Watchtowers are already implemented as passive simulated defense. Any future §13 combat work is limited to aggregate siege outcomes and reporting, not real-time tower/raid interactions.
-
-## 22. Human needs and food economy — Issue #61 (26 October 2026)
+## 20. Human needs and food economy — Issue #61 (26 October 2026)
 
 **Priority:** high. **Implementation: [x] MERGED AND ACCEPTED (27 October 2026; PR #62).** [Issue #61](https://github.com/Rengerams/wilderfolk/issues/61) preserves the original design and [PR #62](https://github.com/Rengerams/wilderfolk/pull/62) contains the accepted implementation. Unchecked items below are post-merge validation/extension targets, **not** an unaccepted or draft PR.
 
 **Goal:** replace the combined player-human `energy` hunger/exhaustion model with three independent, serialized needs (**nutrition**, **rest**, **stamina**) integrated into existing health, activity, attendance, work output, food, death, persistence and UI. Preserve nonhuman energy rules and prevent visitors/rivals from charging the player's larder.
 
-### 22.1 One authoritative physiology and behavior pipeline
+### 20.1 One authoritative physiology and behavior pipeline
 
 - [x] **Canonical saved state:** bounded, normalized 0–100 nutrition/rest/stamina with old-save migration, deterministic worker delta/save round-trip and explicit Moonhowler/human transformation behavior. Do not save redundant derived statuses or keep two writable stamina representations.
 - [x] **Exactly one update per interval:** advance physiology from observed elapsed sim time, duty, activity/movement and *verified* sleep once per player human before offscreen throttling. Ensure fast-forward, camera visibility, save/reload and worker execution cannot change physiological or food outcomes.
@@ -713,20 +608,20 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 - [x] **Decision/action split:** deterministic nutrition, sleep and break intents with enter/exit thresholds and hysteresis; existing movement, emergency, labor, housing/hotel occupancy, ledger, hospital and death owners enforce feasible actions. Avoid repeated eating, fake sleep, flickering intents and lost emergency priorities.
 - [x] **Work/health integration (implemented; further long-run tuning remains):** retain real attendance, `scheduleFatigue` as a distinct workload measure, and appropriate health/production consequences without stacking duplicate fatigue penalties. Reconcile legacy perks, wounds, exposure, wells and activity modifiers.
 
-### 22.2 Food economy and quantitative calibration
+### 20.2 Food economy and quantitative calibration
 
 - [x] **Atomic meals:** one successful inventory debit in the existing food ledger restores nutrition exactly once; failed meals do nothing. Replace the legacy energy-threshold meal rule, prevent repeated per-tick consumption and eliminate duplicate daily food charges.
 - [ ] **Food and needs balancing improvements:** refine meal quantities, sleep, stamina, and prolonged deprivation using the existing physiology/food model.
 - [x] **Production and forecast reconciliation:** derive colony food demand, production, spoilage, stock depletion, reserve-days forecast and automated farm planning from consistent parameters and observed worker output, for adults/children and special duties. Update planning/UI assumptions if actual demand differs.
 
-### 22.3 Acceptance and merge gate
+### 20.3 Acceptance and merge gate
 
 - [x] Present three independent needs and grounded reasons for eat/sleep/break/work interruptions in the settler inspector/status; UI must not mutate authoritative needs.
 - [x] **PR acceptance:** #62 merged into `main` on 27 October 2026 and is accepted by the project owner.
 
 **Definition of done:** villagers eat, sleep and rest for different reasons; starvation is gradual and meaningful; work and health respond coherently; food consumed matches food planned and produced; old saves, worker mode, offscreen simulation and nonhuman energy retain their established behavior. Issue #61 is the detailed specification where this roadmap is a summary.
 
-## 23. Merged feature implementation register — 28 October 2026
+## 21. Merged feature implementation register — 28 October 2026
 
 **Project rule: merged = accepted.** This register lists implemented features from merged code on `main`, not proposals or draft status. Future enhancements stay in the feature backlog; this roadmap is an implementation overview, not a test/verification register.
 
@@ -750,19 +645,18 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 | Biome transitions and nature artwork | [#79](https://github.com/Rengerams/wilderfolk/pull/79) | Climate-weighted ecotones, textured vegetation and bundled licensed terrain/nature assets for new generation-v4 maps | `src/game/renderer/`, `public/sprites/nature/`, `THIRD_PARTY_NOTICES.md` |
 | CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
 
-### 23.1 Feature backlog beyond merged scope
+### 21.1 Feature backlog beyond merged scope
 
 These describe **unimplemented or incomplete feature scope**, not test activities. Previously merged implementations remain accepted.
 
 - [ ] **Whole-life DNA personalities:** contextual leisure, relationships, fidelity, parental priorities and persistent experiences (§11).
-- [ ] **Strategic village logistics:** supply routes, warehouse assignments and meaningful bottlenecks (§14).
-- [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§15).
-- [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§16).
-- [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§17).
-- [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§18, §21).
-- [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§19).
+- [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
+- [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).
+- [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
+- [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§17).
+- [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§18).
 - [ ] **Optional deeper simulated siege outcomes:** additional aggregate gate/wall damage and breach consequences with clearer battle reports, within the existing raid simulation (§13). Watchtowers and their defensive bonuses are already implemented; no active tower fire or real-time combat.
 
-### 23.2 Canonical document and implementation boundary
+### 21.2 Canonical document and implementation boundary
 
 The root `roadmap_V.0.6.5.2.md` is canonical. The redundant `docs/` roadmap copy was removed to prevent contradictory status reports. Older architecture descriptions retain historical value, but pre-merge draft language must not override accepted merged implementation.
