@@ -1100,6 +1100,9 @@ export default function App() {
       s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
       const nextView = createInitialViewForWorld(s);
       resetTransientFeedbackForNewSession();
+      // Replacing the colony invalidates the old scene's camera/pause snapshot.
+      // Otherwise the next render could restore it into this brand-new session.
+      spotlightReturnRef.current = null;
       replaceSession(s, nextView);
       setSelectedBuildingType(null);
       setHasSavedGame(false);
@@ -1147,6 +1150,9 @@ export default function App() {
     );
     fixDefaultNames(loaded.world);
     synchronizeTransientFeedbackFromWorld(loaded.world);
+    // Loaded saves own their own view/speed. Never replay a departed scene's
+    // snapshot into the new GameLoop session, even when gameplayActive is unchanged.
+    spotlightReturnRef.current = null;
     replaceSession(loaded.world, loaded.view);
     // A loaded colony is already past the quick-start flow. Leaving the old tutorial state in place
     // let the pause effect run again after the session swap, so the loaded world appeared frozen until
