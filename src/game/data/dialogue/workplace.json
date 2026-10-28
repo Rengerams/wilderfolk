@@ -91,6 +91,86 @@
         }
       ],
       "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_00",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_01",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_10",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_11",
+      "category": "work",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
     }
   ],
   "game": "Wilderfolk Sim",
