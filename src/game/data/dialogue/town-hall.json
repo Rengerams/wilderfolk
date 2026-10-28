@@ -1,12 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.3",
   "category": "social",
   "dialogue_trees": [
     {
       "id": "evt_townHall_foodAid_0",
       "category": "social",
       "eventKey": "townHall.foodAid",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -15,13 +14,13 @@
           "speaker": "speaker",
           "text": "The hall will help us."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_foodAid_1",
       "category": "social",
       "eventKey": "townHall.foodAid",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -30,13 +29,13 @@
           "speaker": "speaker",
           "text": "Thank the officials."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_heard_0",
       "category": "social",
       "eventKey": "townHall.heard",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -45,13 +44,13 @@
           "speaker": "speaker",
           "text": "They listened…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_heard_1",
       "category": "social",
       "eventKey": "townHall.heard",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -60,13 +59,13 @@
           "speaker": "speaker",
           "text": "The record is noted."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_audience_petitioner_0",
       "category": "social",
       "eventKey": "townHall.audience.petitioner",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -75,13 +74,13 @@
           "speaker": "speaker",
           "text": "A word with the leader."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_audience_petitioner_1",
       "category": "social",
       "eventKey": "townHall.audience.petitioner",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -90,13 +89,13 @@
           "speaker": "speaker",
           "text": "I trust our chief."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_audience_leader_0",
       "category": "social",
       "eventKey": "townHall.audience.leader",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -105,13 +104,13 @@
           "speaker": "speaker",
           "text": "Speak freely."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_audience_leader_1",
       "category": "social",
       "eventKey": "townHall.audience.leader",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -120,13 +119,13 @@
           "speaker": "speaker",
           "text": "We will see it done."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_goldAid_0",
       "category": "social",
       "eventKey": "townHall.goldAid",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -135,13 +134,13 @@
           "speaker": "speaker",
           "text": "A coin for the road."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_generic_0",
       "category": "social",
       "eventKey": "townHall.generic",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -150,13 +149,13 @@
           "speaker": "speaker",
           "text": "Busy halls today."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_generic_1",
       "category": "social",
       "eventKey": "townHall.generic",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -165,13 +164,13 @@
           "speaker": "speaker",
           "text": "Papers and plans…"
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_official_0",
       "category": "social",
       "eventKey": "townHall.official",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -180,13 +179,13 @@
           "speaker": "speaker",
           "text": "Next, please."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     },
     {
       "id": "evt_townHall_official_1",
       "category": "social",
       "eventKey": "townHall.official",
-      "mode": "solo",
       "speakers": [
         "speaker"
       ],
@@ -195,7 +194,12 @@
           "speaker": "speaker",
           "text": "The village hears you."
         }
-      ]
+      ],
+      "conversation_type": "one_way"
     }
+  ],
+  "game": "Wilderfolk Sim",
+  "categories": [
+    "social"
   ]
 }
