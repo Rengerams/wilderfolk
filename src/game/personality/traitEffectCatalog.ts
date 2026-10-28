@@ -49,11 +49,11 @@ export const TRAIT_EFFECTS = {
   },
   lucky: {
     benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'lucky.huntOpportunity', factorDelta: 0.04, tendencyDelta: 0.06 },
-    drawback: { when: { kind: 'civic', activity: 'negotiation' }, effectId: 'lucky.overconfidence', factorDelta: -0.04, tendencyDelta: -0.06 },
+    drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'lucky.overconfidence', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   nurturing: {
     benefit: { when: { kind: 'family', activity: 'care' }, effectId: 'nurturing.care', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'leisure', activity: 'solitude' }, effectId: 'nurturing.selfCareDeferral', factorDelta: -0.04, tendencyDelta: -0.06 },
+    drawback: { when: { kind: 'family', activity: 'bereavement' }, effectId: 'nurturing.deeperGrief', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   insightful: {
     benefit: { when: { kind: 'school', activity: 'research' }, effectId: 'insightful.research', factorDelta: 0.06, tendencyDelta: 0.08 },
@@ -61,7 +61,7 @@ export const TRAIT_EFFECTS = {
   },
   chivalrous: {
     benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'chivalrous.protection', factorDelta: 0.06, tendencyDelta: 0.10 },
-    drawback: { when: { kind: 'civic', activity: 'negotiation' }, effectId: 'chivalrous.principledBargain', factorDelta: -0.05, tendencyDelta: -0.06 },
+    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'chivalrous.principledReconciliation', factorDelta: -0.05, tendencyDelta: -0.06 },
   },
   resourceful: {
     benefit: { when: { kind: 'work', job: 'builder', action: 'construction' }, effectId: 'resourceful.improvisation', factorDelta: 0.06, tendencyDelta: 0.06 },
@@ -77,7 +77,7 @@ export const TRAIT_EFFECTS = {
   },
   intuitive: {
     benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'intuitive.socialCues', factorDelta: 0.05, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'civic', activity: 'negotiation' }, effectId: 'intuitive.misreadsSignals', factorDelta: -0.04, tendencyDelta: -0.06 },
+    drawback: { when: { kind: 'social', activity: 'conflict' }, effectId: 'intuitive.misreadsSignals', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   fierce: {
     benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'fierce.resolve', factorDelta: 0.07, tendencyDelta: 0.10 },
