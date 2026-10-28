@@ -47,7 +47,7 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
     const sy = worldToScreenY(tree.y, cam, ch)
       - terrainRiseAt(state.worldMap, tree.x, tree.y) * cam.zoom;
     const baseSize = tree.size > 0 ? tree.size : 12;
-    const canopyVariation = state.worldMap?.generationVersion === 3
+    const canopyVariation = (state.worldMap?.generationVersion ?? 0) >= 3
       ? 0.90 + ((tree.id * 37) % 13) / 65 : 1;
     const size = baseSize * 2.4 * canopyVariation * cam.zoom;
 
@@ -112,7 +112,7 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
     if (isRipeBlueberry && isDrawableSpriteFrame(blueberryTreeFrame)) {
       drawSpriteFrame(ctx, blueberryTreeFrame, sx, sy - size * 0.08, size * 1.82, size * 2.45, 0.5, 0.92);
     } else {
-      const isTall = state.worldMap?.generationVersion === 3 && tree.spriteVariant != null
+      const isTall = (state.worldMap?.generationVersion ?? 0) >= 3 && tree.spriteVariant != null
         ? tree.spriteVariant === 1 : (tree.id % 2) === 1;
       const frame = isTall ? tree2Frame : treeFrame;
       if (isDrawableSpriteFrame(frame)) {
