@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI:** Added independent small, medium and large PR 99 population benchmarks with fixed-seed baseline comparisons, raw artifacts, tick timing and memory summaries; measurements are advisory, not flaky timing gates.
+
 - **Added:** Career history credits verified workplace attendance once per profession and settled calendar day, requiring matching workplace and trade provenance. Actual apprenticeship completion and work thresholds record optional milestones; unverified construction attendance remains uncredited.
 
 - **Changed:** Career and DNA fit break only exact commute-and-skill ties for idle candidates. Old saves start with neutral career history, and worker rollback isolates nested records.

@@ -10,6 +10,8 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
 | CI and standard/slow gate routing | `scripts/test.mjs` | `npm run test:standard`, `npm test -- colony-integration`, `npm test -- full` |
+| PR99 population benchmark workflows | `.github/workflows/perf-population-small.yml`, `perf-population-medium.yml`, `perf-population-large.yml` → `.github/workflows/perf-population-reusable.yml` | Three independent, fixed-seed baseline-vs-PR Actions measurements; no gameplay write authority |
+| Benchmark JSON validation and comparison | `scripts/compare-population-benchmarks.mjs` | Checks seed, population, tick counts and invariants, then publishes comparative CI summary |
 | Producer-colony integration | `tests/longRunColony.integration.test.ts` | Independent 90-day scenario |
 | DNA legacy-consumer source inventory | `tests/personality.legacyConsumerAudit.test.ts` | Standard Vitest: fails on new unregistered legacy DNA rule sites; PR C must make the known six-owner inventory empty and retain the strict guard |
 | Stall-verdict unit regressions | `tests/longRunStallVerdict.test.ts` | Standard Vitest |

@@ -1,0 +1,28 @@
+name: PR99 performance - medium population (750)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/game/**'
+      - 'scripts/perf-at-pop.ts'
+      - 'scripts/simCityProfile.ts'
+      - 'scripts/compare-population-benchmarks.mjs'
+      - '.github/workflows/perf-population-medium.yml'
+      - '.github/workflows/perf-population-reusable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-medium-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    if: github.event_name != 'pull_request' || github.event.pull_request.number == 99
+    uses: ./.github/workflows/perf-population-reusable.yml
+    with:
+      tier: medium
+      population: 750
