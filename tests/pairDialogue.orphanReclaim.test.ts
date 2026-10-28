@@ -118,7 +118,7 @@ describe('paired dialogue — idle half reclaim (F-chat-1)', () => {
     })).toBe(true);
 
     expect(speaking.chatTicks ?? 0).toBeGreaterThan(0);
-    expect(speaking.chatDialogueSessionKey).toBeUndefined();
+    expect(speaking.chatDialogueSessionKey).toBe('solo:52');
     expect(idle.chatDialogueSessionKey).toBeUndefined();
     expect(idle.chatPartnerId).toBeUndefined();
     // The idle half's counter was already 0, so only the released key can make this false.
