@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * Relationship diagnostics truthfulness — Objective 8.
  *
@@ -28,7 +29,7 @@ import {
   setRelationshipDiagnosticsEnabled,
   type RelationshipDiagnosticsSnapshot,
 } from '../src/game/relationshipDiagnostics';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 /**
