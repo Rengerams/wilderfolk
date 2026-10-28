@@ -527,25 +527,26 @@ function sampleF(f: Float32Array, cols: number, rows: number, fx: number, fy: nu
  * Waterfalls contribute localized riffle intensity; neither field affects movement or saves.
  */
 function buildRiverSurfaceFields(map: WorldMap): {
-  riverFlowX: Float32Array;
-  riverFlowY: Float32Array;
+  riverPhase: Float32Array;
+  riverFlowMask: Float32Array;
   riverRapids: Float32Array;
 } {
   const cols = map.waterCols ?? map.cols ?? 0;
   const rows = map.waterRows ?? map.rows ?? 0;
   const n = cols * rows;
-  const riverFlowX = new Float32Array(n);
-  const riverFlowY = new Float32Array(n);
+  const riverPhase = new Float32Array(n);
+  const riverFlowMask = new Float32Array(n);
   const riverRapids = new Float32Array(n);
   const coverage = map.riverDist;
   if (map.generationVersion !== 3 || !coverage || !cols || !rows) {
-    return { riverFlowX, riverFlowY, riverRapids };
+    return { riverPhase, riverFlowMask, riverRapids };
   }
 
   const nearest = new Float32Array(n);
   nearest.fill(Infinity);
   const reach = WATER_CELL * 3;
   for (const path of map.rivers ?? []) {
+    let distanceAlong = 0;
     for (let i = 1; i < path.length; i++) {
       const a = path[i - 1]!;
       const b = path[i]!;
@@ -570,10 +571,13 @@ function buildRiverSurfaceFields(map: WorldMap): {
           const distSq = dx * dx + dy * dy;
           if (distSq >= nearest[idx] || distSq > reach * reach) continue;
           nearest[idx] = distSq;
-          riverFlowX[idx] = vx / length;
-          riverFlowY[idx] = vy / length;
+          // Arc length keeps the wave phase continuous around bends. A dot-product with an
+          // interpolated direction and absolute world position would shear at every curve.
+          riverPhase[idx] = distanceAlong + t * length;
+          riverFlowMask[idx] = 1;
         }
       }
+      distanceAlong += length;
     }
   }
 
@@ -598,7 +602,7 @@ function buildRiverSurfaceFields(map: WorldMap): {
     }
   }
 
-  return { riverFlowX, riverFlowY, riverRapids };
+  return { riverPhase, riverFlowMask, riverRapids };
 }
 
 export interface WhittakerFields {
@@ -637,9 +641,9 @@ export interface WhittakerFields {
   skyOcclusion: Float32Array;
   /** How close each cell is to water — the damp verge along every shore. */
   waterProx: Float32Array;
-  /** Fine, render-only flow direction and localized rapid intensity for revision-3 rivers. */
-  riverFlowX: Float32Array;
-  riverFlowY: Float32Array;
+  /** Fine, render-only along-stream distance, active channel mask and localized rapids. */
+  riverPhase: Float32Array;
+  riverFlowMask: Float32Array;
   riverRapids: Float32Array;
   /**
    * Depth at which this map's water is fully deep — the far end of the water ramp, in elevation
@@ -894,7 +898,7 @@ export function bakeWhittakerGround(
   const fields = precomputedFields ?? buildWhittakerFields(map);
   if (!fields) return null;
   const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx,
-    riverFlowX, riverFlowY, riverRapids, deepWaterDepth } = fields;
+    riverPhase, riverFlowMask, riverRapids, deepWaterDepth } = fields;
 
   const img = ctx.createImageData(W, H);
   const d = img.data;
@@ -1089,12 +1093,11 @@ export function bakeWhittakerGround(
           // Along-stream phase makes the bright wave fronts cross the stream, not run as a global
           // screen-aligned stripe. Stronger whitewater only appears near actual waterfall drops.
           if (rd > 0.55 && waterBlend > 0.5) {
-            const fx = sampleF(riverFlowX, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-            const fy = sampleF(riverFlowY, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-            const speed = Math.hypot(fx, fy);
-            if (speed > 0.2) {
+            const flowMask = sampleF(riverFlowMask, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
+            if (flowMask > 0.5) {
               const rapid = sampleF(riverRapids, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
-              const phase = (wx * fx + wy * fy) * 0.25
+              const distanceAlong = sampleF(riverPhase, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
+              const phase = distanceAlong * 0.25
                 + (valueNoise(wx * 0.045, wy * 0.045, seed + 6130) - 0.5) * 3.5;
               const crest = Math.max(0, Math.sin(phase)) ** 8;
               const highlight = crest * (0.065 + 0.58 * rapid) * waterBlend;
