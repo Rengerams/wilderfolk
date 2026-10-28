@@ -30,24 +30,25 @@ describe('revision-three river surface details', () => {
     const originalWater = Float32Array.from(map.riverDist!);
     const a = buildWhittakerFields(map)!;
     const b = buildWhittakerFields(map)!;
-    expect(a.riverFlowX).toEqual(b.riverFlowX);
-    expect(a.riverFlowY).toEqual(b.riverFlowY);
+    expect(a.riverPhase).toEqual(b.riverPhase);
+    expect(a.riverFlowMask).toEqual(b.riverFlowMask);
     expect(a.riverRapids).toEqual(b.riverRapids);
     expect(map.riverDist).toEqual(originalWater);
 
     let directedWaterCells = 0;
     for (let i = 0; i < originalWater.length; i++) {
-      const norm = Math.hypot(a.riverFlowX[i], a.riverFlowY[i]);
-      if (norm === 0) continue;
+      const assigned = a.riverFlowMask[i];
+      if (assigned === 0) continue;
       expect(originalWater[i]).toBeGreaterThan(0.32);
-      expect(norm).toBeCloseTo(1, 5);
+      expect(assigned).toBe(1);
+      expect(a.riverPhase[i]).toBeGreaterThanOrEqual(0);
       if (originalWater[i] > 0.55) directedWaterCells++;
     }
     expect(directedWaterCells).toBeGreaterThan(20);
 
     // The render-only effects do not alter the appearance path of compact v1/v2 saves.
     const old = buildWhittakerFields({ ...map, generationVersion: 2 })!;
-    expect(old.riverFlowX.every((v) => v === 0)).toBe(true);
+    expect(old.riverFlowMask.every((v) => v === 0)).toBe(true);
     expect(old.riverRapids.every((v) => v === 0)).toBe(true);
   }, 120_000);
 
@@ -61,7 +62,7 @@ describe('revision-three river surface details', () => {
     for (let y = 6; y < waterRows - 6 && candidate === -1; y++) {
       for (let x = 6; x < waterCols - 6; x++) {
         const i = y * waterCols + x;
-        if (map.riverDist![i] > 0.75 && Math.hypot(plain.riverFlowX[i], plain.riverFlowY[i]) > 0.8) {
+        if (map.riverDist![i] > 0.75 && plain.riverFlowMask[i] === 1) {
           candidate = i;
           break;
         }
