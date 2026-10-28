@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { BuildingType, type WorldState } from '../game/gameEngine';
 import { GameLoop } from '../game/gameLoop';
 import type { EntityCatalog } from '../game/entityCatalog';
@@ -48,6 +48,7 @@ export function useGameSession({
   setCatalog,
   setHasPlacedHouse,
 }: UseGameSessionParams) {
+  const [sessionRevision, setSessionRevision] = useState(0);
   const worldRef = useRef(initialWorld);
   const viewRef = useRef(initialView);
   const loopRef = useRef<GameLoop | null>(null);
@@ -105,6 +106,7 @@ export function useGameSession({
     setWorld(world);
     setView(view);
     loopRef.current?.setSession(world, view);
+    setSessionRevision((revision) => revision + 1);
   }, [setView, setWorld]);
 
   return {
@@ -112,6 +114,7 @@ export function useGameSession({
     catalogRef,
     loopRef,
     replaceSession,
+    sessionRevision,
     viewRef,
     worldRef,
   };

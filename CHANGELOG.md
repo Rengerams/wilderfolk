@@ -2,6 +2,21 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Spotlight follow-up (PR #91):** Anchored visual poses to the heroine's actual arrival position to prevent a first-frame jump; skipped unchanged caption state updates during intro and applause. No game-state or save changes.
+
+- **Spotlight choreography (PR #91):** Moved the scene to 44 canonical JSON captions. Added the heroine's two replies, two 7-second walks, bounded hearts and kiss marks, and a safe departing finale with a smoothly following camera. Tests/browser verification pending.
+
+- **Spotlight timing (PR #91):** Moved the weekend rare-event roll from 16:00 to 19:00; eligibility, 7.5% chance, 90-day cooldown and rewards remain unchanged.
+
+- **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; CI/browser verification pending.
+
+- **Tests:** Corrected the real-tick spotlight `ready` fixture to keep every performer on stage while testing home-commute priority. Preserved strict live attendance rules.
+
+- **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
+
+- **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
+- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
+
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head Node.js CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.

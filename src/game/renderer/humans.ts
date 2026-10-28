@@ -47,7 +47,7 @@ import {
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { presentationPosition } from './motionInterpolation';
+import { getSpotlightPresentationMotion, presentationPosition } from './motionInterpolation';
 import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
@@ -823,8 +823,10 @@ export function drawHumans(
       continue;
     }
 
-    const flipX = human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
-    const speed = Math.hypot(human.vx, human.vy);
+    const stageMotion = getSpotlightPresentationMotion(human.id);
+    const flipX = stageMotion ? stageMotion.facingLeft
+      : human.vx < -0.05 || (Math.abs(human.vx) <= 0.05 && Math.cos(human.spriteAngle ?? 0) < 0);
+    const speed = stageMotion?.moving ? 2 : Math.hypot(human.vx, human.vy);
     const isWalking = speed > HUMAN_WALK_SPEED_THRESHOLD;
     // The step is sampled from the render clock: the sim tick moves `animFrame` once a second, which
     // made a walk a one-second hop. The sprite sheet is still selected from the tick-advanced frame.

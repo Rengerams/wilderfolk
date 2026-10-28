@@ -10,6 +10,7 @@ import { gameTick, computeSimulationFocus, type SimulationFocus } from './gameEn
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycle';
 import { EntityCatalog } from './entityCatalog';
 import { renderGame, resetRendererCaches } from './renderer';
+import type { SpotlightPresentation } from './renderer/motionInterpolation';
 import { getRenderDpr } from './canvasLayer';
 import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
@@ -159,6 +160,7 @@ export class GameLoop {
   private workerRecoveryInFlight = false;
   private workerRecoveryFailures = 0;
   private workerRecoveryDisabled = false;
+  private spotlightPresentation: SpotlightPresentation | null = null;
   private renderSoA: RenderSoAReaderV1 | null = null;
   private renderMetaBySlot: EntityRenderMeta[] | null = null;
   private scentReader: ScentGridReader | null = null;
@@ -541,6 +543,7 @@ export class GameLoop {
   }
 
   private adoptWorldSession(world: WorldState, view: ViewState): void {
+    this.spotlightPresentation = null;
     this.sessionGen++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];
@@ -606,6 +609,11 @@ export class GameLoop {
         console.warn('[GameLoop] Worker importSave failed', err);
         this.fallbackFromWorker('Worker importSave failed');
       });
+  }
+
+  /** Visual-only character projection; never alters worker, entity or simulation positions. */
+  setSpotlightPresentation(presentation: SpotlightPresentation | null): void {
+    this.spotlightPresentation = presentation;
   }
 
   setView(view: ViewState): void {
@@ -1165,7 +1173,7 @@ export class GameLoop {
       this.snapshotKey = dirtyKey;
     }
 
-    renderGame(ctx, snapshot, layoutW, layoutH, this.tickFraction);
+    renderGame(ctx, snapshot, layoutW, layoutH, this.tickFraction, this.spotlightPresentation);
 
     if (this.world.screenShakeImpulse > 0) {
       clearScreenShakeImpulse(this.world);

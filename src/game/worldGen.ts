@@ -674,6 +674,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     pendingElectionYear: null,
     electionBuildupNotifiedYear: null,
     electionCeremony: null,
+    spotlightLore: null,
     villageForge: createInitialForgeState(),
     totalBuildingsCompleted: 0,
     lastProcessedCalendarDay: 0,

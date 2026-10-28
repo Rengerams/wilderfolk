@@ -27,6 +27,22 @@ export function interpolatePosition(
   return { x: previous.x + dx * t, y: previous.y + dy * t };
 }
 
+/** Per-frame visual choreography, never written back to worker or world state. */
+export interface SpotlightPresentation {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly moving: boolean;
+  readonly facingLeft: boolean;
+}
+let spotlightPresentation: SpotlightPresentation | null = null;
+export function setSpotlightPresentationFrame(value: SpotlightPresentation | null): void {
+  spotlightPresentation = value;
+}
+export function getSpotlightPresentationMotion(id: number): SpotlightPresentation | null {
+  return spotlightPresentation?.id === id ? spotlightPresentation : null;
+}
+
 /** Where each mover stood at the previous tick, keyed by entity id. */
 let previousByEntity: ReadonlyMap<number, MotionPosition> = new Map();
 /** Where each mover stands now; refilled in place per frame and promoted at the next tick. */
@@ -62,6 +78,9 @@ export function beginMotionFrame(
 
 /** Where to draw a mover this frame: the previous tick's position blended by the tick fraction. */
 export function presentationPosition(entity: Entity): MotionPosition {
+  if (spotlightPresentation?.id === entity.id) {
+    return { x: spotlightPresentation.x, y: spotlightPresentation.y };
+  }
   const previous = previousByEntity.get(entity.id);
   if (!previous) return { x: entity.x, y: entity.y };
 
@@ -88,6 +107,7 @@ export function presentationPosition(entity: Entity): MotionPosition {
 
 /** Drop every sample — a new session, a loaded save or a world swap. */
 export function resetMotionInterpolation(): void {
+  spotlightPresentation = null;
   previousByEntity = new Map();
   lastSeenByEntity = new Map();
   sampledTick = -1;

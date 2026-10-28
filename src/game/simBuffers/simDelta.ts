@@ -118,6 +118,8 @@ export interface SimTickDelta {
   pendingElectionYear: number | null;
   electionBuildupNotifiedYear: number | null;
   electionCeremony: WorldState['electionCeremony'];
+  spotlightLore: WorldState['spotlightLore'];
+  spotlightLoreLastDay?: number;
   unlockedTechs: string[];
   researchNodes: WorldState['researchNodes'];
   researchProgress: number;
@@ -317,6 +319,8 @@ export function extractSimTickDelta(
     pendingElectionYear: world.pendingElectionYear,
     electionBuildupNotifiedYear: world.electionBuildupNotifiedYear ?? null,
     electionCeremony: deltaCloneOptional(world.electionCeremony, cloneMode),
+    spotlightLore: deltaCloneOptional(world.spotlightLore, cloneMode),
+    spotlightLoreLastDay: world.spotlightLoreLastDay,
     unlockedTechs: cloneMode === 'isolated' ? [...world.unlockedTechs] : world.unlockedTechs,
     researchNodes: deltaClone(world.researchNodes, cloneMode),
     researchProgress: world.researchProgress,
@@ -505,6 +509,8 @@ export function applySimTickDelta(
   world.pendingElectionYear = delta.pendingElectionYear;
   world.electionBuildupNotifiedYear = delta.electionBuildupNotifiedYear;
   world.electionCeremony = deltaCloneOptional(delta.electionCeremony, cloneMode);
+  world.spotlightLore = deltaCloneOptional(delta.spotlightLore, cloneMode);
+  world.spotlightLoreLastDay = delta.spotlightLoreLastDay;
   world.unlockedTechs = cloneMode === 'isolated' ? [...delta.unlockedTechs] : delta.unlockedTechs;
   world.researchNodes = deltaClone(delta.researchNodes, cloneMode);
   world.researchProgress = delta.researchProgress;
