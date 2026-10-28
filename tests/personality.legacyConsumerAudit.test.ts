@@ -158,10 +158,56 @@ function legacyInventory(): { files: number; findings: Record<string, number> } 
   return { files: paths.length, findings };
 }
 
+const findingsFor = (path: string, source: string): Record<string, number> => inventory(path, tokenize(source));
+
 describe('no unregistered legacy DNA gameplay rules', () => {
-  it('finds exactly the known PR C debt, never a new direct trait bonus or pair table', () => {
+  it('keeps the migrated inventory empty across the whole game source tree', () => {
     const { files, findings } = legacyInventory();
     expect(files).toBeGreaterThan(100);
     expect(findings).toEqual(EXPECTED);
+  });
+
+  it('still catches a reintroduced direct trait multiplier', () => {
+    const source = "export function f(e) { return traitMultiplier(e, 'lucky', 1.15); }";
+    expect(findingsFor('src/game/regressionFixture.ts', source))
+      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierCall': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', "function traitMultiplier() { return 1; }"))
+      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierDefinition': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', "import { traitMultiplier } from './settlerTraits';"))
+      .toEqual({ 'src/game/regressionFixture.ts|legacyMultiplierImport': 1 });
+  });
+
+  it('still catches an inlined per-trait gameplay check', () => {
+    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('intuitive')) return 0.11;"))
+      .toEqual({ 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
+    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.some((t) => t === 'fierce')) return 1;"))
+      .toEqual({ 'src/game/regressionFixture.ts|directTraitSome': 1 });
+  });
+
+  it('still catches a reintroduced pair table or pair helper', () => {
+    const source = [
+      "const TRAIT_CLASHES = [['brave', 'timid']];",
+      'function traitClashCount(a, b) { return TRAIT_CLASHES.length; }',
+      'const n = traitClashCount(a, b);',
+    ].join('\n');
+    expect(findingsFor('src/game/regressionFixture.ts', source)).toEqual({
+      'src/game/regressionFixture.ts|legacyPairTable': 1,
+      'src/game/regressionFixture.ts|legacyPairHelperDefinition': 1,
+      'src/game/regressionFixture.ts|legacyPairHelperCall': 1,
+    });
+  });
+
+  it('never counts comments or string literals as rules', () => {
+    const source = [
+      "// traitMultiplier(entity, 'lucky', 1.15) and entity.traits?.includes('intuitive')",
+      "const note = 'traitClashCount(a, b) and traits?.includes(';",
+    ].join('\n');
+    expect(findingsFor('src/game/regressionFixture.ts', source)).toEqual({});
+  });
+
+  it('leaves the genetics owner its own allocation checks', () => {
+    expect(findingsFor(GENETICS_OWNER, "if (e.traits?.includes('brave')) return true;")).toEqual({});
+    expect(findingsFor('src/game/regressionFixture.ts', "if (e.traits?.includes('brave')) return true;"))
+      .toEqual({ 'src/game/regressionFixture.ts|directTraitIncludes': 1 });
   });
 });

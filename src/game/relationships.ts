@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
-import { evaluateTraitPairClashes } from './personality/traitEvaluation';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
@@ -247,7 +247,7 @@ export function advanceSocialRelationships(
     if ((liveFeudsById.get(a.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
     if ((liveFeudsById.get(b.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
 
-    const clashes = evaluateTraitPairClashes(a, b);
+    const clashes = evaluateTraitInfluence(a, { kind: 'social', activity: 'feudClash', other: b }).exact.clashCount;
     if (clashes === 0) return;
     if (rng() >= clashes * INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY) return;
 

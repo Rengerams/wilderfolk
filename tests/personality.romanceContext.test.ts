@@ -2,11 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { SettlerTrait } from '../src/game/gameTypes';
-import { evaluateTraitInfluence, evaluateTraitParityFactor } from '../src/game/personality/traitEvaluation';
-import type { TraitContext } from '../src/game/personality/traitEffectCatalog';
+import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
-const COURTSHIP = { kind: 'social', activity: 'courtship' } as const satisfies TraitContext;
-const CONCEPTION = { kind: 'romance', activity: 'conception' } as const satisfies TraitContext;
+const COURTSHIP_PROGRESS = { kind: 'social', activity: 'courtshipProgress' } as const;
+const CONCEPTION = { kind: 'family', activity: 'conception' } as const;
 
 type Traits = readonly SettlerTrait[];
 
@@ -21,12 +20,11 @@ const legacyCourtshipRate = (base: number, traits: Traits): number =>
   legacyTraitMultiplier(traits, 'timid', 0.7) *
   legacyTraitMultiplier(traits, 'graceful', 1.2);
 
-/** The migrated courtship progress expression, same multiplication order. */
-const catalogCourtshipRate = (base: number, traits: Traits): number =>
-  base *
-  evaluateTraitParityFactor({ traits }, COURTSHIP, 'gregarious') *
-  evaluateTraitParityFactor({ traits }, COURTSHIP, 'timid') *
-  evaluateTraitParityFactor({ traits }, COURTSHIP, 'graceful');
+/** The migrated courtship progress expression, same multiplication positions and order. */
+const catalogCourtshipRate = (base: number, traits: Traits): number => {
+  const orderedFactors = evaluateTraitInfluence({ traits }, COURTSHIP_PROGRESS).exact.orderedFactors;
+  return base * orderedFactors[0] * orderedFactors[1] * orderedFactors[2];
+};
 
 const courtshipCombinations: Traits[] = [
   [],
@@ -42,13 +40,28 @@ const courtshipCombinations: Traits[] = [
 ];
 
 describe('courtship trait parity', () => {
-  it('keeps the historical 1.4 / 0.7 / 1.2 multipliers per trait', () => {
-    expect(evaluateTraitParityFactor({ traits: ['gregarious'] }, COURTSHIP, 'gregarious')).toBe(1.4);
-    expect(evaluateTraitParityFactor({ traits: ['timid'] }, COURTSHIP, 'timid')).toBe(0.7);
-    expect(evaluateTraitParityFactor({ traits: ['graceful'] }, COURTSHIP, 'graceful')).toBe(1.2);
-    expect(evaluateTraitParityFactor({ traits: ['brave'] }, COURTSHIP, 'gregarious')).toBe(1);
-    expect(evaluateTraitParityFactor({}, COURTSHIP, 'gregarious')).toBe(1);
-    expect(evaluateTraitParityFactor({ traits: null }, COURTSHIP, 'timid')).toBe(1);
+  it('keeps the historical 1.4 / 0.7 / 1.2 multipliers in the fixed slot order', () => {
+    expect(evaluateTraitInfluence({ traits: ['gregarious'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
+      .toEqual([1.4, 1, 1]);
+    expect(evaluateTraitInfluence({ traits: ['timid'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
+      .toEqual([1, 0.7, 1]);
+    expect(evaluateTraitInfluence({ traits: ['graceful'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
+      .toEqual([1, 1, 1.2]);
+    expect(evaluateTraitInfluence({ traits: ['brave'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
+      .toEqual([1, 1, 1]);
+    expect(evaluateTraitInfluence({}, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual([1, 1, 1]);
+    expect(evaluateTraitInfluence({ traits: null }, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual([1, 1, 1]);
+  });
+
+  it('keeps the slots DNA-order independent for combined traits', () => {
+    const expected = [1.4, 0.7, 1.2];
+    for (const traits of [
+      ['gregarious', 'timid', 'graceful'],
+      ['timid', 'graceful', 'gregarious'],
+      ['graceful', 'gregarious', 'timid'],
+    ] as Traits[]) {
+      expect(evaluateTraitInfluence({ traits }, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual(expected);
+    }
   });
 
   it('reproduces the old progress rate bit for bit across trait orders and bases', () => {
@@ -60,13 +73,14 @@ describe('courtship trait parity', () => {
   });
 
   it('leaves the bounded projection free of the parity multipliers', () => {
-    expect(evaluateTraitInfluence({ traits: ['gregarious'] }, COURTSHIP)).toEqual({ factor: 1, tendency: 0 });
-    const timid = evaluateTraitInfluence({ traits: ['timid'] }, COURTSHIP);
-    const graceful = evaluateTraitInfluence({ traits: ['graceful'] }, COURTSHIP);
+    const courtship = { kind: 'social', activity: 'courtship' } as const;
+    const timid = evaluateTraitInfluence({ traits: ['timid'] }, courtship);
+    const graceful = evaluateTraitInfluence({ traits: ['graceful'] }, courtship);
     expect(timid.factor).toBeGreaterThan(0.85);
     expect(timid.factor).toBeLessThan(1);
     expect(graceful.factor).toBeGreaterThan(1);
     expect(graceful.factor).toBeLessThanOrEqual(1.15);
+    expect(evaluateTraitInfluence({ traits: ['gregarious'] }, COURTSHIP_PROGRESS).factor).toBe(1);
   });
 });
 
@@ -74,14 +88,14 @@ describe('conception trait parity', () => {
   const married = (chance: number, fertility: number, traits: Traits): number =>
     chance * fertility * legacyTraitMultiplier(traits, 'lucky', 1.15);
   const marriedNow = (chance: number, fertility: number, traits: Traits): number =>
-    chance * fertility * evaluateTraitParityFactor({ traits }, CONCEPTION, 'lucky');
+    chance * fertility * evaluateTraitInfluence({ traits }, CONCEPTION).exact.multiplier;
   const youth = (youthMultiplier: number, fertility: number, traits: Traits): number =>
     0.0012 * youthMultiplier * fertility * legacyTraitMultiplier(traits, 'lucky', 1.15);
   const youthNow = (youthMultiplier: number, fertility: number, traits: Traits): number =>
-    0.0012 * youthMultiplier * fertility * evaluateTraitParityFactor({ traits }, CONCEPTION, 'lucky');
+    0.0012 * youthMultiplier * fertility * evaluateTraitInfluence({ traits }, CONCEPTION).exact.multiplier;
 
   it('keeps the married and youth Lucky factor at exactly 1.15', () => {
-    expect(evaluateTraitParityFactor({ traits: ['lucky'] }, CONCEPTION, 'lucky')).toBe(1.15);
+    expect(evaluateTraitInfluence({ traits: ['lucky'] }, CONCEPTION).exact.multiplier).toBe(1.15);
     for (const chance of [0.0004, 0.0011, 0.02]) {
       for (const fertility of [0.25, 0.6, 1]) {
         expect(marriedNow(chance, fertility, ['lucky'])).toBe(married(chance, fertility, ['lucky']));
@@ -96,9 +110,10 @@ describe('conception trait parity', () => {
     }
   });
 
-  it('leaves an eligible non-Lucky mother on her original chance', () => {
-    expect(evaluateTraitParityFactor({ traits: ['nurturing'] }, CONCEPTION, 'lucky')).toBe(1);
-    expect(evaluateTraitParityFactor({ traits: [] }, CONCEPTION, 'lucky')).toBe(1);
+  it('leaves an eligible non-Lucky mother on her original chance, never zero', () => {
+    expect(evaluateTraitInfluence({ traits: ['nurturing'] }, CONCEPTION).exact.multiplier).toBe(1);
+    expect(evaluateTraitInfluence({ traits: [] }, CONCEPTION).exact.multiplier).toBe(1);
+    expect(evaluateTraitInfluence({}, CONCEPTION).exact.multiplier).toBe(1);
     for (const chance of [0.0004, 0.0011]) {
       for (const fertility of [0.4, 0.9]) {
         expect(marriedNow(chance, fertility, ['nurturing'])).toBe(chance * fertility);
@@ -106,11 +121,14 @@ describe('conception trait parity', () => {
     }
   });
 
-  it('keeps affair conception free of the Lucky factor', () => {
+  it('evaluates only at the two original conception sites and keeps the affair branch clean', () => {
     const source = readFileSync(join(process.cwd(), 'src/game/simulation/humanRelationships.ts'), 'utf8');
+    const conceptionSites = source.split('\n').filter((line) => line.includes('evaluateTraitInfluence(entity, CONCEPTION_CONTEXT)'));
+    expect(conceptionSites).toHaveLength(2);
     const affairLine = source.split('\n').find((line) => line.includes('HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE *'));
     expect(affairLine).toBeDefined();
-    expect(affairLine).not.toContain('evaluateTraitParityFactor');
-    expect(evaluateTraitParityFactor({ traits: ['lucky'] }, { kind: 'romance', activity: 'remorse' }, 'lucky')).toBe(1);
+    expect(affairLine).not.toContain('evaluateTraitInfluence');
+    expect(source).toContain('personDayRoll(entity.id, state.tick, 603)');
+    expect(source).toContain('personDayRoll(entity.id, state.tick, 604)');
   });
 });

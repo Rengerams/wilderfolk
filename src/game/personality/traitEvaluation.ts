@@ -1,10 +1,13 @@
 import type { SettlerTrait } from '../gameTypes';
 import { TRAIT_EFFECTS, TRAIT_OPPOSITIONS } from './traitEffectCatalog';
-import type { TraitContext, TraitEffect, TraitEffects, TraitParityEffect, TraitVote } from './traitEffectCatalog';
-
-export interface TraitSubject {
-  readonly traits?: readonly SettlerTrait[] | null;
-}
+import type {
+  ExactTraitContext,
+  OrdinaryTraitContext,
+  TraitContext,
+  TraitEffect,
+  TraitEffects,
+  TraitSubject,
+} from './traitEffectCatalog';
 
 export interface TraitReason {
   readonly trait: SettlerTrait;
@@ -12,11 +15,25 @@ export interface TraitReason {
   readonly direction: 'benefit' | 'drawback';
 }
 
+/** Exact pre-PR-C answer for a discrete decision; never a bounded factor. */
+export type ExactTraitDecision =
+  | { readonly activity: 'courtshipProgress'; readonly orderedFactors: readonly [number, number, number] }
+  | { readonly activity: 'conception'; readonly multiplier: number }
+  | { readonly activity: 'workplaceBanter'; readonly chanceOverride?: number }
+  | { readonly activity: 'spousalBereavement'; readonly durationDaysOverride?: number }
+  | { readonly activity: 'communityReaction'; readonly restraintVoice: 0 | 1; readonly severityVoice: 0 | 1 }
+  | { readonly activity: 'feudClash'; readonly clashCount: number };
+
 export interface TraitInfluence {
   readonly factor: number;
   readonly tendency: number;
+  readonly exact?: ExactTraitDecision;
   readonly reasons?: readonly TraitReason[];
 }
+
+/** The one exact result a discrete context returns. */
+export type TraitExactInfluence<Activity extends ExactTraitDecision['activity']> =
+  TraitInfluence & { readonly exact: Extract<ExactTraitDecision, { activity: Activity }> };
 
 export interface TraitEvaluationOptions {
   readonly includeReasons?: boolean;
@@ -36,7 +53,125 @@ const NEUTRAL_EXPLAINED: TraitInfluence = Object.freeze({
   reasons: EMPTY_REASONS,
 });
 
-function matchesContext(when: TraitContext, context: TraitContext): boolean {
+interface CourtshipEntry {
+  readonly trait: SettlerTrait;
+  readonly position: 0 | 1 | 2;
+  readonly multiplier: number;
+}
+
+interface SingleValueEntry<Value> {
+  readonly trait: SettlerTrait;
+  readonly value: Value;
+}
+
+/** Static catalog projections: built once so hot paths never rescan the catalog. */
+const COURTSHIP_ENTRIES: CourtshipEntry[] = [];
+const CONCEPTION_ENTRIES: SingleValueEntry<number>[] = [];
+const BANTER_ENTRIES: SingleValueEntry<number>[] = [];
+const BEREAVEMENT_ENTRIES: SingleValueEntry<number>[] = [];
+const RESTRAINT_TRAITS: SettlerTrait[] = [];
+const SEVERITY_TRAITS: SettlerTrait[] = [];
+
+for (const trait of Object.keys(TRAIT_EFFECTS) as SettlerTrait[]) {
+  const profile: TraitEffects = TRAIT_EFFECTS[trait];
+  for (const effect of profile.legacyExact ?? []) {
+    if (effect.activity === 'courtshipProgress') {
+      COURTSHIP_ENTRIES.push({ trait, position: effect.position, multiplier: effect.multiplier });
+    } else if (effect.activity === 'conception') {
+      CONCEPTION_ENTRIES.push({ trait, value: effect.multiplier });
+    } else if (effect.activity === 'workplaceBanter') {
+      BANTER_ENTRIES.push({ trait, value: effect.chance });
+    } else if (effect.activity === 'spousalBereavement') {
+      BEREAVEMENT_ENTRIES.push({ trait, value: effect.durationDays });
+    } else if (effect.activity === 'communityReaction') {
+      (effect.voice === 'restraint' ? RESTRAINT_TRAITS : SEVERITY_TRAITS).push(trait);
+    }
+  }
+}
+
+function traitsOf(subject: TraitSubject | null | undefined): readonly SettlerTrait[] | undefined {
+  const traits = subject?.traits;
+  return Array.isArray(traits) ? traits : undefined;
+}
+
+function hasAny(traits: readonly SettlerTrait[] | undefined, candidates: readonly SettlerTrait[]): boolean {
+  if (traits === undefined) return false;
+  for (const candidate of candidates) {
+    if (traits.includes(candidate)) return true;
+  }
+  return false;
+}
+
+function firstValue<Value>(
+  traits: readonly SettlerTrait[] | undefined,
+  entries: readonly SingleValueEntry<Value>[],
+): Value | undefined {
+  if (traits === undefined) return undefined;
+  for (const entry of entries) {
+    if (traits.includes(entry.trait)) return entry.value;
+  }
+  return undefined;
+}
+
+function feudClashCount(traits: readonly SettlerTrait[] | undefined, other: TraitSubject): number {
+  const otherTraits = traitsOf(other);
+  if (traits === undefined || otherTraits === undefined || traits.length === 0 || otherTraits.length === 0) return 0;
+  let clashes = 0;
+  for (const [left, right] of TRAIT_OPPOSITIONS) {
+    if ((traits.includes(left) && otherTraits.includes(right))
+      || (traits.includes(right) && otherTraits.includes(left))) {
+      clashes++;
+    }
+  }
+  return clashes;
+}
+
+function exactDecision(
+  traits: readonly SettlerTrait[] | undefined,
+  context: Exclude<ExactTraitContext, { activity: 'feudClash' }>,
+): ExactTraitDecision {
+  if (context.activity === 'courtshipProgress') {
+    const orderedFactors: [number, number, number] = [1, 1, 1];
+    if (traits !== undefined) {
+      for (const entry of COURTSHIP_ENTRIES) {
+        if (traits.includes(entry.trait)) orderedFactors[entry.position] *= entry.multiplier;
+      }
+    }
+    return { activity: 'courtshipProgress', orderedFactors };
+  }
+  if (context.activity === 'conception') {
+    let multiplier = 1;
+    if (traits !== undefined) {
+      for (const entry of CONCEPTION_ENTRIES) {
+        if (traits.includes(entry.trait)) multiplier *= entry.value;
+      }
+    }
+    return { activity: 'conception', multiplier };
+  }
+  if (context.activity === 'workplaceBanter') {
+    return { activity: 'workplaceBanter', chanceOverride: firstValue(traits, BANTER_ENTRIES) };
+  }
+  if (context.activity === 'spousalBereavement') {
+    return { activity: 'spousalBereavement', durationDaysOverride: firstValue(traits, BEREAVEMENT_ENTRIES) };
+  }
+  return {
+    activity: 'communityReaction',
+    restraintVoice: hasAny(traits, RESTRAINT_TRAITS) ? 1 : 0,
+    severityVoice: hasAny(traits, SEVERITY_TRAITS) ? 1 : 0,
+  };
+}
+
+function isExactContext(context: TraitContext): context is ExactTraitContext {
+  if (context.kind === 'social') {
+    return context.activity === 'courtshipProgress'
+      || context.activity === 'workplaceBanter'
+      || context.activity === 'feudClash';
+  }
+  if (context.kind === 'family') return context.activity === 'conception' || context.activity === 'spousalBereavement';
+  return context.kind === 'civic' && context.activity === 'communityReaction';
+}
+
+function matchesContext(when: OrdinaryTraitContext, context: OrdinaryTraitContext): boolean {
   if (when.kind !== context.kind) return false;
   if (when.kind === 'work') {
     return context.kind === 'work' && when.job === context.job && when.action === context.action;
@@ -44,18 +179,64 @@ function matchesContext(when: TraitContext, context: TraitContext): boolean {
   return context.kind !== 'work' && when.activity === context.activity;
 }
 
-function parityEffectsOf(trait: unknown): readonly TraitParityEffect[] | undefined {
-  if (typeof trait !== 'string' || !Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, trait)) return undefined;
-  const effects: TraitEffects = TRAIT_EFFECTS[trait as SettlerTrait];
-  return effects.parity;
-}
-
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'social'; readonly activity: 'courtshipProgress' },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'courtshipProgress'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'social'; readonly activity: 'workplaceBanter' },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'workplaceBanter'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'social'; readonly activity: 'feudClash'; readonly other: TraitSubject },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'feudClash'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'family'; readonly activity: 'conception' },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'conception'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'family'; readonly activity: 'spousalBereavement' },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'spousalBereavement'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: { readonly kind: 'civic'; readonly activity: 'communityReaction' },
+  options?: TraitEvaluationOptions,
+): TraitExactInfluence<'communityReaction'>;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: OrdinaryTraitContext,
+  options?: TraitEvaluationOptions,
+): TraitInfluence;
+export function evaluateTraitInfluence(
+  subject: TraitSubject,
+  context: TraitContext,
+  options?: TraitEvaluationOptions,
+): TraitInfluence;
 // Read-only projection: no clocks, random rolls, entity writes or other world state.
 export function evaluateTraitInfluence(
   subject: TraitSubject,
   context: TraitContext,
   options?: TraitEvaluationOptions,
 ): TraitInfluence {
+  if (isExactContext(context)) {
+    const traits = traitsOf(subject);
+    if (context.activity === 'feudClash') {
+      return Object.freeze({
+        factor: 1,
+        tendency: 0,
+        exact: Object.freeze({ activity: 'feudClash' as const, clashCount: feudClashCount(traits, context.other) }),
+      });
+    }
+    return Object.freeze({ factor: 1, tendency: 0, exact: Object.freeze(exactDecision(traits, context)) });
+  }
+
   const explain = options?.includeReasons === true;
   const traits = subject.traits;
   if (!Array.isArray(traits) || traits.length === 0) {
@@ -135,62 +316,4 @@ export function evaluateTraitInfluence(
   return reasons
     ? Object.freeze({ factor, tendency, reasons: Object.freeze(reasons) })
     : Object.freeze({ factor, tendency });
-}
-
-/** Exact-parity multiplier for one trait in one context; 1 when the trait is absent. */
-export function evaluateTraitParityFactor(
-  subject: TraitSubject,
-  context: TraitContext,
-  trait: SettlerTrait,
-): number {
-  const traits = subject.traits;
-  if (!Array.isArray(traits) || traits.length === 0 || !traits.includes(trait)) return 1;
-  const parity = parityEffectsOf(trait);
-  if (parity === undefined) return 1;
-  let factor = 1;
-  for (const effect of parity) {
-    if (effect.mode !== 'multiplier' || !matchesContext(effect.when, context)) continue;
-    factor *= effect.multiplier;
-  }
-  return factor;
-}
-
-/** Exact-parity absolute value for the context; the catalog declares one value per context. */
-export function evaluateTraitParityValue(subject: TraitSubject, context: TraitContext): number | undefined {
-  const traits = subject.traits;
-  if (!Array.isArray(traits) || traits.length === 0) return undefined;
-  for (const trait of traits) {
-    const parity = parityEffectsOf(trait);
-    if (parity === undefined) continue;
-    for (const effect of parity) {
-      if (effect.mode === 'value' && matchesContext(effect.when, context)) return effect.value;
-    }
-  }
-  return undefined;
-}
-
-/** Whether the subject casts the given exact-parity civic vote in the context. */
-export function evaluateTraitParityVote(subject: TraitSubject, context: TraitContext, vote: TraitVote): boolean {
-  const traits = subject.traits;
-  if (!Array.isArray(traits) || traits.length === 0) return false;
-  for (const trait of traits) {
-    const parity = parityEffectsOf(trait);
-    if (parity === undefined) continue;
-    for (const effect of parity) {
-      if (effect.mode === 'vote' && effect.vote === vote && matchesContext(effect.when, context)) return true;
-    }
-  }
-  return false;
-}
-
-/** Number of catalogued opposition pairs shared by two people. */
-export function evaluateTraitPairClashes(a: TraitSubject, b: TraitSubject): number {
-  const aTraits = a.traits;
-  const bTraits = b.traits;
-  if (!Array.isArray(aTraits) || !Array.isArray(bTraits) || aTraits.length === 0 || bTraits.length === 0) return 0;
-  let clashes = 0;
-  for (const [x, y] of TRAIT_OPPOSITIONS) {
-    if ((aTraits.includes(x) && bTraits.includes(y)) || (aTraits.includes(y) && bTraits.includes(x))) clashes++;
-  }
-  return clashes;
 }

@@ -15,11 +15,11 @@ import {
 import { isDialogueBusy, sayHumanChatPhrase } from './humanChat';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { isMarriedOrExpecting } from './civilStatus';
-import { evaluateTraitParityValue } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import type { ExactTraitContext } from './personality/traitEffectCatalog';
 
 /** The catalog context behind work-shift banter between coworkers. */
-const BANTER_CONTEXT = { kind: 'social', activity: 'banter' } as const satisfies TraitContext;
+const BANTER_CONTEXT = { kind: 'social', activity: 'workplaceBanter' } as const satisfies ExactTraitContext;
 
 /** Ordinary banter chance; the catalog may declare a trait-specific replacement. */
 const BANTER_BASE_CHANCE = 0.08;
@@ -429,7 +429,7 @@ export function tryWorkplaceBanter(
   if (!Number.isFinite(hour) || hour < 11 || hour > 13) return;
   if (isDialogueBusy(entity)) return;
 
-  const banterChance = evaluateTraitParityValue(entity, BANTER_CONTEXT) ?? BANTER_BASE_CHANCE;
+  const banterChance = evaluateTraitInfluence(entity, BANTER_CONTEXT).exact.chanceOverride ?? BANTER_BASE_CHANCE;
   if (personDayRoll(entity.id, tick, 720) > banterChance) return;
 
   const mate = coworkers.find((c) => c.id !== entity.id && c.alive && !isDialogueBusy(c));

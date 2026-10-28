@@ -90,10 +90,54 @@ describe('pure personality influence evaluation', () => {
     expect(evaluateTraitInfluence(subject, defense, { includeReasons: true })).toEqual(result);
   });
 
+  it('answers every discrete context exactly and neutrally without DNA', () => {
+    expect(evaluateTraitInfluence({}, { kind: 'social', activity: 'courtshipProgress' }).exact)
+      .toEqual({ activity: 'courtshipProgress', orderedFactors: [1, 1, 1] });
+    expect(evaluateTraitInfluence({ traits: [] }, { kind: 'family', activity: 'conception' }).exact)
+      .toEqual({ activity: 'conception', multiplier: 1 });
+    expect(evaluateTraitInfluence({ traits: null }, { kind: 'social', activity: 'workplaceBanter' }).exact)
+      .toEqual({ activity: 'workplaceBanter', chanceOverride: undefined });
+    expect(evaluateTraitInfluence({}, { kind: 'family', activity: 'spousalBereavement' }).exact)
+      .toEqual({ activity: 'spousalBereavement', durationDaysOverride: undefined });
+    expect(evaluateTraitInfluence({ traits: [] }, { kind: 'civic', activity: 'communityReaction' }).exact)
+      .toEqual({ activity: 'communityReaction', restraintVoice: 0, severityVoice: 0 });
+    expect(evaluateTraitInfluence({}, { kind: 'social', activity: 'feudClash', other: {} }).exact)
+      .toEqual({ activity: 'feudClash', clashCount: 0 });
+    for (const result of [
+      evaluateTraitInfluence({}, { kind: 'social', activity: 'courtshipProgress' }),
+      evaluateTraitInfluence({}, { kind: 'family', activity: 'conception' }),
+      evaluateTraitInfluence({}, { kind: 'civic', activity: 'communityReaction' }),
+    ]) {
+      expect(result.factor).toBe(1);
+      expect(result.tendency).toBe(0);
+    }
+  });
+
+  it('dispatches one mode only: no bounded factor leaks into an exact context', () => {
+    const exact = evaluateTraitInfluence({ traits: ['timid', 'graceful'] }, { kind: 'social', activity: 'courtshipProgress' });
+    expect(exact.factor).toBe(1);
+    expect(exact.exact).toEqual({ activity: 'courtshipProgress', orderedFactors: [1, 0.7, 1.2] });
+    const ordinary = evaluateTraitInfluence({ traits: ['timid'] }, { kind: 'social', activity: 'courtship' });
+    expect(ordinary.exact).toBeUndefined();
+    expect(ordinary.factor).toBeLessThan(1);
+  });
+
+  it('treats malformed exact DNA as neutral instead of throwing', () => {
+    const malformed = { traits: ['not_a_trait', null, 'lucky'] as unknown as SettlerTrait[] };
+    expect(evaluateTraitInfluence(malformed, { kind: 'family', activity: 'conception' }).exact)
+      .toEqual({ activity: 'conception', multiplier: 1.15 });
+    expect(evaluateTraitInfluence(malformed, { kind: 'social', activity: 'workplaceBanter' }).exact)
+      .toEqual({ activity: 'workplaceBanter', chanceOverride: undefined });
+    expect(evaluateTraitInfluence({ traits: ['lucky'] }, { kind: 'social', activity: 'feudClash', other: {} }).exact)
+      .toEqual({ activity: 'feudClash', clashCount: 0 });
+  });
+
   it('never reads, creates or advances a simulation RNG stream', () => {
     const snapshot = snapshotSimRng();
     evaluateTraitInfluence({ traits: ['lucky', 'brave', 'greenthumb'] }, { kind: 'danger', activity: 'hunting' });
     evaluateTraitInfluence({ traits: ['fierce'] }, defense, { includeReasons: true });
+    evaluateTraitInfluence({ traits: ['lucky', 'gregarious'] }, { kind: 'family', activity: 'conception' });
+    evaluateTraitInfluence({ traits: ['brave'] }, { kind: 'social', activity: 'feudClash', other: { traits: ['timid'] } });
     expect(snapshotSimRng()).toEqual(snapshot);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAIT_POOL } from '../src/game/settlerTraits';
 import { TRAIT_EFFECTS } from '../src/game/personality/traitEffectCatalog';
-import type { TraitEffect, TraitEffects } from '../src/game/personality/traitEffectCatalog';
+import type { OrdinaryTraitContext, TraitEffect, TraitEffects } from '../src/game/personality/traitEffectCatalog';
 import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
 describe('personality trait effect catalog', () => {
@@ -63,6 +63,68 @@ describe('personality trait effect catalog', () => {
     const subject = { traits: ['fierce', 'greenthumb', 'resourceful'] as const };
     const context = { kind: 'school', activity: 'teaching' } as const;
     expect(evaluateTraitInfluence(subject, context)).toEqual({ factor: 1, tendency: 0 });
+  });
+
+  it('keeps one typed exact family for the six pre-PR-C decisions', () => {
+    const courtship: Array<{ trait: string; position: number; multiplier: number }> = [];
+    const clashes: string[] = [];
+    const restraint: string[] = [];
+    const severity: string[] = [];
+    const exactIds = new Set<string>();
+    for (const trait of TRAIT_POOL) {
+      const profile: TraitEffects = TRAIT_EFFECTS[trait];
+      for (const effect of profile.legacyExact ?? []) {
+        expect(effect.effectId).toMatch(/^[a-z]+\.[a-zA-Z]+$/);
+        expect(exactIds.has(effect.effectId), effect.effectId).toBe(false);
+        exactIds.add(effect.effectId);
+        if (effect.activity === 'courtshipProgress') {
+          courtship.push({ trait, position: effect.position, multiplier: effect.multiplier });
+        } else if (effect.activity === 'feudClash') {
+          clashes.push(`${trait}/${effect.counterpartTrait}`);
+        } else if (effect.activity === 'communityReaction') {
+          (effect.voice === 'restraint' ? restraint : severity).push(trait);
+        } else if (effect.activity === 'conception') {
+          expect(trait).toBe('lucky');
+          expect(effect.multiplier).toBe(1.15);
+        } else if (effect.activity === 'workplaceBanter') {
+          expect(trait).toBe('intuitive');
+          expect(effect.chance).toBe(0.11);
+        } else {
+          expect(trait).toBe('stoic');
+          expect(effect.durationDays).toBe(5);
+        }
+      }
+    }
+    expect(courtship.sort((a, b) => a.position - b.position))
+      .toEqual([
+        { trait: 'gregarious', position: 0, multiplier: 1.4 },
+        { trait: 'timid', position: 1, multiplier: 0.7 },
+        { trait: 'graceful', position: 2, multiplier: 1.2 },
+      ]);
+    expect(clashes.sort()).toEqual([
+      'brave/timid',
+      'chivalrous/fierce',
+      'fierce/stoic',
+      'gregarious/stoic',
+      'gregarious/timid',
+    ]);
+    expect(restraint.sort()).toEqual(['chivalrous', 'nurturing']);
+    expect(severity).toEqual(['fierce']);
+  });
+
+  it('does not let an exact activity double-apply an ordinary bounded effect', () => {
+    const activityOf = (context: OrdinaryTraitContext): string => ('activity' in context ? context.activity : '');
+    for (const trait of TRAIT_POOL) {
+      const profile: TraitEffects = TRAIT_EFFECTS[trait];
+      const ordinary = [
+        profile.benefit.when,
+        profile.drawback.when,
+        ...(profile.also ?? []).map((entry) => entry.when),
+      ].map((when) => `${when.kind}/${activityOf(when)}`);
+      for (const effect of profile.legacyExact ?? []) {
+        expect(ordinary.some((key) => key.endsWith(`/${effect.activity}`))).toBe(false);
+      }
+    }
   });
 
   it('matches job and activity rather than granting a universal work bonus', () => {

@@ -2,40 +2,35 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { SettlerTrait } from '../src/game/gameTypes';
-import {
-  evaluateTraitInfluence,
-  evaluateTraitParityValue,
-  evaluateTraitParityVote,
-} from '../src/game/personality/traitEvaluation';
-import type { TraitContext } from '../src/game/personality/traitEffectCatalog';
+import { TICKS_PER_DAY, killHuman } from '../src/game/dayCycle';
+import { human } from '../src/test/factories';
+import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
 
 type Traits = readonly SettlerTrait[];
 
-const BEREAVEMENT = { kind: 'family', activity: 'bereavement' } as const satisfies TraitContext;
-const BANTER = { kind: 'social', activity: 'banter' } as const satisfies TraitContext;
-const MERCY = { kind: 'civic', activity: 'mercy' } as const satisfies TraitContext;
+const SPOUSAL_BEREAVEMENT = { kind: 'family', activity: 'spousalBereavement' } as const;
+const BEREAVEMENT = { kind: 'family', activity: 'bereavement' } as const;
 
 const SPOUSAL_GRIEF_DAYS = 7;
-const BANTER_BASE_CHANCE = 0.08;
+const REMOVAL_TICK = TICKS_PER_DAY;
 
-// AS-IS references: the retired direct trait checks on each owner path.
-const legacyGriefDays = (traits: Traits | null | undefined): number => (traits?.includes('stoic') ? 5 : SPOUSAL_GRIEF_DAYS);
+/** AS-IS reference: the retired direct Stoic check on the spousal grief path. */
+const legacyGriefDays = (traits: Traits | null | undefined): number =>
+  (traits?.includes('stoic') ? 5 : SPOUSAL_GRIEF_DAYS);
 const griefDays = (traits: Traits | null | undefined): number =>
-  evaluateTraitParityValue({ traits }, BEREAVEMENT) ?? SPOUSAL_GRIEF_DAYS;
+  evaluateTraitInfluence({ traits }, SPOUSAL_BEREAVEMENT).exact.durationDaysOverride ?? SPOUSAL_GRIEF_DAYS;
 
-const legacyBanterChance = (traits: Traits | null | undefined): number =>
-  (traits?.includes('intuitive') ? 0.11 : BANTER_BASE_CHANCE);
-const banterChance = (traits: Traits | null | undefined): number =>
-  evaluateTraitParityValue({ traits }, BANTER) ?? BANTER_BASE_CHANCE;
-
-const legacyRestraint = (people: ReadonlyArray<Traits | null | undefined>): number =>
-  people.filter((traits) => traits?.some((trait) => trait === 'nurturing' || trait === 'chivalrous')).length;
-const legacySeverity = (people: ReadonlyArray<Traits | null | undefined>): number =>
-  people.filter((traits) => traits?.includes('fierce')).length;
-const restraintVotes = (people: ReadonlyArray<Traits | null | undefined>): number =>
-  people.filter((traits) => evaluateTraitParityVote({ traits }, MERCY, 'restraint')).length;
-const severityVotes = (people: ReadonlyArray<Traits | null | undefined>): number =>
-  people.filter((traits) => evaluateTraitParityVote({ traits }, MERCY, 'severity')).length;
+/** AS-IS reference: `Math.max(prior, tick + TICKS_PER_DAY * griefDays)`. */
+const griefUntilTick = (
+  traits: Traits | null | undefined,
+  tick: number | null,
+  prior: number | undefined,
+  legacy: boolean,
+): number | undefined => {
+  if (tick == null) return prior;
+  const days = legacy ? legacyGriefDays(traits) : griefDays(traits);
+  return Math.max(prior ?? 0, tick + TICKS_PER_DAY * days);
+};
 
 const traitSets: Array<Traits | null | undefined> = [
   undefined,
@@ -44,68 +39,63 @@ const traitSets: Array<Traits | null | undefined> = [
   ['stoic'],
   ['brave'],
   ['stoic', 'brave'],
-  ['intuitive'],
-  ['intuitive', 'stoic'],
   ['nurturing'],
-  ['chivalrous'],
-  ['fierce'],
-  ['chivalrous', 'fierce'],
+  ['stoic', 'nurturing'],
 ];
 
 describe('spousal grief parity', () => {
   it('keeps Stoic at 5 days and everyone else at 7', () => {
-    expect(evaluateTraitParityValue({ traits: ['stoic'] }, BEREAVEMENT)).toBe(5);
-    expect(evaluateTraitParityValue({ traits: ['nurturing'] }, BEREAVEMENT)).toBeUndefined();
+    expect(evaluateTraitInfluence({ traits: ['stoic'] }, SPOUSAL_BEREAVEMENT).exact.durationDaysOverride).toBe(5);
+    expect(evaluateTraitInfluence({ traits: ['nurturing'] }, SPOUSAL_BEREAVEMENT).exact.durationDaysOverride)
+      .toBeUndefined();
     for (const traits of traitSets) {
-      expect(griefDays(traits)).toBe(legacyGriefDays(traits));
+      expect(griefDays(traits), JSON.stringify(traits)).toBe(legacyGriefDays(traits));
     }
   });
 
-  it('leaves affair grief untouched', () => {
+  it('does not turn Nurturing into longer grief', () => {
+    expect(griefDays(['nurturing'])).toBe(SPOUSAL_GRIEF_DAYS);
+    expect(griefDays(['stoic', 'nurturing'])).toBe(legacyGriefDays(['stoic', 'nurturing']));
+    expect(griefDays(['stoic', 'nurturing'])).toBe(5);
+  });
+
+  it('keeps the tick-null guard and the never-shorten maximum', () => {
+    for (const traits of traitSets) {
+      expect(griefUntilTick(traits, 1000, undefined, false)).toBe(griefUntilTick(traits, 1000, undefined, true));
+      expect(griefUntilTick(traits, null, undefined, false)).toBeUndefined();
+    }
+    const longExisting = 5000 + 30 * TICKS_PER_DAY;
+    expect(griefUntilTick(['stoic'], 5000, longExisting, false)).toBe(longExisting);
+    expect(griefUntilTick(['stoic'], 5000, longExisting, false))
+      .toBe(griefUntilTick(['stoic'], 5000, longExisting, true));
+    expect(griefUntilTick(['brave'], 5000, undefined, false)).toBe(5000 + 7 * TICKS_PER_DAY);
+    expect(griefUntilTick(['stoic'], 5000, undefined, false)).toBe(5000 + 5 * TICKS_PER_DAY);
+  });
+
+  it('writes the same grief window at the owner boundary', () => {
+    const widowGrief = (traits: Traits): number => {
+      const dead = human(1, { gender: 'male', age: 41, partnerId: 2, relationshipStatus: 'married' });
+      const widow = human(2, { gender: 'female', age: 38, partnerId: 1, relationshipStatus: 'married', traits: [...traits] });
+      const byId = new Map<number, typeof dead>([[1, dead], [2, widow]]);
+      killHuman(dead, [], byId, REMOVAL_TICK);
+      return widow.griefUntilTick ?? -1;
+    };
+    expect(widowGrief(['stoic'])).toBe(REMOVAL_TICK + 5 * TICKS_PER_DAY);
+    expect(widowGrief(['brave'])).toBe(REMOVAL_TICK + 7 * TICKS_PER_DAY);
+    expect(widowGrief(['nurturing'])).toBe(REMOVAL_TICK + 7 * TICKS_PER_DAY);
+    expect(widowGrief([])).toBe(REMOVAL_TICK + 7 * TICKS_PER_DAY);
+  });
+
+  it('leaves the secret lover at 3 days and the ordinary bereavement projection untouched', () => {
     const source = readFileSync(join(process.cwd(), 'src/game/humanLifecycleCleanup.ts'), 'utf8');
     const loverLine = source.split('\n').find((line) => line.includes('lover.griefUntilTick'));
     expect(loverLine).toBeDefined();
     expect(loverLine).toContain('TICKS_PER_DAY * 3');
-    expect(loverLine).not.toContain('evaluateTraitParityValue');
-  });
+    expect(loverLine).not.toContain('evaluateTraitInfluence');
 
-  it('keeps the bounded bereavement projection separate from the mourning window', () => {
     const stoic = evaluateTraitInfluence({ traits: ['stoic'] }, BEREAVEMENT);
     expect(stoic.factor).toBeGreaterThan(1);
     expect(stoic.factor).toBeLessThanOrEqual(1.15);
-    expect(evaluateTraitParityValue({ traits: ['stoic'] }, BEREAVEMENT)).toBe(5);
-  });
-});
-
-describe('work banter parity', () => {
-  it('keeps Intuitive at 0.11 against the ordinary 0.08', () => {
-    expect(evaluateTraitParityValue({ traits: ['intuitive'] }, BANTER)).toBe(0.11);
-    expect(evaluateTraitParityValue({ traits: ['brave'] }, BANTER)).toBeUndefined();
-    for (const traits of traitSets) {
-      expect(banterChance(traits)).toBe(legacyBanterChance(traits));
-    }
-  });
-});
-
-describe('civic voice parity', () => {
-  it('counts one restraint vote for Nurturing or Chivalrous and a separate severity vote for Fierce', () => {
-    expect(evaluateTraitParityVote({ traits: ['nurturing'] }, MERCY, 'restraint')).toBe(true);
-    expect(evaluateTraitParityVote({ traits: ['chivalrous'] }, MERCY, 'restraint')).toBe(true);
-    expect(evaluateTraitParityVote({ traits: ['fierce'] }, MERCY, 'severity')).toBe(true);
-    expect(evaluateTraitParityVote({ traits: ['fierce'] }, MERCY, 'restraint')).toBe(false);
-    expect(evaluateTraitParityVote({ traits: ['brave'] }, MERCY, 'severity')).toBe(false);
-    expect(evaluateTraitParityVote({}, MERCY, 'restraint')).toBe(false);
-    expect(evaluateTraitParityVote({ traits: null }, MERCY, 'restraint')).toBe(false);
-  });
-
-  it('lets a Chivalrous Fierce villager vote in both categories, as before', () => {
-    const both = ['chivalrous', 'fierce'] as const;
-    expect(evaluateTraitParityVote({ traits: both }, MERCY, 'restraint')).toBe(true);
-    expect(evaluateTraitParityVote({ traits: both }, MERCY, 'severity')).toBe(true);
-  });
-
-  it('reproduces the old community counts exactly', () => {
-    expect(restraintVotes(traitSets)).toBe(legacyRestraint(traitSets));
-    expect(severityVotes(traitSets)).toBe(legacySeverity(traitSets));
+    expect(evaluateTraitInfluence({ traits: ['stoic'] }, SPOUSAL_BEREAVEMENT).exact.durationDaysOverride).toBe(5);
   });
 });

@@ -52,8 +52,8 @@ import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOpt
 import { startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
-import { evaluateTraitParityFactor } from '../personality/traitEvaluation';
-import type { TraitContext } from '../personality/traitEffectCatalog';
+import { evaluateTraitInfluence } from '../personality/traitEvaluation';
+import type { ExactTraitContext } from '../personality/traitEffectCatalog';
 import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
@@ -66,7 +66,7 @@ import { personDayRoll } from '../dayCycle';
 import { addReputation } from '../simHelpers';
 
 /** The catalog context behind a married or youth conception roll. */
-const CONCEPTION_CONTEXT = { kind: 'romance', activity: 'conception' } as const satisfies TraitContext;
+const CONCEPTION_CONTEXT = { kind: 'family', activity: 'conception' } as const satisfies ExactTraitContext;
 
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
@@ -848,7 +848,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const fertility = getFemaleFertility(entity.age);
       if (together && fertility > 0) {
         const baseChance = bothAtSharedHome ? HUMAN_DAILY_PREGNANCY_CHANCE_HOME : HUMAN_DAILY_PREGNANCY_CHANCE_NEAR;
-        if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * evaluateTraitParityFactor(entity, CONCEPTION_CONTEXT, 'lucky')) {
+        const conceptionMultiplier = evaluateTraitInfluence(entity, CONCEPTION_CONTEXT).exact.multiplier;
+        if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * conceptionMultiplier) {
           startMarriedPregnancy(state, entity, partner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
@@ -888,7 +889,8 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const youthMultiplier = getYouthConceptionMultiplier(entity.age);
       if (nearYouthPartner && fertility > 0 && youthMultiplier > 0) {
         const chance =
-          HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * evaluateTraitParityFactor(entity, CONCEPTION_CONTEXT, 'lucky');
+          HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility
+          * evaluateTraitInfluence(entity, CONCEPTION_CONTEXT).exact.multiplier;
         if (personDayRoll(entity.id, state.tick, 604) < chance) {
           startYouthPregnancy(state, entity, youthPartner);
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
