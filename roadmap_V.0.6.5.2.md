@@ -221,6 +221,7 @@ This roadmap records **feature availability only**. Specifications and implement
 
 These describe **unimplemented or incomplete features**, not test activities or implementation plans. Previously merged implementations remain accepted.
 
+- [ ] **The Look — juvenile spotlight:** rare juvenile festival performance with gathered real actors, staged JSON captions and camera/skip controls; implementation in open PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) pending merge. See [Spotlight architecture](docs/SPOTLIGHT_LORE_ARCHITECTURE.md).
 - [ ] **Whole-life DNA personalities (remaining phases):** expand contextual leisure, fidelity, parental priorities and persistent experiences beyond the six canonical migrations in merged DNA phases A–C (§11).
 - [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
 - [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).

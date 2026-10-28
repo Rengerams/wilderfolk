@@ -58,6 +58,8 @@ import { isRotatableBuildingType, toggleBuildingRotation } from './game/building
 import { preloadAllSprites } from './game/spriteLoader';
 import SelectedBuildingPanel from './components/SelectedBuildingPanel';
 import GameMapStage from './components/GameMapStage';
+import SpotlightLoreOverlay from './components/SpotlightLoreOverlay';
+import { discardSpotlightReturn, takeSpotlightReturn } from './components/spotlightReturnState';
 import { isPlayerHuman } from './game/playerHuman';
 import { areNamesLoaded, loadNames, fixDefaultNames } from './game/nameLoader';
 import { ensureDialogueBankFromBundle, preloadDialogueBank } from './game/dialogueTrees';
@@ -294,6 +296,7 @@ export default function App() {
     catalogRef,
     loopRef,
     replaceSession,
+    sessionRevision,
     viewRef,
     worldRef,
   } = useGameSession({
@@ -438,12 +441,84 @@ export default function App() {
 
   const togglePause = useCallback(() => {
     const loop = loopRef.current;
-    if (!loop) return;
+    if (!loop || loop.getWorld().spotlightLore?.phase === 'ready') return;
     loop.mutateWorld((w) => { w.paused = !w.paused; });
     // Resuming is only a resume. It used to also fire `autoStaffWorkers`, so pressing Space handed
     // every idle settler a job with no confirmation and undid a player's deliberate unstaffing. The
     // labelled "Auto-assign all workers" control owns that decision.
   }, [loopRef]);
+
+  const spotlightReturnRef = useRef<{
+    id: string;
+    camera: ViewState['camera'];
+    favoriteEntityId: number | null;
+    paused: boolean;
+    speed: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const loop = loopRef.current;
+    if (!loop) return;
+    const scene = world.spotlightLore;
+    const prior = spotlightReturnRef.current;
+    if (!gameplayActive) {
+      discardSpotlightReturn(spotlightReturnRef);
+      return;
+    }
+    if (!scene) {
+      const completed = takeSpotlightReturn(spotlightReturnRef);
+      if (!completed) return;
+      loop.patchView({ camera: completed.camera, favoriteEntityId: completed.favoriteEntityId });
+      loop.mutateWorld((w) => { w.paused = completed.paused; w.speed = completed.speed; });
+      return;
+    }
+    if (!prior || prior.id !== scene.id) {
+      const viewBefore = loop.getView();
+      spotlightReturnRef.current = {
+        id: scene.id,
+        camera: { ...viewBefore.camera },
+        favoriteEntityId: viewBefore.favoriteEntityId,
+        paused: scene.phase === 'ready' ? false : loop.getWorld().paused,
+        speed: loop.getWorld().speed,
+      };
+    }
+    const girl = resolveEntity(loop.getWorld(), scene.heroineId);
+    if (girl?.alive) {
+      const aimed = focusCameraOn(loop.getView(), girl.x, girl.y, 1.75);
+      const canvas = canvasRef.current;
+      loop.patchView({
+        camera: clampCameraTarget(
+          aimed.camera, world.width, world.height,
+          canvas?.clientWidth ?? world.width, canvas?.clientHeight ?? world.height,
+        ),
+      });
+    }
+    if (scene.phase === 'ready' && !loop.getWorld().paused) {
+      loop.mutateWorld((w) => { w.paused = true; });
+    }
+  }, [gameplayActive, sessionRevision, world.tick, world.width, world.height, world.spotlightLore, world.spotlightLore?.phase, loopRef]);
+
+  /** Visual follow target only: GameLoop's existing camera interpolation remains the sole owner. */
+  const aimSpotlightCamera = useCallback((x: number, y: number) => {
+    const loop = loopRef.current;
+    if (!loop || loop.getWorld().spotlightLore?.phase !== 'ready') return;
+    const current = loop.getView();
+    if (Math.hypot(current.camera.targetX - x, current.camera.targetY - y) < 0.2) return;
+    const aimed = focusCameraOn(current, x, y, 1.75);
+    const canvas = canvasRef.current;
+    loop.setView({
+      ...current,
+      camera: clampCameraTarget(aimed.camera,
+        loop.getWorld().width, loop.getWorld().height,
+        canvas?.clientWidth ?? loop.getWorld().width,
+        canvas?.clientHeight ?? loop.getWorld().height),
+    });
+  }, [loopRef, canvasRef]);
+
+  const finishSpotlight = useCallback((sceneId: string, reason: 'complete' | 'skipped') => {
+    if (loopRef.current?.getWorld().spotlightLore?.id !== sceneId) return;
+    applyGameAction({ proto: 1, op: 'finishSpotlightLore', sceneId, reason });
+  }, [applyGameAction, loopRef]);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
     primeAudioUnlock();
@@ -709,7 +784,7 @@ export default function App() {
   useEffect(() => {
     const loop = loopRef.current;
     const catalog = catalogRef.current;
-    if (!loop || showIntro || showMapSetup) return;
+    if (!loop || showIntro || showMapSetup || world.spotlightLore) return;
     const view = loop.getView();
     const id = view.favoriteEntityId;
     if (id == null) return;
@@ -727,7 +802,7 @@ export default function App() {
         rect?.width ?? w.width, rect?.height ?? w.height,
       ),
     });
-  }, [world.tick, showIntro, showMapSetup, loopRef, catalogRef]);
+  }, [world.tick, world.spotlightLore, showIntro, showMapSetup, loopRef, catalogRef]);
 
   const selectBuildingType = useCallback((type: BuildingType) => {
     clearSelection();
@@ -1044,6 +1119,9 @@ export default function App() {
       s.tradeRoutes = ensureFullTradeRoutes(initTradeRoutes());
       const nextView = createInitialViewForWorld(s);
       resetTransientFeedbackForNewSession();
+      // Replacing the colony invalidates the old scene's camera/pause snapshot.
+      // Otherwise the next render could restore it into this brand-new session.
+      discardSpotlightReturn(spotlightReturnRef);
       replaceSession(s, nextView);
       setSelectedBuildingType(null);
       setHasSavedGame(false);
@@ -1091,6 +1169,9 @@ export default function App() {
     );
     fixDefaultNames(loaded.world);
     synchronizeTransientFeedbackFromWorld(loaded.world);
+    // Loaded saves own their own view/speed. Never replay a departed scene's
+    // snapshot into the new GameLoop session, even when gameplayActive is unchanged.
+    discardSpotlightReturn(spotlightReturnRef);
     replaceSession(loaded.world, loaded.view);
     // A loaded colony is already past the quick-start flow. Leaving the old tutorial state in place
     // let the pause effect run again after the session swap, so the loaded world appeared frozen until
@@ -1400,8 +1481,18 @@ export default function App() {
             onMouseLeave={handleMouseLeave}
             onContextMenu={handleContextMenu}
           />
-
-        
+          {gameplayActive && world.spotlightLore && (
+            <SpotlightLoreOverlay
+              key={`${sessionRevision}:${world.spotlightLore.id}`}
+              scene={world.spotlightLore}
+              world={world}
+              getCamera={() => loopRef.current?.getView().camera ?? view.camera}
+              canvasRef={canvasRef}
+              onCameraTarget={aimSpotlightCamera}
+              onPresentation={(projection) => loopRef.current?.setSpotlightPresentation(projection)}
+              onFinish={finishSpotlight}
+            />
+          )}
 
           <div className="pointer-events-none absolute inset-0 z-10">
           {/* Strip gestures: a contextual hint makes bulk demolition discoverable. */}
