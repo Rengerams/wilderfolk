@@ -8,7 +8,7 @@ type EndReason = 'complete' | 'skipped';
 interface Props {
   scene: SpotlightLoreState;
   world: WorldState;
-  camera: Camera;
+  getCamera: () => Camera;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   onFinish: (sceneId: string, reason: EndReason) => void;
 }
@@ -52,11 +52,20 @@ function lineDuration(text: string): number {
 }
 
 /** Read-only in-map scene: simulation remains paused, speech advances by wall time. */
-export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, onFinish }: Props) {
+export default function SpotlightLoreOverlay({ scene, world, getCamera, canvasRef, onFinish }: Props) {
   const [lineIndex, setLineIndex] = useState(-1);
   const completed = useRef(false);
   const finishRef = useRef(onFinish);
   finishRef.current = onFinish;
+  const getCameraRef = useRef(getCamera);
+  getCameraRef.current = getCamera;
+  const radialRef = useRef<HTMLDivElement | null>(null);
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const actorsRef = useRef<{
+    girl: { x: number; y: number } | null;
+    speaker: { x: number; y: number } | null;
+  }>({ girl: null, speaker: null });
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
@@ -76,6 +85,45 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
   const girl = resolveEntity(world, scene.heroineId);
   const speakerId = scene.performerIds[Math.max(0, lineIndex) % scene.performerIds.length];
   const speaker = resolveEntity(world, speakerId ?? null);
+  // A paused simulation still eases the renderer camera on every animation frame.
+  // Keep the stage's screen-space anchors in that exact live camera projection,
+  // without committing 60 React updates/s or searching world entities per frame.
+  actorsRef.current = {
+    girl: girl ? { x: girl.x, y: girl.y } : null,
+    speaker: speaker ? { x: speaker.x, y: speaker.y } : null,
+  };
+  useEffect(() => {
+    let frame = 0;
+    const sync = () => {
+      const camera = getCameraRef.current();
+      const { girl: star, speaker: voice } = actorsRef.current;
+      const cw = canvasRef.current?.clientWidth ?? 800;
+      const ch = canvasRef.current?.clientHeight ?? 600;
+      const [gx, gy] = star
+        ? worldToScreen(star.x, star.y, camera, cw, ch)
+        : [cw / 2, ch / 2];
+      const [sx, sy] = voice
+        ? worldToScreen(voice.x, voice.y, camera, cw, ch)
+        : [cw / 2, ch / 2];
+      if (radialRef.current) {
+        radialRef.current.style.background =
+          `radial-gradient(ellipse 180px 145px at ${gx}px ${gy - 32}px, transparent 0%, rgba(12,11,8,0.08) 40%, rgba(12,11,8,0.5) 100%)`;
+      }
+      if (ringRef.current) {
+        ringRef.current.style.left = `${gx}px`;
+        ringRef.current.style.top = `${gy - 18}px`;
+      }
+      if (bubbleRef.current) {
+        bubbleRef.current.style.left = `${Math.min(cw - 160, Math.max(160, sx))}px`;
+        bubbleRef.current.style.top = `${Math.max(85, Math.min(ch - 140, sy - 82)) - 30}px`;
+      }
+      frame = window.requestAnimationFrame(sync);
+    };
+    sync();
+    return () => window.cancelAnimationFrame(frame);
+  }, [canvasRef, scene.id]);
+
+  const camera = getCameraRef.current();
   const cw = canvasRef.current?.clientWidth ?? 800;
   const ch = canvasRef.current?.clientHeight ?? 600;
   const [girlX, girlY] = girl
@@ -97,6 +145,7 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
   return (
     <div className="pointer-events-auto absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
       <div
+        ref={radialRef}
         className="absolute inset-0 transition-opacity duration-700"
         aria-hidden="true"
         style={{
@@ -104,6 +153,7 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
         }}
       />
       <div
+        ref={ringRef}
         className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
         style={{ left: girlX, top: girlY - 18 }}
         aria-hidden="true"
@@ -119,6 +169,7 @@ export default function SpotlightLoreOverlay({ scene, world, camera, canvasRef, 
       ) : line && speaker ? (
         <>
           <div
+            ref={bubbleRef}
             className="absolute z-10 w-[min(20rem,75%)] -translate-x-1/2 rounded-xl border border-stone-700 bg-amber-50 px-4 py-3 text-center text-sm text-stone-900 shadow-2xl"
             style={{ left: visualX, top: visualY - 30 }}
             role="status"
