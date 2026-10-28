@@ -127,8 +127,8 @@ describe('PR #91 group-caption JSON compatibility', () => {
     expect(Object.isFrozen(scene.lines)).toBe(true);
   });
 
-  it('binds exactly the numbered roles to real performer IDs, leaving extra gathered villagers silent', () => {
-    const roles = Array.from({ length: 6 }, (_, i) => `speaker_${i + 1}`);
+  it('binds all gathered adults to the 31-caption ten-role Spotlight script', () => {
+    const roles = Array.from({ length: 10 }, (_, i) => `speaker_${i + 1}`);
     const source = {
       version: '1.3',
       game: 'Wilderfolk Sim',
@@ -147,41 +147,35 @@ describe('PR #91 group-caption JSON compatibility', () => {
       }],
     };
     const presentation = readPresentationDialogue(source, 'spotlight.lore');
-    const performers = [102, 107, 109, 114, 120, 123, 130, 135];
-    const bound = bindNumberedPresentationSpeakers(presentation, performers);
-    expect(bound).toHaveLength(31);
-    expect(bound.map((line) => line.speakerId)).toEqual(
-      Array.from({ length: 31 }, (_, i) => performers[i % 6]),
-    );
-    expect(bound.map((line) => line.text)).toEqual(
-      Array.from({ length: 31 }, (_, i) => `Line ${i + 1}`),
-    );
-    expect(new Set(bound.map((line) => line.speakerId)).size).toBe(6);
-    expect(bound.some((line) => line.speakerId === 130 || line.speakerId === 135)).toBe(false);
-    expect(Object.isFrozen(bound)).toBe(true);
-    expect(performers).toHaveLength(8);
-
-    expect(() => bindNumberedPresentationSpeakers(presentation, performers.slice(0, 5)))
+    const actors = [102, 107, 109, 114, 120, 123, 130, 135, 140, 145];
+    for (let size = 6; size <= 10; size++) {
+      const cast = Object.freeze(actors.slice(0, size));
+      const bound = bindNumberedPresentationSpeakers(presentation, cast);
+      expect(bound).toHaveLength(31);
+      expect(bound.map((line) => line.speakerId), `cast of ${size}`)
+        .toEqual(Array.from({ length: 31 }, (_, i) => cast[i % 10 % cast.length]));
+      expect(bound.map((line) => line.text))
+        .toEqual(Array.from({ length: 31 }, (_, i) => `Line ${i + 1}`));
+      expect(new Set(bound.map((line) => line.speakerId)).size).toBe(size);
+      expect(Object.isFrozen(bound)).toBe(true);
+    }
+    expect(() => bindNumberedPresentationSpeakers(presentation, actors.slice(0, 5)))
       .toThrow(/6–10 real performers/);
-    expect(() => bindNumberedPresentationSpeakers(presentation, [...performers, 141, 142, 143]))
+    expect(() => bindNumberedPresentationSpeakers(presentation, [...actors, 147]))
       .toThrow(/6–10 real performers/);
-    expect(() => bindNumberedPresentationSpeakers(presentation, [...performers, 130]))
-      .toThrow(/Invalid or duplicate/);
     expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, 102]))
       .toThrow(/Invalid or duplicate/);
     expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, -1]))
       .toThrow(/Invalid or duplicate/);
     const nonNumbered = readPresentationDialogue(groupSource, 'spotlight.theLook');
-    expect(() => bindNumberedPresentationSpeakers(nonNumbered, performers))
+    expect(() => bindNumberedPresentationSpeakers(nonNumbered, actors))
       .toThrow(/must be sequential/);
   });
 
-  it('accepts every gathering size from six through ten without inventing extra actors', () => {
+  it('rejects a script that leaves a gathered actor without a line', () => {
     const roles = Array.from({ length: 6 }, (_, i) => `speaker_${i + 1}`);
     const source = {
-      version: '1.3',
-      game: 'Wilderfolk Sim',
-      category: 'festival',
+      version: '1.3', game: 'Wilderfolk Sim', category: 'festival',
       categories: ['festival'],
       dialogue_trees: [{
         id: 'spotlight.lore.performance',
@@ -193,14 +187,9 @@ describe('PR #91 group-caption JSON compatibility', () => {
       }],
     };
     const scene = readPresentationDialogue(source, 'spotlight.lore');
-    const actors = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110];
-    for (let size = 6; size <= 10; size++) {
-      const cast = Object.freeze(actors.slice(0, size));
-      const bound = bindNumberedPresentationSpeakers(scene, cast);
-      expect(bound.map((line) => line.speakerId), `cast size ${size}`).toEqual(actors.slice(0, 6));
-      expect(bound.every((line) => cast.includes(line.speakerId))).toBe(true);
-      expect(Object.isFrozen(bound)).toBe(true);
-    }
+    const cast = [101, 102, 103, 104, 105, 106, 107, 108];
+    expect(() => bindNumberedPresentationSpeakers(scene, cast))
+      .toThrow(/Every gathered performer must speak/);
   });
 
   it('reuses real adults deterministically when a script declares more roles than the cast', () => {
