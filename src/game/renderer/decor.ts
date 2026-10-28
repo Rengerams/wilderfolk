@@ -107,11 +107,18 @@ function drawPropArtwork(ctx: CanvasRenderingContext2D, d: TerrainDecoration): v
   const frame = getSpriteFrame(art.sprite);
   if (!frame) return; // loaded by preloadAllSprites before the terrain cache is created
   const source = art.crop ?? [frame.sx, frame.sy, frame.sw, frame.sh];
-  const scale = d.scale;
+  // Isometric white stone cubes previously overwhelmed mountains in the first
+  // real-browser screenshots. Keep their gameplay position/occupancy unchanged;
+  // adjust the *rendered* material size and value only in new worlds.
+  const isRock = d.type === 'rock_small' || d.type === 'rock_big';
+  const scale = d.scale * (isRock ? 0.72 : 1);
   const w = art.width * scale, h = art.height * scale;
   // Bottom-anchored sprites match the terrain height and avoid planted-in-air foliage.
+  const previousFilter = ctx.filter;
+  if (isRock) ctx.filter = 'brightness(0.74) saturate(0.78)';
   ctx.drawImage(frame.image, source[0], source[1], source[2], source[3],
     -w / 2, -h * 0.9, w, h);
+  if (isRock) ctx.filter = previousFilter;
 }
 
 /** Draw one decorative ground prop (no trees — those are Wilderfolk entities). */
