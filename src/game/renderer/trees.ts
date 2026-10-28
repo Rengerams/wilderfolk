@@ -1,6 +1,7 @@
 import type { RenderSnapshot } from '../renderSnapshot';
 import type { Entity } from '../gameTypes';
 import { getSpriteFrame } from '../spriteLoader';
+import { terrainRiseAt } from '../terrainAtlas';
 import { isDrawableSpriteFrame } from './shared';
 import { drawContactShadow, drawGroundAO, drawSpriteFrame } from './spriteDrawing';
 import { _cachedTrees } from './entityCache';
@@ -42,7 +43,9 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   for (let i = 0; i < trees.length; i++) {
     const tree = trees[i];
     const sx = worldToScreenX(tree.x, cam, cw);
-    const sy = worldToScreenY(tree.y, cam, ch);
+    // Root and contact shadow follow the same terrain elevation as settlers and buildings.
+    const sy = worldToScreenY(tree.y, cam, ch)
+      - terrainRiseAt(state.worldMap, tree.x, tree.y) * cam.zoom;
     const baseSize = tree.size > 0 ? tree.size : 12;
     const canopyVariation = state.worldMap?.generationVersion === 3
       ? 0.90 + ((tree.id * 37) % 13) / 65 : 1;
