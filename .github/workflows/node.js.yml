@@ -34,5 +34,6 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Run tests
-        run: npm run build:ci
+        run: npm run test:standard && npm run build
+      
 
