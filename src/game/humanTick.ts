@@ -36,9 +36,9 @@ import {
   chatHintsFromWorld,
   endAmbientHumanChat,
   tickHumanChat,
-  tryAmbientRandomDialogue,
   type HumanChatContext,
 } from './humanChat';
+import { tryAmbientRandomDialogue } from './dialogueTrees';
 import { advanceHumanWalkAnim } from './humanSprites';
 
 import { isRenffrGossipActive } from './renffrStar';
