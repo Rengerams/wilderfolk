@@ -154,6 +154,12 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/human_female.png',
     // Seamless ground fills — exactly the paths `terrainLayer`'s fill table stamps in `bakeTerrainLayer`.
     '/sprites/terrain/grass_fill.png',
+    // Cethiel (CC0) tileable grass albedos: v4 Whittaker ground samples their
+    // pixels once per terrain chunk bake and blends across moisture ecotones.
+    '/sprites/terrain/cethiel/Grass_01.png',
+    '/sprites/terrain/cethiel/Grass_02.png',
+    '/sprites/terrain/cethiel/Grass_03.png',
+    '/sprites/terrain/cethiel/Grass_04.png',
     '/sprites/terrain/forest.png',
     '/sprites/terrain/dirt.png',
     '/sprites/terrain/sand_fill.png',
