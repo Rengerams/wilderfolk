@@ -15,7 +15,7 @@ import {
 } from '../game/gameEngine';
 import type { WorldMap } from '../game/gameTypes';
 import { screenToWorld, worldToScreen, type ViewState } from '../game/viewState';
-import { terrainRiseAt } from '../game/terrainAtlas';
+import { supportsTerrainHeightMesh, terrainRiseAt } from '../game/terrainAtlas';
 import { snapBuildingCenter } from '../game/buildingRotation';
 import { getPlaceBuildingFailureReason } from '../game/buildingPlacementActions';
 import { getPlaceBuildingFailureLabel } from '../game/buildingPlacementLabels';
@@ -238,7 +238,7 @@ export function mapCursorClientPoint(
     };
   }
   const [screenX, screenY] = worldToScreen(
-    cursor.x, cursor.y - terrainRiseAt(map, cursor.x, cursor.y), camera, canvasWidth, canvasHeight,
+    cursor.x, cursor.y - (supportsTerrainHeightMesh(map) ? terrainRiseAt(map, cursor.x, cursor.y) : 0), camera, canvasWidth, canvasHeight,
   );
   return {
     clientX: canvasRect.left + screenX * (canvasRect.width / canvasWidth),
@@ -420,7 +420,8 @@ export function useMapKeyboardCursor({
       if (marker && cursor && viewport) {
         const [screenX, screenY] = worldToScreen(
           cursor.x,
-          cursor.y - terrainRiseAt(worldRef.current.worldMap, cursor.x, cursor.y),
+          cursor.y - (supportsTerrainHeightMesh(worldRef.current.worldMap)
+            ? terrainRiseAt(worldRef.current.worldMap, cursor.x, cursor.y) : 0),
           viewport.camera,
           viewport.width,
           viewport.height,
