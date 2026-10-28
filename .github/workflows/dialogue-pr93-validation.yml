@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Only the newest branch revision should consume runner time.
+concurrency:
+  group: dialogue-pr93-branch
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
