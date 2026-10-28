@@ -57,7 +57,7 @@ import { SCHOOL_GRADUATION_DAYS } from '../education';
 import { recordRelationshipDiagnostic } from '../relationshipDiagnostics';
 import { findHumanWorkplace } from '../workforce';
 import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workSchedule';
-import { requestDialogue } from '../dialogueTrees';
+import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees';
 import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
 import { getSimRng, seededRandomForRun } from '../simRng';
@@ -1710,8 +1710,8 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   const married2 = humanDisplayName(partner);
   logEvent(state, 'marriage', `${married1} and ${married2} got married`, married1);
   addNotification(state, 'Marriage', `${married1} & ${married2} are now married`, 'success');
-  requestDialogue({ eventKey: 'marriage.accepted', speaker: entity, tick: state.tick, durationHours: 4 / 3, priority: 'scripted' });
-  requestDialogue({ eventKey: 'marriage.accepted', speaker: partner, tick: state.tick, durationHours: 4 / 3, priority: 'scripted' });
+  requestDialogue({ eventKey: 'marriage.accepted', speaker: entity, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });
+  requestDialogue({ eventKey: 'marriage.accepted', speaker: partner, tick: state.tick, durationHours: dialogueHoursFromNominalTicks(8), priority: 'scripted' });
   syncPartnerResidence(entity, partner, residences, playerHumans);
   return true;
 }
