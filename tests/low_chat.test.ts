@@ -248,7 +248,7 @@ describe('L37 — dialogue session reclamation', () => {
 describe('L16 — event-key dialogue selection', () => {
   it('requires an actual indexed event key and never falls back to a whole category', () => {
     const actor: ChatSpeaker = { id: 12 };
-    expect(requestDialogue({ eventKey: 'work', speaker: actor, tick: 30 })).toBe(false);
+    expect(requestDialogue({ eventKey: 'work' as DialogueEventKey, speaker: actor, tick: 30 })).toBe(false);
     expect(actor.chatPhrase).toBeUndefined();
     expect(requestDialogue({ eventKey: 'ambient.work', speaker: actor, tick: 30 })).toBe(true);
     const first = actor.chatPhrase;
