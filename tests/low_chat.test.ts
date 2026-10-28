@@ -28,12 +28,11 @@ import { tickHospitalDailyCare, treatPatientAtHospital } from '../src/game/hospi
 import {
   isDialogueBusy,
   resetDialogueSessions,
-  sayHumanChatPhrase,
   startDialogueTreeChat,
   tickHumanChat,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById, pickDialogueTree, maybeDialogueChat } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, pickDialogueTree, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
 import {
   flushRelationshipDiagnostics,
   isRelationshipDiagnosticsEnabled,
@@ -182,7 +181,10 @@ describe('L37 — dialogue session reclamation', () => {
     startDialogueTreeChat(speaker, null, tree, true);
     expect(speaker.chatDialogueSessionKey).toBe('solo:41');
 
-    sayHumanChatPhrase(speaker, 'A forced line', 12);
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker, tick: 4, priority: 'scripted',
+      durationHours: 4 / TICKS_PER_HOUR,
+    })).toBe(true);
     for (let i = 0; i < 4; i++) tickHumanChat(speaker);
     expect(speaker.chatPhrase).toBeUndefined();
 
@@ -215,7 +217,9 @@ describe('L37 — dialogue session reclamation', () => {
     expect(b.chatDialogueSessionKey).toBeDefined();
 
     // A forced phrase abandons the pair session for both sides.
-    sayHumanChatPhrase(a, 'A forced line');
+    expect(requestDialogue({
+      eventKey: 'social.impulse.grief.home', speaker: a, tick: 10, priority: 'scripted',
+    })).toBe(true);
     expect(a.chatDialogueSessionKey).toBeUndefined();
     // The partner still holds the key until its own line finishes.
     expect(b.chatDialogueSessionKey).toBe('51:52');
