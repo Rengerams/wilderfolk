@@ -229,7 +229,10 @@ export function findOverstaffedDonorBuilding(
   excludeBuildingId: number,
   currentTick?: number,
 ): Building | undefined {
-  return pickOverstaffedDonor(jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick), excludeBuildingId);
+  // Match rebalanceJobWorkers: a proposed automatic transfer must leave the same
+  // minimum Quarry/guard coverage that the actual workforce pass protects.
+  // Otherwise the Virtual Player can reissue a no-op autoStaffWorkers every hour.
+  return pickOverstaffedDonor(jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick), excludeBuildingId, true);
 }
 
 export function pickWorkerToTransfer(
