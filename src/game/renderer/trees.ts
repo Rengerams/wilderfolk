@@ -11,6 +11,7 @@ const BLUEBERRY_TREE_SPRITE_PATH = '/sprites/blueberry_tree.png';
 /** Regular tree variants — `tree.png` (rounded) and `tree2.png` (taller). Both are preloaded. */
 const TREE_SPRITE_PATH = '/sprites/tree.png';
 const TREE2_SPRITE_PATH = '/sprites/tree2.png';
+const PINE_ATLAS_PATH = '/sprites/nature/ansimuz/summer_pine_tree_tiles.png';
 
 let lastCachedTreesRef: readonly Entity[] | null = null;
 let sortedTreesCache: Entity[] = [];
@@ -34,6 +35,9 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
   const blueberryTreeFrame = getSpriteFrame(BLUEBERRY_TREE_SPRITE_PATH);
   const treeFrame = getSpriteFrame(TREE_SPRITE_PATH);
   const tree2Frame = getSpriteFrame(TREE2_SPRITE_PATH);
+  const pineAtlas = getSpriteFrame(PINE_ATLAS_PATH);
+  // Cropped from the source artist's transparent PNG — no procedurally drawn tree.
+  const pineFrame = pineAtlas ? { ...pineAtlas, sx: 104, sy: 178, sw: 52, sh: 76 } : null;
   const bushFrame = getSpriteFrame('/sprites/bush.png');
   const stumpFrame = getSpriteFrame('/sprites/stump.png');
 
@@ -114,7 +118,9 @@ export function drawTrees(ctx: CanvasRenderingContext2D, state: RenderSnapshot, 
     } else {
       const isTall = (state.worldMap?.generationVersion ?? 0) >= 3 && tree.spriteVariant != null
         ? tree.spriteVariant === 1 : (tree.id % 2) === 1;
-      const frame = isTall ? tree2Frame : treeFrame;
+      const frame = isTall
+        ? ((state.worldMap?.generationVersion ?? 0) >= 4 && pineFrame ? pineFrame : tree2Frame)
+        : treeFrame;
       if (isDrawableSpriteFrame(frame)) {
         drawSpriteFrame(
           ctx,
