@@ -8,10 +8,9 @@ import {
   resetDialogueSessions,
   startDialogueTreeChat,
   tickHumanChat,
-  tryAmbientRandomDialogue,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { canonicalDialogueBank, getDialogueTreeById, installDialogueBankPayload } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, getDialogueTreeById, installDialogueBankPayload, tryAmbientRandomDialogue } from '../src/game/dialogueTrees';
 import { setSimSeed, resetSimRng } from '../src/game/simRng';
 
 afterEach(() => {
