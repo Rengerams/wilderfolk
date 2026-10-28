@@ -195,10 +195,14 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): 
   return { counts, movable };
 }
 
-/** Keep essential production and guard coverage when automatically borrowing staff. */
+/** Protect food production and guard coverage; stone production has the normal one-worker floor. */
 function minimumAutoCoverage(building: Building): number {
-  const critical = building.type === BuildingType.Quarry
-    || building.type === BuildingType.Barracks || building.type === BuildingType.Prison;
+  const critical = building.type === BuildingType.Farm
+    || building.type === BuildingType.Greenhouse
+    || building.type === BuildingType.HuntingSpot
+    || building.type === BuildingType.FishingSpot
+    || building.type === BuildingType.Barracks
+    || building.type === BuildingType.Prison;
   return critical ? Math.min(3, BUILDING_CONFIGS[building.type].maxOccupants) : 1;
 }
 
@@ -228,11 +232,12 @@ export function findOverstaffedDonorBuilding(
   humans: Entity[],
   excludeBuildingId: number,
   currentTick?: number,
+  preserveEssentialCoverage = false,
 ): Building | undefined {
-  // Match rebalanceJobWorkers: a proposed automatic transfer must leave the same
-  // minimum Quarry/guard coverage that the actual workforce pass protects.
-  // Otherwise the Virtual Player can reissue a no-op autoStaffWorkers every hour.
-  return pickOverstaffedDonor(jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick), excludeBuildingId, true);
+  return pickOverstaffedDonor(
+    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick),
+    excludeBuildingId, preserveEssentialCoverage,
+  );
 }
 
 export function pickWorkerToTransfer(
@@ -409,7 +414,7 @@ export function rebalanceJobWorkers(
       const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans).cap;
       if (staffed >= capacity) continue;
-      // Essential stone and guard coverage can grow to three posts; others only start.
+      // Food production and guard coverage grow to three posts; other workplaces only start.
       if (staffed >= minimumAutoCoverage(needy)) continue;
 
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
@@ -598,7 +603,7 @@ export function assignBuilderInPlace(
       const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
       if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
-      // Construction must not strip the last producer or the protected guard/stone crew.
+      // Construction must not strip the last ordinary producer or protected food/guard crew.
       // This is the same donor-coverage invariant that job rebalancing applies.
       return staffed > minimumAutoCoverage(site);
     });

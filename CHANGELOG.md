@@ -2,8 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (28 October 2026):** Bot staffing donor checks now preserve essential stone and guard crews, matching workforce rebalance so unfulfillable staffing requests no longer block food actions.
-- **Fixed (28 October 2026):** Silos now expand food storage only when at least 90% full. Existing silos no longer block further expansion, and only one silo may be under construction. Added targeted regressions; long-run verification is pending.
+- **Silo storage automation (PR #81):** Expand food capacity when at least 90% full, even with existing Silos; prevent parallel Silo builds and avoid treating a food-production deficit as storage pressure. Preserve current food-first staffing and the normal Quarry donor rules.
+
+- **Terrain river materials (#75, 28 October 2026):** Added flow-aligned glints, waterfall rapids and patchy silt banks. Fixed shore-phase compression by normalizing against assigned flow cells; added regression coverage and registered render-function owners. Generation and saves unchanged.
 
 - **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.
 - **Terrain (merged #73):** Seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
