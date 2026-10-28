@@ -20,7 +20,7 @@ describe('domain event-to-caption integration', () => {
         scene.eventKey === eventKey && scene.mode === 'solo');
       expect(tree, eventKey).toBeDefined();
       if (!tree) continue;
-      const speaker = { id: 9000 + i, name: 'Speaker', energy: 63, gold: 17 };
+      const speaker: ChatSpeaker & { energy: number; gold: number } = { id: 9000 + i, name: 'Speaker', energy: 63, gold: 17 };
       const before = { energy: speaker.energy, gold: speaker.gold };
       expect(requestDialogue({
         eventKey, treeId: tree.id, speaker, tick: 100 + i,
