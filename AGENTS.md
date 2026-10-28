@@ -60,6 +60,7 @@ Current working code is V.0.6.5.1. The next development target version we are wo
 * **One canonical combat history.** Raid dispatch, fighting, casualties, surrender, fate decisions and outcomes belong in `WorldState.eventLog` via `eventLog.logEvent`, with accurate combat metadata. Dedicated battle reports summarize that record but never replace it.
 * **Report bug-report counts in every pull request.** Include a `## Bug reports` section with exact numeric counts of **new** and **updated existing** reports from that PR's diff against its base branch. Count distinct `docs/bug_report/*.md` reports, not changes to `docs/BUG_REPORTS/SUMMARY.md`, tests or descriptions. Link every affected report, use explicit `0` when none, and refresh the counts if the diff changes. Never claim a report was filed when it was not.
 * **Log every change in `CHANGELOG.md` (§8).**
+* **Historical and narrative documentation is read-only (§8).** Do not update old stories, dated snapshots or historical bug reports just to match current code; fix active documentation instead.
 * **Comments: max 2 lines.** A comment is a label (what/contract/constraint), never a story. Anything longer — the why, the history, the alternatives — goes in `CHANGELOG.md` (§5.8).
 * **Think twice, don't be lazy.** If you find something broken, don't say "not mine" — fix it (if small) or report it. Be creative, but ask before anything big.
 
@@ -206,9 +207,21 @@ Do not write your own game harness, bot, or probe. The game harness is `scripts/
 | Implementation plan | `docs/plans/<topic>-<yyyy-mm-dd>.md` |
 | Session handover | `docs/HANDOVER-<topic>-<yyyy-mm-dd>.md` |
 | Standard / guideline | `docs/<TOPIC>_GUIDELINES.md` |
-| Historical | `docs/archive/**` — reference only, never updated |
+| Historical | `docs/archive/**` — reference only, never updated; this rule also covers historical files kept outside that directory |
 | Generated run logs | `docs/log/**`, never at root |
 | Scratch, probes, one-off scripts | `tmp/**`, never `src/`, `tests/`, or root |
+
+### Frozen historical and narrative documents — do not rewrite
+
+**Read-only by default, including when implementing a new gameplay feature or fixing a docs check:**
+
+- `docs/FIRST_YEAR_IN_WILDERFOLK.md` and `docs/SECOND_YEAR_IN_WILDERFOLK.md`: historical narrative/campaign snapshots, **not living gameplay rulebooks**. Do not rewrite old scenes, observations or descriptions to match newly changed mechanics.
+- `docs/archive/**` (if present), past `docs/HANDOVER-*.md`, date-stamped audits/snapshots and historical `docs/BUG_REPORTS/**` reports. The *only* routine exception inside historical bug-report storage is the explicitly maintained index `docs/BUG_REPORTS/SUMMARY.md`.
+- Other historical material is protected by **purpose**, even if stored directly in `docs/` instead of a folder named `archive`. Confirm whether a document is an active authoritative contract or a record of its date before editing.
+
+**Rule:** read historical material for context but do **not** change, delete, reword, migrate, or mass-correct it because a feature retires an old rule. A current-code mismatch in such a document is **not** a new gameplay defect or reason to change that document. When an active instruction needs updating, edit the relevant current owner instead (`AGENTS.md`, active `docs/plans/**`, root `README.md`, actual architecture documentation, `OWNERSHIP_OVERVIEW.md`, decision registry and `CHANGELOG.md`, as appropriate). Historical files must not be edited merely to make documentation checks green; report a historical-document checker conflict without rewriting history. **Only an explicit user instruction naming a historical document (or unambiguously authorizing archival revision) allows an edit.**
+
+**PR scope check:** review `git diff --name-only <base>...HEAD` for historical files before committing; revert accidental edits to protected documents from **your own PR** without discarding other agents' work. In the PR summary, state `Historical documents changed: 0` unless the user explicitly authorized an exception.
 
 No new top-level `.md` or document directory without an owner decision; propose it and record the decision here. Tracked surface: `README.md`, `CHANGELOG.md`, `roadmap_V.0.6.5.2.md`, `AGENTS.md`, `ASSET_REGISTER.md`, `OWNERSHIP_OVERVIEW.md`, `THIRD_PARTY_NOTICES.md`, `docs/**`, `tests/**`, and `scripts/**` (all tracked in git). Only `tmp/**` is gitignored scratch material. Windows paths in task text (`C:\Wilderfolk\…`) resolve to the workspace equivalent — never create duplicates over path notation.
 
@@ -252,6 +265,7 @@ Prioritize broken invariants, wrong complexity, edge cases, leaks, races, state 
 * [ ] Every function touched or created is in `OWNERSHIP_OVERVIEW.md` with exactly one owner; missing rows added, no owner reassigned without approval.
 * [ ] Both architecture registers updated: `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts`; every touched decision has accurate cadence, call path, write permissions and test references.
 * [ ] `CHANGELOG.md` entry created for noticeable changes (under 300 chars, no file paths/extensions/links); roadmap updated if working on roadmap items.
+* [ ] Historical/narrative documents remain unchanged, including both year-in-Wilderfolk narratives, dated handovers and historical bug reports; any exception was explicitly requested by the user.
 * [ ] Any discovered defects were de-duplicated and reported using `docs/bug_report/readme.md` in `docs/bug_report/`; their index entry was added or updated in `docs/BUG_REPORTS/SUMMARY.md` (or blocker accurately reported).
 * [ ] Game behavior verified through `scripts/autoplay_playwright_probe.py` / `src/game/virtualPlayer.ts` (extended if needed) — no private harness or probe created.
 * [ ] Verification run: TypeScript check (`npm run test:types`), lint (`npm run lint`), and build (`npm run build`) passing clean; full test suite run only if touching core architecture or required per §5.10.
