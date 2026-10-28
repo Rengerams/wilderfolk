@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI architecture gate (29 October 2026):** Added an incremental function-overlap check after the canonical call-graph ownership verification; new and changed functions are compared with existing implementations, and unresolved candidates fail the standard PR gate unless a fingerprint-pinned, test-backed distinction is reviewed. Existing gameplay and save data are unchanged.
+
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
