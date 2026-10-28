@@ -3,7 +3,7 @@
 **Task class:** implement features. **Status:** NOT IMPLEMENTED by this document.
 **Authoritative design:** [DNA, personality and career architecture](personality-career-single-pipeline-0.6.5.2.md).
 **Feature targets:** roadmap §11 and §16 (the old §17 was renumbered).
-**Order:** A → B → C → D → E. Start with the earliest unfinished stage; don't introduce placeholder APIs for future stages.
+**Order:** A → B → C → D → E. Start with the earliest unfinished stage; don't introduce placeholder APIs for future stages. Each PR must be self-contained and pass its own required tests; persistence for a new field must land in the **same** PR that introduces it.
 
 ## 0. Do this before any implementation
 
@@ -35,9 +35,9 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 ```
 
 - Use the existing 14 `SettlerTrait` literal IDs and birth/inheritance logic. All 14 have situational benefit *and* drawback. Do not create a second genotype, reroll traits on load, or copy `TRAIT_DEFS` labels.
-- Make `evaluateTraitInfluence` pure and deterministic: `Readonly<Entity>`, a discriminated union context with only required fields, no RNG/time/world mutation, relevant-effect aggregation only, finite bounded multiplicative `factor`, capped signed `tendency`, optional typed `reasons` (no costly explanations in hot loops).
-- For ordinary newly added factors use an initial combined cap of `0.85..1.15`, with tested diminishing returns for multiple traits. **Existing actual** Resourceful, Chivalrous, research, winter, conception or hunting benefits must be migrated without stacking; preserve existing measured values initially. An irrelevant trait has neutral effect, not an invented negative global job penalty.
-- Skills, apprenticeship, school, staff assignment, relationships, pregnancy, warfare, health and economy keep their current canonical writers. Never add a second setter for their fields. Career history/milestones are distinct *new* optional saved fields with their own owner.
+- Make `evaluateTraitInfluence` pure and deterministic: pass a narrow readonly projection, not a whole `WorldState` or full entity graph; use discriminated context, no RNG/time/mutation, bounded `factor` and `tendency`. Explanation `reasons` are opt-in and absent from hot paths (no arrays, Maps, Sets, strings or closures per ordinary evaluation). `Readonly<Entity>` alone is shallow: prohibit mutation of its nested arrays/objects explicitly.
+- For ordinary **new** effects use an initial combined cap of `0.85..1.15` and diminishing returns. Keep **pre-existing special bonuses outside this new-effects cap** if necessary to preserve their values (Resourceful has +10% per worker, max +30% for its established building factor). Audit Chivalrous, research, winter, conception, hunting and existing social effects before migration; do not stack or change multiplication order silently. Negative effects must use real reachable decision contexts; do not invent new stress, overexertion, satisfaction or overconfidence state meters. Irrelevant traits are neutral.
+- Skills, apprenticeship, school, staff assignment, relationships, pregnancy, warfare, health and economy keep their current canonical writers. Never add a second setter for their fields. Career history/milestones are distinct *new* optional saved fields with their own owner. **Skill gain does not establish a worked shift**: `gainSkill` is also used by construction, education and apprenticeships.
 - Runtime warfare remains aggregate/simulated; no active tower/projectile or realtime combat.
 
 ## 2. Exact PR tickets
@@ -58,7 +58,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 **REQUIRED IMPLEMENTATION**
 1. One exhaustive `Record<SettlerTrait, TraitEffects>` (with `satisfies`) containing typed contexts, positive and negative effects, stable reason IDs, caps.
 2. One exported `evaluateTraitInfluence` entrypoint, no convenience wrappers, no per-domain factor calculation exports.
-3. One `traitInfluence` entry in `DecisionKey` and `SIMULATION_DECISIONS`, owner = actual evaluator, `writes: []`, `scheduledFrom` = "on-demand direct calls from existing owners". Because the current `DecisionCadence` list has no on-demand value, add **`'on-demand'` as a registry *classification*, not a game scheduler**; use `cadence: 'on-demand'`. Add a real registry test verifying the owner and `isPropertyWritePermitted('traitInfluence','human.skills') === false`.
+3. Register `traitInfluence` in `DecisionKey` and `SIMULATION_DECISIONS` with `writes: []`, owner = evaluator, `scheduledFrom` = on-demand direct callers. Extend `DecisionCadence` with `'on-demand'` **only as metadata**, not a scheduler. **Edit `tests/simulation.decisionRegistry.test.ts` in PR A:** its exact `REQUIRED_DECISIONS` array must include the new key; the old `writes.length > 0` test must explicitly permit ONLY declared read-only projection entries while still requiring actual mutation owners to have nonempty write lists. Keep test-file references real, retain one-owner checks, and assert `isPropertyWritePermitted('traitInfluence', 'human.skills') === false`.
 4. Ownership overview names exact exported owner functions for the two new modules. The entry is a **read-only projection**, not a new simulation loop.
 
 **ACCEPT WHEN**
@@ -123,22 +123,22 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 - `tests/careers.workerFit.test.ts`
 
 **EDIT**
-- `src/game/skills.ts` only at actual credited worked-shift transaction.
-- `src/game/tickLayerDaily.ts` only to invoke new milestone reconciliation once in an existing appropriate daily phase; no second day clock.
+- `src/game/skills.ts` only for an integration point proven to represent actual attendance; **never treat each call to `gainSkill`, `rewardBuildingWork` or two construction skill awards as a separate work day**. Prefer the already-collected `scheduleLastWorkedHours` / per-building attendance pass in `dailyBuildingEconomy.ts`, verifying exact phase order and eligibility.
+- `src/game/tickLayerDaily.ts` **only if truly necessary**. Prefer event-driven milestone reconciliation when the canonical work-credit or apprenticeship completion event is accepted: no extra daily full-population scan or new clock.
 - `src/game/workforce.ts` only as optional tie-break for already eligible **idle** candidates, not global job swaps.
-- `src/game/gameTypes.ts` + canonical save migration/schema only for required new optional saved career fields.
+- `src/game/gameTypes.ts`, `src/game/saveSchema.ts` and `src/game/saveLoad.ts` **in PR D**, for every newly persisted career property and an idempotent old-save migration; inspect `simWorker/simPrep.ts` and `simBuffers/simDelta.ts` and adjust only verified missing deep-clone/transport behavior.
 - Both registries and `CHANGELOG.md`.
 
 **REQUIRED**
-- `careerHistory.ts` is sole writer of bounded per-job day/shift totals. Idempotent per actual worker+job+calendar day; no credit for assigned-but-absent workers or stored-full output (worked shifts can still teach).
-- `careerProgression.ts` is sole writer of distinct career milestones/specializations; may read prior education, actual work, old apprentice data and one trait projection; **not** a new skill system or autonomous reassignment engine.
+- `careerHistory.ts` is sole writer of bounded per-job day/shift totals. Credit only **observed attendance/work** (`scheduleLastWorkedHours > 0` with a valid eligible worker, building/job attribution and prisoner exclusion), irrespective of whether output is blocked by full storage. At most one credit per worker/job/absolute calendar day, even if construction and production both grant skills; cap/saturate counters, and avoid one map allocation per entity.
+- `careerProgression.ts` is sole writer of distinct career milestones/specializations; evaluate only when new credited work or a real training event might cross a milestone, not through a daily whole-colony sweep. Read prior education, actual work, old apprentice data and the one trait evaluator. No competing skill meter or job reassignment.
 - `workerFit.ts` computes optional explanation/score for already eligible vacant assignments using skill, commuting, availability, experience and context-relevant DNA; the workforce owner still makes final decision.
 - Register `careerHistory` and `careerProgression` as distinct decision keys with accurate new-field write lists and existing call cadence. `workerFit` remains pure and is registered with the appropriate read-only projection / existing workforce metadata, not duplicate assignment authority.
 
 **ACCEPT WHEN**
 - Different adults with identical education can develop distinct careers from real work and opportunity.
 - Age 18 / school 6–17, manual staffing, colony staffing priorities and automatic-transfer 60-day cooldown remain unchanged.
-- Work history/milestone idempotency, old-save load, worker/main-thread parity, no newly introduced performance cliff.
+- Work history/milestone idempotency, deterministic old-save **field backfill**, worker/main-thread parity and rollback, no extra global scan and no newly introduced performance cliff. Save migration and schema support must already pass in PR D, not PR E.
 
 ### PR E — transparent UI and end-to-end compatibility
 
@@ -149,7 +149,7 @@ Entity.traits  →  personality/traitEffectCatalog.ts
 **EDIT**
 - `src/components/SelectedEntityPanel.tsx` via a direct import.
 - Optional existing workplace panel to show `Why this worker?` from the **same** `evaluateWorkerFit` and `evaluateTraitInfluence` outputs.
-- Update save migration/worker transport only where an observed omission requires it, not parallel serialization.
+- Confirm PR D's save migration already works. PR E only adds final end-to-end old-save and transport regression coverage; fix observed omissions in the actual owner without introducing parallel serialization.
 - Both registries, `CHANGELOG.md`. Mark roadmap §11 / §16 *only after feature code merges*.
 
 **ACCEPT WHEN**
