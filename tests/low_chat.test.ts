@@ -220,8 +220,8 @@ describe('L37 — dialogue session reclamation', () => {
     expect(requestDialogue({
       eventKey: 'social.impulse.grief.home', speaker: a, tick: 10, priority: 'scripted',
     })).toBe(true);
-    expect(a.chatDialogueSessionKey).toBeUndefined();
-    // The partner still holds the key until its own line finishes.
+    expect(a.chatDialogueSessionKey).toBe('solo:51');
+    // The partner still holds the abandoned pair key until its next tick.
     expect(b.chatDialogueSessionKey).toBe('51:52');
 
     const partnerTicks = b.chatTicks ?? 0;
