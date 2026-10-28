@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { canonicalDialogueBank, getDialogueTreeById, installDialogueBankPayload, requestDialogue } from '../src/game/dialogueTrees';
+import { canonicalDialogueBank, DIALOGUE_EVENT_KEYS, getDialogueTreeById, installDialogueBankPayload, requestDialogue } from '../src/game/dialogueTrees';
 import { isDialogueBusy, resetDialogueSessions, tickHumanChat, type ChatSpeaker } from '../src/game/humanChat';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -11,6 +11,46 @@ beforeEach(() => { resetDialogueSessions(); resetSimRng(); });
 afterEach(() => { resetDialogueSessions(); resetSimRng(); });
 
 describe('main/worker and old-save dialogue compatibility', () => {
+  it('loads every authored event and role into both independently installed banks', () => {
+    const payload = JSON.parse(JSON.stringify(canonicalDialogueBank)) as typeof canonicalDialogueBank;
+    const variants = canonicalDialogueBank.dialogue_trees.map(({ id, eventKey, mode }) => ({ id, eventKey, mode }));
+    expect(new Set(variants.map((v) => v.eventKey))).toEqual(new Set(DIALOGUE_EVENT_KEYS));
+    for (const source of [payload, canonicalDialogueBank]) {
+      resetDialogueSessions();
+      installDialogueBankPayload(source);
+      expect(Object.isFrozen(source === payload ? canonicalDialogueBank : source)).toBe(true);
+      for (const variant of variants) {
+        const a: ChatSpeaker = { id: 8401 };
+        const b: ChatSpeaker = { id: 8402 };
+        const actual = getDialogueTreeById(variant.id);
+        expect(actual?.eventKey, variant.id).toBe(variant.eventKey);
+        expect(actual?.mode, variant.id).toBe(variant.mode);
+        expect(Object.isFrozen(actual), variant.id).toBe(true);
+        expect(Object.isFrozen(actual?.speakers), variant.id).toBe(true);
+        expect(Object.isFrozen(actual?.lines), variant.id).toBe(true);
+        expect(Object.isFrozen(actual?.lines[0]), variant.id).toBe(true);
+        expect(requestDialogue({
+          eventKey: variant.eventKey, treeId: variant.id, speaker: a,
+          partner: variant.mode === 'pair' ? b : null, tick: 844,
+        }), variant.id).toBe(true);
+        expect(a.chatPhrase ?? b.chatPhrase, variant.id).toBeTruthy();
+        resetDialogueSessions();
+      }
+    }
+  });
+
+  it('does not allow a deserialized worker payload to replace a valid event key', () => {
+    const broken = JSON.parse(JSON.stringify(canonicalDialogueBank)) as {
+      version: string;
+      dialogue_trees: Array<{ id: string; eventKey: string }>;
+      categories: string[];
+    };
+    broken.dialogue_trees[0]!.eventKey = 'not.a.real.event';
+    expect(() => installDialogueBankPayload(broken as unknown as typeof canonicalDialogueBank))
+      .toThrow(/Invalid event key/);
+    installDialogueBankPayload(canonicalDialogueBank);
+  });
+
   it('installs identical keyed source content after a worker message serialization boundary', () => {
     const worker = readFileSync(new URL('../src/game/simWorker/gameWorker.ts', import.meta.url), 'utf8');
     expect(worker).toContain('installDialogueBankPayload(canonicalDialogueBank)');
