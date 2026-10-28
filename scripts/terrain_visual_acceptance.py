@@ -6,6 +6,7 @@ Screenshots are actual Chromium gameplay, not mocked paintings.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -90,6 +91,12 @@ def main() -> int:
                 click_text(page, "turn off all tutorials")
                 click_text(page, "got it")
                 click_text(page, "skip guide")
+            # The default building grid is ON even outside build mode; its
+            # orthogonal lines must not be mistaken for a mesh seam. Evaluate
+            # natural ground with the grid switched OFF through the real UI.
+            grid = page.locator('button[aria-label="Hide building grid"]')
+            if grid.count():
+                grid.click()
             zoom = 0.75
             set_camera_zoom(page, zoom)
             stats = page.evaluate(GROUND_STATS_JS)
@@ -107,7 +114,14 @@ def main() -> int:
                 raise RuntimeError(f"Browser exception on {preset}: {page_errors}")
             slug = preset.lower().replace(" ", "-")
             screenshot = OUT / f"{slug}.jpg"
-            page.screenshot(path=str(screenshot), type="jpeg", quality=74)
+            # Capture the *actual* game canvas without overlapping notification
+            # and tutorial DOM panels; no synthetic scene or custom rendering.
+            encoded = page.evaluate("""() => {
+              const canvas = document.querySelector('canvas[aria-label="Valley map"]');
+              if (!canvas) throw new Error('Valley map canvas not found');
+              return canvas.toDataURL('image/jpeg', 0.78).split(',')[1];
+            }""")
+            screenshot.write_bytes(base64.b64decode(encoded))
             report.append({"preset": preset, "selected": chosen, "zoom": zoom,
                            "stats": stats, "screenshot": str(screenshot)})
             print(f"{preset}: {stats['distinctColors']} colors, {stats['mean']} mean, {screenshot}", flush=True)
