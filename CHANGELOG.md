@@ -2,7 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Added:** PR-D credits bounded career days only to verified, adult, assigned and attended completed workplaces in the existing player-worker loop, with a stable job/day deduplication and transfer-safe site provenance. Actual apprentice graduation and work thresholds add optional career milestones; prior skill does not fabricate shifts. Pure worker fit breaks only exact commute-and-skill ties without forced transfers. Old saves lazily acquire neutral career behavior and deep-cloned rollback history; unverified construction crews remain uncredited.
+- **Added:** Career history credits verified workplace attendance once per profession and settled calendar day. Actual apprenticeship completion and work thresholds record optional milestones; unverified construction attendance remains uncredited.
+
+- **Changed:** Career and DNA fit break only exact commute-and-skill ties for idle candidates. Old saves start with neutral career history, and worker rollback isolates nested records.
 
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
 
