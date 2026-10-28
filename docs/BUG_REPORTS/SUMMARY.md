@@ -12,6 +12,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 ## At a glance
 
+**2026-10-28 — [Ready spotlight real-tick fixture starts dispersed](../bug_report/2026-10-28-spotlight-ready-test-fixture-dispersed.md):** Test-only PR #91 failure: the ready-stage home-commute regression placed every singer far from their stage slot, causing the correctly enforced attendance guard to abort. Rebuilt physically valid ready slots while retaining the steering check; CI rerun pending.
+
 **2026-10-28 — [Ready spotlight can lose actors before presentation](../bug_report/2026-10-28-spotlight-ready-cast-dispersed.md):** Fixed in code on PR #91; validate current cast proximity during ready and on save reload, while allowing still-gathering actors to travel. CI/browser pending.
 
 **2026-10-28 — [Spotlight starts before the heroine returns](../bug_report/2026-10-28-spotlight-heroine-not-arrived.md):** Resolved; Require the heroine within the same 11-unit arrival radius.

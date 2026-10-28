@@ -250,9 +250,17 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     actor.residenceBuildingId = home.id;
     // Home is far to the right; the spotlight slot is to the left.
     const beforeX = actor.x;
-    const slots = adults.map((person, i) => ({
-      humanId: person.id, x: person.id === actor.id ? 425 : 430 + i * 8, y: 360,
-    }));
+    // A ready scene has already gathered: every actor must actually be on stage.
+    // Keep this actor 10 units from its slot (inside the 11-unit ready tolerance,
+    // but outside the 9-unit steering stop), so a home-commute override is observable.
+    const slots = adults.map((person, i) => {
+      const isActor = person.id === actor.id;
+      return {
+        humanId: person.id,
+        x: phase === 'ready' ? person.x - (isActor ? 10 : 0) : (isActor ? 425 : 430 + i * 8),
+        y: phase === 'ready' ? person.y : 360,
+      };
+    });
     world.spotlightLore = {
       id: 'test-commute-priority', heroineId: girl.id,
       performerIds: adults.map((person) => person.id),
