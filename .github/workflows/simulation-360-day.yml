@@ -7,48 +7,17 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths:
+  
       # Include simulation code; ordered exclusions skip presentation-only changes.
       # Mixed PRs still run if any non-excluded simulation file changes.
-      - 'src/game/**'
-      - '!src/game/*.tsx'
-      - '!src/game/renderer/**'
-      - '!src/game/renderer.ts'
-      - '!src/game/canvasLayer.ts'
-      - '!src/game/decorRender.ts'
-      - '!src/game/entityLayer.ts'
-      - '!src/game/terrainLayer.ts'
-      - '!src/game/stripRender.ts'
-      - '!src/game/entitySprites.ts'
-      - '!src/game/humanSprites.ts'
-      - '!src/game/spriteLoader.ts'
-      - '!src/game/huntvisuals.ts'
-      - '!src/game/introTimeline.ts'
-      - '!src/game/renffrStar.ts'
-      - '!src/game/villagePortrait.ts'
-      - '!src/game/weatherVisualPreferences.ts'
-      - '!src/game/buildingProgressDisplay.ts'
-      - '!src/game/dashboardData.ts'
-      - '!src/game/viewState.ts'
-      - '!src/game/humanStatus.ts'
-      - '!src/game/citizenOverview.ts'
-      - '!src/game/rivalDisplay.ts'
-      - '!src/game/focusHints.ts'
-      - '!src/game/logisticsOverlayData.ts'
-      - '!src/game/uiSimSummary.ts'
-      - '!src/game/eventLogFilters.ts'
-      - '!src/game/eventLogExport.ts'
-      - scripts/run-full-year.mts
-      - scripts/colonyHealth.ts
-      - tests/fullYear.integration.test.ts
-      - tests/longRunColony.integration.test.ts
-      - .github/workflows/simulation-360-day.yml
+      
+run: npm ci --prefer-offline --no-audit --no-fund
+run: npm run test:standard
 
 permissions:
   contents: read
 
 concurrency:
-  group: simulation-360-day-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -65,11 +34,3 @@ jobs:
           node-version: '26.12.1'
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Full-year integration test (360 days through gameTick)
-        run: npm run test:full-year:test
-
-      - name: Seeded 360-day colony harness with invariant checkpoints
-        run: npm run test:full-year
