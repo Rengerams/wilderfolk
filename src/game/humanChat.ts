@@ -68,6 +68,8 @@ interface DialogueSession {
   step: number;
   entityAId: number;
   entityBId: number;
+  entityARef: ChatSpeaker;
+  entityBRef: ChatSpeaker | null;
   solo: boolean;
   durationHours?: number;
 }
@@ -148,21 +150,7 @@ function clearEntityChat(entity: ChatSpeaker): void {
   entity.chatPhrase = undefined;
 }
 
-/**
- * Drop whatever dialogue session this settler holds, leaving the counterpart to be reclaimed.
- *
- * Called when a settler stops being ticked. `tickHumanChat` runs only for
- * `byType[EntityType.Human]`, so an entity that leaves that population can no longer advance its
- * session: a pair mid-dialogue whose active half transforms into a Moon Howler froze for the night
- * (`moonHowler.ts` sets `type = EntityType.Werewolf`), because the wolf's `chatTicks` stopped
- * decrementing while the idle half stayed `isDialogueBusy`. The idle half could not self-heal —
- * the session entry is *live*, so the orphan reclaim below cannot see it, and its own `chatTicks`
- * are already 0 so it never reaches `advanceDialogue`.
- *
- * No partner resolver is needed here: deleting the entry is enough. The survivor's key becomes an
- * orphan and the hoisted reclaim releases it on that settler's next tick — the same net that already
- * covers resolver-less scripted interruption before the counterpart's next tick.
- */
+/** Release a live session and both of its attached participants immediately. */
 export function releaseDialogueSession(entity: ChatSpeaker): void {
   const key = entity.chatDialogueSessionKey;
   if (!key) return;
@@ -170,21 +158,13 @@ export function releaseDialogueSession(entity: ChatSpeaker): void {
 }
 
 function clearDialogueSession(key: string, entityA?: ChatSpeaker, entityB?: ChatSpeaker): void {
+  const session = dialogueSessions.get(key);
   dialogueSessions.delete(key);
-  if (entityA) {
-    // Only clear if this entity is actually part of this specific session
-    if (entityA.chatDialogueSessionKey === key) {
-      entityA.chatDialogueSessionKey = undefined;
-      entityA.chatPartnerId = undefined;
-      clearEntityChat(entityA);
-    }
-  }
-  if (entityB) {
-    if (entityB.chatDialogueSessionKey === key) {
-      entityB.chatDialogueSessionKey = undefined;
-      entityB.chatPartnerId = undefined;
-      clearEntityChat(entityB);
-    }
+  for (const participant of [entityA, entityB, session?.entityARef, session?.entityBRef]) {
+    if (participant?.chatDialogueSessionKey !== key) continue;
+    participant.chatDialogueSessionKey = undefined;
+    participant.chatPartnerId = undefined;
+    clearEntityChat(participant);
   }
 }
 
@@ -270,6 +250,8 @@ export function startDialogueTreeChat(
     step: 0,
     entityAId: entityA.id,
     entityBId: entityB?.id ?? entityA.id,
+    entityARef: entityA,
+    entityBRef: entityB,
     solo: solo || !entityB,
     durationHours,
   });
@@ -334,15 +316,7 @@ function advanceDialogue(
   return true;
 }
 
-/**
- * Force a specific line (e.g. rare world events, elections).
- *
- * A forced phrase abandons whatever dialogue session this settler held, and the **counterpart must be
- * released with it**: the session map entry is what `isDialogueBusy` reads, so deleting the entry while
- * leaving the partner's key behind stranded that settler as dialogue-busy on a session nobody owns.
- * `resolvePartner` is how the other half is reached; without it the orphan is caught by
- * `tickHumanChat`'s hoisted reclaim instead of never.
- */
+/** Scripted speech interrupts the current session and frees both participants. */
 export function prepareScriptedDialogue(
   entity: ChatSpeaker,
   resolvePartner?: (id: number) => ChatSpeaker | null | undefined,
