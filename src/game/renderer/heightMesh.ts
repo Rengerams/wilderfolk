@@ -22,10 +22,6 @@ interface Vertex {
   x: number; y: number; rise: number;
 }
 
-export function projectedHeightAt(map: WorldMap | null, x: number, y: number): number {
-  return y - terrainRiseAt(map, x, y);
-}
-
 /**
  * Approximate the unique ground coordinate under a pixel. Because the mesh's maximum
  * 28px rise is smaller than its 32px cell, y → y − rise is strictly increasing.
