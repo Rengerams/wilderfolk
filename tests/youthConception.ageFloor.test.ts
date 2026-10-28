@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * Youth conception age floor — ages 12 and 13 are eligible (owner decision, 2026-09-13).
  *
@@ -24,7 +25,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import {
   HUMAN_FERTILITY_START,
   getFemaleFertility,
