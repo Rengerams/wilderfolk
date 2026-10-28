@@ -68,10 +68,8 @@ def main() -> int:
             # Run the real game with its supported "tutorials off" preference.
             # Clicking hidden tutorial controls after startup was unreliable:
             # the contextual card could reappear after terrain finished baking.
-            page.add_init_script("""() => {
-              localStorage.setItem('wilderfolk-tutorials-enabled', '0');
-              localStorage.setItem('wilderfolk-tutorial-choice', '0');
-            }""")
+            page.add_init_script("""localStorage.setItem('wilderfolk-tutorials-enabled', '0');
+localStorage.setItem('wilderfolk-tutorial-choice', '0');""")
             page.goto(BASE_URL, wait_until="domcontentloaded", timeout=120000)
             if assets is None:
                 assets = inspect_albedos(page)
