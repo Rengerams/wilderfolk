@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 /**
  * Measured producers-run defects: an established affair was announced once per tick of the encounter
  * hour (three times a day, and again on every later night), a night's hotel lodging announced once per
@@ -13,7 +14,7 @@ import {
   AFFAIR_ESTABLISHED_LOG_PHRASE,
   tryDailyAffairEncounter,
 } from '../src/game/simulation/humanRelationships';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tickHotelLodging } from '../src/game/hotelStay';
 import { autoStaffAllWorkers } from '../src/game/buildingStaffingActions';
