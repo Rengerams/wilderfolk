@@ -160,6 +160,15 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/terrain/cethiel/Grass_02.png',
     '/sprites/terrain/cethiel/Grass_03.png',
     '/sprites/terrain/cethiel/Grass_04.png',
+    // CC0 50 Free Textures 5 (rubberduck / para), 512px reduced albedos.
+    // Load only the seven materials the v4 ground shader actually samples.
+    '/sprites/terrain/rubberduck/246.jpg', // sand
+    '/sprites/terrain/rubberduck/206.jpg', // soil
+    '/sprites/terrain/rubberduck/217.jpg', // dry earth
+    '/sprites/terrain/rubberduck/232.jpg', // gravel
+    '/sprites/terrain/rubberduck/235.jpg', // rock
+    '/sprites/terrain/rubberduck/210.jpg', // straw
+    '/sprites/terrain/rubberduck/215.jpg', // shingle
     '/sprites/terrain/forest.png',
     '/sprites/terrain/dirt.png',
     '/sprites/terrain/sand_fill.png',
