@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Documentation (28 October 2026):** Aligned active roadmap references, removed the duplicate roadmap, repaired agent paths, and indexed version 0.6.5.2 bugfixes with their verification status.
+- **Documentation (28 October 2026):** Aligned the roadmap with merged features and pending implementations, corrected obsolete historical links, and preserved existing bugfix registration.
 - **Terrain (merged #73):** Seed-compatible landscape revision 3 curves river water footprints, adds riparian moisture and wet banks, and replaces grid-like tree scatter with biome-weighted groves and varied tree silhouettes. Existing saved maps retain their original generation recipes.
 - **Workforce CI (27 October 2026):** Preserve three staff at Quarry, Barracks and Prison under automatic rebalancing; guard staffing and stone production recover without general job shuffling.
 
