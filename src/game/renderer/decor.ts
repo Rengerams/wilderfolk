@@ -5,6 +5,7 @@
 import type { TerrainDecoration, WorldMap } from '../gameTypes';
 import { supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
 import { clamp } from '../terrain/noise';
+import { RETIRED_V4_DECOR_TYPES } from '../terrain/biomes';
 import { getSpriteFrame } from '../spriteLoader';
 
 /**
@@ -92,13 +93,7 @@ const CACTUS_PATH = '/sprites/nature/kenney/naturePack_054_0.png';
 const WOOD_PATH = '/sprites/nature/kenney/naturePack_078_0.png';
 const PROP_ART: Partial<Record<TerrainDecoration['type'], DecorArtwork>> = {
   bush: { sprite: '/sprites/bush.png', width: 22, height: 20 },
-  berries: { sprite: '/sprites/bush.png', width: 18, height: 16 },
-  fern: { sprite: '/sprites/grass.png', width: 15, height: 17 },
-  flower: { sprite: '/sprites/grass2.png', width: 12, height: 14 },
   tallgrass: { sprite: '/sprites/grass.png', width: 15, height: 16 },
-  reed: { sprite: '/sprites/grass.png', width: 12, height: 16 },
-  cattail: { sprite: '/sprites/grass2.png', width: 12, height: 17 },
-  scrub: { sprite: '/sprites/grass2.png', width: 14, height: 11 },
   stump: { sprite: '/sprites/stump.png', width: 19, height: 14 },
   log: { sprite: WOOD_PATH, width: 20, height: 13, crop: [96, 264, 60, 52] },
   driftwood: { sprite: '/sprites/stump.png', width: 20, height: 12 },
@@ -340,6 +335,9 @@ export function bakeDecorInRect(
         // The prop's **origin** decides which chunk paints it (the margin above is what keeps its art
         // whole), so it is drawn exactly once even though neighbouring rects overlap.
         if (d.x < ownerRect.x || d.y < ownerRect.y || d.x >= right || d.y >= bottom) continue;
+        // Compact v4 saves could still contain props from an older development
+        // snapshot: don't draw a deprecated shape even if such data survives.
+        if ((map.generationVersion ?? 0) >= 4 && RETIRED_V4_DECOR_TYPES.has(d.type)) continue;
         ctx.save();
         // Same shape as the live draw this replaces — translate to the prop, scale the canvas, draw
         // around the origin — so a scale of 1 bakes the art the frame used to draw directly.
