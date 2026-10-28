@@ -13,7 +13,7 @@
  * renderer so entities/buildings/props ride the terrain.
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from './gameTypes';
-import { tileAt, worldToTile } from './terrain/terrainGrid';
+import { DEFAULT_SEA_LEVEL, TERRAIN_CELL, sampleElev, tileAt, worldToTile } from './terrain/terrainGrid';
 import { getSprite } from './spriteLoader';
 
 export const TERRAIN_ATLAS_PATH = '/sprites/tileset_grass.png';
@@ -255,9 +255,50 @@ export function elevationAt(map: WorldMap | null, x: number, y: number): number 
   return tileAt(map, tx, ty)?.elevation ?? 0;
 }
 
-/** World-unit rise at a world position — the offset entities/buildings ride by. */
+/**
+ * Fixed 32-world-pixel height-mesh lattice. The existing 16px altitude field supplies its vertices,
+ * and the same two triangles interpolate the height of **every** object/selection point. This keeps
+ * feet on the textured terrain, with no second, drifting definition of "ground level".
+ *
+ * A 28px maximum rise across a 32px mesh edge also makes the y projection monotone: the
+ * interactive screen-to-world inverse can converge instead of facing folded-over mountain faces.
+ * These values are rendering-only, not world generation settings or simulation physics.
+ */
+export const TERRAIN_HEIGHT_MESH_STEP = 32;
+export const TERRAIN_HEIGHT_MESH_MAX_RISE = 28;
+
+export function supportsTerrainHeightMesh(map: WorldMap | null): boolean {
+  return map?.generationVersion === 3
+    && !!map.elevation && !!map.cols && !!map.rows;
+}
+
+function meshVertexRise(map: WorldMap, x: number, y: number): number {
+  const elevation = map.elevation!;
+  const e = sampleElev(elevation, map.cols!, map.rows!, x / TERRAIN_CELL, y / TERRAIN_CELL);
+  const sea = map.seaLevel ?? DEFAULT_SEA_LEVEL;
+  const hn = Math.max(0, (e - sea) / Math.max(0.01, 1 - sea));
+  // Water, beaches and low floodplains stay near zero; hilltops take the full rise.
+  const uplift = Math.max(0, Math.min(1, (hn - 0.12) / 0.74));
+  return uplift * TERRAIN_HEIGHT_MESH_MAX_RISE;
+}
+
+/** Shared triangulated mesh height — continuous across chunk edges and independent of zoom. */
 export function terrainRiseAt(map: WorldMap | null, x: number, y: number): number {
   if (!map) return 0;
+  if (supportsTerrainHeightMesh(map)) {
+    const s = TERRAIN_HEIGHT_MESH_STEP;
+    const x0 = Math.floor(x / s) * s, y0 = Math.floor(y / s) * s;
+    const fx = (x - x0) / s, fy = (y - y0) / s;
+    const z00 = meshVertexRise(map, x0, y0);
+    const z10 = meshVertexRise(map, x0 + s, y0);
+    const z01 = meshVertexRise(map, x0, y0 + s);
+    if (fx + fy <= 1) {
+      return z00 * (1 - fx - fy) + z10 * fx + z01 * fy;
+    }
+    const z11 = meshVertexRise(map, x0 + s, y0 + s);
+    return z11 * (fx + fy - 1) + z10 * (1 - fy) + z01 * (1 - fx);
+  }
+  // Keep the original small relief curve on legacy worlds, whose historical surface is flat.
   const { tx, ty } = worldToTile(x, y);
   const tile = tileAt(map, tx, ty);
   if (!tile) return 0;
