@@ -14,6 +14,14 @@ import { hasResidenceAssignment } from './residencyOccupancy';
 import { clearWorkerAssignment } from './workforce';
 import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
 import { listPlayerResidences } from './residencySelection';
+import { evaluateTraitParityValue } from './personality/traitEvaluation';
+import type { TraitContext } from './personality/traitEffectCatalog';
+
+/** The catalog context behind a widow's mourning window. */
+const BEREAVEMENT_CONTEXT = { kind: 'family', activity: 'bereavement' } as const satisfies TraitContext;
+
+/** Ordinary spousal mourning; the catalog may declare a shorter trait-specific window. */
+const SPOUSAL_GRIEF_DAYS = 7;
 
 /** Player settler eligible for human death cleanup (human or cursed full-moon werewolf form). */
 export function isKillableSettlerEntity(entity: Entity): boolean {
@@ -95,7 +103,7 @@ export function finalizeHumanDeath(
         }
         // About a week of mourning when we know the tick — stoic settlers recover sooner.
         if (tick != null) {
-          const griefDays = partner.traits?.includes('stoic') ? 5 : 7;
+          const griefDays = evaluateTraitParityValue(partner, BEREAVEMENT_CONTEXT) ?? SPOUSAL_GRIEF_DAYS;
           partner.griefUntilTick = Math.max(partner.griefUntilTick ?? 0, tick + TICKS_PER_DAY * griefDays);
         }
         if (partner.moonHowlerSaved?.partnerId === entity.id) {

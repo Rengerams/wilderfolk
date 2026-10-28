@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Courtship pace, married and youth conception, work banter, spousal grief, prisoner mercy voices and social feuds now read their trait rules from the one personality catalog at the exact historical values, and the retired trait multiplier helper is gone; play is unchanged.
+
 - **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
 - **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.

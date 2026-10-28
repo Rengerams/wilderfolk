@@ -105,13 +105,15 @@ import { clampToMapBounds } from './mapBounds';
 import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
-import { traitMultiplier } from './settlerTraits';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { evaluateTraitInfluence, evaluateTraitParityFactor } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 import type { TickContext } from './simulation/simulationTypes';
 
 /** The catalog context behind how fast a settler breaks off from a threat and runs. */
 const ESCAPE_CONTEXT = { kind: 'danger', activity: 'escape' } as const satisfies TraitContext;
+
+/** The catalog context behind how fast a courting pair makes progress. */
+const COURTSHIP_CONTEXT = { kind: 'social', activity: 'courtship' } as const satisfies TraitContext;
 
 import {
   findClosestAdaptiveInRadius,
@@ -1191,9 +1193,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
               (state.festival?.active ? 2 : 1) *
               (hasPerformers ? 1.35 : 1) *
               (livingTogether ? 1.5 : 1) *
-              traitMultiplier(entity, 'gregarious', 1.4) *
-              traitMultiplier(entity, 'timid', 0.7) *
-              traitMultiplier(entity, 'graceful', 1.2) *
+              evaluateTraitParityFactor(entity, COURTSHIP_CONTEXT, 'gregarious') *
+              evaluateTraitParityFactor(entity, COURTSHIP_CONTEXT, 'timid') *
+              evaluateTraitParityFactor(entity, COURTSHIP_CONTEXT, 'graceful') *
               PER_TICK_RATE_SCALE;
 
             entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);

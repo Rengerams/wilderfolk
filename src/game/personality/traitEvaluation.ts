@@ -1,6 +1,6 @@
 import type { SettlerTrait } from '../gameTypes';
-import { TRAIT_EFFECTS } from './traitEffectCatalog';
-import type { TraitContext, TraitEffect, TraitEffects } from './traitEffectCatalog';
+import { TRAIT_EFFECTS, TRAIT_OPPOSITIONS } from './traitEffectCatalog';
+import type { TraitContext, TraitEffect, TraitEffects, TraitParityEffect, TraitVote } from './traitEffectCatalog';
 
 export interface TraitSubject {
   readonly traits?: readonly SettlerTrait[] | null;
@@ -35,6 +35,20 @@ const NEUTRAL_EXPLAINED: TraitInfluence = Object.freeze({
   tendency: 0,
   reasons: EMPTY_REASONS,
 });
+
+function matchesContext(when: TraitContext, context: TraitContext): boolean {
+  if (when.kind !== context.kind) return false;
+  if (when.kind === 'work') {
+    return context.kind === 'work' && when.job === context.job && when.action === context.action;
+  }
+  return context.kind !== 'work' && when.activity === context.activity;
+}
+
+function parityEffectsOf(trait: unknown): readonly TraitParityEffect[] | undefined {
+  if (typeof trait !== 'string' || !Object.prototype.hasOwnProperty.call(TRAIT_EFFECTS, trait)) return undefined;
+  const effects: TraitEffects = TRAIT_EFFECTS[trait as SettlerTrait];
+  return effects.parity;
+}
 
 // Read-only projection: no clocks, random rolls, entity writes or other world state.
 export function evaluateTraitInfluence(
@@ -91,13 +105,7 @@ export function evaluateTraitInfluence(
         if (additional === undefined) continue;
         effect = additional;
       }
-      const when = effect.when;
-      if (when.kind !== context.kind) continue;
-      if (when.kind === 'work') {
-        if (context.kind !== 'work' || when.job !== context.job || when.action !== context.action) continue;
-      } else if (context.kind === 'work' || when.activity !== context.activity) {
-        continue;
-      }
+      if (!matchesContext(effect.when, context)) continue;
 
       if (effect.factorDelta > 0) positiveFactor += effect.factorDelta;
       else negativeFactor -= effect.factorDelta;
@@ -127,4 +135,62 @@ export function evaluateTraitInfluence(
   return reasons
     ? Object.freeze({ factor, tendency, reasons: Object.freeze(reasons) })
     : Object.freeze({ factor, tendency });
+}
+
+/** Exact-parity multiplier for one trait in one context; 1 when the trait is absent. */
+export function evaluateTraitParityFactor(
+  subject: TraitSubject,
+  context: TraitContext,
+  trait: SettlerTrait,
+): number {
+  const traits = subject.traits;
+  if (!Array.isArray(traits) || traits.length === 0 || !traits.includes(trait)) return 1;
+  const parity = parityEffectsOf(trait);
+  if (parity === undefined) return 1;
+  let factor = 1;
+  for (const effect of parity) {
+    if (effect.mode !== 'multiplier' || !matchesContext(effect.when, context)) continue;
+    factor *= effect.multiplier;
+  }
+  return factor;
+}
+
+/** Exact-parity absolute value for the context; the catalog declares one value per context. */
+export function evaluateTraitParityValue(subject: TraitSubject, context: TraitContext): number | undefined {
+  const traits = subject.traits;
+  if (!Array.isArray(traits) || traits.length === 0) return undefined;
+  for (const trait of traits) {
+    const parity = parityEffectsOf(trait);
+    if (parity === undefined) continue;
+    for (const effect of parity) {
+      if (effect.mode === 'value' && matchesContext(effect.when, context)) return effect.value;
+    }
+  }
+  return undefined;
+}
+
+/** Whether the subject casts the given exact-parity civic vote in the context. */
+export function evaluateTraitParityVote(subject: TraitSubject, context: TraitContext, vote: TraitVote): boolean {
+  const traits = subject.traits;
+  if (!Array.isArray(traits) || traits.length === 0) return false;
+  for (const trait of traits) {
+    const parity = parityEffectsOf(trait);
+    if (parity === undefined) continue;
+    for (const effect of parity) {
+      if (effect.mode === 'vote' && effect.vote === vote && matchesContext(effect.when, context)) return true;
+    }
+  }
+  return false;
+}
+
+/** Number of catalogued opposition pairs shared by two people. */
+export function evaluateTraitPairClashes(a: TraitSubject, b: TraitSubject): number {
+  const aTraits = a.traits;
+  const bTraits = b.traits;
+  if (!Array.isArray(aTraits) || !Array.isArray(bTraits) || aTraits.length === 0 || bTraits.length === 0) return 0;
+  let clashes = 0;
+  for (const [x, y] of TRAIT_OPPOSITIONS) {
+    if ((aTraits.includes(x) && bTraits.includes(y)) || (aTraits.includes(y) && bTraits.includes(x))) clashes++;
+  }
+  return clashes;
 }

@@ -1,5 +1,6 @@
-import type { Entity, SettlerTrait, WorldState } from './gameTypes';
+import type { Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
+import { evaluateTraitPairClashes } from './personality/traitEvaluation';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
@@ -35,27 +36,6 @@ const FEUD_BREWING_THRESHOLD = 30;
 
 const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
 const INCOMPATIBLE_PAIR_FEUD_AMOUNT = 30;
-
-const TRAIT_CLASHES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
-  ['brave', 'timid'],
-  ['gregarious', 'timid'],
-  ['gregarious', 'stoic'],
-  ['fierce', 'stoic'],
-  ['chivalrous', 'fierce'],
-];
-
-function traitClashCount(a: Entity, b: Entity): number {
-  const aTraits = a.traits;
-  const bTraits = b.traits;
-  if (!aTraits?.length || !bTraits?.length) return 0;
-  let clashes = 0;
-  for (const [x, y] of TRAIT_CLASHES) {
-    if ((aTraits.includes(x) && bTraits.includes(y)) || (aTraits.includes(y) && bTraits.includes(x))) {
-      clashes++;
-    }
-  }
-  return clashes;
-}
 
 function tradeOf(e: Entity): Entity['job'] | null {
   return e.job && e.job !== JobType.Settler ? e.job : null;
@@ -267,7 +247,7 @@ export function advanceSocialRelationships(
     if ((liveFeudsById.get(a.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
     if ((liveFeudsById.get(b.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
 
-    const clashes = traitClashCount(a, b);
+    const clashes = evaluateTraitPairClashes(a, b);
     if (clashes === 0) return;
     if (rng() >= clashes * INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY) return;
 

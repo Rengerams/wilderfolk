@@ -9,21 +9,8 @@ const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
 const GENETICS_OWNER = 'src/game/settlerTraits.ts';
 
-/** Explicit finite debt list for the already-implemented pre-PR-C rules. */
-const EXPECTED: Readonly<Record<string, number>> = {
-  'src/game/settlerTraits.ts|legacyMultiplierDefinition': 1,
-  'src/game/humanTick.ts|legacyMultiplierImport': 1,
-  'src/game/humanTick.ts|legacyMultiplierCall': 3,
-  'src/game/simulation/humanRelationships.ts|legacyMultiplierImport': 1,
-  'src/game/simulation/humanRelationships.ts|legacyMultiplierCall': 2,
-  'src/game/relationships.ts|legacyPairTable': 1,
-  'src/game/relationships.ts|legacyPairHelperDefinition': 1,
-  'src/game/relationships.ts|legacyPairHelperCall': 1,
-  'src/game/socialLife.ts|directTraitIncludes': 1,
-  'src/game/humanLifecycleCleanup.ts|directTraitIncludes': 1,
-  'src/game/warPrisoners.ts|directTraitIncludes': 1,
-  'src/game/warPrisoners.ts|directTraitSome': 1,
-};
+/** PR C migrated every legacy consumer, so the inventory must stay empty. */
+const EXPECTED: Readonly<Record<string, number>> = {};
 
 /** Tokens after which a `/` opens a regular expression literal rather than division. */
 const REGEX_PRECEDERS: ReadonlySet<SyntaxKind> = new Set([
