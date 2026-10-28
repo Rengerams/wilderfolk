@@ -8,9 +8,9 @@
 
 Occasionally, an eligible female juvenile (12–17 years old) becomes the accidental center of attention. Six to ten available adult residents approach the real person on the town map, gather in a semicircle, and perform a deliberately awkward, comedic call-and-response. The map remains visible; the camera centers on the girl. The simulation can pause for slow readable spoken captions, independently of game speed; skip and natural completion return the simulation to its prior settings. Pure lore: no material reward, affection/romance side effect, career change, reputation or resource mutation from presentation.
 
-## Next implementation slice — choreographed Spotlight finale (planned, not implemented)
+## Choreographed Spotlight finale (implemented on PR #91 branch, CI not verified)
 
-**Source of requirements:** [Spotlight feature implementation plan — choreography change request](plans/spotlight-lore-2026-10-28.md#choreography-change-request--implementation-contract-28-october-2026). This section describes the **agreed TO-BE**, not the runtime present in PR #91. Do **not** mark the choreography implemented, rewrite unrelated simulation code, or assume existing UI tests pass. The current PR still has a 31-caption hardcoded React `LINES` mirror; it does **not** currently produce the poses, particles or farewell walk.
+**Source of requirements:** [Spotlight feature implementation plan — choreography change request](plans/spotlight-lore-2026-10-28.md#choreography-change-request--implementation-contract-28-october-2026). This section describes the **PR #91 implementation** on the unmerged branch. The hardcoded React `LINES` mirror has been removed: `spotlight-lore.json` now provides all 44 captions (including the heroine). The renderer has frame-local positioning for the existing sprite, both poses, particles and a safe visual farewell. **No CI or browser verification has been completed in this pass.**
 
 ### Ordered visual storyboard
 
@@ -28,9 +28,9 @@ Each cue must have a **stable symbolic ID** such as `juvenile-reply`, `first-loo
 
 | Owner | Required behavior | What it must never do |
 | --- | --- | --- |
-| `src/game/data/dialogue/spotlight-lore.json` + PR #93 presentation reader | **Only canonical source of all captions**, sequence and adult/heroine speaker identities. Add the requested missing later passages and heroine callbacks here | Maintain a second text array in JSX or copy lyric strings into timing logic |
+| `src/game/data/dialogue/spotlight-lore.json` (PR #93 adapter still to integrate) | Canonical source of 44 captions, stable IDs, cue tags and adult/heroine roles. Currently read via static JSON import by `spotlightChoreography.ts`; route into PR #93 presentation reader after branch integration | Maintain a second text array in JSX or copy lyric strings into timing logic |
 | Spotlight-specific typed presentation adapter | Bind **exactly 6–10 distinct adult IDs** plus the independently bound **heroine ID**; all selected adults speak. Coordinate with PR #93's strict schema 1.3 validation | Relax global solo/pair bank constraints or identify the heroine as `speaker_11` |
-| `src/components/spotlightChoreography.ts` (proposed cue manifest/timing owner) | Stable caption-to-animation cue mapping, deterministic beat ordering, exactly two 7,000 ms pose steps, variable normal line lengths | Become a parallel dialogue writer or touch `WorldState` |
+| `src/components/spotlightChoreography.ts` (implemented cue manifest/timing owner) | Stable caption-to-animation cue mapping, deterministic beat ordering, exactly two 7,000 ms pose steps, variable normal line lengths | Become a parallel dialogue writer or touch `WorldState` |
 | Existing map renderer + `SpotlightLoreOverlay.tsx` | One visible heroine rendered with a presentation-only position/rotation transform; timed circles, safely validated slow farewell and **bounded** heart/kiss-mark particles | Draw a second heroine, directly mutate `Entity.x/y`, create a gameplay tick, or run music |
 | `App.tsx` + GameLoop existing camera/view APIs | Remains sole live camera/pause state owner; follow *presentation-space* heroine position smoothly, clamp to world, restore snapshot once | Spawn independent camera loop/owner, overwrite newer session's settings or issue worker commands per video frame |
 | `src/game/spotlightLore.ts` / `humanTick.ts` | Continue to own the weekend 19:00 event gate and actual gathering movement. No persistent changes for the paused show | Move a girl in saved gameplay during 7-second poses or emit simulated romance effects |
@@ -41,7 +41,7 @@ Each cue must have a **stable symbolic ID** such as `juvenile-reply`, `first-loo
 
 **Effects/performance:** Use a single deterministic emitter only in specified intervals, at most **6** new hearts/kiss marks per real second and **24** live elements. Mark icons noninteractive. Cancel its clock and clear the buffer on component teardown, skip, replacement or completed applause. Avoid full-world entity scans or React state writes every frame; use the presentational animation frame that already positions bubbles and halo.
 
-**Explicit acceptance:** Verify every choreographic event and exact ordering with a fake monotonic clock, JSON 1.3/heroine-role binding for cast sizes 6–10, both 7,000 ms pauses, single-figure draw ownership, no collision crossings, live smooth camera follow, continuous final effects, actual worker/fallback presentation after pause, skip and reload cleanup, and untouched gameplay/world positions/needs/relationships. A real browser run on the map is mandatory before this can be marked implemented. The coding plan contains the full test matrix and PR governance requirements.
+**Source changes exist; execution verification pending:** Verify every choreographic event and exact ordering with a fake monotonic clock, JSON 1.3/heroine-role binding for cast sizes 6–10, both 7,000 ms pauses, single-figure draw ownership, no collision crossings, live smooth camera follow, continuous final effects, actual worker/fallback presentation after pause, skip and reload cleanup, and untouched gameplay/world positions/needs/relationships. A real browser run on the map is mandatory before this can be marked implemented. The coding plan contains the full test matrix and PR governance requirements.
 
 ---
 
@@ -56,7 +56,7 @@ Each cue must have a **stable symbolic ID** such as `juvenile-reply`, `first-loo
 | Saved model | `src/game/gameTypes.ts`, `src/game/saveSchema.ts`, `src/game/saveLoad.ts` | Optional `WorldState.spotlightLore` + `spotlightLoreLastDay`; loads validate shape and participant eligibility |
 | Worker/fallback parity | `src/game/simWorker/simPrep.ts`, `src/game/simBuffers/simDelta.ts`, `src/game/simWorker/commands.ts` | Delta + deep rollback projection and idempotent typed finish command |
 | Camera, pause and session lifecycle | `src/App.tsx` | Existing `GameLoop` camera focus and `mutateWorld` pause; captures previous controls; session revision forces recapture and remount on same-scene reload |
-| Caption timing and on-map presentation | `src/components/SpotlightLoreOverlay.tsx` | React wall-clock timeouts and position conversion; **does not** write simulation chat state |
+| Caption timing and on-map presentation | `src/components/SpotlightLoreOverlay.tsx`, `src/components/spotlightChoreography.ts`, `src/components/spotlightFarewell.ts` | Single real-time RAF cue timeline, 44 JSON captions, 7-second loops, safe walk, 24 capped decorative particles and live camera/bubble projection; **does not** write simulation chat state |
 | Old view snapshot consumption | `src/components/spotlightReturnState.ts` | `takeSpotlightReturn` consumes once; `discardSpotlightReturn` invalidates on session replacement |
 
 **Dependencies:** `gameTick → tickLayerRealtime → spotlightLore → logEvent`; `tickLayerRealtime → tickHumans` (read-only scene target); `App → GameLoop + SpotlightLoreOverlay`. No UI import in the simulation. No separate movement update loop. Do not add a duplicate lore/raid event log.
@@ -80,7 +80,7 @@ No active scene
 
 The girl stays at her actual in-world location. The performer IDs and target coordinates live in one small saved scene record. Only the <=11 world-unit arrival threshold and original movement integrator decide who arrives. The current branch waits for **every selected performer and the heroine**, not merely the minimum of six. Stage targets remain active through the ready phase so catch-up ticks cannot send participants home before the UI pauses. Eligibility and physical stage attendance are checked in ready; if emergency movement displaces a singer or the heroine before the UI pauses, the scene aborts rather than starting with a missing actor. Saved ready scenes with dispersed casts are rejected during load normalization, but valid gathering saves continue to resume walking. A new festival also aborts the scene. At most 65 simulation ticks are allowed for gathering, after which it aborts; the ready phase has a bounded 150-tick headless fallback. During the UI performance, game ticks pause and captions advance by **real wall-clock time**.
 
-**Current runtime baseline (before choreography implementation):** The stage's script still contains 31 sequential caption lines, 3.0–5.3 real seconds per line, opening silence (2.4 s), and closing applause (2.8 s). The implementation above **will replace this fixed script in the overlay with canonical JSON 1.3 captions and cue-driven animation**, expanding the sequence and recalculating duration. There is **no music playback or new audio asset**.
+**Current PR #91 choreography:** The stage reads 44 canonical JSON 1.3 captions at 3.0–5.3 seconds each, including the two heroine lines, with two separate 7-second visual solo holds, a 2.4-second introduction and 2.8-second applause. The computed wall-clock duration at this commit is approximately **2 minutes 46 seconds** excluding gathering. No music playback or new audio asset. The legacy `const LINES` JSX mirror has been removed.
 
 ### Movement priority (Codex P2 #4401308618)
 
