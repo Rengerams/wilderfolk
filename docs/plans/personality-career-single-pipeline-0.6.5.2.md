@@ -118,7 +118,7 @@ These shapes are a **design contract**, to be refined against existing TypeScrip
 
 **Authority / precedence (28 October 2026):** PR B's already-approved, merged numeric rebalance remains unchanged. **PR C is strictly a rule-ownership refactor; it must not rebalance any existing social, conception, family, feud or prisoner/civic behavior.** This section supersedes broad "old multipliers may be retired" wording **for PR C only**. Retire the *inline code*, **not** the old effect. Do not add new gameplay bonuses, penalties, decisions, cooldowns, or optional memories while migrating these six behaviors.
 
-**Implementer:** follow the ordered, per-file instructions and test gates in [PR C coding-agent execution](personality-career-codebot-tasks-0.6.5.2.md#pr-c--socialromancefamily-life-no-second-relationship-engine). That document is the implementation checklist; the present section is the architecture and numerical reference. Neither is proof that PR C is already implemented.
+**Implementer and PR topology (28 October 2026):** PR [#94](https://github.com/Rengerams/wilderfolk/pull/94) is the authoritative architecture/test gate. PR [#95](https://github.com/Rengerams/wilderfolk/pull/95) is the stacked **implementation** PR targeting #94. Apply the [PR C coding-agent execution checklist](personality-career-codebot-tasks-0.6.5.2.md#pr-c--socialromancefamily-life-no-second-relationship-engine) to **PR #95**, not the unrelated `implement-pr-c` branch. Correct any #95 code that diverges from this design; never dilute §4.1 to retroactively approve a partial implementation. Merge #94 before #95 and retarget/retest #95 on the final base. Neither a submitted PR nor an empty legacy scan proves that PR C is completed.
 
 #### 4.1.1 One catalog with as many contextual values as needed
 
@@ -174,7 +174,7 @@ The one exported `evaluateTraitInfluence(subject, context, options?)` selects a 
 
 **Do not treat metadata as behavior:** a currently defined generic trait advantage/drawback does not grant a newly introduced active behavior during this parity-only refactor. All fourteen profiles stay typed and retain their preexisting ordinary effects. If a codebot cannot preserve a legacy outcome exactly, it must report the blocking arithmetic or RNG discrepancy and stop, not ship a silently changed probability.
 
-#### 4.1.3 Proof and end state
+#### 4.1.4 Proof and end state
 
 **First** add golden pre-migration tests at existing owner boundaries (not just evaluator unit tests) for all six rows, including multiple combined traits, neutral parents, both conception sites versus unaffected affair, zero-clash RNG draw count, symmetric pair scores, overlap of restraint/severity votes, the grief 5/7/3 paths and current seed outcomes. **Then** make the catalog/evaluator change and migrate one owner at a time. Each touched owner must pass its golden test **immediately**; do not rewrite expected values to hide mismatches.
 
@@ -220,7 +220,7 @@ Values below are **behavioral design candidates**, not implemented numbers. Each
 | `militiaBalance.ts`, `warPrisoners.ts` | PR B replaces the direct Chivalrous gate and old +8% army bonus with **per-musterable-soldier** `danger/defense` evaluation; Chivalrous and Fierce contribute only to the eligible individual's attributable fighting power. PR C converts existing prisoner/civic trait checks without changing the decision owner. | An ineligible human gives no militia DNA gain, one soldier does not boost the whole army, equipment/barracks baselines stay, no double bonus, no universal morality or real-time unit combat. |
 | `SelectedEntityPanel.tsx` and relevant workplace view | Mount the new read-only detail component and show factors actually used by live owner paths. | UI does not edit world state and never invents bonuses from descriptive text. |
 
-**Audit before each hook:** list the old trait-specific branch and its caller in AS-IS, then **remove** that branch and apply the bounded canonical evaluator exactly once at the existing owner. Numerical changes to legacy DNA bonuses are **approved**, but changes to non-DNA mechanics, eligibility and simulation timing are not implicit. Never retain both. The evaluator must not become a wrapper alias around `traitMultiplier`; consumers import the canonical function directly.
+**Audit before each hook, with phase-specific balance rules:** list the previous trait-specific branch and its caller in AS-IS, then remove the inline rule and use the single evaluator once at the existing owner. The **bounded evaluator and authorized numeric rebalance apply only to PR B** work/school/physiology/hunting/defense consumers. For **PR C**, use §4.1's **typed exact decision contexts** and preserve all six legacy numerical rules, RNG and mutation/eligibility semantics **without rebalancing**. Never stack bounded and exact values at one PR C decision. No alias around `traitMultiplier`; existing owners import the canonical evaluator directly.
 
 ### 6.1 PR B architecture cutover — two remaining legacy DNA paths
 
@@ -309,9 +309,9 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 ### PR C — Social and whole-life personality
 - **Gameplay-parity migration, not a rebalance:** implement §4.1 exactly, including additional catalog-only exact multipliers for currently existing social/family/civic contexts; no changes to old chances, durations, case selection or RNG draw pattern. Keep the PR B rebalance already merged.
 - **Strict legacy exit gate:** the legacy consumer audit allowlist becomes empty in PR C; seeded baseline/trait combinations and all five cross-person clash cases must match the old implementation.
-- Apply the central evaluator to off-duty choices, friendship/feud pair weighting, eligible romance/courtship, legitimate affair decisions, family care and contextual reactions.
+- In **PR C**, apply the single evaluator only to the **six already-live legacy decisions** listed in §4.1.2: existing feud-clash probability, workplace banter, initiating-partner courtship progress, married/youth conception (not affair), prisoner/community reaction and spouse bereavement. **Do not add new off-duty, affair-approach, friendship, parenting or care behavior in this parity-only PR**; their current owners and any preexisting ordinary effects remain unchanged. New optional contextual features require separately approved later work.
 - Keep every original relationship writer, cadence, consent/eligibility invariant, mutual link and failure gate intact.
-- Add `lifeExperience.ts` **only** if audited existing fields cannot represent the targeted longer-term influence.
+- **No `lifeExperience.ts` or new persisted fields in PR C.** This is a strict source-of-rules migration; longer-term memory/progression is separate future scope and requires its own architecture, persistence/migration and tests.
 - **Acceptance:** same seed/events generate reproducible choices; different traits measurably bias outcomes without forcing them; no split pair references or extra affinity systems.
 
 ### PR D — Career histories and progression
