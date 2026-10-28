@@ -1,7 +1,7 @@
 # Wilderfolk — The Look: rare juvenile spotlight lore (0.6.5.2)
 
 **Document type:** feature architecture and executable codebot implementation contract, derived from [CODEBOT_FEATURE_TEMPLATE.md](CODEBOT_FEATURE_TEMPLATE.md).  
-**Status:** PLANNED, NOT IMPLEMENTED. This document does not claim tests or runtime behavior have passed.  
+**Status:** IMPLEMENTATION ON PR #91 BRANCH, NOT MERGED; RUNTIME TESTS NOT RUN. The AS-IS section describes main before this feature and the TO-BE describes the proposed/branched code.  
 **Authority:** AGENTS.md, docs/command.md, OWNERSHIP_OVERVIEW.md and simulation/decisionRegistry.ts.  
 **Evidence:** examined main at 688047375fb9a9ed966059d66c25add867912297 on 28 October 2026. Verify the live base again before editing.
 
@@ -230,7 +230,7 @@ No scene → UI → sim back-import; no UI direct writes to entities/chat.
 7. Run targeted Vitest, worker boundary, npm run test:standard, npm run test:types, npm run lint and npm run build only if currently declared; inspect npm scripts first. Check real browser/Playwright with overlays and worker enabled, 0.5x and 10x. Do not claim any check not actually run.
 8. Report PR URL, test results, screenshot/observation, baseline performance, any blockers; do not merge before green and review.
 
-**After this PR:** A complete, deterministic occasional lore scene using actual villagers, no gameplay effect or fake popup with cloned villagers. **Rollback:** reverting the feature PR restores the old pipeline; saves with unknown optional scene fields must be safely handled by the supported save-format policy.
+**Target after implementation PR is verified and merged:** A complete, deterministic occasional lore scene using actual villagers, no gameplay effect or fake popup with cloned villagers. **Rollback:** reverting the feature PR restores the old pipeline; saves with unknown optional scene fields must be safely handled by the supported save-format policy.
 
 ## 5. Performance and determinism
 
