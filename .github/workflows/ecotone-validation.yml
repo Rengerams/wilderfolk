@@ -2,7 +2,7 @@ name: Biome ecotone premerge validation
 on:
   push:
     branches:
-      - feat/biome-ecotone-transitions-20261028
+      - feat/heightmesh-2p5d-20261028
 permissions:
   contents: read
 concurrency:
