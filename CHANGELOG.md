@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Dialogue acceptance (28 October 2026):** Scripted interruptions now release both actors immediately; group presentations require every gathered actor to speak. Added real care and civic outcome tests, paired reload checks and serialized worker-bank selection parity.
+
 - **Dialogue pipeline (28 October 2026):** Routed ambient, social, workplace, child, visitor, care, civic, marriage, omen and election speech through indexed version-1.3 JSON, retaining existing event decisions and a single speech-session owner.
 - **Dialogue ownership:** Removed the legacy direct-phrase writer, added deterministic role and event-variant routing, and registered the catalog, social trigger and chat-state writer separately.
 - **Dialogue checks:** Added event-key bank, session, domain, worker and save, election-archive and latency tests; focused dialogue, type and build gates passed. Final standard-suite acceptance remains pending.
@@ -13,7 +15,7 @@
 - **Fixed:** Population history now records iron alongside other resources on every sample; older snapshots without an iron field remain readable.
 - **Changed:** PR C must preserve existing social DNA gameplay when moving contextual multipliers to the central catalog; a source audit rejects new legacy DNA consumers and requires zero at cutover.
 
-- **CI:** Limited the long-running 360-day simulation gate to game-rule changes; presentation-only edits no longer trigger the full-year workload, while manual runs remain available.
+- **CI:** Replaced the removed simulation PR workflow with a bounded seeded 120-day producer-bot gate for game-rule changes; presentation-only edits are excluded.
 
 - **Changed:** Protected historical stories, dated reports and archival documents from automatic edits by coding agents; current game rules are documented in active plans and architecture instead.
 
@@ -39,7 +41,7 @@
 
 - **Fixed:** A work-shift skill credit now reads the caller's worker index only, so a stale crew slot costs no population-wide search.
 
-- **Changed:** A dedicated gate now runs the full 360-day simulation for changes to game rules, because the standard gate stops at the unit tier.
+- **Changed:** Long simulation scenarios remain manually available; the PR simulation gate now checks 120 days with checkpoint invariants.
 
 - **Frontier map window (28 October 2026):** Sized the interactive map like the existing battle report (48rem maximum width, 92vh outer height budget), above the dimmed city; other subject windows are unchanged.
 
