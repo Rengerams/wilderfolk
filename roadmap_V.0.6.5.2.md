@@ -42,7 +42,7 @@
 
 - [x] Incoming raid warning, preparation, defense choices and six-game-hour combat phases.
 - [x] Outgoing march, engagement, six-game-hour battle and return, including reserved soldiers and durable midpoint casualties.
-- [x] Combat report and Chronicle event records, with one resolved battle result across reloads.
+- [x] Raid phases and outcomes are recorded in the **ordinary Chronicle event log** as well as supplemental battle reports, with one resolved result across reloads.
 - [x] Up to **six strategic settlements total** (friendly and hostile combined) on the **world map only**. Founding opportunities begin on colony day 10, recur every 30 days and require six living player settlers; older saves above the cap remain intact.
 - [x] Cancelled expeditions and razed rivals release deployed troops; peace clears war state.
 
@@ -52,7 +52,7 @@
 - [x] Destruction is conditional on razing intent, overwhelming force, failed last resistance and insufficient remaining shelter/defenses — **not strength ratio alone**.
 - [x] Survivors, damaged buildings, food shortages and repair needs persist through a recovery state. A seven-day raid-protection interval limits immediate repeat attacks.
 - [x] Persisted terminal state stops the simulation, preserves saves and offers final-state export, Chronicle, a new village or main menu.
-- [ ] Extend the terminal screen with the former leader, achievements and selected Chronicle highlights. The current screen already shows village age, losses and survivors.
+- [ ] Extend the terminal screen with the former leader, recorded Chronicle chapters and selected historical highlights. The current screen already shows village age, losses and survivors.
 
 ## 4. Victory decisions for a defeated rival — implemented core
 
@@ -90,7 +90,7 @@
 
 ## 9. Raid feature implementation status
 
-- [ ] **Expanded final-settlement report:** show last leader, achieved goals/chapters and recorded Chronicle highlights on the terminal screen (§3).
+- [ ] **Expanded final-settlement report:** show last leader, reached Chronicle chapters and recorded historical highlights on the terminal screen (§3).
 - [ ] **Clearer raze confirmation:** explain permanent removal, displaced survivors and contextual diplomacy before confirming (§4).
 - [x] Strategic rivals, six-hour raids, player choice, aftermath, recovery, terminal defeat, captives, diplomatic memory and leadership merit are in merged PR [#58](https://github.com/Rengerams/wilderfolk/pull/58).
 - [x] Civic wartime decisions were extended in merged PR [#70](https://github.com/Rengerams/wilderfolk/pull/70).
@@ -207,7 +207,7 @@ These describe **unimplemented or incomplete features**, not test activities or 
 - [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
 - [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§17).
 - [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§18).
-- [ ] **Warfare UI finishing details:** fuller terminal-settlement summary (leader, achievements and Chronicle highlights) and a neutral explanation of permanence in the raze confirmation (§§3–4).
+- [ ] **Warfare UI finishing details:** fuller terminal-settlement summary (leader, recorded Chronicle chapters and historical highlights) and a neutral explanation of permanence in the raze confirmation (§§3–4).
 
 ### 21.2 Canonical document and implementation boundary
 
