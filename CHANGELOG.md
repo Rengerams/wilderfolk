@@ -2,6 +2,20 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Terrain browser review (28 October 2026):** Hide the map grid by default; reduce excessive bright rock art without altering path obstacles; require clear five-preset browser screenshots before visual approval.
+
+- **CC0 soil and leaf litter (28 October 2026):** Added four verified Cethiel dirt textures. Version 4 blends fine soil, coarse dirt and leaf litter; the rut texture is reserved for authored paths. Legacy maps retain their existing materials.
+
+- **CC0 natural ground detail (28 October 2026):** Curated 14 CC0 rubberduck textures at 512px; version 4 uses seven natural ground materials with elevation and moisture transitions and seam-safe sampling. Building textures and normal maps stay unloaded.
+
+- **CC0 grass ground textures (28 October 2026):** Imported four byte-verified Cethiel grass images. Version 4 blends climate-specific terrain detail using world coordinates for seamless 2.5D ground; older saves keep their visual recipes.
+
+- **Nature decor cleanup (28 October 2026):** Version-4 worlds omit decorative mushrooms, bones, lilies, flowers, ferns, reeds, cattails, scrub and tiny berry bushes. Existing scenery density, harvestable blueberries and older maps remain unchanged.
+
+- **Biome ecotones (28 October 2026):** Smooth grass, sand, dirt, stone and snow transitions; fade tree density by local climate; replace generated scenery shapes with licensed artist sprites in new worlds. Existing saves retain their terrain recipes.
+
+
+- **2.5D terrain (28 October 2026):** Cache textured ground chunks as triangular height meshes, align game objects and decorations, and correct mouse and keyboard positioning on slopes. Legacy save maps and game physics are unchanged.
 - **CI follow-up (#81):** Align staffing tests with the two-worker Farm capacity, recover Quarry staffing from industrial surplus, verify stone production and preserve snow on cold crests.
 
 - **Silo storage automation (PR #81):** Expand food capacity when at least 90% full, even with existing Silos; prevent parallel Silo builds and avoid treating a food-production deficit as storage pressure. Preserve current food-first staffing and the normal Quarry donor rules.

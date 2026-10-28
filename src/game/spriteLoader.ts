@@ -121,6 +121,12 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/fox.png',
     '/sprites/tree.png',
     '/sprites/tree2.png',
+    // Artist-authored top-down conifers (Ansimuz, CC0). New-world vegetation uses real artwork.
+    '/sprites/nature/ansimuz/summer_pine_tree_tiles.png',
+    // CC0 image-based L3 scenery: artist assets instead of drawProp Canvas primitives.
+    '/sprites/nature/kenney/naturePack_026_0.png',
+    '/sprites/nature/kenney/naturePack_054_0.png',
+    '/sprites/nature/kenney/naturePack_078_0.png',
     '/sprites/blueberry_tree.png',
     '/sprites/grass.png',
     '/sprites/grass2.png',
@@ -148,6 +154,26 @@ export function preloadAllSprites(): Promise<void> {
     '/sprites/human_female.png',
     // Seamless ground fills — exactly the paths `terrainLayer`'s fill table stamps in `bakeTerrainLayer`.
     '/sprites/terrain/grass_fill.png',
+    // Cethiel (CC0) tileable grass albedos: v4 Whittaker ground samples their
+    // pixels once per terrain chunk bake and blends across moisture ecotones.
+    '/sprites/terrain/cethiel/Grass_01.png',
+    '/sprites/terrain/cethiel/Grass_02.png',
+    '/sprites/terrain/cethiel/Grass_03.png',
+    '/sprites/terrain/cethiel/Grass_04.png',
+    // Cethiel CC0 dirt: fine soil, gritty soil and natural leaf litter.
+    // Dirt_03 has directional ruts and is reserved for deliberate paths/farms.
+    '/sprites/terrain/cethiel/Dirt_01.png',
+    '/sprites/terrain/cethiel/Dirt_02.png',
+    '/sprites/terrain/cethiel/Dirt_04.png',
+    // CC0 50 Free Textures 5 (rubberduck / para), 512px reduced albedos.
+    // Load only the seven materials the v4 ground shader actually samples.
+    '/sprites/terrain/rubberduck/246.jpg', // sand
+    '/sprites/terrain/rubberduck/206.jpg', // soil
+    '/sprites/terrain/rubberduck/217.jpg', // dry earth
+    '/sprites/terrain/rubberduck/232.jpg', // gravel
+    '/sprites/terrain/rubberduck/235.jpg', // rock
+    '/sprites/terrain/rubberduck/210.jpg', // straw
+    '/sprites/terrain/rubberduck/215.jpg', // shingle
     '/sprites/terrain/forest.png',
     '/sprites/terrain/dirt.png',
     '/sprites/terrain/sand_fill.png',

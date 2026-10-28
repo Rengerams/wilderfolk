@@ -3,7 +3,10 @@
  * `WorldMap.decorations` (Teraforge's L3 layer), ported from Teraforge `render.ts`.
  */
 import type { TerrainDecoration, WorldMap } from '../gameTypes';
+import { supportsTerrainHeightMesh, terrainRiseAt } from '../terrainAtlas';
 import { clamp } from '../terrain/noise';
+import { RETIRED_V4_DECOR_TYPES } from '../terrain/biomes';
+import { getSpriteFrame } from '../spriteLoader';
 
 /**
  * Per-prop brightness variation, applied to the prop's own colours.
@@ -69,6 +72,53 @@ function tinted(color: string, level: number): string {
     : color;
   tintedCache.set(key, out);
   return out;
+}
+
+/**
+ * Authored scenery for version-4 worlds. The atlas sprites are cropped from
+ * transparent CC0 PNGs; the other frames are the game's existing painted PNGs.
+ * No Canvas strokes or procedural polygon "sprites" are rendered in V4.
+ *
+ * The variants share a few textures on purpose until higher-quality species-
+ * specific sheets can replace them; a rock never borrows a tree sprite.
+ */
+interface DecorArtwork {
+  sprite: string;
+  width: number;
+  height: number;
+  crop?: readonly [number, number, number, number];
+}
+const ROCK_PATH = '/sprites/nature/kenney/naturePack_026_0.png';
+const CACTUS_PATH = '/sprites/nature/kenney/naturePack_054_0.png';
+const WOOD_PATH = '/sprites/nature/kenney/naturePack_078_0.png';
+const PROP_ART: Partial<Record<TerrainDecoration['type'], DecorArtwork>> = {
+  bush: { sprite: '/sprites/bush.png', width: 22, height: 20 },
+  tallgrass: { sprite: '/sprites/grass.png', width: 15, height: 16 },
+  stump: { sprite: '/sprites/stump.png', width: 19, height: 14 },
+  log: { sprite: WOOD_PATH, width: 20, height: 13, crop: [96, 264, 60, 52] },
+  driftwood: { sprite: '/sprites/stump.png', width: 20, height: 12 },
+  rock_small: { sprite: ROCK_PATH, width: 13, height: 11, crop: [80, 257, 64, 63] },
+  rock_big: { sprite: ROCK_PATH, width: 27, height: 23, crop: [80, 257, 64, 63] },
+  cactus: { sprite: CACTUS_PATH, width: 12, height: 22, crop: [100, 247, 37, 80] },
+};
+function drawPropArtwork(ctx: CanvasRenderingContext2D, d: TerrainDecoration): void {
+  const art = PROP_ART[d.type];
+  if (!art) return;
+  const frame = getSpriteFrame(art.sprite);
+  if (!frame) return; // loaded by preloadAllSprites before the terrain cache is created
+  const source = art.crop ?? [frame.sx, frame.sy, frame.sw, frame.sh];
+  // Isometric white stone cubes previously overwhelmed mountains in the first
+  // real-browser screenshots. Keep their gameplay position/occupancy unchanged;
+  // adjust the *rendered* material size and value only in new worlds.
+  const isRock = d.type === 'rock_small' || d.type === 'rock_big';
+  const scale = d.scale * (isRock ? 0.72 : 1);
+  const w = art.width * scale, h = art.height * scale;
+  // Bottom-anchored sprites match the terrain height and avoid planted-in-air foliage.
+  const previousFilter = ctx.filter;
+  if (isRock) ctx.filter = 'brightness(0.74) saturate(0.78)';
+  ctx.drawImage(frame.image, source[0], source[1], source[2], source[3],
+    -w / 2, -h * 0.9, w, h);
+  if (isRock) ctx.filter = previousFilter;
 }
 
 /** Draw one decorative ground prop (no trees — those are Wilderfolk entities). */
@@ -292,12 +342,23 @@ export function bakeDecorInRect(
         // The prop's **origin** decides which chunk paints it (the margin above is what keeps its art
         // whole), so it is drawn exactly once even though neighbouring rects overlap.
         if (d.x < ownerRect.x || d.y < ownerRect.y || d.x >= right || d.y >= bottom) continue;
+        // Compact v4 saves could still contain props from an older development
+        // snapshot: don't draw a deprecated shape even if such data survives.
+        if ((map.generationVersion ?? 0) >= 4 && RETIRED_V4_DECOR_TYPES.has(d.type)) continue;
         ctx.save();
         // Same shape as the live draw this replaces — translate to the prop, scale the canvas, draw
         // around the origin — so a scale of 1 bakes the art the frame used to draw directly.
-        ctx.translate((d.x - rect.x) * scale, (d.y - rect.y) * scale);
+        // Decorative props are vertical sprites, not flattened terrain decals: raise their
+        // roots rather than distorting their shapes with the ground mesh.
+        const rise = supportsTerrainHeightMesh(map) ? terrainRiseAt(map, d.x, d.y) : 0;
+        ctx.translate((d.x - rect.x) * scale, (d.y - rect.y - rise) * scale);
         ctx.scale(scale, scale);
-        drawProp(ctx, d, d.scale, d.variant, d.flipX);
+        if ((map.generationVersion ?? 0) >= 4) {
+          // V4 art is loaded from PNGs. Legacy worlds preserve their exact original strokes.
+          drawPropArtwork(ctx, d);
+        } else {
+          drawProp(ctx, d, d.scale, d.variant, d.flipX);
+        }
         ctx.restore();
         baked++;
       }

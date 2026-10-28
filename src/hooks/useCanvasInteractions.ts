@@ -17,6 +17,8 @@ import {
   createBuildGhost,
 } from '../game/viewState';
 import { snapBuildingCenter } from '../game/buildingRotation';
+import { unprojectTerrainY } from '../game/renderer/heightMesh';
+import { terrainRiseAt } from '../game/terrainAtlas';
 import { collectStripDemolitionIds } from '../game/stripTopology';
 import { getHumanSelectionBounds } from '../game/humanSprites';
 import { playClickSound } from '../audio';
@@ -124,7 +126,7 @@ export function useCanvasInteractions({
   const pointerMovedRef = useRef(false);
 
   const getEventWorldCoords = useCallback(
-    (clientX: number, clientY: number): { worldX: number; worldY: number; rect: DOMRect } | null => {
+    (clientX: number, clientY: number): { worldX: number; worldY: number; flatY: number; rect: DOMRect } | null => {
       const canvas = canvasRef.current;
       if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
@@ -136,10 +138,12 @@ export function useCanvasInteractions({
       const scaleY = canvasH / rect.height;
       const screenX = (clientX - rect.left) * scaleX;
       const screenY = (clientY - rect.top) * scaleY;
-      const [worldX, worldY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
-      return { worldX, worldY, rect };
+      const [worldX, flatY] = screenToWorld(screenX, screenY, getViewCamera(), canvasW, canvasH);
+      const map = loopRef.current?.getWorld().worldMap ?? worldRef.current.worldMap;
+      const worldY = unprojectTerrainY(map, worldX, flatY);
+      return { worldX, worldY, flatY, rect };
     },
-    [canvasRef, getViewCamera],
+    [canvasRef, getViewCamera, loopRef, worldRef],
   );
 
   const handleCanvasClick = useCallback(
@@ -166,7 +170,7 @@ export function useCanvasInteractions({
 
       const coords = getEventWorldCoords(e.clientX, e.clientY);
       if (!coords) return;
-      const { worldX, worldY, rect } = coords;
+      const { worldX, worldY, flatY, rect } = coords;
 
       const loop = loopRef.current;
       const world = loop?.getWorld() ?? worldRef.current;
@@ -245,7 +249,8 @@ export function useCanvasInteractions({
         if (ent.type !== EntityType.Human || ent.indoorBuildingId != null) continue;
         const bounds = getHumanSelectionBounds(ent, camera.zoom);
         const dx = worldX - bounds.cx;
-        const dy = worldY - bounds.cy;
+        // Sprites are translated by the height at their feet, not warped to the slope.
+        const dy = flatY - (bounds.cy - terrainRiseAt(world.worldMap, ent.x, ent.y));
         if ((dx / bounds.rx) ** 2 + (dy / bounds.ry) ** 2 <= 1) {
           clickedEntity = ent;
           break;
@@ -260,7 +265,7 @@ export function useCanvasInteractions({
             continue;
           }
           const dx = ent.x - worldX;
-          const dy = ent.y - worldY;
+          const dy = ent.y - terrainRiseAt(world.worldMap, ent.x, ent.y) - flatY;
           if (dx * dx + dy * dy <= (ent.size * 1.2 + 6) ** 2) {
             clickedEntity = ent;
             break;

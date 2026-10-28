@@ -20,7 +20,8 @@ import {
 import { computeFlow, fillDepressions, riverWidthAt } from './hydrology';
 import { RAIN_SHADOW_MOISTURE_STRENGTH, rainShadowField } from './rainShadow';
 import { isUnbuildableTerrainType } from './terrainTraits';
-import { B, BIOME_BY_IDX, BIOMES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
+import { sampleEcotone, type EcotoneTerrainFields } from './ecotones';
+import { B, BIOME_BY_IDX, BIOMES, RETIRED_V4_DECOR_TYPES, TREE_SPRITE_TYPES, type BiomeDef, type SpriteType } from './biomes';
 import {
   BUILD_CELL,
   Buildability,
@@ -700,7 +701,7 @@ function carveRivers(
  * a channel and 0 is dry, which is why nothing here takes a square root of it.
  */
 function buildWaterField(
-  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3,
+  rivers: RiverPoint[][], cols: number, rows: number, generationVersion: 1 | 2 | 3 | 4,
 ): { coverage: Float32Array; wCols: number; wRows: number } {
   const cell = WATER_CELL;
   const wCols = Math.ceil((cols * TERRAIN_CELL) / cell);
@@ -883,12 +884,26 @@ function assignBiomes(
 
 /* ===== L3 decorations ===== */
 
-function pickDecor(table: [SpriteType, number][], r: number): SpriteType {
+function pickDecor(
+  table: [SpriteType, number][], r: number,
+  excluded?: ReadonlySet<SpriteType>,
+): SpriteType | null {
+  // Use one canonical biome table; filter only the v4 candidates, preserving
+  // the original v1–v3 weighted picks and RNG sequence.
   let total = 0;
-  for (const [, w] of table) total += w;
+  for (const [type, weight] of table) {
+    if (!excluded?.has(type)) total += weight;
+  }
+  if (total <= 0) return null;
   let v = r * total;
-  for (const [t, w] of table) { v -= w; if (v <= 0) return t; }
-  return table[table.length - 1][0];
+  let last: SpriteType | null = null;
+  for (const [type, weight] of table) {
+    if (excluded?.has(type)) continue;
+    last = type;
+    v -= weight;
+    if (v <= 0) return type;
+  }
+  return last;
 }
 
 
@@ -916,7 +931,8 @@ function decorBiomeForTile(type: TerrainType, coarse: BiomeDef): BiomeDef {
 function placeDecorations(
   seed: number, cols: number, rows: number,
   terrain: Uint8Array, pathGrid: Uint8Array, pCols: number, pRows: number,
-  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3,
+  tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3 | 4,
+  ecotoneFields?: EcotoneTerrainFields,
 ): TerrainDecoration[] {
   const rand = mulberry32(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
@@ -929,7 +945,28 @@ function placeDecorations(
       const densityScale = generationVersion >= 2
         ? (def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga' ? 0.38 : 0.62)
         : 1;
-      const count = def.density * DECOR_DENSITY * densityScale * (0.35 + clumpNoise * 1.5);
+      // V4 smoothly adjusts understory density without changing biome identity.
+      // V1–V3 retain their exact density, decor choices and RNG calls.
+      const climate = generationVersion === 4 && ecotoneFields
+        ? sampleEcotone(ecotoneFields, (x + 0.5) * TERRAIN_CELL, (y + 0.5) * TERRAIN_CELL)
+        : null;
+      let targetDensity = def.density * densityScale;
+      if (climate && (def.id === 'grass' || def.id === 'meadow'
+        || def.id === 'forest' || def.id === 'dense_forest' || def.id === 'taiga')) {
+        const forestDensity = BIOMES.grass.density * (1 - climate.forest)
+          + BIOMES.forest.density * (climate.forest - climate.denseForest)
+          + BIOMES.dense_forest.density * climate.denseForest;
+        targetDensity = forestDensity * (0.62 - climate.forest * 0.22)
+          * climate.alpineFade * (1 - climate.dry * 0.4);
+      }
+      // The 2.5D rock/height surface already has a textured relief: stamping
+      // a separate bright boulder on every nearby cell turns mountains into
+      // white rubble fields. Keep sparse natural talus while relying on the
+      // actual height mesh and rock albedo for continuous mountain structure.
+      if (generationVersion === 4 && (def.id === 'rock' || def.id === 'snow')) {
+        targetDensity *= 0.42;
+      }
+      const count = targetDensity * DECOR_DENSITY * (0.35 + clumpNoise * 1.5);
       let n = Math.floor(count);
       if (rand() < count - n) n++;
 
@@ -945,8 +982,21 @@ function placeDecorations(
         if (generationVersion >= 2 && (
           site.id === 'water' || site.id === 'river' || site.id === 'deep_water'
         )) continue;
-        const type = pickDecor(site.decor, rand());
-        if (TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
+        let table = site.decor;
+        if (climate && (site.id === 'grass' || site.id === 'meadow'
+          || site.id === 'forest' || site.id === 'dense_forest')) {
+          // The same humidity weights decide *what* is present and *how much*.
+          // Pick a gradual mix of meadow/forest/dense understory (not hard tile cuts).
+          const forestPart = climate.forest;
+          const densePart = climate.denseForest;
+          const pick = rand();
+          table = pick < densePart ? BIOMES.dense_forest.decor
+            : pick < forestPart ? BIOMES.forest.decor : BIOMES.grass.decor;
+        }
+        const type = pickDecor(
+          table, rand(), generationVersion === 4 ? RETIRED_V4_DECOR_TYPES : undefined,
+        );
+        if (!type || TREE_SPRITE_TYPES.has(type)) continue; // trees are Wilderfolk entities
 
         decorations.push({
           x: px, y: py, type,
@@ -1001,7 +1051,7 @@ export function generateRawTerrain(
   preset: WorldMap['preset'],
   /** The seed an existing save was generated with — see {@link terrainSeedFor}. */
   terrainSeed?: number,
-  generationVersion: 1 | 2 | 3 = 3,
+  generationVersion: 1 | 2 | 3 | 4 = 3,
 ): WorldMap {
   const settings = PRESET_SETTINGS[preset];
   const s = generationVersion >= 2 && preset === MapPreset.Rivers
@@ -1158,6 +1208,11 @@ export function generateRawTerrain(
   // L3 decorations (biome-density-driven; trees excluded)
   const decorations = placeDecorations(
     tseed, cols, rows, terrain, pathGrid, pCols, pRows, pathTileType, generationVersion,
+    generationVersion === 4 ? {
+      cols, rows, elevation, moisture, temperature, seaLevel, riverDist, waterCols: wCols,
+      waterRows: wRows, moistureForestThreshold: cuts.forest,
+      moistureDarkForestThreshold: cuts.darkForest,
+    } : undefined,
   );
 
   // L1 build grid (20px) — 0=buildable, 1=water, 2=hard, 3=mixed. The hard-ground test reads

@@ -108,7 +108,8 @@ export function createInitialView(width: number, height: number, zoom = CAMERA_Z
     buildGhost: null,
     buildStripPreview: null,
     buildRotation: 0,
-    showGrid: true,
+    // Natural valley first; the placement grid remains available as a user toggle.
+    showGrid: false,
     showPaths: false,
     showTechTree: false,
     showLogistics: false,
@@ -296,7 +297,7 @@ export function createViewFromSave(
     buildGhost: null,
     buildStripPreview: null,
     buildRotation: parseBuildRotation(data.buildRotation),
-    showGrid: parseBoolean(data.showGrid, true),
+    showGrid: parseBoolean(data.showGrid, false),
     showPaths: parseBoolean(data.showPaths, false),
     showTechTree: parseBoolean(data.showTechTree, false),
     showLogistics: parseBoolean(data.showLogistics, false),

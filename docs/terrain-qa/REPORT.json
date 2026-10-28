@@ -1,0 +1,147 @@
+{
+  "scenes": [
+    {
+      "preset": "Meadows",
+      "selected": "Meadows",
+      "zoom": 0.75,
+      "stats": {
+        "width": 1152,
+        "height": 645,
+        "sampled": 185760,
+        "mean": [
+          112,
+          119,
+          84
+        ],
+        "blueShare": 0.05402670111972437,
+        "greenShare": 0.7215708440999139,
+        "distinctColors": 753
+      },
+      "screenshot": "docs/terrain-qa/meadows.jpg"
+    },
+    {
+      "preset": "Black Forest",
+      "selected": "Black Forest",
+      "zoom": 0.75,
+      "stats": {
+        "width": 1152,
+        "height": 645,
+        "sampled": 185760,
+        "mean": [
+          101,
+          111,
+          81
+        ],
+        "blueShare": 0.09455211024978467,
+        "greenShare": 0.5334840654608096,
+        "distinctColors": 743
+      },
+      "screenshot": "docs/terrain-qa/black-forest.jpg"
+    },
+    {
+      "preset": "Arabia",
+      "selected": "Arabia",
+      "zoom": 0.75,
+      "stats": {
+        "width": 1152,
+        "height": 645,
+        "sampled": 185760,
+        "mean": [
+          132,
+          131,
+          102
+        ],
+        "blueShare": 0.05999677002583979,
+        "greenShare": 0.6013135228251507,
+        "distinctColors": 715
+      },
+      "screenshot": "docs/terrain-qa/arabia.jpg"
+    },
+    {
+      "preset": "Highland",
+      "selected": "Highland",
+      "zoom": 0.75,
+      "stats": {
+        "width": 1152,
+        "height": 645,
+        "sampled": 185760,
+        "mean": [
+          96,
+          111,
+          87
+        ],
+        "blueShare": 0.1827357881136951,
+        "greenShare": 0.42550602928509906,
+        "distinctColors": 793
+      },
+      "screenshot": "docs/terrain-qa/highland.jpg"
+    },
+    {
+      "preset": "Scandinavia",
+      "selected": "Scandinavia",
+      "zoom": 0.75,
+      "stats": {
+        "width": 1152,
+        "height": 645,
+        "sampled": 185760,
+        "mean": [
+          63,
+          110,
+          130
+        ],
+        "blueShare": 0.7406492248062015,
+        "greenShare": 0.15982450473729543,
+        "distinctColors": 729
+      },
+      "screenshot": "docs/terrain-qa/scandinavia.jpg"
+    }
+  ],
+  "assets": [
+    {
+      "path": "/sprites/terrain/cethiel/Dirt_01.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Dirt_02.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Dirt_04.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Grass_01.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Grass_02.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Grass_03.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/cethiel/Grass_04.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/rubberduck/206.jpg",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "/sprites/terrain/rubberduck/232.jpg",
+      "width": 512,
+      "height": 512
+    }
+  ],
+  "pageErrors": []
+}
