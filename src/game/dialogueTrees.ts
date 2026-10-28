@@ -472,10 +472,10 @@ export function readPresentationDialogue(
         || !tree.speakers.includes(line.speaker)
         || (line.durationMs !== undefined && (!Number.isInteger(line.durationMs)
           || line.durationMs < 250 || line.durationMs > 60000)))) {
-      throw new Error(\`[dialogue] Invalid presentation tree: \${tree.id}\`);
+      throw new Error(`[dialogue] Invalid presentation tree: ${tree.id}`);
     }
     if (tree.eventKey === eventKey) {
-      if (selected) throw new Error(\`[dialogue] Ambiguous presentation event key: \${eventKey}\`);
+      if (selected) throw new Error(`[dialogue] Ambiguous presentation event key: ${eventKey}`);
       selected = {
         id: tree.id,
         eventKey,
@@ -488,7 +488,7 @@ export function readPresentationDialogue(
       };
     }
   }
-  if (!selected) throw new Error(\`[dialogue] Missing presentation event key: \${eventKey}\`);
+  if (!selected) throw new Error(`[dialogue] Missing presentation event key: ${eventKey}`);
   return Object.freeze(selected);
 }
 
