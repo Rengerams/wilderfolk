@@ -2,13 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **CC0 soil and leaf litter (28 October 2026):** Import all four originals from the user-supplied Cethiel dirt archive with SHA-256 verification. Layer Dirt_01 (fine loam), Dirt_02 (coarse soil), and Dirt_04 (leaf litter) into v4's continuously weighted terrain materials. Dirt_03's directional ruts are reserved for authored paths; old worlds' visual recipes remain unchanged.
+- **CC0 soil and leaf litter (28 October 2026):** Added four verified Cethiel dirt textures. Version 4 blends fine soil, coarse dirt and leaf litter; the rut texture is reserved for authored paths. Legacy maps retain their existing materials.
 
-- **CC0 natural ground detail (28 October 2026):** Curate 14 low-memory 512px colour images from the user's 50-texture rubberduck CC0 archive (original pack has another 50 normal maps). New v4 terrain draws seven of these natural albedos for sand, soils, gravel, stone, straw and shingle, with moisture/height-weighted transitions and absolute-world sampling that prevents chunk seams. No building textures or normal maps loaded, and older saves keep their ground rendering.
+- **CC0 natural ground detail (28 October 2026):** Curated 14 CC0 rubberduck textures at 512px; version 4 uses seven natural ground materials with elevation and moisture transitions and seam-safe sampling. Building textures and normal maps stay unloaded.
 
-- **CC0 grass ground textures (28 October 2026):** Import the user's four original 512×512 Cethiel grass albedos, verified byte-identical against the supplied archive; sample world-aligned image detail in v4 Whittaker terrain with climate-driven transitions across meadows, open grass, forest and dense forest, preserving 2.5D chunk seams and older terrain recipes.
+- **CC0 grass ground textures (28 October 2026):** Imported four byte-verified Cethiel grass images. Version 4 blends climate-specific terrain detail using world coordinates for seamless 2.5D ground; older saves keep their visual recipes.
 
-- **Nature decor cleanup (28 October 2026):** New version-4 worlds no longer generate mushrooms, bones, water lilies, flowers, ferns, reeds, cattails, dry scrub or tiny decorative berry bushes; surviving scenery retains its weighted biome coverage. Harvestable blueberry trees and historical v1–v3 maps remain unchanged.
+- **Nature decor cleanup (28 October 2026):** Version-4 worlds omit decorative mushrooms, bones, lilies, flowers, ferns, reeds, cattails, scrub and tiny berry bushes. Existing scenery density, harvestable blueberries and older maps remain unchanged.
 
 - **Biome ecotones (28 October 2026):** Smooth grass, sand, dirt, stone and snow transitions; fade tree density by local climate; replace generated scenery shapes with licensed artist sprites in new worlds. Existing saves retain their terrain recipes.
 
