@@ -16,6 +16,9 @@
 
 
 - **2.5D terrain (28 October 2026):** Cache textured ground chunks as triangular height meshes, align game objects and decorations, and correct mouse and keyboard positioning on slopes. Legacy save maps and game physics are unchanged.
+- **CI follow-up (#81):** Align staffing tests with the two-worker Farm capacity, recover Quarry staffing from industrial surplus, verify stone production and preserve snow on cold crests.
+
+- **Silo storage automation (PR #81):** Expand food capacity when at least 90% full, even with existing Silos; prevent parallel Silo builds and avoid treating a food-production deficit as storage pressure. Preserve current food-first staffing and the normal Quarry donor rules.
 
 - **Terrain river materials (#75, 28 October 2026):** Added flow-aligned glints, waterfall rapids and patchy silt banks. Fixed shore-phase compression by normalizing against assigned flow cells; added regression coverage and registered render-function owners. Generation and saves unchanged.
 

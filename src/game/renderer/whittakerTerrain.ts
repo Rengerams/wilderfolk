@@ -1282,9 +1282,11 @@ export function bakeWhittakerGround(
       if (!isWater && rd < ROCK_RIVER_MAX && hn > ROCK_UPLAND_START) {
         const upland = clamp((hn - ROCK_UPLAND_START) / ROCK_UPLAND_SPAN, 0, 1);
         const slope = Math.hypot(sx, sy);
+        // Keep half-covered snow as a transition, but never tint a majority-snow crest
+        // grey or warm it with rock/valley colour. The snow ramp owns that surface.
+        const exposedUpland = upland * clamp(1 - snowAmountAt(hn, te) * 2, 0, 1);
         const stoneExposure = clamp((slope - ROCK_SLOPE_START) / ROCK_SLOPE_SPAN, 0, 1)
-          * upland * clamp((ROCK_RIVER_MAX - rd) / ROCK_RIVER_FADE, 0, 1)
-          * (1 - snowAmountAt(hn, te));
+          * exposedUpland * clamp((ROCK_RIVER_MAX - rd) / ROCK_RIVER_FADE, 0, 1);
         if (stoneExposure > ROCK_EXPOSURE_MIN) {
           const strata = (valueNoise(
             wx * ROCK_STRATA_X_FREQ + wy * ROCK_STRATA_DIAGONAL_FREQ,
@@ -1298,8 +1300,8 @@ export function bakeWhittakerGround(
         }
 
         // Ridges lift ambient light; valleys retain shade.
-        const ridge = clamp((rl - RIDGE_RELIEF_START) / RIDGE_RELIEF_SPAN, 0, 1) * upland;
-        const valley = clamp((-rl - VALLEY_RELIEF_START) / VALLEY_RELIEF_SPAN, 0, 1) * upland;
+        const ridge = clamp((rl - RIDGE_RELIEF_START) / RIDGE_RELIEF_SPAN, 0, 1) * exposedUpland;
+        const valley = clamp((-rl - VALLEY_RELIEF_START) / VALLEY_RELIEF_SPAN, 0, 1) * exposedUpland;
         r = (r + ridge * RIDGE_COLOR_GAIN[0]) * (1 - valley * VALLEY_COLOR_DARKEN[0]);
         g = (g + ridge * RIDGE_COLOR_GAIN[1]) * (1 - valley * VALLEY_COLOR_DARKEN[1]);
         b = (b + ridge * RIDGE_COLOR_GAIN[2]) * (1 - valley * VALLEY_COLOR_DARKEN[2]);

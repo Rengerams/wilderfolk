@@ -554,16 +554,16 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // A Silo lowers spoilage and contributes food without extra farmhands.
-  // Stop adding silos once the authoritative economy has no spoilage left.
-  if (measuredDeficit && (state.foodSpoilageRate ?? 0) > 0
+  // Expand silo capacity when food is nearly at storage limit, not when production is short.
+  // Keep one construction site at a time and leave repair materials available.
+  if (!shortOnFood && storageNearlyFull(state, 'food', FOOD_SILO_PRESSURE_RATIO)
     && !isUnderConstruction(state, BuildingType.Silo)
     && canAffordKeepingRepair(state, BUILDING_CONFIGS[BuildingType.Silo].cost)) {
     const spot = findPlacementSpot(state, BuildingType.Silo, 0);
     if (spot) {
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: BuildingType.Silo, x: spot.x, y: spot.y, rotation: 0 },
-        reason: 'build a Silo — reduce food spoilage and preserve the harvest',
+        reason: 'build a Silo — food storage is nearly full',
       };
     }
   }
@@ -1476,13 +1476,15 @@ function hasJuvenileSettler(state: WorldState): boolean {
 /** The `state.resources.storageMax` key a storage building extends. */
 type StorageResourceKey = 'wood' | 'stone' | 'iron' | 'gold' | 'food';
 
-/** Two thirds full: the shelf is nearly full, so extra capacity is the next useful build. */
+/** Two thirds full: the general shelf is nearly full, so extra capacity can help. */
 const STORAGE_PRESSURE_RATIO = 2 / 3;
+/** Expand Silo storage at 90% capacity without requiring a production deficit. */
+const FOOD_SILO_PRESSURE_RATIO = 0.9;
 
-function storageNearlyFull(state: WorldState, key: StorageResourceKey): boolean {
+function storageNearlyFull(state: WorldState, key: StorageResourceKey, ratio = STORAGE_PRESSURE_RATIO): boolean {
   const cap = state.storageMax?.[key];
   if (!cap || cap <= 0) return false;
-  return (state.resources[key] ?? 0) >= cap * STORAGE_PRESSURE_RATIO;
+  return (state.resources[key] ?? 0) >= cap * ratio;
 }
 
 /**
@@ -1562,15 +1564,6 @@ const COMMUNITY_BUILD_ORDER: readonly ServiceBuildOption[] = [
       && storageNearlyFull(state, 'wood'),
     // A full shelf is production going to waste, not a comfort spend, so storage only has to clear
     // the general food buffer instead of the stricter community reserve.
-    foodReserveDays: VirtualPlayer.FOOD_BUFFER_DAYS,
-  },
-  {
-    type: BuildingType.Silo,
-    // The storage owner's own table (`computeStorageMax`): a Silo adds food and cuts spoilage; it
-    // holds no gold at all, so `storageNearlyFull('gold')` made it effectively unbuildable.
-    needed: (state) =>
-      !ownsBuildingOfType(state, BuildingType.Silo)
-      && storageNearlyFull(state, 'food'),
     foodReserveDays: VirtualPlayer.FOOD_BUFFER_DAYS,
   },
   {
