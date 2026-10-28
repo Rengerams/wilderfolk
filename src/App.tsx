@@ -494,7 +494,8 @@ export default function App() {
     const loop = loopRef.current;
     if (!loop || loop.getWorld().spotlightLore?.phase !== 'ready') return;
     const current = loop.getView();
-    if (Math.hypot(current.camera.targetX - x, current.camera.targetY - y) < 0.2) return;
+    if (Math.hypot(current.camera.targetX - x, current.camera.targetY - y) < 0.2
+        && Math.abs(current.camera.targetZoom - 1.75) < 0.005) return;
     const aimed = focusCameraOn(current, x, y, 1.75);
     const canvas = canvasRef.current;
     loop.setView({
