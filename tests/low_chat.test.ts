@@ -32,7 +32,7 @@ import {
   tickHumanChat,
   type ChatSpeaker,
 } from '../src/game/humanChat';
-import { getDialogueTreeById, maybeDialogueChat, requestDialogue } from '../src/game/dialogueTrees';
+import { getDialogueTreeById, maybeDialogueChat, requestDialogue, type DialogueEventKey } from '../src/game/dialogueTrees';
 import {
   flushRelationshipDiagnostics,
   isRelationshipDiagnosticsEnabled,
