@@ -109,6 +109,26 @@ describe('warfare lifecycle and persistence', () => {
     expect(world.entities.every((person) => !person.raidDeploymentId)).toBe(true);
   });
 
+  it('retains normal Chronicle raid events alongside the saved battle report', () => {
+    const initial = colony();
+    initial.pendingRaidEvents = [raid()];
+    let world = applyWorkerCommand(initial, { proto: 1, op: 'respondToRaidEvent', eventId: 'raid', choiceId: 'defend' });
+    world.tick += 3 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(world, world.entities);
+    world.tick += 3 * TICKS_PER_HOUR;
+    tickPendingRaidEvents(world, world.entities);
+
+    expect(world.raidBattleReports?.some((report) => report.raidId === 'raid')).toBe(true);
+    const combatEvents = world.eventLog.filter((entry) => entry.type === 'combat' && entry.entityName === 'Enemy');
+    expect(combatEvents.some((entry) => entry.combatStage === 'dispatched')).toBe(true);
+    expect(combatEvents.some((entry) => entry.combatStage === 'casualties')).toBe(true);
+    expect(combatEvents.some((entry) => entry.combatStage === 'resolved')).toBe(true);
+
+    const restored = reload(world);
+    expect(restored.eventLog.filter((entry) => entry.type === 'combat' && entry.entityName === 'Enemy')).toEqual(combatEvents);
+    expect(restored.raidBattleReports?.some((report) => report.raidId === 'raid')).toBe(true);
+  });
+
   it('clears war and soldiers when a treaty cancels an expedition', () => {
     const world = launchRaidOnRival(colony(), 'enemy');
     world.rivalSettlements[0].relationship = 'competitive';
