@@ -6,7 +6,6 @@ workflows:
     '.github/workflows/node.js.yml':
         - 'actions/checkout@v4.4.0'
         - 'actions/setup-node@v4.4.0'
-        - 'actions/cache@v4'
 dependencies:
     'actions/checkout@v4.4.0':
         ref: 'v4.4.0'
@@ -18,8 +17,3 @@ dependencies:
         commit: 'sha1-49933ea5288caeca8642d1e84afbd3f7d6820020'
         owner_id: 44036562
         repo_id: 189476904
-    'actions/cache@v4':
-        ref: 'v4'
-        commit: 'sha1-d4323d4df1acae260753e00d309277c48528a85c'
-        owner_id: 44036562
-        repo_id: 20436577
