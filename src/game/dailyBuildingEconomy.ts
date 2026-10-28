@@ -430,6 +430,7 @@ function tickBuildingProduction(
     number,
     { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
   >();
+  const settledAttendanceDay = getAbsoluteCalendarDay(state.tick) - 1;
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
     // `playerWorkers` is already the colony-human owner's answer — re-testing `h.faction` here
@@ -449,8 +450,8 @@ function tickBuildingProduction(
     const site = buildingById.get(siteId);
     if (site && lastWorkedHours > 0) {
       const job = getJobForBuilding(site.type);
-      if (job && recordCareerWork(h, site, job, getAbsoluteCalendarDay(state.tick) - 1, lastWorkedHours)) {
-        advanceCareerProgression(h, job, getAbsoluteCalendarDay(state.tick) - 1, 'work');
+      if (job && recordCareerWork(h, site, job, settledAttendanceDay, lastWorkedHours)) {
+        advanceCareerProgression(h, job, settledAttendanceDay, 'work');
       }
     }
     current.workedHoursSum += lastWorkedHours;

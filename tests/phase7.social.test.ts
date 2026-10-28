@@ -124,6 +124,8 @@ describe('apprenticeships', () => {
     scholar.skills = { [JobType.Farmer]: 49.5 };
     advanceApprenticeships(w, w.entities);
     expect(scholar.grandmasterApprenticeshipCompleted).toBe(true);
+    expect(scholar.careerMilestones?.farmer?.trainedAtDay).toBe(0);
+    expect(scholar.careerHistory).toBeUndefined();
     expect(scholar.apprenticeOfId).toBeUndefined();
     expect(master.apprenticeId).toBeUndefined();
 

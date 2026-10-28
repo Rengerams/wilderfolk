@@ -5,6 +5,11 @@ import { JobType, BuildingType } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { recordScheduleWorkTick, resolveDailyScheduleFatigue } from '../src/game/scheduleFatigue';
 import { TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { initGame } from '../src/game/worldGen';
+import { tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
+import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { Season } from '../src/game/gameTypes';
+import type { TickContext } from '../src/game/simulation/simulationTypes';
 
 const farm = building(10, BuildingType.Farm, { occupants: [1] });
 const worker = () => human(1, {
@@ -73,4 +78,37 @@ describe('observed career history', () => {
     const cyclic: Record<string, unknown> = {}; cyclic.farmer = cyclic;
     expect(normalizeCareerHistory(cyclic)).toBeUndefined();
   });
+
+  it('reuses actual daily economy attendance on a full store without a second crew pass', () => {
+    const world = initGame({ seed: 4242 });
+    const h = worker();
+    const site = building(10, BuildingType.Farm, { occupants: [h.id] });
+    world.entities = [h];
+    world.buildings = [site];
+    world.tick = TICKS_PER_DAY * 2 + TICKS_PER_HOUR * 12;
+    world.dayInYear = 2;
+    world.resources.food = world.storageMax.food;
+    rebuildEntityByIdMap(world);
+    const context: TickContext = {
+      width: world.width, height: world.height, hourOfDay: 12, season: Season.Spring,
+      grassMult: 1, reproMult: 1, winterPenalty: 1, canHeat: true,
+      byType: { human: [h] } as TickContext['byType'],
+      aliveEntities: [h], newEntities: [], updatedBuildings: world.buildings,
+      roadBuildings: [], playerHumans: [h], entityById: new Map([[h.id, h]]),
+      buildingById: new Map([[site.id, site]]), predators: [],
+    };
+    tickDailyBuildingEconomy(world, context, [h]);
+    expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
+    tickDailyBuildingEconomy(world, context, [h]);
+    expect(h.careerHistory?.farmer?.days).toBe(1);
+  });
+
+  it('does not credit an absent worker even at an otherwise complete workplace', () => {
+    const h = worker();
+    const site = building(10, BuildingType.Farm, { occupants: [h.id] });
+    h.scheduleLastWorkedHours = 0;
+    expect(recordCareerWork(h, site, JobType.Farmer, 2, 0)).toBe(false);
+    expect(h.careerHistory).toBeUndefined();
+  });
+
 });
