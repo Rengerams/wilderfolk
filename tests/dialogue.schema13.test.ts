@@ -162,7 +162,11 @@ describe('PR #91 group-caption JSON compatibility', () => {
     expect(performers).toHaveLength(8);
 
     expect(() => bindNumberedPresentationSpeakers(presentation, performers.slice(0, 5)))
-      .toThrow(/Not enough real performers/);
+      .toThrow(/6–10 real performers/);
+    expect(() => bindNumberedPresentationSpeakers(presentation, [...performers, 141, 142, 143]))
+      .toThrow(/6–10 real performers/);
+    expect(() => bindNumberedPresentationSpeakers(presentation, [...performers, 130]))
+      .toThrow(/Invalid or duplicate/);
     expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, 102]))
       .toThrow(/Invalid or duplicate/);
     expect(() => bindNumberedPresentationSpeakers(presentation, [102, 107, 109, 114, 120, -1]))
@@ -170,6 +174,60 @@ describe('PR #91 group-caption JSON compatibility', () => {
     const nonNumbered = readPresentationDialogue(groupSource, 'spotlight.theLook');
     expect(() => bindNumberedPresentationSpeakers(nonNumbered, performers))
       .toThrow(/must be sequential/);
+  });
+
+  it('accepts every gathering size from six through ten without inventing extra actors', () => {
+    const roles = Array.from({ length: 6 }, (_, i) => `speaker_${i + 1}`);
+    const source = {
+      version: '1.3',
+      game: 'Wilderfolk Sim',
+      category: 'festival',
+      categories: ['festival'],
+      dialogue_trees: [{
+        id: 'spotlight.lore.performance',
+        category: 'festival',
+        eventKey: 'spotlight.lore',
+        conversation_type: 'group',
+        speakers: roles,
+        lines: roles.map((speaker, i) => ({ speaker, text: `Line ${i + 1}` })),
+      }],
+    };
+    const scene = readPresentationDialogue(source, 'spotlight.lore');
+    const actors = [101, 102, 103, 104, 105, 106, 107, 108, 109, 110];
+    for (let size = 6; size <= 10; size++) {
+      const cast = Object.freeze(actors.slice(0, size));
+      const bound = bindNumberedPresentationSpeakers(scene, cast);
+      expect(bound.map((line) => line.speakerId), `cast size ${size}`).toEqual(actors.slice(0, 6));
+      expect(bound.every((line) => cast.includes(line.speakerId))).toBe(true);
+      expect(Object.isFrozen(bound)).toBe(true);
+    }
+  });
+
+  it('reuses real adults deterministically when a script declares more roles than the cast', () => {
+    const roles = Array.from({ length: 10 }, (_, i) => `speaker_${i + 1}`);
+    const source = {
+      version: '1.3',
+      game: 'Wilderfolk Sim',
+      category: 'festival',
+      categories: ['festival'],
+      dialogue_trees: [{
+        id: 'group.overflow',
+        category: 'festival',
+        eventKey: 'group.overflow',
+        conversation_type: 'group',
+        speakers: roles,
+        lines: roles.map((speaker, i) => ({ speaker, text: `Role ${i + 1}` })),
+      }],
+    };
+    const presentation = readPresentationDialogue(source, 'group.overflow');
+    const cast = Object.freeze([201, 202, 203, 204, 205, 206]);
+    const bound = bindNumberedPresentationSpeakers(presentation, cast);
+    expect(bound.map((line) => line.speakerId))
+      .toEqual([201, 202, 203, 204, 205, 206, 201, 202, 203, 204]);
+    expect(bound.map((line) => line.speaker)).toEqual(roles);
+    expect(bound.map((line) => line.text)).toEqual(roles.map((_, i) => `Role ${i + 1}`));
+    expect(bindNumberedPresentationSpeakers(presentation, cast)).toEqual(bound);
+    expect(cast).toEqual([201, 202, 203, 204, 205, 206]);
   });
 
   it('does not write to human chat state or create a new gameplay chat session', () => {
