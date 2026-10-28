@@ -746,4 +746,4 @@ This is a cross-cutting housing dependency for the release, not a new warfare fe
 
 ### 23.2 Canonical document and audit boundary
 
-The root `roadmap_V.0.6.5.2.md` is canonical. The old `docs/roadmap_V.0.6.5.2.md` copy is synchronized with it to remove contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.
+The root `roadmap_V.0.6.5.2.md` is canonical. The redundant `docs/` roadmap copy was removed to prevent contradictory status reports. Older architecture descriptions and CI logs retain historical value, but pre-merge draft language must not override a confirmed merge. **This is a documentation/code review of recorded changes, not a new test suite run**; the root roadmap's acceptance state is based on merged GitHub PRs and inspected code.
