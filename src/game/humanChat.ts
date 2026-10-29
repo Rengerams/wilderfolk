@@ -43,6 +43,7 @@ export type ChatSpeaker = {
   chatTicks?: number;
   chatPartnerId?: number;
   chatDialogueSessionKey?: string;
+  dialogueRecentScenes?: Record<string, { id: string; tick: number }>;
   isJuvenile?: boolean;
   name?: string;
   /** Read-only contextual eligibility hints, supplied by the real Entity. */

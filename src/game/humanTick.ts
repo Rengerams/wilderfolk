@@ -716,6 +716,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       (entity.chatTicks ?? 0) <= 0 &&
       (state.tick + entity.id) % SOCIAL_STAGGER === 0
     ) {
+      const expectantSpouse = entity.partnerId == null ? null : resolveChatPartner(entity.partnerId);
       tryAmbientRandomDialogue(
         entity,
         ambientChatNeighbors(entity),
@@ -724,6 +725,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         chatHints,
         {
           pregnant: !!entity.pregnant,
+          expectingPartner: Boolean(expectantSpouse?.pregnant && expectantSpouse.partnerId === entity.id),
           renffr: isRenffrGossipActive(state),
           workHour: goWorkTime,
           night: prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay),

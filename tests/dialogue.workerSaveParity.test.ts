@@ -103,6 +103,34 @@ describe('main/worker and old-save dialogue compatibility', () => {
     expect(mainSpeaker.chatDialogueSessionKey).toBe(workerSpeaker.chatDialogueSessionKey);
   });
 
+  it('keeps per-settler scene rotation after a real save and restore', () => {
+    const world = initGame({ seed: 74213 });
+    const humans = world.entities.filter((entity) => entity.alive && entity.type === 'human');
+    expect(humans.length).toBeGreaterThanOrEqual(2);
+    if (humans.length < 2) return;
+    const [a, b] = humans;
+    expect(requestDialogue({
+      eventKey: 'ambient.social', speaker: a, partner: b, tick: world.tick,
+      selectionRoll: 0, priority: 'scripted',
+    })).toBe(true);
+    const first = a.dialogueRecentScenes?.['ambient.social:pair']?.id;
+    expect(first).toBeDefined();
+    const saved = buildSaveData(world, createInitialView(world.width, world.height));
+    const restored = loadGameFromParsedOutcome(JSON.parse(JSON.stringify(saved)) as Record<string, unknown>);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    const restoredA = restored.world.entities.find((entity) => entity.id === a.id);
+    const restoredB = restored.world.entities.find((entity) => entity.id === b.id);
+    expect(restoredA?.dialogueRecentScenes).toEqual(a.dialogueRecentScenes);
+    if (!restoredA || !restoredB) return;
+    resetDialogueSessions();
+    expect(requestDialogue({
+      eventKey: 'ambient.social', speaker: restoredA, partner: restoredB,
+      tick: world.tick + 1, selectionRoll: 0, priority: 'scripted',
+    })).toBe(true);
+    expect(restoredA.dialogueRecentScenes?.['ambient.social:pair']?.id).not.toBe(first);
+  });
+
   it('reclaims both partners after a real paired-dialogue save and load', () => {
     const world = initGame({ seed: 74212 });
     const humans = world.entities.filter((entity) => entity.alive && entity.type === 'human');
