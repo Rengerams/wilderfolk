@@ -6,7 +6,6 @@ import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
-import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
@@ -94,7 +93,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
-import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { crowdGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
