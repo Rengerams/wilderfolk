@@ -1,6 +1,6 @@
 # Wilderfolk 0.6.5.2 — DNA, personality and career progression: one trait pipeline
 
-**Implementation status (28 October 2026):** PR A and PR B are merged; **PR C is implemented and merged through [#97](https://github.com/Rengerams/wilderfolk/pull/97)**, while PR D (career history/progression/fit) and PR E (inspector) remain unimplemented. This is the authoritative architecture, not executable code. Historical AS-IS code examples below describe their original baselines; always verify live code before implementing PR D.
+**Implementation status (29 October 2026):** PR A/B/C are merged (C via [#97](https://github.com/Rengerams/wilderfolk/pull/97)); **PR D career history, milestones and worker fit merged in [#99](https://github.com/Rengerams/wilderfolk/pull/99)** (`781ee657`). **PR E read-only inspector is not implemented.** This is an architecture document, not executable code; historical AS-IS examples are snapshots. Use the active [PR-E coding instructions](personality-career-codebot-tasks-0.6.5.2.md).
 
 **Codebot: start with [the executable PR tickets and gates](personality-career-codebot-tasks-0.6.5.2.md).** They define exact files, stage ordering, mandatory updates to **both** `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` in **every** implementation PR, focused tests, stop conditions and required bug reporting using `docs/bug_report/readme.md` (including the single historical index). The present document defines the architecture and design decisions; the linked task sheet defines the work.
 **Scope:** roadmap §11 (DNA and whole-life personality) plus §16 (professions, education and career paths; previously §17).
@@ -23,7 +23,7 @@
 
 **Correction to the 9 October legacy proposal:** `docs/plans/settler-trait-effects-2026-10-09.md` is a historical plan, not current implementation truth. Its claim that Nurturing, Insightful, Chivalrous and Intuitive are unused is now stale: they are read in education, militia, war-prisoner and social code. Its blanket "ten traits learn -6%" and symmetrical opposite-pair percentages are not adopted: they would penalize nearly every worker irrespective of context. Do not turn that older document into a second specification or table.
 
-**Current progress after PR #97:** DNA inheritance, the 14-trait canonical catalog/evaluator, PR-B work/school/combat consumers and PR-C's six exact-parity social/family/civic migrations exist in code. PR #97 is merged into `main` (merge commit `110c6430`). **Not yet implemented:** persistent event-backed career work history, career milestones/specializations, advisory worker-fit explanations and the PR-E inspector. Additional leisure, parenting, personal-memory and relationship behaviors beyond the six PR-C parity sites are separate future scope, not hidden PR-D requirements.
+**Current progress after PR #99:** DNA inheritance, fourteen canonical traits and phases B/C remain implemented. PR D has added witnessed prior-day trade/site career credits, 15/60/180-day descriptive milestones, apprenticeship completion timestamps, save/worker compatibility and the optional idle-worker fit tie-break. Only **PR E's contextual presentation**, plus separately approved richer personality/life-memory features, remain outside A–D. Tier markers do not write skills or automatically move workers. Construction attendance without evidence is not credited.
 
 ## 2. Core architectural decision
 
@@ -76,9 +76,9 @@ Stored Entity.traits (14 canonical IDs / max 3)
 | `src/game/personality/traitEffectCatalog.ts` | One `satisfies Record<SettlerTrait, TraitEffects>` table for all 14 IDs, typed domain effects, contextual plus/minus trade-offs and named caps. No new trait names/labels; those still belong to `settlerTraits.ts`. | `TRAIT_EFFECTS` and effect types used by evaluator |
 | `src/game/personality/traitEvaluation.ts` | **Only** numeric/qualitative trait-combination pipeline. Merge up to three contributions, apply diminishing returns and caps, return a frozen/read-only result with stable reason IDs. No writes or RNG. | `evaluateTraitInfluence`, `TraitContext`, `TraitInfluence` |
 | `src/game/personality/lifeExperience.ts` | **Deferred optional future feature, excluded from PR C and PR D.** Only if separately approved: a compact event-backed memory for meaningful outcomes not already captured by existing relationship state; no second relationship history. | `recordLifeExperience` only in its own future approved PR |
-| `src/game/careers/careerHistory.ts` | **Only** writer for new per-job completed-shift totals and milestone timestamps, based on an already-accepted work credit. Retains idempotency by job + absolute calendar day. | `recordCareerWork`, `CareerHistory` |
-| `src/game/careers/careerProgression.ts` | Event-driven milestone decision only on real credited work or training achievements, using existing skill, education, apprenticeship and career history. No extra daily scan, job assignment or skill writes. | `advanceCareerProgression`, `CareerMilestone` |
-| `src/game/careers/workerFit.ts` | Pure single ranking/explanation projection for *available* vacancies, reading `evaluateTraitInfluence` + existing skill/commute/availability. Ranking is advisory and must not override hard eligibility or player/manual staffing. | `evaluateWorkerFit`, `WorkerFitReason` |
+| `src/game/careers/careerHistory.ts` | Sole writer for bounded verified per-job credited days and the last credited colony day; **does not own milestone timestamps**. Validates witnessed previous-day job/site and observed attendance. | `recordCareerWork`, `CareerHistory`, `normalizeCareerHistory` |
+| `src/game/careers/careerProgression.ts` | Sole writer of descriptive 15/60/180-day tier/timestamp and actual apprenticeship completion records. Runs after accepted work credit or graduation, never a daily scan; **does not write skills, job assignments or history days**. | `advanceCareerProgression`, `CareerMilestone`, `CAREER_TIER_DAYS`, `normalizeCareerMilestones` |
+| `src/game/careers/workerFit.ts` | Pure experience/DNA advice for eligible idle worker ties; reads skill, credited days and a contextual trait factor but **does not calculate commute, eligibility, distance or execute assignments**. The workforce owner applies ranking priority. | `evaluateWorkerFit`, `WorkerFit` |
 | `src/components/PersonalityCareerDetails.tsx` | Read-only inspector component displaying inherited traits, contextual +/-, interests, actual skill/training, career milestones and brief causal reasons. | `PersonalityCareerDetails` |
 
 **No** `index.ts` barrels, `export *`, forwarding wrappers, compatibility aliases, duplicate copies of `TRAIT_DEFS`, "trait manager" classes, extra random generators, or catch-all god module. If a proposed helper is indistinguishable from an existing one, use the existing helper directly.
@@ -314,17 +314,17 @@ Start by reusing **existing** relationship history and state. Add `lifeExperienc
 - **No `lifeExperience.ts` or new persisted fields in PR C.** This is a strict source-of-rules migration; longer-term memory/progression is separate future scope and requires its own architecture, persistence/migration and tests.
 - **Acceptance:** same seed/events generate reproducible choices; different traits measurably bias outcomes without forcing them; no split pair references or extra affinity systems.
 
-### PR D — Career histories and progression (NOT IMPLEMENTED; next stage on merged `main`)
+### PR D — Career histories and progression (IMPLEMENTED AND MERGED #99)
 - Add `careerHistory.ts`, `careerProgression.ts` and `workerFit.ts`, wired at the existing successful shift-credit, daily and staffing selection points.
 - Retain `apprenticeships.ts`, `education.ts` and `skills.ts` as sole writers of apprenticeship, school and skill data.
 - Tests: once-per-day credit, manual assignment stability, no skill/career phantom credit for idle workers, optional apprenticeships, skill milestones, 18-year employment boundary, no pathological automatic transfers.
-- **Acceptance:** two same-age classmates may develop different credible careers from real shifts, skill, opportunity and DNA — without changing jobs spontaneously.
+- **Merged behavior:** actual completed prior-day job/site shifts credit bounded career days and descriptive tiers, and genuine apprenticeship completion is recorded. Optional career/DNA fit breaks only exact eligible idle-worker ties after commute, distance and skill, without moving employed workers. Unsupported construction-only attendance remains uncredited.
 
 ### PR E — Transparent UI, documentation and end-to-end save verification
 - Add `PersonalityCareerDetails.tsx`, show factors from the same evaluator and concise *Why this worker?* reasons in the existing UI.
 - Update **both** `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` in **each PR A–E**, including pure read-only and UI phases; update `CHANGELOG.md` alongside the implementation. Mark roadmap §11 / §16 items complete **only after corresponding code is merged**.
 - Tests: old-save hydration, worker/main-thread parity, no stale UI values, save→load, retained inheritance and age constraints, performance budget on representative colony sizes.
-- **Acceptance:** clear user-visible pros/cons and skill/career explanations, no gameplay rules copied into JSX.
+- **PR-E acceptance:** a read-only inspector shows relevant typed DNA pro/cons, genuine career/education records and honest optional worker-fit explanations; no simulation logic or effect math is copied into JSX. The existing `getHumanActivityProjection`, `getSettlerWorkReason`, `explainBuildingStaffing`, `JOB_LABELS` and `formatEducationLabel` owners remain canonical.
 
 **Verification for implementation PRs:** use repository-declared TypeScript, lint, build and focused test scripts, plus relevant deterministic social/workforce/education/warfare suites. The roadmap records implemented features, **not** the verification checklist. This document remains an implementation plan until code merges.
 
