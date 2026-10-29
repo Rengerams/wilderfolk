@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #91, 29 October 2026):** Corrected the Spotlight's outdated `humanSchedule.personDayRoll` import to its canonical `simRng` owner, addressing the 120-day CI ESM import failure without changing the RNG sequence or event probability.
+
 - **Fixed (PR #91 CI):** Spotlight and its tests import daily rolls directly from the canonical simulation RNG owner; fixed the stale module import. CI verification pending.
 
 - **Fixed (PR #91, 29 October 2026):** Spotlight now claims the shared overlay keyboard contract while active. Gameplay shortcuts no longer pass through; Escape invokes the same scene Skip callback. Added a keyboard ownership regression; browser and CI validation pending.
