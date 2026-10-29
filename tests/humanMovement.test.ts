@@ -54,6 +54,18 @@ describe('human movement helpers', () => {
     }
   });
 
+  it('keeps the residential porch distinct from a venue gathering arc', () => {
+    const leaderHouse = {
+      ...building, id: 1177, type: BuildingType.LeaderHouse, width: 63, height: 53, completed: true,
+    } as Building;
+    for (const residentId of [346, 8144]) {
+      const porch = homeStandPosition(leaderHouse, residentId);
+      const gathering = venueGatherPosition(leaderHouse, residentId);
+      expect(gathering.y).toBeGreaterThan(porch.y + leaderHouse.height / 2);
+      expect(Math.abs(porch.x - leaderHouse.x)).toBeLessThan(leaderHouse.width / 2);
+    }
+  });
+
   it('lets a Leader’s House resident arrive indoors through the porch target', () => {
     const leaderHouse = {
       ...building, id: 1177, type: BuildingType.LeaderHouse, width: 63, height: 53, completed: true,
