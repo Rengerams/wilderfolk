@@ -1,10 +1,10 @@
 # Wilderfolk v0.6.5.2 — Feature Implementation Roadmap
 
 **Target version:** 0.6.5.2  
-**Updated:** 28 October 2026  
+**Updated:** 29 October 2026  
 **Purpose:** record which gameplay features have been implemented and which feature scope remains open. This is **not** an implementation plan, test checklist or release-verification log.
 
-**Acceptance policy: merged = accepted.** `[x]` means the feature is present in code merged into `main`; `[ ]` means the described additional feature remains incomplete or has not been merged. A finished core feature is not reopened merely because optional extensions remain. See [§21](#21-merged-feature-implementation-register--28-october-2026) for accepted PRs and canonical owners.
+**Acceptance policy: merged = accepted.** `[x]` means the feature is present in code merged into `main`; `[ ]` means the described additional feature remains incomplete or has not been merged. A finished core feature is not reopened merely because optional extensions remain. See [§21](#21-merged-feature-implementation-register--29-october-2026) for accepted PRs and canonical owners.
 
 ## Version 0.6.5.2 — merged feature overview
 
@@ -35,7 +35,9 @@
 - [x] **DNA phase A — shared trait catalog:** all fourteen traits have contextual benefits and drawbacks evaluated by one deterministic, bounded, read-only owner ([#85](https://github.com/Rengerams/wilderfolk/pull/85)).
 - [x] **DNA phase B — live work, school and danger effects:** the catalog now influences production, construction, schooling, research, apprenticeships, militia, hunting, pursuit, escape and work stamina; legacy settlers get deterministic DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
 - [x] **DNA phase C — exact social/family/civic parity cutover:** feuds, workplace banter, courtship, married/youth conception, civic prisoner reactions and spousal grief now use the single catalog/evaluator; legacy gameplay numbers and seeded decision owners are preserved ([#97](https://github.com/Rengerams/wilderfolk/pull/97)).
-- [x] **Human dialogue trees — single pipeline (phases A–D):** typed JSON 1.3 event/solo-pair routing, one chat-state owner, domain cutovers, worker bank parity and legacy selector removal; merged PR [#93](https://github.com/Rengerams/wilderfolk/pull/93). Spotlight's separate staged overlay remains in open PR #91.
+- [x] **Human dialogue trees — single pipeline (phases A–D):** typed JSON 1.3 event/solo-pair routing, one chat-state owner, domain cutovers, worker bank parity and legacy selector removal; merged PR [#93](https://github.com/Rengerams/wilderfolk/pull/93). The Spotlight staged overlay was subsequently merged in PR #91.
+
+- [x] **The Look — juvenile Spotlight Lore:** rare weekend performance with 6–10 real adult male singers, a juvenile heroine, canonical JSON dialogue, cinematic reveal, instrumental soundtrack, two seven-second poses, camera follow, applause, Skip and state restoration (merged [#91](https://github.com/Rengerams/wilderfolk/pull/91)).
 
 ## 1. Warfare design goals — implemented
 
@@ -189,7 +191,7 @@ This roadmap records **feature availability only**. Specifications and implement
 - [x] Food demand, forecast and production planning integrate with human needs. The Virtual Player has food-first construction/staffing improvements ([#72](https://github.com/Rengerams/wilderfolk/pull/72), [#81](https://github.com/Rengerams/wilderfolk/pull/81), [#82](https://github.com/Rengerams/wilderfolk/pull/82)).
 - [ ] **Further gameplay balancing:** meal quantities, sleep/stamina pacing and prolonged deprivation effects.
 
-## 21. Merged feature implementation register — 28 October 2026
+## 21. Merged feature implementation register — 29 October 2026
 
 **Project rule: merged = accepted.** This register lists implemented features from merged code on `main`, not proposals or draft status. Future enhancements stay in the feature backlog; this roadmap is an implementation overview, not a test/verification register.
 
@@ -215,13 +217,13 @@ This roadmap records **feature availability only**. Specifications and implement
 | CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
 | Canonical DNA catalog and phases B/C consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90), [#97](https://github.com/Rengerams/wilderfolk/pull/97) | Fourteen contextual positive/negative traits; bounded pure evaluator; work/school/militia/hunting/physiology integration; deterministic old-save DNA backfill; six exact-parity social/family/civic integrations. Career history and broader personality features remain pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
 | Human dialogue trees — canonical speech pipeline | [#93](https://github.com/Rengerams/wilderfolk/pull/93) | Version-1.3 indexed 94-key event bank, typed solo/pair scenes, one speech writer, migrated ambient/social/visitor/health/civic/election/omen callers, stable session cleanup and worker/serialization parity. Spotlight overlay hookup is separate | [Architecture](docs/plans/dialogue-single-pipeline-0.6.5.2.md), [Implementation](docs/plans/dialogue-codebot-tasks-0.6.5.2.md), `src/game/dialogueTrees.ts`, `src/game/humanChat.ts` |
+| The Look — juvenile Spotlight Lore | [#91](https://github.com/Rengerams/wilderfolk/pull/91) | Rare deterministic weekend event, real settler gathering and stage movement, 44 authored JSON captions via the canonical dialogue registry, two 7-second presentation-only poses, blackout/spotlight/music, farewell camera tracking, clapping and real applause; finish/skip restores controls. Browser acceptance is tracked separately from implementation status | [Architecture](docs/SPOTLIGHT_LORE_ARCHITECTURE.md), [Codebot plan](docs/plans/spotlight-lore-2026-10-28.md), `src/game/spotlightLore.ts`, `src/components/SpotlightLoreOverlay.tsx` |
 | Existing settler reasons and priority alerts | Existing UI/system owners | The inspector projects schedule, activity, movement and blocked-work reasons; the alert strip provides ranked actionable warnings. Neither is the full configurable explainability system | `src/components/SelectedEntityPanel.tsx`, `src/game/priorityAlerts.ts`, `src/components/AlertBar.tsx` |
 
 ### 21.1 Feature backlog beyond merged scope
 
 These describe **unimplemented or incomplete features**, not test activities or implementation plans. Previously merged implementations remain accepted.
 
-- [ ] **The Look — juvenile spotlight:** rare juvenile festival performance with gathered real actors, staged JSON captions and camera/skip controls; implementation in open PR [#91](https://github.com/Rengerams/wilderfolk/pull/91) pending merge. See [Spotlight architecture](docs/SPOTLIGHT_LORE_ARCHITECTURE.md).
 - [ ] **Whole-life DNA personalities (remaining phases):** expand contextual leisure, fidelity, parental priorities and persistent experiences beyond the six canonical migrations in merged DNA phases A–C (§11).
 - [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
 - [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).
