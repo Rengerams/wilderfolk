@@ -23,8 +23,8 @@ import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/g
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { DAYS_PER_YEAR, PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay } from '../src/game/dayCycleClock';
-import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
-import { resetSimRng, seededRandomForRun, setSimSeed } from '../src/game/simRng';
+import { prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { resetSimRng, seededRandomForRun, setSimSeed, personDayRoll } from '../src/game/simRng';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';

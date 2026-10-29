@@ -1,8 +1,9 @@
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { WeatherType, type Entity } from '../src/game/gameTypes';
 import { tickHumanChildLeisure } from '../src/game/humanLeisureBehavior';
 import { isPlayerHuman } from '../src/game/playerHuman';
-import { personDayRoll, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { initGame } from '../src/game/worldGen';
 
 function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> = {}): Entity {

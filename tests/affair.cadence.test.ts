@@ -12,12 +12,13 @@
  * a couple at 95 tryst progress completes to 100 in the staggered path without
  * ever establishing, then the daily owner establishes on its own roll.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { tryDailyAffairEncounter } from '../src/game/simulation/humanRelationships';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import {

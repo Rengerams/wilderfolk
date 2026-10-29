@@ -682,8 +682,6 @@ function main() {
     fn.cadence = owner?.decision.cadence ?? null;
     fn.callerCount = callers[fn.index].length;
     fn.calleeCount = callees[fn.index].length;
-    delete fn.bodyStart;
-    delete fn.bodyEnd;
   }
 
   const payload = {
@@ -720,6 +718,8 @@ function main() {
       name: fn.name,
       file: fn.file,
       line: fn.line,
+      bodyStart: fn.bodyStart,
+      bodyEnd: fn.bodyEnd,
       exported: fn.exported,
       kind: fn.kind,
       className: fn.className,

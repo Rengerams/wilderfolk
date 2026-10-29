@@ -1,11 +1,3 @@
-/**
- * Neighborhood beauty (Phase 3.2). Decor buildings (gardens, statues, lamps,
- * fences) stamp beauty into a tile grid; settlers drift toward pretty spots in
- * free time and the village gains a small happiness readout from beauty.
- *
- * The grid is transient (rebuilt from buildings each day — decor is rare and
- * static, so a daily rebuild is trivially cheap).
- */
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType } from './buildings';
 import { EntityType, PATH_CELL } from './gameTypes';
@@ -85,18 +77,7 @@ export function isDecorType(type: BuildingType): boolean {
   return BUILDING_CONFIGS[type]?.decor === true;
 }
 
-/**
- * Rebuild only the beauty **grid** on `state`, leaving `villageHappiness` alone.
- *
- * Split out of {@link tickBeauty} so a caller that has just reconstituted a world can restore the
- * derived field without discarding the happiness value that was persisted alongside it.
- * `villageHappiness` is in the save allow-list on purpose (`saveSchema.ts`: "derived daily by
- * `beautyGrid` but rendered by the Population panel"), so a load keeps the stored value and the next
- * daily tick may refine it — recomputing here would silently replace the saved number with
- * `HAPPINESS_BASE` for a world whose decor has not been re-stamped yet.
- *
- * No-op without a world map, because the grid's dimensions come from it.
- */
+
 export function rebuildBeautyGridFromWorld(state: WorldState): void {
   const map = state.worldMap;
   if (!map) return;

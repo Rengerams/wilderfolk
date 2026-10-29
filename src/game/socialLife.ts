@@ -1,3 +1,4 @@
+import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
 import {
@@ -11,7 +12,6 @@ import {
   hasResidenceAssignment,
   hasWorkAssignment,
   isWorkDay,
-  personDayRoll,
 } from './dayCycle';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';

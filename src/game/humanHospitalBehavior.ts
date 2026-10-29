@@ -1,7 +1,8 @@
+import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay, personDayRoll } from './dayCycle';
+import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
 import { enterHumanBuilding } from './simulation/humanMovement';
