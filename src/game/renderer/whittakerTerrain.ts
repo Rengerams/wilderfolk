@@ -1012,6 +1012,7 @@ export function bakeWhittakerGround(
 
       const aboveSea = e - sea;
       let hn = aboveSea / landRange;
+      let groundElevation = e;
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
       const coverage = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
@@ -1022,10 +1023,11 @@ export function bakeWhittakerGround(
           wx / PATH_CELL - 0.5, wy / PATH_CELL - 0.5);
         hn += (Math.min(hn, LAND_BANDS.hills - 0.05) - hn) * cleared;
         te += (Math.max(te, COLD_TEMPERATURE + SNOW_TEMPERATURE_FADE) - te) * cleared;
+        if (cleared > 0) groundElevation = sea + hn * landRange;
       }
 
       let [r, g, b] = groundColor(
-        sea + hn * landRange, sea, landRange, visualMo, te, dv, nearWater,
+        groundElevation, sea, landRange, visualMo, te, dv, nearWater,
         edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
       );
 
