@@ -172,7 +172,7 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker"; buildingActions on place/recruit/death',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
