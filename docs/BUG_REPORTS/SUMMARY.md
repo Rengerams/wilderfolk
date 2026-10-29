@@ -1962,3 +1962,8 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-10-28 — Illustrated New Frontier strategic map
 
 - **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
+
+## 2026-10-29 — Captive needs and custody
+
+- **Foreign prisoners died from idle exhaustion — fixed in source, verification pending:** the retired captive energy-loss path no longer runs in prison; regression now asserts survival at zero energy while real deaths still close custody exactly once. [Report](../bug_report/2026-10-29-captive-false-exhaustion.md).
+- **Repeated 08:00 ration calls charged the same foreign captive multiple times — fixed in source, verification pending:** the meal owner now writes a per-captive saved calendar-day stamp only after a successful debit. Unit and save/reload regressions cover the single-ration guarantee. [Report](../bug_report/2026-10-29-captive-duplicate-daily-rations.md).
