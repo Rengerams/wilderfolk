@@ -51,6 +51,9 @@ export type DecisionKey =
   | 'workerMotionPresentation'
   | 'dailyPersonRoll'
   | 'traitInfluence'
+  | 'careerHistory'
+  | 'careerProgression'
+  | 'workerFit'
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workforce'
@@ -98,8 +101,32 @@ export const SIMULATION_DECISIONS = {
     cadence: 'on-demand',
     cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. The fourteen DNA ids are typed only in settlerTraits.ts; gameTypes.ts imports that type without a reciprocal dependency, and the effect catalog consumes that canonical identity. Phase B consumes the bounded factor directly at existing owners: the crew multiplier (skills.ts, production and builder/construction contexts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts), the per-soldier militia defence factor (militiaBalance.ts), the danger sites — hunt reach and closing speed (humanHuntingBehavior.ts) and flight speed (humanTick.ts) — and the player work drain (humanPhysiology.ts, physiology/labor); each site applies the returned factor alone inside the new-effect cap. Phase C calls the same function once per decision on a discrete context and reads only the catalog value it returns: social/courtshipProgress ordered factors (humanTick.ts), family/conception multiplier (humanRelationships.ts), social/workplaceBanter chance override (socialLife.ts), family/spousalBereavement duration (humanLifecycleCleanup.ts), civic/communityReaction voices (warPrisoners.ts) and social/feudClash count (relationships.ts). No legacy DNA multiplier survives beside either mode.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure on-demand projection in workforce exact ties)',
     testFile: 'tests/personality.legacyConsumerAudit.test.ts, tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts',
+  },
+  careerHistory: {
+    owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
+    cadence: 'daily',
+    cadenceNote: 'No independent pass: credits only previously settled and verified site/job attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. Current staffing may differ after a Moon Howler night. Uses canonical isPlayerHuman membership, including explicit player markers; no construction inference or full-storage gating.',
+    writes: ['human.careerHistory', 'human.careerHistory[job].days', 'human.careerHistory[job].lastDay'],
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours, previous-day site/job provenance and indexed completed-site validation',
+    testFile: 'tests/careers.history.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
+  },
+  careerProgression: {
+    owner: 'careers/careerProgression.ts — advanceCareerProgression; new career milestone owner',
+    cadence: 'daily',
+    cadenceNote: 'Event-driven only: after a newly accepted career day or actual apprenticeship completion; no duplicate skill writer or career timer.',
+    writes: ['human.careerMilestones', 'human.careerMilestones[job].tier', 'human.careerMilestones[job].tierAtDay', 'human.careerMilestones[job].trainedAtDay'],
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction accepted recordCareerWork; apprenticeships.teach actual graduation',
+    testFile: 'tests/careers.progression.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
+  },
+  workerFit: {
+    owner: 'careers/workerFit.ts — evaluateWorkerFit pure optional experienced-worker and DNA projection',
+    cadence: 'on-demand',
+    cadenceNote: 'No state writes, no extra assignment pass; only compared for precisely tied eligibility, squared commute and skill in workforce.assignWorkerInPlace.',
+    writes: [],
+    scheduledFrom: 'workforce.assignWorkerInPlace — already-visited eligible idle candidates when proximity and skill tie',
+    testFile: 'tests/careers.workerFit.test.ts',
   },
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',
@@ -137,7 +164,7 @@ export const SIMULATION_DECISIONS = {
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActions.assignIdleWorkerToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
+    cadenceNote: 'The idle-only assignWorkerInPlace choice preserves commute eligibility, squared distance, existing skill and first-encountered stability; optional career/DNA fit breaks only exact ties and never changes transfer/rebalance/cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.occupants',
       'human.workerBuildingId',
@@ -176,7 +203,7 @@ export const SIMULATION_DECISIONS = {
   production: {
     owner: 'tickLayerDaily.tickBuildingProduction; economy.ts — addResource, applyFoodSpoilage, updateStorageCaps, computeStorageMax; the crew term this decision multiplies is skills.getWorkerSkillMultiplier',
     cadence: 'daily',
-    cadenceNote: 'system/daily — farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
+    cadenceNote: 'system/daily — the existing per-player-worker attendance pass also credits independently validated career history and milestones (no second scan). Farms/hunt/smith production and spoilage are daily ledger work. Day-interval producers are additionally gated on isWorkDay, so they run 5 days in 7; the 2/3/5-day interval buildings (store, market, workshop, silo, townHall, hospital) skip that work-day test. The crew\'s trade DNA (personality traitInfluence, `work`/production context) enters through getWorkerSkillMultiplier, which reads `building.occupants` only; the workshop estimate reads the same function so the preview cannot drift. An occupant id that resolves to nobody contributes neutral DNA to that average instead of diluting it',
     writes: [
       'resources',
       'economyLedger.produced',
@@ -302,7 +329,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/title (Moonslayer)',
     ],
     scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (gated internally to full-moon ticks)',
-    testFile: 'tests/moonHowler.test.ts',
+    testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip)',

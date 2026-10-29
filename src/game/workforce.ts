@@ -18,6 +18,7 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { evaluateWorkerFit } from './careers/workerFit';
 import { profileStart, profileEnd } from './performanceProfiler';
 import {
   DEFAULT_WORKFORCE_POLICY,
@@ -522,8 +523,15 @@ export function assignWorkerInPlace(
     const skill = readSkill(candidate, job);
     if (worker && (
       (bestNear && !near)
-      || (bestNear === near && (distance > bestDistance || (distance === bestDistance && skill <= bestSkill)))
+      || (bestNear === near && (distance > bestDistance || (distance === bestDistance && skill < bestSkill)))
     )) continue;
+    if (worker && bestNear === near && distance === bestDistance && skill === bestSkill) {
+      const bestFit = evaluateWorkerFit(worker, job);
+      const candidateFit = evaluateWorkerFit(candidate, job);
+      if (candidateFit.creditedDays < bestFit.creditedDays
+        || (candidateFit.creditedDays === bestFit.creditedDays
+          && candidateFit.traitFactor <= bestFit.traitFactor)) continue;
+    }
     worker = candidate;
     bestNear = near;
     bestDistance = distance;

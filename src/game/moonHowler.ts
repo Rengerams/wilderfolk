@@ -13,7 +13,7 @@ import {
   isFullMoonDay,
   isFullMoonNight,
   NIGHT_END,
-  NIGHT_START,
+  MOON_HOWLER_NIGHT_START,
 } from './daycycleconstants';
 import {
   assignMissingResidences,
@@ -156,7 +156,7 @@ export function shouldApplyNewMoonHowlerCurse(
   return (
     activeCursed === 0
     && humanCount > 5
-    && hourOfDay === NIGHT_START
+    && hourOfDay === MOON_HOWLER_NIGHT_START
     && isFullMoonNight(colonyDay, hourOfDay)
     && rng() < MOON_HOWLER_REPLACEMENT_CHANCE
   );
@@ -173,7 +173,7 @@ export function shouldMoonHowlerTransform(colonyDay: number, hourOfDay: number):
 }
 
 export function isMoonHowlerTransformTick(colonyDay: number, hourOfDay: number): boolean {
-  return hourOfDay === NIGHT_START && isFullMoonDay(colonyDay);
+  return hourOfDay === MOON_HOWLER_NIGHT_START && isFullMoonDay(colonyDay);
 }
 
 export function isMoonHowlerRevertTick(hourOfDay: number): boolean {
@@ -755,7 +755,7 @@ export function tickMoonHowlerCycle(
     }
   }
 
-  const replacementDecisionTick = firstTickOfHour && hourOfDay === NIGHT_START;
+  const replacementDecisionTick = firstTickOfHour && hourOfDay === MOON_HOWLER_NIGHT_START;
   const activeMoonCurses = replacementDecisionTick ? countActiveMoonHowlerCurses(aliveEntities) : 0;
   const humanPop = replacementDecisionTick
     ? aliveEntities.filter((e) => e.alive && isPlayerHuman(e)).length

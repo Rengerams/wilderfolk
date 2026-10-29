@@ -1,0 +1,32 @@
+name: 120-day simulation gate
+
+# Run the live seeded colony for 120 days only when simulation rules change.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulation-120-day-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  colony-120-day:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.4.0
+      
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        
+      - name: Seeded 120-day producer colony with bot decisions and checkpoint invariants
+        run: npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --bot --verbose

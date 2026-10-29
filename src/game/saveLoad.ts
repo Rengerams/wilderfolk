@@ -1,4 +1,6 @@
 import { normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { normalizeCareerHistory } from './careers/careerHistory';
+import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { moveResident } from './residencyReconciliation';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
@@ -150,6 +152,22 @@ function migrateEntityPersistedFields(entity: Entity, saved: Partial<Entity>): v
       assignment.workerBuildingId = legacy.homeBuildingId;
     }
     delete legacy.homeBuildingId;
+  }
+  if (entity.type === EntityType.Human || entity.type === EntityType.Werewolf) {
+    entity.careerHistory = normalizeCareerHistory(saved.careerHistory);
+    entity.careerMilestones = normalizeCareerMilestones(saved.careerMilestones, entity.careerHistory);
+    const validSite = (id: unknown): id is number =>
+      typeof id === 'number' && Number.isSafeInteger(id) && (id === -1 || id >= 0);
+    entity.scheduleWorkedSiteIdToday = validSite(saved.scheduleWorkedSiteIdToday)
+      ? saved.scheduleWorkedSiteIdToday : undefined;
+    entity.scheduleLastWorkedSiteId = validSite(saved.scheduleLastWorkedSiteId)
+      ? saved.scheduleLastWorkedSiteId : undefined;
+    const validJob = (job: unknown): job is JobType | null =>
+      job === null || Object.values(JobType).includes(job as JobType);
+    entity.scheduleWorkedJobToday = validJob(saved.scheduleWorkedJobToday)
+      ? saved.scheduleWorkedJobToday : undefined;
+    entity.scheduleLastWorkedJob = validJob(saved.scheduleLastWorkedJob)
+      ? saved.scheduleLastWorkedJob : undefined;
   }
   ensureEntitySkills(entity);
 }

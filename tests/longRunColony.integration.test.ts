@@ -112,7 +112,19 @@ describe('90-day producer colony integration', () => {
 
       const verdict = verdictFor(run);
 
-      expect(formatColonyStallVerdict(verdict)).toBe('healthy');
+      expect(
+        formatColonyStallVerdict(verdict),
+        `90-day producer colony: ${verdict.evidence.join('; ')}; checkpoints=${JSON.stringify(
+          run.snapshots.map((checkpoint) => ({
+            day: checkpoint.day,
+            food: checkpoint.food,
+            farms: checkpoint.workforce.farmBuildings,
+            staffedFarms: checkpoint.workforce.staffedFarms,
+            farmWorkers: checkpoint.workforce.assignedFarmWorkers,
+            settlers: checkpoint.housing.occupiedBeds + checkpoint.housing.homelessPlayerHumans,
+          })),
+        )}`,
+      ).toBe('healthy');
       expect(verdict.reasons).toEqual([]);
       const settlers =
         run.final.housing.occupiedBeds +

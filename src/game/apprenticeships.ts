@@ -6,6 +6,8 @@ import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { advanceCareerProgression } from './careers/careerProgression';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 
 /**
  * Apprenticeships (Phase 7) — a skilled master (skill ≥ 40) working a production
@@ -134,6 +136,7 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
     }
     ap.apprenticeOfId = undefined;
     master.apprenticeId = undefined;
+    advanceCareerProgression(ap, job, getAbsoluteCalendarDay(state.tick), 'training');
     logEvent(state, 'milestone', `${ap.name ?? 'A young settler'} finished their apprenticeship under ${master.name ?? 'a master'} and joined the trade`);
   }
 }
