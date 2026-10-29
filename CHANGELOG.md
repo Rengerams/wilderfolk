@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (29 October 2026):** Worker-rendered settlers and animals interpolate against acknowledged simulation ticks rather than the request-side backlog. The presentation anchor resets on pause, session replacement, stop and worker fallback; command-only snapshots do not restart the animation. Regression covers a shared mutable worker world, frame progression and pause/resume. No simulation or save changes.
+- **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
 - **CI (29 October 2026):** Added a changed-function overlap gate against the call graph. Unreviewed matches block PR CI; deliberate differences need fingerprint-pinned, test-backed approvals. Existing gameplay is unchanged.
 - **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
