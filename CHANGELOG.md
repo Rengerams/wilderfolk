@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
 - **Fixed (29 October 2026):** Saves temporarily halt new worker ticks and settle earlier commands before exporting. Recovery or a worker swap cannot silently write an unconfirmed display copy. Four regressions added; large-colony browser verification pending.
 
 - **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
