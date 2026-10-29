@@ -21,7 +21,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/daycycleconstants';
+import { DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START } from '../src/game/daycycleconstants';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { countActiveMoonHowlerCurses, tickMoonHowlerCycle } from '../src/game/moonHowler';
 import { spawnMoonHowlerDebug } from '../src/game/settlerInteractionActions';
@@ -35,7 +35,7 @@ import { byType, finishedBuilding, human as sharedHuman } from '../src/test/fact
 
 const FIXTURE_SEED = 20240913;
 const FULL_MOON_DAY = DAYS_PER_MOON_CYCLE;
-const FULL_MOON_NIGHTFALL_TICK = FULL_MOON_DAY * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+const FULL_MOON_NIGHTFALL_TICK = FULL_MOON_DAY * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
 
 const FARM_ID = 300;
 const HOUSE_ID = 500;
@@ -149,7 +149,7 @@ describe('Moon Howler cadence + injected RNG', () => {
       state.entities,
       state.buildings,
       FULL_MOON_DAY,
-      NIGHT_START,
+      MOON_HOWLER_NIGHT_START,
       entityById,
       undefined,
       () => 0.99,
@@ -173,7 +173,7 @@ describe('Moon Howler cadence + injected RNG', () => {
         state.entities,
         [],
         FULL_MOON_DAY,
-        NIGHT_START,
+        MOON_HOWLER_NIGHT_START,
         entityById,
         undefined,
         () => 0.99,
@@ -195,7 +195,7 @@ describe('Moon Howler cadence + injected RNG', () => {
 
     for (let offset = 0; offset < TICKS_PER_HOUR; offset++) {
       state.tick = FULL_MOON_NIGHTFALL_TICK + offset;
-      tickMoonHowlerCycle(state, state.entities, [], FULL_MOON_DAY, NIGHT_START, entityById, undefined, rng);
+      tickMoonHowlerCycle(state, state.entities, [], FULL_MOON_DAY, MOON_HOWLER_NIGHT_START, entityById, undefined, rng);
     }
 
     // One roll per full moon: the gate (and the population scans behind it) runs once.
