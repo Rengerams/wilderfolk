@@ -68,6 +68,11 @@ import {
   resetSpatialQueryTickMetrics,
   setSpatialQueryGridMode,
 } from './spatialQueryMetrics';
+import {
+  flushPathfinderTickToSession,
+  isPathfindingMetricsEnabled,
+  resetPathfinderTickMetrics,
+} from './pathfindingMetrics';
 import { assertSimInvariants } from './simulation/simInvariants';
 import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
 import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
@@ -80,6 +85,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     resetSpatialQueryTickMetrics();
     setSpatialQueryGridMode(USE_SPATIAL_GRID ? 'grid' : 'naive');
   }
+  if (isPathfindingMetricsEnabled()) resetPathfinderTickMetrics();
 
   // --- Calendar ---
   state.tick++;
@@ -409,6 +415,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   syncResidenceOccupants(allAlive, updatedBuildings);
   profileEnd('sim.residences', residencesStart);
   if (isSpatialQueryMetricsEnabled()) flushSpatialQueryTickToSession();
+  if (isPathfindingMetricsEnabled()) flushPathfinderTickToSession();
 
   // Dev-only invariant pulse once per colony day — never repairs state.
   // Guarded like every other env read in the codebase: `import.meta.env` does not

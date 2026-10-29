@@ -1,3 +1,5 @@
+import type { PathfinderReport } from './pathfindingMetrics';
+
 /** Opt-in per-realm CPU-time sampling with bounded call-site names. */
 export interface PerformanceSection {
   name: string;
@@ -21,6 +23,8 @@ export interface PerformanceSnapshot {
   population: number;
   weather: string;
   sections: PerformanceSection[];
+  /** A* shape behind the pathfinding stages; only the sim realm that ran A* attaches it. */
+  pathfinder?: PathfinderReport;
 }
 
 export const PERFORMANCE_SAMPLE_LIMIT = 512;

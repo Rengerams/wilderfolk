@@ -1,6 +1,14 @@
 {
   "approvals": [
     {
+      "key": "src/game/simWorker/gameWorker.ts:174:installWorkerMessageHandlers@dbebebd59c8a96b419e26814d7eec30305dc79adfa2aabd20d396982be7ad6bf <-> src/game/simWorker/gameWorker.ts:187:onmessage@62f4f195650a126f3af1c20aa7533b545d80dc72589f0e900211aa0aa9693550",
+      "reason": "installWorkerMessageHandlers is the installable wrapper: it is the export a test or a host can call once to attach error hooks and the onmessage receiver, while onmessage is the receiver itself, a plain function assigned as self.onmessage. The wrapper deliberately owns no dispatch of its own, so folding them together would either register the handlers twice on every call or lose the single-entry-point install the worker tests depend on. Both live in the same worker module and no other module implements either.",
+      "tests": [
+        "tests/gameWorker.profilerStop.test.ts",
+        "tests/gameWorker.seed.test.ts"
+      ]
+    },
+    {
       "key": "src/game/simulation/humanMovement.ts:102:venueGatherPosition@9146e810c9ac8b76bd2be08de2d26c7da6ba6ba80e6cab138f20e6513ccfb816 <-> src/game/simulation/humanMovement.ts:128:homeStandPosition@1f96829eb51bc9a8dde3299493372e61e50ae3f3742ee32c219c4a651a5b892b",
       "reason": "The residential porch is a bounded doorway target immediately outside a house footprint, and is used by commuteHumanToBuilding to set indoorBuildingId and enable legitimate sleep. The venue arc deliberately spreads social visitors much farther south of a building without signaling arrival at home. Combining these would place residents at audience distances or make leisure crowds converge on a door. Both are pure read-only calculations in the same humanMovement owner; the regression explicitly pins their different geometry and the leader-spouse arrival contract.",
       "tests": [

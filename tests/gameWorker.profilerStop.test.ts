@@ -7,6 +7,12 @@ import {
   setPerformanceProfilingEnabled,
 } from '../src/game/performanceProfiler';
 import { WORKER_PROTO, type WorkerRequest, type WorkerResponse } from '../src/game/simWorker/protocol';
+import {
+  flushPathfinderTickToSession,
+  isPathfindingMetricsEnabled,
+  recordFindPathCall,
+  resetPathfinderSession,
+} from '../src/game/pathfindingMetrics';
 
 type SelfShim = {
   onmessage: ((event: { data: WorkerRequest }) => void) | null;
@@ -17,6 +23,7 @@ type SelfShim = {
 
 afterEach(() => {
   setPerformanceProfilingEnabled(false);
+  resetPathfinderSession();
   delete (globalThis as { self?: unknown }).self;
 });
 
@@ -35,10 +42,13 @@ describe('worker profiling stop handshake', () => {
     if (!shim.onmessage) throw new Error('Simulation worker did not attach its message handler');
 
     shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: true } });
+    expect(isPathfindingMetricsEnabled()).toBe(true);
     profileSimulationTick(4320, 1800, 'rain');
     const start = profileStart();
     profileEnd('daily.criticalSpike', start);
     expect(getPerformanceSnapshot().sections).toHaveLength(1);
+    recordFindPathCall();
+    flushPathfinderTickToSession();
 
     shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId: 17 } });
     const final = posted.find((message) => message.type === 'profilingStopped');
@@ -49,6 +59,8 @@ describe('worker profiling stop handshake', () => {
     expect(final.snapshot.ticks).toBe(1);
     expect(final.snapshot.lastTick).toBe(4320);
     expect(final.snapshot.sections.find((section) => section.name === 'daily.criticalSpike')?.calls).toBe(1);
+    expect(final.snapshot.pathfinder?.session.findPathCalls).toBe(1);
+    expect(isPathfindingMetricsEnabled()).toBe(false);
 
     profileSimulationTick(4321, 1800, 'rain');
     expect(getPerformanceSnapshot().ticks).toBe(1);

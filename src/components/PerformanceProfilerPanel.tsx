@@ -146,10 +146,32 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
             totals must not be added together. Percentiles cover the last 512 calls per stage; times are in milliseconds. Weather cost is in the main thread.
           </p>
           <ProfileTable name="Simulation worker" report={report?.worker ?? null} />
+          <PathfinderSummary report={report?.worker?.pathfinder} />
           <ProfileTable name="Main thread / rendering" report={report?.main ?? null} />
         </section>
       }
     </div>
+  );
+}
+
+/** A* shape behind the worker's pathfinding stages: calls, search size, and cache verdict. */
+function PathfinderSummary({ report }: { report: PerformanceSnapshot['pathfinder'] }) {
+  if (!report || report.session.findPathCalls === 0) {
+    return null;
+  }
+  const session = report.session;
+  const share = (value: number): string => `${Math.round((value / session.findPathCalls) * 100)}%`;
+  return (
+    <p className="text-[10px] leading-relaxed text-stone-400">
+      <span className="font-bold text-stone-300">A* shape</span>
+      {' · '}{report.perTick.findPathCalls.toFixed(1)} calls/tick
+      {' · '}{report.nodesPerCall.toFixed(0)} nodes/call
+      {' · '}found {share(session.pathsFound)}
+      {' · '}node-cap {share(session.maxNodesExceeded)}
+      {' · '}early reject {share(session.earlyRejects)}
+      {' · '}waypoint hit {(report.cacheHitRate * 100).toFixed(0)}%
+      {' · '}{report.perTick.lineChecks.toFixed(0)} line checks/tick
+    </p>
   );
 }
 

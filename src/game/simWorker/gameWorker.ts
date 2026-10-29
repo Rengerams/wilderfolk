@@ -19,7 +19,8 @@ import type { Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
-import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled } from '../performanceProfiler';
+import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
+import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
 
 /* Worker-side command logic */
@@ -53,6 +54,12 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
 let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+
+/** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
+function withPathfinderReport(snapshot: PerformanceSnapshot | undefined): PerformanceSnapshot | undefined {
+  if (snapshot) snapshot.pathfinder = getPathfinderReport();
+  return snapshot;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Utility – error reporting                                                */
@@ -129,7 +136,7 @@ function packAndPostTickResult(
     const response: WorkerResponse = {
       type: 'tickResult',
       proto: WORKER_PROTO,
-      performanceSnapshot: maybeWorkerPerformanceSnapshot(),
+      performanceSnapshot: withPathfinderReport(maybeWorkerPerformanceSnapshot()),
       renderBuffer: pack.buffer,
       bufferIndex: acquired.index,
       schemaVersion: pack.schemaVersion,
@@ -340,12 +347,14 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'setProfiling': {
         setPerformanceProfilingEnabled(msg.enabled);
+        setPathfindingMetricsEnabled(msg.enabled);
+        if (msg.enabled) resetPathfinderSession();
         if (!msg.enabled && msg.requestId !== undefined) {
           const response: WorkerResponse = {
             type: 'profilingStopped',
             proto: WORKER_PROTO,
             requestId: msg.requestId,
-            snapshot: getPerformanceSnapshot(),
+            snapshot: { ...getPerformanceSnapshot(), pathfinder: getPathfinderReport() },
           };
           self.postMessage(response);
         }
@@ -380,7 +389,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
               type: 'tickResult',
               proto: WORKER_PROTO,
               delta,
-              performanceSnapshot: maybeWorkerPerformanceSnapshot(),
+              performanceSnapshot: withPathfinderReport(maybeWorkerPerformanceSnapshot()),
               headless: true,
             };
             self.postMessage(response);

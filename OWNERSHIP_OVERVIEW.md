@@ -318,7 +318,7 @@ sites. Two conventions worth stating once:
 |---|---|---|---|
 | Building centre and ground rectangle | `buildingGeometry.ts` | read at every placement, hit-test and camera call site | `getBuildingCenter`, `getBuildingFootprintRect` |
 | Velocity steering: "normalise the delta, set velocity, face it" | `simulation/movementSteering.ts` | realtime, at every steering behaviour; a leaf module so `pathfinding` and `humanMovement` can both use it | `steerEntityToward`, `setVelocityToward`, `faceVelocity` |
-| Pathfinder A\* counters and their report | `pathfindingMetrics.ts` (`pathfinding.ts` is the only writer) | dev/perf only — opt-in by env flag, and every recorder returns immediately while disabled | `recordFindPathCall`, `recordPathCacheHit`, `recordGridRebuild`, `getPathfinderReport`, `formatPathfinderReport`, `setPathfindingMetricsEnabled` |
+| Pathfinder A\* counters and their report | `pathfindingMetrics.ts` (`pathfinding.ts` is the only writer) | dev/perf only — opt-in by env flag or a running CPU profiler session, and every recorder returns immediately while disabled | `recordFindPathCall`, `recordPathCacheHit`, `recordGridRebuild`, `getPathfinderReport`, `formatPathfinderReport`, `flushPathfinderTickToSession`, `setPathfindingMetricsEnabled` |
 | Infrastructure / logistics overlay projection (road networks, access, commute pressure) | `logisticsOverlayData.ts` | UI toggle; read-only projection — nothing here writes to the world | `computeLogisticsOverlay` |
 | Logistics overlay painting | `renderer/logistics.ts` | render pass, in the per-frame overlay pass rather than the tick-keyed entity layer | `drawLogisticsOverlay` |
 | Overlay keyboard ownership | `keyboardOwnership.ts` | overlay open/close; `useKeyboardControls` ignores every key while any overlay holds it | `claimKeyboard`, `releaseKeyboard`, `isKeyboardClaimed` |
@@ -332,7 +332,7 @@ sites. Two conventions worth stating once:
 | Test fixture factories | `src/test/factories.ts` | test tier only — excluded from the app build, type-checked by the vitest project | `human`, `building`, `finishedBuilding`, `stubHuman`, `byType` |
 | Moon Howler saved-form shape | `gameTypes.ts` (declared beside `Entity`, which carries it) | load, full-moon transform and revert | `MoonHowlerSavedState` |
 | Transient-feedback dismissal ledgers and their caps | `hooks/useTransientGameFeedback.ts` | UI events; the ledgers cross the worker boundary and are saved, so the caps are what keep them bounded | `MAX_DISMISSED_NOTIFICATION_IDS`, `MAX_DISMISSED_BIG_NEWS_IDS`, `MAX_DISMISSED_ACTIVE_EVENT_IDS` |
-| Opt-in CPU section profiler across worker + renderer | `game/performanceProfiler.ts` + `components/PerformanceProfilerPanel.tsx` | instrumentation at existing simulation and drawing call sites, off by default | `profileStart`, `profileEnd`, `setPerformanceProfilingEnabled`, `getPerformanceSnapshot`, `PerformanceProfilerPanel` |
+| Opt-in CPU section profiler across worker + renderer | `game/performanceProfiler.ts` + `components/PerformanceProfilerPanel.tsx` | instrumentation at existing simulation and drawing call sites, off by default | `profileStart`, `profileEnd`, `setPerformanceProfilingEnabled`, `getPerformanceSnapshot`, `withPathfinderReport`, `PerformanceProfilerPanel` |
 | Player HUD pop-up preference | `game/preferences.ts` | local preference storage; display-only | `loadHudNotificationsEnabled`, `saveHudNotificationsEnabled` |
 | Read-only village newspaper | `game/weeklyGazette.ts` | Chronicle-only projection, on Log open/week change | `gazetteWeekForTick`, `buildWeeklyGazette` |
 | Valley Chronicle chapter moment shown as the title card, and its dismissal | `hooks/useTransientGameFeedback.ts` + `components/MomentTitleCard.tsx` | UI, read-only; the pending chapter is derived from `world.chronicleChapters` and the dismissal is the hook's own ledger | `getPendingChapterMoment`, `dismissChapterCard`, `MomentTitleCard` |
@@ -465,7 +465,7 @@ If two modules export the same function name with the same responsibility:
 
 | Function | Owner | Responsibility |
 |---|---|---|
-| `ProfileTable`, `DevPerformanceProfilerPanel` | `components/PerformanceProfilerPanel.tsx` | Display opt-in timing percentiles and control profiling. |
+| `ProfileTable`, `PathfinderSummary`, `DevPerformanceProfilerPanel` | `components/PerformanceProfilerPanel.tsx` | Display opt-in timing percentiles, the A* shape behind them, and control profiling. |
 | `tickLayerRealtime` | `game/tickLayerRealtime.ts` | Synchronize entity grids before realtime AI, using the human bucket for social indexing. |
 | `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
