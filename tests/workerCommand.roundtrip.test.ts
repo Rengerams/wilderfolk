@@ -231,6 +231,37 @@ describe('worker command round trips (shared worker + fallback implementation)',
     expect(next.resources.gold).toBe(450);
   });
 
+  it('worker-owned upgrades mutate only the authoritative building without copying the colony', () => {
+    const world = makeWorld([human(1)], [
+      building(2, BuildingType.Farm),
+      building(3, BuildingType.Quarry),
+    ]);
+    const unrelated = world.buildings[1];
+    const humans = world.entities;
+
+    const result = applyWorkerCommand(world, cmd({ op: 'upgradeBuilding', buildingId: 2 }), 'owned');
+
+    expect(result).toBe(world);
+    expect(world.entities).toBe(humans);
+    expect(world.buildings[1]).toBe(unrelated);
+    expect(world.buildings[0].level).toBe(2);
+    expect(world.resources.wood).toBe(450);
+    expect(world.resources.stone).toBe(475);
+    expect(world.resources.gold).toBe(450);
+  });
+
+  it('isolated upgrades preserve the source state and an unavailable upgrade skips cloning', () => {
+    const farm = building(2, BuildingType.Farm);
+    const world = makeWorld([], [farm]);
+    const next = applyWorkerCommand(world, cmd({ op: 'upgradeBuilding', buildingId: 2 }));
+
+    expect(next).not.toBe(world);
+    expect(world.buildings[0]).toBe(farm);
+    expect(world.buildings[0].level).toBe(1);
+    expect(next.buildings[0].level).toBe(2);
+    expect(applyWorkerCommand(next, cmd({ op: 'upgradeBuilding', buildingId: 99 }))).toBe(next);
+  });
+
   it("upgradeBuilding refuses the Leader's House, whose 20 beds are fixed", () => {
     const leaderHouse = building(2, BuildingType.LeaderHouse);
     const world = makeWorld([], [leaderHouse]);
