@@ -757,6 +757,109 @@ describe('gameLoop.exportAuthority.test.ts', () => {
       expect(returned.villageName).toBe('Authoritative Name');
     });
 
+    it('holds worker ticks until the authoritative save export completes', async () => {
+      const display = initGame({ villageName: 'Save barrier', seed: 20261029 });
+      display.speed = 10;
+      display.paused = false;
+      const loop = loopWithWorker(display, structuredClone(display));
+      const internals = loop as unknown as {
+        workerHost: ReturnType<typeof fakeHostReturning> & {
+          hasTickInFlight: () => boolean;
+          canPipelineTick: () => boolean;
+          requestTick: () => boolean;
+          setPaused: (paused: boolean) => void;
+        };
+        running: boolean;
+        frame: (time: number) => void;
+        saveExportPending: boolean;
+      };
+      let releaseIdle: () => void = () => {};
+      const idle = new Promise<void>((resolve) => { releaseIdle = resolve; });
+      const requestTick = vi.fn(() => true);
+      internals.workerHost = {
+        ...internals.workerHost,
+        whenIdle: () => idle,
+        hasTickInFlight: () => false,
+        canPipelineTick: () => true,
+        requestTick,
+        setPaused: vi.fn(),
+      };
+      internals.running = true;
+      vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+      try {
+        const saving = loop.exportAuthoritativeWorld(1000);
+        expect(internals.saveExportPending).toBe(true);
+        internals.frame(1000);
+        internals.frame(1200);
+        expect(requestTick).not.toHaveBeenCalled();
+
+        releaseIdle();
+        await saving;
+        expect(loop.lastExportWasDegraded()).toBe(false);
+        expect(internals.saveExportPending).toBe(false);
+        internals.frame(1300);
+        expect(requestTick).toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('settles queued worker commands before taking a save snapshot', async () => {
+      const display = initGame({ villageName: 'Queued command', seed: 20261029 });
+      const loop = loopWithWorker(display, structuredClone(display));
+      const internals = loop as unknown as {
+        commandChain: Promise<void>;
+        workerHost: ReturnType<typeof fakeHostReturning>;
+      };
+      let finishCommand: () => void = () => {};
+      internals.commandChain = new Promise<void>((resolve) => { finishCommand = resolve; });
+      const exportSave = internals.workerHost.exportSave;
+
+      const saving = loop.exportAuthoritativeWorld(1000);
+      await Promise.resolve();
+      expect(exportSave).not.toHaveBeenCalled();
+      finishCommand();
+      await saving;
+      expect(exportSave).toHaveBeenCalledOnce();
+      expect(loop.lastExportWasDegraded()).toBe(false);
+    });
+
+    it('keeps saves degraded if the worker enters recovery before it confirms the world', async () => {
+      const display = initGame({ villageName: 'Interrupted save', seed: 20261029 });
+      const loop = loopWithWorker(display, structuredClone(display));
+      const internals = loop as unknown as {
+        workerHost: ReturnType<typeof fakeHostReturning> | null;
+        workerEnabled: boolean;
+      };
+      let releaseIdle: () => void = () => {};
+      internals.workerHost = {
+        ...internals.workerHost!,
+        whenIdle: () => new Promise<void>((resolve) => { releaseIdle = resolve; }),
+      };
+      const saving = loop.exportAuthoritativeWorld(1000);
+      await Promise.resolve();
+      internals.workerHost = null;
+      internals.workerEnabled = false;
+      releaseIdle();
+      expect(await saving).toBe(display);
+      expect(loop.lastExportWasDegraded()).toBe(true);
+    });
+
+    it('rejects a display-shadow save while worker recovery is pending', async () => {
+      const display = initGame({ villageName: 'Recovery pending', seed: 20261029 });
+      const loop = loopWithWorker(display, structuredClone(display));
+      const internals = loop as unknown as {
+        workerEnabled: boolean;
+        workerHost: null;
+        workerBooting: boolean;
+      };
+      internals.workerEnabled = false;
+      internals.workerHost = null;
+      internals.workerBooting = true;
+      expect(await loop.exportAuthoritativeWorld(1000)).toBe(display);
+      expect(loop.lastExportWasDegraded()).toBe(true);
+    });
+
     it('falls back to the main shadow when the export fails', async () => {
       const display = initGame({ villageName: 'Display', seed: 20260925 });
       const loop = new GameLoop(display, createInitialView(display.width, display.height), () => null);
