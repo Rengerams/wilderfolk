@@ -114,11 +114,11 @@ const STARTER_HOUSE_COUNT = 8;
 const STARTER_STORAGE_COUNT = 8;
 const PRODUCERS_FARM_COUNT = 4;
 const PRODUCERS_LUMBER_MILL_COUNT = 1;
-const PRODUCERS_BARN_COUNT = 3;
+const PRODUCERS_BARN_COUNT = 2;
 const PRODUCERS_SILO_COUNT = 1;
 /** Share of the computed storage cap the producers scenario starts with, so production must carry it. */
-const PRODUCERS_INITIAL_FOOD_SHARE = 0.25;
-const PRODUCERS_INITIAL_WOOD_SHARE = 0.5;
+const PRODUCERS_INITIAL_FOOD_SHARE = 1;
+const PRODUCERS_INITIAL_WOOD_SHARE = 1;
 /** Wood the restocked gate fills to (its historical 12 000 cap, clipped by the buildings' own cap). */
 const RESTOCKED_INITIAL_WOOD = 12_000;
 

@@ -154,6 +154,12 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       battleLeadershipAwards: e.battleLeadershipAwards ? { ...e.battleLeadershipAwards } : undefined,
       warCaptive: e.warCaptive ? { ...e.warCaptive } : undefined,
       skills: e.skills ? { ...e.skills } : e.skills,
+      careerHistory: e.careerHistory
+        ? Object.fromEntries(Object.entries(e.careerHistory).map(([job, row]) => [job, { ...row }]))
+        : undefined,
+      careerMilestones: e.careerMilestones
+        ? Object.fromEntries(Object.entries(e.careerMilestones).map(([job, row]) => [job, { ...row }]))
+        : undefined,
       traits: e.traits ? [...e.traits] : e.traits,
       childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
       childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,

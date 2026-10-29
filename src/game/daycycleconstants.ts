@@ -2,6 +2,8 @@ export const DAYS_PER_MOON_CYCLE = 14;
 export const HUMAN_ADULT_MIN_AGE = 18; 
 export const HUMAN_VENERABLE_AGE = 60;
 export const NIGHT_START = 23;
+/** Moon Howler's full-moon hunting night starts one hour before ordinary nighttime. */
+export const MOON_HOWLER_NIGHT_START = 22;
 export const NIGHT_END = 6;
 export function isNightHour(hour: number): boolean {
   return hour >= NIGHT_START || hour < NIGHT_END;
@@ -12,9 +14,9 @@ export function isFullMoonDay(colonyDay: number): boolean {
   return colonyDay % DAYS_PER_MOON_CYCLE === 0;
 }
 
-/** Full-moon night spans 11pm on a full-moon day through 6am the next morning. */
+/** Full-moon night spans 22:00 on a full-moon day through 06:00 the next morning. */
 export function isFullMoonNight(colonyDay: number, hourOfDay: number): boolean {
-  if (!isNightHour(hourOfDay)) return false;
+  if (hourOfDay < MOON_HOWLER_NIGHT_START && hourOfDay >= NIGHT_END) return false;
   if (isFullMoonDay(colonyDay)) return true;
   if (hourOfDay < NIGHT_END) {
     return isFullMoonDay(colonyDay - 1);

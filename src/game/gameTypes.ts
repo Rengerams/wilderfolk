@@ -11,6 +11,8 @@ import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 import type { SimRngSnapshot } from './simRng';
 import type { SettlerTrait } from './settlerTraits';
+import type { CareerHistory } from './careers/careerHistory';
+import type { CareerMilestones } from './careers/careerProgression';
 
 export { BuildingType, BUILDING_CONFIGS } from './buildings';
 export type { Building, BuildingConfig, StaffingMode } from './buildings';
@@ -282,6 +284,11 @@ export interface Entity {
   scheduleWorkedTicksToday?: number;
  
   scheduleLastWorkedHours?: number;
+  /** Sole attendance owner's verified site for current/last settled shift (-1 = mixed/unknown). */
+  scheduleWorkedSiteIdToday?: number;
+  scheduleLastWorkedSiteId?: number;
+  scheduleWorkedJobToday?: JobType | null;
+  scheduleLastWorkedJob?: JobType | null;
   scheduleFatigue?: number;
   educated?: boolean;
   traits?: SettlerTrait[];
@@ -300,6 +307,8 @@ export interface Entity {
   occupation?: string;
   job?: JobType;
   skills?: Partial<Record<JobType, number>>;
+  careerHistory?: CareerHistory;
+  careerMilestones?: CareerMilestones;
   battleLeadershipMerit?: number;
   raidDeploymentId?: string;
   departedAlive?: boolean;
