@@ -54,7 +54,7 @@ describe('schedule feedback previews', () => {
     let entityVisits = 0;
     const trackedEntities = new Proxy(entities, {
       get(target, key, receiver) {
-        if (typeof key === 'string' && /^\\d+$/.test(key)) entityVisits++;
+        if (typeof key === 'string' && /^\d+$/.test(key)) entityVisits++;
         return Reflect.get(target, key, receiver);
       },
     });
