@@ -1984,3 +1984,7 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 
 **2026-10-29 — [Decision registry test pins an outdated decision key list](../bug_report/2026-10-29-decision-registry-key-pin-drift.md):** the registry's own contract test was red on `main` — it omitted three registered read-only owners (`workerMotionPresentation`, `chronicleProseNames`, `dailyPersonRoll`) and demanded writes from two of them. The pinned list and the read-only/render rules now follow the existing rows; the file's seven tests pass.
+
+## 2026-10-29 — Election ceremony tick cost
+
+- **The ceremony attendee check swept the whole village per settler — resolved:** on the owner's 2027-human valley the `gathering` phase spent 1217 ms on attendee checks and 1619 ms on gather targets inside every tick, which left the simulation worker unable to answer a save export ("Save not written — simulation worker did not confirm the current world"). Both projections now stop once the answer is settled, with an identical attendee set and identical slot positions; the owner's save failure itself was not reproduced in the sandbox preview. [Report](../bug_report/2026-10-29-election-ceremony-attendee-sweep-stalls-worker.md).
