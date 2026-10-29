@@ -21,7 +21,7 @@
  * map's land could paint snow** while 1.0 % of its tiles were `Snow`, and its
  * `Rocky` / `Mountains` tiles were painted lawn green.
  */
-import type { WorldMap } from '../gameTypes';
+import { TerrainType, PATH_CELL, type WorldMap } from '../gameTypes';
 import { clamp, valueNoise } from '../terrain/noise';
 import { grassDetailAt, loadedGrassTextures, loadedTerrainMaterials, loadedDirtTextures, sampleTerrainMaterial } from './grassTextures';
 // The cell edges, the relief bands and the moisture cuts are the classifier's; the bake must sample
@@ -689,6 +689,8 @@ export interface WhittakerFields {
   skyOcclusion: Float32Array;
   /** How close each cell is to water — the damp verge along every shore. */
   waterProx: Float32Array;
+  /** Smoothed view of authoritative grassland edits on the 10px path grid. */
+  clearingMask?: Float32Array;
   /** Fine, render-only along-stream distance, active channel mask and localized rapids. */
   riverPhase: Float32Array;
   riverFlowMask: Float32Array;
@@ -860,8 +862,15 @@ export function buildWhittakerFields(map: WorldMap): WhittakerFields | null {
     }
   }
 
+  let clearingMask: Float32Array | undefined;
+  for (const [index, tile] of map.overrides ?? []) {
+    if (tile.type !== TerrainType.Grassland || tile.reinforced) continue;
+    if (!clearingMask) clearingMask = new Float32Array(map.width * map.height);
+    clearingMask[index] = 1;
+  }
+
   const riverSurface = buildRiverSurfaceFields(map);
-  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx,
+  return { cols, rows, shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, clearingMask,
     ...riverSurface, deepWaterDepth };
 }
 
@@ -945,7 +954,7 @@ export function bakeWhittakerGround(
   // caller builds them once and passes the same object to every chunk.
   const fields = precomputedFields ?? buildWhittakerFields(map);
   if (!fields) return null;
-  const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx,
+  const { shade, slopeX, slopeY, relief, shadowMap, skyOcclusion, waterProx, clearingMask,
     riverPhase, riverFlowMask, riverRapids, deepWaterDepth } = fields;
 
   const img = ctx.createImageData(W, H);
@@ -977,7 +986,7 @@ export function bakeWhittakerGround(
         ? clamp(mo + DEFAULT_MOISTURE_FOREST
           - (map.moistureForestThreshold ?? DEFAULT_MOISTURE_FOREST), 0, 1)
         : mo;
-      const te = sampleF(temperature, cols, rows, tcx, tcy);
+      let te = sampleF(temperature, cols, rows, tcx, tcy);
       // Four octaves across four scales, collapsed to a **0-mean deviation** (`dv`) because every
       // consumer below multiplies it by a per-channel amplitude while adding it to a mean colour.
       // Teraforge's source wrote these amplitudes into the base ramps themselves (`98 + nv * 22` on
@@ -1002,15 +1011,24 @@ export function bakeWhittakerGround(
       const edgeJit = (valueNoise(wx * 0.13, wy * 0.13, seed + 5150) - 0.5) * 2;
 
       const aboveSea = e - sea;
-      const hn = aboveSea / landRange;
+      let hn = aboveSea / landRange;
+      let groundElevation = e;
       // Water comes from the pixel's own elevation, so the colour ramp, the hillshade damping and
       // the shadow guard all agree about where the waterline is.
       const coverage = sampleF(riverDist, waterCols, waterRows, wx / WATER_CELL, wy / WATER_CELL);
       const rd = (map.generationVersion ?? 0) >= 3 ? coverage : coverage - edgeJit * RIVER_EDGE_JITTER;
       const isWater = aboveSea < 0 || ((map.generationVersion ?? 0) >= 3 && rd > 0.55);
+      if (!isWater && clearingMask) {
+        const cleared = sampleF(clearingMask, map.width, map.height,
+          wx / PATH_CELL - 0.5, wy / PATH_CELL - 0.5);
+        hn += (Math.min(hn, LAND_BANDS.hills - 0.05) - hn) * cleared;
+        te += (Math.max(te, COLD_TEMPERATURE + SNOW_TEMPERATURE_FADE) - te) * cleared;
+        if (cleared > 0) groundElevation = sea + hn * landRange;
+      }
 
       let [r, g, b] = groundColor(
-        e, sea, landRange, visualMo, te, dv, nearWater, edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
+        groundElevation, sea, landRange, visualMo, te, dv, nearWater,
+        edgeJit * SHORE_JITTER_ELEVATION, deepWaterDepth,
       );
 
       // Seabed grain: the floor's own variation *inside* each tint band, so a band is a surface and not
