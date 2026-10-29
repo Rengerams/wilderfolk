@@ -405,10 +405,10 @@ export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant 
 export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
 
 /**
- * Below this camera zoom settlers are drawn as markers instead of full sprites.
+ * At overview zoom, crowds use markers while small colonies retain full sprites.
  *
  * Chosen between the zoom presets (`CAMERA_ZOOM_PRESETS`: 0.5 / 0.75 / 1.0 / 1.25 / …)
- * so each preset is unambiguous: the three far presets show the village as dots, 1.25×
+ * so each preset is unambiguous: crowded far presets show dots, 1.25×
  * and closer show people. Above `HUMAN_MIN_SCREEN_PX` (30 px) the sprite path stops
  * shrinking, so at village-wide zoom every settler used to claim 30 px of screen — the
  * "crazy mess" at 200+ citizens. A marker costs one small arc and skips the sprite
