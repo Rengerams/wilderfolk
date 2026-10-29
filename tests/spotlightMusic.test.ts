@@ -23,7 +23,7 @@ describe('Spotlight opening and instrumental timing', () => {
 
   it('streams the full soundtrack only during this event, fading before the applause', () => {
     expect(SPOTLIGHT_MUSIC_URL).toBe(TRACKS.spotlightLore);
-    expect(SPOTLIGHT_MUSIC_URL.endsWith('/audio/music/spotlight-lore.ogg')).toBe(true);
+    expect(SPOTLIGHT_MUSIC_URL.endsWith('/audio/music/Music_Lore_Instrumentaal.mp3')).toBe(true);
     expect(ALL_TRACK_URLS).not.toContain(TRACKS.spotlightLore);
     expect(SPOTLIGHT_MUSIC_FADE_MS).toBeGreaterThan(0);
     expect(SPOTLIGHT_APPLAUSE_START - SPOTLIGHT_MUSIC_FADE_MS).toBeGreaterThan(SPOTLIGHT_MUSIC_CUE_MS);
