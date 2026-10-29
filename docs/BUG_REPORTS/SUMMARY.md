@@ -1961,6 +1961,8 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 - **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
 
+**2026-10-29 — [Moon Howler CI nightfall fixture drift](../bug_report/2026-10-29-moon-howler-ci-nightfall-fixture-drift.md):** PR #99 CI failed five regressions because older fixtures used ordinary 23:00 nightfall instead of the 22:00 Moon Howler event. Fixtures updated; verification pending.
+
 ## 2026-10-28 — Career PR D implementation findings
 
 - **Mixed-profession shifts can earn career credit for the current trade — investigating:** Initial PR-D tracked an attended workplace but not the actual trade; switching jobs while staying at one workplace could credit the wrong career. Job provenance now accompanies the existing fatigue snapshot, and a focused regression rejects the ambiguous day. **CI verification pending.** [Report](../bug_report/2026-10-28-career-credit-misattributed-on-same-site-job-change.md).
