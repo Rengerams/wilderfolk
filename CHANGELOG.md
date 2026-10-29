@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **CI (PR #91, 29 October 2026):** Consolidated duplicate Spotlight caption start/end lookup into a single cue-boundary resolver; fingerprint-reviewed the distinct discard-versus-consume presentation state contracts against existing tests. Strict semantic overlap gate retained.
+- **CI (PR #91, 29 October 2026):** Consolidated duplicate Spotlight caption-boundary lookup into one resolver; fingerprint-reviewed the distinct discard-versus-consume presentation state contracts against existing tests. Strict semantic overlap gate retained.
 
 - **Fixed (PR #91, 29 October 2026):** Corrected the Spotlight's outdated `humanSchedule.personDayRoll` import to its canonical `simRng` owner, addressing the 120-day CI ESM import failure without changing the RNG sequence or event probability.
 
