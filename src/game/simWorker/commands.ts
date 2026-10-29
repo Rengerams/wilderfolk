@@ -338,7 +338,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
         ? assignIdleWorkerToBuilding(world, cmd.buildingId, cmd.humanId, ownership)
         : fillBuildingWorkers(world, cmd.buildingId);
     case 'autoStaffWorkers':
-      return autoStaffAllWorkers(world);
+      return autoStaffAllWorkers(world, ownership);
     case 'removeWorker':
       return removeWorkerFromBuilding(world, cmd.buildingId, cmd.humanId);
     case 'repairBuilding':

@@ -10,6 +10,7 @@ import { unindexAdjacency } from './adjacencyIndex';
 import { allPlayerHumans } from './playerHuman';
 import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
 import { assignMissingResidences } from './residencyReconciliation';
+import { buildHousingUnits } from './residencySelection';
 import { invalidatePopulationSnapshotCache } from './populationGrowth';
 
 /** The repair owner's materials. Exported so a spender can leave the price of one repair behind. */
@@ -72,12 +73,6 @@ export function getRepairBuildingEligibilityFor(
     return { ok: false, blockReason: `Need ${REPAIR_COST.wood}w ${REPAIR_COST.stone}s` };
   }
   return { ok: true };
-}
-
-function reconcileAssignmentsAfterBuildingRemoval(state: WorldState): void {
-  const humans = allPlayerHumans(state.entities);
-  assignMissingResidences(humans, state.buildings, state.entities);
-  assignMissingWorkers(humans, state.buildings, state);
 }
 
 /** Repair a completed damaged building for the established fixed resource cost. */
@@ -239,11 +234,20 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 }
 
 /** Clear every assignment which references a building before it leaves authoritative state. */
-function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingIds: ReadonlySet<number>): void {
+function clearAssignmentsForDemolishedBuilding(
+  state: WorldState,
+  buildingIds: ReadonlySet<number>,
+): { residents: Set<number>; workforce: boolean } {
+  const affected = { residents: new Set<number>(), workforce: false };
   for (const entity of state.entities) {
-    // Workforce cleanup through the owner's transition keeps work fields consistent.
-    if (entity.workerBuildingId != null && buildingIds.has(entity.workerBuildingId)) removeWorkerTransition(entity, state.buildings);
-    if (entity.residenceBuildingId != null && buildingIds.has(entity.residenceBuildingId)) moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
+    if (entity.workerBuildingId != null && buildingIds.has(entity.workerBuildingId)) {
+      removeWorkerTransition(entity, state.buildings);
+      affected.workforce = true;
+    }
+    if (entity.residenceBuildingId != null && buildingIds.has(entity.residenceBuildingId)) {
+      moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
+      affected.residents.add(entity.id);
+    }
     if (entity.prisonBuildingId != null && buildingIds.has(entity.prisonBuildingId)) {
       if (entity.alive && entity.warCaptive) {
         departWarPrisoner(state, entity, 'escaped');
@@ -252,8 +256,11 @@ function clearAssignmentsForDemolishedBuilding(state: WorldState, buildingIds: R
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;
+      affected.residents.add(entity.id);
+      affected.workforce = true;
     }
   }
+  return affected;
 }
 
 /** The one owner of "a building leaves authoritative state": the completed-building counter, the
@@ -331,8 +338,9 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
   const requested = new Set(buildingIds);
   const buildings = state.buildings.filter((building) => requested.has(building.id));
   if (buildings.length === 0) return state;
-  clearAssignmentsForDemolishedBuilding(state, new Set(buildings.map((building) => building.id)));
+  const affected = clearAssignmentsForDemolishedBuilding(state, new Set(buildings.map((building) => building.id)));
   for (const [index, building] of buildings.entries()) {
+    if (!building.completed && building.occupants.length > 0) affected.workforce = true;
     const refund = cause === 'raid' ? { wood: 0, stone: 0 } : refundBuildingCost(state, building.type);
     if (index >= MAX_DEMOLITION_EFFECTS) continue;
     createDeathParticles(state, building.x, building.y, '#71717a', 25, 'smoke');
@@ -343,7 +351,18 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
   removeBuildingsFromState(state, buildings);
   updateStorageCaps(state);
   invalidatePopulationSnapshotCache(state);
-  reconcileAssignmentsAfterBuildingRemoval(state);
+  if (affected.residents.size > 0 || affected.workforce) {
+    const humans = allPlayerHumans(state.entities);
+    if (affected.residents.size > 0) {
+      const displacedHouseholds = buildHousingUnits(humans)
+        .filter((unit) => unit.some((human) => affected.residents.has(human.id)))
+        .flat();
+      if (displacedHouseholds.length > 0) {
+        assignMissingResidences(displacedHouseholds, state.buildings, state.entities, state.tick);
+      }
+    }
+    if (affected.workforce) assignMissingWorkers(humans, state.buildings, state);
+  }
   return state;
 }
 

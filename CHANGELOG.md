@@ -2,6 +2,20 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Election-ceremony attendance and gathering slots no longer rescan the whole village for every settler. On a 2000-settler save the per-tick cost dropped about thirtyfold, with identical attendees and positions.
+
+- **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.
+
+- **Fixed (29 October 2026):** The decision registry's own contract test was red on main: it omitted three registered read-only owners and demanded writes from two of them. The pinned key list and read-only rule now follow the existing registry rows.
+- **Fixed (29 October 2026):** A timed-out simulation worker command is no longer automatically replayed after worker recovery, preventing the same unconfirmed operation from repeatedly stalling the worker. Later queued commands retain their order; timeout logs name the operation. Root cause of the slow large-colony command still needs profiling.
+
+- **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
+- **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
+- **Fixed (29 October 2026):** Saves temporarily halt new worker ticks and settle earlier commands before exporting. Recovery or a worker swap cannot silently write an unconfirmed display copy. Four regressions added; large-colony browser verification pending.
+
+- **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
+- **Fixed (29 October 2026):** Auto-fill no longer copies the worker-owned simulation world before staffing. Isolated commands still copy; regression checks equivalent assignments. Large-colony verification pending.
+
 - **Spotlight integration (PR #91):** The central dialogue owner now supplies frozen group captions from JSON, while the stage owns timing and visuals. Wired the two uploaded MP3 tracks into the existing music and effects buses and added regression coverage.
 
 - **CI (PR #91, 29 October 2026):** Consolidated duplicate Spotlight caption-boundary lookup into one resolver; fingerprint-reviewed the distinct discard-versus-consume presentation state contracts against existing tests. Strict semantic overlap gate retained.

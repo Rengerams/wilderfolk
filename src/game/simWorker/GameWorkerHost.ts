@@ -578,9 +578,10 @@ export class GameWorkerHost {
         // while the renderer keeps drawing. The fault also hands the loop back to main-thread ticks.
         deadline: setTimeout(() => {
           if (this.pendingCommand !== entry) return;
-          this.settleCommand((pending) => pending.reject(new Error('Worker command timed out')));
+          const reason = `Worker command timed out (op=${cmd.op})`;
+          this.settleCommand((pending) => pending.reject(new Error(reason)));
           this.resolveIdleWaiters();
-          this.onWorkerFault?.('command', 'Worker command timed out');
+          this.onWorkerFault?.('command', reason);
         }, COMMAND_REPLY_DEADLINE_MS),
       };
       this.pendingCommand = entry;
@@ -591,7 +592,7 @@ export class GameWorkerHost {
         const error = err instanceof Error ? err : new Error(String(err));
         this.settleCommand((pending) => pending.reject(error));
         this.resolveIdleWaiters();
-        this.onWorkerFault?.('command', error.message);
+        this.onWorkerFault?.('command', `${error.message} (op=${cmd.op})`);
       }
     });
   }

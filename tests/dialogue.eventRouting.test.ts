@@ -133,8 +133,13 @@ describe('single dialogue event routing', () => {
     const partner = { ...speaker(1602), partnerId: 1601 };
     maybeDialogueChat(mother, partner, 'pregnant', 30, 1);
     expect(mother.chatDialogueSessionKey).toBe(partner.chatDialogueSessionKey);
-    expect(mother.chatPhrase).toContain('baby');
+    expect(mother.chatPhrase ?? partner.chatPhrase).toBeDefined();
     expect(partner.chatPartnerId).toBe(mother.id);
+    const chosen = mother.dialogueRecentScenes?.['pregnancy.daily:pair:expectant_mother:partner']?.id;
+    const valid = canonicalDialogueBank.dialogue_trees.filter((tree) =>
+      tree.eventKey === 'pregnancy.daily' && tree.speakers.length === 2
+      && tree.speakers.includes('expectant_mother') && tree.speakers.includes('partner'));
+    expect(valid.map((tree) => tree.id)).toContain(chosen);
   });
 
   it('uses family lines for real married partners without inventing family bonds', () => {
@@ -153,8 +158,11 @@ describe('single dialogue event routing', () => {
     const a = speaker(1801);
     maybeDialogueChat(a, null, 'food', 45, 1, { foodLow: true });
     expect(a.chatPhrase).toBeDefined();
-    const famine = canonicalDialogueBank.dialogue_trees.find((tree) => tree.id === 'wf_one_way_starving_monologue')!;
-    expect(a.chatPhrase?.replaceAll('\n', ' ')).toBe(famine.lines[0]!.text);
+    const chosen = a.dialogueRecentScenes?.['famine.hunger:solo']?.id;
+    const famine = canonicalDialogueBank.dialogue_trees.find((tree) => tree.id === chosen);
+    expect(famine?.eventKey).toBe('famine.hunger');
+    expect(famine?.mode).toBe('solo');
+    expect(a.chatPhrase).toBe(formatChatLine(famine!.lines[0]!.text, a));
   });
 
   it('retains outcome-specific social impulse content', () => {

@@ -32,6 +32,8 @@ export type TraitContext = OrdinaryTraitContext | ExactTraitContext;
 export interface TraitEffect {
   readonly when: OrdinaryTraitContext;
   readonly effectId: string;
+  /** Player-facing name of this context effect, shown in the inspector. */
+  readonly label: string;
   readonly factorDelta: number;
   readonly tendencyDelta: number;
 }
@@ -57,17 +59,17 @@ export interface TraitEffects {
 // A factor delta changes effectiveness; a tendency delta changes willingness.
 export const TRAIT_EFFECTS = {
   hardy: {
-    benefit: { when: { kind: 'physiology', activity: 'labor' }, effectId: 'hardy.endurance', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'physiology', activity: 'recovery' }, effectId: 'hardy.restReluctance', factorDelta: -0.04, tendencyDelta: -0.08 },
+    benefit: { when: { kind: 'physiology', activity: 'labor' }, effectId: 'hardy.endurance', label: 'Endures hard labor', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'physiology', activity: 'recovery' }, effectId: 'hardy.restReluctance', label: 'Puts off rest', factorDelta: -0.04, tendencyDelta: -0.08 },
   },
   brave: {
     legacyExact: [
       { activity: 'feudClash', effectId: 'brave.timidClash', counterpartTrait: 'timid' },
     ],
-    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'brave.huntingResolve', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'brave.lateRetreat', factorDelta: -0.05, tendencyDelta: -0.08 },
+    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'brave.huntingResolve', label: 'Closes on game with resolve', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'brave.lateRetreat', label: 'Retreats late from danger', factorDelta: -0.05, tendencyDelta: -0.08 },
     also: [
-      { when: { kind: 'danger', activity: 'pursuit' }, effectId: 'brave.relentlessPursuit', factorDelta: 0.05, tendencyDelta: 0.06 },
+      { when: { kind: 'danger', activity: 'pursuit' }, effectId: 'brave.relentlessPursuit', label: 'Keeps up a pursuit', factorDelta: 0.05, tendencyDelta: 0.06 },
     ],
   },
   gregarious: {
@@ -76,80 +78,105 @@ export const TRAIT_EFFECTS = {
       { activity: 'feudClash', effectId: 'gregarious.timidClash', counterpartTrait: 'timid' },
       { activity: 'feudClash', effectId: 'gregarious.stoicClash', counterpartTrait: 'stoic' },
     ],
-    benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'gregarious.bonding', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'leisure', activity: 'solitude' }, effectId: 'gregarious.dislikesSolitude', factorDelta: -0.04, tendencyDelta: -0.10 },
+    benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'gregarious.bonding', label: 'Bonds quickly with friends', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'leisure', activity: 'solitude' }, effectId: 'gregarious.dislikesSolitude', label: 'Suffers being alone', factorDelta: -0.04, tendencyDelta: -0.10 },
   },
   timid: {
     legacyExact: [
       { activity: 'courtshipProgress', effectId: 'timid.courtshipProgress', position: 1, multiplier: 0.7 },
     ],
-    benefit: { when: { kind: 'danger', activity: 'escape' }, effectId: 'timid.earlyRetreat', factorDelta: 0.07, tendencyDelta: 0.10 },
-    drawback: { when: { kind: 'social', activity: 'courtship' }, effectId: 'timid.hesitation', factorDelta: -0.05, tendencyDelta: -0.09 },
+    benefit: { when: { kind: 'danger', activity: 'escape' }, effectId: 'timid.earlyRetreat', label: 'Flees danger early', factorDelta: 0.07, tendencyDelta: 0.10 },
+    drawback: { when: { kind: 'social', activity: 'courtship' }, effectId: 'timid.hesitation', label: 'Hesitates at courtship', factorDelta: -0.05, tendencyDelta: -0.09 },
   },
   greenthumb: {
-    benefit: { when: { kind: 'work', job: 'farmer', action: 'production' }, effectId: 'greenthumb.cropCare', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'work', job: 'blacksmith', action: 'training' }, effectId: 'greenthumb.indoorTrade', factorDelta: -0.04, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'work', job: 'farmer', action: 'production' }, effectId: 'greenthumb.cropCare', label: 'Coaxes more from crops', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'work', job: 'blacksmith', action: 'training' }, effectId: 'greenthumb.indoorTrade', label: 'Uneasy at an indoor trade', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   lucky: {
     legacyExact: [
       { activity: 'conception', effectId: 'lucky.conceptionChance', multiplier: 1.15 },
     ],
-    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'lucky.huntOpportunity', factorDelta: 0.04, tendencyDelta: 0.06 },
-    drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'lucky.overconfidence', factorDelta: -0.04, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'danger', activity: 'hunting' }, effectId: 'lucky.huntOpportunity', label: 'Finds chances while hunting', factorDelta: 0.04, tendencyDelta: 0.06 },
+    drawback: { when: { kind: 'danger', activity: 'escape' }, effectId: 'lucky.overconfidence', label: 'Overconfident in a chase', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   nurturing: {
     legacyExact: [
       { activity: 'communityReaction', effectId: 'nurturing.restraintVoice', voice: 'restraint' },
     ],
-    benefit: { when: { kind: 'family', activity: 'care' }, effectId: 'nurturing.care', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'family', activity: 'bereavement' }, effectId: 'nurturing.deeperGrief', factorDelta: -0.04, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'family', activity: 'care' }, effectId: 'nurturing.care', label: 'Cares for family well', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'family', activity: 'bereavement' }, effectId: 'nurturing.deeperGrief', label: 'Grieves more deeply', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   insightful: {
-    benefit: { when: { kind: 'school', activity: 'research' }, effectId: 'insightful.research', factorDelta: 0.06, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'social', activity: 'conflict' }, effectId: 'insightful.rumination', factorDelta: -0.04, tendencyDelta: -0.08 },
+    benefit: { when: { kind: 'school', activity: 'research' }, effectId: 'insightful.research', label: 'Researches well', factorDelta: 0.06, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'social', activity: 'conflict' }, effectId: 'insightful.rumination', label: 'Turns a quarrel over in the mind', factorDelta: -0.04, tendencyDelta: -0.08 },
   },
   chivalrous: {
     legacyExact: [
       { activity: 'communityReaction', effectId: 'chivalrous.restraintVoice', voice: 'restraint' },
       { activity: 'feudClash', effectId: 'chivalrous.fierceClash', counterpartTrait: 'fierce' },
     ],
-    benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'chivalrous.protection', factorDelta: 0.06, tendencyDelta: 0.10 },
-    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'chivalrous.principledReconciliation', factorDelta: -0.05, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'chivalrous.protection', label: 'Stands in defence of others', factorDelta: 0.06, tendencyDelta: 0.10 },
+    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'chivalrous.principledReconciliation', label: 'Slow to make peace on principle', factorDelta: -0.05, tendencyDelta: -0.06 },
   },
   resourceful: {
-    benefit: { when: { kind: 'work', job: 'builder', action: 'construction' }, effectId: 'resourceful.improvisation', factorDelta: 0.06, tendencyDelta: 0.06 },
-    drawback: { when: { kind: 'school', activity: 'learning' }, effectId: 'resourceful.resistsStructure', factorDelta: -0.04, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'work', job: 'builder', action: 'construction' }, effectId: 'resourceful.improvisation', label: 'Improvises on a build site', factorDelta: 0.06, tendencyDelta: 0.06 },
+    drawback: { when: { kind: 'school', activity: 'learning' }, effectId: 'resourceful.resistsStructure', label: 'Resists structured lessons', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   stoic: {
     legacyExact: [
       { activity: 'spousalBereavement', effectId: 'stoic.shorterMourning', durationDays: 5 },
     ],
-    benefit: { when: { kind: 'family', activity: 'bereavement' }, effectId: 'stoic.composure', factorDelta: 0.06, tendencyDelta: 0.06 },
-    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'stoic.restrainedOutreach', factorDelta: -0.04, tendencyDelta: -0.08 },
+    benefit: { when: { kind: 'family', activity: 'bereavement' }, effectId: 'stoic.composure', label: 'Keeps composure in grief', factorDelta: 0.06, tendencyDelta: 0.06 },
+    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'stoic.restrainedOutreach', label: 'Holds back from reconciliation', factorDelta: -0.04, tendencyDelta: -0.08 },
   },
   graceful: {
     legacyExact: [
       { activity: 'courtshipProgress', effectId: 'graceful.courtshipProgress', position: 2, multiplier: 1.2 },
     ],
-    benefit: { when: { kind: 'social', activity: 'courtship' }, effectId: 'graceful.socialTact', factorDelta: 0.05, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'physiology', activity: 'labor' }, effectId: 'graceful.heavyLabor', factorDelta: -0.05, tendencyDelta: -0.05 },
+    benefit: { when: { kind: 'social', activity: 'courtship' }, effectId: 'graceful.socialTact', label: 'Courts with social tact', factorDelta: 0.05, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'physiology', activity: 'labor' }, effectId: 'graceful.heavyLabor', label: 'Struggles with heavy labor', factorDelta: -0.05, tendencyDelta: -0.05 },
   },
   intuitive: {
     legacyExact: [
       { activity: 'workplaceBanter', effectId: 'intuitive.readsTheRoom', chance: 0.11 },
     ],
-    benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'intuitive.socialCues', factorDelta: 0.05, tendencyDelta: 0.08 },
-    drawback: { when: { kind: 'social', activity: 'conflict' }, effectId: 'intuitive.misreadsSignals', factorDelta: -0.04, tendencyDelta: -0.06 },
+    benefit: { when: { kind: 'social', activity: 'friendship' }, effectId: 'intuitive.socialCues', label: 'Reads social cues', factorDelta: 0.05, tendencyDelta: 0.08 },
+    drawback: { when: { kind: 'social', activity: 'conflict' }, effectId: 'intuitive.misreadsSignals', label: 'Misreads signals in a quarrel', factorDelta: -0.04, tendencyDelta: -0.06 },
   },
   fierce: {
     legacyExact: [
       { activity: 'communityReaction', effectId: 'fierce.severityVoice', voice: 'severity' },
       { activity: 'feudClash', effectId: 'fierce.stoicClash', counterpartTrait: 'stoic' },
     ],
-    benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'fierce.resolve', factorDelta: 0.07, tendencyDelta: 0.10 },
-    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'fierce.slowToForgive', factorDelta: -0.06, tendencyDelta: -0.10 },
+    benefit: { when: { kind: 'danger', activity: 'defense' }, effectId: 'fierce.resolve', label: 'Fierce resolve in defence', factorDelta: 0.07, tendencyDelta: 0.10 },
+    drawback: { when: { kind: 'social', activity: 'reconciliation' }, effectId: 'fierce.slowToForgive', label: 'Slow to forgive', factorDelta: -0.06, tendencyDelta: -0.10 },
   },
 } as const satisfies Record<SettlerTrait, TraitEffects>;
+
+/** One catalog row, resolved from an evaluator reason id; presentation only, never a calculation. */
+interface TraitEffectEntry {
+  readonly trait: SettlerTrait;
+  readonly direction: 'benefit' | 'drawback';
+  readonly label: string;
+}
+
+/** Derived from `TRAIT_EFFECTS`: the one lookup from a reason id back to its trait and wording. */
+export const TRAIT_EFFECTS_BY_ID: Readonly<Record<string, TraitEffectEntry>> = (() => {
+  const byId: Record<string, TraitEffectEntry> = {};
+  for (const trait of Object.keys(TRAIT_EFFECTS) as SettlerTrait[]) {
+    const profile: TraitEffects = TRAIT_EFFECTS[trait];
+    byId[profile.benefit.effectId] = Object.freeze({ trait, direction: 'benefit', label: profile.benefit.label });
+    byId[profile.drawback.effectId] = Object.freeze({ trait, direction: 'drawback', label: profile.drawback.label });
+    for (const effect of profile.also ?? []) {
+      byId[effect.effectId] = Object.freeze({
+        trait,
+        direction: effect.tendencyDelta >= 0 ? 'benefit' : 'drawback',
+        label: effect.label,
+      });
+    }
+  }
+  return Object.freeze(byId);
+})();
 
 /** The five cross-person clash links, each stored once in the trait records above. */
 export const TRAIT_OPPOSITIONS: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = (() => {

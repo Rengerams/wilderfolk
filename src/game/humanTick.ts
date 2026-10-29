@@ -6,7 +6,6 @@ import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
-import { crowdGatherPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
@@ -95,7 +94,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { crowdGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -724,6 +723,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       (entity.chatTicks ?? 0) <= 0 &&
       (state.tick + entity.id) % SOCIAL_STAGGER === 0
     ) {
+      const expectantSpouse = entity.partnerId == null ? null : resolveChatPartner(entity.partnerId);
       tryAmbientRandomDialogue(
         entity,
         ambientChatNeighbors(entity),
@@ -732,6 +732,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         chatHints,
         {
           pregnant: !!entity.pregnant,
+          expectingPartner: Boolean(expectantSpouse?.pregnant && expectantSpouse.partnerId === entity.id),
           renffr: isRenffrGossipActive(state),
           workHour: goWorkTime,
           night: prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay),
@@ -1819,7 +1820,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (hasResidenceAssignment(entity)) {
             const home = buildingById.get(entity.residenceBuildingId!);
             if (home?.completed) {
-              steerTo(home.x + home.width / 2 + ((entity.id % 5) - 2) * 6, home.y + home.height * 0.95, 0.4, 12, home);
+              const porch = homeStandPosition(home, entity.id);
+              steerTo(porch.x, porch.y, 0.4, 12, home);
             }
           } else {
             steerTo(width * 0.5, height * 0.5, 0.38);

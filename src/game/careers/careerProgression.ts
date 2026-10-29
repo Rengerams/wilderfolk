@@ -13,6 +13,13 @@ export type CareerMilestones = Partial<Record<JobType, CareerMilestone>>;
 /** Work thresholds grant descriptive history, never a skill or staffing advantage. */
 export const CAREER_TIER_DAYS = { practiced: 15, experienced: 60, master: 180 } as const;
 
+/** Player-facing name of each descriptive tier above. */
+export const CAREER_TIER_LABELS: Readonly<Record<CareerTier, string>> = {
+  practiced: 'Practiced',
+  experienced: 'Experienced',
+  master: 'Master',
+};
+
 export function normalizeCareerMilestones(raw: unknown, history?: CareerHistory): CareerMilestones | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;

@@ -4,7 +4,7 @@ import needsSource from '../src/game/data/needs.json';
 import { canonicalDialogueBank } from '../src/game/dialogueTrees';
 
 describe('quarantined legacy Elections.json reconciliation', () => {
-  it('preserves all ten historical alternatives without injecting them into active election scenes', () => {
+  it('makes distinct archived need dialogues playable without misclassifying them as elections', () => {
     const legacy = legacyElectionSource.dialogue_trees;
     const current = new Map(needsSource.dialogue_trees.map((tree) => [tree.id, tree]));
     expect(legacy).toHaveLength(10);
@@ -22,7 +22,19 @@ describe('quarantined legacy Elections.json reconciliation', () => {
       expect(active?.lines).toEqual(duplicate?.lines);
       expect(active?.eventKey).toBe(duplicate?.eventKey);
       expect(tree.category).toBe('needs');
+      const distinctText = JSON.stringify(tree.lines.map((line) => line.text))
+        !== JSON.stringify(duplicate?.lines.map((line) => line.text));
+      const migrated = current.get('wf_needs_alternative_' + tree.id);
+      if (distinctText) {
+        expect(migrated?.lines, tree.id).toEqual(tree.lines);
+        expect(migrated?.eventKey, tree.id).toBe(duplicate?.eventKey);
+        expect(activeIds.has(migrated!.id), tree.id).toBe(true);
+      } else {
+        expect(migrated, tree.id).toBeUndefined();
+      }
     }
+    expect(needsSource.dialogue_trees.filter((tree) =>
+      tree.id.startsWith('wf_needs_alternative_'))).toHaveLength(9);
     expect([...ids].some((id) => id.startsWith('election.'))).toBe(false);
     const election = canonicalDialogueBank.dialogue_trees.filter((tree) =>
       tree.eventKey?.startsWith('election.'));

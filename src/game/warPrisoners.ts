@@ -5,7 +5,7 @@ import { TICKS_PER_DAY } from './dayCycleClock';
 import { prisonPrisonerCapacity } from './prisonShifts';
 import { getSimRng } from './simRng';
 import { addReputation } from './simHelpers';
-import { formatCitizenName } from './citizenId';
+import { citizenFullName, formatCitizenName } from './citizenId';
 import { logDeath, logEvent } from './eventLog';
 import { killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
@@ -108,7 +108,7 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
   } else if (choice === 'execute_confirmed') {
     recordWarPrisonerOutcome(state, person, 'executed');
     killHuman(person, state.buildings, ensureEntityByIdMap(state), state.tick, state);
-    logDeath(state, `${formatCitizenName(person)} executed after capture`, formatCitizenName(person),
+    logDeath(state, `${citizenFullName(person)} executed after capture`, formatCitizenName(person),
       { x: person.x, y: person.y }, 'enemy');
     applyWarCommunityReaction(state, 'execution', originRivalId);
     if (rival) rememberRivalDisposition(state, rival, 'execution');
@@ -120,7 +120,7 @@ export function resolveWarPrisoner(original: WorldState, entityId: number, choic
     custody.attempts++;
     custody.recruitAfterTick = state.tick + RECRUIT_COOLDOWN_DAYS * TICKS_PER_DAY;
     if (getSimRng('warPrisoners')() >= chance) {
-      logEvent(state, 'prison', `${formatCitizenName(person)} declined the offer to join; another offer must wait.`, formatCitizenName(person));
+      logEvent(state, 'prison', `${citizenFullName(person)} declined the offer to join; another offer must wait.`, formatCitizenName(person));
       return state;
     }
     recordWarPrisonerOutcome(state, person, 'recruited');

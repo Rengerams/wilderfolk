@@ -34,6 +34,13 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` adds path-limited untracked cleanup before checkout; new CI verification pending.
 
+**2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
+
+**2026-10-29 — [Demolition performs unrelated colony-wide housing and staffing sweeps](../bug_report/2026-10-29-demolition-triggers-global-housing-staffing-sweep.md):** owner reports a freeze on every removal; static trace confirms unconditional unbounded housing reconciliation even for unused roads. Conditional, tick-bounded correction and three regression cases committed; CI and live large-colony replay pending.
+**2026-10-29 — [Manual save refused during busy or recovering simulation worker](../bug_report/2026-10-29-save-rejected-during-busy-worker.md):** screenshot confirms a save-refusal toast on a large settlement. The save path previously admitted new ticks while waiting for worker idle and did not await queued commands. Quiescence and safe recovery refusal added with focused regressions; CI and large-colony verification pending.
+
+**2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
@@ -2031,3 +2038,10 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 - **Foreign prisoners died from idle exhaustion — fixed in source, verification pending:** the retired captive energy-loss path no longer runs in prison; regression now asserts survival at zero energy while real deaths still close custody exactly once. [Report](../bug_report/2026-10-29-captive-false-exhaustion.md).
 - **Repeated 08:00 ration calls charged the same foreign captive multiple times — fixed in source, verification pending:** the meal owner now writes a per-captive saved calendar-day stamp only after a successful debit. Unit and save/reload regressions cover the single-ration guarantee. [Report](../bug_report/2026-10-29-captive-duplicate-daily-rations.md).
 
+
+**2026-10-29 — [Decision registry test pins an outdated decision key list](../bug_report/2026-10-29-decision-registry-key-pin-drift.md):** the registry's own contract test was red on `main` — it omitted three registered read-only owners (`workerMotionPresentation`, `chronicleProseNames`, `dailyPersonRoll`) and demanded writes from two of them. The pinned list and the read-only/render rules now follow the existing rows; the file's seven tests pass.
+
+## 2026-10-29 — Election ceremony tick cost
+
+- **The ceremony attendee check swept the whole village per settler — resolved:** on the owner's 2027-human valley the `gathering` phase spent 1217 ms on attendee checks and 1619 ms on gather targets inside every tick, which left the simulation worker unable to answer a save export ("Save not written — simulation worker did not confirm the current world"). Both projections now stop once the answer is settled, with an identical attendee set and identical slot positions; the owner's save failure itself was not reproduced in the sandbox preview. [Report](../bug_report/2026-10-29-election-ceremony-attendee-sweep-stalls-worker.md).
+**2026-10-29 — [Dialogue repeats and context routes mismatch](../bug_report/2026-10-29-dialogue-repeated-and-context-misrouted.md):** fixed ambient tree IDs suppressed authored alternatives, an unguarded pregnancy scene sat in ordinary home chatter, and repeat selection ignored recent choices. Status: investigating (branch implementation; CI pending).

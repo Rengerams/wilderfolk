@@ -24,6 +24,7 @@ import { getHumanActivityProjection } from '../game/humanStatus';
 import { explainSettlerMovement } from '../game/dashboardData';
 import { citizenFullName, citizenGivenName, humanDisplayName } from '../game/citizenId';
 import { displayYear } from '../game/dayCycleClock';
+import PersonalityCareerDetails from './PersonalityCareerDetails';
 
 function countLivingChildren(entity: Entity, allEntities: Entity[]): number {
   return allEntities.filter((e) =>
@@ -391,6 +392,9 @@ export default function SelectedEntityPanel({
           </>
         )}
       </div>
+
+      {/* Its own read-only component: the inspector decides which identities carry DNA and career records. */}
+      <PersonalityCareerDetails entity={entity} />
 
       {isMoonHowler && (
         <p className="mt-2 text-[11px] text-rose-300">🌝 Curse NOT cured — hunting tonight. Staff a Church; the priest may break the curse while they are in Moon Howler form.</p>
