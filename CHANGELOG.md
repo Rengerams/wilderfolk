@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Loading a save no longer reopens the colony zoomed further out than the map covers, and enlarging the window lifts the zoom to match, so the empty backdrop no longer frames the map.
+
+- **Fixed (29 October 2026):** Zooming out now stops once the map covers the viewport, and the camera stays on the map at that limit, so a large colony can be framed without a black band on every side. Panning stays free while zoomed in; preset zoom levels respect the same limit.
+
 - **Changed (29 October 2026):** Simulation randomness snapshots list streams in a fixed order, so the same positions serialise identically whichever owner drew first. Prerequisite for spreading one tick across several shards.
 
 - **Fixed (29 October 2026):** Election-ceremony attendance and gathering slots no longer rescan the whole village for every settler. On a 2000-settler save the per-tick cost dropped about thirtyfold, with identical attendees and positions.
