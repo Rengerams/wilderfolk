@@ -48,6 +48,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'humanPhysiology'
@@ -75,6 +76,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  chronicleProseNames: {
+    owner: 'citizenId.ts — citizenFullName, formatDeathLog',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure identity formatting for Chronicle prose and graduation notices. Numbered citizen labels remain available for search, identifiers and grave-record lookups.',
+    writes: [],
+    scheduledFrom: 'On-demand in humanRelationships, education, humanNeeds, worldEvents and other event owners before eventLog writes',
+    testFile: 'tests/chronicle.citizenProseNames.test.ts',
+  },
   dailyPersonRoll: {
     owner: 'simRng.ts — personDayRoll',
     cadence: 'on-demand',
