@@ -48,6 +48,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'workerMotionPresentation'
   | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'humanPhysiology'
@@ -75,6 +76,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  workerMotionPresentation: {
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody',
+    cadence: 'render',
+    cadenceNote: 'On every acknowledged worker tick, anchor a read-only presentation interval; each frame blends only confirmed positions. Pausing, restarting and replacing the session invalidate the anchor. No simulation clocks or entity positions are written.',
+    writes: [],
+    scheduledFrom: 'GameWorkerHost.setTickResultHandler (acknowledgement) and requestAnimationFrame through GameLoop.frameBody (presentation)',
+    testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+  },
   dailyPersonRoll: {
     owner: 'simRng.ts — personDayRoll',
     cadence: 'on-demand',
