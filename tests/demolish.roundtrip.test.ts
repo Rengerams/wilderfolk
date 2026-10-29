@@ -156,6 +156,43 @@ describe('demolition round trip', () => {
   });
 
 
+  it('does not reassign unrelated settlers when removing an unused road', () => {
+    const idle = human(1);
+    const road = building(2, BuildingType.Road);
+    const vacantHome = building(3, BuildingType.House);
+    const vacantFarm = building(4, BuildingType.Farm);
+    const world = makeWorld([idle], [road, vacantHome, vacantFarm], { totalBuildingsCompleted: 3 });
+
+    const next = applyWorkerCommand(world, demolish(2));
+    expect(next.buildings.some((item) => item.id === 2)).toBe(false);
+    expect(idle.residenceBuildingId).toBeUndefined();
+    expect(idle.workerBuildingId).toBeUndefined();
+    expect(vacantHome.occupants).toEqual([]);
+    expect(vacantFarm.occupants).toEqual([]);
+  });
+
+  it('immediately rehomes a resident displaced by house demolition', () => {
+    const resident = human(1, { residenceBuildingId: 2 });
+    const formerHome = building(2, BuildingType.House, { occupants: [1] });
+    const availableHome = building(3, BuildingType.House);
+    const world = makeWorld([resident], [formerHome, availableHome], { totalBuildingsCompleted: 2 });
+
+    applyWorkerCommand(world, demolish(2));
+    expect(resident.residenceBuildingId).toBe(3);
+    expect(availableHome.occupants).toContain(1);
+  });
+
+  it('reassigns a worker displaced by farm demolition', () => {
+    const farmer = human(1, { workerBuildingId: 2, job: JobType.Farmer });
+    const formerFarm = building(2, BuildingType.Farm, { occupants: [1] });
+    const availableFarm = building(3, BuildingType.Farm);
+    const world = makeWorld([farmer], [formerFarm, availableFarm], { totalBuildingsCompleted: 2 });
+
+    applyWorkerCommand(world, demolish(2));
+    expect(farmer.workerBuildingId).toBe(3);
+    expect(availableFarm.occupants).toContain(1);
+  });
+
   it('removes the building exactly once and cleans the worker assignment', () => {
     const worker = human(1, { workerBuildingId: 2, job: JobType.Farmer });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
