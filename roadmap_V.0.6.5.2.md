@@ -1,7 +1,7 @@
 # Wilderfolk v0.6.5.2 — Feature Implementation Roadmap
 
 **Target version:** 0.6.5.2  
-**Updated:** 28 October 2026  
+**Updated:** 29 October 2026  
 **Purpose:** record which gameplay features have been implemented and which feature scope remains open. This is **not** an implementation plan, test checklist or release-verification log.
 
 **Acceptance policy: merged = accepted.** `[x]` means the feature is present in code merged into `main`; `[ ]` means the described additional feature remains incomplete or has not been merged. A finished core feature is not reopened merely because optional extensions remain. See [§21](#21-merged-feature-implementation-register--28-october-2026) for accepted PRs and canonical owners.
@@ -36,6 +36,7 @@
 - [x] **DNA phase B — live work, school and danger effects:** the catalog now influences production, construction, schooling, research, apprenticeships, militia, hunting, pursuit, escape and work stamina; legacy settlers get deterministic DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
 - [x] **DNA phase C — exact social/family/civic parity cutover:** feuds, workplace banter, courtship, married/youth conception, civic prisoner reactions and spousal grief now use the single catalog/evaluator; legacy gameplay numbers and seeded decision owners are preserved ([#97](https://github.com/Rengerams/wilderfolk/pull/97)).
 - [x] **Human dialogue trees — single pipeline (phases A–D):** typed JSON 1.3 event/solo-pair routing, one chat-state owner, domain cutovers, worker bank parity and legacy selector removal; merged PR [#93](https://github.com/Rengerams/wilderfolk/pull/93). Spotlight's separate staged overlay remains in open PR #91.
+- [x] **Career history and observed-work progression (PR D):** true witnessed job/site attendance, bounded credits and 15/60/180-day descriptive milestones, apprenticeship completion timestamps, neutral save migration and an optional idle-worker fit tie-break ([#99](https://github.com/Rengerams/wilderfolk/pull/99)). PR E's inspector remains unimplemented.
 
 ## 1. Warfare design goals — implemented
 
@@ -106,7 +107,7 @@
 
 The raid overhaul is an implemented **aggregate simulation**, not a tactical battle system. Existing Watchtowers already contribute passive barricade defense and early warning. Active turret fire, projectile combat, manual combat and physical siege minigames are **not planned**.
 
-## 11. DNA traits — phases A, B and C implemented; broader personality features open
+## 11. DNA traits — phases A–D implemented; broader personality features open
 
 **Codebot implementation:** [Executable PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md) · [architecture](docs/plans/personality-career-single-pipeline-0.6.5.2.md). Every PR must update both ownership registries and follow [the bug-report protocol](docs/bug_report/readme.md).
 
@@ -115,7 +116,7 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 - [x] The shared evaluator is consumed by real production/construction crews, apprenticeship training, school-day credits, research, individual militia strength, hunting/pursuit/escape and on-shift stamina. Older saves receive stable DNA backfill ([#90](https://github.com/Rengerams/wilderfolk/pull/90)).
 - [x] The six **existing** social/romance/family/civic legacy DNA consumers are migrated with exact gameplay/RNG parity and an empty registered legacy-audit inventory in merged PR [#97](https://github.com/Rengerams/wilderfolk/pull/97).
 - [ ] Additional off-duty/leisure choices, fidelity and parenting behaviors, life-event reactions and personal-memory features **beyond the six migrated PR-C rules** need their own future implementation and tests; they were deliberately excluded from the parity-only PR C.
-- [ ] Trait aptitudes and acquired experience combine without permanently locking professions or making one DNA set universally superior.
+- [x] Trait aptitudes and genuinely credited work experience act as a bounded optional tie-break for eligible idle workers, **after commute eligibility, squared distance and job skill**, without locking anyone into a profession ([#99](https://github.com/Rengerams/wilderfolk/pull/99)).
 - [ ] Personality influences leisure, friendships, romance, fidelity, parenting, reactions to life events and personal development; existing relationships and experiences remain important rather than one trait determining a choice.
 - [ ] Inspectors explain applicable DNA strengths, disadvantages and contextual behavior using the character's existing traits and history.
 
@@ -152,13 +153,13 @@ The raid overhaul is an implemented **aggregate simulation**, not a tactical bat
 
 ## 16. More meaningful professions, education and career paths — additional features open
 
-**Codebot implementation:** [Executable DNA + career PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md). Shared trait evaluation, separate bounded career-history owner; no aliases or re-exports.
+**Codebot implementation:** [Executable DNA + career PR tickets A–E](docs/plans/personality-career-codebot-tasks-0.6.5.2.md). Career phase D was merged as [#99](https://github.com/Rengerams/wilderfolk/pull/99). PR E (read-only inspector) remains open. Shared trait evaluation, distinct career owners; no aliases or re-exports.
 
 - [x] Existing school-age rules, age-18 adulthood, job skills, employment and selective apprenticeship mechanics remain the foundation.
-- [x] Current schooling, research and apprentice skill gain already apply contextual DNA factors through the shared evaluator ([#90](https://github.com/Rengerams/wilderfolk/pull/90)); persistent adult careers and detailed worker-selection reasons remain separate open features.
-- [ ] Persistent adult work histories, experience milestones and meaningful progression for teachers, medics, builders, craftspeople and defenders.
+- [x] Schooling, research and apprentice skill gain already use the shared contextual DNA evaluator ([#90](https://github.com/Rengerams/wilderfolk/pull/90)); verified adult career histories and milestones were added by [#99](https://github.com/Rengerams/wilderfolk/pull/99). Player-visible worker-choice explanations remain for PR E.
+- [x] Persistent adult work histories record **verifiable attended shifts only**, by completed workplace and previous-day trade; descriptive career tiers at 15/60/180 credited days and real apprenticeship completion are stored. Unattributable construction-only shifts do not earn career credit ([#99](https://github.com/Rengerams/wilderfolk/pull/99)).
 - [ ] Contextual **Why this worker?** explanations integrating skill, aptitude, distance, availability and interests.
-- [ ] DNA aptitude and career development influence opportunities without constant involuntary workplace reshuffling or mandatory apprenticeship.
+- [x] Career history and DNA influence only an eligible **idle** worker's exact commute/distance/skill tie. Stable encounter order, manual staffing, current jobs and the 60-day auto-transfer cooldown remain authoritative ([#99](https://github.com/Rengerams/wilderfolk/pull/99)).
 
 ## 17. Simulation performance and large-colony scalability — partially implemented
 
@@ -189,7 +190,7 @@ This roadmap records **feature availability only**. Specifications and implement
 - [x] Food demand, forecast and production planning integrate with human needs. The Virtual Player has food-first construction/staffing improvements ([#72](https://github.com/Rengerams/wilderfolk/pull/72), [#81](https://github.com/Rengerams/wilderfolk/pull/81), [#82](https://github.com/Rengerams/wilderfolk/pull/82)).
 - [ ] **Further gameplay balancing:** meal quantities, sleep/stamina pacing and prolonged deprivation effects.
 
-## 21. Merged feature implementation register — 28 October 2026
+## 21. Merged feature implementation register — 29 October 2026
 
 **Project rule: merged = accepted.** This register lists implemented features from merged code on `main`, not proposals or draft status. Future enhancements stay in the feature backlog; this roadmap is an implementation overview, not a test/verification register.
 
@@ -213,7 +214,8 @@ This roadmap records **feature availability only**. Specifications and implement
 | Terrain relief and 2.5D display | [#76](https://github.com/Rengerams/wilderfolk/pull/76), [#77](https://github.com/Rengerams/wilderfolk/pull/77) | Ridgeline and valley shading, elevated cached mesh chunks, grounded vegetation and accurate inverse-picking of raised surfaces | `src/game/terrainAtlas.ts`, `docs/TERRAIN_ARCHITECTURE.md` |
 | Biome transitions and nature artwork | [#79](https://github.com/Rengerams/wilderfolk/pull/79) | Climate-weighted ecotones, textured vegetation and bundled licensed terrain/nature assets for new generation-v4 maps | `src/game/renderer/`, `public/sprites/nature/`, `THIRD_PARTY_NOTICES.md` |
 | CI workflow configuration | [#74](https://github.com/Rengerams/wilderfolk/pull/74) | Node workflow dependency caching and lockfile setup corrected | `.github/workflows/` |
-| Canonical DNA catalog and phases B/C consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90), [#97](https://github.com/Rengerams/wilderfolk/pull/97) | Fourteen contextual positive/negative traits; bounded pure evaluator; work/school/militia/hunting/physiology integration; deterministic old-save DNA backfill; six exact-parity social/family/civic integrations. Career history and broader personality features remain pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
+| Canonical DNA catalog and phases B/C consumption | [#85](https://github.com/Rengerams/wilderfolk/pull/85), [#90](https://github.com/Rengerams/wilderfolk/pull/90), [#97](https://github.com/Rengerams/wilderfolk/pull/97) | Fourteen contextual positive/negative traits; bounded pure evaluator; work/school/militia/hunting/physiology integration; deterministic old-save DNA backfill; six exact-parity social/family/civic integrations. Broader personality features and PR-E inspector remain pending | `src/game/personality/traitEffectCatalog.ts`, `src/game/personality/traitEvaluation.ts`, `src/game/saveLoad.ts` |
+| Verified career history, progression and worker fit | [#99](https://github.com/Rengerams/wilderfolk/pull/99) | Per-profession credited previous-day worked shifts with witnessed job/site, bounded 65,535-day history, descriptive 15/60/180-day tiers, true apprenticeship completion, old-save neutral migration and worker-rollback parity. DNA/experience break only eligible idle-worker ties after commute/distance/skill. Unverifiable construction credit is omitted; PR-E explanation UI remains pending | `src/game/careers/careerHistory.ts`, `src/game/careers/careerProgression.ts`, `src/game/careers/workerFit.ts`, `src/game/saveLoad.ts` |
 | Human dialogue trees — canonical speech pipeline | [#93](https://github.com/Rengerams/wilderfolk/pull/93) | Version-1.3 indexed 94-key event bank, typed solo/pair scenes, one speech writer, migrated ambient/social/visitor/health/civic/election/omen callers, stable session cleanup and worker/serialization parity. Spotlight overlay hookup is separate | [Architecture](docs/plans/dialogue-single-pipeline-0.6.5.2.md), [Implementation](docs/plans/dialogue-codebot-tasks-0.6.5.2.md), `src/game/dialogueTrees.ts`, `src/game/humanChat.ts` |
 | Existing settler reasons and priority alerts | Existing UI/system owners | The inspector projects schedule, activity, movement and blocked-work reasons; the alert strip provides ranked actionable warnings. Neither is the full configurable explainability system | `src/components/SelectedEntityPanel.tsx`, `src/game/priorityAlerts.ts`, `src/components/AlertBar.tsx` |
 
@@ -224,9 +226,9 @@ These describe **unimplemented or incomplete features**, not test activities or 
 - [ ] **Whole-life DNA personalities (remaining phases):** expand contextual leisure, fidelity, parental priorities and persistent experiences beyond the six canonical migrations in merged DNA phases A–C (§11).
 - [ ] **District identity:** neighborhoods, local amenities and meaningful residential identity (§14).
 - [ ] **Seasons and emergencies:** deeper seasonal resilience, disasters and village responses (§15).
-- [ ] **Professions and education:** expanded careers, meaningful skill development and settlement specialization (§16).
+- [ ] **Further professions and education:** specializations and training mechanics beyond the already merged career history and descriptive milestone system (§16).
 - [ ] **Additional scalable simulation architecture:** incremental topology/cache updates, event-driven heavy workloads and bounded worker transfers (§17).
-- [ ] **Player explainability:** actionable alerts and clear reasons for autonomous decisions (§18).
+- [ ] **Player explainability:** PR-E contextual DNA/career inspector and optional worker-choice fit, plus broader configurable alerts and autonomous-decision explanations (§11, §16, §18).
 
 ### 21.2 Canonical document and implementation boundary
 
