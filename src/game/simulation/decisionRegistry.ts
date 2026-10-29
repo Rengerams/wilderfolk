@@ -109,7 +109,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'on-demand',
     cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. The fourteen DNA ids are typed only in settlerTraits.ts; gameTypes.ts imports that type without a reciprocal dependency, and the effect catalog consumes that canonical identity. Phase B consumes the bounded factor directly at existing owners: the crew multiplier (skills.ts, production and builder/construction contexts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts), the per-soldier militia defence factor (militiaBalance.ts), the danger sites — hunt reach and closing speed (humanHuntingBehavior.ts) and flight speed (humanTick.ts) — and the player work drain (humanPhysiology.ts, physiology/labor); each site applies the returned factor alone inside the new-effect cap. Phase C calls the same function once per decision on a discrete context and reads only the catalog value it returns: social/courtshipProgress ordered factors (humanTick.ts), family/conception multiplier (humanRelationships.ts), social/workplaceBanter chance override (socialLife.ts), family/spousalBereavement duration (humanLifecycleCleanup.ts), civic/communityReaction voices (warPrisoners.ts) and social/feudClash count (relationships.ts). No legacy DNA multiplier survives beside either mode.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure on-demand projection in workforce exact ties)',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure on-demand projection in workforce exact ties and in the selected-settler inspector job fit)',
     testFile: 'tests/personality.legacyConsumerAudit.test.ts, tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts',
   },
   careerHistory: {
@@ -332,7 +332,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip); ceremony attendance: villageLeadership.ts (isCeremonyAttendee, getElectionGatherTarget — read-only)',
     cadence: 'daily',
     cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
     writes: [
@@ -346,7 +346,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog',
     ],
     scheduledFrom: 'tickLayerDaily.ts → syncLeaderHouseResidency; villageLeadership election flow',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts',
   },
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
@@ -414,6 +414,15 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts',
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
+
+/** Selected-settler inspector: read-only render of saved DNA and career records, no tick or writer. */
+export const PERSONALITY_CAREER_INSPECTOR_PRESENTATION = {
+  owner: 'PersonalityCareerDetails.tsx — PersonalityCareerDetails; renders TRAIT_DEFS/TRAIT_EFFECTS wording, evaluateWorkerFit advisory reasons and saved careerHistory/careerMilestones',
+  cadence: 'Read-only React render of the selected-entity panel',
+  scheduledFrom: 'SelectedEntityPanel.tsx → PersonalityCareerDetails.tsx; gated by playerHuman.isPlayerHuman and human.alive',
+  writes: [] as readonly string[],
+  testFile: 'tests/personalityCareer.inspector.test.ts',
+} as const;
 
 /** Read-only UI projection: no new simulation scheduler or decision key. */
 export const STRATEGIC_MAP_PRESENTATION = {
