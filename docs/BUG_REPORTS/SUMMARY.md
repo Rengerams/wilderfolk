@@ -40,6 +40,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight background music startup race](../bug_report/2026-10-28-spotlight-background-music-start-race.md):** Fixed with audio-session revision checks and decode-time cancellation; focused regression authored, live validation pending.
 
+**2026-10-29 — [Spotlight keyboard shortcuts leak into gameplay](../bug_report/2026-10-29-spotlight-keyboard-leaks-to-gameplay.md):** PR #91's scene overlay did not claim the keyboard, so hotkeys remained active and Escape skipped the map instead. The existing shared hook now owns keyboard and Escape-to-Skip; source regression added, CI/browser validation pending.
+
 **2026-10-28 — [Spotlight male chorus admitted women](../bug_report/2026-10-28-spotlight-chorus-accepted-female-adults.md):** Fixed by requiring six-to-ten male adults and adding mixed-population regression coverage.
 
 **2026-10-29 — [Spotlight chorus CI fixtures violated male eligibility and cast ordering](../bug_report/2026-10-29-spotlight-chorus-fixture-gender-and-order.md):** Three failing test assertions after the male-only fix were caused by an incorrect ascending-ID expectation and unspecified random genders in real-tick fixtures. Fixed test contracts on PR #91; latest-head CI pending.
