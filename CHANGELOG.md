@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #99 Moon Howler tests):** Align five lifecycle and replacement-roll assertions with the established 22:00 Moon Howler nightfall. The village's ordinary 23:00 schedule and simulation logic are unchanged.
+
 - **Fixed (PR #99 CI):** Remove the temporary untracked population benchmark harness after running the baseline and before checking out the PR head; preserves the same harness, comparison methodology and manual 180-day mode. Latest-head CI verification pending.
 
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
