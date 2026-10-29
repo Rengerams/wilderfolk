@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    paths:
+      - 'scripts/run-full-year.mts'
+      - 'src/simulation/**' # Pas dit pad aan naar waar je simulatieregels staan
 
 permissions:
   contents: read
@@ -19,11 +22,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.4.0
+      
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '26.12.1'
           cache: npm
+
       - name: Install dependencies
-        run: npm ci 
+        run: npm ci --prefer-offline --no-audit --no-fund
+        
       - name: Seeded 120-day producer colony with bot decisions and checkpoint invariants
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --bot --verbose
