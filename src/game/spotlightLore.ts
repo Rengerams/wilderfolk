@@ -1,7 +1,7 @@
 import type { Entity, SpotlightLoreState, WorldState } from './gameTypes';
 import { EntityType, JobType } from './gameTypes';
 import { getAbsoluteCalendarDay, getHourOfDay, isStartOfClockHour, isWeekend } from './dayCycleClock';
-import { personDayRoll } from './humanSchedule';
+import { personDayRoll } from './simRng';
 import { isPlayerHuman } from './playerHuman';
 import { nearestWalkableWorldPoint } from './pathfinding';
 import { logEvent } from './eventLog';
