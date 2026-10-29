@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Spotlight integration (PR #91):** The central dialogue owner now supplies frozen group captions from JSON, while the stage owns timing and visuals. Wired the two uploaded MP3 tracks into the existing music and effects buses and added regression coverage.
+
 - **CI (PR #91, 29 October 2026):** Consolidated duplicate Spotlight caption-boundary lookup into one resolver; fingerprint-reviewed the distinct discard-versus-consume presentation state contracts against existing tests. Strict semantic overlap gate retained.
 
 - **Fixed (PR #91, 29 October 2026):** Corrected the Spotlight's outdated `humanSchedule.personDayRoll` import to its canonical `simRng` owner, addressing the 120-day CI ESM import failure without changing the RNG sequence or event probability.
@@ -26,7 +28,7 @@
 
 - **Spotlight audit (PR #91):** Fixed lost cinematic zoom on centered targets, prevented stale background music from playing over the score, and restricted the speaking chorus to eligible adult men. Added targeted regressions.
 
-- **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental streams through the normal music bus and fades before applause; the audio asset must still be deployed.
+- **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental streams through the normal music bus and fades before applause; the uploaded MP3 is now included.
 
 
 - **Spotlight applause (PR #91):** Added a 6.1-second excerpt of the supplied cheering audio on the game-settings-aware SFX bus, a 6.4-second finale, visible clapping icons and a small bow; skipping scenes or loading saves safely stops playback. CI pending.
