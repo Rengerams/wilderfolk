@@ -21,7 +21,7 @@
 - **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.
 
 - **Fixed (29 October 2026):** The decision registry's own contract test was red on main: it omitted three registered read-only owners and demanded writes from two of them. The pinned key list and read-only rule now follow the existing registry rows.
-- **Fixed (29 October 2026):** A timed-out simulation worker command is no longer automatically replayed after worker recovery, preventing the same unconfirmed operation from repeatedly stalling the worker. Later queued commands retain their order; timeout logs name the operation. Root cause of the slow large-colony command still needs profiling.
+- **Fixed (29 October 2026):** Timed-out worker commands are not replayed after recovery; later commands retain order and timeout logs identify the operation. Large-colony slowdown needs separate profiling.
 
 - **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
 - **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
@@ -29,6 +29,16 @@
 
 - **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
 - **Fixed (29 October 2026):** Auto-fill no longer copies the worker-owned simulation world before staffing. Isolated commands still copy; regression checks equivalent assignments. Large-colony verification pending.
+
+- **Spotlight integration (PR #91):** The central dialogue owner now supplies frozen group captions from JSON, while the stage owns timing and visuals. Wired the two uploaded MP3 tracks into the existing music and effects buses and added regression coverage.
+
+- **CI (PR #91, 29 October 2026):** Consolidated duplicate Spotlight caption-boundary lookup into one resolver; fingerprint-reviewed the distinct discard-versus-consume presentation state contracts against existing tests. Strict semantic overlap gate retained.
+
+- **Fixed (PR #91, 29 October 2026):** Corrected the Spotlight's outdated `humanSchedule.personDayRoll` import to its canonical `simRng` owner, addressing the 120-day CI ESM import failure without changing the RNG sequence or event probability.
+
+- **Fixed (PR #91 CI):** Spotlight and its tests import daily rolls directly from the canonical simulation RNG owner; fixed the stale module import. CI verification pending.
+
+- **Fixed (PR #91, 29 October 2026):** Spotlight now claims the shared overlay keyboard contract while active. Gameplay shortcuts no longer pass through; Escape invokes the same scene Skip callback. Added a keyboard ownership regression; browser and CI validation pending.
 
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
@@ -41,6 +51,32 @@
 - **Fixed (PR #99 Moon Howler tests):** Align five lifecycle and replacement-roll assertions with the established 22:00 Moon Howler nightfall. The village's ordinary 23:00 schedule and simulation logic are unchanged.
 
 - **Fixed (PR #99 CI):** Remove the temporary untracked population benchmark harness after running the baseline and before checking out the PR head; preserves the same harness, comparison methodology and manual 180-day mode. Latest-head CI verification pending.
+
+- **Tests (PR #91):** Fixed male-only cast fixture and cast-order assertions without weakening runtime validation. CI pending.
+
+- **Spotlight audit (PR #91):** Fixed lost cinematic zoom on centered targets, prevented stale background music from playing over the score, and restricted the speaking chorus to eligible adult men. Added targeted regressions.
+
+- **Spotlight cinematic opening (PR #91):** Added instant blackout, hidden camera focusing, girl's spotlight, timed soundtrack cue and gradual reveal before dialogue. Instrumental streams through the normal music bus and fades before applause; the uploaded MP3 is now included.
+
+
+- **Spotlight applause (PR #91):** Added a 6.1-second excerpt of the supplied cheering audio on the game-settings-aware SFX bus, a 6.4-second finale, visible clapping icons and a small bow; skipping scenes or loading saves safely stops playback. CI pending.
+
+- **Fixed (PR #91):** Constrained rare Spotlight gathering slots to playable map bounds and rejected invalid placement before recording a 90-day cooldown; added an edge-placement regression.
+
+- **Spotlight follow-up (PR #91):** Anchored visual poses to the heroine's actual arrival position to prevent a first-frame jump; skipped unchanged caption state updates during intro and applause. No game-state or save changes.
+
+- **Spotlight choreography (PR #91):** Moved the scene to 44 canonical JSON captions. Added the heroine's two replies, two 7-second walks, bounded hearts and kiss marks, and a safe departing finale with a smoothly following camera. Presentation verification pending.
+
+- **Spotlight timing (PR #91):** Moved the weekend rare-event roll from 16:00 to 19:00; eligibility, 7.5% chance, 90-day cooldown and rewards remain unchanged.
+
+- **Fixed (PR #91):** Spotlight singers route around completed walls and water using cached pathfinding, without double movement or changing scene timing. Added real-tick regression tests; Automated and visual verification pending.
+
+- **Tests:** Corrected the real-tick spotlight `ready` fixture to keep every performer on stage while testing home-commute priority. Preserved strict live attendance rules.
+
+- **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
+
+- **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
+- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
 
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 

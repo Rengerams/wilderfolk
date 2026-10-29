@@ -95,6 +95,8 @@ type SimPrepKeys =
   | 'pendingElectionYear'
   | 'electionBuildupNotifiedYear'
   | 'electionCeremony'
+  | 'spotlightLore'
+  | 'spotlightLoreLastDay'
   | 'activeEvent'
   | 'eventLog'
   | 'genealogyRegistry'
@@ -264,6 +266,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     pendingElectionYear: state.pendingElectionYear,
     electionBuildupNotifiedYear: state.electionBuildupNotifiedYear ?? null,
     electionCeremony: state.electionCeremony ? { ...state.electionCeremony } : null,
+    spotlightLore: state.spotlightLore ? structuredClone(state.spotlightLore) : null,
+    spotlightLoreLastDay: state.spotlightLoreLastDay,
     // Written by the daily layer (`dailyWorldEvents.ts:194-230`), so the tick must be able to
     // roll it back — it used to be the one WorldState field the delta carried but the prep
     // payload did not.
@@ -392,6 +396,8 @@ export function applySimPrep(world: WorldState, prep: SimPrepPayload): void {
   world.pendingElectionYear = prep.pendingElectionYear;
   world.electionBuildupNotifiedYear = prep.electionBuildupNotifiedYear;
   world.electionCeremony = prep.electionCeremony;
+  world.spotlightLore = prep.spotlightLore;
+  world.spotlightLoreLastDay = prep.spotlightLoreLastDay;
   world.activeEvent = prep.activeEvent;
   world.eventLog = prep.eventLog;
   world.genealogyRegistry = prep.genealogyRegistry;

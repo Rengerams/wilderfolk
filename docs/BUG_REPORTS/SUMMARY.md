@@ -26,6 +26,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Missing dialogue participant crashes the simulation](../bug_report/2026-10-28-dialogue-cleanup-undefined-partner-crash.md):** completed pair dialogue cleanup dereferenced an absent actor after the session key was cleared. PR #93 adds key and participant guards plus a deterministic missing-partner regression; final CI pending.
 
+**2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
+
 **2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** grassland overrides and continuous shader fields disagree on the camp's surface. A derived render-only clearing mask now blends the ground to grassland; focused test and browser visual QA pending.
 
 **2026-10-29 — [Founding settlers vanish at overview zoom](../bug_report/2026-10-29-founding-settlers-vanish-at-overview-zoom.md):** the 1.15× marker cutoff hid the original two people among larger wildlife art. Founders now remain full sprites at overview zoom and larger crowds use high-contrast markers; focused test and browser QA pending.
@@ -40,6 +42,55 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 **2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
 
 ## At a glance
+
+**2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
+
+**2026-10-28 — [Spotlight background music startup race](../bug_report/2026-10-28-spotlight-background-music-start-race.md):** Fixed with audio-session revision checks and decode-time cancellation; focused regression authored, live validation pending.
+
+**2026-10-29 — [Spotlight strict semantic-overlap gate](../bug_report/2026-10-29-spotlight-semantic-overlap-ci-block.md):** PR #91 CI found duplicate caption start/end lookups and a similar-looking but distinct presentation snapshot pair. Consolidated cue boundary logic and recorded test-backed, fingerprint-pinned approval for discard versus consume; CI rerun pending.
+
+**2026-10-29 — [Spotlight stale day-roll import blocks CI](../bug_report/2026-10-29-spotlight-stale-person-day-roll-import.md):** PR #91's former `humanSchedule` import no longer exports `personDayRoll`; 120-day bot CI aborted during module loading. Import now comes directly from `simRng`; fresh CI pending.
+
+**2026-10-29 — [Spotlight keyboard shortcuts leak into gameplay](../bug_report/2026-10-29-spotlight-keyboard-leaks-to-gameplay.md):** PR #91's scene overlay did not claim the keyboard, so hotkeys remained active and Escape skipped the map instead. The existing shared hook now owns keyboard and Escape-to-Skip; source regression added, CI/browser validation pending.
+
+**2026-10-28 — [Spotlight male chorus admitted women](../bug_report/2026-10-28-spotlight-chorus-accepted-female-adults.md):** Fixed by requiring six-to-ten male adults and adding mixed-population regression coverage.
+
+**2026-10-29 — [Spotlight chorus CI fixtures violated male eligibility and cast ordering](../bug_report/2026-10-29-spotlight-chorus-fixture-gender-and-order.md):** Three failing test assertions after the male-only fix were caused by an incorrect ascending-ID expectation and unspecified random genders in real-tick fixtures. Fixed test contracts on PR #91; latest-head CI pending.
+
+**2026-10-28 — [Spotlight presentation jumps from actual actor to saved target](../bug_report/2026-10-28-spotlight-presentation-origin-snap.md):** Fixed on PR #91 branch by using the heroine's actual stage position for visual poses and farewell, avoiding a possible 11-world-unit snap. Browser verification pending.
+
+**2026-10-28 — [Spotlight intro repeats unchanged React caption updates](../bug_report/2026-10-28-spotlight-redundant-caption-update.md):** Fixed on PR #91 branch by normalizing null captions before change comparison. Browser/profiler verification pending.
+
+**2026-10-28 — [Spotlight React captions bypass canonical JSON](../bug_report/2026-10-28-spotlight-caption-source-duplicated.md):** Fixed in PR #91 source by one validated JSON script and heroine-aware scene adapter; targeted tests authored, CI/browser verification pending.
+
+**2026-10-28 — [Spotlight actor blocked by wall or water](../bug_report/2026-10-28-spotlight-gathering-obstacle-routing.md):** Fixed in PR #91 code: participants now follow the existing cached A* path steering around completed walls and water, with single-step real-tick regressions. CI/browser verification pending.
+
+**2026-10-28 — [Ready spotlight real-tick fixture starts dispersed](../bug_report/2026-10-28-spotlight-ready-test-fixture-dispersed.md):** Test-only PR #91 failure: the ready-stage home-commute regression placed every singer far from their stage slot, causing the correctly enforced attendance guard to abort. Rebuilt physically valid ready slots while retaining the steering check; CI rerun pending.
+
+**2026-10-28 — [Ready spotlight can lose actors before presentation](../bug_report/2026-10-28-spotlight-ready-cast-dispersed.md):** Fixed in code on PR #91; validate current cast proximity during ready and on save reload, while allowing still-gathering actors to travel. CI/browser pending.
+
+**2026-10-28 — [Spotlight starts before the heroine returns](../bug_report/2026-10-28-spotlight-heroine-not-arrived.md):** Resolved; Require the heroine within the same 11-unit arrival radius.
+
+**2026-10-28 — [Ready spotlight ignores invalid participants](../bug_report/2026-10-28-spotlight-ready-participant-validation.md):** Resolved; Check participant eligibility before the ready return and abort for an active festival.
+
+**2026-10-28 — [Saved spotlight accepts invalid participant references](../bug_report/2026-10-28-spotlight-saved-participant-references.md):** Resolved; Validate references and eligibility in one population scan; reject empty IDs and overlapping roles.
+
+**2026-10-28 — [Ready spotlight loses movement priority before pause](../bug_report/2026-10-28-spotlight-ready-movement-handoff.md):** Resolved; Keep stage targets active through ready; preserve emergency priority and the headless timeout.
+
+**2026-10-28 — [Same-scene reload retains spotlight presentation state](../bug_report/2026-10-28-spotlight-same-scene-reload.md):** Investigating; Increment a presentation revision in replaceSession; include it in the effect dependencies and overlay key.
+
+**2026-10-28 — [Established affair steals spotlight gathering movement](../bug_report/2026-10-28-spotlight-established-affair-overrides-movement.md):** Fixed on PR #91: ongoing mutual affairs cannot overwrite the stage-bound actor's velocity; a real-tick opposite-direction tryst regression was added. CI/browser validation pending.
+
+**2026-10-28 — [Spotlight real-tick test fixture retained stale entity index](../bug_report/2026-10-28-spotlight-test-fixture-stale-entity-index.md):** Test-only defect on PR #91: a replaced settler population had the previous colony's ID/type cache, causing false scene abortion. Fixture now rebuilds indexes; CI confirmation pending.
+
+**2026-10-28 — [Spotlight halo and captions drift while paused camera eases](../bug_report/2026-10-28-spotlight-overlay-camera-projection-stale.md):** Fixed on PR #91 by tracking the live render camera on a scene-scoped animation frame, without extra simulation ticks or React frame commits; browser validation pending.
+
+**2026-10-28 — [Spotlight gathering overridden by home commute](../bug_report/2026-10-28-spotlight-home-commute-overwrites-gathering.md):** Fixed on PR #91: selected performers retain gathering movement over ordinary weekend home, leisure and work commute. Real-tick regression added; CI/browser validation pending.
+
+**2026-10-28 — [Spotlight UI state leaked into a newly loaded colony](../bug_report/2026-10-28-spotlight-restores-old-colony-camera-on-load.md):** Fixed on PR #91: discard the previous camera/pause snapshot before replacing a colony and restore scene controls at most once. Lifecycle regressions added; CI/browser validation pending.
+
+**2026-10-28 — [Spotlight chorus can start before all speakers arrive](../bug_report/2026-10-28-spotlight-chorus-starts-before-all-arrive.md):** new eight-person scene could freeze when only six arrived. Branch now waits for every selected speaker; regression added, CI/browser validation pending.
+
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
 

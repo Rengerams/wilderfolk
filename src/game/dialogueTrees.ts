@@ -24,6 +24,7 @@ import eventRenffr_omenDialogueJson from './data/dialogue/renffr-omen.json' with
 import eventElectionDialogueJson from './data/dialogue/election.json' with { type: 'json' };
 import eventSocial_impulseDialogueJson from './data/dialogue/social-impulse.json' with { type: 'json' };
 import eventVisitorDialogueJson from './data/dialogue/visitor.json' with { type: 'json' };
+import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with { type: 'json' };
 import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
 import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
 import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
@@ -437,8 +438,10 @@ export function getDialogueCategories(): readonly DialogueCategory[] {
  * real actor mapping, pause/camera/skip, and world state.
  */
 export interface PresentationDialogueLine extends DialogueLine {
+  readonly id?: string;
+  readonly cue?: string;
   /** Optional authored wall-clock caption duration, not simulation ticks. */
-  durationMs?: number;
+  readonly durationMs?: number;
 }
 
 export interface PresentationDialogueScene {
@@ -504,6 +507,8 @@ export function readPresentationDialogue(
       || !Array.isArray(tree.lines) || tree.lines.length < 1 || tree.lines.length > 512
       || tree.lines.some((line) => !line || typeof line.text !== 'string' || !line.text.trim()
         || !tree.speakers.includes(line.speaker)
+        || (line.id !== undefined && (typeof line.id !== 'string' || !line.id.trim()))
+        || (line.cue !== undefined && (typeof line.cue !== 'string' || !line.cue.trim()))
         || (line.durationMs !== undefined && (!Number.isInteger(line.durationMs)
           || line.durationMs < 250 || line.durationMs > 60000)))) {
       throw new Error(`[dialogue] Invalid presentation tree: ${tree.id}`);
@@ -517,6 +522,8 @@ export function readPresentationDialogue(
         lines: Object.freeze(tree.lines.map((line) => Object.freeze({
           speaker: line.speaker,
           text: line.text,
+          ...(line.id === undefined ? {} : { id: line.id }),
+          ...(line.cue === undefined ? {} : { cue: line.cue }),
           ...(line.durationMs === undefined ? {} : { durationMs: line.durationMs }),
         }))),
       };
@@ -524,6 +531,33 @@ export function readPresentationDialogue(
   }
   if (!selected) throw new Error(`[dialogue] Missing presentation event key: ${eventKey}`);
   return Object.freeze(selected);
+}
+
+/**
+ * Central presentation catalog in the dialogue orchestrator. JSON sources belong here,
+ * never in UI code. Group presentations use the shared validated, frozen dialogue text,
+ * but do not schedule normal solo/pair Entity chat sessions or mutate chat fields.
+ */
+const presentationScenesByEvent = new Map<string, PresentationDialogueScene>();
+for (const raw of [spotlightPresentationJson]) {
+  const source = raw as PresentationDialogueSource;
+  if (!Array.isArray(source.dialogue_trees) || source.dialogue_trees.length === 0) {
+    throw new Error('[dialogue] Presentation source has no scenes');
+  }
+  for (const tree of source.dialogue_trees) {
+    if (typeof tree?.eventKey !== 'string' || presentationScenesByEvent.has(tree.eventKey)) {
+      throw new Error('[dialogue] Invalid or duplicate presentation event key');
+    }
+    const scene = readPresentationDialogue(raw, tree.eventKey);
+    presentationScenesByEvent.set(scene.eventKey, scene);
+  }
+}
+
+/** Resolve authored, immutable group presentation content from the same dialogue owner. */
+export function getPresentationDialogue(eventKey: string): PresentationDialogueScene {
+  const scene = presentationScenesByEvent.get(eventKey);
+  if (!scene) throw new Error(`[dialogue] Missing presentation event key: ${eventKey}`);
+  return scene;
 }
 
 /**
@@ -541,6 +575,7 @@ const PRESENTATION_MAX_PERFORMERS = 10;
 export function bindNumberedPresentationSpeakers(
   presentation: PresentationDialogueScene,
   performerIds: readonly number[],
+  heroineId?: number,
 ): readonly BoundPresentationDialogueLine[] {
   if (!Array.isArray(performerIds)
     || performerIds.length < PRESENTATION_MIN_PERFORMERS
@@ -551,21 +586,29 @@ export function bindNumberedPresentationSpeakers(
     || new Set(performerIds).size !== performerIds.length) {
     throw new Error('[dialogue] Invalid or duplicate presentation performer IDs');
   }
+  const hasHeroine = presentation.speakers.at(-1) === 'heroine';
+  if ((hasHeroine && (heroineId === undefined || !Number.isSafeInteger(heroineId)
+    || heroineId < 1 || performerIds.includes(heroineId)))
+    || (!hasHeroine && heroineId !== undefined)) {
+    throw new Error('[dialogue] Invalid independent presentation heroine');
+  }
   const roleToActor = new Map<string, number>();
   for (let i = 0; i < presentation.speakers.length; i++) {
     const role = presentation.speakers[i];
-    if (role !== `speaker_${i + 1}`) {
+    if (role === 'heroine' && hasHeroine && i === presentation.speakers.length - 1) {
+      roleToActor.set(role, heroineId!);
+    } else if (role === `speaker_${i + 1}`) {
+      roleToActor.set(role, performerIds[i % performerIds.length]!);
+    } else {
       throw new Error('[dialogue] Numbered presentation speaker roles must be sequential');
     }
-    // Assign missing role slots to an already-present adult, in stable cast order.
-    roleToActor.set(role, performerIds[i % performerIds.length]!);
   }
   const bound = Object.freeze(presentation.lines.map((line) => {
     const speakerId = roleToActor.get(line.speaker);
     if (speakerId === undefined) throw new Error('[dialogue] Undeclared presentation speaker');
     return Object.freeze({ ...line, speakerId });
   }));
-  if (new Set(bound.map((line) => line.speakerId)).size !== performerIds.length) {
+  if (new Set(bound.filter((line) => line.speaker !== 'heroine').map((line) => line.speakerId)).size !== performerIds.length) {
     throw new Error('[dialogue] Every gathered performer must speak at least once');
   }
   return bound;

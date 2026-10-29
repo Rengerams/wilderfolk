@@ -21,6 +21,8 @@ export const TRACKS = {
   growlAlt: audioUrl('audio/ambient/animals/growl-1.wav'),
   beastVoice: audioUrl('audio/ambient/animals/voice.wav'),
   beastVoiceAlt: audioUrl('audio/ambient/animals/voice-1.wav'),
+  spotlightApplause: audioUrl('audio/music/freesound_community-crowd-cheering-6229.mp3'),
+  spotlightLore: audioUrl('audio/music/Music_Lore_Instrumentaal.mp3'),
 } as const;
 
 export const TRACK_VOLUMES = {
@@ -33,6 +35,9 @@ export const TRACK_VOLUMES = {
   wolfHowl: 0.28,
   growl: 0.2,
   beastVoice: 0.18,
+  spotlightApplause: 0.42,
+  spotlightLore: 0.52,
 } as const;
 
-export const ALL_TRACK_URLS = Object.values(TRACKS);
+// Stream the rare long Spotlight score only for its scene; exclude it from boot decoding.
+export const ALL_TRACK_URLS = Object.values(TRACKS).filter((url) => url !== TRACKS.spotlightLore);

@@ -759,7 +759,21 @@ export interface GraveRecord {
   deceasedId?: number;
 }
 
+export interface SpotlightLoreState {
+  id: string;
+  heroineId: number;
+  performerIds: number[];
+  phase: 'gathering' | 'ready';
+  startedAtTick: number;
+  readyAtTick?: number;
+  gatherX: number;
+  gatherY: number;
+  slots: Array<{ humanId: number; x: number; y: number }>;
+}
+
 export interface WorldState {
+  spotlightLore?: SpotlightLoreState | null;
+  spotlightLoreLastDay?: number;
   /** Up to fifty memorial records per completed player graveyard. */
   graveRecords?: GraveRecord[];
   raidRecovery?: {
