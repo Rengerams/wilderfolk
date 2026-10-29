@@ -6,7 +6,7 @@ import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
-import { crowdGatherPosition } from './simulation/humanMovement';
+import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { addFloatingText } from './simEffects';
 import { beautyAt, pickBeautySpot } from './beautyGrid';
@@ -1782,7 +1782,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           if (hasResidenceAssignment(entity)) {
             const home = buildingById.get(entity.residenceBuildingId!);
             if (home?.completed) {
-              steerTo(home.x + home.width / 2 + ((entity.id % 5) - 2) * 6, home.y + home.height * 0.95, 0.4, 12, home);
+              const porch = homeStandPosition(home, entity.id);
+              steerTo(porch.x, porch.y, 0.4, 12, home);
             }
           } else {
             steerTo(width * 0.5, height * 0.5, 0.38);

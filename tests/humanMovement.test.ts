@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { commutePathCacheKey, crowdGatherPosition, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
-import { EntityType } from '../src/game/gameTypes';
+import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
+import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
+import { setCurrentPathMap } from '../src/game/pathfinding';
 import type { Building, Entity } from '../src/game/gameTypes';
 
 const building = {
@@ -39,6 +40,39 @@ describe('human movement helpers', () => {
   it('keeps home stand positions deterministic per resident and building', () => {
     expect(homeStandPosition(building, 3)).toEqual(homeStandPosition(building, 3));
     expect(homeStandPosition(building, 3)).not.toEqual(homeStandPosition(building, 4));
+  });
+
+  it('places both leader and spouse outside the Leader’s House footprint', () => {
+    const leaderHouse = {
+      ...building, id: 1177, type: BuildingType.LeaderHouse, width: 63, height: 53, completed: true,
+    } as Building;
+    for (const residentId of [346, 8144, 9667, 12766]) {
+      const porch = homeStandPosition(leaderHouse, residentId);
+      expect(porch.y).toBeGreaterThan(leaderHouse.y + leaderHouse.height / 2);
+      expect(Math.abs(porch.x - leaderHouse.x)).toBeLessThan(leaderHouse.width / 2);
+      expect(homeStandPosition(leaderHouse, residentId)).toEqual(porch);
+    }
+  });
+
+  it('lets a Leader’s House resident arrive indoors through the porch target', () => {
+    const leaderHouse = {
+      ...building, id: 1177, type: BuildingType.LeaderHouse, width: 63, height: 53, completed: true,
+    } as Building;
+    const tomika = {
+      id: 346, type: EntityType.Human, alive: true,
+      x: leaderHouse.x - 70, y: leaderHouse.y + leaderHouse.height / 2 + 18,
+      vx: 0, vy: 0, residenceBuildingId: leaderHouse.id,
+    } as Entity;
+    setCurrentPathMap(null);
+    try {
+      for (let tick = 0; tick < 150 && tomika.indoorBuildingId !== leaderHouse.id; tick++) {
+        commuteHumanToBuilding(tomika, leaderHouse, 3, true);
+        applyHumanWalkStep(tomika, 1);
+      }
+      expect(tomika.indoorBuildingId).toBe(leaderHouse.id);
+    } finally {
+      setCurrentPathMap(null);
+    }
   });
 
   /**

@@ -126,19 +126,14 @@ const VENUE_GATHER_ARC_GAP_PX = 10;
  * so family members and roommates do not overlap sprites or get hidden behind the roof.
  */
 export function homeStandPosition(building: Building, entityId: number): { x: number; y: number } {
-  // Building coordinates are already the centre of the footprint.
-  const cx = building.x;
-  const cy = building.y;
   const seed = Math.abs(entityId * 17 + building.id * 31);
+  const lateralSlot = seed % 7 - 3;
+  const porchRow = Math.floor(seed / 7) % 3;
 
-  // Bias angle toward the south (front yard / porch arc: 30° to 150°)
-  const angle = Math.PI * 0.18 + ((seed % 100) / 100) * Math.PI * 0.64;
-  const ring = (seed % 4) + 1;
-  const radius = 10 + ring * 6;
-
+  // The approach must stay south of the entire footprint, including a large Leader's House.
   return walkableStandPoint(
-    cx + Math.cos(angle) * radius,
-    cy + Math.sin(angle) * (radius * 0.65) + building.height * 0.2,
+    building.x + lateralSlot * Math.min(6, building.width / 7),
+    building.y + building.height / 2 + 12 + porchRow * 4,
   );
 }
 

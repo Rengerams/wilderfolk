@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Home arrival points are now placed outside the south footprint edge, not in an entity-specific arc inside large homes. Leader's House residents use the same reachable doorstep for sleep and idle visits; no sleep or nutrition rates change. Added deterministic doorstep and indoor-arrival regressions. Live save verification pending.
+
 - **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
 - **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
 - **Fixed (29 October 2026):** Saves temporarily halt new worker ticks and settle earlier commands before exporting. Recovery or a worker swap cannot silently write an unconfirmed display copy. Four regressions added; large-colony browser verification pending.
