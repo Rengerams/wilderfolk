@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Dialogue variation (29 October 2026):** Rotate eligible per-resident dialogue variants before repeating, persist last choices through save/load and cool down singleton ambient lines. Pregnancy, family and famine requests use real contextual roles instead of a fixed tree ID; recover nine distinct older need-dialogue variants.
+
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
 - **Fixed (PR #99):** Career shifts and credited days share canonical player membership, including legacy explicit player markers. Foreign factions remain excluded; regression tests added.
