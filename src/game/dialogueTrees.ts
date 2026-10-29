@@ -702,7 +702,7 @@ function contextualAmbientScene(
       return { eventKey: 'family.daily' };
     }
   }
-  return { eventKey: `ambient.${context === 'pregnant' ? 'pregnancy' : context}` };
+  return { eventKey: `ambient.${context}` };
 }
 /** One existing tick dispatch; humanChat remains the only field-writing session executor. */
 export function tickDialogue(
