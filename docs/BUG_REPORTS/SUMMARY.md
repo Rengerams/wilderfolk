@@ -34,6 +34,11 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
 
+**2026-10-29 — [Demolition performs unrelated colony-wide housing and staffing sweeps](../bug_report/2026-10-29-demolition-triggers-global-housing-staffing-sweep.md):** owner reports a freeze on every removal; static trace confirms unconditional unbounded housing reconciliation even for unused roads. Conditional, tick-bounded correction and three regression cases committed; CI and live large-colony replay pending.
+**2026-10-29 — [Manual save refused during busy or recovering simulation worker](../bug_report/2026-10-29-save-rejected-during-busy-worker.md):** screenshot confirms a save-refusal toast on a large settlement. The save path previously admitted new ticks while waiting for worker idle and did not await queued commands. Quiescence and safe recovery refusal added with focused regressions; CI and large-colony verification pending.
+
+**2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.
@@ -1988,3 +1993,4 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-10-29 — Election ceremony tick cost
 
 - **The ceremony attendee check swept the whole village per settler — resolved:** on the owner's 2027-human valley the `gathering` phase spent 1217 ms on attendee checks and 1619 ms on gather targets inside every tick, which left the simulation worker unable to answer a save export ("Save not written — simulation worker did not confirm the current world"). Both projections now stop once the answer is settled, with an identical attendee set and identical slot positions; the owner's save failure itself was not reproduced in the sandbox preview. [Report](../bug_report/2026-10-29-election-ceremony-attendee-sweep-stalls-worker.md).
+**2026-10-29 — [Dialogue repeats and context routes mismatch](../bug_report/2026-10-29-dialogue-repeated-and-context-misrouted.md):** fixed ambient tree IDs suppressed authored alternatives, an unguarded pregnancy scene sat in ordinary home chatter, and repeat selection ignored recent choices. Status: investigating (branch implementation; CI pending).

@@ -384,7 +384,7 @@
           "text": "Counting days…"
         }
       ],
-      "eventKey": "ambient.home",
+      "eventKey": "pregnancy.daily",
       "conversation_type": "two_way"
     },
     {
@@ -392,7 +392,7 @@
       "category": "needs",
       "speakers": [
         "expectant_mother",
-        "friend"
+        "neighbor"
       ],
       "lines": [
         {
@@ -400,7 +400,7 @@
           "text": "So tired…"
         },
         {
-          "speaker": "friend",
+          "speaker": "neighbor",
           "text": "Nursery ready?"
         },
         {
@@ -408,7 +408,7 @@
           "text": "Baby's restless."
         }
       ],
-      "eventKey": "ambient.pregnancy",
+      "eventKey": "pregnancy.daily",
       "conversation_type": "two_way"
     },
     {
@@ -638,6 +638,222 @@
       ],
       "eventKey": "ambient.home",
       "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_needs_alternative_dt_bathroom",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "I had an accident because someone was in the outhouse."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "The village has four outhouses."
+        },
+        {
+          "speaker": "settler",
+          "text": "It was the principle of the thing."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_bed",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Slept on the rug because you took the bed 0.4 seconds before me."
+        },
+        {
+          "speaker": "housemate",
+          "text": "You could've just asked me to shift over."
+        },
+        {
+          "speaker": "settler",
+          "text": "And admit defeat? I have standards."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_potato",
+      "category": "needs",
+      "speakers": [
+        "hungry_settler",
+        "cook"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Ate raw turnips for two days straight."
+        },
+        {
+          "speaker": "cook",
+          "text": "The soup kettle was right on the stove!"
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Four whole tiles away. Might as well be across the river."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_berries",
+      "category": "needs",
+      "speakers": [
+        "forager",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Almost starved to death while standing directly in a berry bush."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Why didn't you just eat them?"
+        },
+        {
+          "speaker": "forager",
+          "text": "I forgot I could eat without putting them in a storage crate first."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_home_arrival",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Boots off, hearth fire stoked."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Stew is simmering in the pot."
+        },
+        {
+          "speaker": "settler",
+          "text": "Best part of the entire day."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_home_cozy",
+      "category": "needs",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "The kettle is whistling on the stove."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Pour a cup before the embers burn down."
+        },
+        {
+          "speaker": "settler",
+          "text": "Nothing beats a quiet evening under a solid roof."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_food_crisis",
+      "category": "needs",
+      "speakers": [
+        "hungry_settler",
+        "pantry_keeper"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "The pantry cupboards are echoing with emptiness."
+        },
+        {
+          "speaker": "pantry_keeper",
+          "text": "We're rationing the dried beans until the harvest."
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Send word to the hunters before we start boiling leather."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.food"
+    },
+    {
+      "id": "wf_needs_alternative_wf_pregnant",
+      "category": "needs",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby is kicking up a storm tonight."
+        },
+        {
+          "speaker": "partner",
+          "text": "I finished carving the cradle by the window."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Soon we won't be sleeping through the night for a year."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_needs_alternative_wf_funny_needs_stew",
+      "category": "needs",
+      "speakers": [
+        "cook",
+        "forager"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "What is in the stew tonight?"
+        },
+        {
+          "speaker": "forager",
+          "text": "Mostly courage. And three turnips."
+        },
+        {
+          "speaker": "cook",
+          "text": "Serve the courage first. The turnips need time."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
     }
   ],
   "categories": [
