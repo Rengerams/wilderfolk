@@ -341,7 +341,7 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
     case 'repairBuildings':
       return repairBuildings(world, cmd.buildingIds);
     case 'upgradeBuilding':
-      return upgradeBuilding(world, cmd.buildingId);
+      return upgradeBuilding(world, cmd.buildingId, ownership);
     case 'demolishBuilding':
       return demolishBuildingInPlace(world, cmd.buildingId);
     case 'toggleWallGate':

@@ -175,8 +175,8 @@ export function getBuildingUpgradeEligibility(
   return { ok: true };
 }
 
-export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
+export function upgradeBuilding(originalState: WorldState, buildingId: number, ownership: 'isolated' | 'owned' = 'isolated'): WorldState {
+  const state = ownership === 'owned' ? originalState : structuredClone(originalState);
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building) return state;
 

@@ -266,6 +266,30 @@ describe('worker command round trips (shared worker + fallback implementation)',
 });
 
 describe('bounded command copies', () => {
+  it.each([BuildingType.Farm, BuildingType.House, BuildingType.Silo, BuildingType.WoodStorehouse])(
+    'owned %s upgrade preserves the worker world without a full-world copy',
+    (type) => {
+      const original = makeWorld([human(1)], [building(2, type)]);
+      const command = cmd({ op: 'upgradeBuilding', buildingId: 2 });
+      const isolated = applyWorkerCommand(original, command);
+      const authoritative = structuredClone(original);
+      const entities = authoritative.entities;
+      const buildings = authoritative.buildings;
+      const result = applyWorkerCommand(authoritative, command, 'owned');
+
+      expect(result).toBe(authoritative);
+      expect(result.entities).toBe(entities);
+      expect(result.buildings).toBe(buildings);
+      expect(result.buildings[0].level).toBe(2);
+      expect(result.buildings).toEqual(isolated.buildings);
+      expect(result.entities).toEqual(isolated.entities);
+      expect(result.resources).toEqual(isolated.resources);
+      expect(result.storageMax).toEqual(isolated.storageMax);
+      expect(original.buildings[0].level).toBe(1);
+      expect(original.resources).toEqual({ wood: 500, stone: 500, food: 500, gold: 500, iron: 0 });
+    },
+  );
+
   it('isolates a changed mine without copying unrelated state and skips repeated settings', () => {
     const mine = building(2, BuildingType.Mine, { mineMode: 'iron' });
     const other = building(3, BuildingType.Workshop);

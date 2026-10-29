@@ -399,7 +399,7 @@ export const SIMULATION_DECISIONS = {
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
     cadence: 'player-command',
-    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
+    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests; upgradeBuilding uses the existing owned command contract to avoid cloning the worker world while retaining isolated direct calls',
     writes: [
       'building.occupants',
       'building.level',
