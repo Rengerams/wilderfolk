@@ -4,8 +4,7 @@
  * the catalog without a cycle.
  */
 import type { WorldState } from './gameTypes';
-import { BuildingType } from './buildings';
-import type { Building } from './buildings';
+import { BuildingType, Building } from './buildings';
 import type { Resources } from './resourceTypes';
 
 export interface Challenge {
