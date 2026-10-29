@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Saves temporarily halt new worker ticks and settle earlier commands before exporting. Recovery or a worker swap cannot silently write an unconfirmed display copy. Four regressions added; large-colony browser verification pending.
+
 - **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
 - **Fixed (29 October 2026):** Auto-fill no longer copies the worker-owned simulation world before staffing. Isolated commands still copy; regression checks equivalent assignments. Large-colony verification pending.
 
