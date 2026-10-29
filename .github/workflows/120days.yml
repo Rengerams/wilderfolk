@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: simulation-120-day-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   colony-120-day:
     runs-on: ubuntu-24.04
@@ -27,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
+        run: npm ci 
 
       - name: Seeded 120-day producer colony with bot decisions and checkpoint invariants
         run: npx tsx scripts/run-full-year.mts --scenario=producers --days=120 --bot --verbose
