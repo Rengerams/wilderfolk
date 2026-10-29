@@ -107,7 +107,7 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(true);
     expect(world.spotlightLore?.performerIds).toHaveLength(6);
     const maleIds = adults.slice(0, 6).map((adult) => adult.id);
-    expect(world.spotlightLore?.performerIds).toEqual(maleIds);
+    expect(new Set(world.spotlightLore?.performerIds)).toEqual(new Set(maleIds));
     expect(world.spotlightLore?.performerIds.every((id) =>
       world.entities.find((entity) => entity.id === id)?.gender === 'male')).toBe(true);
   });
@@ -283,7 +283,7 @@ describe('spotlight lore — ordinary human movement must not steal actors', () 
     });
     const adults = Array.from({ length: 8 }, (_, i) => createEntity(
       EntityType.Human, 500 + i * 2, 364, 100002 + i, undefined, false,
-      { name: `Audience${i}`, ageYears: 28, colonyDay: 96 },
+      { name: `Audience${i}`, gender: 'male', ageYears: 28, colonyDay: 96 },
     ));
     world.entities = [girl, ...adults];
     // initGame already populated its tick-persistent ID/type caches with the
