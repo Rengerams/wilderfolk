@@ -8,20 +8,20 @@
       "category": "family",
       "conversation_type": "two_way",
       "speakers": [
-        "husband",
-        "wife"
+        "partner_a",
+        "partner_b"
       ],
       "lines": [
         {
-          "speaker": "husband",
+          "speaker": "partner_a",
           "text": "I'll sweep the hearth if you investigate the mysterious scratching under the porch."
         },
         {
-          "speaker": "wife",
+          "speaker": "partner_b",
           "text": "Last time you investigated a scratching, you befriended a badger."
         },
         {
-          "speaker": "husband",
+          "speaker": "partner_a",
           "text": "His name was Barnaby and he had excellent table manners."
         }
       ],
@@ -32,20 +32,20 @@
       "category": "family",
       "conversation_type": "two_way",
       "speakers": [
-        "wife",
-        "husband"
+        "partner_a",
+        "partner_b"
       ],
       "lines": [
         {
-          "speaker": "wife",
+          "speaker": "partner_a",
           "text": "You were snoring so loudly the ceiling rafters were vibrating."
         },
         {
-          "speaker": "husband",
+          "speaker": "partner_b",
           "text": "I wasn't snoring. I was harmonizing with the wind in the chimney."
         },
         {
-          "speaker": "wife",
+          "speaker": "partner_a",
           "text": "The wind doesn't gasp for air every thirty seconds."
         }
       ],
