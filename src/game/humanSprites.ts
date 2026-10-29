@@ -415,18 +415,19 @@ export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
  * lookup, walk frame, contact shadow, bob, status badge, speech bubble and name plate.
  */
 export const HUMAN_SPRITE_MIN_ZOOM = 1.15;
+const HUMAN_OVERVIEW_SPRITE_LIMIT = 12;
 
 export type HumanRenderDetail = 'sprite' | 'marker';
 
-/** Sprite or marker for this settler. A selected settler always keeps its full sprite. */
-export function humanRenderDetail(zoom: number, isSelected = false): HumanRenderDetail {
-  if (isSelected) return 'sprite';
+/** Keep small colonies recognizable; reserve compact markers for actual crowds. */
+export function humanRenderDetail(zoom: number, isSelected = false, visibleHumans = Infinity): HumanRenderDetail {
+  if (isSelected || visibleHumans <= HUMAN_OVERVIEW_SPRITE_LIMIT) return 'sprite';
   return zoom < HUMAN_SPRITE_MIN_ZOOM ? 'marker' : 'sprite';
 }
 
 /** Marker radius in screen px — small and stable, so a crowd reads as texture, not blobs. */
 export function getHumanMarkerRadius(zoom: number, isJuvenile = false, isLeader = false): number {
-  const base = Math.max(2.2, Math.min(4.5, 2.6 * zoom + 0.6));
+  const base = Math.max(3.2, Math.min(4.5, 2.6 * zoom + 1.1));
   return base * (isJuvenile ? 0.7 : 1) * (isLeader ? 1.5 : 1);
 }
 
