@@ -723,7 +723,7 @@ function drawProceduralGround(ctx: CanvasRenderingContext2D, state: RenderSnapsh
 function drawReinforcedSoil(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number): void {
   const overrides = state.worldMap?.overrides;
   if (!overrides?.size) return;
-  const sprite = getSprite('/sprites/ground_soil.PNG');
+  const sprite = getSprite('/sprites/ground_soil.png');
   if (!sprite || !sprite.complete || sprite.naturalWidth === 0) return;
   const mapWidth = state.worldMap!.width;
   const size = PATH_CELL * state.camera.zoom;
