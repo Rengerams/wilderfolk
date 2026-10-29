@@ -367,6 +367,7 @@ export interface Entity {
   chatTicks?: number;
   chatPartnerId?: number;
   chatDialogueSessionKey?: string;
+  dialogueRecentScenes?: Record<string, { id: string; tick: number }>;
   moonHowlerCursed?: boolean;
   moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
