@@ -1,9 +1,10 @@
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { SettlerTrait } from '../src/game/settlerTraits';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { tryWorkplaceBanter } from '../src/game/socialLife';
 import { advanceSocialRelationships, feudScore } from '../src/game/relationships';

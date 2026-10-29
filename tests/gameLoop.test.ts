@@ -216,6 +216,82 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       expect(requestTick).toHaveBeenCalled();
     });
 
+    it('interpolates acknowledged worker motion without using the request-side accumulator', async () => {
+      const world = makeWorldForEntities([human(1)], []);
+      world.speed = 5;
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const fake = makeFakeHost(world);
+      Object.assign(fake.host, {
+        canPipelineTick: () => false,
+        hasTickInFlight: () => false,
+        setPaused: vi.fn(),
+      });
+      const internals = loop as unknown as {
+        workerEnabled: boolean; workerBooting: boolean; workerHost: unknown;
+        lastFrameTime: number; tickFraction: number;
+        lastWorkerPresentation: { tick: number; at: number } | null;
+        frameBody: (time: number) => void;
+      };
+      internals.workerEnabled = true;
+      internals.workerBooting = false;
+      internals.workerHost = fake.host;
+      internals.lastFrameTime = 1000;
+      (loop as unknown as { registerWorkerHandlers: () => void }).registerWorkerHandlers();
+
+      let now = 1000;
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      try {
+        internals.frameBody(1010);
+        expect(internals.tickFraction, 'no worker result is confirmed').toBe(1);
+
+        // The host mutates the same world object before calling the tick callback.
+        world.tick = 1;
+        now = 1020;
+        fake.fireTick(world);
+        internals.frameBody(1020);
+        expect(internals.tickFraction).toBe(0);
+
+        now = 1120;
+        internals.frameBody(1120);
+        expect(internals.tickFraction).toBeCloseTo(0.5);
+
+        // A command refresh at the same tick must not restart the motion interval.
+        now = 1200;
+        fake.fireCommandResult(world, true);
+        internals.frameBody(1200);
+        expect(internals.tickFraction).toBeCloseTo(0.9);
+
+        world.tick = 2;
+        now = 1220;
+        fake.fireTick(world);
+        now = 1270;
+        internals.frameBody(1270);
+        expect(internals.tickFraction).toBeCloseTo(0.25);
+
+        world.paused = true;
+        now = 1280;
+        internals.frameBody(1280);
+        expect(internals.tickFraction).toBe(1);
+        expect(internals.lastWorkerPresentation).toBeNull();
+
+        world.paused = false;
+        now = 1290;
+        internals.frameBody(1290);
+        expect(internals.tickFraction, 'resume must not replay the pre-pause position').toBe(1);
+
+        world.tick = 3;
+        now = 1300;
+        fake.fireTick(world);
+        now = 1350;
+        internals.frameBody(1350);
+        expect(internals.tickFraction).toBeCloseTo(0.25);
+      } finally {
+        clock.mockRestore();
+        loop.stop();
+      }
+    });
+
     it('defers player commands during worker recovery and applies them when recovery ends', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);

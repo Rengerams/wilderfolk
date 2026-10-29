@@ -48,6 +48,8 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'workerMotionPresentation'
+  | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'humanPhysiology'
   | 'humanMeals'
@@ -74,6 +76,22 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  workerMotionPresentation: {
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody',
+    cadence: 'render',
+    cadenceNote: 'On every acknowledged worker tick, anchor a read-only presentation interval; each frame blends only confirmed positions. Pausing, restarting and replacing the session invalidate the anchor. No simulation clocks or entity positions are written.',
+    writes: [],
+    scheduledFrom: 'GameWorkerHost.setTickResultHandler (acknowledgement) and requestAnimationFrame through GameLoop.frameBody (presentation)',
+    testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+  },
+  dailyPersonRoll: {
+    owner: 'simRng.ts — personDayRoll',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure stateless hash keyed by settler ID, absolute colony day and call-site salt. Stable for the entire colony day; read-only and consumes no RNG stream state.',
+    writes: [],
+    scheduledFrom: 'Direct on-demand calls from humanSchedule, townHall, socialLife, hospitalCare, humanHospitalBehavior, humanLeisureBehavior, humanHuntingBehavior, hotelStay, humanTick and simulation/humanRelationships',
+    testFile: 'tests/personDayRoll.simRng.test.ts, tests/humanLeisureBehavior.test.ts, tests/civicPetition.cadence.test.ts',
+  },
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence, the single pure entry point: bounded factor/tendency for ordinary contexts and a typed exact result for the six discrete contexts; personality/traitEffectCatalog.ts owns TRAIT_EFFECTS (including the legacyExact entries) and the derived TRAIT_OPPOSITIONS',
     cadence: 'on-demand',
@@ -337,10 +355,10 @@ export const SIMULATION_DECISIONS = {
   terrainRiverSurface: {
     owner: 'renderer/whittakerTerrain.ts — buildRiverSurfaceFields, buildWhittakerFields, bakeWhittakerGround, sampleRiverPhase',
     cadence: 'render',
-    cadenceNote: 'Read-only map-cache prepass and budgeted chunk baking, not simulation ticks.',
+    cadenceNote: 'Read-only map-cache prepass, grassland clearing mask, and budgeted chunk baking; no simulation writes.',
     writes: [],
     scheduledFrom: 'renderer/terrain.ts → buildWhittakerFields on map cache change; bakeWhittakerGround for uncached ground chunks',
-    testFile: 'tests/terrain.riverMaterials.test.ts',
+    testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',

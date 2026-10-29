@@ -1,6 +1,7 @@
+import { personDayRoll } from './simRng';
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
-import { ticksForDays, personDayRoll, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
+import { ticksForDays, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
 import { readSkill, rewardProductionSkills, gainSkill } from './skills';
 import { addReputation } from './simHelpers';
 import { spendFood } from './economyLedger';

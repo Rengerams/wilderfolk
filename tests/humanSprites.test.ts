@@ -252,6 +252,14 @@ describe('humanSprites.zoomMarker.test.ts', () => {
       expect(humanRenderDetail(3.0, true)).toBe('sprite');
     });
 
+    it('keeps founding settlers recognizable before a village becomes crowded', () => {
+      expect(humanRenderDetail(0.25, false, 2)).toBe('sprite');
+      expect(humanRenderDetail(0.5, false, 12)).toBe('sprite');
+      expect(humanRenderDetail(0.5, false, 13)).toBe('marker');
+      expect(humanRenderDetail(0.5, true, 200)).toBe('sprite');
+      expect(humanRenderDetail(1.25, false, 200)).toBe('sprite');
+    });
+
     it('keeps the marker small, clamped, and smaller than the sprite it replaces', () => {
       expect(getHumanMarkerRadius(0.5)).toBeGreaterThanOrEqual(2.2);
       expect(getHumanMarkerRadius(1.0)).toBeLessThanOrEqual(4.5);

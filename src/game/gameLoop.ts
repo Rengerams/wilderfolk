@@ -132,6 +132,7 @@ export class GameLoop {
   private running = false;
   private tickAccumulator = 0;
   private tickFraction = 1;
+  private lastWorkerPresentation: { tick: number; at: number } | null = null;
   private lastFrameTime = 0;
   private lastUiUpdate = 0;
   private diagTicks = 0;
@@ -361,6 +362,9 @@ export class GameLoop {
       // Check of de host nog steeds de actieve host is (i.p.v. sessionGen blokkade)
       if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
+      if (this.lastWorkerPresentation?.tick !== nextWorld.tick) {
+        this.lastWorkerPresentation = { tick: nextWorld.tick, at: this.lastWorkerActivity };
+      }
       this.lastWorkerPerformanceSnapshot = host.getPerformanceSnapshot() ?? this.lastWorkerPerformanceSnapshot;
 
       const completedTickLatency = host.getLastCompletedTickLatencyMs();
@@ -432,6 +436,7 @@ export class GameLoop {
 
   private fallbackFromWorker(reason: string): void {
     if (!this.workerEnabled && !this.workerBooting) return;
+    this.lastWorkerPresentation = null;
     console.warn(`[GameLoop] ${reason} — ${isGameWorkerEnabled() ? 'recovering simulation worker' : 'falling back to main-thread ticks'}`);
 
     const retryCommands = isGameWorkerEnabled() ? this.optimisticCommands : [];
@@ -554,6 +559,7 @@ export class GameLoop {
 
     this.world = world;
     this.view = view;
+    this.lastWorkerPresentation = null;
     this.invalidateRenderSnapshot();
     this.lastNotifiedTick = world.tick;
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
@@ -822,6 +828,7 @@ export class GameLoop {
     this.lastFrameTime = 0;
     this.tickAccumulator = 0;
     this.tickFraction = 1;
+    this.lastWorkerPresentation = null;
     if (!this.workerHost && !this.workerBooting) {
       this.scheduleWorkerRecovery();
     }
@@ -836,6 +843,7 @@ export class GameLoop {
     }
     this.running = false;
     this.sessionGen++;
+    this.lastWorkerPresentation = null;
     if (this.workerRecoveryTimer) {
       clearTimeout(this.workerRecoveryTimer);
       this.workerRecoveryTimer = null;
@@ -1025,15 +1033,15 @@ export class GameLoop {
         this.renderMetaBySlot = null;
         ticksThisFrame = steps;
       }
-      // Worker requests consume the accumulator before their results arrive. Its remainder
-      // measures requests, not the age of the latest authoritative position snapshot.
-      // Interpolating with that remainder replays stale positions and causes visible
-      // one-tick rubber-banding. Draw confirmed worker positions until a worker-ack
-      // based presentation clock is implemented; local ticks retain interpolation.
-      this.tickFraction = this.workerEnabled ? 1 : Math.min(1, this.tickAccumulator / msPerTick);
+      // Worker motion follows acknowledged ticks, not unconfirmed tick requests.
+      this.tickFraction = this.workerEnabled
+        ? this.lastWorkerPresentation == null ? 1
+          : Math.min(1, Math.max(0, (time - this.lastWorkerPresentation.at) / msPerTick))
+        : Math.min(1, this.tickAccumulator / msPerTick);
     } else {
       this.tickAccumulator = 0;
       this.tickFraction = 1;
+      this.lastWorkerPresentation = null;
       if (this.workerHost && this.lastPausedSentToWorker !== true) {
         this.workerHost.setPaused(true);
         this.lastPausedSentToWorker = true;
