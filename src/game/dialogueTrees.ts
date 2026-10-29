@@ -30,7 +30,7 @@ import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'jso
 import { readUtf8RelativeToModule } from './nodeRuntime';
 
 import { seededRandomForRun } from './simRng';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycleClock';
+import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, tickHumanChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
 export const DIALOGUE_CATEGORIES = [
   'work',
@@ -599,6 +599,8 @@ export interface DialogueRequest {
   durationHours?: number;
   variables?: Readonly<Record<string, string>>;
   selectionRoll?: number;
+  /** Author-defined speaker roles for contextual dialogue, including swapped pair order. */
+  roles?: readonly string[];
 }
 
 export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
@@ -607,13 +609,28 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   if (request.priority !== 'scripted' && (isDialogueBusy(speaker) || (partner && isDialogueBusy(partner)))) return false;
   if (!isDialogueBankReady()) ensureDialogueBankFromBundle();
   const mode = partner ? 'pair' : 'solo';
-  const choices = treesByEvent.get(eventKey + ':' + mode);
+  const pool = treesByEvent.get(eventKey + ':' + mode);
+  const roles = request.roles;
+  const choices = roles ? pool?.filter((tree) =>
+    tree.speakers.length === roles.length
+    && (tree.speakers.every((role, index) => role === roles[index])
+      || (tree.mode === 'pair' && tree.speakers[0] === roles[1] && tree.speakers[1] === roles[0])))
+    : pool;
   if (!choices?.length) return false;
   const explicit = request.treeId ? treesById.get(request.treeId) : undefined;
   if (request.treeId && (!explicit || !choices.includes(explicit))) return false;
+  const historyKey = eventKey + ':' + mode + (roles ? ':' + [...roles].sort().join(':') : '');
+  const last = speaker.dialogueRecentScenes?.[historyKey];
+  const lastIndex = choices.findIndex((scene) => scene.id === last?.id);
+  const recentlySpoken = last && Number.isSafeInteger(last.tick) && tick >= last.tick
+    && tick - last.tick < TICKS_PER_DAY * 3;
+  if (!explicit && choices.length === 1 && request.priority !== 'scripted'
+    && recentlySpoken) return false;
   const roll = request.selectionRoll ?? (request.treeId ? 0
     : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
-  const selected = explicit ?? choices[Math.max(0, Math.min(choices.length - 1, Math.floor(roll * choices.length)))]!;
+  const initialIndex = Math.max(0, Math.min(choices.length - 1, Math.floor(roll * choices.length)));
+  const selected = explicit ?? choices[lastIndex >= 0 && choices.length > 1
+    ? (lastIndex + 1) % choices.length : initialIndex]!;
   if (request.priority === 'scripted') {
     prepareScriptedDialogue(speaker, request.resolvePartner);
     if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
@@ -622,7 +639,13 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
     ...selected,
     lines: selected.lines.map((line) => ({ ...line, text: line.text.replace(/\{([a-zA-Z]+)\}/g, (match, name: string) => request.variables?.[name] ?? match) })),
   }) : selected;
-  startDialogueTreeChat(speaker, partner, tree, mode === 'solo', request.durationHours);
+  const swapped = Boolean(partner && roles?.length === 2
+    && selected.speakers[0] === roles[1] && selected.speakers[1] === roles[0]);
+  startDialogueTreeChat(swapped ? partner! : speaker, swapped ? speaker : partner,
+    tree, mode === 'solo', request.durationHours);
+  if (!request.treeId) {
+    (speaker.dialogueRecentScenes ??= {})[historyKey] = { id: selected.id, tick };
+  }
   return true;
 }
 
@@ -635,23 +658,45 @@ function contextualAmbientScene(
   partner: ChatSpeaker | null,
   context: HumanChatContext,
   options: ChatPickOptions,
-): { eventKey: DialogueEventKey; treeId?: string } {
-  if (context === 'pregnant' && entity.pregnant) {
-    if (!partner) return { eventKey: 'pregnancy.daily', treeId: 'wf_pregnant_mother_waddle' };
-    if (entity.partnerId === partner.id && partner.partnerId === entity.id) {
-      return { eventKey: 'pregnancy.daily', treeId: 'wf_pregnant_kicking' };
+  tick: number,
+  extra?: { expectingPartner?: boolean },
+): { eventKey: DialogueEventKey; roles?: readonly string[] } {
+  if (context === 'pregnant') {
+    if (entity.pregnant) {
+      if (!partner) {
+        const eventKey = seededRandomForRun('pregnancy-solo:' + entity.id + ':' + tick) < 0.5
+          ? 'ambient.pregnancy' : 'pregnancy.daily';
+        return { eventKey, roles: ['expectant_mother'] };
+      }
+      if (entity.partnerId === partner.id && partner.partnerId === entity.id) {
+        return { eventKey: 'pregnancy.daily', roles: ['expectant_mother', 'partner'] };
+      }
+      return { eventKey: 'pregnancy.daily', roles: ['expectant_mother', 'neighbor'] };
     }
+    if (extra?.expectingPartner) {
+      return {
+        eventKey: 'pregnancy.daily',
+        roles: partner?.pregnant ? ['partner', 'expectant_mother'] : ['partner'],
+      };
+    }
+    return { eventKey: 'ambient.social' };
   }
-  if (context === 'food' && options.foodLow && !partner) {
-    return { eventKey: 'famine.hunger', treeId: 'wf_one_way_starving_monologue' };
+  if (context === 'food' && options.foodLow) {
+    return { eventKey: 'famine.hunger' };
   }
   if (context === 'home') {
+    if (partner && entity.childrenIds?.includes(partner.id)) {
+      return { eventKey: 'family.daily', roles: ['parent', 'child'] };
+    }
+    if (partner && partner.childrenIds?.includes(entity.id)) {
+      return { eventKey: 'family.daily', roles: ['child', 'parent'] };
+    }
     if (partner && entity.partnerId === partner.id && partner.partnerId === entity.id) {
-      return { eventKey: 'family.daily', treeId: 'wf_family_warm_spot' };
+      return { eventKey: 'family.daily', roles: ['partner_a', 'partner_b'] };
     }
     if (partner && entity.residenceBuildingId != null
       && entity.residenceBuildingId === partner.residenceBuildingId) {
-      return { eventKey: 'family.daily', treeId: 'wf_family_roommate_leftovers' };
+      return { eventKey: 'family.daily', roles: ['housemate_a', 'housemate_b'] };
     }
     if (!partner && (entity.partnerId != null || (entity.childrenIds?.length ?? 0) > 0)) {
       return { eventKey: 'family.daily' };
@@ -659,7 +704,6 @@ function contextualAmbientScene(
   }
   return { eventKey: `ambient.${context === 'pregnant' ? 'pregnancy' : context}` };
 }
-
 /** One existing tick dispatch; humanChat remains the only field-writing session executor. */
 export function tickDialogue(
   entity: ChatSpeaker,
@@ -675,12 +719,13 @@ export function maybeDialogueChat(
   tick: number,
   chance: number,
   options: ChatPickOptions = {},
+  extra?: { expectingPartner?: boolean },
 ): void {
   // Keep the same event eligibility and single seeded chance roll.
   if (isDialogueBusy(entity) || (partner && isDialogueBusy(partner))) return;
   if (seededRandomForRun(`chat-roll:${entity.id}:${tick}`) > chance) return;
 
-  const content = contextualAmbientScene(entity, partner, context, options);
+  const content = contextualAmbientScene(entity, partner, context, options, tick, extra);
   requestDialogue({ ...content, speaker: entity, partner, tick });
 }
 
@@ -691,6 +736,7 @@ export function pickRandomChatContext(
   options: ChatPickOptions = {},
   extra?: {
     pregnant?: boolean;
+    expectingPartner?: boolean;
     renffr?: boolean;
     workHour?: boolean;
     night?: boolean;
@@ -706,7 +752,7 @@ export function pickRandomChatContext(
   if (options.season === 'winter' || options.weather === 'snow') pool.push('winter', 'winter');
   if (options.festivalActive) pool.push('festival', 'festival');
   if (entity.isJuvenile) pool.push('child', 'child', 'school');
-  if (extra?.pregnant) pool.push('pregnant');
+  if (extra?.pregnant || extra?.expectingPartner) pool.push('pregnant');
   if (extra?.renffr) pool.push('renffr', 'renffr');
   if (extra?.workHour) pool.push('work', 'work');
   if (extra?.night) pool.push('home', 'sleep', 'sleep');
@@ -728,6 +774,7 @@ export function tryAmbientRandomDialogue(
   options: ChatPickOptions = {},
   extra?: {
     pregnant?: boolean;
+    expectingPartner?: boolean;
     renffr?: boolean;
     workHour?: boolean;
     night?: boolean;
@@ -755,7 +802,14 @@ export function tryAmbientRandomDialogue(
     }
   }
 
-  maybeDialogueChat(entity, partner, context, tick, 1, options);
+  if (context === 'pregnant') {
+    const spouse = nearbyCandidates.find((candidate) =>
+      candidate.id === entity.partnerId && candidate.partnerId === entity.id
+      && (entity.pregnant || candidate.pregnant) && !isDialogueBusy(candidate));
+    if (spouse) partner = spouse;
+    else if (extra?.expectingPartner && !entity.pregnant) partner = null;
+  }
+  maybeDialogueChat(entity, partner, context, tick, 1, options, extra);
 }
 
 
