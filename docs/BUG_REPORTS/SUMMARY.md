@@ -28,6 +28,10 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
 
+**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** grassland overrides and continuous shader fields disagree on the camp's surface. A derived render-only clearing mask now blends the ground to grassland; focused test and browser visual QA pending.
+
+**2026-10-29 — [Founding settlers vanish at overview zoom](../bug_report/2026-10-29-founding-settlers-vanish-at-overview-zoom.md):** the 1.15× marker cutoff hid the original two people among larger wildlife art. Founders now remain full sprites at overview zoom and larger crowds use high-contrast markers; focused test and browser QA pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
@@ -2003,3 +2007,8 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-10-28 — Illustrated New Frontier strategic map
 
 - **Strategic rival markers move when a new rival spawns:** [report](../bug_report/2026-10-28-strategic-map-rival-markers-shift-on-founding.md). The old renderer rescales all markers from the current rival bounding box. **Resolved in source:** world-size-based projection keeps positions stable, with directional/bounded regression tests. **Verification pending:** CI/build not run in this connector-only environment; this is not counted as a verified runtime fix.
+
+## 2026-10-29 — Captive needs and custody
+
+- **Foreign prisoners died from idle exhaustion — fixed in source, verification pending:** the retired captive energy-loss path no longer runs in prison; regression now asserts survival at zero energy while real deaths still close custody exactly once. [Report](../bug_report/2026-10-29-captive-false-exhaustion.md).
+- **Repeated 08:00 ration calls charged the same foreign captive multiple times — fixed in source, verification pending:** the meal owner now writes a per-captive saved calendar-day stamp only after a successful debit. Unit and save/reload regressions cover the single-ration guarantee. [Report](../bug_report/2026-10-29-captive-duplicate-daily-rations.md).

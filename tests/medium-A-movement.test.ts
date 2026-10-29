@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 import { WORK_COMMUTE_RUSH as MAX_COMMUTE_SPEED_MULTIPLIER } from '../src/game/commuteReach';
 /**
  * Regression tests for the medium-severity movement/cadence findings from
@@ -24,7 +25,7 @@ import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindin
 import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
-import { personDayRoll, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, PATH_CELL, TerrainType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldMap, WorldState } from '../src/game/gameTypes';
 import { testWorldMap } from '../src/test/worldMapFixtures';

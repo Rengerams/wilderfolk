@@ -16,11 +16,12 @@
  *   - L53 relationships: friendship records of dead settlers are pruned and do not
  *     lift the survivor's energy.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, GameEventLog, StoryEvent, WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/dayCycle';
+
 import { getEconomyLedger } from '../src/game/economyLedger';
 import { logEvent, resolveCombatLogKind } from '../src/game/eventLog';
 import { EVENT_LOG_FILTER_OPTIONS } from '../src/game/eventLogFilters';

@@ -3,6 +3,7 @@
  * hour (three times a day, and again on every later night), a night's hotel lodging announced once per
  * check-in tick, and the auto-staff card blamed idle settlers while the only open posts were manual.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import { HOTEL_GUEST_CAPACITY } from '../src/game/hotelStay';
@@ -13,7 +14,7 @@ import {
   AFFAIR_ESTABLISHED_LOG_PHRASE,
   tryDailyAffairEncounter,
 } from '../src/game/simulation/humanRelationships';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tickHotelLodging } from '../src/game/hotelStay';
 import { autoStaffAllWorkers } from '../src/game/buildingStaffingActions';

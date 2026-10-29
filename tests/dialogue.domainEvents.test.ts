@@ -1,4 +1,5 @@
-import { personDayRoll, getHourOfDay, isWorkHour, TICKS_PER_DAY } from '../src/game/dayCycle';
+import { personDayRoll } from '../src/game/simRng';
+import { getHourOfDay, isWorkHour, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { BuildingType, EntityType, JobType, type Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';

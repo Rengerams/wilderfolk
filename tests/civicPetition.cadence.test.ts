@@ -14,13 +14,14 @@
  * tests pin both halves: the official's per-tick greeting changes no state, and the daily
  * pulse still resolves a petition.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { officialHandlePetitioners, resolveCivicPetition, tickTownHallAudiences } from '../src/game/townHall';
 import { advanceHumanNeeds, initialHumanNeeds } from '../src/game/simulation/humanPhysiology';
 

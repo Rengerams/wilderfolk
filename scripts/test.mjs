@@ -103,6 +103,7 @@ const STEP = {
   /** Strict twin of `cycles`: a runtime import cycle exits 1 instead of warning. */
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
   owners: 'node scripts/build-call-graph.mjs --json-only --verify-owners',
+  semantic: 'node --test scripts/check-function-overlap.test.mjs && node scripts/check-function-overlap.mjs',
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs',
   build: 'npm run build',
@@ -116,9 +117,9 @@ const STEP = {
  * gate, which is what the `&&` chains these replace did.
  */
 const GATE = {
-  standard: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  all: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
+  standard: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  all: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  full: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -134,6 +135,7 @@ const ALIAS = {
   knip: ['knip'],
   cycles: ['cycles'],
   owners: ['owners'],
+  semantic: ['owners', 'semantic'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
   'colony-integration': ['colonyIntegrationTest'],
@@ -145,7 +147,7 @@ const ALIAS = {
 const MENU = `
 wilderfolk test runner - one entry point, choose with args
 
-  npm test                        standard gate: check -> owners -> cycles --strict -> dup -> types -> lint -> unit
+  npm test                        standard gate: check -> owners -> semantic -> cycles --strict -> dup -> types -> lint -> unit
   npm test -- standard            same as above
   npm test -- all                 same steps as standard
   npm test -- full                standard + year and colony integration + invariants
@@ -165,6 +167,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- knip                knip (unused files/exports)
   npm test -- cycles [--strict|--json]
   npm test -- owners              verify every function has one recorded source owner
+  npm test -- semantic            verify ownership, then block unreviewed function overlap
   npm test -- browser             browser gate (needs a prior build)
   npm test -- build               tsc app + tsc node + vite build
   npm test -- watch               vitest in watch mode

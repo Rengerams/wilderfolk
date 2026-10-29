@@ -4,7 +4,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
 import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { getSimRng, seededRandomForRun } from './simRng';
+import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT, steerEntityToward } from './simulation/movementSteering';
 import { crowdGatherPosition } from './simulation/humanMovement';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
@@ -32,7 +32,7 @@ import {
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
-import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, personDayRoll, getAbsoluteCalendarDay, isNearResidence, isNightHour, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
+import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, hasResidenceAssignment, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNearResidence, isNightHour, isResidenceBuilding, shareResidence, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -96,8 +96,9 @@ import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
 import { enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
-import { fract, tryEatColonyMeal, humanEnergyLoss, killForeignCaptiveFromExhaustion, killFromStarvation } from './simulation/humanNeeds';
-import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
+import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { isRestingHospitalPatient } from './hospitalCare';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
 import { tickPregnancyAndBirth } from './simulation/humanLifecycle';
 
@@ -257,13 +258,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
   }
   const churchStrength = getChurchStrength(updatedBuildings, playerHumans);
 
-  // `ctx.hasWell` / `ctx.hasHospital` are the colony-infrastructure flags owned by `gameTick`, which
-  // derives them from `completed && faction !== 'rival'`. This used to re-derive them locally from
-  // `completed` alone, so a rival camp's well satisfied "the colony has clean water". The
-  // context type still marks the fields optional for test contexts, so a flag the tick did not set
-  // reads as "no such infrastructure" instead of being replaced by a second, weaker rule.
-  const hasWell = ctx.hasWell === true;
-  const hasHospital = ctx.hasHospital === true;
+  // Nearby completed player wells are cached once per tick, not scanned from every building per settler.
+  const nearbyWells = updatedBuildings.filter((b) => b.type === BuildingType.Well
+    && b.completed && b.faction !== 'rival');
 
   const staffedHospitals: Building[] = [];
   const staffedTownHalls: Building[] = [];
@@ -632,11 +629,33 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const cell = isPrisoner ? buildingById.get(entity.prisonBuildingId!) : undefined;
     const sleepingInCell = Boolean(cell?.completed && isNightHour(hourOfDay)
       && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18);
+    const home = entity.residenceBuildingId == null
+      ? undefined : buildingById.get(entity.residenceBuildingId);
+    const insideOwnHome = !isPrisoner && !onDutyForSleep
+      && !!home && home.faction !== 'rival' && isResidenceBuilding(home)
+      && previousIndoorBuildingId === home.id;
+    const asleepAtHome = insideOwnHome && isNightHour(hourOfDay);
+    const sleepingAtHotel = !isPrisoner && !onDutyForSleep
+      && entity.hotelStayBuildingId != null
+      && previousIndoorBuildingId === entity.hotelStayBuildingId
+      && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay);
+    const recoveryAtHome = insideOwnHome && recoveringSleep;
+    const ward = previousIndoorBuildingId == null
+      ? undefined : buildingById.get(previousIndoorBuildingId);
+    const sleepingAtHospital = !isPrisoner && !onDutyForSleep
+      && isRestingHospitalPatient(entity, ward, state.tick, previousIndoorBuildingId);
+    const lover = entity.affairPartnerId == null
+      ? undefined : livingHumanAt(entity.affairPartnerId);
+    const loverHome = lover?.residenceBuildingId == null
+      ? undefined : buildingById.get(lover.residenceBuildingId);
+    const sleepingAtLover = !isPrisoner && !onDutyForSleep && isNightHour(hourOfDay)
+      && !!lover && hasAffairPartner(entity, entityById)
+      && !!loverHome?.completed && previousIndoorBuildingId === loverHome.id
+      && isNearResidence(lover, buildingById)
+      && isValidAffairTrystSite(entity, lover, entityById, buildingById, 55, hourOfDay);
     const sleepingForNeeds = !entity.raidDeploymentId && (
-      sleepingInCell || (!isPrisoner && !onDutyForSleep && (
-        isAsleepAtHome(entity, buildingById, hourOfDay, onDutyForSleep)
-        || isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay)
-        || (recoveringSleep && isNearResidence(entity, buildingById))
+      sleepingInCell || (!isPrisoner && (
+        asleepAtHome || sleepingAtHotel || recoveryAtHome || sleepingAtHospital || sleepingAtLover
       ))
     );
     let ateMeal = false;
@@ -646,7 +665,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         working: (onJobShift || onOfficialShift || onPriestShift) && entity.workerBuildingId != null,
         nightDuty: (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
-        hasWell, hasHospital,
+        hasWell: hasNearbyWell(entity, nearbyWells),
+        hasHospital: sleepingAtHospital,
       });
       if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
@@ -658,16 +678,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       }
     }
 
+    // Imprisoned foreigners do not work or roam: no fictional metabolism/exhaustion.
     if (entity.warCaptive && !isPlayerHuman(entity)) {
       tryEatColonyMeal(entity, state, hourOfDay);
-      entity.energy -= humanEnergyLoss(entity, config, {
-        hasWell, isWinter, canHeat, hasHospital, tick: state.tick, hourOfDay, buildingById,
-      });
-      if (entity.energy <= 0) {
-        killForeignCaptiveFromExhaustion(entity, state, updatedBuildings, entityById);
-        syncEntityGrids(ctx, entity);
-        continue;
-      }
     }
 
     if (isPrisoner) {
@@ -1411,6 +1424,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           faceVelocity(entity);
           suppressIdle = true;
         } else if (tryst) {
+          // Genuine overnight tryst: enter the existing tryst building rather than
+          // granting any indoor/sleep state for an outdoor romantic encounter.
+          if (isNightHour(hourOfDay) && !onDutyForSleep) {
+            const site = getAffairTrystBuilding(entity, lover, entityById, buildingById);
+            if (site) enterHumanBuilding(entity, site);
+          }
           tryExposeCaughtAffairForPair(
             state,
             entity,

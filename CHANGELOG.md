@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
+
+- **CI (29 October 2026):** Added a changed-function overlap gate against the call graph. Unreviewed matches block PR CI; deliberate differences need fingerprint-pinned, test-backed approvals. Existing gameplay is unchanged.
+- **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
+- **Fixed (29 October 2026):** Grassland clearing overrides now blend alpine ground art without changing saved terrain. Founding settlers keep full sprites at overview zoom; larger crowds retain brighter markers. Added visual and LOD regression tests.
+
 - **Tests (PR #91):** Repaired three Spotlight CI regressions after male-only casting: assert cast membership independent of proximity ordering and construct eligible male actors in the gathering/ready home-commute fixtures. Runtime eligibility and attendance rules unchanged; CI verification pending.
 
 - **Spotlight audit (PR #91):** Fixed lost cinematic zoom on centered targets, prevented stale background music from playing over the score, and restricted the speaking chorus to eligible adult men. Added targeted regressions.

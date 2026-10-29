@@ -18,6 +18,7 @@ import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
 import { gameTick } from '../src/game/gameTick';
+import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
 import { rebuildWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
 import { tryDailyHumanMortality } from '../src/game/simulation/humanRelationships';
@@ -230,6 +231,24 @@ describe('real raid captives', () => {
     expect(world.raidPrisonerHistory).toHaveLength(1);
     const loaded = reload(world);
     expect(loaded.entities.find((person) => person.id === 910000)?.warCaptive?.raidId).toBe('won-raid');
+  });
+
+  it('persists a captive ration so reloading cannot debit another meal that day', () => {
+    const world = captiveColony();
+    world.tick = 8 * TICKS_PER_HOUR;
+    const captive = world.entities.find((person) => person.id === 910000)!;
+    const foodBefore = world.resources.food;
+    expect(tryEatColonyMeal(captive, world, 8)).toBe(true);
+    expect(world.resources.food).toBe(foodBefore - 1);
+    expect(captive.warCaptive?.lastRationDay).toBe(0);
+    const restored = reload(world);
+    const prisoner = restored.entities.find((person) => person.id === captive.id)!;
+    expect(prisoner.warCaptive?.lastRationDay).toBe(0);
+    expect(tryEatColonyMeal(prisoner, restored, 8)).toBe(false);
+    expect(restored.resources.food).toBe(foodBefore - 1);
+    restored.tick += TICKS_PER_DAY;
+    expect(tryEatColonyMeal(prisoner, restored, 8)).toBe(true);
+    expect(restored.resources.food).toBe(foodBefore - 2);
   });
 
   it('releases and escapes alive without turning a captive into a citizen or a death', () => {
@@ -526,14 +545,20 @@ describe('warfare cleanup regressions', () => {
     expect(world.raidRecovery).toBeUndefined();
   });
 
-  it('closes exhausted captive custody once through the normal tick cleanup', () => {
+  it('keeps unfed captives alive at zero energy and records an actual death only once', () => {
     let world = captiveColony();
     const captive = world.entities.find((person) => person.id === 910000)!;
     world.resources.food = 0;
     captive.energy = 0;
     world.paused = false;
     gameTick(world);
-    expect(world.entities.some((person) => person.id === captive.id)).toBe(false);
+    expect(world.entities.some((person) => person.id === captive.id && person.alive)).toBe(true);
+    expect(captive.energy).toBe(0);
+    expect(captive.needs).toBeUndefined();
+    expect(world.raidPrisonerHistory?.[0].status).toBe('captured');
+    expect(world.graveRecords?.length ?? 0).toBe(0);
+    killHuman(captive, world.buildings, ensureEntityByIdMap(world), world.tick, world);
+    expect(captive.alive).toBe(false);
     expect(world.raidPrisonerHistory?.[0].status).toBe('died');
     expect(world.graveRecords?.length ?? 0).toBe(0);
     const recorded = world.eventLog.filter((entry) => entry.type === 'prison' && entry.message.endsWith('died')).length;
