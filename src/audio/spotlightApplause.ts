@@ -2,7 +2,7 @@ import { audioGraph } from './graph';
 import { loadSample } from './sampleLoader';
 import { TRACKS, TRACK_VOLUMES } from './tracks';
 
-// 6.1 s excerpt with a 0.5 s fade from the owner's uploaded crowd-cheering recording.
+// Play the opening 6.1 seconds of the uploaded cheering MP3 and fade on the SFX bus.
 export const SPOTLIGHT_APPLAUSE_CLIP_MS = 6100;
 export const SPOTLIGHT_APPLAUSE_AUDIO_URL = TRACKS.spotlightApplause;
 
