@@ -32,6 +32,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` adds path-limited untracked cleanup before checkout; new CI verification pending.
 
+**2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
+
 **2026-10-29 — [Demolition performs unrelated colony-wide housing and staffing sweeps](../bug_report/2026-10-29-demolition-triggers-global-housing-staffing-sweep.md):** owner reports a freeze on every removal; static trace confirms unconditional unbounded housing reconciliation even for unused roads. Conditional, tick-bounded correction and three regression cases committed; CI and live large-colony replay pending.
 
 ## At a glance

@@ -49,6 +49,7 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'workerMotionPresentation'
+  | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'careerHistory'
@@ -86,6 +87,14 @@ export const SIMULATION_DECISIONS = {
     writes: [],
     scheduledFrom: 'GameWorkerHost.setTickResultHandler (acknowledgement) and requestAnimationFrame through GameLoop.frameBody (presentation)',
     testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+  },
+  chronicleProseNames: {
+    owner: 'citizenId.ts — citizenFullName, formatDeathLog',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure identity formatting for Chronicle prose and graduation notices. Numbered citizen labels remain available for search, identifiers and grave-record lookups.',
+    writes: [],
+    scheduledFrom: 'On-demand in humanRelationships, education, humanNeeds, worldEvents and other event owners before eventLog writes',
+    testFile: 'tests/chronicle.citizenProseNames.test.ts',
   },
   dailyPersonRoll: {
     owner: 'simRng.ts — personDayRoll',
@@ -172,7 +181,7 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker"; buildingActions on place/recruit/death',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {

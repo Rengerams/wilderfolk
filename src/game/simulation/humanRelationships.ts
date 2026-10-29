@@ -44,7 +44,7 @@ import {
   PREGNANCY_TICKS,
   isStartOfClockHour,
 } from '../dayCycle';
-import { formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
+import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
@@ -434,7 +434,7 @@ export function trySchoolyardGossip(
     if (rng() < 0.35) {
       exposeAffair(state, parent, lover, 'rumor', entityById, buildings, playerHumans);
       recordRelationshipDiagnostic('scandalExposures');
-      const parentName = formatCitizenName(parent);
+      const parentName = citizenFullName(parent);
       addFloatingText(state, child.x, child.y - 22, '🤫 whispered…', '#fbbf24', 'brief');
       logEvent(
         state,
@@ -489,7 +489,7 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
   logEvent(
     state,
     'event',
-    `${formatCitizenName(child)} and ${formatCitizenName(friend)} became friends at school`,
+    `${citizenFullName(child)} and ${citizenFullName(friend)} became friends at school`,
     child.name,
   );
 }
@@ -616,7 +616,7 @@ function promoteYouthLoveToCourtship(state: WorldState, a: Entity, b: Entity): v
   logEvent(
     state,
     'event',
-    `${formatCitizenName(a)} and ${formatCitizenName(b)} are growing up together`,
+    `${citizenFullName(a)} and ${citizenFullName(b)} are growing up together`,
     a.name,
   );
 }
@@ -666,7 +666,7 @@ export function advanceYouthLove(
         logEvent(
           state,
           'event',
-          `${formatCitizenName(entity)} and ${formatCitizenName(partner)} grew apart`,
+          `${citizenFullName(entity)} and ${citizenFullName(partner)} grew apart`,
           entity.name,
         );
         continue;
@@ -699,7 +699,7 @@ export function advanceYouthLove(
     entity.youthLoveStartedDay = day;
     candidate.youthLoveStartedDay = day;
     createDeathParticles(state, (entity.x + candidate.x) / 2, (entity.y + candidate.y) / 2 - 12, '#f9a8d4', 7, 'heart');
-    const sweetheartLine = `${formatCitizenName(entity)} and ${formatCitizenName(candidate)} became sweethearts`;
+    const sweetheartLine = `${citizenFullName(entity)} and ${citizenFullName(candidate)} became sweethearts`;
     logEvent(state, 'event', sweetheartLine, entity.name);
     // Affairs raise a notification card from `exposeAffair`; a new sweetheart pair raised none, so
     // its only trace was one line inside the Chronicle's generic "Events" bucket — 1 531 of the
