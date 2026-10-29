@@ -81,11 +81,11 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody',
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, exportAuthoritativeWorld, lastExportWasDegraded',
     cadence: 'render',
-    cadenceNote: 'On every acknowledged worker tick, anchor a read-only presentation interval; each frame blends only confirmed positions. Pausing, restarting and replacing the session invalidate the anchor. No simulation clocks or entity positions are written.',
+    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. On save, halt new ticks while earlier commands and worker idle settle; keep recovery or host-swap exports degraded. No gameplay writes.',
     writes: [],
-    scheduledFrom: 'GameWorkerHost.setTickResultHandler (acknowledgement) and requestAnimationFrame through GameLoop.frameBody (presentation)',
+    scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
     testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
   },
   chronicleProseNames: {
