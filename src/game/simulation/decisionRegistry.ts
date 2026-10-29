@@ -82,9 +82,9 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, exportAuthoritativeWorld, lastExportWasDegraded',
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
-    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. On save, halt new ticks while earlier commands and worker idle settle; keep recovery or host-swap exports degraded. No gameplay writes.',
+    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding; read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
     testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
@@ -406,12 +406,17 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
-    owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
+    owner: 'commands.ts (simWorker) → buildingMaintenanceActions.ts (upgradeBuilding, repairBuilding, demolishBuilding), buildingActionRouting.ts (assignment), buildingConfigurationActions.ts (modes and recipes), workSchedule.ts and venueSchedule.ts (hours)',
     cadence: 'player-command',
-    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
+    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without a deep clone; isolated fallback retains copy semantics. Demolition reconciles displaced households only; timeout recovery does not replay the unconfirmed command, retaining later requests.',
     writes: [
       'building.occupants',
       'building.level',
+      'resources',
+      'workSchedule',
+      'tavernSchedule',
+      'hotelSchedule',
+      'workforcePolicy',
       'building.workshopRecipeId',
       'building.mineMode',
       'building.staffingMode',
