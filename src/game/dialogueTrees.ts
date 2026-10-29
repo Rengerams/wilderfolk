@@ -24,6 +24,7 @@ import eventRenffr_omenDialogueJson from './data/dialogue/renffr-omen.json' with
 import eventElectionDialogueJson from './data/dialogue/election.json' with { type: 'json' };
 import eventSocial_impulseDialogueJson from './data/dialogue/social-impulse.json' with { type: 'json' };
 import eventVisitorDialogueJson from './data/dialogue/visitor.json' with { type: 'json' };
+import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with { type: 'json' };
 import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
 import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
 import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
@@ -530,6 +531,33 @@ export function readPresentationDialogue(
   }
   if (!selected) throw new Error(`[dialogue] Missing presentation event key: ${eventKey}`);
   return Object.freeze(selected);
+}
+
+/**
+ * Central presentation catalog in the dialogue orchestrator. JSON sources belong here,
+ * never in UI code. Group presentations use the shared validated, frozen dialogue text,
+ * but do not schedule normal solo/pair Entity chat sessions or mutate chat fields.
+ */
+const presentationScenesByEvent = new Map<string, PresentationDialogueScene>();
+for (const raw of [spotlightPresentationJson]) {
+  const source = raw as PresentationDialogueSource;
+  if (!Array.isArray(source.dialogue_trees) || source.dialogue_trees.length === 0) {
+    throw new Error('[dialogue] Presentation source has no scenes');
+  }
+  for (const tree of source.dialogue_trees) {
+    if (typeof tree?.eventKey !== 'string' || presentationScenesByEvent.has(tree.eventKey)) {
+      throw new Error('[dialogue] Invalid or duplicate presentation event key');
+    }
+    const scene = readPresentationDialogue(raw, tree.eventKey);
+    presentationScenesByEvent.set(scene.eventKey, scene);
+  }
+}
+
+/** Resolve authored, immutable group presentation content from the same dialogue owner. */
+export function getPresentationDialogue(eventKey: string): PresentationDialogueScene {
+  const scene = presentationScenesByEvent.get(eventKey);
+  if (!scene) throw new Error(`[dialogue] Missing presentation event key: ${eventKey}`);
+  return scene;
 }
 
 /**
