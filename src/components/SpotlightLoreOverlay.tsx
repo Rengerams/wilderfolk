@@ -13,6 +13,7 @@ import {
   spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
+import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
 
 type EndReason = 'complete' | 'skipped';
 
@@ -271,6 +272,9 @@ export default function SpotlightLoreOverlay({
     callbacks.current.onPresentation(null);
     callbacks.current.onFinish(scene.id, 'skipped');
   };
+
+  // Preserve the map keyboard contract for the full scene, including Escape-to-skip.
+  useOverlayKeyboard('spotlight-lore', skip);
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-[80] overflow-hidden" aria-label="Village spotlight scene">
