@@ -15,6 +15,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { patchTile, tileAt } from '../src/game/terrain/terrainGrid';
+import { bumpTerrainRevision, getTerrainRevision } from '../src/game/terrainLayer';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import { MapPreset, MapSize, TerrainType, type WorldMap } from '../src/game/gameTypes';
 
@@ -299,15 +300,13 @@ describe('the ground bake paints the classification it is drawn under', () => {
     expect(a!.rows).toBe(map.rows);
   });
 
-  it('ignores the sparse override layer — the invariant the chunk key rests on', async () => {
-    // `renderer/terrain.ts` keys the ground chunks on seed/preset/dims and the bake step, and **not**
-    // on `getTerrainRevision()`, because that counter is bumped when a building footprint is cleared
-    // while the bake reads none of the arrays the clearing writes. If this ever becomes false, the
-    // chunks go stale for a frame; if the key is "fixed" back, a routine build freezes every visible
-    // chunk to produce a byte-identical image.
+  it('repaints a cleared footprint and moves the chunk key that holds it', async () => {
+    // The bake reads the sparse override layer, so a cleared footprint repaints — and the chunk key
+    // carries `getTerrainRevision()`, which a footprint clear bumps, so no chunk keeps its old image.
     const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, MapPreset.Continental);
     const before = await bakeMap(map);
     const beforeHash = hashPixels(before.data);
+    const beforeRevision = getTerrainRevision();
 
     // Clear a footprint the way `buildingPlacementActions` does: the tile type changes, the
     // generated fields do not.
@@ -321,11 +320,12 @@ describe('the ground bake paints the classification it is drawn under', () => {
       }
     }
     expect(cleared, 'forest tiles cleared').toBe(40);
+    bumpTerrainRevision();
 
     const after = await bakeMap(map);
-    expect(hashPixels(after.data)).toBe(beforeHash);
-    // The tile projection did change — so the bake is ignoring a real edit, not a no-op.
     expect(map.overrides?.size).toBe(40);
+    expect(hashPixels(after.data)).not.toBe(beforeHash);
+    expect(getTerrainRevision()).toBeGreaterThan(beforeRevision);
   });
 
   it('tiles exactly from chunks at a coarser world step — the overview case', async () => {

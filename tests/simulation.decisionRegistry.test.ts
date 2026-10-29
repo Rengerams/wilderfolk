@@ -58,7 +58,6 @@ const READ_ONLY_DECISIONS = new Set<string>([
   'traitInfluence',
   'workerFit',
   'raidTerminalPresentation',
-  'dialogueContent',
   'chronicleProseNames',
   'dailyPersonRoll',
   'workerMotionPresentation',

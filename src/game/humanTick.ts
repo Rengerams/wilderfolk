@@ -649,6 +649,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         asleepAtHome || sleepingAtHotel || recoveryAtHome || sleepingAtHospital || sleepingAtLover
       ))
     );
+    // Speech follows the schedule owner's predicate; needs recovery waits for the indoor state.
+    const asleepForSpeech = !isPrisoner && isAsleepAtHome(entity, buildingById, hourOfDay, onDutyForSleep);
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -705,11 +707,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Verified sleep suppresses ambient speech; scripted dialogue remains owned by the dialogue tree.
     tickDialogue(entity, resolveChatPartner);
-    if (sleepingForNeeds) endAmbientHumanChat(entity);
+    if (sleepingForNeeds || asleepForSpeech) endAmbientHumanChat(entity);
 
     if (
       active &&
       !sleepingForNeeds &&
+      !asleepForSpeech &&
       isPlayerHuman(entity) &&
       !entity.faction &&
       (entity.chatTicks ?? 0) <= 0 &&

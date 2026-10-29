@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** A settler home for the night stops an ambient chat again and starts none, because speech now follows the schedule's at-home sleep rule instead of the indoor flag that only needs recovery requires.
+- **Fixed (29 October 2026):** A cleared camp footprint bakes as temperate lowland grass instead of an altitude-darkened green, and clearing a footprint moves the ground cache key so the new ground is the ground that is drawn.
 - **Fixed (29 October 2026):** The Windows packaging script runs the desktop build through the Tauri command-line tool the project already depends on, instead of expecting a globally installed Cargo subcommand, so packaging no longer stops before it starts.
 - **Fixed (29 October 2026):** Desktop builds and the Tauri dev loop resolve the Tauri command-line tool from the project's own dependencies, so the desktop scripts no longer fail or fetch it ad hoc.
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.

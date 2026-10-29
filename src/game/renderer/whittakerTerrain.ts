@@ -1021,8 +1021,9 @@ export function bakeWhittakerGround(
       if (!isWater && clearingMask) {
         const cleared = sampleF(clearingMask, map.width, map.height,
           wx / PATH_CELL - 0.5, wy / PATH_CELL - 0.5);
-        hn += (Math.min(hn, LAND_BANDS.hills - 0.05) - hn) * cleared;
-        te += (Math.max(te, COLD_TEMPERATURE + SNOW_TEMPERATURE_FADE) - te) * cleared;
+        // A cleared footprint is the classifier's lowland grass, so it sits at the foot of the ramp.
+        hn += (Math.min(hn, LOWLAND_OF_LAND_RANGE) - hn) * cleared;
+        te += (Math.max(te, COLD_TEMPERATURE + SNOW_TEMPERATURE_FADE * 2) - te) * cleared;
         if (cleared > 0) groundElevation = sea + hn * landRange;
       }
 
