@@ -1,10 +1,6 @@
-/**
- * Challenges: catalog + progress/win-check logic. Leaf module — runtime imports
- * only from sibling leaf modules (buildings / resourceTypes); gameTypes re-exports
- * the catalog without a cycle.
- */
 import type { WorldState } from './gameTypes';
-import { BuildingType, Building } from './buildings';
+import { BuildingType } from './buildings';
+import type { Building } from './buildings';
 import type { Resources } from './resourceTypes';
 
 export interface Challenge {

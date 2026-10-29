@@ -1,6 +1,6 @@
-import type { Building, WorldState, EntityType, PATH_CELL } from './gameTypes';
+import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType } from './buildings';
-
+import { EntityType, PATH_CELL } from './gameTypes';
 
 export interface BeautyGrid {
   cols: number;
