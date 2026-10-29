@@ -33,6 +33,7 @@ function walk(directory, suffixes) {
 const sourceFiles = walk(resolve('src'), ['.ts', '.tsx']);
 const rootDialoguePath = 'src/game/dialogueTrees.ts';
 const dialogueFiles = new Set();
+const presentationFiles = new Set();
 for (const file of sourceFiles) {
   const name = slash(file);
   const original = readFileSync(file, 'utf8');
@@ -42,7 +43,8 @@ for (const file of sourceFiles) {
   if (name === rootDialoguePath) {
     for (const match of original.matchAll(/from\s+['"](\.\/data\/[^'"]+\.json)['"]/g)) {
       const target = path.posix.normalize(path.posix.join('src/game', match[1]));
-      dialogueFiles.add(target);
+      if (target === 'src/game/data/dialogue/spotlight-lore.json') presentationFiles.add(target);
+      else dialogueFiles.add(target);
     }
   }
   if (name !== rootDialoguePath && /from\s+['"][^'"]*humanChat['"]/.test(original)) {
@@ -90,6 +92,9 @@ for (const filename of dataFiles) {
   if (!isPresentation && !dialogueFiles.has(rel)) {
     errors.push(`${rel}: dialogue source is not imported by the canonical bank`);
   }
+  if (isPresentation && !presentationFiles.has(rel)) {
+    errors.push(`${rel}: presentation JSON is not imported by the dialogue orchestrator`);
+  }
   if (isPresentation && dialogueFiles.has(rel)) {
     errors.push(`${rel}: paused group presentation cannot enter the ambient bank`);
   }
@@ -135,8 +140,15 @@ try {
 } catch (e) {
   errors.push(`Elections.json: legacy duplication reconciliation failed (${e.message})`);
 }
-for (const file of dialogueFiles) {
+for (const file of [...dialogueFiles, ...presentationFiles]) {
   if (!existsSync(resolve(file))) errors.push(`${rootDialoguePath}: imported missing JSON source ${file}`);
+}
+const dialogueOwner = readFileSync(resolve(rootDialoguePath), 'utf8');
+if (dialogueOwner.match(/const DIALOGUE_SOURCE_FILES[\\s\\S]*?\\];/)?.[0].includes('spotlightPresentationJson')) {
+  errors.push(`${rootDialoguePath}: group presentation cannot enter the solo/pair bank`);
+}
+if (!dialogueOwner.includes('presentationScenesByEvent.set(')) {
+  errors.push(`${rootDialoguePath}: missing central group presentation registry`);
 }
 if (activeScenes < 150) errors.push(`Dialogue catalog unexpectedly small: ${activeScenes} active scenes`);
 
