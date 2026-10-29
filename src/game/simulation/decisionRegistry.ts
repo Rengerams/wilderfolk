@@ -337,10 +337,10 @@ export const SIMULATION_DECISIONS = {
   terrainRiverSurface: {
     owner: 'renderer/whittakerTerrain.ts — buildRiverSurfaceFields, buildWhittakerFields, bakeWhittakerGround, sampleRiverPhase',
     cadence: 'render',
-    cadenceNote: 'Read-only map-cache prepass and budgeted chunk baking, not simulation ticks.',
+    cadenceNote: 'Read-only map-cache prepass, grassland clearing mask, and budgeted chunk baking; no simulation writes.',
     writes: [],
     scheduledFrom: 'renderer/terrain.ts → buildWhittakerFields on map cache change; bakeWhittakerGround for uncached ground chunks',
-    testFile: 'tests/terrain.riverMaterials.test.ts',
+    testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
