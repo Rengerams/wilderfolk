@@ -1,6 +1,7 @@
 import type { Building, Entity } from '../gameTypes';
-import { BUILDING_JOB_TYPES, EntityType, JobType } from '../gameTypes';
+import { BUILDING_JOB_TYPES, JobType } from '../gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
+import { isPlayerHuman } from '../playerHuman';
 
 /** Compact, genuine worked shifts. One credit per person, profession and settled day. */
 export const MAX_CREDITED_DAYS = 65_535;
@@ -36,8 +37,8 @@ export function normalizeCareerHistory(raw: unknown): CareerHistory | undefined 
 export function recordCareerWork(
   worker: Entity, site: Building, job: JobType, day: number, observedHours: number,
 ): boolean {
-  if (worker.type !== EntityType.Human || !worker.alive || worker.isJuvenile
-    || worker.age < HUMAN_ADULT_MIN_AGE || worker.faction || worker.prisonBuildingId != null) return false;
+  if (!isPlayerHuman(worker) || !worker.alive || worker.isJuvenile
+    || worker.age < HUMAN_ADULT_MIN_AGE || worker.prisonBuildingId != null) return false;
   if (!Number.isSafeInteger(day) || day < 0 || day > MAX_CAREER_DAY
     || !Number.isFinite(observedHours) || observedHours <= 0) return false;
   // Credit the witnessed prior shift, not the worker's current job or roster.
