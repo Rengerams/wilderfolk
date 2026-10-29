@@ -279,6 +279,24 @@ describe('bounded command copies', () => {
     expect(applyWorkerCommand(next, command)).toBe(next);
   });
 
+  it('owned Auto-fill updates the worker world in place with isolated-command parity', () => {
+    const original = makeWorld(
+      [human(1), human(2)],
+      [building(2, BuildingType.Farm, { staffingMode: 'manual' })],
+    );
+    const command = cmd({ op: 'autoStaffWorkers' });
+    const isolated = applyWorkerCommand(original, command);
+    const authoritative = structuredClone(original);
+    const result = applyWorkerCommand(authoritative, command, 'owned');
+
+    expect(result).toBe(authoritative);
+    expect(authoritative.buildings[0].staffingMode).toBe('auto');
+    expect(authoritative.entities).toEqual(isolated.entities);
+    expect(authoritative.buildings).toEqual(isolated.buildings);
+    expect(original.buildings[0].staffingMode).toBe('manual');
+    expect(original.entities.every((person) => person.workerBuildingId == null)).toBe(true);
+  });
+
   it('owned assignment matches isolated assignment without touching the authoritative preview source', () => {
     const world = makeWorld([human(1)], [building(2, BuildingType.Workshop)]);
     const command = cmd({ op: 'assignWorker', buildingId: 2, humanId: 1 });

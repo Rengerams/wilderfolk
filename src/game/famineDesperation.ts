@@ -19,7 +19,7 @@ import { getSimRng, randomBool, randomChoice } from './simRng';
 import { hurtFriendship, startFeud } from './relationships';
 import { Famine } from './gameConstants';
 import { HUMAN_NEEDS } from './simulation/humanPhysiology';
-import { formatCitizenName } from './citizenId';
+import { citizenFullName } from './citizenId';
 
 /** Domain-isolated RNG stream: deterministic per run seed, separate from other systems. */
 const RNG_OWNER = 'famine-desperation';
@@ -75,8 +75,8 @@ export function tickFamineDesperation(state: WorldState, allAlive: readonly Enti
   const success = randomBool(rng, Famine.BITE_SUCCESS_CHANCE);
   hurtFriendship(attacker, victim, success ? Famine.BITE_FRIENDSHIP_HIT_SUCCESS : Famine.BITE_FRIENDSHIP_HIT_MISS);
 
-  const attackerName = formatCitizenName(attacker);
-  const victimName = formatCitizenName(victim);
+  const attackerName = citizenFullName(attacker);
+  const victimName = citizenFullName(victim);
 
   if (success) {
     addNotification(state, '🍖 Desperate times', `${attackerName} took a bite out of ${victimName}'s foot. ${victimName} is not amused.`, 'warning');

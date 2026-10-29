@@ -298,8 +298,11 @@ export function fillBuildingWorkers(
   return state;
 }
 
-export function autoStaffAllWorkers(originalState: WorldState): WorldState {
-  const state = structuredClone(originalState);
+export function autoStaffAllWorkers(
+  originalState: WorldState,
+  ownership: 'isolated' | 'owned' = 'isolated',
+): WorldState {
+  const state = ownership === 'owned' ? originalState : structuredClone(originalState);
   const countAssigned = () => allPlayerHumans(state.entities).filter((human) => human.workerBuildingId != null).length;
   const before = countAssigned();
   const workplaces = state.buildings.filter((building) =>

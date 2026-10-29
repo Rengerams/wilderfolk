@@ -155,6 +155,7 @@ export class GameLoop {
   private lastDailyBoundaryTick = 0;
   private workerTickLatencyMs = 0;
   private exportDegraded = false;
+  private saveExportPending = false;
   private workerRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private workerRecoveryDelayMs = WORKER_RECOVERY_INITIAL_DELAY_MS;
   private workerRecoveryInFlight = false;
@@ -757,41 +758,46 @@ export class GameLoop {
 
   async exportAuthoritativeWorld(timeoutMs = this.workerExportBudgetMs()): Promise<WorldState> {
     const host = this.workerHost;
-    if (this.workerEnabled && host?.isReady()) {
-      const exportGen = this.sessionGen;
-      try {
-        await Promise.race([
-          host.whenIdle(),
-          new Promise<void>((_, reject) => {
-            setTimeout(() => reject(new Error('Worker idle wait timed out')), timeoutMs);
-          }),
-        ]);
-        if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
-          this.exportDegraded = true;
-          return this.world;
-        }
-
-        const exported = await Promise.race([
-          host.exportSave(timeoutMs),
-          new Promise<WorldState>((_, reject) => {
-            setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
-          }),
-        ]);
-        if (exportGen !== this.sessionGen || this.workerHost !== host) {
-          this.exportDegraded = true;
-          return this.world;
-        }
-
-        this.exportDegraded = false;
-        return hydrateWorldRuntimeCaches(exported);
-      } catch (err) {
-        console.warn('[GameLoop] exportSave failed — using main shadow', err);
-        this.exportDegraded = true;
-      }
+    if (!(this.workerEnabled && host?.isReady())) {
+      this.exportDegraded = this.workerBooting || this.workerRecoveryInFlight
+        || this.workerRecoveryTimer !== null || this.optimisticCommands.length > 0
+        || this.deferredWorkerCommands.length > 0;
+      return this.world;
     }
-    // A failed active-worker export returns only the display shadow. Do not
-    // overwrite the degraded flag set above: callers must know its provenance.
-    if (!(this.workerEnabled && host?.isReady())) this.exportDegraded = false;
+
+    const exportGen = this.sessionGen;
+    this.saveExportPending = true;
+    try {
+      await Promise.race([
+        this.commandChain.then(() => host.whenIdle()),
+        new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error('Worker idle wait timed out')), timeoutMs);
+        }),
+      ]);
+      if (exportGen !== this.sessionGen || this.workerHost !== host || !host.isReady()) {
+        this.exportDegraded = true;
+        return this.world;
+      }
+
+      const exported = await Promise.race([
+        host.exportSave(timeoutMs),
+        new Promise<WorldState>((_, reject) => {
+          setTimeout(() => reject(new Error('Worker export timed out')), timeoutMs);
+        }),
+      ]);
+      if (exportGen !== this.sessionGen || this.workerHost !== host) {
+        this.exportDegraded = true;
+        return this.world;
+      }
+
+      this.exportDegraded = false;
+      return hydrateWorldRuntimeCaches(exported);
+    } catch (err) {
+      console.warn('[GameLoop] exportSave failed — using main shadow', err);
+      this.exportDegraded = true;
+    } finally {
+      this.saveExportPending = false;
+    }
     return this.world;
   }
 
@@ -992,6 +998,7 @@ export class GameLoop {
             this.tickAccumulator >= msPerTick &&
             steps < catchUpBudget
             && this.optimisticCommands.length === 0
+            && !this.saveExportPending
             && this.workerHost.canPipelineTick()
           ) {
             if (this.workerHost.requestTick(focus)) {
