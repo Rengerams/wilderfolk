@@ -11,7 +11,7 @@ import {
   spotlightFarewellPosition, spotlightFarewellDestination, spotlightSafePoseRadius,
 } from '../src/components/spotlightFarewell';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { bindNumberedPresentationSpeakers } from '../src/game/dialogueTrees';
+import { bindNumberedPresentationSpeakers, getPresentationDialogue } from '../src/game/dialogueTrees';
 import type { Entity } from '../src/game/gameTypes';
 import {
   presentationPosition, setSpotlightPresentationFrame, getSpotlightPresentationMotion,
@@ -19,6 +19,15 @@ import {
 } from '../src/game/renderer/motionInterpolation';
 
 describe('spotlight choreography — canonical JSON 1.3 captions and stable cues', () => {
+  it('routes group captions through the main dialogue orchestrator, not a separate component-owned JSON import', () => {
+    const canonical = getPresentationDialogue('spotlight.lore');
+    expect(SPOTLIGHT_PRESENTATION).toBe(canonical);
+    expect(Object.isFrozen(canonical)).toBe(true);
+    expect(Object.isFrozen(canonical.lines)).toBe(true);
+    expect(canonical.lines.map((line) => line.text)).toEqual(SPOTLIGHT_CAPTIONS.map((line) => line.text));
+    expect(() => getPresentationDialogue('spotlight.absent')).toThrow('Missing presentation event key');
+  });
+
   it('binds the actual heroine and each one of 6–10 adult singers without a hidden 7th–10th speaker', () => {
     expect(SPOTLIGHT_CAPTIONS.length).toBeGreaterThanOrEqual(44);
     const girl = SPOTLIGHT_CAPTIONS.find((caption) => caption.cue === 'juvenile-reply')!;
