@@ -21,8 +21,13 @@ describe('foreign prisoners do not have player needs or infrastructure modifiers
     expect(p.energy).toBe(180);
     expect(p.needs).toBeUndefined();
     expect(tryEatColonyMeal(p, state, 8)).toBe(false);
+    expect(p.warCaptive?.lastRationDay).toBe(0);
     state.tick += TICKS_PER_HOUR;
     expect(tryEatColonyMeal(p, state, 9)).toBe(false);
+    state.tick += 23 * TICKS_PER_HOUR;
+    expect(tryEatColonyMeal(p, state, 8)).toBe(true);
+    expect(p.warCaptive?.lastRationDay).toBe(1);
+    expect(state.resources.food).toBe(8);
   });
 
   it('leaves real workload stamina drain to player physiology', () => {

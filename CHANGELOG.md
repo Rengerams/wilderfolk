@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed:** Foreign prisoners receive at most one charged daily ration, even after saving and loading; duplicate food deductions are blocked, and zero energy no longer triggers the retired captive-exhaustion death test.
+
 - **Changed:** Eight hours of ordinary indoor sleep now restores 100 rest and stamina from zero; removed delayed sleep bonuses and their saved counters while retaining local well and hospital effects.
 
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
