@@ -112,7 +112,7 @@ export const SIMULATION_DECISIONS = {
       'human.warCaptive.lastRationDay',
       'human.alive (via delegated death action)',
     ],
-    scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain; saveLoad.ts → custody-stamp validation on load',
+    scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain',
     testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
   },
   workforce: {
