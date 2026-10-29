@@ -14,6 +14,8 @@ import { tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { Season } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
+import type { Entity } from '../src/game/gameTypes';
+import { isPlayerHuman } from '../src/game/playerHuman';
 
 const farm = building(10, BuildingType.Farm, { occupants: [1] });
 const worker = () => human(1, {
@@ -49,6 +51,32 @@ describe('observed career history', () => {
     expect(recordCareerWork(base, { ...farm, completed: false }, JobType.Farmer, 0, 4)).toBe(false);
     expect(recordCareerWork(base, { ...farm, faction: 'rival' }, JobType.Farmer, 0, 4)).toBe(false);
     expect(base.careerHistory).toBeUndefined();
+  });
+
+  it('credits explicitly player-owned attendance through the same faction rule as the economy', () => {
+    const marked = worker();
+    // Some loaded/test worlds use a legacy explicit player marker outside the typed faction union.
+    marked.faction = 'player' as Entity['faction'];
+    expect(isPlayerHuman(marked)).toBe(true);
+    marked.scheduleLastWorkedHours = undefined;
+    marked.scheduleLastWorkedSiteId = undefined;
+    marked.scheduleLastWorkedJob = undefined;
+    recordScheduleWorkTick(marked, TICKS_PER_HOUR);
+    expect(marked.scheduleWorkedTicksToday).toBe(TICKS_PER_HOUR);
+    resolveDailyScheduleFatigue(marked, { workSchedule: { startHour: 8, endHour: 17 } });
+    expect(marked.scheduleLastWorkedSiteId).toBe(farm.id);
+    expect(marked.scheduleLastWorkedJob).toBe(JobType.Farmer);
+    expect(recordCareerWork(marked, farm, JobType.Farmer, 2, marked.scheduleLastWorkedHours!)).toBe(true);
+    expect(marked.careerHistory?.farmer).toEqual({ days: 1, lastDay: 2 });
+
+    for (const faction of ['rival', 'visitor', 'trade_caravan'] as const) {
+      const foreign = worker();
+      foreign.faction = faction;
+      recordScheduleWorkTick(foreign, TICKS_PER_HOUR);
+      expect(foreign.scheduleWorkedTicksToday).toBeUndefined();
+      expect(recordCareerWork(foreign, farm, JobType.Farmer, 2, 1)).toBe(false);
+      expect(foreign.careerHistory).toBeUndefined();
+    }
   });
 
   it('credits a witnessed past job even if the person has a different post at noon', () => {
