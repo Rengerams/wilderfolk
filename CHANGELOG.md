@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (merged PR #99):** Observed career shifts now credit bounded per-job days, 15/60/180-day descriptive tiers and completed apprenticeships. Idle worker ties use experience and DNA. Old saves, Moon Howler history and worker rollback remain supported; PR E inspector is next.
+
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
 - **Fixed (PR #99):** Career shifts and credited days share canonical player membership, including legacy explicit player markers. Foreign factions remain excluded; regression tests added.
