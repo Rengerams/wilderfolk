@@ -21,8 +21,8 @@ export const TRACKS = {
   growlAlt: audioUrl('audio/ambient/animals/growl-1.wav'),
   beastVoice: audioUrl('audio/ambient/animals/voice.wav'),
   beastVoiceAlt: audioUrl('audio/ambient/animals/voice-1.wav'),
-  spotlightApplause: audioUrl('audio/sfx/spotlight-applause.ogg'),
-  spotlightLore: audioUrl('audio/music/spotlight-lore.ogg'),
+  spotlightApplause: audioUrl('audio/music/freesound_community-crowd-cheering-6229.mp3'),
+  spotlightLore: audioUrl('audio/music/Music_Lore_Instrumentaal.mp3'),
 } as const;
 
 export const TRACK_VOLUMES = {
