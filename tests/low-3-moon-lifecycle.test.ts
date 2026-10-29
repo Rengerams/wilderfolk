@@ -161,7 +161,7 @@ describe('Moon Howler cadence + injected RNG', () => {
     expect(collectSimulationInvariantErrors(state)).toEqual([]);
   });
 
-  it('announces full-moon nightfall once per moon, not on every tick of hour 20', () => {
+  it('announces full-moon nightfall once per moon, not on every tick of the nightfall hour', () => {
     const survivor = human(1, { moonHowlerCursed: true });
     const state = moonState([survivor, ...sevenAdults().filter((h) => h.id !== 1)], [], FULL_MOON_NIGHTFALL_TICK);
     const entityById = new Map(state.entities.map((entity) => [entity.id, entity]));
