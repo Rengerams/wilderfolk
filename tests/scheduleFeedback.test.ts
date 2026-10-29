@@ -44,6 +44,31 @@ describe('schedule feedback previews', () => {
     expect(getScheduleImpactPreview(withAnimal, 'ordinary', 8, 10).assignedWorkers).toBe(1);
   });
 
+  it('reads the colony entity roster once even for many staffed buildings', () => {
+    const entities = Array.from({ length: 2500 }, (_, id) => ({
+      id,
+      type: EntityType.Human,
+      alive: true,
+      faction: undefined,
+    }));
+    let entityVisits = 0;
+    const trackedEntities = new Proxy(entities, {
+      get(target, key, receiver) {
+        if (typeof key === 'string' && /^\\d+$/.test(key)) entityVisits++;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const buildings = Array.from({ length: 80 }, (_, index) => ({
+      id: index + 1,
+      type: BuildingType.Farm,
+      completed: true,
+      occupants: [2400 + index],
+    }));
+    const preview = getScheduleImpactPreview({ buildings, entities: trackedEntities } as never, 'ordinary', 8, 10);
+    expect(preview.assignedWorkers).toBe(80);
+    expect(entityVisits).toBeLessThanOrEqual(entities.length);
+  });
+
   it('explains unchanged schedules without warning the player about fatigue', () => {
     const preview = getScheduleImpactPreview(state, 'ordinary', 8, 8);
     expect(preview.warning).toContain('No workload change');
