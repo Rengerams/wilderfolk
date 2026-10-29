@@ -56,7 +56,7 @@ describe('observed career history', () => {
   it('credits explicitly player-owned attendance through the same faction rule as the economy', () => {
     const marked = worker();
     // Some loaded/test worlds use a legacy explicit player marker outside the typed faction union.
-    marked.faction = 'player' as Entity['faction'];
+    marked.faction = 'player' as unknown as Entity['faction'];
     expect(isPlayerHuman(marked)).toBe(true);
     marked.scheduleLastWorkedHours = undefined;
     marked.scheduleLastWorkedSiteId = undefined;
