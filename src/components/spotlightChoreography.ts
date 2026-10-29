@@ -1,7 +1,6 @@
-import spotlightSource from '../game/data/dialogue/spotlight-lore.json' with { type: 'json' };
-import { readPresentationDialogue } from '../game/dialogueTrees';
+import { getPresentationDialogue } from '../game/dialogueTrees';
 
-export const SPOTLIGHT_PRESENTATION = readPresentationDialogue(spotlightSource, 'spotlight.lore');
+export const SPOTLIGHT_PRESENTATION = getPresentationDialogue('spotlight.lore');
 
 export const SPOTLIGHT_POSE_MS = 7000;
 /** Blackout precedes camera reveal, music and the first spoken line. */
