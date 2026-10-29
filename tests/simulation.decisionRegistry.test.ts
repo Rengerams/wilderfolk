@@ -21,6 +21,9 @@ import {
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
   'traitInfluence',
+  'careerHistory',
+  'careerProgression',
+  'workerFit',
   'humanPhysiology',
   'humanMeals',
   'workforce',
@@ -83,7 +86,7 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'raidTerminalPresentation' || key === 'dialogueContent') {
+      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'workerFit' || key === 'raidTerminalPresentation' || key === 'dialogueContent') {
         expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
         expect(row.writes).toEqual([]);
       } else {

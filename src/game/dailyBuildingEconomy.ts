@@ -5,6 +5,9 @@
  * frontier systems, and daily-gated world events. Trees have no sim tick.
  */
 import type { WorldState, Entity, Building } from './gameTypes';
+import { recordCareerWork } from './careers/careerHistory';
+import { advanceCareerProgression } from './careers/careerProgression';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import { mineOreForMode } from './buildings';
 import {
   BuildingType,
@@ -390,7 +393,7 @@ function tickBuildingProduction(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
+  const { updatedBuildings, entityById, buildingById, byType, roadBuildings } = ctx;
   // Production runs at noon, but isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
@@ -427,6 +430,7 @@ function tickBuildingProduction(
     number,
     { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
   >();
+  const settledAttendanceDay = getAbsoluteCalendarDay(state.tick) - 1;
   for (let i = 0; i < playerWorkers.length; i++) {
     const h = playerWorkers[i];
     // `playerWorkers` is already the colony-human owner's answer — re-testing `h.faction` here
@@ -435,6 +439,16 @@ function tickBuildingProduction(
     if (!h.alive) continue;
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
+    const lastWorkedHours = getScheduleLastWorkedHours(h);
+    // Use prior-shift site and trade even when today's assignment has changed.
+    if (lastWorkedHours > 0 && h.scheduleLastWorkedSiteId != null && h.scheduleLastWorkedSiteId >= 0) {
+      const attendedSite = buildingById.get(h.scheduleLastWorkedSiteId);
+      const attendedJob = h.scheduleLastWorkedJob;
+      if (attendedSite && attendedJob
+        && recordCareerWork(h, attendedSite, attendedJob, settledAttendanceDay, lastWorkedHours)) {
+        advanceCareerProgression(h, attendedJob, settledAttendanceDay, 'work');
+      }
+    }
     const siteId = h.workerBuildingId;
     if (siteId == null) continue;
 
@@ -442,7 +456,6 @@ function tickBuildingProduction(
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
     current.count += 1;
     current.fatigueSum += Math.min(getScheduleProductivityMultiplier(h), getHumanNeedsWorkMultiplier(h));
-    const lastWorkedHours = getScheduleLastWorkedHours(h);
     current.workedHoursSum += lastWorkedHours;
     if (lastWorkedHours > 0) current.workedCount += 1;
     buildingWorkerStats.set(siteId, current);

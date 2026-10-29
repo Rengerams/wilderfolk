@@ -4,15 +4,35 @@
 
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
+- **Fixed (PR #99):** Career shifts and credited days share canonical player membership, including legacy explicit player markers. Foreign factions remain excluded; regression tests added.
+
 - **CI (29 October 2026):** Added a changed-function overlap gate against the call graph. Unreviewed matches block PR CI; deliberate differences need fingerprint-pinned, test-backed approvals. Existing gameplay is unchanged.
 - **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
 - **Fixed (29 October 2026):** Grassland clearing overrides now blend alpine ground art without changing saved terrain. Founding settlers keep full sprites at overview zoom; larger crowds retain brighter markers. Added visual and LOD regression tests.
+
+- **Fixed (PR #99 Moon Howler tests):** Align five lifecycle and replacement-roll assertions with the established 22:00 Moon Howler nightfall. The village's ordinary 23:00 schedule and simulation logic are unchanged.
+
+- **Fixed (PR #99 CI):** Remove the temporary untracked population benchmark harness after running the baseline and before checking out the PR head; preserves the same harness, comparison methodology and manual 180-day mode. Latest-head CI verification pending.
 
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 
 - **Dialogue contract (28 October 2026):** Restricted speech requests to 94 authored event keys, made one- and two-speaker scene types mandatory and froze both application and worker banks. Added all-event selection and serialization parity regressions; no gameplay or save changes.
+
+- **CI:** Added per-resident workday, workplace and observed-hours JSONL audit to VirtualPlayer population benchmarks; daily profession sums and bot commands are reconciled and regression-tested before performance runs.
+
+- **CI:** Population performance now runs full game-day cycles on staffed producer colonies with the hourly VirtualPlayer; optional half-year stress runs are manual and include real career-credit checks.
+
+- **Changed:** Moon Howler transformation, new curses and the full-moon cure window now begin at 22:00 (previously 23:00), with reversion still at 06:00. Ordinary village night hours are unchanged.
+
+- **Fixed:** Full-moon shifts settle at midnight even while the worker is transformed. Verified farmer work earns career experience after dawn, even if the vacated job was filled; wolf hunting earns none.
+
+- **CI:** Added independent small, medium and large PR 99 population benchmarks with fixed-seed baseline comparisons, raw artifacts, tick timing and memory summaries; measurements are advisory, not flaky timing gates.
+
+- **Added:** Career history credits verified workplace attendance once per profession and settled calendar day, requiring matching workplace and trade provenance. Actual apprenticeship completion and work thresholds record optional milestones; unverified construction attendance remains uncredited.
+
+- **Changed:** Career and DNA fit break only exact commute-and-skill ties for idle candidates. Old saves start with neutral career history, and worker rollback isolates nested records.
 
 - **Changed:** Removed two unreferenced exports (a season-length constant alias and an unused road-proximity query) so the audit's dead-code gate reports clean again; no gameplay behavior changed.
 
