@@ -1,3 +1,11 @@
 {
-  "approvals": []
+  "approvals": [
+    {
+      "key": "src/components/spotlightReturnState.ts:2:discardSpotlightReturn@891e1c9f12d7b5d1fa8ba4584037c79060ad184e6dc435fe8daee13c5b3f8db8 <-> src/components/spotlightReturnState.ts:7:takeSpotlightReturn@6e215219a514536b568043fc7c0748a23e446b9d4478960694b4eecb1ce96cb9",
+      "reason": "Distinct lifecycle contracts: discardSpotlightReturn intentionally invalidates a previous-colony camera/pause snapshot on load without returning or restoring it, whereas takeSpotlightReturn atomically returns the prior snapshot once on ordinary scene completion. They share the necessary clear operation but differ in returned values, callers, timing, and session-safety behavior; combining into a single ambiguous call would risk restoring prior colony controls. The test verifies both one-shot consume and discard-on-load semantics.",
+      "tests": [
+        "tests/spotlightReturnState.test.ts"
+      ]
+    }
+  ]
 }
