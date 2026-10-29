@@ -20,6 +20,10 @@ export default defineConfig({
     tailwindcss(), // 2. Hier toegevoegd (vóór react) [1]
     react()
   ],
+  optimizeDeps: {
+    // react-router imports cookie's old CJS `parse`/`serialize`; prebundled, cookie exposes them.
+    include: ["react-router-dom", "cookie"],
+  },
   server: {
     port: 5173,
     host: '127.0.0.1',
