@@ -49,9 +49,14 @@ function catchUpBudgetFor(speed: number): number {
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
+/** Commands that change only top-level policy fields, never entities or buildings. */
+function isLightweightWorkerCommand(cmd: WorkerCommand): boolean {
+  return cmd.op === 'setWorkSchedule' || cmd.op === 'setVenueSchedule' || cmd.op === 'setWorkforcePolicy';
+}
+
 /** Only bounded edits may replay on the UI thread while the worker is authoritative. */
 function canPreviewWorkerCommand(cmd: WorkerCommand): boolean {
-  return cmd.op === 'setVenueSchedule' || (cmd.op === 'assignWorker' && cmd.humanId != null);
+  return isLightweightWorkerCommand(cmd) || (cmd.op === 'assignWorker' && cmd.humanId != null);
 }
 
 function pageHidden(): boolean {
@@ -407,8 +412,8 @@ export class GameLoop {
       if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
 
-      const hadOptimistic = this.optimisticCommands.length > 0;
-      if (hadOptimistic) this.optimisticCommands.shift();
+      const completedCommand = this.optimisticCommands.shift();
+      const hadOptimistic = completedCommand != null;
 
       this.world = world;
       this.invalidateRenderSnapshot();
@@ -424,8 +429,10 @@ export class GameLoop {
       }
 
       if (hadOptimistic) {
-        this.catalog.rebuild(this.world.entities);
-        this.pruneStaleSelection();
+        if (!isLightweightWorkerCommand(completedCommand)) {
+          this.catalog.rebuild(this.world.entities);
+          this.pruneStaleSelection();
+        }
         this.notify(true, false, true);
       }
 
@@ -642,7 +649,10 @@ export class GameLoop {
     if (!authoritative) return;
 
     const previews = this.optimisticCommands.filter(canPreviewWorkerCommand);
-    let display = previews.length > 0 ? createOptimisticDisplayWorld(authoritative) : authoritative;
+    const needsEntityCopy = previews.some((cmd) => !isLightweightWorkerCommand(cmd));
+    let display = needsEntityCopy
+      ? createOptimisticDisplayWorld(authoritative)
+      : previews.length > 0 ? { ...authoritative } : authoritative;
     carryPresentationControls(display, this.world);
 
     for (const command of previews) {
@@ -666,8 +676,10 @@ export class GameLoop {
     if (this.workerEnabled && this.workerHost?.isReady()) {
       this.optimisticCommands.push(cmd);
       this.rebuildOptimisticDisplay();
-      this.catalog.rebuild(this.world.entities);
-      this.pruneStaleSelection();
+      if (this.world.entities !== this.workerHost.getAuthoritativeWorld()?.entities) {
+        this.catalog.rebuild(this.world.entities);
+        this.pruneStaleSelection();
+      }
       this.notify(true, false, true);
 
       const cmdGen = this.sessionGen;

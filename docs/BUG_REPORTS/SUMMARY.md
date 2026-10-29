@@ -41,6 +41,10 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
 
+**2026-10-29 — [Worker-owned building upgrade deep-clones large colony](../bug_report/2026-10-29-worker-upgrade-deep-clones-large-colony.md):** owned upgrade path now skips the full-world clone; isolated parity regression added. Cause of all 30-second timeouts and live 2,000+ resident verification still pending.
+
+**2026-10-29 — [Work-hours preview repeatedly searches the full population](../bug_report/2026-10-29-schedule-preview-repeated-roster-search.md):** eligible worker IDs indexed once and work/venue/policy previews avoid full-world cloning; browser INP verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.

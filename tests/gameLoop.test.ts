@@ -185,6 +185,25 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       expect(fake.host.sendCommand).toHaveBeenCalledWith(cmdObj);
     });
 
+    it('previews changed work hours without deep-cloning the worker colony', async () => {
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Farm)]);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const authoritative = structuredClone(world);
+      const fake = makeFakeHost(authoritative);
+      (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+      (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
+
+      const command: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'setWorkSchedule', startHour: 6, endHour: 14 };
+      loop.applyCommand(command);
+
+      expect(loop.getWorld().workSchedule).toEqual({ startHour: 6, endHour: 14 });
+      expect(loop.getWorld().entities).toBe(authoritative.entities);
+      expect(loop.getWorld().buildings).toBe(authoritative.buildings);
+      expect(authoritative.workSchedule).not.toEqual({ startHour: 6, endHour: 14 });
+      loop.stop();
+    });
+
     it('drains tick requests before a queued command instead of starving it', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       world.speed = 5;
