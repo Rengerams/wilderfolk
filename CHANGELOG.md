@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Dialogue variation (29 October 2026):** Rotate eligible per-resident dialogue variants before repeating, persist last choices through save/load and cool down singleton ambient lines. Pregnancy, family and famine requests use real contextual roles instead of a fixed tree ID; recover nine distinct older need-dialogue variants.
+- **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
 
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
