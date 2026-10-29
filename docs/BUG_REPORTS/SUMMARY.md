@@ -36,6 +36,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight male chorus admitted women](../bug_report/2026-10-28-spotlight-chorus-accepted-female-adults.md):** Fixed by requiring six-to-ten male adults and adding mixed-population regression coverage.
 
+**2026-10-29 — [Spotlight chorus CI fixtures violated male eligibility and cast ordering](../bug_report/2026-10-29-spotlight-chorus-fixture-gender-and-order.md):** Three failing test assertions after the male-only fix were caused by an incorrect ascending-ID expectation and unspecified random genders in real-tick fixtures. Fixed test contracts on PR #91; latest-head CI pending.
+
 **2026-10-28 — [Spotlight presentation jumps from actual actor to saved target](../bug_report/2026-10-28-spotlight-presentation-origin-snap.md):** Fixed on PR #91 branch by using the heroine's actual stage position for visual poses and farewell, avoiding a possible 11-world-unit snap. Browser verification pending.
 
 **2026-10-28 — [Spotlight intro repeats unchanged React caption updates](../bug_report/2026-10-28-spotlight-redundant-caption-update.md):** Fixed on PR #91 branch by normalizing null captions before change comparison. Browser/profiler verification pending.
