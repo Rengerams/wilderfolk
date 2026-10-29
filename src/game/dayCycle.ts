@@ -60,7 +60,6 @@ export {
   isTavernOpen,
   isTavernServiceHour,
   isWorkHour,
-  personDayRoll,
   prefersHomeTonight,
   shouldBeAtHome,
 } from './humanSchedule';

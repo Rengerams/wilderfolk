@@ -3,6 +3,8 @@
 ## 0.6.5.2 [Unreleased]
 
 - **CI (29 October 2026):** Added a changed-function overlap gate against the call graph. Unreviewed matches block PR CI; deliberate differences need fingerprint-pinned, test-backed approvals. Existing gameplay is unchanged.
+- **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
+- **Fixed (29 October 2026):** Grassland clearing overrides now blend alpine ground art without changing saved terrain. Founding settlers keep full sprites at overview zoom; larger crowds retain brighter markers. Added visual and LOD regression tests.
 
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 

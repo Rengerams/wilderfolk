@@ -1,7 +1,7 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, personDayRoll, prefersHomeTonight } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, prefersHomeTonight } from './dayCycle';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
@@ -64,16 +64,6 @@ export function tickHumanChildLeisure(args: {
   const mate = cached.mate;
   const impulse = pickSocialImpulse(entity, state, updatedBuildings, [], [], args.pickSocialBuilding);
 
-  // Kids play is decided HERE, because `pickSocialImpulse` no longer offers a `kid_play` motive —
-  // its removal left this caller testing for a motive nothing produces, so **no child could ever
-  // play**. Deciding it on the child's own free time is also what makes a weekend or an off-shift
-  // the hours they are meant to be out playing: while it lived inside `pickSocialImpulse` it was
-  // that function's LAST branch, below `sunday_service` (Sun 09:00–13:00), `civic_petition`,
-  // `hospital_visit`, `birthday` and `market_errand`, so an adult errand pre-empted play on exactly
-  // the days a child was free.
-  //
-  // Sickness, grief and harsh weather still outrank play — those are the only `stayHome` motives a
-  // juvenile has any business obeying.
   if (!impulse.stayHome) {
     if (mate?.alive && Math.hypot(mate.x - entity.x, mate.y - entity.y) <= SOCIAL_FRIENDSHIP_RADIUS) {
       const pdist = Math.hypot(mate.x - entity.x, mate.y - entity.y) || 1;
@@ -119,32 +109,11 @@ export function tickHumanChildLeisure(args: {
 
 import type { TickContext } from './simulation/simulationTypes';
 import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
-import { seededRandomForRun } from './simRng';
+import { seededRandomForRun, personDayRoll } from './simRng';
 import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
 import { pickBeautySpot } from './beautyGrid';
 
-/**
- * Where an idle settler should be when nothing else claims them.
- *
- * Owner, 2026-09-30, looking at a clump of dozens of settlers chatting mid-village with **no election and
- * no festival** running: *"they again in a circle"* — and then the fix in their own words: *"they should
- * goto a tree or to the tavern etc or spending at home various options"*.
- *
- * They were right about what was missing. Two idle rules sent every unoccupied settler to the **map
- * centre** (`width * 0.5`, `height * 0.5`) inside a 35-slot lattice of offsets — the partner-seeking
- * drift and the idle-leisure wander in `humanTick` — so a village with nothing on still piled its whole
- * idle population into one chatting blob in the middle of the map. This gives each settler a real
- * destination, chosen deterministically per person per day, with their own standing place at it:
- *
- *  - **home** — "spending at home" (a third, when they have a residence);
- *  - **a venue** — the nearest tavern, market, town hall or church, where `venueGatherPosition` spreads
- *    the crowd across the frontage;
- *  - **somewhere pretty** — a tree or meadow off the beauty grid, where `crowdGatherPosition` spreads the
- *    settlers who chose the same view.
- *
- * No RNG: `personDayRoll` is the sim's per-person, per-day stream, so one settler makes the same choice
- * all day and different settlers make different ones.
- */
+
 export function idleDestination(
   state: WorldState,
   entity: Entity,
@@ -255,16 +224,7 @@ export function tickAdultLeisureMotive(args: {
       suppressIdle = true;
     } else if (impulse.building) {
       const b = impulse.building;
-      /**
-       * One place per settler at the venue, and the walk goes to *that same* place.
-       *
-       * Owner, 2026-09-30: *"they again in a circle"*, with no event running — this branch was sending the
-       * whole village's leisure crowd to a single coordinate (`b.x + b.width / 2`, `b.y + b.height * 0.92`,
-       * each stopping within 20 px of it). `venueGatherPosition` spreads them across the venue's front
-       * (`humanMovement` owns stand positions), and the arrival test now measures the point the settler is
-       * actually walking to, so the check and the walk cannot disagree — the failure mode the handover
-       * recorded for the home/work pair.
-       */
+  
       const spot = venueGatherPosition(b, entity.id);
       const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
       if (arrived) enterHumanBuilding(entity, b);

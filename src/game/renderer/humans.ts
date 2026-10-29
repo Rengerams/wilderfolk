@@ -18,6 +18,7 @@ import {
   pickHumanVariant,
   HUMAN_SPRITE_MIN_ZOOM,
   HUMAN_WALK_SPEED_THRESHOLD,
+  humanRenderDetail,
   type HumanGender,
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
@@ -683,6 +684,10 @@ function drawHumanMarker(
   const radius = getHumanMarkerRadius(zoom, human.isJuvenile, isLeader);
   const fillColor = human.faction === 'visitor' ? '#22d3ee' : human.faction === 'rival' ? '#fb923c' : fill;
   ctx.beginPath();
+  ctx.arc(sx, sy, radius + 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fill();
+  ctx.beginPath();
   ctx.arc(sx, sy, radius, 0, Math.PI * 2);
   ctx.fillStyle = fillColor;
   ctx.fill();
@@ -794,9 +799,6 @@ export function drawHumans(
   const pendingBubbles: {
     sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
   }[] = [];
-  /** Village-wide zoom: settlers are dots, unless selected (see `HUMAN_SPRITE_MIN_ZOOM`). */
-  const markerMode = cam.zoom < HUMAN_SPRITE_MIN_ZOOM;
-
   for (const human of _cachedHumans) {
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
@@ -818,7 +820,7 @@ export function drawHumans(
       && !human.faction;
 
     // Zoomed-out LOD: one dot per settler, no sprite/shadow/bob/badge/bubble/name.
-    if (markerMode && !isSel) {
+    if (humanRenderDetail(cam.zoom, isSel, _cachedHumans.length) === 'marker') {
       drawHumanMarker(ctx, sx, sy, human, cam.zoom, isLeader);
       continue;
     }

@@ -17,6 +17,7 @@
  * stateless per settler and *day* (`personDayRoll`), so a passing branch is forced by
  * choosing the day rather than by stubbing randomness.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { EntityType, JobType } from '../src/game/gameTypes';
@@ -24,7 +25,7 @@ import type { Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import {
   HUMAN_FERTILITY_START,
   getFemaleFertility,

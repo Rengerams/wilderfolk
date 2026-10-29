@@ -1,3 +1,4 @@
+import { personDayRoll } from './simRng';
 import type { Entity, WorldState } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { EntityType, JobType } from './gameTypes';
@@ -9,7 +10,6 @@ import { addHuntVisual } from './huntvisuals';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 import { valleyStageIndex } from './ecologyStage';
-import { personDayRoll } from './dayCycle';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { steerEntityToward } from './simulation/movementSteering';
 import { freeHuntFoodGain } from './simulation/humanNeeds';
