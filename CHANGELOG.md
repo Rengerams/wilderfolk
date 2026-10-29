@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI (29 October 2026):** Added a changed-function overlap gate against the call graph. Unreviewed matches block PR CI; deliberate differences need fingerprint-pinned, test-backed approvals. Existing gameplay is unchanged.
+- **Changed:** Centralized deterministic per-settler daily rolls in the simulation RNG owner, with direct caller imports, consistent ownership and unchanged gameplay outcomes.
+- **Fixed (29 October 2026):** Grassland clearing overrides now blend alpine ground art without changing saved terrain. Founding settlers keep full sprites at overview zoom; larger crowds retain brighter markers. Added visual and LOD regression tests.
+
 - **Fixed (PR #99 Moon Howler tests):** Align five lifecycle and replacement-roll assertions with the established 22:00 Moon Howler nightfall. The village's ordinary 23:00 schedule and simulation logic are unchanged.
 
 - **Fixed (PR #99 CI):** Remove the temporary untracked population benchmark harness after running the baseline and before checking out the PR head; preserves the same harness, comparison methodology and manual 180-day mode. Latest-head CI verification pending.
