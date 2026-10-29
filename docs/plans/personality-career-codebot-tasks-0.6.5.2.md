@@ -1,15 +1,15 @@
 # Coding-agent execution — Wilderfolk DNA + Career 0.6.5.2
 
-**Task class:** implement features. **Implementation status (28 October 2026):** PR A and PR B merged; **PR C IMPLEMENTED AND MERGED via PR [#97](https://github.com/Rengerams/wilderfolk/pull/97)** (merge commit `110c6430`); PR D and PR E **NOT IMPLEMENTED**. This task sheet is an instruction document, not an implementation artifact.
+**Task class:** implement features. **Implementation status (29 October 2026):** PR A/B merged; PR C merged via [#97](https://github.com/Rengerams/wilderfolk/pull/97) (`110c6430`); **PR D implemented and merged via [#99](https://github.com/Rengerams/wilderfolk/pull/99)** (`781ee657`). **PR E is not implemented.** This is an active coding task sheet, not proof of PR-E completion.
 **Authoritative design:** [DNA, personality and career architecture](personality-career-single-pipeline-0.6.5.2.md).
 **Feature targets:** roadmap §11 and §16 (the old §17 was renumbered).
-**Order:** A → B → C → D → E. A/B/C are merged; **PR D is the next unfinished stage**. Do not implement C again; create the PR-D branch from updated `main` containing merged PR #97. Each PR must be self-contained and pass its own required tests; persistence for a new field must land in the **same** PR that introduces it.
+**Order:** A → B → C → D → E. **A–D merged; PR E is next.** Branch from current `main` containing #99, not from the historical PR-C/D branches. Do not rebuild career ownership, save migration or milestone logic. PR E is a read-only inspector and end-to-end player-visible compatibility proof.
 
 ## 0. Do this before any implementation
 
 - Read `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`, the complete linked architecture plan and `package.json`. Follow the shell verification in AGENTS and inspect the current branch and recently changed files.
 - Search existing implementation before adding new code; the architecture plan is an evidence-based snapshot of main, not a licence to ignore concurrent changes.
-- Prepare a mini-RFC: **Problem:** DNA effects scattered across owners, and no bounded career history. **Solution:** pure single evaluator plus only distinct new career writers. **Risks:** duplicate multipliers, changed RNG/cadence, automatic job shuffling, worker/save parity, overlapping ownership. **Scope:** one numbered PR phase at a time.
+- Prepare a PR-E mini-RFC: **Problem:** implemented DNA/career reasons cannot be inspected contextually. **Smallest fix:** one read-only selected-person component reusing canonical projections. **Risks:** false staffing explanations, stale selections, duplicate formulas and unintended writes. **Scope:** PR-E UI and targeted compatibility proof only.
 - **Mandatory for every PR A–E:** update `OWNERSHIP_OVERVIEW.md` **and** `src/game/simulation/decisionRegistry.ts` **and** `CHANGELOG.md`. Both registry files must occur in the PR diff; they must describe the code that actually exists in *that* PR, not planned future features.
 - **Mandatory for every discovered bug:** read `docs/bug_report/readme.md`, check for duplicates, write a new report to `docs/bug_report/` if distinct, and add/link it in the one index `docs/BUG_REPORTS/SUMMARY.md`. Report confirmed defects even if fixed in the same PR. The old `docs/BUG_REPORTS/` reports remain historical.
 - Import directly from the true owning file. **NO aliases, NO re-exports, NO barrel `index.ts`, NO duplicated trait tables, NO new general-purpose manager, NO wrapper functions that only forward to the evaluator, NO parallel world state, NO independent trait scheduler**.
@@ -224,9 +224,9 @@ Use the exact catalog payload family, activity names and selection behavior in a
 
 **PR C implemented in code (#97):** same gameplay for the six migrated domains, zero registered inline DNA-rule consumers, one numeric/compatibility catalog/evaluator, all 14 traits preserved, ordinary PR B rules unchanged, and no new writers or persisted fields. The owner-level parity tests and standard Node.js CI passed on code commit `a429d327` (407 files; 2700 passed; 2 skipped). **Merge completed:** #97 is merged (commit `110c6430`); PR-C status can be marked complete in the roadmap. Any subsequent regression fixes require their own tests and review. **A green source scan alone is not evidence of behavioral parity.**
 
-### PR D — NOT IMPLEMENTED: actual careers, history, mentorship integration and job fit
+### PR D — IMPLEMENTED AND MERGED (#99): verified career history, milestones and idle-worker fit
 
-**Entry gate satisfied:** PR #97 is merged. Create one PR-D branch from the **current updated `main`**, never fork from the old PR #95 or PR #97 implementation branches, and never invent a second DNA evaluator. PR D must consume PR C's existing `legacyExact` parity contexts **without altering their values, RNG, owners, legacy audit, or ordinary bounded PR B results**. The career modules own *only new career fields*, not skill, work assignment, schools, mentoring, relationships or trait rules. Keep PR D isolated from optional life-memory/leisure/affair features and PR E's inspector.
+**Historical acceptance contract — PR D needs no reimplementation.** Merged #99 (`781ee657`) credits witnessed previous-day job/site shifts, records descriptive 15/60/180-day career milestones and actual apprenticeship completion, and uses experience/DNA only for eligible idle-worker ties. Old-save fields and worker rollback shipped in #99. Moon Howler events begin at 22:00 and revert at 06:00; ordinary village night still begins 23:00. Unverified construction-only attendance stays uncredited. The bullets below are archived acceptance criteria, not tasks for PR E.
 
 **CREATE**
 - `src/game/careers/careerHistory.ts`
@@ -255,24 +255,37 @@ Use the exact catalog payload family, activity names and selection behavior in a
 - Adult work at age 18, school ages 6–17, manual staffing, settlement priority/commute, existing squared-distance-before-skill ordering, and automatic-transfer 60-day cooldown remain unchanged. Require tests showing a higher DNA fit does **not** displace a closer/otherwise better-ranked candidate or reassign an employed settler.
 - Work history/milestone idempotency (including a duplicate attendance/skill award for the same job/day), deterministic old-save **neutral field backfill** without inventing previous shifts, bounded invalid-value handling, worker/main-thread parity and rollback of nested career fields, absence and full-storage tests, stable seeded RNG, no extra global scan and no measured performance cliff. Save migration and schema support must already pass in PR D, not PR E.
 
-### PR E — transparent UI and end-to-end compatibility
+### PR E — NEXT: transparent personality and career inspector (NOT IMPLEMENTED)
+
+**Entry requirements and implementation boundary**
+- Branch from updated `main` containing merged [#99](https://github.com/Rengerams/wilderfolk/pull/99) (merge commit `781ee657`). Check current code, `AGENTS.md`, `docs/command.md`, both registries, this task sheet and its linked architecture before editing.
+- Problem: the career and DNA owners now produce real history and contextual explanations, but the selected-person UI shows only generic trait chips. Minimal solution: one selected-person read-only inspector. Risk: invented shifts, inaccurate staffing causality, stale selected-person data and new mutation paths. **No changes to simulation, staffing priorities, career credits, skill awards, balance or RNG.**
+- Treat PR D's 250/750/1,800 population comparisons and 120-day colony evidence as earlier implementation evidence; only PR-E-head tests validate PR E. Existing CI measurements are not hard performance budgets.
 
 **CREATE**
-- `src/components/PersonalityCareerDetails.tsx`
-- Matching inspector integration tests in the existing test conventions.
+- `src/components/PersonalityCareerDetails.tsx` — selected **player human** presentation only. Show canonical trait names and both context-dependent advantages/disadvantages, actual skill, verified career credits per job, descriptive tier with attainment date if saved, and genuine apprenticeship completion dates. Missing history means **no recorded career work**, not an inferred prior career.
+- Focused component integration tests in the existing conventions (e.g. `react-dom/server` rendering where suitable). Test switching selected people, missing optional records, verified tiers, no stale information, and all fourteen canonical traits' relevant explanation labels. Reuse existing fixture factories and harnesses.
 
 **EDIT**
-- `src/components/SelectedEntityPanel.tsx` via a direct import.
-- Optional existing workplace panel to show `Why this worker?` from the **same** `evaluateWorkerFit` and `evaluateTraitInfluence` outputs.
-- Confirm PR D's save migration already works. PR E only adds final end-to-end old-save and transport regression coverage; fix observed omissions in the actual owner without introducing parallel serialization.
-- Both registries, `CHANGELOG.md`. Mark roadmap §11 / §16 *only after feature code merges*.
+- `src/components/SelectedEntityPanel.tsx` — directly import the new component, preserve current trait chips, needs, status and activity. Render only for the correct player-human identity; do not invent human histories for animals, foreign visitors/captives, or transformed Moon Howlers. If the real transformed-person record can be proven, label that provenance explicitly.
+- Existing workplace UI **only if** there is a real verified selection context worth explaining. Otherwise show contextual fit with a clear label: **potential job fit**, not a definitive explanation of a past assignment.
+- Update `OWNERSHIP_OVERVIEW.md`, `src/game/simulation/decisionRegistry.ts`, `CHANGELOG.md`; mark roadmap §11/§16 inspector status complete **only after PR E merges**. For UI projections register on-demand presentation with `writes: []`; never claim a simulation tick or second writer. Document genuine newly discovered bugs in `docs/bug_report/` and link the single `docs/BUG_REPORTS/SUMMARY.md` index.
 
-**ACCEPT WHEN**
-- Player sees relevant trait benefits/drawbacks and the actual reasons for a worker/career choice.
-- No UI-only duplicate gameplay formulas; no deprecated aliases/re-exports.
-- Existing saves, authoritative worker/fallback, serialization and seeded full-colony simulation still behave correctly. For old saves the new properties are already migrated by PR C/D; PR E only verifies the full player-visible path and does not postpone compatibility fixes.
-- All fourteen traits have real reachable advantages and drawbacks with focused tests; bounded career data persists. Existing valid DNA remains unchanged; old saves with missing DNA receive deterministic canonical traits without consuming live RNG.
-- Updated owner tables, registry keys, call/cadence/write lists and actual tested links agree.
+**Reuse actual merged APIs without copying or mutating them**
+- `src/game/settlerTraits.ts` owns `TRAIT_DEFS` and the fourteen trait IDs. `src/game/personality/traitEffectCatalog.ts` owns `TRAIT_EFFECTS` and contextual benefit/drawback definitions. `evaluateTraitInfluence(subject, context, { includeReasons: true })` is the **only** calculation and yields typed effect reasons. Show pros/cons only for applicable contexts; do not imply generic trait descriptions guarantee a current behavior.
+- `src/game/careers/workerFit.ts` exports `evaluateWorkerFit(person, job, true)` → `{ skill, creditedDays, traitFactor, reasons? }`. `reasons` contains effect IDs and the calculation is **only an advisory tie-break**. The actual staffing owner uses eligibility/commute, then squared distance, then existing skill, only then bounded experience/DNA; equal ranks retain the first encountered candidate. Never call the projection the authoritative cause of historic/manual staffing or automatically change someone's job.
+- `src/game/careers/careerHistory.ts` owns `careerHistory?.[job]?.days` and `lastDay`: max **65,535 genuine credited days**, one job/calendar day for eligible attended work with previous-day site/trade provenance. `src/game/careers/careerProgression.ts` alone writes `careerMilestones?.[job]`, `tierAtDay`, and `trainedAtDay`; descriptive `CAREER_TIER_DAYS` are `15/60/180`. A tier **does not** grant extra skill, automatic promotion or a compulsory job change. Construction-only days lacking witnessed worker attendance remain uncredited.
+- UI can read `entity.skills?.[job] ?? 0` but **must not** call mutating `readSkill`, `ensureEntitySkills`, `recordCareerWork` or `advanceCareerProgression`. No new alias, forwarding helper, trait table, re-export barrel, saved presentation data or full-population scan per render.
+
+**Acceptance and verification**
+1. Two selected settlers with different traits, skills, credited days and milestones display accurate distinct information; selection changes immediately, no stale names or history.
+2. Original DNA and actual previous work survive old supported save→load→save and worker/fallback/rollback boundaries; old saves missing career fields show honest empty history, preserving skills and RNG. Extend existing `tests/personalityCareer.oldSaveMigration.test.ts` and worker suites **only if PR E reveals a missing end-to-end case**; do not rewrite migration.
+3. A potential-worker explanation uses current job context and canonical benefit/drawback/effect IDs. Higher fit never supersedes shorter commute, actual skills, eligibility or manual staffing; 60-day transfer cooldown is unchanged.
+4. No UI read mutates nested state, awards a career day, invents construction credits, re-evaluates the entire colony, or claims a Moon Howler has a currently staffed human job.
+5. Verify the actual PR-E head with focused inspector and save/worker tests, `npm run test:types`, `npm run lint` and `npm run build`. If the touched production boundary warrants it, run the existing seeded colony/worker harness, not a new test framework.
+6. Both ownership registries reflect real UI readers and **no new simulation writes**. Changelog records the shipped UI after implementation; PR description lists precise bug-report new/updated counts and actual green/failed checks. Historical reports remain read-only.
+
+**Explicit exclusions:** no second DNA evaluator, worker-ranking system, career progress writer, skill writer, new save format, career-state migration, population-wide daily scheduler, auto-staff reshuffle, or future life-memory behavior.
 
 ## 3. Performance and semantics proof (all implementation phases)
 
