@@ -60,17 +60,42 @@ describe('single human meal transaction', () => {
     expect(eater.needs!.severeHungerTicks).toBe(0);
   });
 
-  it('feeds foreign war captives without creating player physiology state', () => {
+  it('provides one prison ration without restoring energy or creating physiology', () => {
     const state = world(12);
+    state.tick += 8 * TICKS_PER_HOUR;
     const captive = person({ faction: 'rival', warCaptive: { raidId: 'raid-test', originRivalId: 'rival-test', capturedAtTick: 0, recruitAfterTick: 100, attempts: 0 }, energy: 180, needs: undefined });
     expect(tryEatColonyMeal(captive, state, 8)).toBe(true);
     expect(state.resources.food).toBe(11);
     expect(state.economyLedger?.consumed.meals).toBe(1);
-    expect(captive.energy).toBeGreaterThan(180);
+    expect(captive.energy).toBe(180);
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(false);
+    expect(captive.warCaptive?.lastRationDay).toBe(1);
     expect(captive.needs).toBeUndefined();
     const visitor = person({ faction: 'rival', warCaptive: undefined, energy: 180, needs: undefined });
     expect(tryEatColonyMeal(visitor, state, 8)).toBe(false);
     expect(state.resources.food).toBe(11);
+    state.tick += TICKS_PER_DAY;
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(true);
+    expect(captive.warCaptive?.lastRationDay).toBe(2);
+    expect(state.resources.food).toBe(10);
+  });
+
+  it('does not mark a prisoner as fed until food is successfully debited', () => {
+    const state = world(0);
+    state.tick += 8 * TICKS_PER_HOUR;
+    const captive = person({ faction: 'rival', needs: undefined,
+      warCaptive: { raidId: 'r', originRivalId: 'enemy', capturedAtTick: 0,
+        recruitAfterTick: 10, attempts: 0 } });
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(false);
+    expect(captive.warCaptive?.lastRationDay).toBeUndefined();
+    state.resources.food = 2;
+    expect(tryEatColonyMeal(captive, state, 8)).toBe(true);
+    expect(captive.warCaptive?.lastRationDay).toBe(1);
+    expect(state.resources.food).toBe(1);
+    const second = person({ ...captive, id: 2,
+      warCaptive: { ...captive.warCaptive!, lastRationDay: undefined } });
+    expect(tryEatColonyMeal(second, state, 8)).toBe(true);
+    expect(state.resources.food).toBe(0);
   });
 
   it('accounts accurately for fractional food and meal cooldown', () => {

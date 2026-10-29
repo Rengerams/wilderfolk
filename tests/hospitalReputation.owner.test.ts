@@ -104,7 +104,7 @@ describe('A15 — the hospital reputation rule has one owner', () => {
       `+${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days`,
     );
     expect(text).toContain(`+${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated`);
-    expect(text).toContain('lowers energy drain');
+    expect(text).toContain('Admitted patients recover extra stamina while resting.');
   });
 
   it('pays the advertised interval from one entry point: the flat grant, plus the ward round', () => {
