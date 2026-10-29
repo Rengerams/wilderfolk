@@ -34,6 +34,9 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
 
+**2026-10-29 — [Demolition performs unrelated colony-wide housing and staffing sweeps](../bug_report/2026-10-29-demolition-triggers-global-housing-staffing-sweep.md):** owner reports a freeze on every removal; static trace confirms unconditional unbounded housing reconciliation even for unused roads. Conditional, tick-bounded correction and three regression cases committed; CI and live large-colony replay pending.
+**2026-10-29 — [Manual save refused during busy or recovering simulation worker](../bug_report/2026-10-29-save-rejected-during-busy-worker.md):** screenshot confirms a save-refusal toast on a large settlement. The save path previously admitted new ticks while waiting for worker idle and did not await queued commands. Quiescence and safe recovery refusal added with focused regressions; CI and large-colony verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Population history omitted iron](../bug_report/2026-10-28-population-history-omitted-iron.md):** confirmed: the sampled resource timeline recorded gold, food, wood and stone, but omitted iron. Iron is now included in future samples; old saved history points remain valid without the optional field. Focused regression added; CI verification pending.

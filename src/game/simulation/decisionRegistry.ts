@@ -49,6 +49,7 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'workerMotionPresentation'
+  | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'careerHistory'
@@ -80,12 +81,20 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody',
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, exportAuthoritativeWorld, lastExportWasDegraded',
     cadence: 'render',
-    cadenceNote: 'On every acknowledged worker tick, anchor a read-only presentation interval; each frame blends only confirmed positions. Pausing, restarting and replacing the session invalidate the anchor. No simulation clocks or entity positions are written.',
+    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. On save, halt new ticks while earlier commands and worker idle settle; keep recovery or host-swap exports degraded. No gameplay writes.',
     writes: [],
-    scheduledFrom: 'GameWorkerHost.setTickResultHandler (acknowledgement) and requestAnimationFrame through GameLoop.frameBody (presentation)',
+    scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
     testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+  },
+  chronicleProseNames: {
+    owner: 'citizenId.ts — citizenFullName, formatDeathLog',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure identity formatting for Chronicle prose and graduation notices. Numbered citizen labels remain available for search, identifiers and grave-record lookups.',
+    writes: [],
+    scheduledFrom: 'On-demand in humanRelationships, education, humanNeeds, worldEvents and other event owners before eventLog writes',
+    testFile: 'tests/chronicle.citizenProseNames.test.ts',
   },
   dailyPersonRoll: {
     owner: 'simRng.ts — personDayRoll',
@@ -178,7 +187,7 @@ export const SIMULATION_DECISIONS = {
   housing: {
     owner: 'residencyReconciliation.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; moveResident stays the sole write; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'Scheduled housing sweeps run four times per day; events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
+    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
@@ -390,7 +399,7 @@ export const SIMULATION_DECISIONS = {
   commands: {
     owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
     cadence: 'player-command',
-    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop)',
+    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced',
     writes: [
       'building.occupants',
       'building.level',

@@ -6,7 +6,7 @@ import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { ensureEntitySkills } from './skills';
 import { addNotification } from './simEffects';
-import { formatCitizenName } from './citizenId';
+import { citizenFullName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
@@ -440,7 +440,7 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   entity.maxEnergy = Math.min(500, entity.maxEnergy + energyBonus);
   adjustHumanStaminaFromEnergy(entity, energyBonus * 0.5);
 
-  const label = formatCitizenName(entity);
+  const label = citizenFullName(entity);
   const detail =
     tier === 3
       ? `${label} graduated with honors — eligible for grandmaster apprenticeship`

@@ -156,6 +156,82 @@ describe('demolition round trip', () => {
   });
 
 
+  it('does not reassign unrelated settlers when removing an unused road', () => {
+    const idle = human(1);
+    const road = building(2, BuildingType.Road);
+    const vacantHome = building(3, BuildingType.House);
+    const vacantFarm = building(4, BuildingType.Farm);
+    const world = makeWorld([idle], [road, vacantHome, vacantFarm], { totalBuildingsCompleted: 3 });
+
+    const next = applyWorkerCommand(world, demolish(2));
+    expect(next.buildings.some((item) => item.id === 2)).toBe(false);
+    expect(idle.residenceBuildingId).toBeUndefined();
+    expect(idle.workerBuildingId).toBeUndefined();
+    expect(vacantHome.occupants).toEqual([]);
+    expect(vacantFarm.occupants).toEqual([]);
+  });
+
+  it('immediately rehomes a resident displaced by house demolition', () => {
+    const resident = human(1, { residenceBuildingId: 2 });
+    const formerHome = building(2, BuildingType.House, { occupants: [1] });
+    const availableHome = building(3, BuildingType.House);
+    const world = makeWorld([resident], [formerHome, availableHome], { totalBuildingsCompleted: 2 });
+
+    applyWorkerCommand(world, demolish(2));
+    expect(resident.residenceBuildingId).toBe(3);
+    expect(availableHome.occupants).toContain(1);
+  });
+
+  it('does not rehouse an unrelated homeless settler when an occupied house is demolished', () => {
+    const evicted = human(1, { residenceBuildingId: 2 });
+    const unrelated = human(5);
+    const formerHome = building(2, BuildingType.House, { occupants: [1] });
+    const availableHome = building(3, BuildingType.House);
+    const unrelatedVacancy = building(4, BuildingType.House);
+    const world = makeWorld([evicted, unrelated], [formerHome, availableHome, unrelatedVacancy], {
+      totalBuildingsCompleted: 3,
+    });
+
+    applyWorkerCommand(world, demolish(2));
+    expect(evicted.residenceBuildingId).toBe(3);
+    expect(unrelated.residenceBuildingId).toBeUndefined();
+    expect(unrelatedVacancy.occupants).toEqual([]);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
+  it('keeps a displaced family together without moving an unrelated household', () => {
+    const mother = human(1, { residenceBuildingId: 2, partnerId: 2, childrenIds: [3] });
+    const father = human(2, { residenceBuildingId: 2, partnerId: 1, childrenIds: [3] });
+    const child = human(3, {
+      residenceBuildingId: 2, age: 7, isJuvenile: true, motherId: 1, fatherId: 2,
+    });
+    const neighbor = human(4, { residenceBuildingId: 4 });
+    const formerHome = building(2, BuildingType.House, { occupants: [1, 2, 3] });
+    const availableHome = building(3, BuildingType.House);
+    const neighborHome = building(4, BuildingType.House, { occupants: [4] });
+    const world = makeWorld([mother, father, child, neighbor], [
+      formerHome, availableHome, neighborHome,
+    ], { totalBuildingsCompleted: 3 });
+
+    applyWorkerCommand(world, demolish(2));
+    expect([mother, father, child].map((person) => person.residenceBuildingId)).toEqual([3, 3, 3]);
+    expect(availableHome.occupants).toEqual(expect.arrayContaining([1, 2, 3]));
+    expect(neighbor.residenceBuildingId).toBe(4);
+    expect(neighborHome.occupants).toEqual([4]);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
+  });
+
+  it('reassigns a worker displaced by farm demolition', () => {
+    const farmer = human(1, { workerBuildingId: 2, job: JobType.Farmer });
+    const formerFarm = building(2, BuildingType.Farm, { occupants: [1] });
+    const availableFarm = building(3, BuildingType.Farm);
+    const world = makeWorld([farmer], [formerFarm, availableFarm], { totalBuildingsCompleted: 2 });
+
+    applyWorkerCommand(world, demolish(2));
+    expect(farmer.workerBuildingId).toBe(3);
+    expect(availableFarm.occupants).toContain(1);
+  });
+
   it('removes the building exactly once and cleans the worker assignment', () => {
     const worker = human(1, { workerBuildingId: 2, job: JobType.Farmer });
     const farm = building(2, BuildingType.Farm, { occupants: [1] });
