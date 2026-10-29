@@ -20,6 +20,9 @@ import {
 
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
+  'workerMotionPresentation',
+  'chronicleProseNames',
+  'dailyPersonRoll',
   'traitInfluence',
   'careerHistory',
   'careerProgression',
@@ -48,6 +51,21 @@ const REQUIRED_DECISIONS = [
   'terrainRiverSurface',
   'commands',
 ] as const;
+
+/** Registered owners that calculate or present and write nothing — pure projections get `writes: []`. */
+const READ_ONLY_DECISIONS = new Set<string>([
+  'terrainRiverSurface',
+  'traitInfluence',
+  'workerFit',
+  'raidTerminalPresentation',
+  'dialogueContent',
+  'chronicleProseNames',
+  'dailyPersonRoll',
+  'workerMotionPresentation',
+]);
+
+/** The read-only owners that run inside the render loop rather than on a demand query. */
+const RENDER_ONLY_DECISIONS = new Set<string>(['terrainRiverSurface', 'workerMotionPresentation']);
 
 describe('simulation decision registry', () => {
   it('contains exactly the required decision keys', () => {
@@ -86,8 +104,8 @@ describe('simulation decision registry', () => {
       expect(row.owner.trim().length, `owner of "${key}"`).toBeGreaterThan(0);
       expect(row.scheduledFrom.trim().length, `scheduledFrom of "${key}"`).toBeGreaterThan(0);
       expect(row.testFile.trim().length, `testFile of "${key}"`).toBeGreaterThan(0);
-      if (key === 'terrainRiverSurface' || key === 'traitInfluence' || key === 'workerFit' || key === 'raidTerminalPresentation' || key === 'dialogueContent') {
-        expect(row.cadence).toBe(key === 'terrainRiverSurface' ? 'render' : 'on-demand');
+      if (READ_ONLY_DECISIONS.has(key)) {
+        expect(row.cadence).toBe(RENDER_ONLY_DECISIONS.has(key) ? 'render' : 'on-demand');
         expect(row.writes).toEqual([]);
       } else {
         expect(row.writes.length, `writes of "${key}"`).toBeGreaterThan(0);

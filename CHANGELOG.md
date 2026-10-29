@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.
+
+- **Fixed (29 October 2026):** The decision registry's own contract test was red on main: it omitted three registered read-only owners and demanded writes from two of them. The pinned key list and read-only rule now follow the existing registry rows.
+
 - **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
 - **Fixed (29 October 2026):** Auto-fill no longer copies the worker-owned simulation world before staffing. Isolated commands still copy; regression checks equivalent assignments. Large-colony verification pending.
 
