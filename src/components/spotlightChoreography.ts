@@ -132,21 +132,16 @@ function buildSteps(): readonly SpotlightStep[] {
 export const SPOTLIGHT_STEPS = buildSteps();
 export const SPOTLIGHT_TOTAL_MS = SPOTLIGHT_STEPS.reduce((total, step) => total + step.durationMs, 0);
 
-function captionStart(cue: SpotlightCue): number {
+function captionBoundary(cue: SpotlightCue, edge: 'start' | 'end'): number {
   const lineIndex = SPOTLIGHT_CAPTIONS.findIndex((line) => line.cue === cue);
-  const step = SPOTLIGHT_STEPS.find((step) => step.kind === 'caption' && step.lineIndex === lineIndex);
+  const step = SPOTLIGHT_STEPS.find((item) => item.kind === 'caption' && item.lineIndex === lineIndex);
   if (!step) throw new Error('[spotlight] Cue has no timeline step: ' + cue);
-  return step.startMs;
+  return step.startMs + (edge === 'end' ? step.durationMs : 0);
 }
-function captionEnd(cue: SpotlightCue): number {
-  const lineIndex = SPOTLIGHT_CAPTIONS.findIndex((line) => line.cue === cue);
-  const step = SPOTLIGHT_STEPS.find((step) => step.kind === 'caption' && step.lineIndex === lineIndex);
-  return step!.startMs + step!.durationMs;
-}
-export const SPOTLIGHT_FIRST_CHORUS_START = captionStart('first-chorus-start');
-export const SPOTLIGHT_FIRST_CHORUS_END = captionEnd('first-chorus-end');
-export const SPOTLIGHT_BRIDGE_START = captionStart('bridge-hearts-start');
-export const SPOTLIGHT_FAREWELL_START = captionStart('farewell-walk');
+export const SPOTLIGHT_FIRST_CHORUS_START = captionBoundary('first-chorus-start', 'start');
+export const SPOTLIGHT_FIRST_CHORUS_END = captionBoundary('first-chorus-end', 'end');
+export const SPOTLIGHT_BRIDGE_START = captionBoundary('bridge-hearts-start', 'start');
+export const SPOTLIGHT_FAREWELL_START = captionBoundary('farewell-walk', 'start');
 export const SPOTLIGHT_APPLAUSE_START = SPOTLIGHT_TOTAL_MS - SPOTLIGHT_APPLAUSE_MS;
 
 export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {
