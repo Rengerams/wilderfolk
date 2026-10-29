@@ -108,7 +108,7 @@ export function formatDeathAgeSuffix(entity: Pick<Entity, 'age' | 'isJuvenile'>)
 }
 
 export function formatDeathLog(entity: Entity, cause: string): string {
-  return `${formatCitizenName(entity)} ${cause} — ${formatDeathAgeSuffix(entity)}`;
+  return `${citizenFullName(entity)} ${cause} — ${formatDeathAgeSuffix(entity)}`;
 }
 
 export function appendDeathAge(message: string, entity: Pick<Entity, 'age' | 'isJuvenile'>): string {
