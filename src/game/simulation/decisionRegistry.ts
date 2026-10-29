@@ -332,7 +332,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
   },
   leadership: {
-    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip)',
+    owner: 'leaderHouse.ts — syncLeaderHouseResidency (the housing pipeline\'s `leader` phase, decided through relocateHousehold), applyLeaderOccupation; election: villageLeadership.ts (villageLeaderId, selectElectionGossip, tickElectionGossip); ceremony attendance: villageLeadership.ts (isCeremonyAttendee, getElectionGatherTarget — read-only)',
     cadence: 'daily',
     cadenceNote: 'authority declares daily/idempotent — residency reconciliation is idempotent per day; applyLeaderOccupation preserves a valid leader workplace (only repairs stale), per 2026-08-20 decision',
     writes: [
@@ -346,7 +346,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog',
     ],
     scheduledFrom: 'tickLayerDaily.ts → syncLeaderHouseResidency; villageLeadership election flow',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts',
   },
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',

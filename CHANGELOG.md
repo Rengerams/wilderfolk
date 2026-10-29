@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Election-ceremony attendance and gathering slots no longer rescan the whole village for every settler. On a 2000-settler save the per-tick cost dropped about thirtyfold, with identical attendees and positions.
+
 - **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.
 
 - **Fixed (29 October 2026):** The decision registry's own contract test was red on main: it omitted three registered read-only owners and demanded writes from two of them. The pinned key list and read-only rule now follow the existing registry rows.

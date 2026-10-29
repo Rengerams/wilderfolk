@@ -530,18 +530,25 @@ export const CEREMONY_ATTENDEE_LIMIT = GATHER_SLOTS_PER_RING * 2;
 export function isCeremonyAttendee(state: WorldState, entityId: number): boolean {
   if (!state.electionCeremony) return false;
   if (state.electionCeremony.finalistIds?.includes(entityId)) return true;
+  // `slot` only grows, so reaching the limit settles the answer without a full sweep.
   let slot = 0;
   for (let i = 0; i < state.entities.length; i++) {
     const entity = state.entities[i];
     if (!isEligibleForLeadership(entity, state)) continue;
     if (entity.id === entityId) return slot < CEREMONY_ATTENDEE_LIMIT;
-    if (entity.id < entityId) slot++;
+    if (entity.id < entityId) {
+      slot++;
+      if (slot >= CEREMONY_ATTENDEE_LIMIT) return false;
+    }
   }
   return false;
 }
 
 /** Radius of the outermost ring, in px. Overflow attendees share it; non-attendees stand just outside. */
 const MAX_GATHER_RADIUS_PX = 22 + MAX_GATHER_RING * 14;
+
+/** The outer ring radius stops changing past this crowd size, so counting beyond it is wasted work. */
+const ATTENDEE_COUNT_CAP = 32;
 
 export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
   const c = state.electionCeremony;
@@ -559,15 +566,18 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
   // `tryGraduateHumanChild` clears `isJuvenile`. So take the one number the caller needs
   // instead: its index in the id-sorted attendee list. Ids are unique, so that index is exactly the
   // number of eligible entities holding a smaller id — one pass, no array, no sort.
+
+  // Both answers saturate — the slot at the attendee limit, the crowd at the ring radius cap.
   let slot = 0;
   let attendeeCount = 0;
   let isAttendee = false;
   for (let i = 0; i < state.entities.length; i++) {
     const entity = state.entities[i];
     if (!isEligibleForLeadership(entity, state)) continue;
-    attendeeCount++;
+    if (attendeeCount < ATTENDEE_COUNT_CAP) attendeeCount++;
     if (entity.id === entityId) isAttendee = slot < CEREMONY_ATTENDEE_LIMIT;
-    else if (entity.id < entityId) slot++;
+    else if (entity.id < entityId && slot < CEREMONY_ATTENDEE_LIMIT) slot++;
+    if (slot >= CEREMONY_ATTENDEE_LIMIT && attendeeCount >= ATTENDEE_COUNT_CAP) break;
   }
 
   if (!isAttendee) {
