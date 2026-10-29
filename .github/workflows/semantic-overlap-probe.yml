@@ -1,0 +1,25 @@
+name: Semantic overlap E2E probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/check-function-overlap.mjs'
+      - 'scripts/check-function-overlap.integration.test.mjs'
+      - '.github/workflows/semantic-overlap-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - name: Install Node 26
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+      - name: Run real Git end-to-end duplicate probes
+        run: node --test scripts/check-function-overlap.integration.test.mjs
