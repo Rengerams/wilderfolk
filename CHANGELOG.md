@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed:** Eight hours of ordinary indoor sleep now restores 100 rest and stamina from zero; removed delayed sleep bonuses and their saved counters while retaining local well and hospital effects.
+
 - **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.

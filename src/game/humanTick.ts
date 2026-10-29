@@ -621,12 +621,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const cell = isPrisoner ? buildingById.get(entity.prisonBuildingId!) : undefined;
     const sleepingInCell = Boolean(cell?.completed && isNightHour(hourOfDay)
       && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18);
-    const asleepAtHome = !isPrisoner && !onDutyForSleep
-      && isAsleepAtHome(entity, buildingById, hourOfDay);
+    const home = entity.residenceBuildingId == null
+      ? undefined : buildingById.get(entity.residenceBuildingId);
+    const insideOwnHome = !isPrisoner && !onDutyForSleep
+      && !!home && home.faction !== 'rival' && isResidenceBuilding(home)
+      && previousIndoorBuildingId === home.id;
+    const asleepAtHome = insideOwnHome && isNightHour(hourOfDay);
     const sleepingAtHotel = !isPrisoner && !onDutyForSleep
+      && entity.hotelStayBuildingId != null
+      && previousIndoorBuildingId === entity.hotelStayBuildingId
       && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay);
-    const recoveryAtHome = !isPrisoner && !onDutyForSleep
-      && recoveringSleep && isNearResidence(entity, buildingById);
+    const recoveryAtHome = insideOwnHome && recoveringSleep;
     const ward = previousIndoorBuildingId == null
       ? undefined : buildingById.get(previousIndoorBuildingId);
     const sleepingAtHospital = !isPrisoner && !onDutyForSleep
@@ -645,18 +650,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         asleepAtHome || sleepingAtHotel || recoveryAtHome || sleepingAtHospital || sleepingAtLover
       ))
     );
-    let restingBuildingId: number | undefined;
-    if (sleepingForNeeds && !isPrisoner) {
-      if (asleepAtHome || (recoveryAtHome && previousIndoorBuildingId === entity.residenceBuildingId)) {
-        restingBuildingId = entity.residenceBuildingId;
-      } else if (sleepingAtHotel) {
-        restingBuildingId = entity.hotelStayBuildingId;
-      } else if (sleepingAtHospital) {
-        restingBuildingId = ward?.id;
-      } else if (sleepingAtLover) {
-        restingBuildingId = loverHome?.id;
-      }
-    }
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -666,7 +659,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
         hasWell: hasNearbyWell(entity, nearbyWells),
         hasHospital: sleepingAtHospital,
-        restingBuildingId,
       });
       if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);

@@ -218,11 +218,6 @@ export interface HumanNeedsState {
   breakUntilRecovered?: boolean;
   /** Overnight shift was worked; schedule daytime sleep once the shift ends. */
   nightDutyRecoveryPending?: boolean;
-  /** Continuous stationary sleep at one verified location, persisted across saves. */
-  restStartTick?: number;
-  restBuildingId?: number;
-  restAnchorX?: number;
-  restAnchorY?: number;
 }
 
 export interface MoonHowlerSavedState {

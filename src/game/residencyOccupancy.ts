@@ -2,6 +2,7 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { isPlayerHuman } from './playerHuman';
+import { getBuildingCenter } from './buildingGeometry';
 
 
 export function isResidenceBuilding(b: Building): boolean {
@@ -90,8 +91,7 @@ export function isNearResidence(human: Entity, buildings: Building[] | ReadonlyM
   const id = human.residenceBuildingId!;
   const residence = 'get' in buildings ? (buildings as ReadonlyMap<number, Building>).get(id) : (buildings as Building[]).find((b) => b.id === id);
   if (!residence || !isResidenceBuilding(residence)) return false;
-  const cx = residence.x + residence.width / 2;
-  const cy = residence.y + residence.height / 2;
+  const { x: cx, y: cy } = getBuildingCenter(residence);
   return Math.hypot(human.x - cx, human.y - cy) <= maxDist;
 }
 

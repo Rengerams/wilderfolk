@@ -11,15 +11,13 @@ export const HUMAN_NEEDS = {
   EAT_ENTER_NUTRITION: 70,
   EAT_COOLDOWN_SIM_HOURS: 2,
   REST_LOSS_AWAKE_PER_SIM_HOUR: 4,
-  REST_RECOVERY_SLEEP_PER_SIM_HOUR: 12,
+  REST_RECOVERY_SLEEP_PER_SIM_HOUR: 12.5,
   STAMINA_WORK_LOSS_PER_SIM_HOUR: 9,
   STAMINA_WALK_LOSS_PER_SIM_HOUR: 5,
   STAMINA_IDLE_RECOVERY_PER_SIM_HOUR: 5,
-  STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 13,
+  STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 12.5,
   WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
   WELL_RADIUS_PX: 400,
-  REST_BONUS_AFTER_SIM_HOURS: 4,
-  REST_BONUS_STAMINA_RECOVERY_MULTIPLIER: 1.5,
   HOSPITAL_STAMINA_RECOVERY_MULTIPLIER: 1.1,
   REST_CRITICAL: 20,
   REST_RECOVERY_TARGET: 85,
@@ -70,14 +68,6 @@ export function normalizeHumanNeeds(entity: Entity): HumanNeedsState {
   if (old?.breakUntilRecovered === true) result.breakUntilRecovered = true;
   if (old?.nightDutyRecoveryPending === true) result.nightDutyRecoveryPending = true;
   if (typeof old?.sleepRecoveryUntilTick === 'number' && Number.isSafeInteger(old.sleepRecoveryUntilTick) && old.sleepRecoveryUntilTick >= 0) result.sleepRecoveryUntilTick = old.sleepRecoveryUntilTick;
-  if (Number.isSafeInteger(old?.restStartTick) && old!.restStartTick! >= 0
-    && Number.isSafeInteger(old?.restBuildingId) && old!.restBuildingId! >= 0
-    && Number.isFinite(old?.restAnchorX) && Number.isFinite(old?.restAnchorY)) {
-    result.restStartTick = old!.restStartTick;
-    result.restBuildingId = old!.restBuildingId;
-    result.restAnchorX = old!.restAnchorX;
-    result.restAnchorY = old!.restAnchorY;
-  }
   entity.needs = result;
   return result;
 }
@@ -92,8 +82,6 @@ export interface HumanNeedsObservation {
   moving: boolean;
   hasWell?: boolean;
   hasHospital?: boolean;
-  /** Verified home, hotel, paramour residence or hospital during real sleep. */
-  restingBuildingId?: number;
 }
 
 export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): HumanNeedsState {
@@ -102,41 +90,13 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
   const ticks = Math.max(0, Math.floor(obs.elapsedTicks ??
     (needs.lastAdvancedTick === undefined ? 1 : obs.tick - needs.lastAdvancedTick)));
   const hours = ticks / TICKS_PER_HOUR;
-  // A visit to a building is not enough. Four consecutive ticks-per-hour blocks
-  // must observe sleep, no movement, the same location, and the same position.
-  const verifiedRest = obs.sleeping && !obs.working && !obs.moving
-    && obs.restingBuildingId != null && Number.isFinite(entity.x) && Number.isFinite(entity.y);
-  if (verifiedRest) {
-    const uninterrupted = needs.lastAdvancedTick === obs.tick - 1
-      && needs.restBuildingId === obs.restingBuildingId
-      && needs.restStartTick != null && needs.restStartTick <= obs.tick
-      && needs.restAnchorX != null && needs.restAnchorY != null
-      && Math.abs(entity.x - needs.restAnchorX) <= 0.01
-      && Math.abs(entity.y - needs.restAnchorY) <= 0.01;
-    if (!uninterrupted) {
-      needs.restStartTick = obs.tick;
-      needs.restBuildingId = obs.restingBuildingId;
-      needs.restAnchorX = entity.x;
-      needs.restAnchorY = entity.y;
-    }
-  } else {
-    needs.restStartTick = undefined;
-    needs.restBuildingId = undefined;
-    needs.restAnchorX = undefined;
-    needs.restAnchorY = undefined;
-  }
-  const longRest = verifiedRest && needs.restStartTick != null
-    && obs.tick - needs.restStartTick >= HUMAN_NEEDS.REST_BONUS_AFTER_SIM_HOURS * TICKS_PER_HOUR;
   const nutritionLoss = HUMAN_NEEDS.NUTRITION_BASE_LOSS_PER_SIM_HOUR
     + (obs.working ? HUMAN_NEEDS.NUTRITION_WORK_EXTRA_PER_SIM_HOUR : 0)
     + (obs.moving ? HUMAN_NEEDS.NUTRITION_WALK_EXTRA_PER_SIM_HOUR : 0);
   needs.nutrition = bounded(needs.nutrition - nutritionLoss * hours * (entity.isJuvenile ? 0.85 : 1), 0);
   needs.rest = bounded(needs.rest + hours * (obs.sleeping
     ? HUMAN_NEEDS.REST_RECOVERY_SLEEP_PER_SIM_HOUR : -HUMAN_NEEDS.REST_LOSS_AWAKE_PER_SIM_HOUR), 0);
-  // Sleep restores stamina (it does not drain any). Make the 50% bonus real
-  // by boosting positive recovery only after four uninterrupted hours.
   let staminaRate = obs.sleeping ? HUMAN_NEEDS.STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR
-    * (longRest ? HUMAN_NEEDS.REST_BONUS_STAMINA_RECOVERY_MULTIPLIER : 1)
     : obs.working ? -HUMAN_NEEDS.STAMINA_WORK_LOSS_PER_SIM_HOUR
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
