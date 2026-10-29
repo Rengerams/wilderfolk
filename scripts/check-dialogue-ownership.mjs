@@ -144,7 +144,7 @@ for (const file of [...dialogueFiles, ...presentationFiles]) {
   if (!existsSync(resolve(file))) errors.push(`${rootDialoguePath}: imported missing JSON source ${file}`);
 }
 const dialogueOwner = readFileSync(resolve(rootDialoguePath), 'utf8');
-if (dialogueOwner.match(/const DIALOGUE_SOURCE_FILES[\\s\\S]*?\\];/)?.[0].includes('spotlightPresentationJson')) {
+if (dialogueOwner.split('const DIALOGUE_SOURCE_FILES')[1]?.split('];')[0]?.includes('spotlightPresentationJson')) {
   errors.push(`${rootDialoguePath}: group presentation cannot enter the solo/pair bank`);
 }
 if (!dialogueOwner.includes('presentationScenesByEvent.set(')) {
