@@ -397,7 +397,7 @@ export class GameLoop {
 
     host.setWorkerFaultHandler((source, message) => {
       if (this.workerHost !== host) return;
-      this.fallbackFromWorker(`Worker ${source} error: ${message}`);
+      this.fallbackFromWorker(`Worker ${source} error: ${message}`, source === 'command');
     });
 
     host.setCommandResultHandler((world, _delta, render, ok, reason) => {
@@ -435,12 +435,16 @@ export class GameLoop {
     });
   }
 
-  private fallbackFromWorker(reason: string): void {
+  private fallbackFromWorker(reason: string, discardUnconfirmedCommand = false): void {
     if (!this.workerEnabled && !this.workerBooting) return;
     this.lastWorkerPresentation = null;
     console.warn(`[GameLoop] ${reason} — ${isGameWorkerEnabled() ? 'recovering simulation worker' : 'falling back to main-thread ticks'}`);
 
-    const retryCommands = isGameWorkerEnabled() ? this.optimisticCommands : [];
+    const retryCommands = isGameWorkerEnabled()
+      ? this.optimisticCommands.slice(discardUnconfirmedCommand ? 1 : 0) : [];
+    if (discardUnconfirmedCommand && this.optimisticCommands.length > 0) {
+      console.error('[GameLoop] Unconfirmed command not replayed after worker fault:', this.optimisticCommands[0].op);
+    }
     this.workerCommandEpoch++;
     this.commandChain = Promise.resolve();
     this.optimisticCommands = [];

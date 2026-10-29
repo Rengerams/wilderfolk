@@ -368,6 +368,62 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       }
     });
 
+    it('does not replay a timed-out command but retains later queued commands', async () => {
+      const world = makeWorldForEntities([human(1)], [
+        finishedBuilding(2, BuildingType.Farm), finishedBuilding(3, BuildingType.Quarry),
+      ]);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const stalled = makeFakeHost(structuredClone(world));
+      stalled.host.whenIdle.mockResolvedValue(undefined);
+      stalled.host.sendCommand.mockReturnValue(new Promise<SimTickDelta>(() => {}));
+      const internals = loop as unknown as {
+        workerEnabled: boolean; workerHost: unknown; workerRecoveryTimer: ReturnType<typeof setTimeout> | null;
+        registerWorkerHandlers: (g: number) => void; flushDeferredWorkerCommands: () => void;
+        deferredWorkerCommands: Array<{ cmd: WorkerCommand }>; commandChain: Promise<void>;
+      };
+      internals.workerEnabled = true;
+      internals.workerHost = stalled.host;
+      internals.registerWorkerHandlers(0);
+      const timedOut: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: 2 };
+      const queued: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'demolishBuilding', buildingId: 3 };
+      loop.applyCommand(timedOut);
+      loop.applyCommand(queued);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(stalled.host.sendCommand).toHaveBeenCalledWith(timedOut);
+      vi.stubGlobal('Worker', class {});
+      try {
+        stalled.fireFault('command', 'Worker command timed out (op=demolishBuilding)');
+        expect(internals.deferredWorkerCommands.map((entry) => entry.cmd)).toEqual([queued]);
+        expect(loop.getWorld().buildings.some((building) => building.id === 2)).toBe(true);
+        if (internals.workerRecoveryTimer) clearTimeout(internals.workerRecoveryTimer);
+        internals.workerRecoveryTimer = null;
+
+        let recoveredWorld = structuredClone(world);
+        const recovered = makeFakeHost(recoveredWorld);
+        recovered.host.whenIdle.mockResolvedValue(undefined);
+        recovered.host.sendCommand.mockImplementation((command) => {
+          recoveredWorld = applyWorkerCommand(recoveredWorld, command);
+          recovered.fireCommandResult(recoveredWorld, true);
+          return Promise.resolve(simTickDeltaFromWorld(recoveredWorld));
+        });
+        internals.workerEnabled = true;
+        internals.workerHost = recovered.host;
+        internals.registerWorkerHandlers(0);
+        internals.flushDeferredWorkerCommands();
+        await internals.commandChain;
+
+        expect(recovered.host.sendCommand).toHaveBeenCalledTimes(1);
+        expect(recovered.host.sendCommand).toHaveBeenCalledWith(queued);
+        expect(loop.getWorld().buildings.some((building) => building.id === 2)).toBe(true);
+        expect(loop.getWorld().buildings.some((building) => building.id === 3)).toBe(false);
+      } finally {
+        loop.stop();
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('waits for the worker before running colony-wide staffing commands', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       const loop = new GameLoop(world, createInitialView(400, 300), () => null);

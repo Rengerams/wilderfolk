@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (29 October 2026):** Residents now approach homes through walkable south-side porch targets outside the building footprint. Home leisure uses the same target, preventing ID-specific entry failures at the Leader's House. Added regressions; live verification pending.
+- **Fixed (29 October 2026):** A timed-out simulation worker command is no longer automatically replayed after worker recovery, preventing the same unconfirmed operation from repeatedly stalling the worker. Later queued commands retain their order; timeout logs name the operation. Root cause of the slow large-colony command still needs profiling.
 
 - **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
 - **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
