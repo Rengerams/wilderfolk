@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #91, 29 October 2026):** Spotlight now claims the shared overlay keyboard contract while active. Gameplay shortcuts no longer pass through; Escape invokes the same scene Skip callback. Added a keyboard ownership regression; browser and CI validation pending.
+
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
 
 - **Fixed (PR #99):** Career shifts and credited days share canonical player membership, including legacy explicit player markers. Foreign factions remain excluded; regression tests added.
