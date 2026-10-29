@@ -5,7 +5,6 @@ import { citizenFullName, formatCitizenName, formatDeathLog } from '../src/game/
 import { logDeath } from '../src/game/eventLog';
 import { applyEducationGraduation, SCHOOL_GRADUATION_DAYS } from '../src/game/education';
 import { tryFormSchoolyardBond } from '../src/game/simulation/humanRelationships';
-import { RELATIONSHIP_CONFIG } from '../src/game/gameConstants';
 
 describe('Chronicle citizen prose and stable identity', () => {
   it('writes a natural death sentence but keeps the numbered identity for graves', () => {
@@ -38,7 +37,7 @@ describe('Chronicle citizen prose and stable identity', () => {
       surname: 'Vale',
       age: 14,
       isJuvenile: true,
-      schoolDays: RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_EVERY_DAYS,
+      schoolDays: 5,
     });
     const classmate = human(902, { name: 'Tom', surname: 'Moss', age: 14, isJuvenile: true });
     world.entities = [child, classmate];
