@@ -10,6 +10,7 @@ import { unindexAdjacency } from './adjacencyIndex';
 import { allPlayerHumans } from './playerHuman';
 import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
 import { assignMissingResidences } from './residencyReconciliation';
+import { buildHousingUnits } from './residencySelection';
 import { invalidatePopulationSnapshotCache } from './populationGrowth';
 
 /** The repair owner's materials. Exported so a spender can leave the price of one repair behind. */
@@ -236,8 +237,8 @@ export function upgradeBuilding(originalState: WorldState, buildingId: number): 
 function clearAssignmentsForDemolishedBuilding(
   state: WorldState,
   buildingIds: ReadonlySet<number>,
-): { housing: boolean; workforce: boolean } {
-  const affected = { housing: false, workforce: false };
+): { residents: Set<number>; workforce: boolean } {
+  const affected = { residents: new Set<number>(), workforce: false };
   for (const entity of state.entities) {
     if (entity.workerBuildingId != null && buildingIds.has(entity.workerBuildingId)) {
       removeWorkerTransition(entity, state.buildings);
@@ -245,7 +246,7 @@ function clearAssignmentsForDemolishedBuilding(
     }
     if (entity.residenceBuildingId != null && buildingIds.has(entity.residenceBuildingId)) {
       moveResident(entity, undefined, 'demolition', { buildings: state.buildings });
-      affected.housing = true;
+      affected.residents.add(entity.id);
     }
     if (entity.prisonBuildingId != null && buildingIds.has(entity.prisonBuildingId)) {
       if (entity.alive && entity.warCaptive) {
@@ -255,7 +256,7 @@ function clearAssignmentsForDemolishedBuilding(
       entity.prisonBuildingId = undefined;
       entity.prisonerUntilTick = undefined;
       entity.prisonSentenceCrime = undefined;
-      affected.housing = true;
+      affected.residents.add(entity.id);
       affected.workforce = true;
     }
   }
@@ -350,9 +351,16 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
   removeBuildingsFromState(state, buildings);
   updateStorageCaps(state);
   invalidatePopulationSnapshotCache(state);
-  if (affected.housing || affected.workforce) {
+  if (affected.residents.size > 0 || affected.workforce) {
     const humans = allPlayerHumans(state.entities);
-    if (affected.housing) assignMissingResidences(humans, state.buildings, state.entities, state.tick);
+    if (affected.residents.size > 0) {
+      const displacedHouseholds = buildHousingUnits(humans)
+        .filter((unit) => unit.some((human) => affected.residents.has(human.id)))
+        .flat();
+      if (displacedHouseholds.length > 0) {
+        assignMissingResidences(displacedHouseholds, state.buildings, state.entities, state.tick);
+      }
+    }
     if (affected.workforce) assignMissingWorkers(humans, state.buildings, state);
   }
   return state;
