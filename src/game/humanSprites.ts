@@ -405,28 +405,29 @@ export function getJuvenileSpriteFrame(gender: HumanGender | undefined, variant 
 export const HUMAN_WALK_SPEED_THRESHOLD = 0.12;
 
 /**
- * Below this camera zoom settlers are drawn as markers instead of full sprites.
+ * At overview zoom, crowds use markers while small colonies retain full sprites.
  *
  * Chosen between the zoom presets (`CAMERA_ZOOM_PRESETS`: 0.5 / 0.75 / 1.0 / 1.25 / …)
- * so each preset is unambiguous: the three far presets show the village as dots, 1.25×
+ * so each preset is unambiguous: crowded far presets show dots, 1.25×
  * and closer show people. Above `HUMAN_MIN_SCREEN_PX` (30 px) the sprite path stops
  * shrinking, so at village-wide zoom every settler used to claim 30 px of screen — the
  * "crazy mess" at 200+ citizens. A marker costs one small arc and skips the sprite
  * lookup, walk frame, contact shadow, bob, status badge, speech bubble and name plate.
  */
 export const HUMAN_SPRITE_MIN_ZOOM = 1.15;
+const HUMAN_OVERVIEW_SPRITE_LIMIT = 12;
 
 export type HumanRenderDetail = 'sprite' | 'marker';
 
-/** Sprite or marker for this settler. A selected settler always keeps its full sprite. */
-export function humanRenderDetail(zoom: number, isSelected = false): HumanRenderDetail {
-  if (isSelected) return 'sprite';
+/** Keep small colonies recognizable; reserve compact markers for actual crowds. */
+export function humanRenderDetail(zoom: number, isSelected = false, visibleHumans = Infinity): HumanRenderDetail {
+  if (isSelected || visibleHumans <= HUMAN_OVERVIEW_SPRITE_LIMIT) return 'sprite';
   return zoom < HUMAN_SPRITE_MIN_ZOOM ? 'marker' : 'sprite';
 }
 
 /** Marker radius in screen px — small and stable, so a crowd reads as texture, not blobs. */
 export function getHumanMarkerRadius(zoom: number, isJuvenile = false, isLeader = false): number {
-  const base = Math.max(2.2, Math.min(4.5, 2.6 * zoom + 0.6));
+  const base = Math.max(3.2, Math.min(4.5, 2.6 * zoom + 1.1));
   return base * (isJuvenile ? 0.7 : 1) * (isLeader ? 1.5 : 1);
 }
 
