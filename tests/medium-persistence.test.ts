@@ -22,7 +22,7 @@ import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
 import { addBigNews } from '../src/game/simEffects';
 import { tickMoonHowlerCycle, MOON_HOWLER_REPLACEMENT_CHANCE } from '../src/game/moonHowler';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { DAYS_PER_MOON_CYCLE, NIGHT_START } from '../src/game/daycycleconstants';
+import { DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START } from '../src/game/daycycleconstants';
 
 const FIXTURE_SEED = 20240913;
 
@@ -61,7 +61,7 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
   it('does not roll again on the later ticks of the nightfall hour', () => {
     const state = initGame({ seed: FIXTURE_SEED });
     // Full moon, nightfall, first tick of the hour, six cursable settlers, no active curse.
-    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     const humans = [1, 2, 3, 4, 5, 6].map(adult);
     state.entities = humans;
     const entityById = new Map(humans.map((h) => [h.id, h]));
@@ -71,7 +71,7 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
     const rng = () => rolls.shift() ?? 0;
 
     for (let i = 0; i < TICKS_PER_HOUR; i++) {
-      tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, NIGHT_START, entityById, undefined, rng);
+      tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, rng);
       state.tick += 1;
     }
 
@@ -82,12 +82,12 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
 
   it('still rolls on the first tick of the hour', () => {
     const state = initGame({ seed: FIXTURE_SEED });
-    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + NIGHT_START * TICKS_PER_HOUR;
+    state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     const humans = [1, 2, 3, 4, 5, 6].map(adult);
     state.entities = humans;
     const entityById = new Map(humans.map((h) => [h.id, h]));
 
-    tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, NIGHT_START, entityById, undefined, () => 0);
+    tickMoonHowlerCycle(state, state.entities, [], DAYS_PER_MOON_CYCLE, MOON_HOWLER_NIGHT_START, entityById, undefined, () => 0);
 
     expect(state.entities.filter((e) => e.moonHowlerCursed)).toHaveLength(1);
   });
