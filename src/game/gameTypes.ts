@@ -1098,7 +1098,7 @@ export const TerrainType = {
 export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
 
 export interface TerrainTile {
-  /** Persistent construction-ready soil tile; rendered with ground_soil.PNG. */
+  /** Persistent construction-ready soil tile; rendered with ground_soil.png. */
   reinforced?: boolean;
   type: TerrainType;
   elevation: number;

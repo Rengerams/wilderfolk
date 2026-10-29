@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** The ground-soil art now loads on a case-sensitive filesystem, because the file on disk is named `ground_soil.png` like every code path that asks for it; the failed asset preload on a fresh load is gone and the reinforced soil tiles draw their art.
 - **Fixed (29 October 2026):** A settler home for the night stops an ambient chat again and starts none, because speech now follows the schedule's at-home sleep rule instead of the indoor flag that only needs recovery requires.
 - **Fixed (29 October 2026):** A cleared camp footprint bakes as temperate lowland grass instead of an altitude-darkened green, and clearing a footprint moves the ground cache key so the new ground is the ground that is drawn.
 - **Fixed (29 October 2026):** The Windows packaging script runs the desktop build through the Tauri command-line tool the project already depends on, instead of expecting a globally installed Cargo subcommand, so packaging no longer stops before it starts.
@@ -25,7 +26,8 @@
 - **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.
 
 - **Fixed (29 October 2026):** The decision registry's own contract test was red on main: it omitted three registered read-only owners and demanded writes from two of them. The pinned key list and read-only rule now follow the existing registry rows.
-- **Fixed (29 October 2026):** A timed-out simulation worker command is no longer automatically replayed after worker recovery, preventing the same unconfirmed operation from repeatedly stalling the worker. Later queued commands retain their order; timeout logs name the operation. Root cause of the slow large-colony command still needs profiling.
+- **Fixed (29 October 2026):** A timed-out simulation worker command is no longer automatically replayed after worker recovery, so one unconfirmed operation cannot repeatedly stall the worker. Later queued commands keep their order.
+- **Added (29 October 2026):** A worker timeout now logs the operation that timed out; the root cause of the slow large-colony command still needs profiling.
 
 - **Dialogue variety (29 October 2026):** Cycle eligible speech per resident, retain recent choices and cool down repeated one-line chatter. Route pregnancy, family and famine speech by real participants and restore nine archived variants.
 - **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
