@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (29 October 2026):** The route search allocates nothing per node: its open set and step directions are flat typed arrays. Routes are identical, and a measured search fell from 1.05 to 0.58 ms on a blocked 256-tile grid.
+
+
 - **Fixed (29 October 2026):** The development server no longer blocks the game from loading with a missing cookie parse error from the router's cookie helpers; that CommonJS dependency is now prebundled with the router.
 
 - **Fixed (29 October 2026):** Loading a save no longer reopens the colony zoomed further out than the map covers, and enlarging the window lifts the zoom to match, so the empty backdrop no longer frames the map.
