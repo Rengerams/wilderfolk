@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Displaced residents use a bounded housing sweep; displaced workers are restaffed.
+- **Fixed (29 October 2026):** Demolishing unused roads, walls or buildings no longer triggers colony-wide housing and staffing reassignment. Only displaced households run the bounded housing sweep; workforce reconciliation runs when staff or crews are displaced.
 
 - **Fixed (29 October 2026):** Chronicle relationship, school, famine, prisoner and death prose now uses citizen names without numeric prefixes. Stable numbered identities remain for search and grave records, with regression coverage.
 - **Fixed (29 October 2026):** Auto-fill no longer copies the worker-owned simulation world before staffing. Isolated commands still copy; regression checks equivalent assignments. Large-colony verification pending.

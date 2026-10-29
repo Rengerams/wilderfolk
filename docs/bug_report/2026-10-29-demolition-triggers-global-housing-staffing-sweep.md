@@ -39,7 +39,7 @@ A broad, expensive dependency refresh was treated as a mandatory demolition side
 
 ## Fix / proposed fix
 
-Problem: non-residential demolition performs full-colony decision work. Minimal change: collect affected housing/workforce flags during the existing assignment-clear pass, include unfinished construction crews, and run only the relevant owner; housing reconciliation receives the current simulation tick to bound the sweep. Risk-impact: assignment timing differs for settlers unrelated to demolition, which is intentional; displaced residents and workers still reconcile immediately.
+Problem: non-residential demolition performs full-colony decision work. Minimal change: collect displaced resident IDs and a workforce flag during the existing assignment-clear pass, include unfinished construction crews, and reconcile only impacted housing units via the existing housing selector; housing reconciliation receives the current simulation tick to bound the sweep. Full workforce staffing is called only if staff or crews were displaced. Risk-impact: assignment timing differs for settlers unrelated to demolition, which is intentional; displaced residents and workers still reconcile immediately.
 
 ## Save/migration impact
 
@@ -48,6 +48,8 @@ None. WorldState, entity and building save formats are unchanged.
 ## Verification result
 
 - PASS (static): single-owner removal and command routing preserved, with no new owner or alias.
-- NOT RUN: `npx vitest run tests/demolish.roundtrip.test.ts` (remote source editing; no local repository/dependencies in this session).
+- PASS (CI before latest scoped-family patch): all 9 original demolition tests on PR head `1c686d4`.
+- PENDING (CI after latest scoped-family patch): 11 demolition tests, including unaffected homeless settlers and intact displaced families.
 - NOT RUN: `npm run test:types`, `npm run lint`, `npm run build`.
-- PENDING: CI and browser replay on a large save, including occupied-house, staffed-workplace and empty-road demolition.
+- PENDING: refreshed CI, large-save browser replay and a latency comparison before/after an occupied-house or staffed-workplace removal.
+- Owner logs: 10× speed falls to 0 achieved ticks/s while the UI initially still paints ~60 FPS; a pending worker command times out around 30 seconds and recovery does not restore ticks. This demonstrates a real simulation stall but has not isolated demolition as the sole cause.
