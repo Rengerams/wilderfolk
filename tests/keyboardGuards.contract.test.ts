@@ -69,6 +69,7 @@ const OVERLAY_DELEGATES = [
   'src/components/CitizenOverviewScreen.tsx',
   'src/components/TutorialOverlay.tsx',
   'src/components/ShortcutsOverlay.tsx',
+  'src/components/SpotlightLoreOverlay.tsx',
 ];
 
 const hookSource = source('src/hooks/useKeyboardControls.ts');
@@ -96,6 +97,14 @@ describe('an open overlay owns the keyboard', () => {
       );
       expect(overlay, `${path} claims the keyboard beside the shared hook`).not.toContain('claimKeyboard(');
     }
+  });
+
+  it('spotlight claims the keyboard and sends Escape through the same Skip scene action', () => {
+    const overlay = source('src/components/SpotlightLoreOverlay.tsx');
+    expect(overlay).toContain("useOverlayKeyboard('spotlight-lore', skip)");
+    expect(overlay).toContain('const skip = () => {');
+    expect(overlay).toContain("callbacks.current.onFinish(scene.id, 'skipped');");
+    expect(overlay).toContain('onClick={skip}');
   });
 
   it('a claim is paid for with an Escape handler', () => {
