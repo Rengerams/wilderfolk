@@ -1,4 +1,4 @@
-import { useRef, type ComponentProps, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ComponentProps, type RefObject } from 'react';
 import type { WorldState } from '../game/gameEngine';
 import {
   CAMERA_ZOOM_DEFAULT,
@@ -8,6 +8,7 @@ import {
   CAMERA_ZOOM_STEP_IN,
   CAMERA_ZOOM_STEP_OUT,
   clampCameraZoom,
+  worldFitZoom,
   type ViewState,
 } from '../game/viewState';
 import MiniMap from './MiniMap';
@@ -78,6 +79,14 @@ export default function GameMapStage({
 }: GameMapStageProps) {
   const zoom = clampCameraZoom(cameraTargetZoom);
   const selectedPreset = getNearestCameraZoomPreset(cameraTargetZoom);
+  // Zoom-out stops at the whole-map fit zoom, so the button disables where the camera actually stops.
+  const [minZoom, setMinZoom] = useState(CAMERA_ZOOM_MIN);
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    const world = worldRef.current;
+    if (!canvasEl || !world || canvasEl.clientWidth <= 0) return;
+    setMinZoom(worldFitZoom(world, canvasEl.clientWidth, canvasEl.clientHeight));
+  }, [cameraTargetZoom, canvasRef, worldRef]);
   const cursorMarkerRef = useRef<HTMLDivElement | null>(null);
   const keyboardCursor = useMapKeyboardCursor({ canvasRef, worldRef, viewRef, markerRef: cursorMarkerRef });
 
@@ -224,7 +233,7 @@ export default function GameMapStage({
         <button
           type="button"
           onClick={() => onApplyZoom(CAMERA_ZOOM_STEP_OUT)}
-          disabled={cameraTargetZoom <= CAMERA_ZOOM_MIN + 1e-3}
+          disabled={cameraTargetZoom <= minZoom + 1e-3}
           className="flex h-8 w-8 items-center justify-center rounded-md text-lg font-bold text-stone-200 hover:bg-stone-700/80 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 transition-colors"
           title="Zoom out (-)"
           aria-label="Zoom out"

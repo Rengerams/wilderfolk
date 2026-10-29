@@ -49,7 +49,7 @@ import {
   CAMERA_ZOOM_STEP_OUT,
   clampCameraZoom,
   clampCameraTarget,
-  worldCoverZoom,
+  worldFitZoom,
   resolveEntity,
   resolveBuilding,
   type ViewState,
@@ -884,7 +884,7 @@ export default function App() {
     const world = loop.getWorld();
     const { width: cw, height: ch } = canvas.getBoundingClientRect();
     const cam = loop.getView().camera;
-    const zoom = Math.max(targetZoom, worldCoverZoom(world, cw, ch));
+    const zoom = Math.max(targetZoom, worldFitZoom(world, cw, ch));
     const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, zoom);
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, [loopRef]);

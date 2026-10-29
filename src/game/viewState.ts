@@ -53,7 +53,8 @@ export interface ViewState {
   favoriteEntityId: number | null;
 }
 
-export const CAMERA_ZOOM_MIN = 0.2;
+/** Absolute floor; the real zoom-out limit is the whole-map fit zoom ({@link worldFitZoom}). */
+export const CAMERA_ZOOM_MIN = 0.05;
 export const CAMERA_ZOOM_MAX = 6;
 export const CAMERA_ZOOM_DEFAULT = 1.45;
 export const CAMERA_ZOOM_STEP_IN = 1.1;
@@ -465,10 +466,10 @@ export function zoomCameraViewAt(
 ): ViewState {
   const cam = { ...view.camera };
   const oldZoom = cam.targetZoom;
-  // Zooming out stops where the map still covers the viewport, so no empty backdrop shows.
+  // Zooming out stops where the whole map is in frame, so no part of the valley is out of reach.
   const newZoom = Math.max(
     clampCameraZoom(oldZoom * factor),
-    world ? worldCoverZoom(world, canvasW, canvasH) : CAMERA_ZOOM_MIN,
+    world ? worldFitZoom(world, canvasW, canvasH) : CAMERA_ZOOM_MIN,
   );
 
   if (Math.abs(newZoom - oldZoom) < CAMERA_EPS) {
@@ -486,14 +487,14 @@ export function zoomCameraViewAt(
   return { ...view, camera: clampedCam };
 }
 
-/** Closest zoom at which the map still covers the viewport entirely — below it the empty backdrop shows. */
-export function worldCoverZoom(
+/** Furthest zoom out that still frames the whole map in the viewport, backdrop allowed on one axis. */
+export function worldFitZoom(
   world: Pick<WorldState, 'width' | 'height'>,
   canvasW: number,
   canvasH: number,
 ): number {
   if (world.width <= 0 || world.height <= 0 || canvasW <= 0 || canvasH <= 0) return CAMERA_ZOOM_MIN;
-  return clampCameraZoom(Math.max(canvasW / world.width, canvasH / world.height));
+  return clampCameraZoom(Math.min(canvasW / world.width, canvasH / world.height));
 }
 
 /** Pins only an axis the map no longer covers, so panning stays free but no empty rim shows. */
@@ -514,19 +515,19 @@ export function clampCameraTarget(
   return { ...cam, targetX, targetY };
 }
 
-/** Raises the zoom to the cover zoom, then pins the target — for a camera restored or resized below it. */
-export function clampCameraToCoverage(
+/** Raises the zoom to the fit zoom, then pins the target — for a camera restored or resized below it. */
+export function clampCameraToFit(
   cam: Camera,
   world: Pick<WorldState, 'width' | 'height'>,
   viewportW: number,
   viewportH: number,
 ): Camera {
-  const cover = worldCoverZoom(world, viewportW, viewportH);
-  const zoom = cam.targetZoom >= cover ? cam.targetZoom : cover;
-  const covered = zoom === cam.targetZoom
+  const fit = worldFitZoom(world, viewportW, viewportH);
+  const zoom = cam.targetZoom >= fit ? cam.targetZoom : fit;
+  const fitted = zoom === cam.targetZoom
     ? cam
     : { ...cam, x: cam.targetX, y: cam.targetY, zoom, targetZoom: zoom };
-  return clampCameraTarget(covered, world.width, world.height, viewportW, viewportH);
+  return clampCameraTarget(fitted, world.width, world.height, viewportW, viewportH);
 }
 
 export function zoomCameraView(

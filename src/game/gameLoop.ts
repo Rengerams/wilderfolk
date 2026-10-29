@@ -24,7 +24,7 @@ import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRu
 import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
-  clampCameraToCoverage,
+  clampCameraToFit,
   createInitialView,
   resolveBuilding,
   resolveEntity,
@@ -892,13 +892,13 @@ export class GameLoop {
     return { world: this.world, view: this.view };
   }
 
-  /** Raises a session's restored zoom to the cover zoom, so a save never reopens with the empty backdrop. */
+  /** Raises a session's restored zoom to the whole-map fit zoom, so a save reopens with the valley in frame. */
   private coverViewCamera(world: WorldState, view: ViewState): ViewState {
     const rect = this.getCanvas()?.getBoundingClientRect();
     const w = rect?.width ?? this.layoutSize.w;
     const h = rect?.height ?? this.layoutSize.h;
     if (!(w > 0) || !(h > 0)) return view;
-    return { ...view, camera: clampCameraToCoverage(view.camera, world, w, h) };
+    return { ...view, camera: clampCameraToFit(view.camera, world, w, h) };
   }
 
   private ensureCanvasSizeTracking(): void {
@@ -914,7 +914,7 @@ export class GameLoop {
         h: Math.floor(entry.contentRect.height),
       };
       if (this.layoutSize.w > 0 && this.layoutSize.h > 0) {
-        const camera = clampCameraToCoverage(this.view.camera, this.world, this.layoutSize.w, this.layoutSize.h);
+        const camera = clampCameraToFit(this.view.camera, this.world, this.layoutSize.w, this.layoutSize.h);
         if (camera !== this.view.camera) this.patchView({ camera });
       }
     });

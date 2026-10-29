@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Zooming out now reaches the zoom where the whole valley is in frame, so the band of map and the houses in it that used to stay out of view can be seen at once.
 - **Fixed (29 October 2026):** The ground-soil art now loads on a case-sensitive filesystem, because the file on disk is named `ground_soil.png` like every code path that asks for it; the failed asset preload on a fresh load is gone and the reinforced soil tiles draw their art.
 - **Fixed (29 October 2026):** A settler home for the night stops an ambient chat again and starts none, because speech now follows the schedule's at-home sleep rule instead of the indoor flag that only needs recovery requires.
 - **Fixed (29 October 2026):** A cleared camp footprint bakes as temperate lowland grass instead of an altitude-darkened green, and clearing a footprint moves the ground cache key so the new ground is the ground that is drawn.
