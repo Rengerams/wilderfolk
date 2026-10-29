@@ -49,6 +49,7 @@ import {
   CAMERA_ZOOM_STEP_OUT,
   clampCameraZoom,
   clampCameraTarget,
+  worldCoverZoom,
   resolveEntity,
   resolveBuilding,
   type ViewState,
@@ -868,7 +869,7 @@ export default function App() {
     const sx = screenX ?? cw / 2;
     const sy = screenY ?? ch / 2;
     const world = loop.getWorld();
-    const next = zoomCameraViewAt(loop.getView(), factor, sx, sy, cw, ch);
+    const next = zoomCameraViewAt(loop.getView(), factor, sx, sy, cw, ch, world);
     // Viewport-aware clamp: keeps the visible area inside the world even when
     // zoomed out (no empty ring around the map).
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
@@ -883,7 +884,8 @@ export default function App() {
     const world = loop.getWorld();
     const { width: cw, height: ch } = canvas.getBoundingClientRect();
     const cam = loop.getView().camera;
-    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, targetZoom);
+    const zoom = Math.max(targetZoom, worldCoverZoom(world, cw, ch));
+    const next = focusCameraOn(loop.getView(), cam.targetX, cam.targetY, zoom);
     loop.patchView({ camera: clampCameraTarget(next.camera, world.width, world.height, cw, ch) });
   }, [loopRef]);
 

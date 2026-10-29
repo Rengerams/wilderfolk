@@ -461,11 +461,15 @@ export function zoomCameraViewAt(
   screenY: number,
   canvasW: number,
   canvasH: number,
-  world?: WorldState,
+  world?: Pick<WorldState, 'width' | 'height'>,
 ): ViewState {
   const cam = { ...view.camera };
   const oldZoom = cam.targetZoom;
-  const newZoom = clampCameraZoom(oldZoom * factor);
+  // Zooming out stops where the map still covers the viewport, so no empty backdrop shows.
+  const newZoom = Math.max(
+    clampCameraZoom(oldZoom * factor),
+    world ? worldCoverZoom(world, canvasW, canvasH) : CAMERA_ZOOM_MIN,
+  );
 
   if (Math.abs(newZoom - oldZoom) < CAMERA_EPS) {
     return view;
@@ -482,16 +486,47 @@ export function zoomCameraViewAt(
   return { ...view, camera: clampedCam };
 }
 
-/** Keeps camera target within valid map boundaries with boundary margin. */
+/** Closest zoom at which the map still covers the viewport entirely — below it the empty backdrop shows. */
+export function worldCoverZoom(
+  world: Pick<WorldState, 'width' | 'height'>,
+  canvasW: number,
+  canvasH: number,
+): number {
+  if (world.width <= 0 || world.height <= 0 || canvasW <= 0 || canvasH <= 0) return CAMERA_ZOOM_MIN;
+  return clampCameraZoom(Math.max(canvasW / world.width, canvasH / world.height));
+}
+
+/** Pins only an axis the map no longer covers, so panning stays free but no empty rim shows. */
 export function clampCameraTarget(
   cam: Camera,
-  _worldW: number,
-  _worldH: number,
-  _viewportW?: number,
-  _viewportH?: number,
+  worldW: number,
+  worldH: number,
+  viewportW?: number,
+  viewportH?: number,
 ): Camera {
-  // Volledig vrij bewegen over de kaart zonder geforceerde grenzen of terugduwen naar het midden.
-  return cam;
+  if (!viewportW || !viewportH || worldW <= 0 || worldH <= 0) return cam;
+  const zoom = cam.targetZoom > 0 ? cam.targetZoom : CAMERA_ZOOM_DEFAULT;
+  const halfW = viewportW / zoom / 2;
+  const halfH = viewportH / zoom / 2;
+  const targetX = halfW * 2 >= worldW ? worldW / 2 : Math.min(Math.max(cam.targetX, halfW), worldW - halfW);
+  const targetY = halfH * 2 >= worldH ? worldH / 2 : Math.min(Math.max(cam.targetY, halfH), worldH - halfH);
+  if (targetX === cam.targetX && targetY === cam.targetY) return cam;
+  return { ...cam, targetX, targetY };
+}
+
+/** Raises the zoom to the cover zoom, then pins the target — for a camera restored or resized below it. */
+export function clampCameraToCoverage(
+  cam: Camera,
+  world: Pick<WorldState, 'width' | 'height'>,
+  viewportW: number,
+  viewportH: number,
+): Camera {
+  const cover = worldCoverZoom(world, viewportW, viewportH);
+  const zoom = cam.targetZoom >= cover ? cam.targetZoom : cover;
+  const covered = zoom === cam.targetZoom
+    ? cam
+    : { ...cam, x: cam.targetX, y: cam.targetY, zoom, targetZoom: zoom };
+  return clampCameraTarget(covered, world.width, world.height, viewportW, viewportH);
 }
 
 export function zoomCameraView(
@@ -499,7 +534,7 @@ export function zoomCameraView(
   factor: number,
   canvasW = 800,
   canvasH = 600,
-  world?: WorldState,
+  world?: Pick<WorldState, 'width' | 'height'>,
 ): ViewState {
   return zoomCameraViewAt(view, factor, canvasW / 2, canvasH / 2, canvasW, canvasH, world);
 }

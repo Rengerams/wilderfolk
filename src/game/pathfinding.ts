@@ -297,6 +297,9 @@ interface PathSearchWorkspace {
 
 let searchWorkspace: PathSearchWorkspace | undefined;
 
+/** Searches are synchronous, so one open set serves every route on this realm. */
+let searchOpenSet: OpenSetMinHeap | undefined;
+
 /** Searches are synchronous; one bounded workspace serves the active grid in each realm. */
 function beginPathSearch(cellCount: number): PathSearchWorkspace {
   if (!searchWorkspace || searchWorkspace.scores.length !== cellCount) {
@@ -315,63 +318,114 @@ function beginPathSearch(cellCount: number): PathSearchWorkspace {
   return searchWorkspace;
 }
 
-const DIRS = [
-  [1, 0], [-1, 0], [0, 1], [0, -1],
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
-] as const;
+const DIR_COUNT = 8;
+const DIR_DX = new Int8Array([1, -1, 0, 0, 1, 1, -1, -1]);
+const DIR_DY = new Int8Array([0, 0, 1, -1, 1, -1, 1, -1]);
 
-interface OpenSetEntry {
-  node: number;
-  g: number;
-  priority: number;
-}
-
-/**
- * Deterministic binary min-heap for the A* open set.
- */
+/** Deterministic binary min-heap in parallel arrays: no object or pair allocation per node. */
 class OpenSetMinHeap {
-  private readonly entries: OpenSetEntry[] = [];
+  private nodes: Int32Array;
+  private costs: Float64Array;
+  private priorities: Float64Array;
+  private count = 0;
+  private poppedNode = -1;
+  private poppedCost = 0;
 
-  get length(): number {
-    return this.entries.length;
+  constructor(capacity = 1024) {
+    this.nodes = new Int32Array(capacity);
+    this.costs = new Float64Array(capacity);
+    this.priorities = new Float64Array(capacity);
   }
 
-  push(entry: OpenSetEntry): void {
-    const entries = this.entries;
-    entries.push(entry);
-    let index = entries.length - 1;
+  get length(): number {
+    return this.count;
+  }
+
+  /** Node index of the entry the last `pop` removed. */
+  get lastNode(): number {
+    return this.poppedNode;
+  }
+
+  /** Path cost of the entry the last `pop` removed. */
+  get lastCost(): number {
+    return this.poppedCost;
+  }
+
+  reset(): void {
+    this.count = 0;
+    this.poppedNode = -1;
+    this.poppedCost = 0;
+  }
+
+  push(node: number, g: number, priority: number): void {
+    if (this.count === this.nodes.length) this.grow();
+    let index = this.count++;
+    this.nodes[index] = node;
+    this.costs[index] = g;
+    this.priorities[index] = priority;
     while (index > 0) {
       const parent = (index - 1) >> 1;
-      if (!this.isHigherPriority(entries[index]!, entries[parent]!)) break;
-      [entries[index], entries[parent]] = [entries[parent]!, entries[index]!];
+      if (!this.isHigherPriority(index, parent)) break;
+      this.swap(index, parent);
       index = parent;
     }
   }
 
-  pop(): OpenSetEntry | undefined {
-    const entries = this.entries;
-    const first = entries[0];
-    const last = entries.pop();
-    if (!first) return undefined;
-    if (!last || entries.length === 0) return first;
-
-    entries[0] = last;
+  pop(): void {
+    if (this.count === 0) {
+      this.poppedNode = -1;
+      this.poppedCost = 0;
+      return;
+    }
+    this.poppedNode = this.nodes[0]!;
+    this.poppedCost = this.costs[0]!;
+    this.count--;
+    if (this.count === 0) return;
+    this.nodes[0] = this.nodes[this.count]!;
+    this.costs[0] = this.costs[this.count]!;
+    this.priorities[0] = this.priorities[this.count]!;
     let index = 0;
-    while (true) {
+    for (;;) {
       const left = index * 2 + 1;
       const right = left + 1;
       let best = index;
-      if (left < entries.length && this.isHigherPriority(entries[left]!, entries[best]!)) best = left;
-      if (right < entries.length && this.isHigherPriority(entries[right]!, entries[best]!)) best = right;
+      if (left < this.count && this.isHigherPriority(left, best)) best = left;
+      if (right < this.count && this.isHigherPriority(right, best)) best = right;
       if (best === index) break;
-      [entries[index], entries[best]] = [entries[best]!, entries[index]!];
+      this.swap(index, best);
       index = best;
     }
-    return first;
   }
 
-  private isHigherPriority(a: OpenSetEntry, b: OpenSetEntry): boolean {
-    return a.priority < b.priority || (a.priority === b.priority && a.node < b.node);
+  private isHigherPriority(a: number, b: number): boolean {
+    const pa = this.priorities[a]!;
+    const pb = this.priorities[b]!;
+    return pa < pb || (pa === pb && this.nodes[a]! < this.nodes[b]!);
+  }
+
+  private swap(a: number, b: number): void {
+    const node = this.nodes[a]!;
+    this.nodes[a] = this.nodes[b]!;
+    this.nodes[b] = node;
+    const cost = this.costs[a]!;
+    this.costs[a] = this.costs[b]!;
+    this.costs[b] = cost;
+    const priority = this.priorities[a]!;
+    this.priorities[a] = this.priorities[b]!;
+    this.priorities[b] = priority;
+  }
+
+  private grow(): void {
+    const capacity = this.nodes.length * 2;
+    const nodes = new Int32Array(capacity);
+    nodes.set(this.nodes);
+    this.nodes = nodes;
+    const costs = new Float64Array(capacity);
+    costs.set(this.costs);
+    this.costs = costs;
+    const priorities = new Float64Array(capacity);
+    priorities.set(this.priorities);
+    this.priorities = priorities;
   }
 }
 
@@ -496,18 +550,19 @@ function searchRoute(
     return (Math.max(adx, ady) + 0.4142 * Math.min(adx, ady)) * cheapestStep;
   };
 
-  const open = new OpenSetMinHeap();
+  const open = searchOpenSet ??= new OpenSetMinHeap();
+  open.reset();
   scores[start] = 0;
   stamps[start] = generation;
-  open.push({ node: start, g: 0, priority: h(actualSx, actualSy) });
+  open.push(start, 0, h(actualSx, actualSy));
   let nodes = 0;
   let hitNodeCap = false;
 
   while (open.length > 0) {
-    const entry = open.pop();
-    if (!entry) break;
-    const cur = entry.node;
-    if (entry.g !== scores[cur]) continue;
+    open.pop();
+    const cur = open.lastNode;
+    if (cur < 0) break;
+    if (open.lastCost !== scores[cur]) continue;
     if (nodes++ >= maxNodes) {
       hitNodeCap = true;
       break;
@@ -547,7 +602,9 @@ function searchRoute(
     const cy = (cur / cols) | 0;
     const curElev = elevation ? elevation[cur] : 0;
 
-    for (const [dx, dy] of DIRS) {
+    for (let dir = 0; dir < DIR_COUNT; dir++) {
+      const dx = DIR_DX[dir]!;
+      const dy = DIR_DY[dir]!;
       const nx = cx + dx;
       const ny = cy + dy;
       if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
@@ -572,7 +629,7 @@ function searchRoute(
         scores[nIdx] = ng;
         parents[nIdx] = cur;
         stamps[nIdx] = generation;
-        open.push({ node: nIdx, g: ng, priority: ng + h(nx, ny) });
+        open.push(nIdx, ng, ng + h(nx, ny));
       }
     }
   }

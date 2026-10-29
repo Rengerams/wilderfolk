@@ -2,6 +2,20 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
+- **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
+
+- **Changed (29 October 2026):** The route search allocates nothing per node: its open set and step directions are flat typed arrays. Routes are identical, and a measured search fell from 1.05 to 0.58 ms on a blocked 256-tile grid.
+
+
+- **Fixed (29 October 2026):** The development server no longer blocks the game from loading with a missing cookie parse error from the router's cookie helpers; that CommonJS dependency is now prebundled with the router.
+
+- **Fixed (29 October 2026):** Loading a save no longer reopens the colony zoomed further out than the map covers, and enlarging the window lifts the zoom to match, so the empty backdrop no longer frames the map.
+
+- **Fixed (29 October 2026):** Zooming out now stops once the map covers the viewport, and the camera stays on the map at that limit, so a large colony can be framed without a black band on every side. Panning stays free while zoomed in; preset zoom levels respect the same limit.
+
+- **Changed (29 October 2026):** Simulation randomness snapshots list streams in a fixed order, so the same positions serialise identically whichever owner drew first. Prerequisite for spreading one tick across several shards.
+
 - **Fixed (29 October 2026):** Election-ceremony attendance and gathering slots no longer rescan the whole village for every settler. On a 2000-settler save the per-tick cost dropped about thirtyfold, with identical attendees and positions.
 
 - **Added (29 October 2026):** The selected settler shows a personality and career inspector: saved traits with their advantage and disadvantage, an advisory job fit, and only genuinely credited work days, tiers and apprenticeship dates. Missing records read as no recorded work.

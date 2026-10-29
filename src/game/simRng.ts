@@ -160,6 +160,8 @@ export function snapshotSimRng(): SimRngSnapshot {
     const handle = streamStates.get(stream);
     if (handle) owners.push([owner, handle.get()]);
   }
+  // Sorted by owner: the payload must not depend on lazy stream-creation order, only on positions.
+  owners.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const globalState = seededGlobalStream ? streamStates.get(seededGlobalStream)?.get() : undefined;
   return { seed: currentSeed, global: globalState ?? null, owners };
 }

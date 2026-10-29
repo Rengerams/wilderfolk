@@ -24,6 +24,7 @@ import { carryPresentationControls, createOptimisticDisplayWorld, hydrateWorldRu
 import type { ScentGridReader } from './scentGrid';
 import {
   clearScreenShakeImpulse,
+  clampCameraToCoverage,
   createInitialView,
   resolveBuilding,
   resolveEntity,
@@ -563,7 +564,7 @@ export class GameLoop {
     resetRendererCaches();
 
     this.world = world;
-    this.view = view;
+    this.view = this.coverViewCamera(world, view);
     this.lastWorkerPresentation = null;
     this.invalidateRenderSnapshot();
     this.lastNotifiedTick = world.tick;
@@ -891,6 +892,15 @@ export class GameLoop {
     return { world: this.world, view: this.view };
   }
 
+  /** Raises a session's restored zoom to the cover zoom, so a save never reopens with the empty backdrop. */
+  private coverViewCamera(world: WorldState, view: ViewState): ViewState {
+    const rect = this.getCanvas()?.getBoundingClientRect();
+    const w = rect?.width ?? this.layoutSize.w;
+    const h = rect?.height ?? this.layoutSize.h;
+    if (!(w > 0) || !(h > 0)) return view;
+    return { ...view, camera: clampCameraToCoverage(view.camera, world, w, h) };
+  }
+
   private ensureCanvasSizeTracking(): void {
     const canvas = this.getCanvas();
     if (!canvas || canvas === this.layoutCanvas) return;
@@ -903,6 +913,10 @@ export class GameLoop {
         w: Math.floor(entry.contentRect.width),
         h: Math.floor(entry.contentRect.height),
       };
+      if (this.layoutSize.w > 0 && this.layoutSize.h > 0) {
+        const camera = clampCameraToCoverage(this.view.camera, this.world, this.layoutSize.w, this.layoutSize.h);
+        if (camera !== this.view.camera) this.patchView({ camera });
+      }
     });
     this.resizeObserver.observe(canvas);
   }
