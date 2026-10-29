@@ -48,7 +48,7 @@ export function grantHospitalIntervalReputation(
  */
 export function describeHospitalReputation(): string {
   return `Staffed: +${HOSPITAL_REPUTATION_PER_INTERVAL} reputation every ${HOSPITAL_REPUTATION_INTERVAL_DAYS} days,`
-    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Any hospital lowers energy drain.`;
+    + ` up to +${HOSPITAL_TREATMENT_REPUTATION_MAX} more when patients are treated. Admitted patients recover extra stamina while resting.`;
 }
 
 export function isDoctorAtHospital(
@@ -73,6 +73,23 @@ export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (entity.energy < entity.maxEnergy * 0.42) return true;
   if ((entity.griefUntilTick ?? 0) > tick && entity.energy < entity.maxEnergy * 0.7) return true;
   return false;
+}
+
+/** Admission-derived hospital rest: medical need, a staffed ward, and real indoor presence. */
+export function isRestingHospitalPatient(
+  patient: Entity,
+  hospital: Building | undefined,
+  tick: number,
+  previousIndoorBuildingId?: number,
+): boolean {
+  if (!hospital || hospital.type !== BuildingType.Hospital || !hospital.completed
+    || hospital.faction === 'rival' || hospital.occupants.length === 0
+    || previousIndoorBuildingId !== hospital.id || !isPlayerHuman(patient)
+    || !needsMedicalCare(patient, tick)) return false;
+  // buildingGeometry: x/y are the footprint centre, not the top-left corner.
+  const dx = patient.x - hospital.x;
+  const dy = patient.y - hospital.y;
+  return dx * dx + dy * dy <= HOSPITAL_WARD_RADIUS_PX ** 2;
 }
 
 /** How urgently this settler should seek the hospital (0–1). */

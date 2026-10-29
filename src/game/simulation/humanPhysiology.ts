@@ -1,4 +1,4 @@
-import type { Entity, HumanNeedsState } from '../gameTypes';
+import { BuildingType, type Building, type Entity, type HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
 import { evaluateTraitInfluence } from '../personality/traitEvaluation';
 import type { TraitContext } from '../personality/traitEffectCatalog';
@@ -11,13 +11,14 @@ export const HUMAN_NEEDS = {
   EAT_ENTER_NUTRITION: 70,
   EAT_COOLDOWN_SIM_HOURS: 2,
   REST_LOSS_AWAKE_PER_SIM_HOUR: 4,
-  REST_RECOVERY_SLEEP_PER_SIM_HOUR: 12,
+  REST_RECOVERY_SLEEP_PER_SIM_HOUR: 12.5,
   STAMINA_WORK_LOSS_PER_SIM_HOUR: 9,
   STAMINA_WALK_LOSS_PER_SIM_HOUR: 5,
   STAMINA_IDLE_RECOVERY_PER_SIM_HOUR: 5,
-  STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 13,
+  STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 12.5,
   WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
-  HOSPITAL_STAMINA_DRAIN_MULTIPLIER: 0.9,
+  WELL_RADIUS_PX: 400,
+  HOSPITAL_STAMINA_RECOVERY_MULTIPLIER: 1.1,
   REST_CRITICAL: 20,
   REST_RECOVERY_TARGET: 85,
   RECOVERY_SLEEP_HOURS: 8,
@@ -30,6 +31,19 @@ export const HUMAN_NEEDS = {
 
 /** The catalog's labor context prices work drain: endurance traits divide it, heavy labor raises it. */
 const LABOR_CONTEXT = { kind: 'physiology', activity: 'labor' } as const satisfies TraitContext;
+
+/** Single (nonstacking) well access check using squared world-pixel distance. */
+export function hasNearbyWell(entity: Pick<Entity, 'x' | 'y'>, wells: readonly Building[]): boolean {
+  const radiusSquared = HUMAN_NEEDS.WELL_RADIUS_PX ** 2;
+  for (const well of wells) {
+    if (well.type !== BuildingType.Well || !well.completed || well.faction === 'rival') continue;
+    // buildingGeometry: x/y already ARE the authoritative building centre.
+    const dx = entity.x - well.x;
+    const dy = entity.y - well.y;
+    if (dx * dx + dy * dy <= radiusSquared) return true;
+  }
+  return false;
+}
 
 const bounded = (n: number, fallback: number): number =>
   Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : fallback;
@@ -86,11 +100,14 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     : obs.working ? -HUMAN_NEEDS.STAMINA_WORK_LOSS_PER_SIM_HOUR
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;
+  // Only a patient actually sleeping in a staffed hospital gets its 10% care bonus.
+  if (obs.sleeping && obs.hasHospital) {
+    staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_RECOVERY_MULTIPLIER;
+  }
   if (staminaRate < 0) {
     // The labor context prices work only; walking keeps its base drain.
     if (obs.working) staminaRate /= evaluateTraitInfluence(entity, LABOR_CONTEXT).factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
-    if (obs.hasHospital) staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_DRAIN_MULTIPLIER;
   }
   needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
   // Intent latching belongs to the single physiology mutator. Read-only status

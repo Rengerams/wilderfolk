@@ -313,7 +313,7 @@ export interface Entity {
   raidDeploymentId?: string;
   departedAlive?: boolean;
   battleLeadershipAwards?: Record<string, number>;
-  warCaptive?: { raidId: string; originRivalId: string; capturedAtTick: number; recruitAfterTick: number; attempts: number };
+  warCaptive?: { raidId: string; originRivalId: string; capturedAtTick: number; recruitAfterTick: number; attempts: number; lastRationDay?: number };
   promiseLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;

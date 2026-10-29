@@ -1129,7 +1129,9 @@ function findInvalidWarfareState(parsed: Record<string, unknown>): string | null
       const captive = person.warCaptive;
       if (!isSaveObject(captive) || !isStringId(captive.raidId) || !isStringId(captive.originRivalId)
         || !isFiniteNumber(captive.capturedAtTick) || !isFiniteNumber(captive.recruitAfterTick)
-        || !isFiniteNumber(captive.attempts)) return 'entities.warCaptive';
+        || !isFiniteNumber(captive.attempts)
+        || (captive.lastRationDay !== undefined && (typeof captive.lastRationDay !== 'number'
+          || !Number.isSafeInteger(captive.lastRationDay) || captive.lastRationDay < 0))) return 'entities.warCaptive';
     }
   }
   return null;
