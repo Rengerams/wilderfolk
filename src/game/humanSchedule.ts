@@ -5,6 +5,7 @@ import {
   isWeekend,
   isWorkDay,
 } from './dayCycleClock';
+import { personDayRoll } from './simRng';
 import { isNearResidence } from './residencyOccupancy';
 import type { Building, Entity } from './gameTypes';
 
@@ -134,18 +135,6 @@ export function isAsleepAtHome(
   onDuty = false,
 ): boolean {
   return !onDuty && isNightHour(hour) && isNearResidence(human, buildings);
-}
-
-/** Stable 0..1 roll for one person on one colony day. */
-export function personDayRoll(entityId: number, tick: number, salt = 0): number {
-  const day = getAbsoluteCalendarDay(tick);
-  let hash = (
-    Math.imul(entityId | 0, 374761393)
-    ^ Math.imul(day | 0, 668265263)
-    ^ Math.imul(salt | 0, 1274126177)
-  ) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 16), 2246822519) >>> 0;
-  return (hash % 10000) / 10000;
 }
 
 /** Schedule-aware preference to stay home, with probability bands around the shift. */

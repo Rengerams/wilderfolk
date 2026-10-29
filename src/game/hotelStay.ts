@@ -17,7 +17,6 @@ import {
   isNightHour,
   isStartOfClockHour,
   nextTickAtClockHour,
-  personDayRoll,
   NIGHT_END,
   NIGHT_START,
 } from './dayCycle';
@@ -33,7 +32,7 @@ import { ensureEntityByIdMap } from './entityIndex';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { gainSkill } from './skills';
-import { seededRandomForRun } from './simRng';
+import { seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { isVenueServiceHour } from './venueSchedule';
 

@@ -15,13 +15,14 @@
  * `'rumor'` unconditionally, which is what `SIMULATION_AUTHORITY.md` §4 requires of the
  * new-calendar-day owner.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import { exposeAffair, tryDailyAffairGossip } from '../src/game/simulation/humanRelationships';
 
 const CHEATER_ID = 1;

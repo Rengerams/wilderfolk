@@ -1,3 +1,5 @@
+import { getAbsoluteCalendarDay } from './dayCycleClock';
+
 export type RngStream = () => number;
 
 let currentSeed = 1;
@@ -83,6 +85,18 @@ export function createSeededRng(seed: number, owner: string): RngStream {
 
   streamStates.set(stream, { get: () => s, set: (state: number) => { s = state >>> 0; } });
   return stream;
+}
+
+/** Stable 0..1 roll for one person on one colony day. */
+export function personDayRoll(entityId: number, tick: number, salt = 0): number {
+  const day = getAbsoluteCalendarDay(tick);
+  let hash = (
+    Math.imul(entityId | 0, 374761393)
+    ^ Math.imul(day | 0, 668265263)
+    ^ Math.imul(salt | 0, 1274126177)
+  ) >>> 0;
+  hash = Math.imul(hash ^ (hash >>> 16), 2246822519) >>> 0;
+  return (hash % 10000) / 10000;
 }
 
 /**

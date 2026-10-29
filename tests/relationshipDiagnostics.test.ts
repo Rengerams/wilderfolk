@@ -14,6 +14,7 @@
  * The fixture starts a pregnancy (mocked roll), advances it to term, and
  * completes a birth — then checks each counter.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType, emptyEntityByType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
@@ -28,7 +29,6 @@ import {
   setRelationshipDiagnosticsEnabled,
   type RelationshipDiagnosticsSnapshot,
 } from '../src/game/relationshipDiagnostics';
-import { personDayRoll } from '../src/game/humanSchedule';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 
 /**

@@ -61,8 +61,8 @@ import { getWorkSchedule, isWorkScheduleHour, type WorkSchedule } from '../workS
 import { requestDialogue, dialogueHoursFromNominalTicks } from '../dialogueTrees';
 import { Relationship } from '../gameConstants';
 import { prisonPrisonerCapacity } from '../prisonShifts';
-import { getSimRng, seededRandomForRun } from '../simRng';
-import { personDayRoll } from '../dayCycle';
+import { getSimRng, seededRandomForRun, personDayRoll } from '../simRng';
+
 import { addReputation } from '../simHelpers';
 
 /** The catalog context behind a married or youth conception roll. */

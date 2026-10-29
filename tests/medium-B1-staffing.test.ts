@@ -13,6 +13,7 @@
  * M16 humanTick.ts — an on-duty Official at a completed Town Hall must reach
  *     officialHandlePetitioners.
  */
+import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import {
   BuildingType,
@@ -30,7 +31,7 @@ import {
 } from '../src/game/buildingStaffingActions';
 import { tickHumans } from '../src/game/humanTick';
 import { OFFSCREEN_HUMAN_THROTTLE, type SimulationFocus } from '../src/game/simFocus';
-import { personDayRoll, prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { isPlayerHuman } from '../src/game/playerHuman';

@@ -1,3 +1,4 @@
+import { personDayRoll } from '../src/game/simRng';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +13,7 @@ import { courtshipRatePerHour, tryDailyConception } from '../src/game/simulation
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { PER_TICK_RATE_SCALE } from '../src/game/dayCycleClock';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
-import { personDayRoll } from '../src/game/humanSchedule';
+
 import {
   HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE,
   HUMAN_DAILY_PREGNANCY_CHANCE_NEAR,

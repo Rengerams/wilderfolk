@@ -48,6 +48,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'dailyPersonRoll'
   | 'traitInfluence'
   | 'humanPhysiology'
   | 'humanMeals'
@@ -74,6 +75,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  dailyPersonRoll: {
+    owner: 'simRng.ts — personDayRoll',
+    cadence: 'on-demand',
+    cadenceNote: 'Pure stateless hash keyed by settler ID, absolute colony day and call-site salt. Stable for the entire colony day; read-only and consumes no RNG stream state.',
+    writes: [],
+    scheduledFrom: 'Direct on-demand calls from humanSchedule, townHall, socialLife, hospitalCare, humanHospitalBehavior, humanLeisureBehavior, humanHuntingBehavior, hotelStay, humanTick and simulation/humanRelationships',
+    testFile: 'tests/personDayRoll.simRng.test.ts, tests/humanLeisureBehavior.test.ts, tests/civicPetition.cadence.test.ts',
+  },
   traitInfluence: {
     owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence, the single pure entry point: bounded factor/tendency for ordinary contexts and a typed exact result for the six discrete contexts; personality/traitEffectCatalog.ts owns TRAIT_EFFECTS (including the legacyExact entries) and the derived TRAIT_OPPOSITIONS',
     cadence: 'on-demand',
