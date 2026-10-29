@@ -21,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4.4.0
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js 26.12.1 (with npm cache)
         uses: actions/setup-node@v4.4.0
