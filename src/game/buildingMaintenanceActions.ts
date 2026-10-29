@@ -74,16 +74,6 @@ export function getRepairBuildingEligibilityFor(
   return { ok: true };
 }
 
-function reconcileAssignmentsAfterBuildingRemoval(
-  state: WorldState,
-  affected: { housing: boolean; workforce: boolean },
-): void {
-  if (!affected.housing && !affected.workforce) return;
-  const humans = allPlayerHumans(state.entities);
-  if (affected.housing) assignMissingResidences(humans, state.buildings, state.entities, state.tick);
-  if (affected.workforce) assignMissingWorkers(humans, state.buildings, state);
-}
-
 /** Repair a completed damaged building for the established fixed resource cost. */
 export function repairBuilding(originalState: WorldState, buildingId: number): WorldState {
   const state = structuredClone(originalState);
@@ -360,7 +350,11 @@ export function demolishBuildingsInPlace(state: WorldState, buildingIds: readonl
   removeBuildingsFromState(state, buildings);
   updateStorageCaps(state);
   invalidatePopulationSnapshotCache(state);
-  reconcileAssignmentsAfterBuildingRemoval(state, affected);
+  if (affected.housing || affected.workforce) {
+    const humans = allPlayerHumans(state.entities);
+    if (affected.housing) assignMissingResidences(humans, state.buildings, state.entities, state.tick);
+    if (affected.workforce) assignMissingWorkers(humans, state.buildings, state);
+  }
   return state;
 }
 
