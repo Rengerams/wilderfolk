@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (PR #91 CI):** Spotlight and its tests import daily rolls directly from the canonical simulation RNG owner; fixed the stale module import. CI verification pending.
+
 - **Fixed (PR #91, 29 October 2026):** Spotlight now claims the shared overlay keyboard contract while active. Gameplay shortcuts no longer pass through; Escape invokes the same scene Skip callback. Added a keyboard ownership regression; browser and CI validation pending.
 
 - **Fixed (29 October 2026):** Worker entity interpolation now follows acknowledged ticks, not queued requests. Presentation timing resets on pause, restart, session changes and fallback. Regression covers shared worker worlds and same-tick command replies. No gameplay or save changes.
@@ -16,7 +18,7 @@
 
 - **Fixed (PR #99 CI):** Remove the temporary untracked population benchmark harness after running the baseline and before checking out the PR head; preserves the same harness, comparison methodology and manual 180-day mode. Latest-head CI verification pending.
 
-- **Tests (PR #91):** Repaired three Spotlight CI regressions after male-only casting: assert cast membership independent of proximity ordering and construct eligible male actors in the gathering/ready home-commute fixtures. Runtime eligibility and attendance rules unchanged; CI verification pending.
+- **Tests (PR #91):** Fixed male-only cast fixture and cast-order assertions without weakening runtime validation. CI pending.
 
 - **Spotlight audit (PR #91):** Fixed lost cinematic zoom on centered targets, prevented stale background music from playing over the score, and restricted the speaking chorus to eligible adult men. Added targeted regressions.
 
