@@ -14,8 +14,11 @@
         offline bundle mode (zip, folder or already extracted tree).
       * Preflight checks, elevated self-relaunch, conflict detection, launch logging and a
         run summary with drop reasons and tweak results.
-      * Standalone -Diagnostics, -CheckUpdate, -ListTweaks, -Uninstall and scheduled task
-        installation.
+      * Startup item management for the Run keys and Startup folders, driven by
+        -StartupItems or the Config\StartupItems.json file, with -ListStartupItems,
+        -RevertStartupItems and full previous-state backup.
+      * Standalone -Diagnostics, -CheckUpdate, -ListTweaks, -ListStartupItems, -Uninstall
+        and scheduled task installation.
 
 .PARAMETER Win10Safe
     Plan for Windows 10 even when the host is not Windows 10. Win11-only switches are
@@ -84,6 +87,401 @@
 .PARAMETER NoElevate
     Do not relaunch elevated. Changes that need admin will fail.
 
+.PARAMETER StartupItems
+    Names of startup items to disable, taken from -ListStartupItems. Accepts a
+    comma-separated list and wildcards such as '*Teams*'. Registry Run values are removed
+    after their previous state is saved; Startup folder shortcuts are moved into the
+    launcher Config folder. Revert with -RevertStartupItems. When nothing is passed, a
+    StartupItems.json file in the Config folder is used if one exists.
+
+.PARAMETER ListStartupItems
+    Print the startup items found in the Run keys and Startup folders, showing where each
+    one starts from, then exit. Use the printed names with -StartupItems.
+
+.PARAMETER RevertStartupItems
+    Restore every startup item removed by the previous -StartupItems run and empty the
+    saved backup.
+
+.PARAMETER Verbose
+    Print each launcher step with extra detail and write it to the launcher log.
+    Forwarded to Win11Debloat as its own verbose switch.
+
+.PARAMETER WhatIf
+    Print the plan and change nothing: no download, no registry write, no file move.
+
+.PARAMETER Dev
+    Shortcut for -Channel Dev. Runs Win11Debloat from the master branch instead of a
+    release.
+
+.PARAMETER CLI
+    Run Win11Debloat in its console interface instead of the graphical one.
+
+.PARAMETER Silent
+    Suppress launcher console output. Warnings and failures are still logged.
+
+.PARAMETER Sysprep
+    Prepare the machine for imaging. Win11Debloat uses its Sysprep-safe mode and skips
+    changes that would not survive a captured image.
+
+.PARAMETER LogPath
+    File that Win11Debloat writes its own log to. The launcher always logs separately
+    under the work folder.
+
+.PARAMETER User
+    Account whose per-user settings are changed. Defaults to the signed-in user.
+
+.PARAMETER SkipExplorerRestart
+    Do not restart Explorer when the run finishes, so the desktop does not flicker. Also
+    available as -NoRestartExplorer.
+
+.PARAMETER CreateRestorePoint
+    Create a System Restore point before any change is made.
+
+.PARAMETER SkipRegistryBackup
+    Do not export the registry values Win11Debloat is about to change.
+
+.PARAMETER RunDefaults
+    Run Win11Debloat's standard default selection.
+
+.PARAMETER RunDefaultsLite
+    Run the lighter default selection, which leaves more Windows features enabled.
+
+.PARAMETER RunSavedSettings
+    Reuse the settings saved by a previous Win11Debloat run. Used by the scheduled task.
+
+.PARAMETER Config
+    Win11Debloat's own JSON configuration file. This is separate from -LauncherConfig.
+
+.PARAMETER Apps
+    Comma-separated app names for -RemoveApps, for example 'Microsoft.BingWeather'.
+
+.PARAMETER AppRemovalTarget
+    Removal scope for the apps: 'CurrentUser' or 'AllUsers'.
+
+.PARAMETER RemoveApps
+    Remove the apps named with -Apps.
+
+.PARAMETER RemoveGamingApps
+    Remove the Xbox and other gaming apps.
+
+.PARAMETER RemoveHPApps
+    Remove the preinstalled HP apps. Only meaningful on HP machines.
+
+.PARAMETER ForceRemoveEdge
+    Force the removal of Microsoft Edge.
+
+.PARAMETER DisableDVR
+    Disable the Game DVR background recorder.
+
+.PARAMETER DisableGameBarIntegration
+    Disable the Game Bar integration in Windows.
+
+.PARAMETER EnableWindowsSandbox
+    Enable the Windows Sandbox optional feature.
+
+.PARAMETER EnableWindowsSubsystemForLinux
+    Enable the Windows Subsystem for Linux optional feature.
+
+.PARAMETER DisableTelemetry
+    Disable telemetry, diagnostics and the related data collection settings.
+
+.PARAMETER DisableSearchHistory
+    Stop Start search from keeping a local history.
+
+.PARAMETER DisableFastStartup
+    Disable Fast Startup, so a shutdown really shuts the machine down.
+
+.PARAMETER DisableBitlockerAutoEncryption
+    Stop Windows from encrypting new drives with BitLocker automatically.
+
+.PARAMETER DisableModernStandbyNetworking
+    Keep the network connection off while the device is in Modern Standby.
+
+.PARAMETER DisableNotifications
+    Disable notification toasts, tips and suggestions.
+
+.PARAMETER DisableStorageSense
+    Disable Storage Sense automatic cleanup.
+
+.PARAMETER DisableUpdateASAP
+    Stop Windows from installing updates as soon as they are released.
+
+.PARAMETER PreventUpdateAutoReboot
+    Prevent Windows from restarting on its own to finish an update.
+
+.PARAMETER DisableDeliveryOptimization
+    Disable peer-to-peer update delivery to other computers.
+
+.PARAMETER DisableDeviceAutoAppDownload
+    Stop Windows from downloading manufacturer apps and device companion software.
+
+.PARAMETER DisableBing
+    Disable Bing and web results in Start menu search.
+
+.PARAMETER DisableStoreSearchSuggestions
+    Disable the search suggestions shown in the Microsoft Store.
+
+.PARAMETER DisableDesktopSpotlight
+    Disable Windows Spotlight desktop backgrounds.
+
+.PARAMETER HideDesktopSpotlightIcon
+    Hide the Spotlight desktop icon without changing the wallpaper source.
+
+.PARAMETER EnableDesktopSpotlight
+    Turn Windows Spotlight desktop backgrounds back on.
+
+.PARAMETER DisableLockscreenTips
+    Disable the tips, fun facts and promotions shown on the lock screen.
+
+.PARAMETER DisableSuggestions
+    Disable the Windows tips and suggested content across the shell.
+
+.PARAMETER DisableLocationServices
+    Disable Windows location services.
+
+.PARAMETER DisableFindMyDevice
+    Disable the Find My Device tracking feature.
+
+.PARAMETER DisableEdgeAds
+    Disable the promotional content and ads in Microsoft Edge.
+
+.PARAMETER DisableBraveBloat
+    Disable the promotional content bundled with Brave.
+
+.PARAMETER DisableSettings365Ads
+    Disable the Microsoft 365 ads in the Settings app.
+
+.PARAMETER DisableSettingsHome
+    Disable the recommendations on the Settings home page.
+
+.PARAMETER ShowHiddenFolders
+    Show hidden files, folders and drives in Explorer.
+
+.PARAMETER ShowKnownFileExt
+    Always show known file name extensions in Explorer.
+
+.PARAMETER HideDupliDrive
+    Hide duplicate drives from the Explorer navigation pane.
+
+.PARAMETER EnableDarkMode
+    Use the dark theme for Windows and apps.
+
+.PARAMETER DisableTransparency
+    Disable the transparency effects of the shell.
+
+.PARAMETER DisableAnimations
+    Disable window animations and other shell effects.
+
+.PARAMETER TaskbarAlignLeft
+    Align the taskbar icons to the left, as on Windows 10.
+
+.PARAMETER CombineTaskbarAlways
+    Always combine taskbar buttons for the same app.
+
+.PARAMETER CombineTaskbarWhenFull
+    Combine taskbar buttons only when the taskbar is full.
+
+.PARAMETER CombineTaskbarNever
+    Never combine taskbar buttons, so every window gets its own button.
+
+.PARAMETER CombineMMTaskbarAlways
+    Always combine the buttons on the secondary monitor taskbars.
+
+.PARAMETER CombineMMTaskbarWhenFull
+    Combine secondary monitor buttons only when that taskbar is full.
+
+.PARAMETER CombineMMTaskbarNever
+    Never combine the buttons on the secondary monitor taskbars.
+
+.PARAMETER MMTaskbarModeAll
+    Show the taskbar on every display.
+
+.PARAMETER MMTaskbarModeMainActive
+    Show the taskbar on the main display and the active display only.
+
+.PARAMETER MMTaskbarModeActive
+    Show the taskbar on the active display only.
+
+.PARAMETER HideSearchTb
+    Hide the search box from the taskbar.
+
+.PARAMETER ShowSearchIconTb
+    Show the taskbar search as an icon only.
+
+.PARAMETER ShowSearchLabelTb
+    Show the taskbar search as an icon with a label.
+
+.PARAMETER ShowSearchBoxTb
+    Show the full taskbar search box.
+
+.PARAMETER HideTaskview
+    Hide the Task View button from the taskbar.
+
+.PARAMETER DisableStartRecommended
+    Disable the Recommended section of the Start menu.
+
+.PARAMETER DisableStartAllApps
+    Hide the all-apps list from the Start menu.
+
+.PARAMETER StartAllAppsCategory
+    Show the all-apps list grouped by category.
+
+.PARAMETER StartAllAppsGrid
+    Show the all-apps list as a grid.
+
+.PARAMETER StartAllAppsList
+    Show the all-apps list as a single list.
+
+.PARAMETER DisableStartPhoneLink
+    Remove the Phone Link entry from the Start menu.
+
+.PARAMETER DisableCopilot
+    Disable Windows Copilot.
+
+.PARAMETER DisableRecall
+    Disable Recall snapshots. Windows 11 24H2 and newer only.
+
+.PARAMETER DisableClickToDo
+    Disable the Click To Do AI helper. Windows 11 24H2 and newer only.
+
+.PARAMETER DisableAISvcAutoStart
+    Stop the Windows AI service from starting automatically.
+
+.PARAMETER DisablePaintAI
+    Remove the AI features from Paint.
+
+.PARAMETER DisableNotepadAI
+    Remove the AI features from Notepad.
+
+.PARAMETER DisableEdgeAI
+    Disable the AI features in Microsoft Edge.
+
+.PARAMETER DisableSearchHighlights
+    Disable the search highlights shown in Start search.
+
+.PARAMETER DisableWidgets
+    Disable the Widgets board and its taskbar button.
+
+.PARAMETER HideChat
+    Hide the Chat and Teams icon from the taskbar.
+
+.PARAMETER EnableEndTask
+    Enable the End task entry in the taskbar right-click menu.
+
+.PARAMETER EnableLastActiveClick
+    Clicking a taskbar icon switches to the last active window of that app.
+
+.PARAMETER ClearStart
+    Reset the current user's Start layout to the Windows default.
+
+.PARAMETER ReplaceStart
+    Apply a Start layout JSON file for the current user.
+
+.PARAMETER ClearStartAllUsers
+    Reset the Start layout for every user account.
+
+.PARAMETER ReplaceStartAllUsers
+    Apply a Start layout JSON file for every user account.
+
+.PARAMETER RevertContextMenu
+    Restore the Windows 10 style right-click context menu. Windows 11 only.
+
+.PARAMETER DisableDragTray
+    Disable the drag-to-taskbar tray behaviour.
+
+.PARAMETER DisableMouseAcceleration
+    Disable mouse pointer acceleration, for linear pointer movement.
+
+.PARAMETER DisableStickyKeys
+    Disable the Sticky Keys keyboard shortcut prompt.
+
+.PARAMETER DisableWindowSnapping
+    Disable dragging a window to a screen edge to snap it.
+
+.PARAMETER DisableSnapAssist
+    Disable Snap Assist, which offers the remaining windows after a snap.
+
+.PARAMETER DisableSnapLayouts
+    Disable the Snap Layouts flyout on the maximize button.
+
+.PARAMETER HideTabsInAltTab
+    Alt+Tab shows windows only, never browser or app tabs.
+
+.PARAMETER Show3TabsInAltTab
+    Alt+Tab shows up to three tabs per app before listing windows.
+
+.PARAMETER Show5TabsInAltTab
+    Alt+Tab shows up to five tabs per app before listing windows.
+
+.PARAMETER Show20TabsInAltTab
+    Alt+Tab shows up to twenty tabs per app before listing windows.
+
+.PARAMETER HideHome
+    Hide Home from the Explorer navigation pane.
+
+.PARAMETER HideGallery
+    Hide Gallery from the Explorer navigation pane. Windows 11 only.
+
+.PARAMETER ExplorerToHome
+    Open Explorer at Home.
+
+.PARAMETER ExplorerToThisPC
+    Open Explorer at This PC.
+
+.PARAMETER ExplorerToDownloads
+    Open Explorer at the Downloads folder.
+
+.PARAMETER ExplorerToOneDrive
+    Open Explorer at OneDrive.
+
+.PARAMETER AddFoldersToThisPC
+    Show the user folders under This PC in the navigation pane.
+
+.PARAMETER HideOnedrive
+    Hide OneDrive from the Explorer navigation pane.
+
+.PARAMETER Hide3dObjects
+    Hide the 3D Objects folder.
+
+.PARAMETER HideMusic
+    Hide the Music folder.
+
+.PARAMETER HideIncludeInLibrary
+    Hide 'Include in library' from the folder context menu.
+
+.PARAMETER HideGiveAccessTo
+    Hide 'Give access to' from the folder context menu.
+
+.PARAMETER HideShare
+    Hide 'Share' from the folder context menu.
+
+.PARAMETER ShowDriveLettersFirst
+    Show drive letters before drive names.
+
+.PARAMETER ShowDriveLettersLast
+    Show drive letters after drive names.
+
+.PARAMETER ShowNetworkDriveLettersFirst
+    Show drive letters before drive names for network drives only.
+
+.PARAMETER HideDriveLetters
+    Hide drive letters entirely.
+
+.PARAMETER WorkPath
+    Folder the launcher downloads and runs Win11Debloat from. Defaults to
+    %TEMP%\Win11Debloat. Config, logs and backups live here.
+
+.PARAMETER TargetBuild
+    Windows 10 build used as the compatibility reference when the host is not Windows 10,
+    for example 19045 (22H2). Defaults to 19045.
+
+.PARAMETER TaskName
+    Name of the scheduled task created by -InstallScheduledTask and removed by
+    -Uninstall. Defaults to 'Win10Debloat Maintenance'.
+
+.PARAMETER TaskTime
+    Daily start time of the scheduled task, as 'HH:mm'. Defaults to 03:00.
+
 .EXAMPLE
     .\Win10Debloat-Launcher.ps1 -WhatIf -Preset Privacy
 
@@ -99,6 +497,44 @@
     .\Win10Debloat-Launcher.ps1 -Diagnostics
 
     Read-only report of build, storage, pending reboot and current tweak values.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -ListStartupItems
+
+    Lists every startup item with the location it starts from. The printed names are the
+    ones -StartupItems accepts.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -StartupItems 'OneDrive,*Teams*' -TweaksOnly
+
+    Disables the OneDrive startup entry and every Teams startup entry, saving their
+    previous state, without downloading Win11Debloat.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -TweaksOnly
+
+    Applies the startup item list from the work folder Config\StartupItems.json, shaped
+    { "StartupItems": [ "OneDrive", "Spotify" ] }, with no other selection.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -RevertStartupItems
+
+    Puts back every startup item the previous run disabled.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -InstallScheduledTask -TaskTime 04:30
+
+    Registers a daily SYSTEM task at 04:30 that replays the saved settings.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -BundlePath .\win11debloat.zip -Sha256 <hash> -Silent
+
+    Installs from a local archive after verifying the hash, with no console output.
+
+.EXAMPLE
+    .\Win10Debloat-Launcher.ps1 -Win10Safe -WhatIf -RunDefaults
+
+    Shows the Windows 10 plan for the full default run without changing anything.
 
 .NOTES
     Exit codes: 0 success, 1 unexpected error, 2 preflight failure, 3 download failure,
@@ -234,6 +670,9 @@ param (
     [ValidateSet('Privacy', 'Tidy', 'Gaming', 'All')]
     [string]$Preset,
     [string[]]$Win10Tweaks,
+    [string[]]$StartupItems,
+    [switch]$ListStartupItems,
+    [switch]$RevertStartupItems,
     [switch]$RevertWin10Tweaks,
     [switch]$TweaksOnly,
     [switch]$ListTweaks,
@@ -272,10 +711,16 @@ $script:LauncherBoundParameters = $PSBoundParameters
 $script:LauncherOnlyParameters = @(
     'Dev', 'Version', 'Channel', 'BundlePath', 'WorkPath', 'Proxy', 'Sha256',
     'Retries', 'TimeoutSec', 'TargetBuild', 'Win10Safe', 'IgnoreCompatibility',
-    'Preset', 'Win10Tweaks', 'RevertWin10Tweaks', 'TweaksOnly', 'ListTweaks',
+    'Preset', 'Win10Tweaks', 'StartupItems', 'ListStartupItems', 'RevertStartupItems',
+    'RevertWin10Tweaks', 'TweaksOnly', 'ListTweaks',
     'Diagnostics', 'CheckUpdate', 'Uninstall', 'InstallScheduledTask', 'TaskName',
     'TaskTime', 'LauncherConfig', 'KeepFiles', 'NoElevate'
 )
+
+# Startup item state lives in the Config folder so it survives a bundle refresh.
+$script:StartupConfigFile = 'StartupItems.json'
+$script:StartupBackupFile = 'StartupItems-backup.json'
+$script:StartupDisabledFolder = 'StartupItems-disabled'
 
 # ---------------------------------------------------------------------------
 # Output and logging
@@ -1081,6 +1526,231 @@ function Restore-Win10TweakBackup {
 }
 
 # ---------------------------------------------------------------------------
+# Startup items (Run keys and Startup folders)
+# ---------------------------------------------------------------------------
+
+function Get-StartupLocation {
+    $locations = @(
+        @{ Kind = 'Registry'; Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' }
+        @{ Kind = 'Registry'; Path = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' }
+        @{ Kind = 'Registry'; Path = 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run' }
+    )
+
+    $startMenu = 'Microsoft\Windows\Start Menu\Programs\Startup'
+    if ($env:APPDATA) { $locations += @{ Kind = 'Folder'; Path = (Join-Path $env:APPDATA $startMenu) } }
+    if ($env:ProgramData) { $locations += @{ Kind = 'Folder'; Path = (Join-Path $env:ProgramData $startMenu) } }
+
+    return $locations
+}
+
+function Get-StartupEntry {
+    $entries = @()
+
+    foreach ($location in (Get-StartupLocation)) {
+        if (-not (Test-Path -LiteralPath $location.Path)) { continue }
+
+        if ($location.Kind -eq 'Registry') {
+            $key = Get-Item -LiteralPath $location.Path -ErrorAction SilentlyContinue
+            if ($null -eq $key) { continue }
+            foreach ($name in @($key.GetValueNames())) {
+                if ([string]::IsNullOrWhiteSpace($name)) { continue }
+                $entries += [pscustomobject]@{
+                    Name     = $name
+                    Kind     = 'Registry'
+                    Location = $location.Path
+                    FileName = $null
+                    Command  = [string]$key.GetValue($name, '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                }
+            }
+            continue
+        }
+
+        foreach ($file in @(Get-ChildItem -LiteralPath $location.Path -File -ErrorAction SilentlyContinue)) {
+            if ($file.Name -eq 'desktop.ini') { continue }
+            $entries += [pscustomobject]@{
+                Name     = $file.BaseName
+                Kind     = 'File'
+                Location = $location.Path
+                FileName = $file.Name
+                Command  = $file.FullName
+            }
+        }
+    }
+
+    return $entries
+}
+
+function Get-StartupEntrySource {
+    param($Entry)
+
+    if ($Entry.Kind -eq 'Registry') {
+        if ($Entry.Location -like '*WOW6432Node*') { return 'HKLM Run (32-bit)' }
+        if ($Entry.Location -like 'HKCU:*') { return 'HKCU Run' }
+        return 'HKLM Run'
+    }
+    if ($Entry.Location -like '*ProgramData*') { return 'All users Startup folder' }
+    return 'User Startup folder'
+}
+
+function Select-StartupItem {
+    param([string[]]$Names)
+
+    $available = @(Get-StartupEntry)
+    $selected = @()
+    $unknown = @()
+    $seen = @{}
+
+    foreach ($raw in @($Names)) {
+        foreach ($piece in ([string]$raw).Split(',')) {
+            $name = $piece.Trim()
+            if ($name.Length -eq 0) { continue }
+
+            $candidates = @($available | Where-Object { $_.Name -eq $name })
+            if ($candidates.Count -eq 0 -and $name -match '[*?]') {
+                $candidates = @($available | Where-Object { $_.Name -like $name })
+            }
+            if ($candidates.Count -eq 0) {
+                $unknown += $name
+                continue
+            }
+
+            foreach ($match in $candidates) {
+                $key = '{0}|{1}|{2}' -f $match.Kind, $match.Location, $match.Name
+                if ($seen.ContainsKey($key)) { continue }
+                $seen[$key] = $true
+                $selected += $match
+            }
+        }
+    }
+
+    return [pscustomobject]@{ Selected = $selected; Unknown = $unknown }
+}
+
+function Import-StartupItemConfig {
+    param([string]$Path)
+
+    $json = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ($null -eq $json) { return @() }
+    if ($json -is [string]) { return @([string]$json) }
+    if ($json -is [System.Array]) { return @($json) }
+
+    $property = $json.PSObject.Properties['StartupItems']
+    if ($null -ne $property) { return @($property.Value) }
+
+    throw 'Startup config needs a StartupItems array, for example { "StartupItems": [ "OneDrive" ] }.'
+}
+
+function Disable-StartupItem {
+    param(
+        $Entry,
+        [System.Collections.ArrayList]$BackupCollector,
+        [string]$DisabledFolder
+    )
+
+    if ($Entry.Kind -eq 'Registry') {
+        $snapshot = Get-RegistrySnapshot -Path $Entry.Location -Name $Entry.Name
+        if ($null -ne $BackupCollector) {
+            $BackupCollector.Add([pscustomobject]@{
+                Kind         = 'Registry'
+                Path         = $Entry.Location
+                Name         = $Entry.Name
+                Type         = $snapshot.Type
+                Existed      = $snapshot.Existed
+                Value        = $snapshot.Value
+                BinaryBase64 = $snapshot.BinaryBase64
+                StoredPath   = $null
+            }) | Out-Null
+        }
+        Remove-RegistryValue -Path $Entry.Location -Name $Entry.Name
+        return
+    }
+
+    if ($script:DryRun) { return }
+
+    $source = Join-Path $Entry.Location $Entry.FileName
+    if (-not (Test-Path -LiteralPath $source)) { return }
+
+    New-DirectoryIfMissing -Path $DisabledFolder
+    $target = Join-Path $DisabledFolder $Entry.FileName
+    Move-Item -LiteralPath $source -Destination $target -Force
+
+    if ($null -ne $BackupCollector) {
+        $BackupCollector.Add([pscustomobject]@{
+            Kind         = 'File'
+            Path         = $Entry.Location
+            Name         = $Entry.FileName
+            Type         = $null
+            Existed      = $true
+            Value        = $null
+            BinaryBase64 = $false
+            StoredPath   = $target
+        }) | Out-Null
+    }
+}
+
+function Save-StartupItemBackup {
+    param([System.Collections.ArrayList]$Entries, [string]$Path)
+
+    if ($null -eq $Entries -or $Entries.Count -eq 0) { return }
+    New-DirectoryIfMissing -Path (Split-Path -Parent $Path)
+    ($Entries | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Restore-StartupItemBackup {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) { return 0 }
+
+    $entries = @(Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
+    $restored = 0
+
+    foreach ($entry in $entries) {
+        if ($entry.Kind -eq 'Registry') {
+            if ($entry.Existed) {
+                $value = $entry.Value
+                if ($entry.BinaryBase64) { $value = [Convert]::FromBase64String([string]$entry.Value) }
+                Set-RegistryValue -Path $entry.Path -Name $entry.Name -Type $entry.Type -Value $value
+            }
+            else {
+                Remove-RegistryValue -Path $entry.Path -Name $entry.Name
+            }
+            $restored++
+            continue
+        }
+
+        if (-not $entry.StoredPath -or -not (Test-Path -LiteralPath $entry.StoredPath)) { continue }
+        Move-Item -LiteralPath $entry.StoredPath -Destination (Join-Path $entry.Path $entry.Name) -Force
+        $restored++
+    }
+
+    return $restored
+}
+
+function Show-StartupItems {
+    param([string]$WorkRoot)
+
+    $entries = @(Get-StartupEntry)
+    $configPath = Join-Path (Join-Path $WorkRoot 'Config') $script:StartupConfigFile
+
+    Write-Host ''
+    Write-Host ('Startup items (launcher {0}):' -f $script:LauncherVersion)
+    Write-Host '-----------------------------------------------------------------'
+
+    if ($entries.Count -eq 0) {
+        Write-Host '  No startup items found in the Run keys or Startup folders.'
+    }
+    foreach ($entry in $entries) {
+        Write-Host ('  {0,-34} {1}' -f $entry.Name, (Get-StartupEntrySource -Entry $entry))
+    }
+
+    Write-Host ''
+    Write-Host 'Disable : -StartupItems "OneDrive,Spotify"   or   -StartupItems "*Teams*"'
+    Write-Host 'Restore : -RevertStartupItems'
+    Write-Host ('Config  : {0}' -f $configPath)
+    Write-Host '          { "StartupItems": [ "OneDrive", "Spotify" ] }'
+}
+
+# ---------------------------------------------------------------------------
 # Download and bundle handling
 # ---------------------------------------------------------------------------
 
@@ -1514,6 +2184,10 @@ function Invoke-LauncherMain {
         Show-TweakCatalog
         return $script:ExitSuccess
     }
+    if ($ListStartupItems) {
+        Show-StartupItems -WorkRoot $workRoot
+        return $script:ExitSuccess
+    }
     if ($CheckUpdate) {
         if (Show-UpstreamRelease) { return $script:ExitSuccess }
         return $script:ExitDownload
@@ -1562,11 +2236,6 @@ function Invoke-LauncherMain {
             return $script:ExitConfig
         }
     }
-    if ($TweaksOnly -and $null -eq $tweakPlan) {
-        Write-Fail 'Nothing to do: -TweaksOnly needs -Preset or -Win10Tweaks.'
-        return $script:ExitConfig
-    }
-
     # ---- forwarded switch set ----
     if ($Dev) { $Channel = 'Dev' }
 
@@ -1599,6 +2268,9 @@ function Invoke-LauncherMain {
         if ($imported.Unknown.Count -gt 0) {
             Write-Warn ('Ignored unknown config keys: {0}' -f ($imported.Unknown -join ', '))
         }
+        if ($imported.Settings.ContainsKey('StartupItems') -and -not $StartupItems) {
+            $StartupItems = @($imported.Settings['StartupItems'])
+        }
     }
 
     $windows10Target = $false
@@ -1615,6 +2287,30 @@ function Invoke-LauncherMain {
     }
 
     $argumentString = ConvertTo-ArgumentList -Parameters $split.Kept -Exclude @($script:LauncherOnlyParameters)
+
+    # ---- startup item selection ----
+    $startupPlan = $null
+    $startupConfigPath = Join-Path (Join-Path $workRoot 'Config') $script:StartupConfigFile
+    if (-not $RevertStartupItems) {
+        $startupRequest = @($StartupItems | Where-Object { $_ })
+        if ($startupRequest.Count -eq 0 -and (Test-Path -LiteralPath $startupConfigPath)) {
+            try {
+                $startupRequest = @(Import-StartupItemConfig -Path $startupConfigPath)
+            }
+            catch {
+                Write-Fail ('Could not read {0}: {1}' -f $startupConfigPath, $_.Exception.Message)
+                return $script:ExitConfig
+            }
+        }
+        if ($startupRequest.Count -gt 0) {
+            $startupPlan = Select-StartupItem -Names $startupRequest
+        }
+    }
+
+    if ($TweaksOnly -and $null -eq $tweakPlan -and $null -eq $startupPlan) {
+        Write-Fail 'Nothing to do: -TweaksOnly needs -Preset, -Win10Tweaks or -StartupItems.'
+        return $script:ExitConfig
+    }
 
     # ---- plan output / dry run ----
     if ($WhatIf) {
@@ -1644,6 +2340,16 @@ function Invoke-LauncherMain {
             Write-Info ('  Windows 10 tweaks ({0}):' -f $tweakPlan.Selected.Count)
             foreach ($tweak in $tweakPlan.Selected) {
                 Write-Info ('    + {0} - {1}' -f $tweak.Id, $tweak.Label)
+            }
+        }
+        if ($null -ne $startupPlan) {
+            Write-Info ''
+            Write-Info ('  Startup items to disable ({0}):' -f $startupPlan.Selected.Count)
+            foreach ($item in $startupPlan.Selected) {
+                Write-Info ('    - {0} ({1})' -f $item.Name, (Get-StartupEntrySource -Entry $item))
+            }
+            if ($startupPlan.Unknown.Count -gt 0) {
+                Write-Info ('    ? not found: {0}' -f ($startupPlan.Unknown -join ', '))
             }
         }
         Write-Info ''
@@ -1696,6 +2402,8 @@ function Invoke-LauncherMain {
     # ---- Windows 10 tweaks ----
     $configDir = Join-Path $workRoot 'Config'
     $tweakBackupPath = Join-Path $configDir 'Win10Tweaks-backup.json'
+    $startupBackupPath = Join-Path $configDir $script:StartupBackupFile
+    $startupDisabledFolder = Join-Path $configDir $script:StartupDisabledFolder
 
     if ($RevertWin10Tweaks) {
         Write-Step 'Restoring Windows 10 tweaks'
@@ -1728,6 +2436,43 @@ function Invoke-LauncherMain {
         }
         catch {
             Write-Warn ('Could not save the tweak backup: {0}' -f $_.Exception.Message)
+        }
+    }
+
+    if ($RevertStartupItems) {
+        Write-Step 'Restoring startup items'
+        $restoredItems = Restore-StartupItemBackup -Path $startupBackupPath
+        if ($restoredItems -eq 0) {
+            Write-Warn ('No startup item backup found at {0}' -f $startupBackupPath)
+        }
+        else {
+            Write-Success ('Restored {0} startup item(s).' -f $restoredItems)
+        }
+    }
+
+    if ($null -ne $startupPlan -and $startupPlan.Selected.Count -gt 0) {
+        Write-Step ('Disabling {0} startup item(s)' -f $startupPlan.Selected.Count)
+        if ($startupPlan.Unknown.Count -gt 0) {
+            Write-Warn ('Not found: {0}' -f ($startupPlan.Unknown -join ', '))
+        }
+        $startupBackupEntries = New-Object System.Collections.ArrayList
+
+        foreach ($item in $startupPlan.Selected) {
+            try {
+                Disable-StartupItem -Entry $item -BackupCollector $startupBackupEntries -DisabledFolder $startupDisabledFolder
+                Write-Success ('{0} ({1})' -f $item.Name, (Get-StartupEntrySource -Entry $item))
+            }
+            catch {
+                Write-Fail ('{0}: {1}' -f $item.Name, $_.Exception.Message)
+            }
+        }
+
+        try {
+            Save-StartupItemBackup -Entries $startupBackupEntries -Path $startupBackupPath
+            Write-Info ('  Previous startup state saved to {0}' -f $startupBackupPath)
+        }
+        catch {
+            Write-Warn ('Could not save the startup item backup: {0}' -f $_.Exception.Message)
         }
     }
 
@@ -1822,6 +2567,10 @@ function Invoke-LauncherMain {
     if ($null -ne $tweakPlan) {
         Write-Info ('  Windows 10 tweaks applied: {0}' -f $tweakPlan.Selected.Count)
         Write-Info '  Revert with: -RevertWin10Tweaks'
+    }
+    if ($null -ne $startupPlan) {
+        Write-Info ('  Startup items disabled: {0}' -f $startupPlan.Selected.Count)
+        Write-Info '  Restore with: -RevertStartupItems'
     }
     if ($script:LogFile) { Write-Info ('  Log: {0}' -f $script:LogFile) }
     Write-Host '-------------------------------------------------------------------------------------------'

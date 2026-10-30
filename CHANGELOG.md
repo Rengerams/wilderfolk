@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (30 October 2026):** The Windows debloat launcher now documents every switch in its built-in help and manages startup items: list what starts with Windows, disable entries by name or from a saved config list, and restore them all with one option.
+
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
 
