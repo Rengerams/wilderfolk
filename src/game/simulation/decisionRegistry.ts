@@ -49,6 +49,7 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'workerMotionPresentation'
+  | 'virtualPlayer'
   | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
@@ -81,6 +82,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  virtualPlayer: {
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, isMeasuredFoodDeficit (read-only policy proposals)',
+    cadence: 'on-demand',
+    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Actual world writes remain with the worker command and workforce owners.',
+    writes: [],
+    scheduledFrom: 'useVirtualPlayer.shouldVirtualPlayerAct → virtualPlayer.decideVirtualPlayerAction → GameLoop.applyCommand or scripts/colonyHealth.applyColonyBotAction',
+    testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts',
+  },
   workerMotionPresentation: {
     owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
