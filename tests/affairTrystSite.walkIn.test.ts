@@ -115,6 +115,7 @@ describe('affair tryst site (owner ruling 2026-09-16)', () => {
     const { cheater, paramour, entityById, buildingById } = fixture();
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
+    expect(getAffairTrystBuilding(paramour, cheater, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
   });
 
   it('falls back to the paramour’s residence when the spouse is home', () => {
@@ -124,6 +125,7 @@ describe('affair tryst site (owner ruling 2026-09-16)', () => {
     spouse.y = 110;
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)?.id).toBe(PARAMOUR_HOME_ID);
+    expect(getAffairTrystBuilding(paramour, cheater, entityById, buildingById)?.id).toBe(PARAMOUR_HOME_ID);
   });
 
   it('returns nothing when neither home can be used', () => {
