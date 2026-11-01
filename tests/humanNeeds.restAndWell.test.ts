@@ -31,24 +31,27 @@ describe('the 400 px well radius', () => {
   });
 });
 
-describe('eight-hour ordinary sleep', () => {
-  it('fills empty stamina and rest reserves in eight simulated hours without extra bonuses', () => {
+describe('seven-hour ordinary sleep', () => {
+  it('fills empty stamina and rest reserves after seven actual sleep hours', () => {
     const p = resident();
     p.needs!.stamina = 0;
     p.needs!.rest = 0;
-    for (let tick = 0; tick < 8 * TICKS_PER_HOUR; tick++) {
+    for (let tick = 0; tick < 7 * TICKS_PER_HOUR; tick++) {
       advanceHumanNeeds(p, { tick, sleeping: true, working: false, moving: false });
+      if (tick === 6 * TICKS_PER_HOUR - 1) {
+        expect(p.needs!.stamina).toBeLessThan(100);
+        expect(p.needs!.rest).toBeLessThan(100);
+      }
     }
-    expect(HUMAN_NEEDS.STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR).toBe(12.5);
-    expect(HUMAN_NEEDS.REST_RECOVERY_SLEEP_PER_SIM_HOUR).toBe(12.5);
+    expect(HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR).toBeCloseTo(100 / 7);
     expect(p.needs!.stamina).toBeCloseTo(100);
     expect(p.needs!.rest).toBeCloseTo(100);
   });
-  it('caps normal sleep recovery at 100', () => {
+  it('caps ordinary sleep recovery at 100', () => {
     const p = resident();
     p.needs!.stamina = 90;
     p.needs!.rest = 90;
-    for (let tick = 0; tick < 8 * TICKS_PER_HOUR; tick++) {
+    for (let tick = 0; tick < 7 * TICKS_PER_HOUR; tick++) {
       advanceHumanNeeds(p, { tick, sleeping: true, working: false, moving: false });
     }
     expect(p.needs!.stamina).toBe(100);
