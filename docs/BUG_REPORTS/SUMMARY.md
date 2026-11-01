@@ -45,6 +45,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Work-hours preview repeatedly searches the full population](../bug_report/2026-10-29-schedule-preview-repeated-roster-search.md):** eligible worker IDs indexed once and work/venue/policy previews avoid full-world cloning; browser INP verification pending.
 
+**2026-11-01 — [Deferred worker tick leaves stale entity catalog](../bug_report/2026-11-01-deferred-worker-tick-leaves-stale-entity-catalog.md):** PR #118 now rebuilds and prunes after a tick arrives during a pending lightweight command, while retaining the no-tick fast path. Focused tests added; execution and CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
