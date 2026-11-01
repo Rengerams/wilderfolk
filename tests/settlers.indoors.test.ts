@@ -16,6 +16,7 @@ import { createInitialView } from '../src/game/viewState';
 import { _cachedHumans, resetEntityCaches, updateCachedEntitiesFromSoA } from '../src/game/renderer/entityCache';
 import { observeIndoorPatients } from '../src/game/virtualPlayer';
 import { TICKS_PER_HOUR } from '../src/game/dayCycleClock';
+import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { drawHumans, drawLeaderAuraOverlay } from '../src/game/renderer/humans';
 
 describe('settlers inside buildings', () => {
@@ -126,6 +127,38 @@ describe('settlers inside buildings', () => {
     gameTick(world);
     expect(person.indoorBuildingId).toBeUndefined();
     expect(Math.hypot(person.x - before.x, person.y - before.y)).toBeGreaterThan(0);
+  });
+
+  it('lets a zero-stamina resident reach the house rather than freezing the home commute', () => {
+    const world = initGame({ seed: 625 });
+    world.worldMap = null;
+    const nightTick = 23 * TICKS_PER_HOUR;
+    const residentId = Array.from({ length: 50 }, (_, index) => 346 + index).find((id) =>
+      prefersHomeTonightFor(undefined, id, nightTick, 23)
+      && prefersHomeTonightFor(undefined, id, nightTick + TICKS_PER_HOUR, 0));
+    expect(residentId).toBeDefined();
+    const home = building(7, BuildingType.House, {
+      x: 220, y: 220, width: 40, height: 36, occupants: [residentId!],
+    });
+    const person = human(residentId!, {
+      x: 174, y: 252, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
+      needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },
+    });
+    world.entities = [person];
+    world.buildings = [home];
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = nightTick - 1;
+    world.lastProcessedCalendarDay = 0;
+
+    const startX = person.x;
+    for (let step = 0; step < 20 && person.indoorBuildingId !== home.id; step++) gameTick(world);
+    expect(person.x).toBeGreaterThan(startX);
+    expect(person.indoorBuildingId).toBe(home.id);
+    const beforeSleep = person.needs!.rest;
+    gameTick(world);
+    expect(person.needs!.rest).toBeGreaterThan(beforeSleep);
   });
 
   it('admits an established lover at the shared tryst house and credits sleep only after entry', () => {
