@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (1 November 2026):** Settler lists and selections now refresh after worker ticks that complete during pending schedule changes, without rebuilding for unchanged lightweight commands.
+
 - **Fixed (29 October 2026):** Work-hours previews now index eligible settlers once and use lightweight pending schedule updates, reducing expensive UI work in large colonies.
 - **Fixed (29 October 2026):** Worker-owned building upgrades no longer clone the whole colony before changing one building; isolated callers remain protected. Large-save verification pending.
 
