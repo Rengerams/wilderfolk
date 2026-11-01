@@ -279,6 +279,22 @@ describe('the health verdict at the owner numbers', () => {
     expect(applied.entities.find((entity) => entity.id === 3)?.workerBuildingId).toBe(78);
   });
 
+  it('switches to survival staffing before moving workers during a food crisis', () => {
+    const world = ownerColony(4, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'growth',
+      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 18 },
+      })),
+    }, {
+      mills: 0, farms: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+    });
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
+  });
+
   it('does not override manual staffing to transfer food workers', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
