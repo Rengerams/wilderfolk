@@ -135,6 +135,7 @@ export class GameLoop {
   private view: ViewState;
   private readonly catalog = new EntityCatalog();
   private lastCatalogByTypeRef: unknown = undefined;
+  private catalogDirtyFromDeferredTick = false;
   private rafId = 0;
   private running = false;
   private tickAccumulator = 0;
@@ -386,7 +387,10 @@ export class GameLoop {
         this.world = nextWorld;
         const rebuildStart = profileStart();
         this.catalog.rebuild(this.world.entities);
+        this.catalogDirtyFromDeferredTick = false;
         profileEnd('main.catalogRebuild', rebuildStart);
+      } else {
+        this.catalogDirtyFromDeferredTick = true;
       }
 
       if (render) {
@@ -429,9 +433,10 @@ export class GameLoop {
       }
 
       if (hadOptimistic) {
-        if (!isLightweightWorkerCommand(completedCommand)) {
+        if (!isLightweightWorkerCommand(completedCommand) || this.catalogDirtyFromDeferredTick) {
           this.catalog.rebuild(this.world.entities);
           this.pruneStaleSelection();
+          this.catalogDirtyFromDeferredTick = false;
         }
         this.notify(true, false, true);
       }
@@ -461,6 +466,7 @@ export class GameLoop {
     this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
+    this.catalogDirtyFromDeferredTick = false;
     this.pruneStaleSelection();
     this.notify(true, false, true);
 
@@ -580,6 +586,7 @@ export class GameLoop {
     this.lastNotifiedTick = world.tick;
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
+    this.catalogDirtyFromDeferredTick = false;
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
@@ -679,6 +686,7 @@ export class GameLoop {
       if (this.world.entities !== this.workerHost.getAuthoritativeWorld()?.entities) {
         this.catalog.rebuild(this.world.entities);
         this.pruneStaleSelection();
+        this.catalogDirtyFromDeferredTick = false;
       }
       this.notify(true, false, true);
 
@@ -702,6 +710,7 @@ export class GameLoop {
             else this.syncAfterWorkerMutation();
             this.catalog.rebuild(this.world.entities);
             this.pruneStaleSelection();
+            this.catalogDirtyFromDeferredTick = false;
             this.notify(true, false, true);
           }
           console.warn('[GameLoop] Worker command failed — reverted to authoritative state', err);
