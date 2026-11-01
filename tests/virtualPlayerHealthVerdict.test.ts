@@ -295,6 +295,28 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.command).toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
   });
 
+  it('does not reset a separate manual workplace while rebalancing food crews', () => {
+    const world = ownerColony(6, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 24 },
+      })),
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [6], staffingMode: 'manual' }),
+      ],
+    });
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'removeWorker', buildingId: 200 });
+    const applied = applyWorkerCommand(world, decision!.command);
+    expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('manual');
+    expect(applied.entities.find((entity) => entity.id === 6)?.workerBuildingId).toBe(79);
+    expect(applied.entities.filter((entity) => entity.workerBuildingId === 77).length).toBeGreaterThan(0);
+  });
+
   it('does not override manual staffing to transfer food workers', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
