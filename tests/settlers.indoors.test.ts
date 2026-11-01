@@ -140,8 +140,9 @@ describe('settlers inside buildings', () => {
     const home = building(7, BuildingType.House, {
       x: 220, y: 220, width: 40, height: 36, occupants: [residentId!],
     });
+    const porch = humanBuildingTarget(home, residentId!, true);
     const person = human(residentId!, {
-      x: 174, y: 252, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
+      x: porch.x - 22, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
       needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },
     });
     world.entities = [person];
