@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (1 November 2026):** Virtual Player now plans a Farm for six rather than nine mouths (the actual two-worker Farm is 22 nominal food/day before attendance losses), refills partially staffed food sites, and under a recorded food deficit can switch to Survival staffing and release a noncritical automatic worker to a food post. Manual staffing, employee transfers and the real food consumption model remain under their existing owners. Focused regressions added; 100-day no-restock simulation CI must still pass.
+- **Fixed (1 November 2026):** Virtual Player plans food for six mouths per two-worker Farm, restores understaffed food posts during shortages, and preserves manual staffing. Real food consumption and the strict long-run gate remain unchanged; CI verification pending.
 
 
 - **Fixed (1 November 2026):** Settler lists and selections now refresh after worker ticks that complete during pending schedule changes, without rebuilding for unchanged lightweight commands.
