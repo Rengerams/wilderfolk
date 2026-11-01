@@ -495,7 +495,15 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
   );
   const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
-  if (donor && pickWorkerToTransfer(humans, donor, producer, state.tick)) {
+  const availableWorker = donor && pickWorkerToTransfer(humans, donor, producer, state.tick);
+  if (donor && availableWorker) {
+    // Colony-wide auto-staff resets manual posts; use the targeted removal door instead.
+    if (state.buildings.some((building) => isManualStaffingBuilding(building))) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: donor.id, humanId: availableWorker.id },
+        reason: `release an auto worker for the ${BUILDING_CONFIGS[producer.type].label} without changing manual staffing`,
+      };
+    }
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
