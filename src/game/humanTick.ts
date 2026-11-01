@@ -209,7 +209,7 @@ function observeHumanSleep(entity: Entity, context: {
   const lover = entity.affairPartnerId == null ? undefined : entityById.get(entity.affairPartnerId);
   const site = lover?.alive && isSettlerRelationshipEntity(lover) && hasAffairPartner(entity, entityById)
     ? getAffairTrystBuilding(entity, lover, entityById, buildingById) : undefined;
-  const atLover = !!site && (night || recoveringSleep)
+  const atLover = !!site && !!lover && (night || recoveringSleep)
     && previousIndoorBuildingId === site.id && lover?.indoorBuildingId === site.id
     && isValidAffairTrystSite(entity, lover, entityById, buildingById, 55, hourOfDay);
 
