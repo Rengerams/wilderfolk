@@ -128,6 +128,39 @@ describe('settlers inside buildings', () => {
     expect(Math.hypot(person.x - before.x, person.y - before.y)).toBeGreaterThan(0);
   });
 
+  it('admits an established lover at the shared tryst house and credits sleep only after entry', () => {
+    const world = initGame({ seed: 626 });
+    world.worldMap = null;
+    const home = building(7, BuildingType.House, { x: 220, y: 220, width: 40, height: 36, occupants: [1, 2] });
+    const loverHome = building(15, BuildingType.House, { x: 600, y: 600, occupants: [3] });
+    const married = human(1, {
+      x: 218, y: 239, gender: 'male', relationshipStatus: 'married', partnerId: 2,
+      affairPartnerId: 3, residenceBuildingId: home.id,
+      needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 },
+    });
+    const spouse = human(2, { x: 900, y: 900, gender: 'female', relationshipStatus: 'married',
+      partnerId: 1, residenceBuildingId: home.id });
+    const lover = human(3, { x: 222, y: 239, gender: 'female', relationshipStatus: 'single',
+      affairPartnerId: 1, residenceBuildingId: loverHome.id,
+      needs: { nutrition: 80, rest: 40, stamina: 60, severeHungerTicks: 0 } });
+    world.entities = [married, spouse, lover];
+    world.buildings = [home, loverHome];
+    world.entityByType = undefined;
+    world.entityById = undefined;
+    world.paused = false;
+    world.tick = 23 * TICKS_PER_HOUR - 1;
+    world.lastProcessedCalendarDay = 0;
+
+    gameTick(world);
+    expect(married.indoorBuildingId).toBe(home.id);
+    expect(lover.indoorBuildingId).toBe(home.id);
+    const restBefore = lover.needs!.rest;
+    gameTick(world);
+    expect(lover.indoorBuildingId).toBe(home.id);
+    expect(lover.needs!.rest).toBeGreaterThan(restBefore);
+    expect(lover.residenceBuildingId).toBe(loverHome.id);
+  });
+
   it('transports indoor presence through the actual worker render buffer and hides selected leaders too', () => {
     const world = initGame({ seed: 621 });
     const person = human(1, { x: 100, y: 100, indoorBuildingId: 0 });
