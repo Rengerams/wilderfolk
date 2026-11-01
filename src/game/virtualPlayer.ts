@@ -22,7 +22,6 @@ import { computeVillageStats } from './uiSimSummary';
 import { getPlayerCampCenter, getRaidChoiceEligibility, canLaunchRaidOnRival } from './frontierCombat';
 import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSpot';
 import {
-  canAutoChangeWorkplace,
   countWorkersAtBuilding,
   findOverstaffedDonorBuilding,
   isManualStaffingBuilding,
@@ -497,12 +496,10 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     };
   }
 
-  // If other auto-managed jobs only have a single worker, the normal
-  // overstaffed-donor rule cannot transfer one. During a real shortage, free
-  // the lowest-priority nonessential worker through the existing command owner.
-  // Its assignment pass immediately gives idle workers to food jobs first.
-  if (!isMeasuredFoodDeficit(state)
-    || !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS * 3)) {
+  // In a real shortage, release a low-priority auto worker if normal transfers fail.
+  // The workforce owner's assignment pass prioritizes food jobs immediately.
+  if (isMeasuredFoodDeficit(state)
+    && !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS * 3)) {
     const policy = getWorkforcePolicy(state);
     const nonessential = workplaces
       .filter((building) =>
@@ -520,7 +517,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     for (const building of nonessential) {
       if (!occupied.has(building.id)) continue;
       const worker = pickWorkerToTransfer(humans, building, producer, state.tick);
-      if (!worker || !canAutoChangeWorkplace(worker, state.tick)) continue;
+      if (!worker) continue;
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: building.id, humanId: worker.id },
         reason: `release a ${BUILDING_CONFIGS[building.type].label} worker to staff food production`,
