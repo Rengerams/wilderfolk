@@ -247,6 +247,56 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
+  it('builds a second Farm before the nominal two-worker Farm is asked to feed seven settlers', () => {
+    const colony = ownerColony(7, {}, { mills: 0, farms: 1 });
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decision?.reason).toContain('producer');
+  });
+
+  it('releases one nonessential auto worker to crew an empty Farm under a sustained shortage', () => {
+    const history = [1, 2, 3].map((day) => ({
+      day, produced: { farms: 8 }, consumed: { meals: 18 },
+    }));
+    const world = ownerColony(4, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: history,
+    }, {
+      mills: 0,
+      farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(78, BuildingType.LumberMill, { x: 700, y: 420, occupants: [3] }),
+        building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [4] }),
+      ],
+    });
+    const decision = decideVirtualPlayerAction(world);
+    expect(decision?.command).toMatchObject({ op: 'removeWorker', buildingId: 79, humanId: 4 });
+    const applied = applyWorkerCommand(world, decision!.command);
+    expect(applied.entities.find((entity) => entity.id === 4)?.workerBuildingId).toBe(77);
+    expect(applied.buildings.find((building) => building.id === 79)?.staffingMode).toBe('manual');
+    expect(applied.entities.find((entity) => entity.id === 3)?.workerBuildingId).toBe(78);
+  });
+
+  it('does not override manual staffing to transfer food workers', () => {
+    const world = ownerColony(3, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 8, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 5 }, consumed: { meals: 14 },
+      })),
+    }, {
+      mills: 0, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(78, BuildingType.LumberMill, { x: 770, y: 420, occupants: [3], staffingMode: 'manual' }),
+      ],
+    });
+    expect(decideVirtualPlayerAction(world)?.command)
+      .not.toMatchObject({ op: 'removeWorker', buildingId: 78 });
+  });
+
   it('upgrades staffed farm production instead of constructing unstaffable farms when food flow is negative', () => {
     const colony = ownerColony(12, {
       tick: 4 * TICKS_PER_DAY,
