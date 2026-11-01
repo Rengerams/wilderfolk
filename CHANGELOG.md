@@ -2,8 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (1 November 2026):** Actual village night spans 23:00–06:00 (seven hours). A single physiology sleep rate now restores empty rest and stamina reserves to 100% over those seven observed sleep hours, not eight; six hours remain insufficient. The normal day, night shift, hotel and lover scenarios all continue through the same `advanceHumanNeeds` owner.
-- **Fixed (1 November 2026):** Established lovers now select one shared tryst building in either caller order, rather than each selecting a different home. A single tick-level sleep observation checks real indoor presence across eligible locations, including both lovers at the agreed house, before crediting physiology; an exhausted scheduled home commuter is no longer frozen by the idle-break rule.
+- **Fixed (1 November 2026):** The 23:00–06:00 night now restores empty rest and stamina to 100% in seven actual sleep hours. One shared rate in `advanceHumanNeeds` handles all eligible sleep sites; six hours remain insufficient.
+- **Fixed (1 November 2026):** Lovers now choose the same tryst house regardless of caller order. One `observeHumanSleep` checks actual indoor sleep before recovery; exhausted settlers can still finish scheduled walks home.
 
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
