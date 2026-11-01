@@ -262,20 +262,22 @@ export function getAffairTrystBuilding(
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
 ): Building | undefined {
-  const maritalHome = cheater.residenceBuildingId != null
-    ? buildingById.get(cheater.residenceBuildingId)
+  // Choose roles once per pair, regardless of which partner is evaluated first.
+  const primary = cheater.partnerId != null && paramour.partnerId == null ? cheater
+    : paramour.partnerId != null && cheater.partnerId == null ? paramour
+      : cheater.id < paramour.id ? cheater : paramour;
+  const secondary = primary === cheater ? paramour : cheater;
+  const maritalHome = primary.partnerId != null && primary.residenceBuildingId != null
+    ? buildingById.get(primary.residenceBuildingId)
     : undefined;
-  // "Empty" means the spouse is not *at* the home — the cheater being elsewhere is the normal case, so
-  // the test is the spouse's position (`isSpouseAtSharedHome`), not `isMaritalHomeOccupiedBySpouse`
-  // (which also requires the cheater to be standing there and would never let them use their own house).
   if (
     maritalHome?.completed
     && isResidenceBuilding(maritalHome)
-    && !isSpouseAtSharedHome(cheater, entityById, buildingById)
+    && !isSpouseAtSharedHome(primary, entityById, buildingById)
   ) {
     return maritalHome;
   }
-  return getParamourResidence(paramour, buildingById);
+  return getParamourResidence(secondary, buildingById);
 }
 
 export function isNearBuilding(human: Entity, building: Building, maxDist = 55): boolean {
