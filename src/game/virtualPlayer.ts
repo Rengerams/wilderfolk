@@ -483,6 +483,12 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
   if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !isMeasuredFoodDeficit(state)) return null;
   const producer = firstUnstaffedFoodProducer(state);
   if (!producer) return null;
+  if (isMeasuredFoodDeficit(state) && getWorkforcePolicy(state) !== 'survival') {
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'setWorkforcePolicy', preset: 'survival' },
+      reason: 'prioritize survival jobs — food production is falling behind',
+    };
+  }
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
