@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-03 — [Spotlight chorus slots stacked the men on each other](../bug_report/2026-11-03-spotlight-chorus-slots-stacked.md):** The stage builder put every chorus slot on a 27–36 px arc south of the girl, 12.92 px apart, so the men overlapped and hid her. Slots now form one spaced ring around her; targeted tests, TypeScript, lint, build and a browser capture pass.
+
 **2026-11-02 — [Spotlight stage obscures village cast](../bug_report/2026-11-02-spotlight-stage-visibility.md):** Gameplay screenshot shows the oversized lore caption and narrow spotlight obscuring actors. The scene now uses a completed Village Square, with nonparticipating settlers hidden only in the ready render pass; verification pending.
 
 **2026-11-02 — [Close-friend cap exceeded (legacy saves and a unilateral over-cap bond)](../bug_report/2026-11-02-close-friend-cap-exceeded-legacy-saves.md):** A long save carried up to 31 close friends per settler and one unilateral bond could sit over the six-friend cap. Loading now trims to the six strongest, the keep rule is strictly below the cap, and the count is tracked once per settler.
@@ -2156,3 +2158,7 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-02 — Schedule review
 
 - **Leisure home preference ignored the configured work schedule — resolved:** a parent’s home preference used the legacy 07–16 window beside a configured shift check. Fixed in `1b3adaac`. [Report](bug_report/2026-11-02-leisure-ignores-configured-work-schedule.md).
+
+## 2026-11-03 — Building entry
+
+- **Building entry was measured from the footprint centre — resolved:** a large hospital could not be entered (patients hovered at the wall), every pupil snapped to one cell in front of the school, and venue/well crowds stacked on a point; entry now accepts the nearest entrance and crowds use spread slots. [Report](../bug_report/2026-11-03-building-approach-from-centre.md).

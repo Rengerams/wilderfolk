@@ -5,7 +5,7 @@ import { isPlayerHuman } from './playerHuman';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { enterHumanBuilding } from './simulation/humanMovement';
+import { enterHumanBuilding, homeEntryPosition } from './simulation/humanMovement';
 import { steerEntityToward } from './simulation/movementSteering';
 import {
   doctorTreatNearby,
@@ -16,6 +16,15 @@ import {
 } from './hospitalCare';
 
 const PATIENT_ARRIVAL_RADIUS_PX = 36;
+
+/** A patient is at the ward inside its centre radius or at its nearest entrance; walls block the rest. */
+function isAtHospital(entity: Entity, hospital: Building): boolean {
+  const centreX = hospital.x + hospital.width / 2;
+  const centreY = hospital.y + hospital.height / 2;
+  if (Math.hypot(entity.x - centreX, entity.y - centreY) < PATIENT_ARRIVAL_RADIUS_PX) return true;
+  const entrance = homeEntryPosition(hospital, entity.x, entity.y);
+  return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ARRIVAL_RADIUS_PX;
+}
 
 export type HospitalRuntimeContext = {
   state: WorldState;
@@ -95,28 +104,20 @@ export function tickHumanHospitalPatientCare({
   speed,
 }: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'staffedHospitals' | 'onJobShift' | 'speed'>): void {
   if (shouldRoutePregnantSettlerToHospital(entity, onJobShift, staffedHospitals.length > 0)) {
-    const best = staffedHospitals.find((hospital) => Math.hypot(
-      entity.x - (hospital.x + hospital.width / 2),
-      entity.y - (hospital.y + hospital.height / 2),
-    ) < PATIENT_ARRIVAL_RADIUS_PX) ?? pickHospitalWalkTarget(entity, staffedHospitals);
+    const best = staffedHospitals.find((hospital) => isAtHospital(entity, hospital))
+      ?? pickHospitalWalkTarget(entity, staffedHospitals);
     if (best) {
-      const x = best.x + best.width / 2;
-      const y = best.y + best.height / 2;
-      if (Math.hypot(entity.x - x, entity.y - y) < PATIENT_ARRIVAL_RADIUS_PX) enterHumanBuilding(entity, best);
+      if (isAtHospital(entity, best)) enterHumanBuilding(entity, best);
       else {
         entity.indoorBuildingId = undefined;
-        steerEntityToward(entity, x, y, speed, 0.55);
+        const entrance = homeEntryPosition(best, entity.x, entity.y);
+        steerEntityToward(entity, entrance.x, entrance.y, speed, 0.55);
       }
     }
   }
 
   if (shouldAttemptHospitalTreatment(entity, onJobShift, staffedHospitals.length > 0, state.tick)) {
-    const hospital = staffedHospitals.find(
-      (building) => Math.hypot(
-        entity.x - (building.x + building.width / 2),
-        entity.y - (building.y + building.height / 2),
-      ) < PATIENT_ARRIVAL_RADIUS_PX,
-    );
+    const hospital = staffedHospitals.find((building) => isAtHospital(entity, building));
     if (hospital) enterHumanBuilding(entity, hospital);
     if (
       hospital

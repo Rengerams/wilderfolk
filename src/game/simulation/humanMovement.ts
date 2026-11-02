@@ -191,7 +191,9 @@ export function humanBuildingTarget(
     return homeStandPosition(building, entityId);
   }
   if (building.type === BuildingType.School && !building.occupants.includes(entityId)) {
-    return walkableStandPoint(building.x, building.y);
+    // A pupil's place is a yard slot, not the footprint centre: the centre is unwalkable and every
+    // pupil snapped to the same neighbouring cell, stacking the whole class on one pixel.
+    return venueGatherPosition(building, entityId);
   }
   /**
    * A real slot per worker, in a row across the building's front.
@@ -231,12 +233,17 @@ export function humanBuildingTarget(
   );
 }
 
+/** Distance measures the building itself (its centre), not a settler's personal stand slot. */
+function buildingCommutePoint(building: Building): { x: number; y: number } {
+  return { x: building.x, y: building.y };
+}
+
 export function commuteDistanceToBuilding(
   entity: Entity,
   building: Building,
   arrivingHome: boolean,
 ): number {
-  const target = humanBuildingTarget(building, entity.id, arrivingHome);
+  const target = arrivingHome ? humanBuildingTarget(building, entity.id, true) : buildingCommutePoint(building);
   return Math.hypot(target.x - entity.x, target.y - entity.y);
 }
 
@@ -247,7 +254,7 @@ export function commuteDistanceFromResidence(
   destination: Building,
 ): number {
   const origin = residence ? homeStandPosition(residence, entity.id) : entity;
-  const target = humanBuildingTarget(destination, entity.id, false);
+  const target = buildingCommutePoint(destination);
   return Math.hypot(target.x - origin.x, target.y - origin.y);
 }
 

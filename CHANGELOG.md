@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (3 November 2026):** Settlers can enter a large hospital from its door instead of hovering outside the footprint centre until they never rest.
+
+- **Fixed (3 November 2026):** School pupils, well visitors and venue crowds each take their own place instead of stacking on one cell in front of the building.
+
+- **Fixed (3 November 2026):** The rare Spotlight performance now stands the girl in the middle of an evenly spaced ring of performers, instead of a crushed arc that hid her and stacked the men on each other.
+
 - **Fixed (2 November 2026):** Youth conception now follows the retained youth link: while one sweetheart is 18 and the other is still a minor the pair can conceive in either direction, and the route closes once both are adults.
 
 - **Fixed (2 November 2026):** The logistics overlay now refreshes when a paused command changes the world without advancing the tick, instead of drawing the previous projection.

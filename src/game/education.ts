@@ -164,6 +164,9 @@ export function syncSchoolAssignments(
 }
 
 export function isChildAtSchool(child: Entity, school: Building, maxDist = 28): boolean {
+  // Inside the footprint counts too: a pupil who walked in is in class even between yard slots.
+  if (Math.abs(child.x - school.x) <= school.width / 2
+    && Math.abs(child.y - school.y) <= school.height / 2) return true;
   const target = humanBuildingTarget(school, child.id, false);
   return Math.hypot(child.x - target.x, child.y - target.y) <= maxDist;
 }

@@ -12,8 +12,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { pickHospitalWalkTarget } from '../src/game/hospitalCare';
+import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { BuildingType } from '../src/game/gameTypes';
-import type { Building, Entity } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 
 function entity(x: number, y: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -75,5 +76,21 @@ describe('pickHospitalWalkTarget', () => {
   it('still picks a hospital when it is far away (walking distance is not capped)', () => {
     const patient = entity(0, 0);
     expect(pickHospitalWalkTarget(patient, [hospital(1, 10_000, 10_000)])?.id).toBe(1);
+  });
+
+  it('admits an exhausted patient at a large hospital by its entrance, not its footprint centre', () => {
+    const ward = { ...hospital(1, 100, 100), width: 120, height: 80, occupants: [7] };
+    // Standing at the south wall: 60 px from the centre, but 8 px from the door.
+    const patient = entity(ward.x + ward.width / 2, ward.y + ward.height + 20, { energy: 10, pregnant: false });
+
+    tickHumanHospitalPatientCare({
+      state: { tick: 0 } as WorldState,
+      entity: patient,
+      staffedHospitals: [ward],
+      onJobShift: false,
+      speed: 2,
+    });
+
+    expect(patient.indoorBuildingId).toBe(ward.id);
   });
 });

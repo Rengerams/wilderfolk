@@ -95,7 +95,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -1672,15 +1672,18 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             } else {
               const steerToShop = (): void => {
                 const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
-                if (shop) steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.42, 20, shop);
-                else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
+                if (shop) {
+                  const spot = venueGatherPosition(shop, entity.id);
+                  steerTo(spot.x, spot.y, 0.42, 20, shop);
+                } else idleVx = Math.sin(tick * 0.03 + entity.id) * config.speed * 0.1;
               };
 
               const shared = (Math.min(entity.id, company.id) * 31 + leisureSlot * 17 + absDay) % 6;
               if (shared <= 1) {
                 const tavern = pickCompleted([BuildingType.Tavern]);
                 if (tavern) {
-                  steerTo(tavern.x + tavern.width / 2, tavern.y + tavern.height * 0.92, 0.45, 20, tavern);
+                  const spot = venueGatherPosition(tavern, entity.id);
+                  steerTo(spot.x, spot.y, 0.45, 20, tavern);
                 } else {
                   steerToShop();
                 }
@@ -1688,11 +1691,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
                 steerToShop();
               } else if (shared === 3) {
                 const well = pickCompleted([BuildingType.Well]);
-                if (well) steerTo(well.x + well.width / 2, well.y + well.height / 2, 0.4, 16);
+                if (well) {
+                  const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
+                  steerTo(spot.x, spot.y, 0.4, 12);
+                }
               } else if (shared === 4) {
                 const hall = pickCompleted([BuildingType.TownHall]);
                 if (hall) {
-                  steerTo(hall.x + hall.width / 2, hall.y + hall.height + 8, 0.42, 22, hall);
+                  const spot = venueGatherPosition(hall, entity.id);
+                  steerTo(spot.x, spot.y, 0.42, 22, hall);
                 }
               } else {
                 idleVx = Math.sin(tick * 0.025 + entity.id) * config.speed * 0.12;
@@ -1713,13 +1720,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (leisureKind <= 2) {
           const tavern = pickCompleted([BuildingType.Tavern]);
           if (tavern) {
-            const arrived = steerTo(
-              tavern.x + tavern.width / 2 + ((entity.id % 5) - 2) * 6,
-              tavern.y + tavern.height * 0.92,
-              0.5,
-              18,
-              tavern,
-            );
+            const spot = venueGatherPosition(tavern, entity.id);
+            const arrived = steerTo(spot.x, spot.y, 0.5, 18, tavern);
             if (arrived) {
               adjustHumanStaminaFromEnergy(entity, 0.45 * PER_TICK_RATE_SCALE);
               settlerChat(entity, 'social', 0.14 * PER_TICK_RATE_SCALE);
@@ -1730,7 +1732,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           } else {
             const shop = pickCompleted([BuildingType.Market, BuildingType.Store]);
             if (shop) {
-              steerTo(shop.x + shop.width / 2, shop.y + shop.height * 0.92, 0.48, 16, shop);
+              const spot = venueGatherPosition(shop, entity.id);
+              steerTo(spot.x, spot.y, 0.48, 16, shop);
             } else {
               steerTo(width * 0.5, height * 0.55, 0.4);
             }
@@ -1738,7 +1741,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (leisureKind === 3) {
           const well = pickCompleted([BuildingType.Well]);
           if (well) {
-            const arrived = steerTo(well.x + well.width / 2, well.y + well.height / 2, 0.45, 12);
+            const spot = crowdGatherPosition(well.x + well.width / 2, well.y + well.height / 2, entity.id);
+            const arrived = steerTo(spot.x, spot.y, 0.45, 12);
             if (arrived) {
               adjustHumanStaminaFromEnergy(entity, 0.35 * PER_TICK_RATE_SCALE);
             }
@@ -1752,14 +1756,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         } else if (leisureKind === 4) {
           const church = pickCompleted([BuildingType.Church]);
           if (church) {
-            steerTo(church.x + church.width / 2, church.y + church.height * 0.95, 0.42, 18, church);
+            const spot = venueGatherPosition(church, entity.id);
+            steerTo(spot.x, spot.y, 0.42, 18, church);
           } else {
             steerTo(width * 0.45, height * 0.45, 0.38);
           }
         } else if (leisureKind === 5) {
           const hall = pickCompleted([BuildingType.TownHall]);
           if (hall) {
-            steerTo(hall.x + hall.width / 2 + ((entity.id % 5) - 2) * 8, hall.y + hall.height + 6, 0.44, 20, hall);
+            const spot = venueGatherPosition(hall, entity.id);
+            steerTo(spot.x, spot.y, 0.44, 20, hall);
           } else {
             steerTo(width * 0.5, height * 0.5, 0.4);
           }
