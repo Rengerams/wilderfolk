@@ -184,22 +184,15 @@ self.onerror = (event: unknown) => {
   );
 };
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
   if (!isWorkerProto(msg.proto)) {
     postError(workerProtoMismatch((msg as { proto?: unknown }).proto));
     return;
   }
 
-  void (async () => {
-    try {
-      await ensureNamePoolSettled();
-    } catch (err) {
-      postError(`Name pool load failed: ${err instanceof Error ? err.message : String(err)}`, 'general');
-    }
-  })();
-
   try {
+    await ensureNamePoolSettled();
     switch (msg.type) {
       case 'init': {
         headlessMode = msg.headless ?? false;
