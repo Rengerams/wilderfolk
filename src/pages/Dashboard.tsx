@@ -162,7 +162,7 @@ export function Dashboard() {
           acties={
             mag("programma", "zien") ? (
               <Link className="knop knop--klein" to={data.periode ? `/programma/${data.periode.id}` : "/programma"}>
-                Hele programma
+                Volledig programma
               </Link>
             ) : undefined
           }
