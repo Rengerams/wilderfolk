@@ -126,9 +126,9 @@ export const SIMULATION_DECISIONS = {
   careerHistory: {
     owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
     cadence: 'daily',
-    cadenceNote: 'No independent pass: credits only previously settled and verified site/job attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. Current staffing may differ after a Moon Howler night. Uses canonical isPlayerHuman membership, including explicit player markers; no construction inference or full-storage gating.',
+    cadenceNote: 'No independent pass: credits the just-finished calendar day immediately inside dailyScheduleFatigue.resolveDailyVillageScheduleFatigue after the midnight attendance snapshot, using the shared indexed workplace map. Current staffing may differ after a Moon Howler night; canonical player human shift membership includes temporary transformed settlers and explicit player markers. No construction inference, noon delay or full-storage gating.',
     writes: ['human.careerHistory', 'human.careerHistory[job].days', 'human.careerHistory[job].lastDay'],
-    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours, previous-day site/job provenance and indexed completed-site validation',
+    scheduledFrom: 'tickLayerDaily midnight → dailyScheduleFatigue.resolveDailyVillageScheduleFatigue → recordCareerWork using witnessed site/job, finished day and indexed completed site',
     testFile: 'tests/careers.history.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   careerProgression: {
@@ -136,7 +136,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'daily',
     cadenceNote: 'Event-driven only: after a newly accepted career day or actual apprenticeship completion; no duplicate skill writer or career timer.',
     writes: ['human.careerMilestones', 'human.careerMilestones[job].tier', 'human.careerMilestones[job].tierAtDay', 'human.careerMilestones[job].trainedAtDay'],
-    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction accepted recordCareerWork; apprenticeships.teach actual graduation',
+    scheduledFrom: 'dailyScheduleFatigue midnight accepted recordCareerWork; apprenticeships.teach actual graduation',
     testFile: 'tests/careers.progression.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   workerFit: {
@@ -273,11 +273,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
   },
   dialogueSessions: {
-    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
+    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
     cadence: 'realtime',
     cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks; missing counterparts and cleared keys are ignored safely. The render-buffer boundary mirrors fields but does not originate speech.',
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
-    scheduledFrom: 'humanTick.ts — tickHumanChat once in the active branch, including its existing early-return branch; event owners request through dialogueTrees.ts',
+    scheduledFrom: 'humanTick.ts — tickHumanChat and, on confirmed sleep, endAmbientHumanChat before the active-entity return; event owners request sessions through dialogueTrees.ts',
     testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   spotlightLore: {
@@ -426,10 +426,15 @@ export const SIMULATION_DECISIONS = {
   commands: {
     owner: 'commands.ts (simWorker) → domain owners: buildingActionRouting, buildingStaffingActions, buildingResidencyActions, buildingMaintenanceActions and buildingConfigurationActions',
     cadence: 'player-command',
-    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
+    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
       'building.occupants',
       'building.level',
+      'workforcePolicy',
+      'hotelSchedule',
+      'tavernSchedule',
+      'workSchedule',
+      'resources',
       'building.workshopRecipeId',
       'building.mineMode',
       'building.staffingMode',

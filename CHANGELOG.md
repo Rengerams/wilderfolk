@@ -2,7 +2,32 @@
 
 ## 0.6.5.2 [Unreleased]
 
-<<<<<<< HEAD
+- **Fixed (2 November 2026, PR #120 follow-up):** Restored current Virtual Player ownership, schedule and workday registry details after the prior merge accidentally replaced newer main records. The original meal-helper and changelog guard fixes remain.
+
+- **CI (2 November 2026):** Run small- and medium-colony benchmarks for two days and the large-colony benchmark for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
+
+- **Fixed (2 November 2026, PR #118):** Midnight now credits the actual previous workday, including human shifts recorded before Moon Howler transformation. Keeps the strict three-day large-population audit without duplicate credits; CI pending.
+
+- **Fixed (2 November 2026):** Seeded Virtual Player benchmarks now rebuild entity and spatial runtime caches after a worker command replaces the world. Prevents stale entity references from losing real shift credits at 1,800 settlers. Added regression coverage; large-scale CI verification pending.
+
+- **Documentation (2 November 2026):** Aligned the ownership and decision registries with real nighttime chat termination, worker preview gates, food-target planning and refugee-choice policy.
+
+- **Tests (2 November 2026):** Updated ground-bake regression to require visible forest-clearance changes; kept the snowy-clearing colour check meaningful without relying on an overstrict one-pixel threshold. Renderer logic unchanged.
+
+- **Tests (2 November 2026):** Home chatter regressions now use real arrival logic; food-planning fixtures follow the current producer target, and the decision registry verifies actual writers. Normalized the reinforced-soil sprite filename to lowercase.
+
+- **CI (2 November 2026):** Small, medium and large population benchmarks now run for every pull request targeting main. The duplicate producer-colony workflow is manual-only; the automatic simulation gate remains active. Criteria unchanged.
+
+- **Changed (2 November 2026):** Pull requests run unit tests affected by their changes and imported dependencies. Main retains the full suite; project-wide static checks and build remain required.
+
+- **Fixed (1 November 2026):** Virtual Player plans food for six mouths per two-worker Farm, restores understaffed food posts during shortages, and preserves manual staffing. Real food consumption and the strict long-run gate remain unchanged; CI verification pending.
+
+- **Fixed (1 November 2026):** Settler lists and selections now refresh after worker ticks that complete during pending schedule changes, without rebuilding for unchanged lightweight commands.
+
+- **Fixed (29 October 2026):** Work-hours previews now index eligible settlers once and use lightweight pending schedule updates, reducing expensive UI work in large colonies.
+
+- **Fixed (29 October 2026):** Worker-owned building upgrades no longer clone the whole colony before changing one building; isolated callers remain protected. Large-save verification pending.
+
 - **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
 
 - **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
@@ -16,9 +41,8 @@
 - **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.
 
 - **Fixed (2 November 2026):** A colony now settles into the same homes whatever order its settlers are supplied in, so a worker hand-off or save load cannot reshuffle its housing.
-=======
+
 - **Changed (2 November 2026):** Spotlight Lore now uses the normal settler-chat speech bubbles, not a separate HTML balloon. The spotlight is wider; a completed Village Square hosts the cast and hides unrelated settlers visually until the scene ends. Otherwise, normal gathering remains.
->>>>>>> 6075a9981de570d1fb583a76d4457a3a5a1d5803
 
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 

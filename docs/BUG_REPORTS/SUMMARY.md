@@ -99,6 +99,23 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** Removed uncalled `isMealCheckHour`, its unused import, and stale ownership/decision registry references; CI verification pending.
 
+
+**2026-10-29 — [Worker-owned building upgrade deep-clones large colony](../bug_report/2026-10-29-worker-upgrade-deep-clones-large-colony.md):** owned upgrade path now skips the full-world clone; isolated parity regression added. Cause of all 30-second timeouts and live 2,000+ resident verification still pending.
+
+**2026-10-29 — [Work-hours preview repeatedly searches the full population](../bug_report/2026-10-29-schedule-preview-repeated-roster-search.md):** eligible worker IDs indexed once and work/venue/policy previews avoid full-world cloning; browser INP verification pending.
+
+**2026-11-01 — [Deferred worker tick leaves stale entity catalog](../bug_report/2026-11-01-deferred-worker-tick-leaves-stale-entity-catalog.md):** PR #118 now rebuilds and prunes after a tick arrives during a pending lightweight command, while retaining the no-tick fast path. Focused tests added; execution and CI pending.
+
+**2026-11-01 — [Virtual Player food production lags population](../bug_report/2026-11-01-virtual-player-food-production-lags-population.md):** Both 29 October and 1 November 100-day producer-colony gates starved at day 90 with identical economics. PR #118 updates food capacity planning, deficit staffing, and focused tests; fresh 100-day CI pending.
+
+**2026-11-02 — [Reinforced-soil filename case mismatch](../bug_report/2026-11-02-ground-soil-filename-case-mismatch.md):** Case-sensitive CI found a preloaded sprite URL with the wrong filename suffix. Loader and renderer now reference the normalized lowercase `.png` asset; CI and browser verification pending.
+
+**2026-11-02 — [Colony bot world replacement keeps stale entity caches](../bug_report/2026-11-02-colony-bot-replacement-keeps-stale-entity-caches.md):** 1,800-resident benchmark lost all observed career credits despite 1,441 active attendance records. Headless command adapter reused the same world shell after `structuredClone` while weak caches still referenced superseded humans. Explicit cache hydration added after world adoption; CI pending.
+
+**2026-11-02 — [Career credit delayed until the following noon](../bug_report/2026-11-02-career-credit-lags-midnight-attendance.md):** PR #118's 1,800-resident benchmark exposed a genuine timing defect: midnight settled 1,441 witnessed worker shifts but noon's separate economy pass did not credit them until 12 in-game hours later. Career credit now runs in the existing midnight fatigue settlement with indexed site/job validation; no extension to the two-day benchmark. CI verification pending.
+
+**2026-11-02 — [PR #120 merge restored outdated registries](../bug_report/2026-11-02-pr120-merge-restored-outdated-registries.md):** A stale merge discarded the read-only Virtual Player decision and current workday ownership descriptions, producing four TS7053 build errors. Follow-up restores the exact main records and reapplies only the intended PR changes; fresh CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
