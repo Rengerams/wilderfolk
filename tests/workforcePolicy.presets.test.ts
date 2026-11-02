@@ -274,7 +274,7 @@ describe('workforce policy — save, delta, prep and command contract', () => {
     expect(getWorkforcePolicy(display)).toBe('defense');
 
     // ...and the same field rides the per-tick delta too.
-    const tickDelta = extractSimTickDelta(world, world.entities.filter((e) => e.alive), { headless: true });
+    const tickDelta = extractSimTickDelta(world, world.entities.filter((e) => e.alive), {});
     expect(tickDelta.workforcePolicy).toBe('defense');
   });
 

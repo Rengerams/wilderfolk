@@ -175,7 +175,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     world.huntVisuals = [visual];
 
     const delta = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     expect(delta.huntVisuals).toEqual([visual]);
@@ -188,7 +187,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     // The worker prunes the arrows itself; the removal has to reach the display too.
     world.huntVisuals = [];
     const cleared = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     applySimTickDelta(display, cleared, { cloneMode: 'isolated' });
@@ -203,7 +201,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     world.villageCanHeat = false;
 
     const delta = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     expect(delta.workingSettlers).toBe(5);

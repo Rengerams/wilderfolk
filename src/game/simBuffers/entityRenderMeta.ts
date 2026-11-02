@@ -89,14 +89,20 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
   };
 }
 
-export function packRenderMetaForPacked(packed: Entity[]): EntityRenderMeta[] {
-  return packed.map(packEntityRenderMeta);
-}
-
-export function packRenderMetaForAlive(world: { entities: Entity[] }): EntityRenderMeta[] {
-  const entities = world.entities ?? [];
-  const alive = entities.filter((e) => e.alive);
-  return alive.map(packEntityRenderMeta);
+/**
+ * Metadata for a packed render buffer's slots, resolved from the display world by entity id.
+ * The buffer already names every packed entity, so the worker never ships this duplicate payload.
+ */
+export function packRenderMetaForSlots(
+  reader: RenderSoAReaderV1,
+  lookup: (id: number) => Entity | undefined,
+): EntityRenderMeta[] {
+  const meta: EntityRenderMeta[] = new Array(reader.aliveCount);
+  for (let slot = 0; slot < reader.aliveCount; slot++) {
+    const entity = lookup(reader.id(slot));
+    if (entity) meta[slot] = packEntityRenderMeta(entity);
+  }
+  return meta;
 }
 
 function factionFromFlags(flags: number): Entity['faction'] {

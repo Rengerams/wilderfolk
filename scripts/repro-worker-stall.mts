@@ -17,6 +17,7 @@
  *   STALL_MS=<n>           gap that counts as a stall (default 2500; GameLoop's floor is 10000)
  */
 import { readFileSync } from 'node:fs';
+import { serialize as v8Serialize } from 'node:v8';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { initGame } from '../src/game/gameEngine';
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
   let exported = false;
   let lastCommandTick = -1;
   const gapHistogram: number[] = [];
+  const deltaBytes: number[] = [];
   const commandPending = () => pendingCommand != null;
   const isIdle = () => ticksInFlight === 0 && !commandPending();
 
@@ -167,6 +169,14 @@ async function main(): Promise<void> {
           }
         }
         lastResultAt = arrivedAt;
+        // Render-enabled delta weight over the port, sampled sparsely to keep the cost off the tick.
+        if (msg.delta && results % 100 === 0) {
+          try {
+            deltaBytes.push(v8Serialize(msg.delta).byteLength);
+          } catch {
+            /* a non-serializable delta is reported by its absence */
+          }
+        }
         if (msg.delta) {
           const t = (msg.delta as { tick: number }).tick;
           if (lastTick >= 0 && t !== lastTick + 1) {
@@ -278,6 +288,12 @@ async function main(): Promise<void> {
   );
   console.log(`idleGapMaxMs=${Math.round(maxGap)} heapPeak=${heapPeakMb.toFixed(1)}MB stallThreshold=${STALL_MS}ms`);
   console.log(`stallLogged=${stallLoggedAt >= 0}`);
+  if (deltaBytes.length > 0) {
+    const deltaAvg = deltaBytes.reduce((sum, bytes) => sum + bytes, 0) / deltaBytes.length;
+    console.log(
+      `renderDeltaV8Bytes: samples=${deltaBytes.length} avg=${deltaAvg.toFixed(0)} max=${Math.max(...deltaBytes)}`,
+    );
+  }
   if (maxResultGap > STALL_MS) {
     console.error(`[RESULT] GAP: a ${maxResultGap.toFixed(0)}ms inter-result gap exceeded the ${STALL_MS}ms threshold`);
   } else if (finalTick < TICKS) {

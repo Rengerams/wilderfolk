@@ -16,14 +16,14 @@
 | P2 | Implemented and verified | Fallback accumulator debit occurs only after a successful tick. The rollback regression covers retained debt, one attempt per frame and recovery. |
 | T1 | Implemented and verified at 5,000 ticks | Stress harness returns command/tick render buffers, detects outstanding leases, waits for export ack, and fails on incomplete run. |
 | D1 | Implemented and verified | Pool now accepts only exact schema lengths. The stress regression covers 200,000 acquire/release cycles and invalid returns. |
-| PERF1 | Partly implemented; benchmark required | Redundant human catalogue transfer removed; event-log transfer is limited to entries since the last acknowledged head. Full alive entity snapshots are still authoritative; dirty section revisions still require boundary audits and delta measurements. Target at least 30% average delta reduction. |
+| PERF1 | Implemented and measured; dirty sections still open | Redundant catalogue payload removed, event-log transfer limited to entries since the last acknowledged head, and the per-slot render sidecar moved off the wire (host rebuilds it from the buffer ids). Measured deltas, before -> after: huge 120-day V8 4,044,851 -> 2,749,091 (-32.0%), JSON 1,642,881 -> 1,439,671 (-12.4%); huge 3-day V8 3,897,476 -> 2,627,841 (-32.6%); medium 3-day V8 1,152,395 -> 774,651 (-32.8%); 120-settler render stress 3,085,389 -> 1,890,015 (-38.7%). Full alive entity snapshots remain authoritative; dirty section revisions still require a field matrix and boundary audit. |
 | PERF2 | Partly implemented; benchmark required | Removed duplicate invalidate-before-hydrate passes and retains road avoidance, adjacency and beauty only across a verified unchanged building delta. Dirty-field ownership and save/import regression coverage are still required for broader retention. |
-| PERF3 | Open | Incremental EntityCatalog needs authoritative add/update/remove revisions across worker commands, ticks and session swaps; no unsafe shadow catalogue introduced. |
+| PERF3 | Closed by adoption | `EntityCatalog.adoptWorldIndex` shares the validated authoritative lookup instead of rescanning entities per worker tick; the identity/removal regression lives in `tests/workerDisplayCache.ownership.test.ts`, and `rebuild` remains for save import, recovery and debug validation. |
 | PERF4 | Implemented and verified | Worker passes the precomputed alive roster into render packing; parity regression pins render SoA and overflow ordering. |
 | PERF5 | Open | Building fingerprint removal requires auditing all mutable building writers and ensuring revision bumps on every occupancy/staffing/upgrade/production change. Keep fingerprints until coverage is proven. |
 | PERF6 | Open | History fingerprint removal requires revision writes for all six history families, plus save/load/import/rollback integration. No reference-equality shortcuts allowed. |
-| PERF7 | Partly implemented; profile required | Reuses worker render slot lookup and avoids a non-overflow copy. Heap and overflow top-k allocations still require a 10,000-tick profile. |
-| PERF8 | Implemented and verified | Removed unused catalogue entity payload; transient delta protocol advanced to 2. Boundary audit is unchanged from the pre-change baseline and worker/main parity passes. |
+| PERF7 | Partly implemented; profile required | Reuses worker render slot lookup and avoids a non-overflow copy; render metadata is now packed once on the host from the buffer ids instead of twice, and never crosses the port. Heap and overflow top-k allocations still require a 10,000-tick profile. |
+| PERF8 | Implemented and verified | Removed unused catalogue entity payload; the transient delta protocol has since advanced to 3 for the render-sidecar move. Boundary audit is unchanged from the pre-change baseline and worker/main parity passes. |
 | PERF9 | Existing behavior confirmed | Worker profiler samples stay behind the explicit enable flag with the 3,000 ms publication gap; no per-tick production logging was added. |
 | PERF10 | Deliberately gated | Do not increase single in-flight production depth until end-to-end command ordering, upload/save barriers, held display buffer and memory tests establish safe additional slots. |
 
@@ -36,7 +36,7 @@ npm run lint
 npm run build
 npm run audit:deps:cycles
 npm run test:standard
-npx vitest run tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameLoop.fallbackTickRollback.test.ts tests/renderBufferPool.stress.test.ts tests/renderPacking.aliveRosterParity.test.ts tests/workerDisplayCache.ownership.test.ts tests/workerMainThread.parity.test.ts
+npx vitest run tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameLoop.fallbackTickRollback.test.ts tests/renderBufferPool.stress.test.ts tests/renderPacking.aliveRosterParity.test.ts tests/renderMeta.hostParity.test.ts tests/workerDisplayCache.ownership.test.ts tests/workerMainThread.parity.test.ts
 npx tsx scripts/worker-boundary-audit.mts
 $env:TICKS='5000'; npx tsx scripts/repro-worker-stall.mts
 ```
@@ -46,9 +46,11 @@ $env:TICKS='5000'; npx tsx scripts/repro-worker-stall.mts
 - `npm run test:types` — PASS. `npm run lint` — PASS, 0 errors (14 pre-existing warnings). `npm run build` — PASS, including the semantic-overlap gate after its pinned installer/handler fingerprint was refreshed for the changed handler body.
 - Targeted suites above — PASS, 11 files / 28 tests (gate ordering and rejected load, fallback debt, pool stress, alive-roster parity, display-cache ownership, worker/main parity, decision registry).
 - `TICKS=5000 npx tsx scripts/repro-worker-stall.mts` — PASS: 5,000 results, 0 errors, 5,007 render buffers received and 5,007 returned, 0 return failures, at most 1 lease outstanding, no pool exhaustion, p99 inter-result gap 27.6 ms, peak heap 59.8 MB, exit code 0.
-- `npx tsx scripts/worker-boundary-audit.mts` — exits 1 with the same 13 measured differences / 4 unexplained findings as the pre-change `main` baseline (`graveRecords` ×2, `genealogyRegistry`, `nextBuildingId`); this change adds none, and the render delta keeps the same entity payload.
+- `npx tsx scripts/worker-boundary-audit.mts` — exits 1 with the same 13 measured differences / 4 unexplained findings as the pre-change `main` baseline (`graveRecords` ×2, `genealogyRegistry`, `nextBuildingId`); this change adds none.
+- Render-sidecar move (per-slot metadata now rebuilt on the host): `tests/renderMeta.hostParity.test.ts` PASS (field-for-field parity, overflow slot order, and the render-enabled worker delta carries no sidecar); 20 affected suites / 113 tests PASS. Delta measurements on the same fixtures: huge 120-day V8 4,044,851 → 2,749,091 (-32.0%), JSON 1,642,881 → 1,439,671 (-12.4%), identical colony outcome (59 settlers) and a lower RSS peak; huge 3-day V8 3,897,476 → 2,627,841 (-32.6%), JSON 1,473,135 → 1,281,987 (-13.0%); medium V8 1,152,395 → 774,651 (-32.8%); the 120-settler render stress harness reports `renderDeltaV8Bytes` 3,085,389 → 1,890,015 (-38.7%). The perf harness's worker-transport phase is headless, so its number is unchanged by design.
+- Long-horizon huge run (120 days, 34,560 ticks, forced GC): 0 stalled ticks, 0 invariant violations over 120 daily checks, tick p50 2.20 ms / p95 3.53 / p99 4.97, worker sample 0 fallbacks and 0 errors, delta V8 avg 2.75 MB, heap 39.9 → 91.2 MB (peak 91.2, peak RSS 594 MB). The pre-change run on the same seed reported the same colony outcome with a 635 MB RSS peak.
 - `npm run test:standard`, `npm run audit:deps:cycles` and CI were not run in this session.
-- Remaining measurement work: PERF1 delta-size and PERF2/PERF7 cache and allocation numbers against the seeded benchmark, PERF3/PERF5/PERF6 revisions, PERF10 pipeline depth.
+- Remaining measurement work: PERF2 cache-rebuild counts and PERF7 allocation profile, PERF5/PERF6 revisions, PERF10 pipeline depth.
 
 Use identical seed/map/population and record tick p50/p95/p99, clone/delta bytes, worker gaps, heap after forced GC, catalog/cache rebuild counts, error/fallback counts and buffer counts before making a performance claim.
 

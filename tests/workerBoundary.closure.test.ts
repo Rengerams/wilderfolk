@@ -187,7 +187,6 @@ function tickThroughDelta(ticks: number): { authority: WorldState; display: Worl
   for (let i = 0; i < ticks; i++) {
     gameTick(authority);
     const delta = extractSimTickDelta(authority, authority.entities.filter((e) => e.alive), {
-      headless: true,
       cloneMode: 'transfer',
     });
     // postMessage serialization: the host can never share objects with the worker.
@@ -353,7 +352,7 @@ describe('worker boundary closure', () => {
     adoptSimSeedFromWorld(worker);
     gameTick(worker);
     assertHouse(worker);
-    const delta = extractSimTickDelta(worker, worker.entities.filter((e) => e.alive), { headless: true, cloneMode: 'transfer' });
+    const delta = extractSimTickDelta(worker, worker.entities.filter((e) => e.alive), { cloneMode: 'transfer' });
     applySimTickDelta(display, structuredClone(delta), { cloneMode: 'transfer' });
     assertHouse(display);
     const save = buildSaveData(worker, createInitialView(worker.width, worker.height));

@@ -3,14 +3,9 @@ import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
-import type { SimulationFocus } from '../simFocus';
-import type { EntityRenderMeta } from './entityRenderMeta';
-import { packRenderMetaForPacked } from './entityRenderMeta';
-import { selectRenderEntities } from './packRenderSoA';
-import { RENDER_MAX_SLOTS } from './schema';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 2;
+export const SIM_DELTA_PROTO = 3;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -149,7 +144,6 @@ export interface SimTickDelta {
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
-  renderMetaBySlot?: EntityRenderMeta[];
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
@@ -163,9 +157,6 @@ export interface SimTickDelta {
 export type SimDeltaCloneMode = 'isolated' | 'transfer';
 
 export interface ExtractSimTickDeltaOptions {
-  renderPacked?: Entity[];
-  focus?: SimulationFocus;
-  headless?: boolean;
   cloneMode?: SimDeltaCloneMode;
   prevBuildings?: ReadonlyMap<number, string> | null;
   nextBuildings?: Map<number, string>;
@@ -222,13 +213,7 @@ export function extractSimTickDelta(
     }
   }
 
-  const headless = options?.headless ?? false;
   const cloneMode = options?.cloneMode ?? 'isolated';
-
-  const renderPacked = headless
-    ? undefined
-    : options?.renderPacked
-      ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
 
   const previousEventIndex = options?.previousEventHeadId == null
     ? -1
@@ -391,10 +376,6 @@ export function extractSimTickDelta(
     delta.removedBuildingIds = removedBuildingIds;
   } else {
     delta.buildings = deltaClone(world.buildings, cloneMode);
-  }
-
-  if (!headless && renderPacked) {
-    delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
   }
 
   if (options?.prevHistories || options?.nextHistories) {

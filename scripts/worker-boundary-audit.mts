@@ -287,7 +287,7 @@ function census(): string[] {
   const world = initGame({ seed: SEED });
   const prepKeys = new Set(Object.keys(extractSimPrep(world)));
   const deltaKeys = new Set(
-    Object.keys(extractSimTickDelta(world, [], { headless: true })),
+    Object.keys(extractSimTickDelta(world, [], {})),
   );
   const saveKeys = new Set<string>(WORLD_STATE_SAVE_KEYS as readonly string[]);
   const rows = Object.keys(world)
@@ -426,7 +426,6 @@ function tickDeltaSurvival(): WorldState {
     gameTick(authoritative);
     const aliveNow = authoritative.entities.filter((e) => e.alive);
     const delta = extractSimTickDelta(authoritative, aliveNow, {
-      headless: true,
       cloneMode: 'transfer',
     });
     crossToHost(display, delta);
@@ -435,19 +434,14 @@ function tickDeltaSurvival(): WorldState {
   diffWorld(authoritative, display, 'ticks:delta');
   entityFieldDiff(authoritative, display, 'ticks:entities');
 
-  // The browser worker extracts with render metadata; that must not thin the payload.
+  // Render metadata is rebuilt on the host from the packed buffer ids, so the delta must not carry it.
   gameTick(authoritative);
   const aliveNow = authoritative.entities.filter((e) => e.alive);
-  const headlessDelta = extractSimTickDelta(authoritative, aliveNow, { headless: true });
-  const renderDelta = extractSimTickDelta(authoritative, aliveNow, {});
-  const sameEntities = stable(headlessDelta.aliveEntities) === stable(renderDelta.aliveEntities);
-  console.log(
-    `render path ships the same entity payload: ${sameEntities ? 'yes' : 'NO'} · renderMetaBySlot: ${
-      renderDelta.renderMetaBySlot ? `${renderDelta.renderMetaBySlot.length} slots` : 'absent'
-    }`,
-  );
-  if (!sameEntities) {
-    record('ticks:render', 'aliveEntities', 'thinned-by-render-path', 'headless payload', 'render payload differs');
+  const tickDelta = extractSimTickDelta(authoritative, aliveNow, {});
+  const renderMetaOnWire = (tickDelta as { renderMetaBySlot?: unknown }).renderMetaBySlot;
+  console.log(`tick delta carries renderMetaBySlot: ${renderMetaOnWire === undefined ? 'no' : 'YES'}`);
+  if (renderMetaOnWire !== undefined) {
+    record('ticks:render', 'renderMetaBySlot', 'duplicate-payload', 'absent', 'present');
   }
   return display;
 }

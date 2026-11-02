@@ -90,7 +90,7 @@ describe('PR D compact old-save migration', () => {
     expect(restored.careerMilestones?.farmer?.tier).toBe('practiced');
     const display = hydrateWorldRuntimeCaches(structuredClone(authority));
     const delta = extractSimTickDelta(authority, authority.entities.filter((e) => e.alive),
-      { headless: true, cloneMode: 'transfer' });
+      { cloneMode: 'transfer' });
     applySimTickDelta(display, structuredClone(delta), { cloneMode: 'transfer' });
     invalidateWorldRuntimeCaches(display);
     hydrateWorldRuntimeCaches(display);

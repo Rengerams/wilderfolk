@@ -2,7 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (2 November 2026):** A `?debug=1` Guide action stages the rare Spotlight performance on demand from the loaded colony, with the cast already on its marks.
+
+- **Changed (2 November 2026):** Render-tick metadata is rebuilt on the host from the packed buffer instead of being shipped beside it, cutting the render delta by about a third; the transient delta protocol advances.
+
 - **Fixed (2 November 2026):** The rare village spotlight now casts any off-duty man and skips whoever is actually on shift, instead of ruling out whole professions.
+
+- **Fixed (2 November 2026):** The spotlight still focuses the camera and starts its score when a throttled tab skipped the intro, and never starts the score during the applause.
 
 - **Fixed (2 November 2026, PR #120):** Removed the unused meal-hour export and synchronized the ownership and decision registries. The changelog slash-prose guard fix is included in this PR.
 

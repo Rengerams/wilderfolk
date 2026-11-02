@@ -115,8 +115,6 @@ function packAndPostTickResult(
     const nextBuildings = new Map<number, string>();
     const nextHistories = new Map<string, string | undefined>();
     const delta = extractSimTickDelta(world, aliveNow, {
-      renderPacked: pack.packedEntities,
-      focus: lastFocus,
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
       nextBuildings,
@@ -378,8 +376,6 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
           if (headlessMode) {
             const delta = extractSimTickDelta(world, aliveNow, {
-              focus: lastFocus,
-              headless: true,
               cloneMode: 'transfer',
             });
             world.screenShakeImpulse = 0;

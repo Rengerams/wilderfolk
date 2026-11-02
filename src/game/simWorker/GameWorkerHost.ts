@@ -4,6 +4,7 @@ import { profileStart, profileEnd, type PerformanceSnapshot } from '../performan
 import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
+import { packRenderMetaForSlots } from '../simBuffers/entityRenderMeta';
 import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
 import { RENDER_BUFFER_POOL_SIZE } from '../simBuffers/renderBufferPool';
 import { ScentGridReader } from '../scentGrid';
@@ -696,15 +697,17 @@ export class GameWorkerHost {
 
   private buildRender(
     renderBuffer: ArrayBuffer,
-    delta: SimTickDelta,
     scentBuffer?: ArrayBuffer,
   ): WorkerTickRender | null {
     const reader = createRenderSoAReader(renderBuffer);
     if (!reader) return null;
     const scentReader = scentBuffer ? ScentGridReader.tryCreate(scentBuffer) : null;
+    const world = this.worldRef;
     return {
       reader,
-      metaBySlot: delta.renderMetaBySlot,
+      // The buffer names every packed entity, so the metadata is rebuilt from the applied world
+      // instead of shipping a second copy of those fields across the worker boundary.
+      metaBySlot: packRenderMetaForSlots(reader, (id) => world?.entityById?.get(id)),
       scentReader,
     };
   }
@@ -810,7 +813,7 @@ export class GameWorkerHost {
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
         this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-        render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
+        render = this.buildRender(msg.renderBuffer, msg.scentBuffer);
       }
       this.onCommandResult?.(this.worldRef, delta, render, true, msg.reason);
       pendingCommand?.resolve(delta);
@@ -854,7 +857,7 @@ export class GameWorkerHost {
       this.onTickResult?.(this.worldRef, delta, null, true);
     } else {
       this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-      const render = this.buildRender(msg.renderBuffer, delta, msg.scentBuffer);
+      const render = this.buildRender(msg.renderBuffer, msg.scentBuffer);
       if (!render) {
         console.error('[GameWorker] Invalid render SoA buffer');
         this.onTickResult?.(this.worldRef, delta, null, true);
