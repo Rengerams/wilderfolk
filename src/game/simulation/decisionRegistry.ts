@@ -91,7 +91,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts',
   },
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
+    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
     cadenceNote: 'On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
