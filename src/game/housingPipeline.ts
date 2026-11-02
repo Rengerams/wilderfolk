@@ -1090,11 +1090,11 @@ export function relocateChildToCustodian(
   humans: Entity[],
   residences: Building[],
 ): boolean {
-  const home = pickResidenceFromChildCustodian(child, humans, residences);
-  if (home === undefined) return false;
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
-  return relocateHousehold([child], home, 'guardianship', 'guardian',
-    standaloneMoveContext(alive, residences));
+  const context = standaloneMoveContext(alive, residences);
+  const plan = planRelocation([child], 'custody', context);
+  if (!plan.move) return false;
+  return applyRelocation([child], plan, 'guardianship', context) !== undefined;
 }
 
 /** Resolve custody once for a sibling set; the housing owner places its complete guardian household. */
@@ -1142,17 +1142,18 @@ export function ensureOrphanAdoption(
     ?? couples.find((candidate) => canHouse(candidate.partnerA)) ?? couples[0];
   const guardian = relative ?? existing ?? couple?.partnerA ?? singles.find((candidate) => canHouse(candidate, true)) ?? singles.find((candidate) => canHouse(candidate)) ?? singles[0];
   if (!guardian) {
-    const picked = pickResidenceForFamily(siblings, residents, residences, occupancy, traits);
-    if (picked === undefined) return false;
-    return relocateHousehold(siblings, picked, 'guardianship', 'guardian',
-      standaloneMoveContext(residents, residences, occupancy, traits, ledger));
+    const context = standaloneMoveContext(residents, residences, occupancy, traits, ledger);
+    const plan = planRelocation(siblings, 'custody', context);
+    if (!plan.move) return false;
+    return applyRelocation(siblings, plan, 'guardianship', context) !== undefined;
   }
   const partner = findLivingHuman(alive, guardian.partnerId);
   const guardians = [guardian, partner].filter((human): human is Entity => !!human);
   const household = [...new Map([...collectMinorHousehold(guardian, alive), ...siblings]
     .map((member) => [member.id, member])).values()];
-  const picked = pickResidenceForFamily(household, residents, residences, occupancy, traits);
-  if (picked === undefined) return false;
+  const context = standaloneMoveContext(residents, residences, occupancy, traits, ledger);
+  const plan = planRelocation(household, 'custody', context);
+  if (!plan.move) return false;
   const previous = siblings.map((sibling) => ({
     sibling,
     motherId: sibling.adoptiveMotherId,
@@ -1170,8 +1171,7 @@ export function ensureOrphanAdoption(
       if (!adult.childrenIds.includes(sibling.id)) adult.childrenIds.push(sibling.id);
     }
   }
-  if (relocateHousehold(household, picked, 'guardianship', 'guardian',
-    standaloneMoveContext(residents, residences, occupancy, traits, ledger))) return true;
+  if (applyRelocation(household, plan, 'guardianship', context)) return true;
   for (const entry of previous) {
     entry.sibling.adoptiveMotherId = entry.motherId;
     entry.sibling.adoptiveFatherId = entry.fatherId;
