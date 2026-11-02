@@ -1,11 +1,12 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:174:installWorkerMessageHandlers@dbebebd59c8a96b419e26814d7eec30305dc79adfa2aabd20d396982be7ad6bf <-> src/game/simWorker/gameWorker.ts:187:onmessage@62f4f195650a126f3af1c20aa7533b545d80dc72589f0e900211aa0aa9693550",
-      "reason": "installWorkerMessageHandlers is the installable wrapper: it is the export a test or a host can call once to attach error hooks and the onmessage receiver, while onmessage is the receiver itself, a plain function assigned as self.onmessage. The wrapper deliberately owns no dispatch of its own, so folding them together would either register the handlers twice on every call or lose the single-entry-point install the worker tests depend on. Both live in the same worker module and no other module implements either.",
+      "key": "src/game/simWorker/gameWorker.ts:174:installWorkerMessageHandlers@ef3d938c8eb8873342fe5ecc348d40e27487ff40a1459e644230c54112d16d4a <-> src/game/simWorker/gameWorker.ts:187:onmessage@7fe168e60912ecb03cd79023e67b85aea21615e813330dd6708d15917350ea43",
+      "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
-        "tests/gameWorker.seed.test.ts"
+        "tests/gameWorker.seed.test.ts",
+        "tests/gameWorker.namePool.dispatchGate.test.ts"
       ]
     },
     {
