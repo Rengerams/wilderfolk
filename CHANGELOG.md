@@ -2,6 +2,13 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** Worker requests now wait for the shared census-name gate, and failed local recovery ticks preserve pending simulation time.
+
+- **Fixed (2 November 2026):** Transferable render buffers now reject nonexact sizes; the worker stress harness returns render leases and checks real save acknowledgements.
+
+- **Changed (2 November 2026):** Worker rendering reuses the alive roster and slot lookup; tick transfers omit redundant catalogue entities and repeated cache invalidation. Delta protocol advanced.
+
+
 - **CI (2 November 2026):** Run small- and medium-colony benchmarks for two days and the large-colony benchmark for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
 
 - **Fixed (2 November 2026, PR #118):** Midnight now credits the actual previous workday, including human shifts recorded before Moon Howler transformation. Keeps the strict three-day large-population audit without duplicate credits; CI pending.
