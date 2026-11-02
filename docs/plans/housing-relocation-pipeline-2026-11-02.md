@@ -4,8 +4,8 @@
 (`6cc9a80c`/`185f6205`) and **P3 are complete**: leave-home, commute and couple plan; L1/L7 fixed; the
 public needs predicate is retired; F6 (the sort's second predicate call) is accepted as a correctness
 cost and left for the P6 occupancy-version design. **P4 is in progress**: marriage goes through the
-plan; divorce's one-hop reshuffle and the remaining death triggers are next. Current tree: 35 files /
-170 tests.
+plan; divorce's one-hop reshuffle and the remaining death triggers are next. Manor seating is
+event-driven (start/election) by design, not a planner need. Current tree: 35 files / 170 tests.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.

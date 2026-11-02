@@ -30,7 +30,7 @@ export interface HousingRelocation {
   to?: number;
 }
 
-/** Why a household is being planned; only the manor still writes directly. */
+/** Why a household is being planned; manor seating is event-driven, never a housing-phase need. */
 export type RelocationNeed =
   | 'homeless'
   | 'custody'
@@ -38,7 +38,6 @@ export type RelocationNeed =
   | 'capacity'
   | 'surplus'
   | 'leave-home'
-  | 'manor'
   | 'couple'
   | 'commute';
 
@@ -283,8 +282,6 @@ export function planRelocation(
     case 'leave-home': return planLeaveHome(unit, context);
     case 'commute': return planCommutePlacement(unit, context);
     case 'couple': return planPlacement(unit, context, 'family', 'couple placement', residences);
-    case 'manor':
-      return { move: false, reason: 'assignment', why: `${need} is still a direct phase write` };
     default: {
       const unreachable: never = need;
       return { move: false, reason: 'assignment', why: `${String(unreachable)} is unknown` };

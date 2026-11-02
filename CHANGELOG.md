@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Manor seating is confirmed as event-driven only (colony start or a new election); ordinary housing phases never decide it.
+
 - **Changed (2 November 2026):** The old housing-needs predicate is no longer part of the public surface; the relocation plan owns move-or-stay, and the three suites that called it assert planner outcomes.
 
 - **Changed (2 November 2026):** Marriage housing now goes through the relocation plan, so a couple and their minors are placed by the same decision path as every other household; only manor moves still decide outside it.
