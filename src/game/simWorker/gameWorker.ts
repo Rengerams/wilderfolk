@@ -54,6 +54,7 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
 let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
 function withPathfinderReport(snapshot: PerformanceSnapshot | undefined): PerformanceSnapshot | undefined {
@@ -121,6 +122,7 @@ function packAndPostTickResult(
       nextBuildings,
       prevHistories: prevHistoriesSnapshot,
       nextHistories,
+      previousEventHeadId,
     });
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
@@ -146,6 +148,7 @@ function packAndPostTickResult(
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
     prevHistoriesSnapshot = nextHistories;
+    previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
     throw err;
@@ -166,6 +169,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevHistoriesSnapshot = null;
+  previousEventHeadId = undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -264,6 +268,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
           prevHistoriesSnapshot = null;
+          previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);
