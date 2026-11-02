@@ -1,8 +1,9 @@
 # Housing test suite — critical review and replacement plan — 2026-11-02
 
-**Status:** T0 is committed as `95ca783a update housing`. Everything else is scheduled against the
-pipeline plan (`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
-**Baseline:** HEAD `95ca783a` — 34 housing files, 148 tests, 15.73 s. Pre-T0 `58ca1793` — 33 files
+**Status:** T0 is committed as `95ca783a update housing`; current HEAD `5ba14bf5` is docs only on top.
+Everything else is scheduled against the pipeline plan
+(`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
+**Baseline:** T0 `95ca783a` — 34 housing files, 148 tests, 15.73 s. Pre-T0 `58ca1793` — 33 files
 / 141 tests, 19.33 s.
 
 ---

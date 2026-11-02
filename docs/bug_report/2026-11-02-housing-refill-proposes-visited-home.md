@@ -3,10 +3,10 @@
 - Bug: after the capacity phase unhouses one member of a split household, the refill picks that same
   home for the reunited household, `relocateHousehold` refuses it as already visited, no alternative
   is tried, and the household stays outside until the next assignment run.
-- Status: resolved (HEAD `95ca783a`)
+- Status: resolved (T0 commit `95ca783a`)
 - Severity: high
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, HEAD `95ca783a`
+- Version/build: V.0.6.5.1, T0 commit `95ca783a`; current HEAD `5ba14bf5` (docs only on top)
 - Reporter: generated invariant suite (`tests/housingPipeline.invariants.test.ts`), seed 2
 - Area: housing assignment
 - Owner module: `src/game/residencyReconciliation.ts` (assignment; selection in `residencySelection.ts`)
@@ -125,7 +125,7 @@ in-run ordering.
 
 - `npx vitest run tests/housingPipeline.invariants.test.ts` — 6/6 pass.
 - `npx vitest run tests/residenceBestFit.owner.test.ts` — 5/5 pass, including the exclusion case.
-- `npx vitest run <34 housing suites>` — 34 files, 148 tests pass on HEAD (33 existing + the
+- `npx vitest run <34 housing suites>` — 34 files, 148 tests pass on the T0 tree (33 existing + the
   invariant suite).
 - `npm run test:types`, `npm run lint`, `npm run check:source`, `npm run build` — all pass on the
   merged state (the build's semantic-overlap gate included). A concurrent edit by another agent
