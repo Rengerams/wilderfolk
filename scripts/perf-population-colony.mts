@@ -224,6 +224,28 @@ async function main(): Promise<void> {
       measuredCareerBaseline = careerCredits(world);
     }
 
+    // Diagnose actual attendance at high population using existing authoritative fields.
+    if (POPULATION >= 1800 && (world.tick === TICKS_PER_DAY + 15 * TICKS_PER_HOUR
+      || world.tick === 2 * TICKS_PER_DAY)) {
+      const assigned = livingPlayers(world).filter((e) => e.workerBuildingId != null);
+      const recording = assigned.filter((e) => (e.scheduleWorkedTicksToday ?? 0) > 0);
+      const matched = assigned.filter((e) => e.scheduleWorkedSiteIdToday === e.workerBuildingId
+        && e.scheduleWorkedJobToday === e.job);
+      console.log('CAREER_ATTENDANCE_AUDIT ' + JSON.stringify({
+        tick: world.tick, assigned: assigned.length, recording: recording.length,
+        matched: matched.length,
+        workedHours: assigned.filter((e) => (e.scheduleLastWorkedHours ?? 0) > 0).length,
+        sample: assigned.slice(0, 3).map((e) => ({
+          id: e.id, job: e.job, workplaceId: e.workerBuildingId,
+          ticks: e.scheduleWorkedTicksToday ?? null,
+          workedSite: e.scheduleWorkedSiteIdToday ?? null,
+          workedJob: e.scheduleWorkedJobToday ?? null,
+          lastHours: e.scheduleLastWorkedHours ?? null,
+          lastSite: e.scheduleLastWorkedSiteId ?? null,
+        })),
+      }));
+    }
+
     // Poll at most once per in-game hour, including any work credited at the daily noon pass.
     // This avoids an audit scan on every tick and preserves exact worker / job / site evidence.
     if (world.tick % TICKS_PER_HOUR === 0) {
