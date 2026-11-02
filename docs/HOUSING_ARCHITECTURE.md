@@ -6,6 +6,10 @@ The single reference for how the colony decides **who sleeps where**: the model,
 relocation rules, the decisions the owner confirmed, and what is still open.
 Owner module: `src/game/housingPipeline.ts`.
 
+**Status (2026-11-02):** the plan/apply pipeline is finished and verified (P0a–P7, T0–T4). The only
+open items are the oversized-household target policy in §4/§14 (**OPEN** — confirmed policy, not yet
+implemented) and the relocation-churn investigation; F6 stays accepted by design.
+
 This document describes the code as it stands after the 2026-10-25 consolidation. If the two disagree, the
 code is right and this file is a bug.
 
@@ -131,7 +135,8 @@ can never be packed into a house that was already too full. The shortage order i
    Do not leave minors unaccompanied or evict an entire family simply because one home is undersized.
    Reunite the household automatically when a suitable whole-family residence becomes available.
 
-This is the **confirmed target policy**, not yet proven to be the implemented capacity algorithm.
+**Status: OPEN.** This is the confirmed target policy, not yet the implemented capacity algorithm: the
+rebalance sheds only the excess today, and the male-partner-first reshuffle below is not implemented.
 The reshuffle must avoid oscillation, obey residence eligibility and respect the per-run housing ledger.
 The temporary male relocation is not a custody override, and an imprisoned settler's reserved bed
 must not be treated as free.
@@ -599,7 +604,7 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   blocking household are implemented. Focused divorce, leader succession, worker transport and
   saved-game regressions pass locally. Full remote CI remains required. This one-hop reshuffle does not
   guarantee a home if a multi-step chain of moves would be necessary.
-* **Oversized households — owner policy confirmed, implementation not yet verified.**
+* **Oversized households — OPEN: owner policy confirmed, implementation not yet verified.**
   First try to free capacity by moving unrelated people and independent adults or reshuffling other
   households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
   exists, move the adult male temporarily before disturbing the remaining dependents, but only when

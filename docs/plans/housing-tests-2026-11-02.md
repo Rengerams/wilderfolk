@@ -1,8 +1,9 @@
 # Housing test suite — critical review and replacement plan — 2026-11-02
 
-**Status:** P0a is committed as `d37efff9`; P1 as `98c0f393`; the audit fixes (fill regression,
-exhaustive retry, report origin, shared building predicate, shortage semantics, stats) and the
-contract suite are in the working tree. Everything else is scheduled against the pipeline plan.
+**Status (2026-11-02): ✅ all stages finished (T0–T4), the §7 adult rule is resolved, and the capacity
+table closes the last mutation gap.** P0a was committed as `d37efff9`; P1 as `98c0f393`; the audit fixes
+and contract suite landed with the pipeline plan. Current housing set: 36 files / 179 tests (full unit
+suite 459 files / 2 973).
 **Baseline:** 34 housing files / 166 tests (T1 closed). T4 harness: 600-settler max tick 107.6 ms; 360-day churn 13.48 moves/household-year. T0 `95ca783a` — 34 files / 148 tests,
 15.73 s. Pre-T0 `58ca1793` — 33 files / 141 tests, 19.33 s.
 
@@ -123,24 +124,24 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 
 | Stage | With | Work | Gate |
 | :--- | :--- | :--- | :--- |
-| **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
-| **T1 — done** | P0a done; P1 contract landed | the end-to-end refusal case seeds a ledger, so the run refuses the visited home and seats the family in the next one | 34 files / 166 tests green |
-| **T2 — done** | P3 | the `housingUnitNeedsReassignment` tests were rewritten as plan-level cases; the predicate is now private | invariants + contract green |
-| **T3 — done** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed, commute-margin, `familyFitsInResidence` (caught by the new capacity table and the no-overfill invariant), prisoner count, visited check and roster-sync skip all caught; `pairs` stays intentionally uncaught (readers test `> 0`) |
-| **T4** | P6/P7 | moved the ceiling to `PERF_DAY_BOUNDARY` (max tick ≤ 5 000 ms); `run-full-year` prints moves/household-year, homeless-days and repeat moves every 30 days | 30 d: 9 moves / 0 homeless-days / 0 repeat; 360 d: 283 moves / 1 920 homeless-days / 117 repeat / 13.48 moves per household-year; 600-settler max tick **107.6 ms** |
+| **T0 — ✅ finished** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
+| **T1 — ✅ finished** | P0a done; P1 contract landed | the end-to-end refusal case seeds a ledger, so the run refuses the visited home and seats the family in the next one | 34 files / 166 tests green |
+| **T2 — ✅ finished** | P3 | the `housingUnitNeedsReassignment` tests were rewritten as plan-level cases; the predicate is now private | invariants + contract green |
+| **T3 — ✅ finished** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed, commute-margin, `familyFitsInResidence` (caught by the new capacity table and the no-overfill invariant), prisoner count, visited check and roster-sync skip all caught; `pairs` stays intentionally uncaught (readers test `> 0`) |
+| **T4 — ✅ finished** | P6/P7 | moved the ceiling to `PERF_DAY_BOUNDARY` (max tick ≤ 5 000 ms); `run-full-year` prints moves/household-year, homeless-days and repeat moves every 30 days | 30 d: 9 moves / 0 homeless-days / 0 repeat; 360 d: 283 moves / 1 920 homeless-days / 117 repeat / 13.48 moves per household-year; 600-settler max tick **107.6 ms** |
 
 ## 6. Acceptance for the replacement
 
-- Every new file asserts observable settlement or a projection; no import of a private predicate.
-- No wall-clock assertion in a unit test.
+- Every new file asserts observable settlement or a projection; no import of a private predicate. — ✅ finished
+- No wall-clock assertion in a unit test. — ✅ finished
 - Each policy table includes the "no legal destination" case, the shortage case, and the
-  custody-split case.
-- The mutation checklist above is run once by hand and recorded in the PR description (not committed).
-- The fast housing set (everything except `residency.dayBoundary.budget`) runs in **< 8 s**.
+  custody-split case. — ✅ covered by the contract suite
+- The mutation checklist above is run once by hand and recorded in the PR description (not committed). — ✅ finished (8/8 caught; results in T3)
+- The fast housing set (everything except `residency.dayBoundary.budget`) runs in **< 8 s**. — OPEN: 35 files / 173 tests take **11.1 s**
 - No expected-fail cases remain; the seed-2 regression (refused destination retried) stays as a
-  normal test, and a future regression fails it rather than being re-pinned.
+  normal test, and a future regression fails it rather than being re-pinned. — ✅ finished
 
-## 7. Naming note — the "adult" rule has three spellings
+## 7. Naming note — the "adult" rule has three spellings — ✅ finished
 
 Measured in `src` and `tests`: 27 `isMinorChild(` calls, 236 `.isJuvenile` mentions, 92
 `HUMAN_ADULT_MIN_AGE` mentions, and **16 hand-rolled `age >= HUMAN_ADULT_MIN_AGE` / `!isJuvenile &&
