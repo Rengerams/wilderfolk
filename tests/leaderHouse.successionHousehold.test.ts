@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { syncLeaderHouseResidency } from '../src/game/leaderHouse';
+import { killHuman } from '../src/game/humanLifecycleCleanup';
 import { building, human } from '../src/test/factories';
 
 const MANOR_ID = 0;
@@ -49,6 +50,21 @@ describe("the Leader's House on succession", () => {
     expect(manor.occupants).not.toContain(oldLeader.id);
     expect(manor.occupants).not.toContain(oldSpouse.id);
     expect(manor.occupants).not.toContain(child.id);
+  });
+
+  it('keeps the late leader\'s family in the manor until the election', () => {
+    const { state, manor, oldLeader, oldSpouse, child } = successionWorld();
+    state.villageLeaderId = oldLeader.id;
+
+    killHuman(oldLeader, state.buildings, undefined, 0, state);
+    expect(state.villageLeaderId).toBeNull();
+
+    syncLeaderHouseResidency(state);
+
+    expect(oldSpouse.residenceBuildingId).toBe(MANOR_ID);
+    expect(child.residenceBuildingId).toBe(MANOR_ID);
+    expect(manor.occupants).toContain(oldSpouse.id);
+    expect(manor.occupants).toContain(child.id);
   });
 
   it('never leaves a minor behind in the manor without their custodian', () => {

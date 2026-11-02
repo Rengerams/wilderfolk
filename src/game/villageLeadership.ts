@@ -1175,6 +1175,10 @@ export function formatElectionDelay(years: number): string {
 }
 
 export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | null {
+  if (state.villageLeaderId != null) {
+    const holder = state.entities.find((entity) => entity.id === state.villageLeaderId);
+    if (!holder || !holder.alive) state.villageLeaderId = null;
+  }
   if (state.pendingElectionYear != null) return null;
 
   const leaderId = state.villageLeaderId;

@@ -254,6 +254,8 @@ export function killHuman(
     }
   }
   entity.alive = false;
+  // The office is vacant on death; the manor keeps the family until the election.
+  if (state && state.villageLeaderId === entity.id) state.villageLeaderId = null;
   if (entityById instanceof Map) entityById.delete(entity.id);
   finalizeMoonHowlerDeath(entity);
   finalizeHumanDeath(entity, buildings, entityById, tick);
