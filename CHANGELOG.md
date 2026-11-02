@@ -2,6 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** CI sleep-chat fixtures now require actual indoor arrival; the dialogue ownership test accepts persisted scene history. The obsolete ground-bake assertion now checks forest clearing affects pixels, and the clearing contrast check tolerates pixel rounding.
+- **Fixed (2 November 2026):** Reinforced soil rendering and sprite preloading now use the on-disk `ground_soil.PNG` path, including its case, restoring the sprite on case-sensitive hosts.
+
 - **CI (2 November 2026):** Run 250-, 750- and 1,800-person performance benchmarks on every pull request targeting `main`, including documentation-only changes. Remove the PR #99-only job conditions and file path filters; manual stress runs remain available.
 
 - **Fixed (1 November 2026):** The 23:00–06:00 night now restores empty rest and stamina to 100% in seven actual sleep hours. One shared rate in `advanceHumanNeeds` handles all eligible sleep sites; six hours remain insufficient.
