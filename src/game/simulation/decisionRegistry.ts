@@ -49,7 +49,6 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'workerMotionPresentation'
-  | 'virtualPlayer'
   | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
@@ -82,18 +81,10 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
-  virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
-    cadence: 'on-demand',
-    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Actual world writes remain with command and workforce owners. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell.',
-    writes: [],
-    scheduledFrom: 'useVirtualPlayer.shouldVirtualPlayerAct → virtualPlayer.decideVirtualPlayerAction → GameLoop.applyCommand or scripts/colonyHealth.applyColonyBotAction',
-    testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
-  },
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
+    owner: 'gameLoop.ts — registerWorkerHandlers, frameBody, exportAuthoritativeWorld, lastExportWasDegraded',
     cadence: 'render',
-    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
+    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. On save, halt new ticks while earlier commands and worker idle settle; keep recovery or host-swap exports degraded. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
     testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
@@ -125,9 +116,9 @@ export const SIMULATION_DECISIONS = {
   careerHistory: {
     owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
     cadence: 'daily',
-    cadenceNote: 'No independent pass: credits the just-finished calendar day immediately inside dailyScheduleFatigue.resolveDailyVillageScheduleFatigue after the midnight attendance snapshot, using the shared indexed workplace map. Current staffing may differ after a Moon Howler night; canonical player human shift membership includes temporary transformed settlers and explicit player markers. No construction inference, noon delay or full-storage gating.',
+    cadenceNote: 'No independent pass: credits only previously settled and verified site/job attendance within dailyBuildingEconomy.tickBuildingProduction existing playerWorkers aggregation. Current staffing may differ after a Moon Howler night. Uses canonical isPlayerHuman membership, including explicit player markers; no construction inference or full-storage gating.',
     writes: ['human.careerHistory', 'human.careerHistory[job].days', 'human.careerHistory[job].lastDay'],
-    scheduledFrom: 'tickLayerDaily midnight → dailyScheduleFatigue.resolveDailyVillageScheduleFatigue → recordCareerWork using witnessed site/job, finished day and indexed completed site',
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction — per eligible player worker after getScheduleLastWorkedHours, previous-day site/job provenance and indexed completed-site validation',
     testFile: 'tests/careers.history.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   careerProgression: {
@@ -135,7 +126,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'daily',
     cadenceNote: 'Event-driven only: after a newly accepted career day or actual apprenticeship completion; no duplicate skill writer or career timer.',
     writes: ['human.careerMilestones', 'human.careerMilestones[job].tier', 'human.careerMilestones[job].tierAtDay', 'human.careerMilestones[job].trainedAtDay'],
-    scheduledFrom: 'dailyScheduleFatigue midnight accepted recordCareerWork; apprenticeships.teach actual graduation',
+    scheduledFrom: 'dailyBuildingEconomy.tickBuildingProduction accepted recordCareerWork; apprenticeships.teach actual graduation',
     testFile: 'tests/careers.progression.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   workerFit: {
@@ -166,7 +157,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts',
   },
   humanMeals: {
-    owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
+    owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
     cadence: 'realtime',
     cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives consume at most one ledger-debited 08:00 ration per calendar day; the persisted custody stamp prevents duplicate charges across calls and reload without creating stamina or energy needs. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. Foreign captive metabolism and exhaustion deaths are retired: prisoners do not work or roam. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
     writes: [
@@ -264,11 +255,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts',
   },
   dialogueSessions: {
-    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
+    owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
     cadence: 'realtime',
     cadenceNote: 'Sole simulation writer of chatPhrase, chatTicks, chatPartnerId and chatDialogueSessionKey. Paired sessions are held with live participant references and release both sides immediately on interruption; saved orphan keys are reclaimed on their existing ticks; missing counterparts and cleared keys are ignored safely. The render-buffer boundary mirrors fields but does not originate speech.',
     writes: ['human.chatPhrase', 'human.chatTicks', 'human.chatPartnerId', 'human.chatDialogueSessionKey'],
-    scheduledFrom: 'humanTick.ts — tickHumanChat and, on confirmed sleep, endAmbientHumanChat before the active-entity return; event owners request sessions through dialogueTrees.ts',
+    scheduledFrom: 'humanTick.ts — tickHumanChat once in the active branch, including its existing early-return branch; event owners request through dialogueTrees.ts',
     testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   spotlightLore: {
@@ -415,17 +406,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
-    owner: 'commands.ts (simWorker) → buildingMaintenanceActions.ts (upgradeBuilding, repairBuilding, demolishBuilding), buildingActionRouting.ts (assignment), buildingConfigurationActions.ts (modes and recipes), workSchedule.ts and venueSchedule.ts (hours)',
+    owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
     cadence: 'player-command',
-    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without a deep clone; isolated fallback retains copy semantics. Demolition reconciles displaced households only; timeout recovery does not replay the unconfirmed command, retaining later requests.',
+    cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
       'building.occupants',
       'building.level',
-      'resources',
-      'workSchedule',
-      'tavernSchedule',
-      'hotelSchedule',
-      'workforcePolicy',
       'building.workshopRecipeId',
       'building.mineMode',
       'building.staffingMode',
