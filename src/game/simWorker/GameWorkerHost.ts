@@ -871,9 +871,7 @@ export class GameWorkerHost {
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
     profileEnd('main.applySimDelta', applyStart);
     const hydrateStart = profileStart();
-    const geometryUnchanged = delta.changedBuildings !== undefined
-      && delta.changedBuildings.length === 0
-      && (delta.removedBuildingIds?.length ?? 0) === 0;
+    const geometryUnchanged = delta.buildingGeometryChanged === false;
     hydrateWorldRuntimeCaches(this.worldRef, geometryUnchanged);
     profileEnd('main.hydrateCaches', hydrateStart);
 

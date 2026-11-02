@@ -89,6 +89,8 @@ export interface SimTickDelta {
   buildings?: Building[];
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
+  /** True when building geometry changed (or a building was removed), so caches must rebuild. */
+  buildingGeometryChanged?: boolean;
   /** Tiles a command patched (ground reinforcement, forest clearing), applied to the replica map. */
   terrainPatches?: TerrainTilePatch[];
   aliveEntities: Entity[];
@@ -172,6 +174,9 @@ export interface ExtractSimTickDeltaOptions {
   cloneMode?: SimDeltaCloneMode;
   prevBuildings?: ReadonlyMap<number, string> | null;
   nextBuildings?: Map<number, string>;
+  /** Geometry signature per building; whether it changed decides cache retention on the host. */
+  prevBuildingGeometry?: ReadonlyMap<number, string> | null;
+  nextBuildingGeometry?: Map<number, string>;
   prevHistoryRevisions?: HistoryRevisions | null;
   previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
@@ -191,6 +196,13 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 
 function buildingFingerprint(building: Building): string {
   return JSON.stringify(building);
+}
+
+/** The fields the derived geometry caches (road avoidance, adjacency, beauty) depend on. */
+function buildingGeometryKey(building: Building): string {
+  return `${building.id}|${building.type}|${building.x}|${building.y}|${building.width}`
+    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`
+    + `|${building.faction ?? ''}`;
 }
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
@@ -235,24 +247,35 @@ export function extractSimTickDelta(
   );
 
   const prevBuildings = options?.prevBuildings;
+  const prevBuildingGeometry = options?.prevBuildingGeometry;
   let changedBuildings: Building[] | undefined;
   let removedBuildingIds: number[] | undefined;
+  let buildingGeometryChanged: boolean | undefined;
 
   if (prevBuildings || options?.nextBuildings) {
     changedBuildings = [];
     removedBuildingIds = [];
+    buildingGeometryChanged = false;
     const currentIds = new Set<number>();
     for (const building of world.buildings) {
       currentIds.add(building.id);
       const fingerprint = buildingFingerprint(building);
       options?.nextBuildings?.set(building.id, fingerprint);
+      const geometry = buildingGeometryKey(building);
+      options?.nextBuildingGeometry?.set(building.id, geometry);
+      if (prevBuildingGeometry && prevBuildingGeometry.get(building.id) !== geometry) {
+        buildingGeometryChanged = true;
+      }
       const prev = prevBuildings?.get(building.id);
       if (prev !== fingerprint) {
         changedBuildings.push(building);
       }
     }
     for (const id of prevBuildings?.keys() ?? []) {
-      if (!currentIds.has(id)) removedBuildingIds.push(id);
+      if (!currentIds.has(id)) {
+        removedBuildingIds.push(id);
+        buildingGeometryChanged = true;
+      }
     }
   }
 
@@ -385,6 +408,7 @@ export function extractSimTickDelta(
   if (changedBuildings) {
     delta.changedBuildings = deltaClone(changedBuildings, cloneMode);
     delta.removedBuildingIds = removedBuildingIds;
+    delta.buildingGeometryChanged = buildingGeometryChanged;
   } else {
     delta.buildings = deltaClone(world.buildings, cloneMode);
   }

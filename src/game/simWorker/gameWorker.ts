@@ -59,6 +59,8 @@ let staticPropsSent = new Set<number>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
+/** Geometry signature of the last acknowledged building delta; drives host cache retention. */
+let prevBuildingGeometry: Map<number, string> | null = null;
 /** History revisions at the last acknowledged tick; unchanged families are not re-shipped. */
 let prevHistoryRevisions: HistoryRevisions | null = null;
 let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
@@ -120,10 +122,13 @@ function packAndPostTickResult(
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, string>();
+    const nextBuildingGeometry = new Map<number, string>();
     const delta = extractSimTickDelta(world, aliveNow, {
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
       nextBuildings,
+      prevBuildingGeometry,
+      nextBuildingGeometry,
       prevHistoryRevisions,
       previousEventHeadId,
     });
@@ -152,6 +157,7 @@ function packAndPostTickResult(
     };
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
+    prevBuildingGeometry = nextBuildingGeometry;
     prevHistoryRevisions = snapshotHistoryRevisions(world);
     previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
@@ -173,6 +179,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
+  prevBuildingGeometry = null;
   prevHistoryRevisions = null;
   previousEventHeadId = undefined;
   relationshipRevisionsSent = new Map();
@@ -290,6 +297,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         try {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
+          prevBuildingGeometry = null;
           prevHistoryRevisions = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
