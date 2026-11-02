@@ -1,14 +1,14 @@
 # `coreCannotFit` is named the opposite of what it computes
 
 - Bug: the guard is true when the guardian has a bed (short circuit) and false only when a guardian exists without a bed and a home fits the core, so its name and the stable-shortage rule disagree.
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, working tree on `508c1f2f`
+- Version/build: V.0.6.5.1, fixed in `4339c94b`
 - Reporter: housing review and independent audits
 - Area: housing assignment
-- Owner module: src/game/housingPipeline.ts (`housingUnitNeedsReassignment`)
-- Related PR/commit: none yet; fix scheduled with P5
+- Owner module: src/game/housingPipeline.ts (`unitNeedsMove`)
+- Related PR/commit: fixed in `4339c94b`
 
 ## Status history
 
@@ -36,7 +36,7 @@ Split into `guardianHoldsHome` and `coreHasNoAlternative`, or fold it into the P
 
 ## Regression coverage
 
-- Scheduled with P5; no test pins it yet.
+- No direct test for the private names; the housing suite pins the stable-shortage outcome through the planner cases.
 
 ## Save compatibility
 
@@ -44,4 +44,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Fixed: types pass and the housing suite is green; the refactor is behaviour-preserving.
