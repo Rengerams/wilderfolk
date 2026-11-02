@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Wall gate test reused a manually injected building ID](../bug_report/2026-11-02-wall-gate-fixture-reuses-building-id.md):** An M29/M30 fixture left the allocator equal to an injected wall's ID, so its replacement appeared to retain the old ID. Fixture now advances the allocator; CI pending.
+
 **2026-11-02 — [Worker delta converted absent graves into an empty list](../bug_report/2026-11-02-grave-history-absence-altered-by-worker-delta.md):** Real boundary audit found an optional field changed by tick and command delta. Transport now preserves absence distinctly from an empty history; CI pending.
 
 **2026-11-02 — [New village building ID changes after reload](../bug_report/2026-11-02-new-building-id-allocator-save-drift.md):** Initial counter started at zero although the loader requires a positive next ID. Fresh villages now initialize at one; save/load regression added.
