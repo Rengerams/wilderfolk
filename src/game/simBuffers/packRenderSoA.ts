@@ -84,6 +84,7 @@ function clearRenderSlot(u32: Uint32Array, slot: number): void {
   }
 }
 
+const renderSlotByEntityId = new Map<number, number>();
 let scratchScores: Float64Array | null = null;
 let scratchIndices: Uint32Array | null = null;
 
@@ -139,7 +140,7 @@ export function selectRenderEntities(
 ): { packed: Entity[]; totalAlive: number; overflow: boolean } {
   const totalAlive = alive.length;
   if (totalAlive <= maxSlots) {
-    return { packed: alive.slice(), totalAlive, overflow: false };
+    return { packed: alive, totalAlive, overflow: false };
   }
 
   const { scores, indices } = ensureSelectionScratch(totalAlive);
@@ -165,8 +166,9 @@ export function packRenderSoA(
   into?: ArrayBuffer,
   maxSlots = RENDER_MAX_SLOTS,
   focus?: SimulationFocus,
+  aliveOrdered?: Entity[],
 ): PackRenderSoAResult {
-  const alive = world.entities.filter((e) => e.alive);
+  const alive = aliveOrdered ?? world.entities.filter((e) => e.alive);
   const { packed, totalAlive, overflow } = selectRenderEntities(alive, maxSlots, focus);
   const aliveCount = packed.length;
   const byteLength = renderBufferByteLength(maxSlots);
@@ -186,7 +188,8 @@ export function packRenderSoA(
     ? (RENDER_GLOBAL_OVERFLOW | (totalAlive << 1))
     : 0;
 
-  const idToSlot = new Map<number, number>();
+  const idToSlot = renderSlotByEntityId;
+  idToSlot.clear();
   for (let slot = 0; slot < aliveCount; slot++) {
     idToSlot.set(packed[slot].id, slot);
   }
