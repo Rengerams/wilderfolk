@@ -12,6 +12,7 @@ import {
   getSpeechBubbleHeadClearance,
   resolveSpeechBubbleRect,
   shouldDrawHumanNameLabel,
+  shouldDrawSpotlightHuman,
 } from '../src/game/renderer/overheadLayout';
 import { drawContactShadow, getBuildingSpriteDrawBounds } from '../src/game/renderer/spriteDrawing';
 
@@ -77,6 +78,19 @@ describe('grounded 2.5D depth pass', () => {
 });
 
 describe('human overhead presentation layout', () => {
+  it('hides nonparticipants only during a ready spotlight performance and restores visibility on finish', () => {
+    const scene = {
+      id: 'stage', heroineId: 3, performerIds: [5, 8], phase: 'ready' as const,
+      startedAtTick: 1, readyAtTick: 2, gatherX: 100, gatherY: 100,
+      slots: [{ humanId: 5, x: 110, y: 130 }, { humanId: 8, x: 90, y: 130 }],
+    };
+    expect(shouldDrawSpotlightHuman(scene, 3)).toBe(true);
+    expect(shouldDrawSpotlightHuman(scene, 8)).toBe(true);
+    expect(shouldDrawSpotlightHuman(scene, 99)).toBe(false);
+    expect(shouldDrawSpotlightHuman({ ...scene, phase: 'gathering' }, 99)).toBe(true);
+    expect(shouldDrawSpotlightHuman(null, 99)).toBe(true);
+  });
+
   it('draws the name plate at readable zoom, whether or not the settler is talking', () => {
     expect(shouldDrawHumanNameLabel(1.0, 0.45)).toBe(true);
     expect(shouldDrawHumanNameLabel(0.3, 0.45)).toBe(false);
