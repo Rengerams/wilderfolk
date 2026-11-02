@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
+
 - **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
 
 - **Fixed (2 November 2026):** A capacity eviction no longer marks the vacated home as visited, so the same run can re-seat the evicted household when a bed is free; run stats now count capacity and repair moves.

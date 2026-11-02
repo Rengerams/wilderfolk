@@ -30,7 +30,7 @@ export interface HousingRelocation {
   to?: number;
 }
 
-/** Why a household is being planned; manor, couple and commute still write directly. */
+/** Why a household is being planned; manor and couple still write directly. */
 export type RelocationNeed =
   | 'homeless'
   | 'custody'
@@ -140,6 +140,8 @@ export interface HousingMoveContext {
   playerOccupancy?: ResidenceOccupancy;
   /** Called after each residence write, so a pass can tell real progress from a refused assignment. */
   onMove?: () => void;
+  /** Commute pricing inputs; present only during the commute phase. */
+  commute?: { cache: Map<string, number>; walkSpeed: number; index: CommuteRelocationIndex };
 }
 
 /** Counts residence writes so a pass can tell real progress from a refused assignment. */
@@ -279,9 +281,9 @@ export function planRelocation(
     case 'capacity': return planPlacement(unit, context, 'family', 'capacity placement', residences);
     case 'surplus': return planSurplus(unit, context, residences);
     case 'leave-home': return planLeaveHome(unit, context);
+    case 'commute': return planCommutePlacement(unit, context);
     case 'manor':
     case 'couple':
-    case 'commute':
       return { move: false, reason: 'assignment', why: `${need} is still a direct phase write` };
     default: {
       const unreachable: never = need;
@@ -431,6 +433,19 @@ function planCustodian(unit: readonly Entity[], context: HousingMoveContext): Re
     return { move: false, reason: 'guardian', why: 'custodian home refused' };
   }
   return { move: true, to: homeId, reason: 'guardian', why: 'custodian placement' };
+}
+
+/** Commute: move only when the route owner names a cheaper home for the household. */
+function planCommutePlacement(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
+  const commute = context.commute;
+  if (!commute) return { move: false, reason: 'commute', why: 'no commute index' };
+  const target = pickCommuteRelocation(
+    [...unit], context.alive, context.residences, context.buildings, context.occupancy,
+    commute.cache, commute.walkSpeed, commute.index,
+  );
+  return target === undefined
+    ? { move: false, reason: 'commute', why: 'no better commute' }
+    : { move: true, to: target, reason: 'commute', why: 'commute saving' };
 }
 
 function snapshotResidences(alive: readonly Entity[], into: Map<number, number | undefined>): void {
@@ -999,16 +1014,19 @@ export function relocateHouseholdsForCommute(
   const cache = new Map<string, number>();
   beginCommuteRoutePass();
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
-  const context: HousingMoveContext = { alive, residences, buildings, occupancy, traits, ledger: decisions };
+  const context: HousingMoveContext = {
+    alive, residences, buildings, occupancy, traits, ledger: decisions,
+    commute: { cache, walkSpeed, index },
+  };
   let relocated = 0;
   for (const unit of eligibleUnits) {
     if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
-    const better = pickCommuteRelocation(unit, alive, residences, buildings, occupancy, cache, walkSpeed, index);
-    if (better === undefined) continue;
+    const plan = planRelocation(unit, 'commute', context);
+    if (!plan.move || plan.to === undefined) continue;
     const previousId = unit[0]?.residenceBuildingId;
-    if (!relocateHousehold(unit, better, 'commute', 'commute', context)) continue;
+    if (applyRelocation(unit, plan, 'commute', context) === undefined) continue;
     relocated += 1;
-    index.vacant = index.vacant.filter((residence) => residence.id !== better);
+    index.vacant = index.vacant.filter((residence) => residence.id !== plan.to);
     const previous = previousId == null ? undefined : index.residencesById.get(previousId);
     if (previous && (occupancy.get(previous.id) ?? 0) === 0) {
       index.vacant.push(previous);
