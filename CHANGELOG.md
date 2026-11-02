@@ -3,7 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Fixed (2 November 2026):** CI sleep-chat fixtures now require actual indoor arrival; the dialogue ownership test accepts persisted scene history. The obsolete ground-bake assertion now checks forest clearing affects pixels, and the clearing contrast check tolerates pixel rounding.
-- **Fixed (2 November 2026):** Reinforced soil rendering and sprite preloading now use the on-disk `ground_soil.PNG` path, including its case, restoring the sprite on case-sensitive hosts.
+- **Fixed (2 November 2026):** Normalize the committed soil sprite to `ground_soil.png`, matching the intended local spelling. Preload, renderer, catalogue and asset register use the same case-sensitive path.
 
 - **CI (2 November 2026):** Run 250-, 750- and 1,800-person performance benchmarks on every pull request targeting `main`, including documentation-only changes. Remove the PR #99-only job conditions and file path filters; manual stress runs remain available.
 
