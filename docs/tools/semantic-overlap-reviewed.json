@@ -42,7 +42,7 @@
       ]
     },
     {
-      "key": "src/game/factionWander.ts:35:completedPlayerBuildings@33cd3500125253b0da390ffe1f44d1e0b8fa1d08a2335298cf221ba05127b13a <-> src/game/housingPipeline.ts:1242:listPlayerResidences@2a37aa826854c1278a777ddb74b303266eb9ea7914f17a5b9c98e43a10a2e4d0",
+      "key": "src/game/factionWander.ts:35:completedPlayerBuildings@33cd3500125253b0da390ffe1f44d1e0b8fa1d08a2335298cf221ba05127b13a <-> src/game/housingPipeline.ts:1332:listPlayerResidences@2a37aa826854c1278a777ddb74b303266eb9ea7914f17a5b9c98e43a10a2e4d0",
       "reason": "The wander helper filters completed non-rival buildings of any type so a faction member can pick a social venue; the housing owner filters completed non-rival buildings to residence types only. They share the completed/non-rival boundary by design but differ in type scope, caller and write contract (the wander list is read-only venue selection, the residence list feeds assignment). Merging them would either offer houses as venues or accept taverns as homes.",
       "tests": [
         "tests/housingPipeline.invariants.test.ts",

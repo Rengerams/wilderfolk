@@ -29,6 +29,29 @@ export interface HousingRelocation {
   to?: number;
 }
 
+/** Why a household is being planned. Only `homeless` has a planner in P1; the rest follow. */
+export type RelocationNeed =
+  | 'homeless'
+  | 'custody'
+  | 'capacity'
+  | 'surplus'
+  | 'manor'
+  | 'couple'
+  | 'leave-home'
+  | 'commute';
+
+/** The one answer: no move means stay — no write, no report line, no retry. */
+export interface RelocationPlan {
+  readonly move: boolean;
+  /** True when planning found nothing worth doing (settled, or a documented shortage). */
+  readonly settled?: boolean;
+  /** Omitted only for `surplus`: there is no bed and the household is unhoused. */
+  readonly to?: number;
+  readonly reason: ResidenceMoveReason;
+  /** One label for the report: "settled", "homeless placement", "no accepted destination". */
+  readonly why: string;
+}
+
 export interface HousingReport {
   relocations: HousingRelocation[];
   /** Optional moves withheld because a mandatory phase already decided that household. */
@@ -222,6 +245,78 @@ export function relocateHousehold(
     context.ledger.report.relocations.push(relocation);
   }
   return true;
+}
+
+/** The one decision: does this household move, and where? Planning never writes or counts. */
+export function planRelocation(
+  unit: readonly Entity[],
+  need: RelocationNeed,
+  context: HousingMoveContext,
+): RelocationPlan {
+  if (need === 'homeless') return planHomelessPlacement(unit, context);
+  return { move: false, reason: 'assignment', why: `no ${need} planner yet` };
+}
+
+/** Applies a plan through the sole household writer; returns the logged line when it moved. */
+export function applyRelocation(
+  unit: readonly Entity[],
+  plan: RelocationPlan,
+  phase: HousingPhase,
+  context: HousingMoveContext,
+): HousingRelocation | undefined {
+  if (!plan.move) return undefined;
+  const before = context.ledger.report.relocations.length;
+  if (!relocateHousehold(unit, plan.to, phase, plan.reason, context)) return undefined;
+  return context.ledger.report.relocations[before];
+}
+
+/** Homeless phase step: apply the plan, or fall back to the custodian split when none fits. */
+function placeHomelessUnit(
+  unit: Entity[],
+  alive: Entity[],
+  residences: Building[],
+  allHumans: Entity[],
+  context: HousingMoveContext,
+): void {
+  const plan = planRelocation(unit, 'homeless', context);
+  if (plan.move) {
+    applyRelocation(unit, plan, 'homeless', context);
+    return;
+  }
+  if (plan.settled) return;
+  assignFamilyToResidence(unit, alive, residences, allHumans, 'homeless', context);
+}
+
+function planHomelessPlacement(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
+  const members = [...unit];
+  if (members.length === 0) return { move: false, settled: true, reason: 'assignment', why: 'empty household' };
+  const needsMove = housingUnitNeedsReassignment(
+    members, context.alive, context.residences, context.occupancy, context.traits, context.playerOccupancy,
+  );
+  if (!needsMove) return { move: false, settled: true, reason: 'assignment', why: 'settled' };
+
+  const refused = new Set<number>();
+  for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt += 1) {
+    const picked = pickResidenceForFamily(
+      members, context.alive, context.residences, context.occupancy, context.traits, refused,
+    );
+    if (picked === undefined) break;
+    if (destinationRefusedByWriter(members, picked, context)) {
+      refused.add(picked);
+      continue;
+    }
+    return { move: true, to: picked, reason: 'assignment', why: 'homeless placement' };
+  }
+  return { move: false, reason: 'assignment', why: 'no accepted destination' };
+}
+
+function destinationRefusedByWriter(
+  unit: readonly Entity[],
+  toId: number,
+  context: HousingMoveContext,
+): boolean {
+  if (!householdMayMove(unit, toId, 'assignment', context)) return true;
+  return unit.some((member) => residenceMoveRefused(member, toId, 'assignment', context.buildings));
 }
 
 function snapshotResidences(alive: readonly Entity[], into: Map<number, number | undefined>): void {
@@ -533,7 +628,7 @@ function fillHomelessAfterEviction(
   const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
   for (const unit of buildHousingUnits(alive)) {
     if (unit.every(hasResidenceAssignment)) continue;
-    assignFamilyToResidence(unit, alive, residences, alive, 'homeless', context);
+    placeHomelessUnit(unit, alive, residences, alive, context);
   }
 }
 
@@ -647,10 +742,8 @@ export function assignMissingResidences(
         playerOccupancy,
       );
       for (const unit of housingUnits) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
-
         const before = moves.moves();
-        assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
+        placeHomelessUnit(unit, alive, residences, genealogyPool, context);
         if (moves.moves() > before) reassigned++;
       }
       const evicted = rebalanceOvercrowdedResidences(residents, residences, ledger);
@@ -680,10 +773,8 @@ export function assignMissingResidences(
       const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits, playerOccupancy);
       let moved = false;
       for (const unit of orderedUnits) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
-
         const before = moves.moves();
-        assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
+        placeHomelessUnit(unit, alive, residences, genealogyPool, context);
         if (moves.moves() > before) moved = true;
       }
       if (!moved) break;
@@ -705,8 +796,7 @@ export function assignMissingResidences(
       const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
       const ordered = sortHousingUnitsForAssignment(housingUnitsBase, alive, residences, occupancy, traits, playerOccupancy);
       for (const unit of ordered) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
-        assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
+        placeHomelessUnit(unit, alive, residences, genealogyPool, context);
       }
     }
   }

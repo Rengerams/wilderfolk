@@ -237,6 +237,16 @@ otherwise. The report is diagnostic data — no phase reads it to decide anythin
 
 ## 4. Whole-household decisions
 
+### The plan contract
+
+`planRelocation(unit, need, context)` in `housingPipeline.ts` answers one question: does this
+household move, and where? It returns `{ move, to, reason, why }`, with `settled: true` when there is
+nothing worth doing (already housed, or a documented shortage). `applyRelocation` is the only way a
+plan becomes a write. The homeless phase plans first and applies; a household with no whole-family
+destination falls back to the custodian split. A plan never names a destination the writer refuses —
+a home the run already visited, the manor under an ordinary reason, a home that does not fit, or a
+minor's custodian left behind — and planning writes nothing, counts nothing and settles nothing.
+
 `relocateHousehold(unit, toId, phase, reason, context)` is the only place a multi-settler housing decision
 becomes writes. Before a single member moves it verifies:
 

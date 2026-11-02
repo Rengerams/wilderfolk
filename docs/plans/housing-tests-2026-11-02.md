@@ -124,7 +124,7 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 | Stage | With | Work | Gate |
 | :--- | :--- | :--- | :--- |
 | **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
-| **T1** | P0a done | rebuild the focused refused-destination fixture lost when the generator moved to `simRng` | 34 suites still green; seed-independent refusal fixture passes; input-order property landed |
+| **T1** | P0a done; P1 contract landed | rebuild the end-to-end refused-destination fixture lost when the generator moved to `simRng` (the planner-level refusal case is landed) | 35 suites / 154 tests green; seed-independent refusal fixture passes; input-order property landed |
 | **T2** | P3 | delete the `housingUnitNeedsReassignment` tests (3 files) and rewrite them as plan-level cases | invariants + contract green |
 | **T3** | P5 | retire the internal tests (traits, bucket, ledger, sort); promote their promises into the tables | suite shrinks; mutation checklist passes |
 | **T4** | P6/P7 | move the 5 s ceiling into the benchmark; add a 30/360-day housing report (moves/household/year, homeless-days, churn) | harness numbers recorded |

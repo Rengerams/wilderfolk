@@ -1,7 +1,9 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
-**Status:** **P0a is implemented in the working tree** — five modules became three, imports repointed,
-gates green. P1 is next. **Target version:** V.0.6.5.2.
+**Status:** P0a is committed as `d37efff9`; **P1 is implemented in the working tree** — the plan
+contract (`planRelocation` / `applyRelocation`) exists and the homeless phase runs through it, with
+the custodian-split fallback kept for households that cannot fit together. P2 is next.
+**Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.
 
@@ -11,12 +13,12 @@ and lose every decision.
 | :--- | :--- | :--- | :--- |
 | `58ca1793` (pre-T0) | 33 files / 141 tests, 19.33 s | 08:51 | the original housing suite; the L2 counter was the *member comparison* from `ce853298` |
 | `95ca783a` (T0 commit) | 34 files / 148 tests, 15.73 s | 09:36 | the invariant suite, the selection exclusion test, the retry fix, the write counter (`context.onMove`) |
-| **Working tree (P0a)** | **34 files / 149 tests, 32.12 s** | **10:26** | `housingModel` + `housingPipeline` + `housingDiagnostics`; the four old modules are gone; types, lint, build, duplicates, overlaps, cycles and source checks pass |
+| `d37efff9` (P0a commit) | 34 files / 149 tests, 32.12 s | 10:26 | `housingModel` + `housingPipeline` + `housingDiagnostics`; the four old modules are gone |
+| **Working tree (P1)** | **35 files / 154 tests, 17.72 s** | **10:37** | plan/apply contract + five contract tests; the homeless phase plans through it; types, lint, build, duplicates, overlaps, cycles and source checks pass |
 
 `95ca783a` also swept unrelated work from other agents in the tree (scripts, visitor/dialogue,
-audio); it is the verified tree nonetheless. P0a started from that commit and is now in the working
-tree; P1 starts from the merged tree. The L2 rule the plan builds on is the committed one: progress
-is any residence write, not the member comparison.
+audio); it is the verified tree nonetheless. The L2 rule the plan builds on is the committed one:
+progress is any residence write, not the member comparison.
 
 **Audited 2026-11-02 08:48** by an independent read-only review; this version incorporates all 25
 findings. One finding was overtaken by the tree twice: `ce853298` replaced attempt-counting with a
@@ -582,7 +584,7 @@ Each work package is one commit, green on its own, and revertable alone.
 | :--- | :--- | :--- | :--- | :--- |
 | **P0a** | **Merge five modules into three + honest names** — **done in the working tree** | T0 commit (`95ca783a`) | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 149 tests identical**; `buildFamilyGroups` still reachable from the Population tab; two latent duplicates refactored; overlap approvals recorded |
 | **P0** | Contract + baseline + bug reports + close `stats` | P0a | `housingPipeline.ts` (types only), `docs/bug_report/*`, `BUG_REPORTS/SUMMARY.md` | `RelocationPlan`/`RelocationNeed` compile unused; `HousingReport.stats` shape agreed and recorded in the registry; baseline re-recorded on the new names; L1/L3/L4/L5/L7/L9/L10 filed and indexed |
-| **P1** | Planner core + **homeless** need only | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase runs through `planRelocation`; G1/G2/G4/G7 pass — G4 guards the committed write counter (`onMove`), not the old member comparison; **L11 stays fixed** — `relocateFamily` already retries past a refused destination, and the planner must keep the same guarantee (G1/G3) instead of removing the retry |
+| **P1** | Planner core + **homeless** need only — **done in the working tree** | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase plans through `planRelocation` and applies through `applyRelocation`; G1/G3/G4/G7 pass; **L11 stays fixed**; the split fallback remains for unplaceable households |
 | **P2** | **custody**, **capacity**, **surplus** | P1 | same | guardianship/capacity rebuilt on needs; adoption stays a custody pre-step; capacity takes the pass's occupancy/traits; L7 fixed (vacancy set grows) |
 | **P3** | **leave-home**, **commute**; delete the old predicate | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | L1 fixed (minor household only); `housingUnitNeedsReassignment` deleted with its 3 test imports rewritten; `sortHousingUnitsForAssignment` returns plans; optional phases green |
 | **P4** | Event triggers through the pipeline | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` (release already pipes) | death, marriage, divorce stop choosing: they change custody/link then run the pipeline; divorce's one-hop reshuffle moves into capacity; `divorceHousing.custody`, `amicableDivorce`, `residency.blendedCustody`, `guardianship.jailedParents` green |
