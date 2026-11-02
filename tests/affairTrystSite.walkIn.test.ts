@@ -2,10 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
+import { initGame } from '../src/game/worldGen';
 import {
   AFFAIR_WALK_IN_RADIUS,
   getAffairTrystBuilding,
   isValidAffairTrystSite,
+  recordAffairTrystSite,
   wouldWalkInOnAffair,
 } from '../src/game/simulation/humanRelationships';
 
@@ -150,6 +152,26 @@ describe('affair rendezvous belongs to the lovers, not random houses', () => {
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)).toBeUndefined();
     expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(true);
+  });
+
+  it('records the outdoor location near a home unless both lovers actually enter it', () => {
+    const { cheater, paramour, entityById, buildingById } = fixture();
+    const world = initGame({ seed: 6261 });
+    cheater.x = 110;
+    cheater.y = 110;
+    paramour.x = 115;
+    paramour.y = 112;
+
+    recordAffairTrystSite(cheater, paramour, world, buildingById, entityById);
+    expect(cheater.lastAffairSiteX).toBe(112.5);
+    expect(cheater.lastAffairSiteY).toBe(111);
+    expect(paramour.lastAffairSiteX).toBe(112.5);
+
+    cheater.indoorBuildingId = MARITAL_HOME_ID;
+    paramour.indoorBuildingId = MARITAL_HOME_ID;
+    recordAffairTrystSite(cheater, paramour, world, buildingById, entityById);
+    expect(cheater.lastAffairSiteX).toBe(120);
+    expect(paramour.lastAffairSiteY).toBe(120);
   });
 
   it('refuses a spouse-occupied home rather than treating it as an indoor tryst', () => {
