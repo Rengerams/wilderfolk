@@ -1,6 +1,13 @@
 # Changelog
 
 ## 0.6.5.2 [Unreleased]
+
+- **Fixed (2 November 2026):** Worker deltas now preserve the absence of optional grave histories rather than silently materializing empty records, with a roundtrip regression.
+
+- **Fixed (2 November 2026):** New villages start building identity allocation at the same positive floor enforced by the save loader, avoiding an immediate save reload drift.
+
+- **Tests (2 November 2026):** Worker boundary audits compare genealogy against the actual JSON-persisted shape instead of treating omitted undefined fields as lost data.
+
 - **Changed (2 November 2026):** Worker ticks send incremental entity changes with authoritative order fallback, and only new chronicle entries since the last acknowledged result.
 
 - **Changed (2 November 2026):** Building changes use reusable structural snapshots; five history owners update revisions instead of serializing unchanged histories, while genealogy remains structurally checked.
