@@ -3,7 +3,7 @@ import { moveResident } from './housingPipeline';
 import type { WorldState } from './gameTypes';
 import { assignMissingWorkers } from './workforce';
 import { allPlayerHumans } from './playerHuman';
-import { isResidenceBuilding } from './housingModel';
+import { isAssignableHome } from './housingModel';
 import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 
 /** Living player humans — command actions reconcile this list only after a housing change. */
@@ -21,7 +21,7 @@ function reconcileAssignmentsAfterResidenceChange(state: WorldState): void {
 /** Mutates state — re-run automatic housing assignment for a residence. */
 function applyResidentAssignment(state: WorldState, buildingId: number): WorldState {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival' || !isResidenceBuilding(building)) return state;
+  if (!building || !isAssignableHome(building)) return state;
 
   reconcileAssignmentsAfterResidenceChange(state);
   return state;

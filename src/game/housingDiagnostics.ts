@@ -1,6 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
-import { getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding, TICKS_PER_DAY } from './dayCycle';
+import { getResidenceCapacity, isLeaderHouseResidence, isAssignableHome } from './housingModel';
+import { TICKS_PER_DAY } from './dayCycleClock';
 import { countHomelessSettlers, countResidentsInBuilding } from './housingModel';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
@@ -44,7 +45,7 @@ export function collectHousingDiagnostics(
   state: WorldState,
   calendarDay = Math.floor(Math.max(0, state.tick) / TICKS_PER_DAY),
 ): HousingDiagnosticsSnapshot {
-  const residences = state.buildings.filter((b) => isResidenceBuilding(b) && b.faction !== 'rival');
+  const residences = state.buildings.filter(isAssignableHome);
   const residenceById = new Map(residences.map((b) => [b.id, b]));
   const playerHumans = state.entities.filter((e) => e.alive && isPlayerHuman(e));
   const totalBeds = residences.reduce((sum, b) => sum + getResidenceCapacity(b), 0);

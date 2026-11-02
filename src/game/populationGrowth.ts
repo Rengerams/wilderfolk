@@ -1,5 +1,5 @@
 import { BuildingType, BUILDING_CONFIGS, type WorldState } from './gameTypes';
-import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
+import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isAssignableHome } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 
 export interface PopulationSnapshot {
@@ -43,7 +43,7 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    if (!building.completed || building.faction === 'rival' || !isResidenceBuilding(building)) continue;
+    if (!isAssignableHome(building)) continue;
     beds += getResidenceCapacity(building);
     if (building.type === BuildingType.House) houseCount += 1;
     else if (building.type === BuildingType.Mansion || building.type === BuildingType.Villa) mansionCount += 1;
@@ -230,7 +230,7 @@ export function getOpenPlayerBeds(state: WorldState): number {
 
   for (let i = 0; i < buildings.length; i++) {
     const building = buildings[i];
-    if (!isResidenceBuilding(building) || isLeaderHouseResidence(building) || building.faction === 'rival') continue;
+    if (!isAssignableHome(building) || isLeaderHouseResidence(building)) continue;
     open += Math.max(0, getResidenceCapacity(building) - (occupancy.get(building.id) ?? 0));
   }
 

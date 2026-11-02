@@ -176,6 +176,11 @@ const ORDINARY_MOVE_REASONS: ReadonlySet<ResidenceMoveReason> = new Set<Residenc
   'assignment', 'family', 'guardian', 'commute', 'player',
 ]);
 
+/** Reasons allowed into the Leader's House; every other reason is refused there. */
+const MANOR_MOVE_REASONS: ReadonlySet<ResidenceMoveReason> = new Set<ResidenceMoveReason>([
+  'leader', 'birth', 'moon-form',
+]);
+
 /** The residence write's own guard, exposed so a household can be checked member by member. */
 function residenceMoveRefused(
   human: Entity,
@@ -187,8 +192,8 @@ function residenceMoveRefused(
   const previous = buildings?.find((building) => building.id === human.residenceBuildingId);
   const target = buildings?.find((building) => building.id === toId);
   if (previous && isLeaderHouseResidence(previous) && ORDINARY_MOVE_REASONS.has(reason)) return true;
-  if (target && (!isResidenceBuilding(target) || target.faction === 'rival')) return true;
-  if (target && isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return true;
+  if (target && !isAssignableHome(target)) return true;
+  if (target && isLeaderHouseResidence(target) && !MANOR_MOVE_REASONS.has(reason)) return true;
   return false;
 }
 
@@ -201,8 +206,8 @@ function householdMayMove(
 ): boolean {
   if (toId !== undefined) {
     const target = context.residences.find((residence) => residence.id === toId);
-    if (!target || !target.completed || target.faction === 'rival') return false;
-    if (isLeaderHouseResidence(target) && !['leader', 'birth', 'moon-form'].includes(reason)) return false;
+    if (!target || !isAssignableHome(target)) return false;
+    if (isLeaderHouseResidence(target) && !MANOR_MOVE_REASONS.has(reason)) return false;
     if (unit.some((member) => context.ledger.visited.get(member.id)?.has(toId))) return false;
     // The manor hold is unconditional: like the capacity rebalance, it never counts the bed cap.
     const manorHold = reason === 'leader' && isLeaderHouseResidence(target);
@@ -670,7 +675,7 @@ export function syncResidenceOccupants(humans: Entity[], buildings: Building[]):
   }
 
   for (const building of buildings) {
-    if (!isResidenceBuilding(building) || building.faction === 'rival') continue;
+    if (!isAssignableHome(building)) continue;
     building.occupants = occupantsByResidenceId.get(building.id) ?? [];
   }
 }
@@ -1279,7 +1284,7 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   ledger?: HousingLedger,
 ): void {
   const listEmptyHomeIds = (): number[] => residences
-    .filter((r) => !isLeaderHouseResidence(r) && r.faction !== 'rival'
+    .filter((r) => !isLeaderHouseResidence(r) && isAssignableHome(r)
       && countResidentsInBuilding(humans, r.id, occupancy) === 0)
     .map((r) => r.id);
   let emptyHomeIds = listEmptyHomeIds();
@@ -1356,13 +1361,13 @@ export function reassignDivorcedResidences(
     (id): id is number => id != null,
   ));
   const candidates = residences.filter((home) =>
-    home.completed && home.faction !== 'rival'
+    isAssignableHome(home)
     && !isLeaderHouseResidence(home) && !blockedIds.has(home.id)
     && countResidentsInBuilding(villagers, home.id, context.occupancy) === 0
     && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
   );
   const sharedCandidates = residences.filter((home) =>
-    home.completed && home.faction !== 'rival'
+    isAssignableHome(home)
     && !isLeaderHouseResidence(home) && !blockedIds.has(home.id)
     && countResidentsInBuilding(villagers, home.id, context.occupancy) > 0
     && familyFitsInResidence(leavingUnit, home, villagers, context.occupancy),
@@ -1706,7 +1711,7 @@ export function auditHousingSharingIssues(humans: Entity[], buildings: Building[
   // residents and the manor is never a placement target, so counting either as an "empty
   // house available" reported sharing that no picker could actually resolve.
   const residences = buildings.filter(
-    (b) => isResidenceBuilding(b) && !isLeaderHouseResidence(b) && b.faction !== 'rival',
+    (b) => isAssignableHome(b) && !isLeaderHouseResidence(b),
   );
   const emptyCount = residences.filter((r) => countResidentsInBuilding(alive, r.id) === 0).length;
 
@@ -1780,7 +1785,7 @@ export function buildCommuteRelocationIndex(
     order: new Map(residences.map((residence, index) => [residence.id, index])),
     roads: buildings.filter((building) => building.type === BuildingType.Road || building.type === BuildingType.Bridge),
     vacant: residences.filter((residence) => !isLeaderHouseResidence(residence)
-      && residence.faction !== 'rival' && (occupancy.get(residence.id) ?? 0) === 0),
+      && isAssignableHome(residence) && (occupancy.get(residence.id) ?? 0) === 0),
   };
 }
 
@@ -1883,7 +1888,7 @@ export function pickCommuteRelocation(
   let best: Building | undefined;
   let bestHours = current;
   for (const residence of candidates) {
-    if (residence.id === homeId || isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
+    if (residence.id === homeId || !isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     if (countResidentsInBuilding(alive, residence.id, occupancy) !== 0) continue;
     if (!familyFitsInResidence(unit, residence, alive, occupancy)) continue;
     if (!pupilsKeepSchoolReach(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById)) continue;
@@ -2077,7 +2082,7 @@ export function pickResidenceForFamily(
   const singlesFriendlyHouseIds = new Set<number>();
 
   for (const r of residences) {
-    if (isLeaderHouseResidence(r) || r.faction === 'rival' || excluded?.has(r.id)) continue;
+    if (!isAssignableHome(r) || isLeaderHouseResidence(r) || excluded?.has(r.id)) continue;
     const count = countResidentsInBuilding(humans, r.id, occupancy);
     if (count === 0) {
       emptyHouseCount++;
