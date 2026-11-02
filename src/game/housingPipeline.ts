@@ -30,7 +30,7 @@ export interface HousingRelocation {
   to?: number;
 }
 
-/** Why a household is being planned; manor and couple still write directly. */
+/** Why a household is being planned; only the manor still writes directly. */
 export type RelocationNeed =
   | 'homeless'
   | 'custody'

@@ -243,7 +243,7 @@ otherwise. The report is diagnostic data — no phase reads it to decide anythin
 household move, and where? It returns `{ move, to, reason, why }`, with `settled: true` when every
 member is housed and `shortage: true` when the stable-shortage guard suppresses the sweep. `applyRelocation`
 is the only way a plan becomes a write for the planned needs; homeless, custody, custodian, capacity,
-surplus, leave-home and commute plan today, while manor and couple still write directly until P4/P5.
+surplus, leave-home, commute and couple plan today, while the manor still writes directly until P5.
 The homeless phase plans first and applies; a household with no whole-family destination falls back to
 the custodian split, and the final repair pass attempts every partially housed unit directly. A plan never names a destination the writer refuses —
 a home the run already visited, the manor under an ordinary reason, a home that does not fit, or a

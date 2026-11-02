@@ -73,8 +73,8 @@ describe('the least-crowded residence rule has one owner', () => {
       resolve(process.cwd(), 'src/game/housingPipeline.ts'),
       'utf8',
     );
-    expect(source, 'the shared-residence caller no longer delegates to the owner').toContain(
-      'pickLeastCrowdedResidence(humans, residences, 2',
+    expect(source, 'the shared-residence caller no longer delegates to the plan').toContain(
+      "planRelocation(household, 'couple'",
     );
     // The pre-fix copy opened with `const needed = 2;` and carried its own best-fit comparison.
     expect(source, 'the duplicated selection loop is back').not.toContain('const needed = 2;');

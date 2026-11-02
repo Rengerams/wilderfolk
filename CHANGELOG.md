@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Marriage housing now goes through the relocation plan, so a couple and their minors are placed by the same decision path as every other household; only manor moves still decide outside it.
+
 <<<<<<< HEAD
 - **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
 
