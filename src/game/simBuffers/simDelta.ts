@@ -1,4 +1,5 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
+import { historyRevision } from './historyRevisions';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
@@ -169,8 +170,8 @@ export interface ExtractSimTickDeltaOptions {
   cloneMode?: SimDeltaCloneMode;
   prevBuildings?: ReadonlyMap<number, Building> | null;
   nextBuildings?: Map<number, Building>;
-  prevHistories?: ReadonlyMap<string, string | undefined> | null;
-  nextHistories?: Map<string, string | undefined>;
+  prevHistories?: ReadonlyMap<string, unknown> | null;
+  nextHistories?: Map<string, unknown>;
   previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
@@ -410,10 +411,16 @@ export function extractSimTickDelta(
 
   if (options?.prevHistories || options?.nextHistories) {
     for (const key of ['graveRecords', 'populationHistory', 'yearlyStats', 'chronicleChapters', 'villageRequestHistory', 'genealogyRegistry'] as const) {
-      const fingerprint = JSON.stringify(delta[key]);
-      options?.nextHistories?.set(key, fingerprint);
-      if (options?.prevHistories?.has(key) && options.prevHistories.get(key) === fingerprint) {
+      const revision = historyRevision(world, key);
+      const previous = options?.prevHistories?.get(key);
+      const unchanged = options?.prevHistories?.has(key) && (revision === undefined
+        ? sameSnapshotValue(previous, delta[key])
+        : previous === revision);
+      if (unchanged) {
+        if (options?.nextHistories) options.nextHistories.set(key, previous);
         delete delta[key];
+      } else if (options?.nextHistories) {
+        options.nextHistories.set(key, revision ?? structuredClone(delta[key]));
       }
     }
   }
