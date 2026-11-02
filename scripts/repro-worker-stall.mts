@@ -97,13 +97,15 @@ async function main(): Promise<void> {
   let pendingCommand: { cmd: WorkerCommandEnvelope; t0: number } | null = null;
   let lastError: string | null = null;
   let stallLoggedAt = -1;
+  let buffersReceived = 0;
+  let buffersReturned = 0;
+  let bufferReturnFailures = 0;
+  let maxOutstandingBuffers = 0;
+  let exported = false;
+  let lastCommandTick = -1;
   const gapHistogram: number[] = [];
   const commandPending = () => pendingCommand != null;
   const isIdle = () => ticksInFlight === 0 && !commandPending();
-
-  const whenIdle = async (): Promise<void> => {
-    while (!isIdle()) await new Promise((r) => setTimeout(r, 5));
-  };
 
   const send = (msg: WorkerRequest): void => {
     worker.postMessage(msg);
@@ -135,6 +137,22 @@ async function main(): Promise<void> {
         errors++;
       }
       return;
+    }
+    if ((msg.type === 'tickResult' || msg.type === 'commandResult')
+        && msg.renderBuffer && msg.bufferIndex !== undefined) {
+      buffersReceived++;
+      maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
+      try {
+        worker.postMessage({
+          type: 'returnBuffer', proto: WORKER_PROTO,
+          bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
+        } satisfies WorkerRequest, [msg.renderBuffer]);
+        buffersReturned++;
+      } catch (err) {
+        bufferReturnFailures++;
+        errors++;
+        lastError = err instanceof Error ? err.message : String(err);
+      }
     }
     switch (msg.type) {
       case 'tickResult': {
@@ -170,9 +188,11 @@ async function main(): Promise<void> {
         lastError = msg.message;
         console.error(`[worker error] source=${msg.source} ${msg.message}`);
         if (msg.source === 'tick') ticksInFlight = Math.max(0, ticksInFlight - 1);
+        if (msg.source === 'command') pendingCommand = null;
         break;
       }
       case 'exportSaveResult':
+        exported = true;
         break;
     }
   });
@@ -201,13 +221,15 @@ async function main(): Promise<void> {
 
   // pipeline driver — mimic GameLoop.frame: keep up to MAX_IN_FLIGHT ticks queued
   while (ticksDone < TICKS) {
+    if (errors > 0 && ticksInFlight === 0) break;
     while (ticksInFlight < MAX_IN_FLIGHT && ticksRequested < TICKS) {
       send({ type: 'tick', proto: WORKER_PROTO, focus: simFocus });
       ticksInFlight++;
       ticksRequested++;
     }
     // periodic command to exercise the command path mid-pipeline
-    if (ticksDone > 100 && !commandPending() && ticksDone % 700 === 0) {
+    if (ticksDone > 100 && !commandPending() && ticksDone !== lastCommandTick && ticksDone % 700 === 0) {
+      lastCommandTick = ticksDone;
       pendingCommand = { cmd: { proto: 1, op: 'autoStaffWorkers' }, t0: performance.now() };
       send({ type: 'command', proto: WORKER_PROTO, cmd: pendingCommand.cmd });
     }
@@ -223,15 +245,18 @@ async function main(): Promise<void> {
   const finalTick = ticksDone;
 
   // export check — full-world transfer path
-  await whenIdle();
-  send({ type: 'exportSave', proto: WORKER_PROTO });
-  const exportDeadline = performance.now() + 20000;
-  let exported = false;
-  while (!exported && performance.now() < exportDeadline) {
-    exported = true;
-    await new Promise((r) => setTimeout(r, 10));
+  if (isIdle()) {
+    send({ type: 'exportSave', proto: WORKER_PROTO });
+    const exportDeadline = performance.now() + 20000;
+    while (!exported && performance.now() < exportDeadline) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
   }
-  worker.terminate();
+  if (!exported) {
+    errors++;
+    lastError = isIdle() ? 'Save export timed out' : 'Worker did not drain before export';
+  }
+  await worker.terminate();
 
   const sorted = [...gapHistogram].sort((a, b) => a - b);
   const pct = (p: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : 0);
@@ -240,6 +265,12 @@ async function main(): Promise<void> {
   console.log('==========================================');
   console.log(`requested=${ticksRequested} results=${results} doneTick=${finalTick}`);
   console.log(`errors=${errors}${lastError ? ` lastError="${lastError}"` : ''}`);
+  console.log(`buffersReceived=${buffersReceived} buffersReturned=${buffersReturned} bufferReturnFailures=${bufferReturnFailures} maxOutstandingBuffers=${maxOutstandingBuffers}`);
+  if (buffersReceived !== buffersReturned) {
+    console.error('[RESULT] Render buffers remained outstanding after drain');
+    process.exitCode = 1;
+  }
+  if (errors > 0 || finalTick < TICKS || maxResultGap > STALL_MS) process.exitCode = 1;
   console.log(`wallMs=${Math.round(elapsedMs)} ticksPerSec=${(results / (elapsedMs / 1000)).toFixed(1)}`);
   console.log(
     `interResultGap: mean=${mean.toFixed(1)}ms p50=${pct(0.5).toFixed(1)}ms p95=${pct(0.95).toFixed(1)}ms `

@@ -2,7 +2,15 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** The rare village spotlight now casts any off-duty man and skips whoever is actually on shift, instead of ruling out whole professions.
+
 - **Fixed (2 November 2026, PR #120):** Removed the unused meal-hour export and synchronized the ownership and decision registries. The changelog slash-prose guard fix is included in this PR.
+
+- **Fixed (2 November 2026):** Worker requests now wait for the shared census-name gate, and failed local recovery ticks preserve pending simulation time.
+
+- **Fixed (2 November 2026):** Transferable render buffers now reject nonexact sizes; the worker stress harness returns render leases and checks real save acknowledgements.
+
+- **Changed (2 November 2026):** Worker rendering reuses the alive roster and slot lookup; tick transfers omit redundant catalogue entities and repeated cache invalidation. Delta protocol advanced.
 
 - **CI (2 November 2026):** Extend only the 1,800-resident real-colony benchmark to three days so its later-settling career credits enter the measured audit. Keep real work credit mandatory; use tracked-file restore (or untracked cleanup) before switching baseline to candidate.
 

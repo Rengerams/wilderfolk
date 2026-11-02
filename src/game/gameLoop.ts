@@ -386,7 +386,7 @@ export class GameLoop {
       if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
         const rebuildStart = profileStart();
-        this.catalog.rebuild(this.world.entities);
+        this.catalog.adoptWorldIndex(this.world);
         this.catalogDirtyFromDeferredTick = false;
         profileEnd('main.catalogRebuild', rebuildStart);
       } else {
@@ -1068,8 +1068,8 @@ export class GameLoop {
         // Worker recovery holds the simulation; unsupported runtimes retain bounded local ticks.
         while (this.tickAccumulator >= msPerTick && steps < 1) {
           const advanced = this.stepFallbackTick(focus);
-          this.tickAccumulator -= msPerTick;
           if (!advanced) break;
+          this.tickAccumulator -= msPerTick;
 
           this.observeDailyBoundary(this.world.tick);
 

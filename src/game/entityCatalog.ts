@@ -1,6 +1,7 @@
 import type { Entity, EntityByType, WorldState } from './gameTypes';
 import { EntityType, emptyEntityByType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { ensureEntityByIdMap } from './entityIndex';
 
 /**
  * Sparse entity store for React UI. Avoids scanning `world.entities` each render.
@@ -9,7 +10,7 @@ import { isPlayerHuman } from './playerHuman';
  */
 export class EntityCatalog {
   private byId = new Map<number, Entity>();
-  private aliveIds = new Set<number>();
+  private aliveIds: Set<number> | null = new Set<number>();
   private aliveCache: Entity[] | null = null;
   private byTypeCache: EntityByType | null = null;
 
@@ -27,8 +28,7 @@ export class EntityCatalog {
     const byType = emptyEntityByType();
     const deadOrMissingIds: number[] = [];
 
-    for (const id of this.aliveIds) {
-      const entity = this.byId.get(id);
+    for (const [id, entity] of this.byId) {
       if (!entity || !entity.alive) {
         deadOrMissingIds.push(id);
         continue;
@@ -44,8 +44,8 @@ export class EntityCatalog {
     }
 
     // Clean up stale IDs so aliveIds stays in exact sync
-    for (const id of deadOrMissingIds) {
-      this.aliveIds.delete(id);
+    if (this.aliveIds) {
+      for (const id of deadOrMissingIds) this.aliveIds.delete(id);
     }
 
     this.aliveCache = alive;
@@ -54,8 +54,8 @@ export class EntityCatalog {
   }
 
   rebuild(entities: Iterable<Entity>): void {
-    this.byId.clear();
-    this.aliveIds.clear();
+    this.byId = new Map<number, Entity>();
+    this.aliveIds = new Set<number>();
     this.invalidateAliveIndex();
 
     for (const entity of entities) {
@@ -64,6 +64,13 @@ export class EntityCatalog {
         this.aliveIds.add(entity.id);
       }
     }
+  }
+
+  /** Borrow the validated authoritative lookup instead of rebuilding an identical catalogue per tick. */
+  adoptWorldIndex(world: WorldState): void {
+    this.byId = ensureEntityByIdMap(world);
+    this.aliveIds = null;
+    this.invalidateAliveIndex();
   }
 
   get(id: number | null | undefined): Entity | undefined {

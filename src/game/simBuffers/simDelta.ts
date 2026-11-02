@@ -3,7 +3,6 @@ import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
-import { EntityType } from '../gameTypes';
 import type { SimulationFocus } from '../simFocus';
 import type { EntityRenderMeta } from './entityRenderMeta';
 import { packRenderMetaForPacked } from './entityRenderMeta';
@@ -11,7 +10,7 @@ import { selectRenderEntities } from './packRenderSoA';
 import { RENDER_MAX_SLOTS } from './schema';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 1;
+export const SIM_DELTA_PROTO = 2;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -151,7 +150,6 @@ export interface SimTickDelta {
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
   renderMetaBySlot?: EntityRenderMeta[];
-  catalogEntities?: Entity[];
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
@@ -173,6 +171,7 @@ export interface ExtractSimTickDeltaOptions {
   nextBuildings?: Map<number, string>;
   prevHistories?: ReadonlyMap<string, string | undefined> | null;
   nextHistories?: Map<string, string | undefined>;
+  previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
 export interface ApplySimTickDeltaOptions {
@@ -231,7 +230,13 @@ export function extractSimTickDelta(
     : options?.renderPacked
       ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
 
-  const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
+  const previousEventIndex = options?.previousEventHeadId == null
+    ? -1
+    : world.eventLog.findIndex((event) => event.id === options.previousEventHeadId);
+  const eventLogTail = world.eventLog.slice(
+    0,
+    previousEventIndex >= 0 ? previousEventIndex : EVENT_LOG_DELTA_TAIL_MAX,
+  );
 
   const prevBuildings = options?.prevBuildings;
   let changedBuildings: Building[] | undefined;
@@ -390,7 +395,6 @@ export function extractSimTickDelta(
 
   if (!headless && renderPacked) {
     delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
-    delta.catalogEntities = deltaClone(aliveNow.filter((e) => e.type === EntityType.Human), cloneMode);
   }
 
   if (options?.prevHistories || options?.nextHistories) {
@@ -579,10 +583,7 @@ export function applySimTickDelta(
 
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
 
-  // aliveEntities is already a complete authoritative entity snapshot.
-  // catalogEntities contains the same humans from that snapshot, so patching
-  // them again deep-cloned their skills, traits and friendships each tick.
-  // No second catalog patch pass is necessary.
+  // The authoritative alive snapshot is the sole entity delta payload.
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));

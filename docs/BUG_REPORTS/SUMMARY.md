@@ -1,5 +1,16 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Spotlight chorus excluded professions instead of current duty](../bug_report/2026-11-02-spotlight-chorus-profession-blacklist.md):** Whole professions were refused even off duty, and nobody was checked for being on shift. Selection now reads the existing work-reason owner; regressions committed, CI pending.
+
+**2026-11-02 — [Worker census dispatch race](../bug_report/2026-11-02-worker-census-gate-dispatch-race.md):** Early requests could execute before the asynchronous census load settled. Worker admission now awaits the shared name gate; gate regressions, typecheck, lint and build pass.
+
+**2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; the rollback regression proves retained debt and no extra retry.
+
+**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion.
+
+**2026-11-02 — [Render pool accepts oversized returns](../bug_report/2026-11-02-render-buffer-pool-accepts-oversize.md):** A larger-than-schema buffer silently entered the fixed-size pool. Exact-length checks and the 200,000-cycle capacity regression now pass.
+
+
 **2026-11-02 — [Large-tier career audit window too short](../bug_report/2026-11-02-large-population-career-window-too-short.md):** At 1,800 residents the two-day CI run has real accumulated and settled shift hours but no credited career day yet. Large-tier baseline and PR now run a three-day comparison with the strict career-credit check retained; CI pending.
 
 **2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.

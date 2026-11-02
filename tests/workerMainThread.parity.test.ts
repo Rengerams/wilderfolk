@@ -85,9 +85,9 @@ describe('seeded worker versus main-thread parity', () => {
     const seedWorld = structuredClone(initialWorld);
     const seedWorldRng: SimRngSnapshot | undefined = seedWorld.simRng;
 
-    send({ data: { type: 'init', proto: WORKER_PROTO, world: seedWorld, features: [], headless: true } });
-    for (let i = 0; i < TICKS; i++) send({ data: { type: 'tick', proto: WORKER_PROTO } });
-    send({ data: { type: 'exportSave', proto: WORKER_PROTO } });
+    await send({ data: { type: 'init', proto: WORKER_PROTO, world: seedWorld, features: [], headless: true } });
+    for (let i = 0; i < TICKS; i++) await send({ data: { type: 'tick', proto: WORKER_PROTO } });
+    await send({ data: { type: 'exportSave', proto: WORKER_PROTO } });
 
     const exported = posted.filter(
       (message): message is Extract<WorkerResponse, { type: 'exportSaveResult' }> =>

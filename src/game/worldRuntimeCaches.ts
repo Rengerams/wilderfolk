@@ -23,11 +23,21 @@ export function invalidateWorldRuntimeCaches(world: WorldState): void {
 }
 
 
-export function hydrateWorldRuntimeCaches(world: WorldState): WorldState {
+export function hydrateWorldRuntimeCaches(world: WorldState, preserveGeometry = false): WorldState {
   if (!world || typeof world !== 'object') return world;
 
+  const roadAvoidance = preserveGeometry ? world.roadAvoidance : undefined;
+  const roadAvoidanceStamp = preserveGeometry ? world.roadAvoidanceStamp : undefined;
+  const adjacency = preserveGeometry ? world.adjacency : undefined;
+  const beautyGrid = preserveGeometry ? world.beautyGrid : undefined;
   invalidateWorldRuntimeCaches(world);
   rebuildEntityByIdMap(world);
+  if (preserveGeometry) {
+    world.roadAvoidance = roadAvoidance;
+    world.roadAvoidanceStamp = roadAvoidanceStamp;
+    world.adjacency = adjacency;
+    world.beautyGrid = beautyGrid;
+  }
 
   return world;
 }

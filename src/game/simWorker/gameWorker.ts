@@ -54,6 +54,7 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
 let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
 function withPathfinderReport(snapshot: PerformanceSnapshot | undefined): PerformanceSnapshot | undefined {
@@ -108,7 +109,7 @@ function packAndPostTickResult(
   }
   try {
     const packStart = profileStart();
-    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
+    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, string>();
@@ -121,6 +122,7 @@ function packAndPostTickResult(
       nextBuildings,
       prevHistories: prevHistoriesSnapshot,
       nextHistories,
+      previousEventHeadId,
     });
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
@@ -146,6 +148,7 @@ function packAndPostTickResult(
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
     prevHistoriesSnapshot = nextHistories;
+    previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
     throw err;
@@ -166,6 +169,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevHistoriesSnapshot = null;
+  previousEventHeadId = undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -184,22 +188,15 @@ self.onerror = (event: unknown) => {
   );
 };
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
   if (!isWorkerProto(msg.proto)) {
     postError(workerProtoMismatch((msg as { proto?: unknown }).proto));
     return;
   }
 
-  void (async () => {
-    try {
-      await ensureNamePoolSettled();
-    } catch (err) {
-      postError(`Name pool load failed: ${err instanceof Error ? err.message : String(err)}`, 'general');
-    }
-  })();
-
   try {
+    await ensureNamePoolSettled();
     switch (msg.type) {
       case 'init': {
         headlessMode = msg.headless ?? false;
@@ -271,6 +268,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
           prevHistoriesSnapshot = null;
+          previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
         } catch (err) {
           applySimPrep(world, prepBackup);
@@ -328,7 +326,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
 
       case 'returnBuffer': {
-        if (!bufferPool || !msg.buffer || msg.buffer.byteLength === 0) break;
+        if (!bufferPool) break;
         bufferPool.release(msg.bufferIndex, msg.buffer);
         break;
       }
