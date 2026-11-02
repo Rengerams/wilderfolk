@@ -228,7 +228,7 @@ describe('ambient chatter at home after dark', () => {
     const homeWorld = newWorld();
     homeWorld.tick = tick;
     homeWorld.buildings = [house(1)];
-    const sleeping = settler(1, { x: 120, y: 120, residenceBuildingId: 1 });
+    const sleeping = settler(1, { x: 120, y: 120, residenceBuildingId: 1, indoorBuildingId: 1 });
     const homePeer = settler(2, { x: 130, y: 120 });
     homeWorld.entities = [sleeping, homePeer];
     setSimSeed(TEST_SEED);
@@ -247,6 +247,7 @@ describe('ambient chatter at home after dark', () => {
       x: 120,
       y: 120,
       residenceBuildingId: 1,
+      indoorBuildingId: 1,
       chatPhrase: 'Still talking.',
       chatTicks: 6,
     });
