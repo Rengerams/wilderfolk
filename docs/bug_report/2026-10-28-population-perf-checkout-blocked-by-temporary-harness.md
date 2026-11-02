@@ -13,6 +13,7 @@
 ## Status history
 - 2026-10-28 — open: Small, medium and large CI benchmarks failed at the candidate checkout.
 - 2026-10-28 — investigating: Committed cleanup of the baseline-only untracked script; candidate CI rerun pending.
+- 2026-11-02 — investigating: PR #118 revealed the second variant: the harness is now tracked on the base commit, so `git clean -f` does not discard its modified contents. Commit `547333d` restores the tracked file before checkout; 250- and 750-resident runs 41371714237 and 41371714211 completed successfully, while large-scale validation remains pending.
 
 ## Observed behavior
 The baseline benchmark completes, but the next step fails with `The following untracked working tree files would be overwritten by checkout: scripts/perf-population-colony.mts`. No candidate timings are produced for the affected runs.
@@ -32,7 +33,7 @@ GitHub Actions runs [250](https://github.com/Rengerams/wilderfolk/actions/runs/4
 The reusable workflow copies the PR-only benchmark script into the baseline working tree. That file is untracked in the baseline commit, and Git refuses to replace it with the tracked copy during checkout.
 
 ## Fix / proposed fix
-Commit `d007fee8` inserts `git clean -f -- scripts/perf-population-colony.mts` before candidate checkout. This path-limited cleanup deletes only untracked files and does not remove a tracked harness during the 180-day manual run. No game logic or benchmark methodology changed.
+Commit `d007fee8` inserts `git clean -f -- scripts/perf-population-colony.mts` for untracked copies. PR #118 commit `547333d` additionally uses `git restore -- scripts/perf-population-colony.mts` to discard the temporary contents when the base now tracks the script. This stays path-limited, changes no gameplay or benchmark criteria, and permits baseline-to-head checkout in both cases.
 
 ## Save/migration impact
 None.
@@ -40,4 +41,5 @@ None.
 ## Verification result
 - FAIL before fix: three PR #99 population comparisons stopped at Git checkout, with baseline logs retained.
 - NOT RUN locally: repository checkout and benchmarks unavailable in this connector-only edit.
-- PENDING: latest-head CI run must complete baseline, checkout, candidate measurement and report validation before this report becomes resolved.
+- PASS: PR #118 small and medium 2-day baseline-to-head comparisons at runs 41371714237 and 41371714211.
+- PENDING: complete latest-head large comparison and Node CI before closing.
