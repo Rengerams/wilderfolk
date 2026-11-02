@@ -112,7 +112,7 @@ function packAndPostTickResult(
     const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
-    const nextBuildings = new Map<number, string>();
+    const nextBuildings = new Map<number, import('../gameTypes').Building>();
     const nextHistories = new Map<string, string | undefined>();
     const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
