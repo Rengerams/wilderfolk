@@ -110,21 +110,6 @@ export function Dashboard() {
         </div>
       </section>
 
-      {data.taak && (
-        <div className="focus-kaart">
-          <span className="focus-kaart__icoon" aria-hidden="true">
-            <Icoon naam="waarschuwing" />
-          </span>
-          <div>
-            <strong>{data.taak.titel}</strong>
-            {data.taak.uitleg && <p>{data.taak.uitleg}</p>}
-          </div>
-          <Link className="knop knop--klein" to={data.taak.link}>
-            {data.taak.knop}
-          </Link>
-        </div>
-      )}
-
       <div className="kpi-grid">
         <Stat icoon="deelnemers" waarde={data.cijfers.deelnemers} label="actieve deelnemers" toon="rood" />
         <Stat icoon="programma" waarde={data.cijfers.uitjes} label="uitjes in deze periode" toon="blauw" />
