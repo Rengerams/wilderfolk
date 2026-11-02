@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:176:installWorkerMessageHandlers@591405ab27d1a75bbc4ece0cdea86773a51fd8394e8747ee497d9b16bce18c1b <-> src/game/simWorker/gameWorker.ts:189:onmessage@6f26e8bb09c75a5c7cc9ee4e5c2a6cfca9634069e4e10d949228cca5df3dd8de",
+      "key": "src/game/simWorker/gameWorker.ts:189:installWorkerMessageHandlers@5e9563b0275be1621805ae6f26ea6154ba8c7cb11371cf106324f6ec7e3e3f9b <-> src/game/simWorker/gameWorker.ts:202:onmessage@d520e0ed039022bd635ab615b857f983b87d02c5339e9ec41caea1d2e1f926b6",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -21,6 +21,15 @@
       "reason": "Distinct lifecycle contracts: discardSpotlightReturn intentionally invalidates a previous-colony camera/pause snapshot on load without returning or restoring it, whereas takeSpotlightReturn atomically returns the prior snapshot once on ordinary scene completion. They share the necessary clear operation but differ in returned values, callers, timing, and session-safety behavior; combining into a single ambiguous call would risk restoring prior colony controls. The test verifies both one-shot consume and discard-on-load semantics.",
       "tests": [
         "tests/spotlightReturnState.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/buildingConfigurationActions.ts:108:setHuntingSpotPrey@a4710b49140fd68c2c8b2afdf3bc7d97f2ba4cec0aa82a14f64ef08c6a8fd8f3 <-> src/game/buildingConfigurationActions.ts:60:setWorkshopRecipe@4ecca3768c0272b3cb07ddd3f9444d00410eb19ddc1687d7df3f3ef005a7c3e7",
+      "reason": "Both are thin validated field setters that delegate the shared state rewrite to setValidatedOption. Workshop requires a known recipe id and a Workshop target; hunting prey requires a known prey id and a HuntingSpot target. They write different persisted fields, refuse different invalid inputs, and are invoked by different worker operations; merging them would lose the typed command surface. Regressions cover both command round-trips and no-op identity.",
+      "tests": [
+        "tests/workerCommand.roundtrip.test.ts",
+        "tests/workerAssignment.test.ts",
+        "tests/virtualPlayer.staffingAndRepairBatch.test.ts"
       ]
     }
   ]

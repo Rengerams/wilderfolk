@@ -8,7 +8,7 @@ import { rebakeTerrainGrids, setTileOverride, takeTerrainPatches, type TerrainTi
 import { bumpTerrainRevision } from '../terrainLayer';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 4;
+export const SIM_DELTA_PROTO = 5;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -419,6 +419,31 @@ function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePat
   bumpTerrainRevision();
 }
 
+/**
+ * Drop relationship records the replica already holds: the maps are the bulk of the entity payload
+ * and change on a minority of settlers per tick. The delta objects are replaced, never mutated.
+ */
+export function stripUnchangedRelationships(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, number>,
+): void {
+  const entities = delta.aliveEntities;
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    const revision = revisionsById.get(entity.id) ?? 0;
+    if (sent.get(entity.id) === revision) {
+      const sparse = { ...entity };
+      delete sparse.friendships;
+      delete sparse.feuds;
+      delete sparse.feudPeaks;
+      entities[i] = sparse;
+    } else {
+      sent.set(entity.id, revision);
+    }
+  }
+}
+
 export function applySimTickDelta(
   world: WorldState,
   delta: SimTickDelta,
@@ -590,7 +615,13 @@ export function applySimTickDelta(
     consumed: { ...sample.consumed },
   }));
 
-  world.entities = deltaClone(delta.aliveEntities, cloneMode);
+  const previousById = new Map<number, Entity>();
+  for (const entity of world.entities) previousById.set(entity.id, entity);
+  world.entities = delta.aliveEntities.map((entity) => {
+    const next = deltaClone(entity, cloneMode);
+    const previous = previousById.get(next.id);
+    return previous ? { ...previous, ...next } : next;
+  });
   applyTerrainPatches(world, delta.terrainPatches);
 
   // The authoritative alive snapshot is the sole entity delta payload.

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** A tick now ships a settler's friendship, feud and feud-peak maps only when they changed, and the display keeps the rest; on a 2,200-settler save the steady-state tick payload fell from 6.8 MB to 3.0 MB.
+
 - **Fixed (2 November 2026):** Settlers could end up with more than six close friends (legacy saves carried up to 31, and one unilateral bond could sit over the cap). Loading now trims each settler to its six strongest bonds.
 
 - **Changed (2 November 2026):** The housing pass reads a maintained player-resident count instead of rescanning every settler for each housing unit, cutting a 2,000-settler save's load from ~2.2 s to ~1.5 s.

@@ -72,10 +72,27 @@ export function feudScore(e: Entity, otherId: number): number {
   return e.feuds?.[feudKey(otherId)] ?? 0;
 }
 
+const RELATIONSHIP_REVISION = '__relationshipRevision';
+
+/** Runtime-only revision (non-enumerable): spreads, saves and structuredClone skip it. */
+function markRelationshipsChanged(entity: Entity): void {
+  const current = (entity as unknown as Record<string, number>)[RELATIONSHIP_REVISION] ?? 0;
+  Object.defineProperty(entity, RELATIONSHIP_REVISION, {
+    value: current + 1,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+}
+
+/** How many times this settler's relationship records changed; the worker ships them on a change. */
+export function relationshipRevisionOf(entity: Entity): number {
+  return (entity as unknown as Record<string, number>)[RELATIONSHIP_REVISION] ?? 0;
+}
+
 function hurtFriendshipRecord(entity: Entity, key: string, amount: number): void {
-  const next = { ...(entity.friendships ?? {}) };
+  const next = writableFriendships(entity);
   next[key] = Math.max(0, (next[key] ?? 0) - amount);
-  entity.friendships = next;
 }
 
 export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
@@ -88,18 +105,21 @@ export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
 function writableFriendships(entity: Entity): Record<string, number> {
   const next = { ...(entity.friendships ?? {}) };
   entity.friendships = next;
+  markRelationshipsChanged(entity);
   return next;
 }
 
 function writableFeuds(entity: Entity): Record<string, number> {
   const next = { ...(entity.feuds ?? {}) };
   entity.feuds = next;
+  markRelationshipsChanged(entity);
   return next;
 }
 
 function writableFeudPeaks(entity: Entity): Record<string, number> {
   const next = { ...(entity.feudPeaks ?? {}) };
   entity.feudPeaks = next;
+  markRelationshipsChanged(entity);
   return next;
 }
 
@@ -381,8 +401,14 @@ export function advanceSocialRelationships(
         adjustHumanStaminaFromEnergy(other, -FEUD_ENERGY_DRAIN);
       }
     }
-    if (ownFeuds) p.feuds = ownFeuds;
-    if (ownPeaks) p.feudPeaks = ownPeaks;
+    if (ownFeuds) {
+      p.feuds = ownFeuds;
+      markRelationshipsChanged(p);
+    }
+    if (ownPeaks) {
+      p.feudPeaks = ownPeaks;
+      markRelationshipsChanged(p);
+    }
   }
 
   for (const p of people) {
@@ -417,7 +443,10 @@ export function advanceSocialRelationships(
         writableFriendships(other)[otherKey] = next;
       }
     }
-    if (ownFriendships) p.friendships = ownFriendships;
+    if (ownFriendships) {
+      p.friendships = ownFriendships;
+      markRelationshipsChanged(p);
+    }
   }
 
   for (const p of people) {

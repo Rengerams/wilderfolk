@@ -19,7 +19,8 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta } from '../simBuffers/simDelta';
+import { extractSimTickDelta, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import { relationshipRevisionOf } from '../relationships';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
@@ -51,6 +52,8 @@ let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
+/** Relationship revisions the display world already received; reset with the session. */
+let relationshipRevisionsSent = new Map<number, number>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
@@ -122,6 +125,7 @@ function packAndPostTickResult(
       prevHistoryRevisions,
       previousEventHeadId,
     });
+    attachRelationshipRevisions(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
@@ -168,6 +172,15 @@ function resetWorkerSession(nextWorld: WorldState): void {
   prevBuildingsSnapshot = null;
   prevHistoryRevisions = null;
   previousEventHeadId = undefined;
+  relationshipRevisionsSent = new Map();
+}
+
+/** Attach the relationship revisions the display already has, so only changed records ship. */
+function attachRelationshipRevisions(delta: SimTickDelta): void {
+  if (!world) return;
+  const revisions = new Map<number, number>();
+  for (const entity of world.entities) revisions.set(entity.id, relationshipRevisionOf(entity));
+  stripUnchangedRelationships(delta, revisions, relationshipRevisionsSent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -249,11 +262,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           break;
         }
         if (!isWorkerCommand(msg.cmd)) {
+          const delta = safeExtractCommandDelta(world);
+          attachRelationshipRevisions(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: safeExtractCommandDelta(world),
+            delta,
             reason: 'Invalid worker command',
           };
           self.postMessage(response);
@@ -268,13 +283,16 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           prevHistoryRevisions = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
+          attachRelationshipRevisions(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
+          const failedDelta = safeExtractCommandDelta(world);
+          attachRelationshipRevisions(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: safeExtractCommandDelta(world),
+            delta: failedDelta,
             reason: err instanceof Error ? err.message : String(err),
           };
           self.postMessage(response);
@@ -378,6 +396,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             const delta = extractSimTickDelta(world, aliveNow, {
               cloneMode: 'transfer',
             });
+            attachRelationshipRevisions(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
               type: 'tickResult',
