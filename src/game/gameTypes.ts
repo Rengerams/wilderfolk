@@ -460,7 +460,6 @@ export interface RivalSettlement {
   campY: number;
   population: number;
   entityIds: number[];
-  buildingIds: number[];
   relationship: RivalRelationship;
   foundedYear: number;
   daysUntilAction: number;

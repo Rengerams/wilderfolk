@@ -87,7 +87,7 @@ function researchNode(overrides: Partial<ResearchNode> = {}): ResearchNode {
 function rival(overrides: Partial<RivalSettlement> = {}): RivalSettlement {
   return {
     id: 'rival_ravenhold', name: 'Ravenhold', campX: CAMP_X, campY: CAMP_Y, population: 6,
-    entityIds: [], buildingIds: [], relationship: 'tense', foundedYear: 0, daysUntilAction: 10,
+    entityIds: [], relationship: 'tense', foundedYear: 0, daysUntilAction: 10,
     raidCooldownDays: 0, peaceTreatyDays: 0, ...overrides,
   };
 }

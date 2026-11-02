@@ -38,7 +38,7 @@ function colony(): WorldState {
   world.unlockedTechs = ['defense_2'];
   world.resources = { food: 10000, wood: 500, stone: 500, gold: 500, iron: 500 };
   world.rivalSettlements = [{ id: 'enemy', name: 'Enemy', population: 8, campX: 600, campY: 600,
-    entityIds: [], buildingIds: [], relationship: 'tense', foundedYear: 0, daysUntilAction: 30,
+    entityIds: [], relationship: 'tense', foundedYear: 0, daysUntilAction: 30,
     raidCooldownDays: 0, peaceTreatyDays: 0 }];
   world.pendingRaidEvents = [];
   world.pendingOutgoingRaidEvents = [];

@@ -331,7 +331,6 @@ function rival(overrides: Partial<RivalSettlement> = {}): RivalSettlement {
     campY: CAMP_Y,
     population: 6,
     entityIds: [],
-    buildingIds: [],
     relationship: 'tense',
     foundedYear: 0,
     daysUntilAction: 10,

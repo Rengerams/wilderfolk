@@ -296,7 +296,6 @@ function diplomacyWorld(
     campY: 100,
     population: 4,
     entityIds: [],
-    buildingIds: [],
     relationship: 'neutral',
     foundedYear: 0,
     daysUntilAction: 0,
@@ -583,7 +582,7 @@ describe('legacy frontier rival settlement spawning is retired', () => {
       gameTick(state);
 
       expect(state.rivalSettlements).toHaveLength(1);
-      expect(state.rivalSettlements[0]).toMatchObject({ buildingIds: [], entityIds: [] });
+      expect(state.rivalSettlements[0]).toMatchObject({ entityIds: [] });
       expect(state.entities.some((entity) => entity.faction === 'rival')).toBe(false);
       expect(state.buildings.some((building) => building.faction === 'rival')).toBe(false);
     }

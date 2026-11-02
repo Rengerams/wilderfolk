@@ -697,7 +697,7 @@ export default function App() {
     });
   }, [loopRef.current]);
 
-  const focusCampOnMap = useCallback((kind: 'rival' | 'visitor', id: string, x: number, y: number, buildingId?: number | null) => {
+  const focusCampOnMap = useCallback((kind: 'rival' | 'visitor', id: string, x: number, y: number) => {
     const loop = loopRef.current;
     if (!loop) return;
     const campKey = `${kind}:${id}`;
@@ -706,7 +706,7 @@ export default function App() {
       ...nextView,
       selectedEntityId: null,
       selectedEntityIds: [],
-      selectedBuildingId: kind === 'rival' ? (buildingId ?? null) : null,
+      selectedBuildingId: null,
       highlightedCampKey: campKey,
       selectedCampKey: kind === 'visitor' ? campKey : null,
     });
@@ -864,7 +864,7 @@ export default function App() {
       case 'focus_rival':
         if (action.rivalId != null && action.rivalX != null && action.rivalY != null) {
           openTab('frontier');
-          focusCampOnMap('rival', action.rivalId, action.rivalX, action.rivalY, action.rivalBuildingId);
+          focusCampOnMap('rival', action.rivalId, action.rivalX, action.rivalY);
           setInspectorCollapsed(false);
         }
         break;
@@ -895,7 +895,7 @@ export default function App() {
         break;
       case 'focus_rival':
         openTab('frontier');
-        focusCampOnMap('rival', action.rivalId, action.x, action.y, action.buildingId);
+        focusCampOnMap('rival', action.rivalId, action.x, action.y);
         setInspectorCollapsed(false);
         break;
       case 'focus_visitor':
@@ -1633,7 +1633,7 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           const rival = world.rivalSettlements.find((r) => r.id === evt.rivalId);
-                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0]);
+                          if (rival) focusCampOnMap('rival', rival.id, rival.campX, rival.campY);
                         }}
                         className="mt-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
                       >
@@ -1730,7 +1730,7 @@ export default function App() {
                         world={world}
                         rivalId={evt.rivalId}
                         label="Watch war-band on map"
-                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
+                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
                       />
                     </div>
                   </div>
@@ -1822,7 +1822,7 @@ export default function App() {
                         world={world}
                         rivalId={evt.rivalId}
                         label="Show camp on map"
-                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
+                        onFocus={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
                       />
                     </div>
                   </div>
@@ -2121,7 +2121,7 @@ export default function App() {
                   playClickSound();
                   applyGameAction(cmd);
                 }}
-                onFocusCamp={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY, rival.buildingIds[0])}
+                onFocusCamp={(rival) => focusCampOnMap('rival', rival.id, rival.campX, rival.campY)}
               />
               </>
             ) : null}
@@ -2258,7 +2258,7 @@ export default function App() {
             setWorkHoursOpen(true);
           }}
           onFocusVisitor={(id, x, y) => focusCampOnMap('visitor', id, x, y)}
-          onFocusRival={(id, x, y, buildingId) => focusCampOnMap('rival', id, x, y, buildingId)}
+          onFocusRival={(id, x, y) => focusCampOnMap('rival', id, x, y)}
           onLaunchRaid={(rivalId) => {
             playClickSound();
             applyGameAction({ proto: 1, op: 'launchRaidOnRival', rivalId });
@@ -2417,7 +2417,7 @@ function RivalFocusButton({
   world: WorldState;
   rivalId: string;
   label: string;
-  onFocus: (rival: { id: string; campX: number; campY: number; buildingIds: number[] }) => void;
+  onFocus: (rival: { id: string; campX: number; campY: number }) => void;
 }) {
   return (
     <button

@@ -1,7 +1,7 @@
-import type { RivalSettlement, WorldState } from './gameTypes';
+import type { RivalDailyAction, RivalSettlement, WorldState } from './gameTypes';
 import { normalizeRivalProfile } from './rivalProfiles';
 
-export type RivalPresenceMode = 'trading' | 'recovering' | 'preparing' | 'scouting' | 'quiet' | 'under_treaty';
+export type RivalPresenceMode = 'trading' | 'gathering' | 'recovering' | 'preparing' | 'scouting' | 'quiet' | 'under_treaty';
 
 export interface RivalPresenceSummary {
   mode: RivalPresenceMode;
@@ -12,10 +12,11 @@ export interface RivalPresenceSummary {
   cueColor: 'cyan' | 'emerald' | 'amber' | 'orange' | 'rose' | 'slate';
 }
 
-function actionMode(action: string | undefined, treaty: boolean): RivalPresenceMode {
+function actionMode(action: RivalDailyAction | undefined, treaty: boolean): RivalPresenceMode {
   if (treaty) return 'under_treaty';
   switch (action) {
     case 'trade': return 'trading';
+    case 'gather': return 'gathering';
     case 'recover':
     case 'cool_down': return 'recovering';
     case 'fortify': return 'preparing';
@@ -27,6 +28,7 @@ function actionMode(action: string | undefined, treaty: boolean): RivalPresenceM
 function modeLabel(mode: RivalPresenceMode): string {
   switch (mode) {
     case 'trading': return 'Trading for provisions';
+    case 'gathering': return 'Gathering supplies';
     case 'recovering': return 'Recovering after exertion';
     case 'preparing': return 'Preparing the camp';
     case 'scouting': return 'Scouting the frontier';
@@ -69,8 +71,4 @@ export function getRivalPresenceSummary(state: Pick<WorldState, 'eventLog' | 'pe
     history: contactEvents,
     cueColor: cueColor(rival, mode),
   };
-}
-
-export function getRivalActivityLabel(state: Pick<WorldState, 'eventLog' | 'pendingDiplomacyEvents'>, rival: RivalSettlement): string {
-  return getRivalPresenceSummary(state, rival).modeLabel;
 }

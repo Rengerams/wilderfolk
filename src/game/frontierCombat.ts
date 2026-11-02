@@ -14,7 +14,6 @@ import {
   getMilitiaArmamentLabel,
 } from './militiaBalance';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter } from './villageAnchor';
-import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { unindexEntityFromState } from './entityIndex';
 import { applyWarCommunityReaction, captureRaidPrisoners } from './warPrisoners';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
@@ -2023,6 +2022,10 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       }
     }
     const personIds = new Set(rival.entityIds);
+    // A camp's roster can be empty in a new save; its linked people are still removed with it.
+    for (const person of state.entities) {
+      if (person.faction === 'rival' && person.groupId === rival.id && !person.warCaptive) personIds.add(person.id);
+    }
     const killed = Math.max(0, rival.population);
     for (const person of state.entities) if (personIds.has(person.id)) {
       person.alive = false;
@@ -2030,7 +2033,6 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       unindexEntityFromState(state, person.id);
     }
     state.entities = state.entities.filter((person) => !personIds.has(person.id));
-    demolishBuildingsInPlace(state, rival.buildingIds, 'raid');
     rival.population = 0;
     if (report) {
       report.refugees = 0;

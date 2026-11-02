@@ -62,7 +62,7 @@ import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
 import { nearestWalkableWorldPoint } from './pathfinding';
-import { retireLegacyCampStructures } from './rivalEvents';
+import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
 
@@ -1402,12 +1402,6 @@ function floorIdAllocators(world: WorldState): void {
   for (const building of world.buildings ?? []) {
     if (isPersistedId(building.id) && building.id > highestBuilding) highestBuilding = building.id;
   }
-  // A rival row names camp structures that left the map, so those ids retire with the row's history.
-  for (const rival of world.rivalSettlements ?? []) {
-    for (const id of rival.buildingIds ?? []) {
-      if (isPersistedId(id) && id > highestBuilding) highestBuilding = id;
-    }
-  }
   world.nextEntityId = floorFor(world.nextEntityId, highestEntity);
   world.nextBuildingId = floorFor(world.nextBuildingId, highestBuilding);
   world.nextFloatingTextId = floorFor(world.nextFloatingTextId, 0);
@@ -1685,6 +1679,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     for (const grave of world.graveRecords ?? []) {
       if (grave.faction === 'enemy') grave.graveyardId = undefined;
     }
+    // A rival row that lost its camp must not leave a war-band ghost on the map.
+    pruneOrphanRivalEntities(world);
     world.entities = world.entities.filter((person) => !person.departedAlive);
     repairLoadedHumanGround(world);
     reconcileDanglingReferencesOnLoad(world);

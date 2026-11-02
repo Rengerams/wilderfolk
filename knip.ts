@@ -128,7 +128,6 @@ const config: KnipConfig = {
     'src/game/renderer/overlay.ts': ['exports'], // [C] drawNightAtmosphere, drawDayAtmosphere (2)
     'src/game/renderer/shared.ts': ['exports'], // [C] clearNameWidthCache (1)
     'src/game/resourceUtils.ts': ['exports'], // [C] isFoodLow (1)
-    'src/game/rivalPresence.ts': ['exports'], // [A] getRivalActivityLabel (1)
     'src/game/simBuffers/entityRenderMeta.ts': ['exports'], // [C] packRenderMetaForAlive, isHumanSlot (2)
     'src/game/simBuffers/packRenderSoA.ts': ['exports'], // [C] validateRenderBufferHeader (1)
     'src/game/simBuffers/schema.ts': ['exports', 'types'], // [C] isRenderFlagSet, setRenderFlag, clearRenderFlag (3) + RenderField, RenderHeaderIndex (2)

@@ -13,6 +13,7 @@ import { renderGame, resetRendererCaches } from './renderer';
 import type { SpotlightPresentation } from './renderer/motionInterpolation';
 import { getRenderDpr } from './canvasLayer';
 import { buildRenderSnapshot, type RenderSnapshot } from './renderSnapshot';
+import { resetLogisticsOverlayCache } from './logisticsOverlayData';
 import { patchCatalogKinematicsFromRenderSoA } from './simBuffers/applyKinematics';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
 import type { RenderSoAReaderV1 } from './simBuffers/renderSoAReader';
@@ -1174,6 +1175,8 @@ export class GameLoop {
   private invalidateRenderSnapshot(): void {
     this.snapshotCache = null;
     this.snapshotKey = '';
+    // In-place mutations keep the same world object, so the overlay memo needs this boundary too.
+    resetLogisticsOverlayCache();
   }
 
   private draw(): void {

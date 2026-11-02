@@ -543,17 +543,17 @@ export function computeLogisticsOverlay(world: WorldState): LogisticsOverlayData
  * the overlay on, panning re-ran the whole projection at frame rate (~60× per second) instead of once
  * per simulation tick, with ~200 commute objects of garbage per frame
  *
- * The cache key is the world **object identity** plus the tick. Identity catches every in-place
- * mutation and every adoption of a new authoritative world, and the tick additionally catches a
- * handler that mutates the current world without advancing it (a pause while paused — the same shape
- * `GameLoop.invalidateRenderSnapshot` documents). It is deliberately conservative: a false miss costs
- * one projection, a false hit would draw stale data.
+ * The cache key is the world **object identity** plus the tick. Identity catches adopting a new
+ * authoritative world; an in-place mutation keeps the same object, so it must invalidate the memo
+ * through `resetLogisticsOverlayCache` — `GameLoop.invalidateRenderSnapshot` does that at every
+ * command/mutation boundary. It is deliberately conservative: a false miss costs one projection,
+ * a false hit would draw stale data.
  */
 let cachedOverlayWorld: WorldState | null = null;
 let cachedOverlayTick = -1;
 let cachedOverlay: LogisticsOverlayData | null = null;
 
-/** The overlay for this world, recomputed only when the world object or the tick changes. */
+/** The overlay for this world, recomputed after a new world, a tick change or an explicit reset. */
 export function computeLogisticsOverlayCached(world: WorldState): LogisticsOverlayData {
   if (cachedOverlay !== null && cachedOverlayWorld === world && cachedOverlayTick === world.tick) {
     return cachedOverlay;

@@ -88,7 +88,6 @@ function rival(overrides: Partial<RivalSettlement> = {}): RivalSettlement {
     campY: 700,
     population: 5,
     entityIds: [],
-    buildingIds: [],
     relationship: 'friendly',
     foundedYear: 1,
     daysUntilAction: 12,
@@ -293,9 +292,8 @@ describe('rival camps grow from their own stores', () => {
       founder.groupId = 'rival_oakcrossing';
     }
     const camp = rival({ entityIds: founders.map((founder) => founder.id), foundedYear: 0 });
-    // Unrelated player houses survive cleanup even when legacy metadata references their ids.
+    // Unrelated player houses survive cleanup even if a legacy save carried them near a camp.
     const campBuildings = Array.from({ length: 7 }, (_, index) => house(index + 100));
-    camp.buildingIds = campBuildings.map((building) => building.id);
     camp.profile = {
       ...createRivalProfile(3, 'friendly'),
       ledger: { food, wood: 8, gold: 13, morale: 70, recovery: 67 },

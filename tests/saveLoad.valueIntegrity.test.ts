@@ -173,30 +173,13 @@ describe('the id allocators are made safe to consume', () => {
     expect(Number.isSafeInteger(world.nextEntityId)).toBe(true);
   });
 
-  it('retires a camp structure id a rival row still names', () => {
+  it('keeps the live building id floor without a rival building list', () => {
     const payload = realPayload();
-    // A young colony may hold no buildings yet, so the live floor can legitimately be zero.
-    const buildings = payload.buildings as { id: number }[];
-    const retiredCampId = Math.max(0, ...buildings.map((building) => building.id)) + 10;
-    payload.rivalSettlements = [{
-      id: 'rival_camp',
-      name: 'FoxGlen',
-      campX: 10,
-      campY: 10,
-      population: 1,
-      entityIds: [],
-      buildingIds: [retiredCampId],
-      relationship: 'tense',
-      foundedYear: 1,
-      daysUntilAction: 0,
-      raidCooldownDays: 0,
-      peaceTreatyDays: 0,
-    }];
     payload.nextBuildingId = 1;
 
     const world = buildWorld(payload)!;
 
-    expect(world.nextBuildingId).toBeGreaterThan(retiredCampId);
+    expect(Number.isSafeInteger(world.nextBuildingId)).toBe(true);
   });
 });
 

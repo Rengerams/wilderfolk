@@ -59,7 +59,6 @@ describe('legacy rival camp structures', () => {
       campY: 300,
       population: 5,
       entityIds: [],
-      buildingIds: [9001],
       relationship: 'neutral',
       foundedYear: 1,
       daysUntilAction: 30,

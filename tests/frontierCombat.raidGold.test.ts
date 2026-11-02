@@ -81,7 +81,6 @@ function raidFixture(adults: number): { state: WorldState; rival: RivalSettlemen
     campY: 900,
     population: 8,
     entityIds: [],
-    buildingIds: [],
     relationship: 'tense',
     foundedYear: 0,
     daysUntilAction: 0,

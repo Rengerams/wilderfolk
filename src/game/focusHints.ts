@@ -46,7 +46,6 @@ export interface FocusHintAction {
   rivalId?: string;
   rivalX?: number;
   rivalY?: number;
-  rivalBuildingId?: number;
   buildingId?: number;
   buildingX?: number;
   buildingY?: number;
@@ -168,7 +167,6 @@ export function getFocusHints(state: WorldState, buildings = state.buildings): F
         rivalId: rival.id,
         rivalX: rival.campX,
         rivalY: rival.campY,
-        rivalBuildingId: rival.buildingIds[0],
       },
     });
   }

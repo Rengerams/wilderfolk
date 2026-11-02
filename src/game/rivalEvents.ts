@@ -82,6 +82,22 @@ function releaseRetiredStructureReferences(
   }
 }
 
+/** Drops rival-faction ghosts whose camp no longer exists; they are not deaths. */
+export function pruneOrphanRivalEntities(state: WorldState): number {
+  const camps = new Set(state.rivalSettlements.map((rival) => rival.id));
+  let pruned = 0;
+  for (const entity of state.entities ?? []) {
+    if (!entity.alive || entity.faction !== 'rival' || entity.warCaptive) continue;
+    if (entity.groupId != null && camps.has(entity.groupId)) continue;
+    entity.alive = false;
+    entity.departedAlive = true;
+    unindexEntityFromState(state, entity.id);
+    pruned++;
+  }
+  if (pruned > 0) state.entities = state.entities.filter((entity) => !(entity.departedAlive && entity.faction === 'rival'));
+  return pruned;
+}
+
 export function tickRivalSettlements(
   state: WorldState,
   allAlive: Entity[],
@@ -91,6 +107,7 @@ export function tickRivalSettlements(
   // a midnight-only guard stalled peace treaties, raid cooldowns and growth.
   callbacks.tickPendingDiplomacyEvents(state);
   maybeFoundRivalSettlement(state, allAlive);
+  pruneOrphanRivalEntities(state);
 
   // Camp structures never stand on the player's map; older saves may still carry them.
   const retiredStructures = retireLegacyCampStructures(state.buildings);
@@ -103,7 +120,6 @@ export function tickRivalSettlements(
     if (camp?.has(entity.id)) entity.alive = false;
   }
   for (const rival of state.rivalSettlements) {
-    rival.buildingIds = [];
     rival.entityIds = [];
   }
   const nextDeer = makeNextAliveDeer(allAlive);

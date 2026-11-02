@@ -120,7 +120,6 @@ function rivalSettlement(): RivalSettlement {
     campY: 300,
     population: 6,
     entityIds: [],
-    buildingIds: [],
     relationship: 'tense',
     foundedYear: 0,
     daysUntilAction: 5,

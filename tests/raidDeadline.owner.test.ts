@@ -67,7 +67,6 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
       campY: 100,
       population: 7,
       entityIds: [],
-      buildingIds: [],
       relationship: 'tense',
       foundedYear: 1,
       daysUntilAction: 0,

@@ -20,7 +20,7 @@ import {
   resetLogisticsOverlayCache,
 } from '../src/game/logisticsOverlayData';
 import { initGame } from '../src/game/worldGen';
-import type { WorldState } from '../src/game/gameTypes';
+import { BuildingType, type Building, type WorldState } from '../src/game/gameTypes';
 
 function world(): WorldState {
   return initGame({ villageName: 'Logistics', seed: 20260929 });
@@ -76,17 +76,32 @@ describe('the logistics projection is memoised per world revision', () => {
     expect(second).toEqual(first);
   });
 
-  it('refreshes a projection of an in-place mutation at an unchanged tick', () => {
+  it('recomputes after the mutation boundary resets it at an unchanged tick', () => {
     resetLogisticsOverlayCache();
     const w = world();
     w.tick = 500;
-    // A command while paused mutates the world in place without advancing the tick; the identity key
-    // is what makes the next read see it.
-    const before = computeLogisticsOverlayCached({ ...w } as WorldState);
-    const mutated = { ...w, buildings: [...w.buildings] } as WorldState;
-    const after = computeLogisticsOverlayCached(mutated);
+    const before = computeLogisticsOverlayCached(w);
+
+    // A command while paused mutates the world in place without advancing the tick. The memo
+    // cannot detect that by itself; the mutation boundary is what must drop it.
+    const extra = {
+      id: 999001,
+      type: BuildingType.House,
+      x: 10,
+      y: 10,
+      width: 20,
+      height: 20,
+      completed: true,
+      occupants: [],
+    } as unknown as Building;
+    w.buildings.push(extra);
+    expect(computeLogisticsOverlayCached(w)).toBe(before);
+
+    resetLogisticsOverlayCache(); // GameLoop.invalidateRenderSnapshot does this
+    const after = computeLogisticsOverlayCached(w);
 
     expect(after).not.toBe(before);
-    expect(after).toEqual(computeLogisticsOverlay(mutated));
+    expect(after).toEqual(computeLogisticsOverlay(w));
+    expect(after.poorlyConnected.length).toBe(before.poorlyConnected.length + 1);
   });
 });

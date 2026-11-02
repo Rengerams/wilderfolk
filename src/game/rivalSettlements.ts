@@ -23,6 +23,15 @@ function randomRivalName(): string {
   return `${prefix}${suffix}`;
 }
 
+/** Presence history matches events by name, so two camps must never share one. */
+function uniqueRivalName(state: WorldState): string {
+  const base = randomRivalName();
+  const taken = new Set(state.rivalSettlements.map((rival) => rival.name));
+  let name = base;
+  for (let suffix = 2; taken.has(name); suffix++) name = `${base} ${suffix}`;
+  return name;
+}
+
 export function spawnRivalSettlement(
   state: WorldState,
   buildings: Building[],
@@ -30,7 +39,7 @@ export function spawnRivalSettlement(
   foundingRelationship?: RivalSettlement['relationship'],
 ): GameEvent | null {
   if (state.rivalSettlements.length >= MAX_STRATEGIC_SETTLEMENTS) return null;
-  const name = randomRivalName();
+  const name = uniqueRivalName(state);
   const center = getPlayerCampCenter(state, buildings);
   const avoid = [
     center,
@@ -63,7 +72,6 @@ export function spawnRivalSettlement(
     campY: site.y,
     population: pop,
     entityIds: [],
-    buildingIds: [],
     relationship,
     foundedYear: state.year,
     daysUntilAction: 30 + Math.floor(getSimRng('groupEvents')() * 30),

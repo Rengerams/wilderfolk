@@ -18,7 +18,7 @@ export type PriorityAlertSeverity = 'critical' | 'warning' | 'info';
 export type PriorityAlertAction =
   | { type: 'tab'; tab: 'village' | 'frontier' | 'nature' | 'progress' | 'log' | 'more'; progressSub?: 'research' | 'trade' | 'goals' }
   | { type: 'build'; building: BuildingType }
-  | { type: 'focus_rival'; rivalId: string; x: number; y: number; buildingId?: number }
+  | { type: 'focus_rival'; rivalId: string; x: number; y: number }
   | { type: 'focus_visitor'; groupId: string; x: number; y: number }
   | { type: 'focus_building'; buildingId: number; x: number; y: number };
 
@@ -61,7 +61,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
       title: 'Raid incoming',
       detail: `${evt.rivalName} — ${formatRaidDeadline(evt, state.tick)} · ${evt.lootFood}🍖 at risk`,
       action: rival
-        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY, buildingId: rival.buildingIds[0] }
+        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY }
         : { type: 'tab', tab: 'frontier' },
     });
   }
@@ -79,7 +79,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
       title: evt.rivalResponse === 'payoff_offer' ? 'Tribute offered' : 'Press the attack',
       detail: `${evt.rivalName} — ${deadline} · ${formatRaidLootSummary(raidEventLoot(evt))}`,
       action: rival
-        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY, buildingId: rival.buildingIds[0] }
+        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY }
         : { type: 'tab', tab: 'frontier' },
     });
   }
@@ -93,7 +93,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
       title: 'Diplomacy needs response',
       detail: evt.title,
       action: rival
-        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY, buildingId: rival.buildingIds[0] }
+        ? { type: 'focus_rival', rivalId: rival.id, x: rival.campX, y: rival.campY }
         : { type: 'tab', tab: 'frontier' },
     });
   }

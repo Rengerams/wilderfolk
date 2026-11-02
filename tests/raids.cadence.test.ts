@@ -32,7 +32,6 @@ function rivalCamp(): RivalSettlement {
     campY: 300,
     population: ids.length,
     entityIds: ids,
-    buildingIds: [],
     relationship: 'tense',
     foundedYear: 0,
     // Far enough out that no major-action day falls inside any test window.
@@ -139,7 +138,6 @@ describe('incoming raid cadence', () => {
     const rival = state.rivalSettlements.at(-1)!;
     expect(rival.population).toBeGreaterThan(0);
     expect(rival.entityIds).toEqual([]);
-    expect(rival.buildingIds).toEqual([]);
     expect(state.buildings).toEqual(buildingsBefore);
     expect(allAlive).toEqual(entitiesBefore);
     expect(state.nextBuildingId).toBe(nextBuildingId);
@@ -152,7 +150,6 @@ describe('incoming raid cadence', () => {
     const rival = state.rivalSettlements[0];
     const legacyHouse = building(99, BuildingType.House, { faction: 'rival', groupId: rival.id });
     state.buildings.push(legacyHouse);
-    rival.buildingIds = [legacyHouse.id];
     rival.peaceTreatyDays = 60;
     const population = rival.population;
     const rivalIds = new Set(rival.entityIds);
@@ -166,7 +163,6 @@ describe('incoming raid cadence', () => {
     expect(settler.residenceBuildingId).toBeUndefined();
     expect(allAlive.filter((entity) => rivalIds.has(entity.id)).every((entity) => !entity.alive)).toBe(true);
     expect(rival.population).toBe(population);
-    expect(rival.buildingIds).toEqual([]);
     expect(rival.entityIds).toEqual([]);
     expect(rival.peaceTreatyDays).toBe(59);
     expect(state.pendingRaidEvents).toBe(raids);
@@ -178,7 +174,6 @@ describe('incoming raid cadence', () => {
     const rival = state.rivalSettlements[0];
     const orphan = building(98, BuildingType.Farm, { faction: 'rival', groupId: rival.id });
     state.buildings.push(orphan);
-    rival.buildingIds = [];
     const settler = allAlive.find((entity) => entity.faction !== 'rival')!;
     settler.workerBuildingId = orphan.id;
     settler.residenceBuildingId = orphan.id;
@@ -206,7 +201,6 @@ describe('incoming raid cadence', () => {
       tickRivalSettlements(state, state.entities, callbacks);
     }
     expect(state.buildings).toEqual(buildingsBefore);
-    expect(state.rivalSettlements[0].buildingIds).toEqual([]);
   });
 
   it('decrements peace treaty days at the 18:00 world-events pulse', () => {
@@ -258,8 +252,7 @@ describe('world-map settlement founding and saved games', () => {
     }
     expect(state.buildings).toEqual(buildings);
     expect(state.entities).toEqual(people);
-    expect(state.rivalSettlements.every((camp) => camp.entityIds.length === 0
-      && camp.buildingIds.length === 0)).toBe(true);
+    expect(state.rivalSettlements.every((camp) => camp.entityIds.length === 0)).toBe(true);
   });
 
   it('requires six living player settlers and counts friendly neighbors toward the limit', () => {
@@ -278,11 +271,27 @@ describe('world-map settlement founding and saved games', () => {
     expect(state).toEqual(before);
   });
 
+  it('never gives two strategic camps the same name', () => {
+    const { state } = makeState();
+    state.rivalSettlements = [];
+    const seed = 9911;
+    setSimSeed(seed);
+    expect(spawnRivalSettlement(state, state.buildings, 'friendly')).not.toBeNull();
+    const first = state.rivalSettlements[0].name;
+    // Same draw, same tick, same base name: the presence history is keyed by name, so the
+    // second camp must not share it.
+    setSimSeed(seed);
+    expect(spawnRivalSettlement(state, state.buildings, 'friendly')).not.toBeNull();
+    const second = state.rivalSettlements[1].name;
+    expect(second).not.toBe(first);
+    expect(second.startsWith(first)).toBe(true);
+  });
+
   it.each([0, 3, 7])('preserves an older save with %i strategic settlements', (count) => {
     const world = initGame({ seed: 4242 });
     world.rivalSettlements = Array.from({ length: count }, (_, index) => ({
       ...rivalCamp(), id: `saved-neighbor-${index}`, relationship: 'friendly' as const,
-      buildingIds: [], entityIds: [], peaceTreatyDays: 45, giftsGiven: 4,
+      entityIds: [], peaceTreatyDays: 45, giftsGiven: 4,
     }));
     const expected = world.rivalSettlements.map((camp) => ({
       id: camp.id, relationship: camp.relationship, population: camp.population,
