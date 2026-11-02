@@ -1,10 +1,10 @@
 # A dead leader stays in office while an election is pending
 
 - Bug: when the leader dies, the office can keep their id until the pending election resolves, so the simulation invariant "the leader references a living acting head" fails.
-- Status: open
+- Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, working tree
+- Version/build: V.0.6.5.1, fixed in `acea0183`
 - Reporter: housing audits (independent workers)
 - Area: leadership
 - Owner module: src/game/villageLeadership.ts (`tickLeaderVacancy`), src/game/humanLifecycleCleanup.ts (`killHuman`)
@@ -13,6 +13,7 @@
 ## Status history
 
 - 2026-11-02 — open: recorded by the audit round.
+- 2026-11-02 — resolved: death clears `villageLeaderId` (the vacancy tick repairs old saves); the manor phase keeps the family in place until the election.
 
 ## Observed behavior
 
@@ -45,4 +46,4 @@ Office id only; a save with a dead leader id is repaired on the next vacancy tic
 
 ## Verification
 
-Not fixed; pre-existing, reproduced by the regression worker.
+Fixed: 35-file housing suite 171 tests pass, including the succession test that kills the leader and asserts the family stays in the manor. The full-year batch was not rerun.
