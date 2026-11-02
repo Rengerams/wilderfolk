@@ -37,7 +37,7 @@ const NAV: NavItem[] = [
   { pad: "/gebruikers", label: "Gebruikers", icoon: "gebruikers", groep: "Beheer", recht: ["gebruikers", "zien"] },
   { pad: "/rollen", label: "Rollen", icoon: "rollen", groep: "Beheer", recht: ["rollen", "zien"] },
   { pad: "/modules", label: "Functies", icoon: "functies", groep: "Beheer", recht: ["modules", "zien"] },
-  { pad: "/logboek", label: "Wijzigingen", icoon: "logboek", groep: "Beheer", recht: ["logboek", "zien"] },
+  { pad: "/logboek", label: "Logboek", icoon: "logboek", groep: "Beheer", recht: ["logboek", "zien"] },
   { pad: "/feedback", label: "Feedback", icoon: "feedback", groep: "Beheer", recht: ["feedback", "zien"] },
   { pad: "/hulp", label: "Hulp", icoon: "hulp", groep: "Beheer" },
 ]

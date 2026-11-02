@@ -10,7 +10,6 @@ import {
   Melding,
   Modal,
   PaginaKop,
-  Select,
   Tabel,
   Veld,
 } from "../components/ui"
@@ -252,128 +251,6 @@ export function Rollen() {
           </Veld>
         </Modal>
       )}
-    </div>
-  )
-}
-
-export function Logboek() {
-  const [rijen, setRijen] = useState<{ id: number; tijd: string; gebruiker_naam: string; omschrijving: string; entiteit: string; actie: string; oude_waarde: unknown; nieuwe_waarde: unknown }[]>([])
-  const [laden, setLaden] = useState(true)
-  const [fout, setFout] = useState<string | null>(null)
-  const [filters, setFilters] = useState({ zoek: "", entiteit: "", van: "", tot: "", gebruiker: "" })
-
-  async function haal() {
-    setLaden(true)
-    try {
-      const query = new URLSearchParams()
-      for (const [sleutel, waarde] of Object.entries(filters)) {
-        if (waarde) query.set(sleutel, waarde)
-      }
-      const antwoord = await api<{ rijen: typeof rijen }>(`/logboek?${query.toString()}`)
-      setRijen(antwoord.rijen)
-      setFout(null)
-    } catch (e) {
-      setFout(foutTekst(e))
-    } finally {
-      setLaden(false)
-    }
-  }
-
-  useEffect(() => {
-    void haal()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return (
-    <div>
-      <PaginaKop
-        titel="Wijzigingsoverzicht"
-        stap="Zoek op wie, wanneer of welk uitje."
-        uitleg="Elke wijziging wordt vastgelegd: wie, wanneer, wat, en de oude en nieuwe waarde. Regels kunnen niet worden gewijzigd of verwijderd, ook niet door de Admin."
-      />
-
-      {fout && <Melding type="fout">{fout}</Melding>}
-
-      <Kaart>
-        <form
-          className="filters"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void haal()
-          }}
-        >
-          <Veld label="Zoeken">
-            <Invoer
-              type="search"
-              value={filters.zoek}
-              onChange={(e) => setFilters({ ...filters, zoek: e.target.value })}
-              placeholder="Bijvoorbeeld: Jan de Vries"
-            />
-          </Veld>
-          <Veld label="Onderdeel">
-            <Select value={filters.entiteit} onChange={(e) => setFilters({ ...filters, entiteit: e.target.value })}>
-              <option value="">Alles</option>
-              <option value="deelnemer">Deelnemer</option>
-              <option value="groepje">Groepje</option>
-              <option value="uitje">Uitje</option>
-              <option value="periode">Periode</option>
-              <option value="indeling">Indeling</option>
-              <option value="declaratie">Declaratie</option>
-              <option value="kas">Kas</option>
-              <option value="gebruiker">Gebruiker</option>
-              <option value="rol">Rol</option>
-              <option value="module">Module</option>
-              <option value="feedback">Feedback</option>
-            </Select>
-          </Veld>
-          <Veld label="Medewerker">
-            <Invoer
-              value={filters.gebruiker}
-              onChange={(e) => setFilters({ ...filters, gebruiker: e.target.value })}
-            />
-          </Veld>
-          <Veld label="Vanaf">
-            <Invoer type="date" value={filters.van} onChange={(e) => setFilters({ ...filters, van: e.target.value })} />
-          </Veld>
-          <Veld label="Tot en met">
-            <Invoer type="date" value={filters.tot} onChange={(e) => setFilters({ ...filters, tot: e.target.value })} />
-          </Veld>
-          <Knop variant="primair" type="submit">
-            Filteren
-          </Knop>
-        </form>
-      </Kaart>
-
-      <Kaart titel={`Regels (${rijen.length})`}>
-        {laden ? (
-          <Laad />
-        ) : rijen.length === 0 ? (
-          <p className="muted">Geen regels gevonden met deze filters.</p>
-        ) : (
-          <Tabel kolommen={["Wanneer", "Wie", "Wat", "Onderdeel"]}>
-            {rijen.map((rij) => (
-              <tr key={rij.id}>
-                <td className="nu">{new Date(rij.tijd).toLocaleString("nl-NL")}</td>
-                <td>{rij.gebruiker_naam}</td>
-                <td>
-                  {rij.omschrijving}
-                  {Boolean(rij.oude_waarde || rij.nieuwe_waarde) && (
-                    <details className="marge-boven--klein">
-                      <summary className="klein muted">Details</summary>
-                      <pre className="klein" style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-{JSON.stringify({ oud: rij.oude_waarde, nieuw: rij.nieuwe_waarde }, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </td>
-                <td>
-                  <Badge>{rij.entiteit}</Badge>
-                </td>
-              </tr>
-            ))}
-          </Tabel>
-        )}
-      </Kaart>
     </div>
   )
 }

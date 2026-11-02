@@ -26,6 +26,14 @@ docker compose -f docker-compose.base44.yml up -d --build
   staat, kan per gebruiker niet aangezet worden.
 - `/api/dashboard` geeft naast de cijfers ook `aankomendeUitjes` en (met recht op het
   logboek) `recenteWijzigingen` voor de dashboardkaarten.
+- Logboek: `audit_log` bewaart wijzigingen met oude en nieuwe waarde (`audit.ts`,
+  `logWijziging`). Daarnaast legt `server/src/eventlog.ts` elke API-handeling vast in
+  `event_log` (wie, wanneer, wat, methode, pad, status). De middleware wordt in
+  `server/src/index.ts` vóór de routes op `/api` gezet; `/api/gezondheid` en
+  `/api/auth/ik` worden overgeslagen. Het scherm `/logboek` (`src/pages/Logboek.tsx`)
+  toont beide: tab **Alle acties** (`GET /api/eventlog`) en tab **Wijzigingen**
+  (`GET /api/logboek`), beide met recht `logboek: zien`. Beide tabellen zijn alleen
+  invoegbaar; verwijder dus geen regels om een test op te ruimen.
 - Demo-inlog: `admin@diligence.nl` / `welkom123` (zie ook de link op het inlogscherm).
 - Deelnemers importeren: `/api/deelnemers/import` + `/import/bevestig` (Excel/CSV).
   Bezoekgeschiedenis importeren: `/api/deelnemers/import/geschiedenis` +

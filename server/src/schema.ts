@@ -260,6 +260,25 @@ create table if not exists audit_log (
 
 create index if not exists audit_log_tijd_idx on audit_log(tijd desc);
 
+-- Volledig actielogboek: elke handeling in de app (openen, zoeken, opslaan,
+-- inloggen) komt hier als één regel bij. Alleen invoegbaar, nooit gewijzigd.
+create table if not exists event_log (
+  id bigserial primary key,
+  tijd timestamptz not null default now(),
+  gebruiker_id integer,
+  gebruiker_naam text not null,
+  actie text not null,
+  onderdeel text not null,
+  omschrijving text not null,
+  methode text not null,
+  pad text not null,
+  status integer not null,
+  duur_ms integer not null default 0
+);
+
+create index if not exists event_log_tijd_idx on event_log(tijd desc);
+create index if not exists event_log_onderdeel_idx on event_log(onderdeel);
+
 create table if not exists feedback (
   id serial primary key,
   scherm text not null,

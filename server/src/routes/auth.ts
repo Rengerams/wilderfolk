@@ -7,6 +7,7 @@ import {
   leesCookie,
   nieuweSessie,
   SESSIE_COOKIE,
+  sessieGebruiker,
   vereisLogin,
   wachtwoordFout,
   WACHTWOORD_MAX_LENGTE,
@@ -129,6 +130,8 @@ authRouter.post(
     const sessie = await nieuweSessie(gebruiker.id)
     await q("update gebruikers set laatste_login = now() where id = $1", [gebruiker.id])
     zetSessieCookie(req, res, sessie.token, sessie.verloopt)
+    // Zodat het actielogboek weet wie er inlogde.
+    req.gebruiker = gebruiker
     res.json({ gebruiker: await gebruikerAntwoord(gebruiker.id) })
   }),
 )
@@ -167,6 +170,8 @@ authRouter.post(
     const sessie = await nieuweSessie(gebruiker.id)
     await q("update gebruikers set laatste_login = now() where id = $1", [gebruiker.id])
     zetSessieCookie(req, res, sessie.token, sessie.verloopt)
+    // Zodat het actielogboek weet wie er inlogde.
+    req.gebruiker = gebruiker
     res.json({ gebruiker: await gebruikerAntwoord(gebruiker.id) })
   }),
 )
@@ -174,6 +179,8 @@ authRouter.post(
 authRouter.post(
   "/uitloggen",
   ah(async (req, res) => {
+    const huidige = await sessieGebruiker(req)
+    if (huidige) req.gebruiker = huidige
     const token = leesCookie(req, SESSIE_COOKIE)
     if (token) await q("delete from sessies where token = $1", [token])
     res.clearCookie(SESSIE_COOKIE, { path: "/", httpOnly: true, sameSite: "lax" })

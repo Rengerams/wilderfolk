@@ -577,6 +577,52 @@ beheerRouter.get(
   }),
 )
 
+// ---------------------------------------------------------------- actielogboek
+
+beheerRouter.get(
+  "/eventlog",
+  vereisRecht("logboek", "zien"),
+  ah(async (req, res) => {
+    const voorwaarden: string[] = []
+    const waarden: unknown[] = []
+    const zoekterm = veiligeTekst(req.query.zoek)
+    const onderdeel = veiligeTekst(req.query.onderdeel)
+    const gebruiker = veiligeTekst(req.query.gebruiker)
+    const van = veiligeTekst(req.query.van)
+    const tot = veiligeTekst(req.query.tot)
+    if (zoekterm) {
+      waarden.push(`%${zoekterm}%`)
+      voorwaarden.push(
+        `(omschrijving ilike $${waarden.length} or gebruiker_naam ilike $${waarden.length} or pad ilike $${waarden.length})`,
+      )
+    }
+    if (onderdeel) {
+      waarden.push(onderdeel)
+      voorwaarden.push(`onderdeel = $${waarden.length}`)
+    }
+    if (gebruiker) {
+      waarden.push(`%${gebruiker}%`)
+      voorwaarden.push(`gebruiker_naam ilike $${waarden.length}`)
+    }
+    if (van) {
+      waarden.push(van)
+      voorwaarden.push(`tijd >= $${waarden.length}::date`)
+    }
+    if (tot) {
+      waarden.push(tot)
+      voorwaarden.push(`tijd < ($${waarden.length}::date + interval '1 day')`)
+    }
+    const where = voorwaarden.length ? `where ${voorwaarden.join(" and ")}` : ""
+    waarden.push(Math.min(500, Math.max(1, alsGetal(req.query.limit, 200))))
+    const rijen = await q(
+      `select id, tijd, gebruiker_naam, actie, onderdeel, omschrijving, methode, pad, status, duur_ms
+         from event_log ${where} order by tijd desc limit $${waarden.length}`,
+      waarden,
+    )
+    res.json({ rijen })
+  }),
+)
+
 // ---------------------------------------------------------------- assistent
 
 beheerRouter.post(

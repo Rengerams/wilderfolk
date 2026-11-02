@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express"
 import { initDb, pool } from "./db"
 import { mag, vereisLogin } from "./auth"
+import { logActies } from "./eventlog"
 import type { RechtActie } from "./schema"
 import { authRouter } from "./routes/auth"
 import { beheerRouter } from "./routes/beheer"
@@ -72,6 +73,9 @@ function poort(onderdeel: string, uitzonderingen: Uitzondering[] = []) {
     next()
   }
 }
+
+// Volledig actielogboek: elke handeling in de app wordt hier vastgelegd.
+app.use("/api", logActies)
 
 app.get("/api/gezondheid", (_req, res) => {
   res.json({ status: "ok", tijd: new Date().toISOString() })
