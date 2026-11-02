@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** Youth conception now follows the retained youth link: while one sweetheart is 18 and the other is still a minor the pair can conceive in either direction, and the route closes once both are adults.
+
 - **Fixed (2 November 2026):** The logistics overlay now refreshes when a paused command changes the world without advancing the tick, instead of drawing the previous projection.
 
 - **Fixed (2 November 2026):** A rival camp that spent its last action gathering now reads “Gathering supplies” instead of “Quiet at camp”.

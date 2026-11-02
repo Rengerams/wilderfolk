@@ -113,11 +113,11 @@ function passingYouthDay(): number {
   throw new Error('no day produces a passing youth-conception roll');
 }
 
-/** Mutual youth-love pair at the given age, standing together. */
-function youthPair(age: number): Entity[] {
+/** Mutual youth-love pair at the given ages, standing together. */
+function youthPair(age: number, fatherAge = age): Entity[] {
   return [
     human(MOTHER_ID, { age, youthLovePartnerId: FATHER_ID }),
-    human(FATHER_ID, { age, youthLovePartnerId: MOTHER_ID }),
+    human(FATHER_ID, { age: fatherAge, youthLovePartnerId: MOTHER_ID }),
   ];
 }
 
@@ -172,5 +172,36 @@ describe('a 12 or 13 year old can conceive only through a mutual youth-love pair
     unlinked.state.tick = passingYouthDay() * TICKS_PER_DAY;
     expect(tryDailyConception(unlinked.state, unlinked.ctx, unlinked.mother)).toBe(false);
     expect(unlinked.mother.pregnant).toBeUndefined();
+  });
+
+});
+
+describe('the adulthood boundary keeps the retained youth route', () => {
+  it('conceives at 17 with a 17-year-old sweetheart', () => {
+    const { state, ctx, mother } = makeFixture(youthPair(17, 17));
+    state.tick = passingYouthDay() * TICKS_PER_DAY;
+
+    expect(tryDailyConception(state, ctx, mother)).toBe(true);
+    expect(mother.pregnant).toBe(true);
+  });
+
+  it('keeps the route in either direction while one sweetheart is 18 and the other is a minor', () => {
+    for (const [motherAge, fatherAge] of [[17, 18], [18, 17]] as const) {
+      const { state, ctx, mother } = makeFixture(youthPair(motherAge, fatherAge));
+      state.tick = passingYouthDay() * TICKS_PER_DAY;
+
+      expect(tryDailyConception(state, ctx, mother), `${motherAge}+${fatherAge}`).toBe(true);
+      expect(mother.pregnant, `${motherAge}+${fatherAge}`).toBe(true);
+    }
+  });
+
+  it('closes the route once both sweethearts are adults', () => {
+    for (const [motherAge, fatherAge] of [[18, 18], [19, 17]] as const) {
+      const { state, ctx, mother } = makeFixture(youthPair(motherAge, fatherAge));
+      state.tick = passingYouthDay() * TICKS_PER_DAY;
+
+      expect(tryDailyConception(state, ctx, mother), `${motherAge}+${fatherAge}`).toBe(false);
+      expect(mother.pregnant, `${motherAge}+${fatherAge}`).toBeUndefined();
+    }
   });
 });

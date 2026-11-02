@@ -850,11 +850,14 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   const youthPartner = entity.youthLovePartnerId == null ? undefined : getLivingEntity(entity.youthLovePartnerId, ctx.entityById);
   if (
     entity.age >= HUMAN_FERTILITY_START &&
-    entity.age < HUMAN_YOUTH_FERTILITY_END &&
     youthPartner &&
     isPlayerHuman(youthPartner) &&
     youthPartner.gender === 'male' &&
     youthPartner.age >= HUMAN_FERTILITY_START &&
+    // The retained youth link keeps the youth route across the first 18th birthday: the older
+    // partner may be 18 while the younger is still a minor; both 18 or 19+ closes it.
+    Math.max(entity.age, youthPartner.age) <= HUMAN_YOUTH_FERTILITY_END &&
+    (isMinor(entity) || isMinor(youthPartner)) &&
     youthPartner.youthLovePartnerId === entity.id &&
     !youthPartner.pregnant
   ) {

@@ -330,6 +330,7 @@ export const SIMULATION_DECISIONS = {
   conception: {
     owner: 'humanRelationships.ts — tryDailyConception (ONLY conception owner)',
     cadence: 'new-calendar-day',
+    cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
       'human.pregnant',
       'human.pregnantById',
