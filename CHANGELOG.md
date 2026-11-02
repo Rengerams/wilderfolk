@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Changed (2 November 2026):** Spotlight Lore captions are smaller and the spotlight wider. A completed Village Square hosts the cast; other settlers are hidden only during the performance and return afterward. Without a Square, normal gathering remains.
+- **Changed (2 November 2026):** Spotlight Lore now uses the normal settler-chat speech bubbles, not a separate HTML balloon. The spotlight is wider; a completed Village Square hosts the cast and hides unrelated settlers visually until the scene ends. Otherwise, normal gathering remains.
 
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 
