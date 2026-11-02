@@ -1,5 +1,11 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Reinforced ground never reaches the display world](../bug_report/2026-11-02-reinforced-ground-not-transported-to-display.md):** Ground Reinforcement patched only the worker's terrain map, so the client still saw hard ground and refused the next building. Command deltas now carry the patched tiles and rebake the replica; the transport regression fails before the fix and passes after.
+
+**2026-11-02 — [Same settler repeated their own dialogue line](../bug_report/2026-11-02-dialogue-same-settler-line-repeat.md):** Scene rotation ignored individual lines, so a settler could repeat a line shared by another variant; per-settler line history now filters those scenes for three days while other settlers may reuse the line. Regression committed, CI pending.
+
+**2026-11-02 — [Spotlight opening cues lost on a throttled tab](../bug_report/2026-11-02-spotlight-opening-cues-throttled-tab.md):** Camera focus and soundtrack start were gated on the frame still being `intro`, so a resumed background tab skipped both. Cues are now elapsed-time driven, once each, and suppressed in the applause; regressions committed, CI pending.
+
 **2026-11-02 — [Spotlight chorus excluded professions instead of current duty](../bug_report/2026-11-02-spotlight-chorus-profession-blacklist.md):** Whole professions were refused even off duty, and nobody was checked for being on shift. Selection now reads the existing work-reason owner; regressions committed, CI pending.
 
 **2026-11-02 — [Worker census dispatch race](../bug_report/2026-11-02-worker-census-gate-dispatch-race.md):** Early requests could execute before the asynchronous census load settled. Worker admission now awaits the shared name gate; gate regressions, typecheck, lint and build pass.

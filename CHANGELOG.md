@@ -2,6 +2,16 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Repeated worker faults log once per window instead of every occurrence, and the opt-in profiler splits the rollback snapshot into entity, building, genealogy and grave sections.
+
+- **Fixed (2 November 2026):** Reinforced ground now reaches the display world, so the prepared soil is visible and buildings can be placed on it immediately.
+
+- **Added (2 November 2026):** Raid battles now open a Football-Manager-style text match with a live scoreline, paced commentary, match stats and a full-time fate decision.
+
+- **Changed (2 November 2026):** A peace treaty no longer blocks a raid; attacking breaks it at a reputation cost, and villagers react to the broken pact.
+
+- **Changed (2 November 2026):** Rival camps are spaced across the map and snapped to walkable ground; old rival parties and raid overlays no longer draw on the village map.
+
 - **Changed (2 November 2026):** Exterminating a surrendered rival now directly asks the question, kills every remaining inhabitant and releases no one.
 
 - **Changed (2 November 2026):** Hotel lodging uses one per-tick hotel and settler-bed index and keeps a valid reservation without rescanning every entity, cutting the largest tick cost at large colonies.

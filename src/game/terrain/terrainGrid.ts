@@ -343,11 +343,32 @@ export function setTileOverride(map: WorldMap, tx: number, ty: number, tile: Ter
   projectionCache.get(map)?.delete(ty * map.width + tx);
 }
 
+/** One tile change recorded for a cross-realm replica; the worker ships these with its delta. */
+export interface TerrainTilePatch {
+  tx: number;
+  ty: number;
+  tile: TerrainTile;
+}
+
+const MAX_PENDING_TERRAIN_PATCHES = 256;
+
+/** Take the patches recorded on this map since the last call, so a command result can carry them. */
+export function takeTerrainPatches(map: WorldMap | null | undefined): TerrainTilePatch[] {
+  if (!map?.pendingTerrainPatches) return [];
+  const patches = map.pendingTerrainPatches.splice(0);
+  delete map.pendingTerrainPatches;
+  return patches;
+}
+
 /** Patch one field of a tile in place (e.g. clear forest → grassland). */
 export function patchTile(map: WorldMap, tx: number, ty: number, patch: Partial<TerrainTile>): void {
   const cur = tileAt(map, tx, ty);
   if (!cur) return;
-  setTileOverride(map, tx, ty, { ...cur, ...patch });
+  const tile = { ...cur, ...patch };
+  setTileOverride(map, tx, ty, tile);
+  const pending = map.pendingTerrainPatches ?? (map.pendingTerrainPatches = []);
+  if (pending.length >= MAX_PENDING_TERRAIN_PATCHES) pending.shift();
+  pending.push({ tx, ty, tile });
 }
 
 /* ===== L0 / L1 occupancy ===== */

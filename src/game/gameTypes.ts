@@ -1168,6 +1168,8 @@ export interface WorldMap {
   size: MapSize;
   /** Sparse per-tile overrides (camp/forest clearing) — key = y*width+x. */
   overrides?: Map<number, TerrainTile>;
+  /** Tile changes since the last delta extraction; runtime only, never saved. */
+  pendingTerrainPatches?: Array<{ tx: number; ty: number; tile: TerrainTile }>;
   /** World-pixel camp clearing location, on buildable land nearest the map centre. */
   campSite?: { x: number; y: number };
   /** Teraforge continuous fields (L2). */

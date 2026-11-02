@@ -6,6 +6,7 @@ import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/ren
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
 import { packRenderMetaForSlots } from '../simBuffers/entityRenderMeta';
 import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
+import { decideRepeatedError, type RepeatedErrorState } from '../repeatedErrorLog';
 import { RENDER_BUFFER_POOL_SIZE } from '../simBuffers/renderBufferPool';
 import { ScentGridReader } from '../scentGrid';
 import { hydrateWorldRuntimeCaches, invalidateWorldRuntimeCaches } from '../worldRuntimeCaches';
@@ -100,12 +101,16 @@ const PROFILING_STOP_REPLY_DEADLINE_MS = 30000;
  */
 const COMMAND_REPLY_DEADLINE_MS = 30000;
 
+/** Identical worker faults inside this window are counted, not re-logged. */
+const WORKER_ERROR_LOG_REPEAT_WINDOW_MS = 5000;
+
 export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
   private ticksInFlight = 0;
   private tickRequestTimes: number[] = [];
   private lastCompletedTickLatencyMs: number | null = null;
+  private lastWorkerErrorLog: RepeatedErrorState | null = null;
   getLastCompletedTickLatencyMs(): number | null { return this.lastCompletedTickLatencyMs; }
   private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
   private nextProfilingRequestId = 0;
@@ -735,6 +740,25 @@ export class GameWorkerHost {
     this.resolveIdleWaiters();
   }
 
+  /** One line per fault; identical faults inside the window only bump a counter. */
+  private logWorkerFault(message: string): void {
+    const now = performance.now();
+    const decision = decideRepeatedError(this.lastWorkerErrorLog, message, now, WORKER_ERROR_LOG_REPEAT_WINDOW_MS);
+    if (!decision.log) {
+      this.lastWorkerErrorLog = {
+        message,
+        at: this.lastWorkerErrorLog?.at ?? now,
+        suppressed: decision.suppressed,
+      };
+      return;
+    }
+    if (decision.suppressed > 0) {
+      console.error(`[GameWorker] ${decision.suppressed} repeated worker error(s) suppressed`);
+    }
+    this.lastWorkerErrorLog = { message, at: now, suppressed: 0 };
+    console.error('[GameWorker]', message);
+  }
+
   private handleMessage(msg: WorkerResponse): void {
     if (msg.type === 'worldUploaded') {
       if (!isWorkerProto(msg.proto)) {
@@ -751,13 +775,13 @@ export class GameWorkerHost {
     }
     if (!isWorkerProto(msg.proto)) {
       const err = new Error(workerProtoMismatch(msg.proto));
-      console.error('[GameWorker]', err.message, msg.type);
+      this.logWorkerFault(`${err.message} (${msg.type})`);
       this.rejectInFlight(err, { decrementTicks: msg.type === 'tickResult' });
       return;
     }
 
     if (msg.type === 'error') {
-      console.error('[GameWorker]', msg.message);
+      this.logWorkerFault(msg.message);
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
         this.tickRequestTimes.shift();

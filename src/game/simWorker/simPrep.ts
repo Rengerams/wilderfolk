@@ -1,4 +1,12 @@
 import { profileEnd, profileStart } from '../performanceProfiler';
+
+/** Timed section for the rollback snapshot; the profiler is opt-in, so production pays one call. */
+function profileSection<T>(name: string, work: () => T): T {
+  const start = profileStart();
+  const value = work();
+  profileEnd(name, start);
+  return value;
+}
 import type { WorldState } from '../gameTypes';
 import { normalizeForgeState } from '../forge';
 import { getWorkSchedule } from '../workSchedule';
@@ -151,7 +159,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     speed: state.speed,
 
     // Clone entity objects and isolate nested arrays/maps from in-place property mutations
-    entities: (state.entities ?? []).map((e) => ({
+    entities: profileSection('rollback.entities', () => (state.entities ?? []).map((e) => ({
       ...e,
       battleLeadershipAwards: e.battleLeadershipAwards ? { ...e.battleLeadershipAwards } : undefined,
       warCaptive: e.warCaptive ? { ...e.warCaptive } : undefined,
@@ -176,14 +184,13 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
             ? { needs: { ...e.moonHowlerSaved.needs } } : {}),
         },
       } : {}),
-    })),
+    }))),
 
-    // Clone building objects and isolate occupants array
-    buildings: (state.buildings ?? []).map((b) => ({
+    buildings: profileSection('rollback.buildings', () => (state.buildings ?? []).map((b) => ({
       ...b,
       occupants: [...(b.occupants ?? [])],
       hotelGuestIds: b.hotelGuestIds ? [...b.hotelGuestIds] : undefined,
-    })),
+    }))),
 
     // Copy the elements, not just the arrays. The realtime layer decays these **in place**
     // (`tickLayerRealtime`: `ft.y -= 0.7; ft.life--`, `p.x += p.vx; p.life--`), so a shallow spread
@@ -251,7 +258,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     raidBattleReports: state.raidBattleReports === undefined ? undefined : structuredClone(state.raidBattleReports),
     raidRecovery: state.raidRecovery === undefined ? undefined : structuredClone(state.raidRecovery),
     scoredRaidIds: state.scoredRaidIds === undefined ? undefined : structuredClone(state.scoredRaidIds),
-    graveRecords: state.graveRecords === undefined ? undefined : structuredClone(state.graveRecords),
+    graveRecords: profileSection('rollback.graves', () => (state.graveRecords === undefined ? undefined : structuredClone(state.graveRecords))),
     raidPrisonerHistory: state.raidPrisonerHistory === undefined ? undefined : structuredClone(state.raidPrisonerHistory),
     pendingDiplomacyEvents: [...(state.pendingDiplomacyEvents ?? [])],
     tradeRoutes: structuredClone(state.tradeRoutes ?? []),
@@ -273,7 +280,7 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
     // payload did not.
     activeEvent: state.activeEvent ? structuredClone(state.activeEvent) : null,
     eventLog: [...(state.eventLog ?? [])],
-    genealogyRegistry: state.genealogyRegistry ? { people: Object.fromEntries(Object.entries(state.genealogyRegistry.people).map(([id, person]) => [id, { ...person, partners: [...person.partners], childrenIds: [...person.childrenIds] }])) } : undefined,
+    genealogyRegistry: profileSection('rollback.genealogy', () => (state.genealogyRegistry ? { people: Object.fromEntries(Object.entries(state.genealogyRegistry.people).map(([id, person]) => [id, { ...person, partners: [...person.partners], childrenIds: [...person.childrenIds] }])) } : undefined)),
     eventsThisYear: [...(state.eventsThisYear ?? [])],
     lastEventYear: state.lastEventYear,
     bountifulHarvest: state.bountifulHarvest,

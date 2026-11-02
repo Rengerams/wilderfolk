@@ -4,9 +4,11 @@ import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
 import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
+import { rebakeTerrainGrids, setTileOverride, takeTerrainPatches, type TerrainTilePatch } from '../terrain/terrainGrid';
+import { bumpTerrainRevision } from '../terrainLayer';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 3;
+export const SIM_DELTA_PROTO = 4;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -86,6 +88,8 @@ export interface SimTickDelta {
   buildings?: Building[];
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
+  /** Tiles a command patched (ground reinforcement, forest clearing), applied to the replica map. */
+  terrainPatches?: TerrainTilePatch[];
   aliveEntities: Entity[];
   eventLogTail: WorldState['eventLog'];
   graveRecords?: WorldState['graveRecords'];
@@ -378,6 +382,9 @@ export function extractSimTickDelta(
     delta.buildings = deltaClone(world.buildings, cloneMode);
   }
 
+  const terrainPatches = takeTerrainPatches(world.worldMap);
+  if (terrainPatches.length > 0) delta.terrainPatches = terrainPatches;
+
   if (options?.prevHistoryRevisions) {
     // Histories cross the boundary only when their owner bumped the revision, so the per-tick
     // JSON fingerprint over grave and genealogy history disappears from the worker loop.
@@ -390,6 +397,26 @@ export function extractSimTickDelta(
   }
 
   return delta;
+}
+
+/** Apply a command's tile patches to the replica map and rebake the affected terrain region. */
+function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePatch[] | undefined): void {
+  const map = world.worldMap;
+  if (!map || !patches || patches.length === 0) return;
+  let startTx = Infinity;
+  let endTx = -1;
+  let startTy = Infinity;
+  let endTy = -1;
+  for (const patch of patches) {
+    setTileOverride(map, patch.tx, patch.ty, patch.tile);
+    if (patch.tx < startTx) startTx = patch.tx;
+    if (patch.tx > endTx) endTx = patch.tx;
+    if (patch.ty < startTy) startTy = patch.ty;
+    if (patch.ty > endTy) endTy = patch.ty;
+  }
+  if (endTx < 0) return;
+  rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
+  bumpTerrainRevision();
 }
 
 export function applySimTickDelta(
@@ -564,6 +591,7 @@ export function applySimTickDelta(
   }));
 
   world.entities = deltaClone(delta.aliveEntities, cloneMode);
+  applyTerrainPatches(world, delta.terrainPatches);
 
   // The authoritative alive snapshot is the sole entity delta payload.
 
