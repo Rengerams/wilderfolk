@@ -248,13 +248,8 @@ function getParamourResidence(paramour: Entity, buildingById: Map<number, Buildi
 }
 
 /**
- * The building an affair pair actually uses: the cheater's own home while it is **empty**, otherwise
- * the paramour's residence.
- *
- * The cheater's home comes first because that is where a couple sneaks off to and where a walk-in can
- * happen (`wouldWalkInOnAffair`); sending every pair to the paramour's residence was why the
- * caught-in-the-act route never fired in practice. An occupied marital home is refused here exactly as
- * `isValidAffairTrystSite` refuses it, and the paramour's place is then the fallback.
+ * Only a real residence of one of the two lovers can be an indoor rendezvous.
+ * When neither lover is near an eligible home, their meeting remains outdoors.
  */
 export function getAffairTrystBuilding(
   cheater: Entity,
@@ -262,22 +257,25 @@ export function getAffairTrystBuilding(
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
 ): Building | undefined {
-  // Choose roles once per pair, regardless of which partner is evaluated first.
-  const primary = cheater.partnerId != null && paramour.partnerId == null ? cheater
-    : paramour.partnerId != null && cheater.partnerId == null ? paramour
-      : cheater.id < paramour.id ? cheater : paramour;
-  const secondary = primary === cheater ? paramour : cheater;
-  const maritalHome = primary.partnerId != null && primary.residenceBuildingId != null
-    ? buildingById.get(primary.residenceBuildingId)
-    : undefined;
-  if (
-    maritalHome?.completed
-    && isResidenceBuilding(maritalHome)
-    && !isSpouseAtSharedHome(primary, entityById, buildingById)
-  ) {
-    return maritalHome;
+  let chosen: Building | undefined;
+  let bestDistanceSq = Infinity;
+  for (const participant of [cheater, paramour]) {
+    if (!hasResidenceAssignment(participant)) continue;
+    const residence = buildingById.get(participant.residenceBuildingId!);
+    if (!residence?.completed || residence.faction === 'rival' || !isResidenceBuilding(residence)) continue;
+    if (participant.partnerId != null && isSpouseAtSharedHome(participant, entityById, buildingById)) continue;
+
+    const center = getBuildingCenter(residence);
+    const firstDistanceSq = (cheater.x - center.x) ** 2 + (cheater.y - center.y) ** 2;
+    const secondDistanceSq = (paramour.x - center.x) ** 2 + (paramour.y - center.y) ** 2;
+    if (Math.min(firstDistanceSq, secondDistanceSq) > AFFAIR_BUILDING_NEAR_RADIUS ** 2) continue;
+    const distanceSq = Math.max(firstDistanceSq, secondDistanceSq);
+    if (distanceSq < bestDistanceSq || (distanceSq === bestDistanceSq && residence.id < (chosen?.id ?? Infinity))) {
+      chosen = residence;
+      bestDistanceSq = distanceSq;
+    }
   }
-  return getParamourResidence(secondary, buildingById);
+  return chosen;
 }
 
 export function isNearBuilding(human: Entity, building: Building, maxDist = 55): boolean {
@@ -297,37 +295,19 @@ export function isValidAffairTrystSite(
 ): boolean {
   if (!cheater.alive || !paramour.alive) return false;
 
-  // An empty marital home is a valid tryst site (the pair uses it while the spouse is
-  // out, which is what a walk-in then interrupts). While the spouse is there — or right
-  // beside it — the home is refused, exactly like the married-paramour branch below.
-  if (isAtMaritalHome(cheater, entityById, buildingById)) {
-    if (
-      isSpouseNearby(cheater, entityById, intimateDist)
-      || isSpouseAtSharedHome(cheater, entityById, buildingById, intimateDist)
-    ) {
-      return false;
-    }
-    const maritalHome = buildingById.get(cheater.residenceBuildingId!);
-    if (!maritalHome?.completed || !isResidenceBuilding(maritalHome)) return false;
-    return isNearBuilding(cheater, maritalHome, intimateDist)
-      && isNearBuilding(paramour, maritalHome, intimateDist);
-  }
+  // An arriving spouse blocks an occupied marital home; an encounter elsewhere stays legal.
+  if (isAtMaritalHome(cheater, entityById, buildingById)
+    && (isSpouseNearby(cheater, entityById, intimateDist)
+      || isSpouseAtSharedHome(cheater, entityById, buildingById, intimateDist))) return false;
+  if (isAtMaritalHome(paramour, entityById, buildingById)
+    && (isSpouseNearby(paramour, entityById, intimateDist)
+      || isSpouseAtSharedHome(paramour, entityById, buildingById, intimateDist))) return false;
 
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
-  if (trystBuilding) {
-    return isNearBuilding(cheater, trystBuilding, intimateDist) && isNearBuilding(paramour, trystBuilding, intimateDist);
-  }
+  if (trystBuilding && isNearBuilding(cheater, trystBuilding, intimateDist)
+    && isNearBuilding(paramour, trystBuilding, intimateDist)) return true;
 
-  if (paramour.partnerId != null && isAtMaritalHome(paramour, entityById, buildingById)) {
-    if (isSpouseAtSharedHome(paramour, entityById, buildingById, intimateDist)) return false;
-    if (hourOfDay != null && shouldBeAtHome(hourOfDay) && isSpouseNearby(paramour, entityById, intimateDist)) {
-      return false;
-    }
-    const residence = paramour.residenceBuildingId != null ? buildingById.get(paramour.residenceBuildingId) : undefined;
-    if (!residence?.completed || !isResidenceBuilding(residence)) return false;
-    return isNearBuilding(cheater, residence, intimateDist) && isNearBuilding(paramour, residence, intimateDist);
-  }
-
+  // Proximity outside either partner's home is sufficient for an outdoor affair.
   const dx = paramour.x - cheater.x;
   const dy = paramour.y - cheater.y;
   return dx * dx + dy * dy < intimateDist * intimateDist;
