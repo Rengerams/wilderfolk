@@ -147,10 +147,10 @@ async function main(): Promise<void> {
       buffersReceived++;
       maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
       try {
-        send({
+        worker.postMessage({
           type: 'returnBuffer', proto: WORKER_PROTO,
           bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
-        });
+        } satisfies WorkerRequest, [msg.renderBuffer]);
         buffersReturned++;
       } catch (err) {
         bufferReturnFailures++;
