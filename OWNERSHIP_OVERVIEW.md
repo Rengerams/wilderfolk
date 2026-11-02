@@ -646,3 +646,9 @@ take ownership away from their leaf implementations. Module-qualified names keep
 |---|---|---|
 | `isStaticPropEntity` | `gameTypes.ts` | Name the decor entity types (trees, grass) whose rows the display keeps between roster changes. |
 | `splitStaticProps` | `game/simBuffers/simDelta.ts` | Move props out of the per-tick roster; ship added props once and removed ids, and mark the delta as prop-resolved. |
+
+## Generated housing-colony test fixture (2 November 2026)
+
+| Area | Owner module | Cadence | Entry functions |
+|---|---|---|---|
+| Deterministic colonies for the housing invariant suites | `src/test/housingColony.ts` | test-only | `buildHousingColony` (seeded couples, minors, prisoners, overcrowding), `adult` (local settler builder inside the fixture) |
