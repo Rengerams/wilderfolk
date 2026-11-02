@@ -25,4 +25,4 @@ jobs:
     with:
       tier: large
       population: 1800
-      days: ${{ github.event_name == 'workflow_dispatch' && fromJSON(inputs.days) || 3 }}
+      days: ${{ github.event_name == 'workflow_dispatch' && fromJSON(inputs.days) || 2 }}
