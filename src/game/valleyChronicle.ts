@@ -1,3 +1,4 @@
+import { markHistoryChanged } from './simBuffers/historyRevisions';
 import type { Resources, WorldState } from './gameTypes';
 import { BuildingType } from './buildings';
 import { logEvent } from './eventLog';
@@ -88,6 +89,7 @@ export function advanceValleyChronicle(state: WorldState): string[] {
     if (done.has(ch.id)) continue;
     if (ch.isMet(state)) {
       state.chronicleChapters = [...(state.chronicleChapters ?? []), ch.id];
+      markHistoryChanged(state, 'chronicleChapters');
       logEvent(state, 'milestone', `${ch.icon} ${ch.title} — ${ch.detail}`);
       if (ch.reward) {
         for (const [key, amount] of Object.entries(ch.reward)) {
