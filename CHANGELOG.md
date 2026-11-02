@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Automatic staffing keeps one per-building worker count for the whole pass instead of rescanning every settler per vacancy, halving the daily assignment spike at large colonies.
+
 - **Changed (2 November 2026):** Repeated worker faults log once per window instead of every occurrence, and the opt-in profiler splits the rollback snapshot into entity, building, genealogy and grave sections.
 
 - **Fixed (2 November 2026):** Reinforced ground now reaches the display world, so the prepared soil is visible and buildings can be placed on it immediately.

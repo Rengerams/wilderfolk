@@ -83,6 +83,12 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
   return count;
 }
 
+/** Posts a completed workplace has, and how many are taken. */
+export interface StaffingCapacity {
+  cap: number;
+  staffed: number;
+}
+
 /**
  * The staffing cap of a completed workplace, and how much of it is taken.
  *
@@ -91,12 +97,19 @@ export function countWorkersAtBuilding(humans: Entity[], buildingId: number): nu
  * so the posts are counted on their own: `workerBuildingId` is a guard's post and an arrest clears it,
  * which is the distinction `countWorkersAtBuilding` already draws.
  */
-export function staffingCapFor(building: Building, humans: Entity[]): { cap: number; staffed: number } {
+export function staffingCapFor(
+  building: Building,
+  humans: Entity[],
+  staffed?: number,
+): StaffingCapacity {
   const configured = BUILDING_CONFIGS[building.type].maxOccupants;
   if (building.type === BuildingType.Prison) {
-    return { cap: prisonGuardCapacity(configured), staffed: countWorkersAtBuilding(humans, building.id) };
+    return { cap: prisonGuardCapacity(configured), staffed: staffed ?? countWorkersAtBuilding(humans, building.id) };
   }
-  return { cap: configured, staffed: Math.max(building.occupants.length, countWorkersAtBuilding(humans, building.id)) };
+  return {
+    cap: configured,
+    staffed: Math.max(building.occupants.length, staffed ?? countWorkersAtBuilding(humans, building.id)),
+  };
 }
 
 export function countStaffedWorkersAtType(buildings: Building[], humans: Entity[], type: BuildingType): number {
@@ -487,6 +500,8 @@ export function assignWorkerInPlace(
   buildings: Building[],
   venueSchedules?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   constructionWorkerIds?: Set<number>,
+  buildingById?: ReadonlyMap<number, Building>,
+  workerCounts?: Map<number, number>,
 ): boolean {
   const job = BUILDING_JOB_TYPES[building.type];
   if (!job || !building.completed || building.faction === 'rival') return false;
@@ -494,9 +509,10 @@ export function assignWorkerInPlace(
   // Auto means fill all available staff positions, including Taverns and Hotels.
   // Opening-hour-based minimum shift coverage is not a staffing limit: leaving
   // vacancies while eligible settlers are idle contradicts the Auto setting.
-  const cap = staffingCapFor(building, humans).cap;
+  const workerCount = workerCounts?.get(building.id) ?? countWorkersAtBuilding(humans, building.id);
+  const cap = staffingCapFor(building, humans, workerCount).cap;
 
-  if (countWorkersAtBuilding(humans, building.id) >= cap) return false;
+  if (workerCount >= cap) return false;
 
   // Select the best candidate in one pass. Sorting every idle settler for every
   // vacant slot repeated expensive commute checks O(N log N) times.
@@ -516,10 +532,16 @@ export function assignWorkerInPlace(
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
       || crewIds.has(candidate.id)) continue;
-    const near = isWithinAssignableCommute(candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed);
     const dx = candidate.x - buildingX;
     const dy = candidate.y - buildingY;
     const distance = dx * dx + dy * dy;
+    const near = isWithinAssignableCommute(
+      candidate,
+      building,
+      buildings,
+      SPECIES_CONFIG[EntityType.Human].speed,
+      buildingById,
+    );
     const skill = readSkill(candidate, job);
     if (worker && (
       (bestNear && !near)
@@ -539,7 +561,9 @@ export function assignWorkerInPlace(
   }
   if (!worker) return false;
 
-  return assignWorkerTransition(worker, building, venueSchedules?.tick);
+  const assigned = assignWorkerTransition(worker, building, venueSchedules?.tick);
+  if (assigned && workerCounts) workerCounts.set(building.id, workerCount + 1);
+  return assigned;
 }
 
 function clearJobAssignment(human: Entity, buildings: Building[]): void {
@@ -758,25 +782,40 @@ export function staffJobBuildings(
   includeManualStaff: boolean,
   worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
+  buildingIndex?: ReadonlyMap<number, Building>,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
+  const buildingById = buildingIndex ?? new Map(buildings.map((building) => [building.id, building]));
+  // One scan for the whole pass: every vacancy would otherwise rescan all settlers.
+  const workerCounts = new Map<number, number>();
+  for (const human of alive) {
+    if (!human.alive || !isPlayerHuman(human) || human.workerBuildingId == null) continue;
+    const id = human.workerBuildingId;
+    workerCounts.set(id, (workerCounts.get(id) ?? 0) + 1);
+  }
   const constructionWorkerIds = new Set<number>();
   for (const site of buildings) {
     if (!site.completed) for (const id of site.occupants) constructionWorkerIds.add(id);
   }
 
+  const staffStart = profileStart();
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
     if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
-    while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds)) {
+    while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds, buildingById, workerCounts)) {
       // Fill job slots
     }
   }
+  profileEnd('workforce.staff', staffStart);
 
   if (!includeManualStaff) {
+    const rebalanceStart = profileStart();
     rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
+    profileEnd('workforce.rebalance', rebalanceStart);
   }
+  const syncStart = profileStart();
   syncJobBuildingOccupants(alive, buildings);
+  profileEnd('workforce.syncOccupants', syncStart);
 }
 
 /**
@@ -794,6 +833,7 @@ export function assignMissingWorkers(
   const prepStart = profileStart();
   const alive = prepareWorkforce(humans, buildings);
   profileEnd('workforce.prepare', prepStart);
+  const buildingById = new Map(buildings.map((building) => [building.id, building]));
   const policy = getWorkforcePolicy(worldSlices ?? {});
   // Reserve one idle producer when a core material is exhausted, before builders
   // consume every free hand. Existing jobs and manual staffing are untouched.
@@ -807,14 +847,14 @@ export function assignMissingWorkers(
         site.completed && site.faction !== 'rival' && site.type === type
         && !isManualStaffingBuilding(site) && countWorkersAtBuilding(alive, site.id) === 0,
       );
-      if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices);
+      if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
     }
   }
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   profileEnd('workforce.construction', constructionStart);
   const jobsStart = profileStart();
-  staffJobBuildings(alive, buildings, false, worldSlices, policy);
+  staffJobBuildings(alive, buildings, false, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
 }
 

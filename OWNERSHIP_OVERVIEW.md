@@ -604,3 +604,9 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | `applyTerrainPatches` | `game/simBuffers/simDelta.ts` | Apply a command's tile patches to the replica map, rebake the region and bump the terrain revision. |
 | `decideRepeatedError`, `GameWorkerHost.logWorkerFault` | `game/repeatedErrorLog.ts` + `game/simWorker/GameWorkerHost.ts` | Log the first worker fault, count identical repeats inside the window and report the suppressed count once. |
 | `profileSection` | `game/simWorker/simPrep.ts` | Time the rollback-snapshot sections under the opt-in profiler. |
+
+## Staffing pass counts (2 November 2026)
+
+| Functions | Sole owner | Responsibility |
+|---|---|---|
+| `staffingCapFor`, `assignWorkerInPlace`, `staffJobBuildings` | `game/workforce.ts` | Own the staffing cap and candidate selection; the pass supplies one per-building worker count so a vacancy never rescans all settlers. |
