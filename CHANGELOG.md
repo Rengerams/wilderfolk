@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Implemented (29 October 2026, PR #91):** Merged rare Spotlight Lore with real-actor gathering, 44 JSON captions, cinematic reveal, instrumental and applause MP3s, two timed poses, farewell camera and Skip/restore. Browser acceptance remains unverified.
+
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
 
@@ -76,9 +78,9 @@
 - **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
 
 - **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
-- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
+- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. Merged into main; browser acceptance pending.
 
-- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay was separately merged in PR #91.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 
