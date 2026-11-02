@@ -203,8 +203,6 @@ function drawConstructionBody(
   ctx.fillText(`${Math.floor(shownProgress)}%`, sx, sy + 3);
 }
 
-let lastBakedRoadStrips: ReturnType<typeof collectStripCenters> | null = null;
-
 export function drawHoveredBuildingTint(
   ctx: CanvasRenderingContext2D,
   state: RenderSnapshot,
@@ -215,7 +213,13 @@ export function drawHoveredBuildingTint(
   if (!hovered || hoverTintKindFor(hovered) === null) return;
   const rect = getBuildingScreenRect(hovered, state, state.camera, cw, ch);
   if (hovered.completed) {
-    drawStripBuilding(ctx, hovered, rect, lastBakedRoadStrips, true);
+    // Outline only: repainting a translucent strip every frame made roads blink on hover.
+    const fp = getBuildingFootprintScreenRect(hovered, state, state.camera, cw, ch);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
+    ctx.lineWidth = Math.max(1, 2 * state.camera.zoom);
+    ctx.strokeRect(fp.left, fp.top, fp.right - fp.left, fp.bottom - fp.top);
+    ctx.restore();
     return;
   }
   drawConstructionBody(ctx, state, hovered, rect, true);
@@ -223,6 +227,8 @@ export function drawHoveredBuildingTint(
 
 export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   const cam = state.camera;
+  // A running performance hides the gold level frames, pennants and "Lv" text: the show owns the frame.
+  const stageHidesLevelMarks = state.spotlightLore?.phase === 'ready';
 
   let roadStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
@@ -233,7 +239,6 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     roadStrips ??= collectStripCenters(state.buildings, 'road');
     drawStripBuilding(ctx, b, rect, roadStrips, false);
   }
-  lastBakedRoadStrips = roadStrips;
 
   let wallStrips: ReturnType<typeof collectStripCenters> | null = null;
   for (const b of state.buildings) {
@@ -299,14 +304,14 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
       );
     }
 
-    if (!isDecorType(b.type)) {
+    if (!isDecorType(b.type) && !stageHidesLevelMarks) {
       drawBuildingLevelUpgrades(ctx, b.level, sx, sy, w, h, cam.zoom);
     }
-    drawBuildingLevelMark(ctx, b.level, sx, sy, w, h, cam.zoom);
+    if (!stageHidesLevelMarks) drawBuildingLevelMark(ctx, b.level, sx, sy, w, h, cam.zoom);
 
     // Geen selectiering of kaders meer
 
-    if (b.level > 1) {
+    if (b.level > 1 && !stageHidesLevelMarks) {
       ctx.fillStyle = '#b45309';
       ctx.font = `bold ${Math.max(7, 9 * cam.zoom)}px sans-serif`;
       ctx.textAlign = 'right';
