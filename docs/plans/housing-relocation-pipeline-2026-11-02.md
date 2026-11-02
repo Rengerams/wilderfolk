@@ -20,9 +20,10 @@ source changes in `residencyReconciliation.ts`: the retry fix and the move count
 another agent; the plan adopts it in P0a/P1 rather than rebuilding the weaker HEAD rule).
 
 **Audited 2026-11-02 08:48** by an independent read-only review; this version incorporates all 25
-findings. One finding was overtaken by the tree: the move-driven convergence counters (old L2) were
-fixed by commit `ce853298 perf(load): count real housing moves so convergence stops early` at 08:34,
-between the review and the audit. The plan keeps that behaviour as a regression guard, not a task.
+findings. One finding was overtaken by the tree twice: `ce853298` replaced attempt-counting with a
+per-unit member comparison at 08:34, and the uncommitted T0 working tree replaces that with a
+real-write counter (`context.onMove`). The plan adopts the latter (L2, G4) instead of rebuilding a
+third counter.
 
 ---
 
@@ -419,7 +420,7 @@ export function assignMissingResidences(
         if (!plan.move) continue;                                         // stay: no write, no retry
         if (applyRelocation(unit, plan, phase, ctx)) moved += 1;          // atomic, ledgered
       }
-      if (moved === 0) break;                      // real moves end the pass (ce853298 behaviour)
+      if (moved === 0) break;                      // real writes end the pass (context.onMove counter)
     } while (passes < passLimit);
 
     ctx.stats.passes.total += passes;
@@ -553,8 +554,8 @@ home. The script harness is `scripts/colonyHealth.ts`; this module is the projec
    move here, in the same change as the merge (AGENTS §5.9); P7 then only adds the new pipeline
    decision rows.
 7. Gate: `npm run test:types`, `npm run lint`, `npm run audit` (cycles), `npm run build`, and the
-   33 existing suites / 141 tests — identical results, because nothing but paths and register rows
-   moved.
+   **34 suites / 148 tests on the T0 working tree** — identical results, because nothing but paths
+   and register rows moved.
 
 **Naming, and the names rejected:**
 
@@ -583,7 +584,7 @@ Each work package is one commit, green on its own, and revertable alone.
 | **P3** | **leave-home**, **commute**; delete the old predicate | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | L1 fixed (minor household only); `housingUnitNeedsReassignment` deleted with its 3 test imports rewritten; `sortHousingUnitsForAssignment` returns plans; optional phases green |
 | **P4** | Event triggers through the pipeline | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` (release already pipes) | death, marriage, divorce stop choosing: they change custody/link then run the pipeline; divorce's one-hop reshuffle moves into capacity; `divorceHousing.custody`, `amicableDivorce`, `residency.blendedCustody`, `guardianship.jailedParents` green |
 | **P5** | One rule, one context, one arena | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` (eligibility call) | one `isAssignableHome`, one write-context type (`HousingMoveContext`), manor allowlist single constant, 15 rival literals gone, alias/re-export/dead export gone, diagnostics reads owners, L3/L5/L9 fixed; `protectedUnits` counted once per withheld household (it currently over-reports across adult-child and commute) |
-| **P6** | Perf: one build per run, plan-driven pass count | P5 | `housingPipeline.ts`, `housingModel.ts` | unit index built once and reused by the refill; occupancy/traits threaded through capacity; `stats.passes` recorded and `≤ 3` on the stuck fixture (the loop already exits on real moves; this makes the count observable and reused) |
+| **P6** | Perf: one build per run, plan-driven pass count | P5 | `housingPipeline.ts`, `housingModel.ts` | unit index built once and reused by the refill; occupancy/traits threaded through capacity; the pass's progress rule stays `context.onMove` (any residence write, adopted from T0); `stats.passes` recorded and `≤ 3` on the stuck fixture |
 | **P7** | Registers, docs, benchmark, CI | P6 | housing rows in `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts`, `docs/HOUSING_ARCHITECTURE.md`, `CHANGELOG.md`, `scripts/perf-at-pop.ts` | pipeline decision rows added (merge rows landed in P0a); registry `testFile` lists the housing suites; architecture note describes the plan contract; changelog entry; benchmark hash identical |
 
 ### 5.1 Commit series
@@ -633,11 +634,11 @@ gantt
 
 | Session | When | Content | Gate before the next session |
 | :--- | :--- | :--- | :--- |
-| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 33 existing suites / 141 tests identical; Population tab still renders |
+| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 34 suites / 148 tests identical on the T0 tree; Population tab still renders |
 | S1 | Mon 02 Nov — PM | P0: contract types, bug reports, close `stats` | contract compiles; reports indexed; `stats` shape registered |
 | S2 | Tue 03 Nov — AM | P1: planner core, homeless need | homeless phase green; G1/G2/G4/G7 contract tests |
 | S3 | Tue 03 Nov — PM | P2: custody, capacity, surplus | mandatory needs green; capacity/custody suites |
-| S4 | Wed 04 Nov — AM | P3: leave-home, commute; delete the old predicate | all phases planned; L1 fixed; 33 suites |
+| S4 | Wed 04 Nov — AM | P3: leave-home, commute; delete the old predicate | all phases planned; L1 fixed; the housing suites |
 | S5 | Wed 04 Nov — PM | P4: death, marriage, divorce through the pipeline | event suites + idempotency |
 | S6 | Thu 05 Nov — AM | P5: one eligibility rule, one context, one arena | types, lint, audit, cycles |
 | S7 | Thu 05 Nov — PM | P6: one unit build per run, observable passes | `stats.passes` recorded; stuck fixture ≤ 3 |
@@ -674,21 +675,21 @@ recoverable; a stale doc presented as done is not.
 | :--- | :--- | :--- |
 | G1/G3 — a plan's destination is legal and fits | new `tests/housingPlanner.contract.test.ts` (property over the existing fixtures: every planned destination passes `relocateHousehold` without mutation) | P1 |
 | G2 — unhousing only for `surplus` | same file, exhaustive need table | P1 |
-| G4 — an impossible relocation is "stay" | `tests/housingPlanner.stuckColony.test.ts`: a household with no reachable placement plans `move: false`, `relocations` empty, **`stats.passes <= 3`** — a regression guard on the `ce853298` behaviour, deliberately not a "before" claim | P1 |
+| G4 — an impossible relocation is "stay" | `tests/housingPlanner.stuckColony.test.ts`: a household with no reachable placement plans `move: false`, `relocations` empty, **`stats.passes <= 3`** — a guard on the working tree's write counter, deliberately not a "before" claim | P1 |
 | G5 — one occupant rule | extend `tests/housingPipeline.occupantOrder.test.ts`: cursed Moon Howler counted in beds **and** traits | P5 |
 | G6 — a plan explains itself | `stats` + report `why` asserted in the contract test | P5 |
 | G7 — planning is pure | contract test: planning a unit leaves entities, ledger and report untouched | P1 |
 | G8 — idempotency | existing `tests/housingAuthority.pipeline.test.ts` (unchanged) | every session |
 | L1 — adult child never drags independent descendants | extend `tests/adultChild.moveOutTarget.test.ts`: a 22-year-old grandchild already housed elsewhere is not in the departing household | P3 |
 | L7 — a vacated home becomes usable in the same phase | new case in `tests/housingAuthority.pipeline.test.ts` | P2 |
-| One order, protection, whole household, quota, reserved beds, custody | the existing 33 suites, unchanged expectations | every session |
+| One order, protection, whole household, quota, reserved beds, custody | the existing housing suites (33 on HEAD, 34 with T0), unchanged expectations | every session |
 | Generated settlement invariants (capacity, links, rosters, report coverage, prisoners) | `tests/housingPipeline.invariants.test.ts` (landed 2026-11-02) | every session |
 | Long-run stability | `scripts/run-full-year.mts`, `tests/fullYear.integration.test.ts` | P7 |
 | Benchmark not slower, same assignment hash | `scripts/perf-at-pop.ts` relocation mode (reference vs production) | P6/P7 |
 
 ### 7.1 Commands
 
-Baseline today (33 files, 141 tests — recorded 08:25):
+Baseline on HEAD (33 files, 141 tests — 08:25 before `ce853298`, 08:51 on it):
 
 ```sh
 npx vitest run tests/housingAuthority.pipeline.test.ts tests/housingDiagnostics.test.ts \
@@ -709,6 +710,9 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/housingDiagnostics.
   tests/prisonStay.holdsHomeAndPost.test.ts tests/villa.housing.test.ts \
   tests/priorityAlerts.housing.test.ts
 ```
+
+T0 adds `tests/housingPipeline.invariants.test.ts` (6 tests) and one exclusion case inside
+`tests/residenceBestFit.owner.test.ts`; the uncommitted working tree is **34 files / 148 tests**.
 
 From P1 onward: the same list, with `residencyReconciliation.occupantOrder` replaced by
 `housingPipeline.occupantOrder`, plus `tests/housingPlanner.contract.test.ts` and
@@ -735,8 +739,9 @@ npx tsx scripts/run-full-year.mts
 Every stage records `HousingReport.stats` for the standard fixtures so the pipeline can be compared
 before/after, not argued about:
 
-- `passes` per run — the loop is already move-driven after `ce853298`; the field makes it observable
-  and the guard is `≤ 3` on the stuck fixture (not a 24 → 2 improvement claim).
+- `passes` per run — HEAD counts member changes; the working tree counts every residence write
+  (`context.onMove`), which is the rule to measure. The field makes it observable and the guard is
+  `≤ 3` on the stuck fixture (not a 24 → 2 improvement claim).
 - `considered`, `moved`, `stayed` per phase (proves no phase lost candidates in the migration).
 - relocation count and assignment hash at 600 / 1 200 / 2 400 settlers with 0 and 20/40/80 spare
   homes — the published table in `docs/HOUSING_ARCHITECTURE.md` §10 is the baseline.
@@ -752,7 +757,7 @@ before/after, not argued about:
 | R1 | Ranking tiers change who gets which house | High | Medium | Differential test old-picker vs `chooseHome` over the fixture corpus until P3; then suites + full year | revert the single package commit |
 | R2 | Event triggers now converge more than before | Medium | Medium | P4 keeps the trigger's own link write first and measures relocation counts; event suites | drop P4, keep the planner |
 | R3 | Adoption/guardianship regression | Medium | High | Do not touch `ensureOrphanAdoption` internals; only its placement call; `adoption.leaderHouse`, `guardianship.jailedParents`, `residency.blendedCustody` | revert P2 |
-| R4 | Concurrent agents edit the merged files (observed: `ce853298` at 08:34) | **High** | High | P0a re-reads each file immediately before editing; one mechanical commit; run the 33 suites before and after; if a merge conflict appears, re-run the rename from the new HEAD rather than resolving by hand | revert P0a |
+| R4 | Concurrent agents edit the merged files (observed: `ce853298` and the T0 write counter) | **High** | High | P0a re-reads each file immediately before editing; one mechanical commit; run the 34 suites (T0) before and after; if a merge conflict appears, re-run the rename from the new HEAD rather than resolving by hand | revert P0a |
 | R5 | Test-only API removals break suites | High | Low | `housingUnitNeedsReassignment` removal lands with its 3 test rewrites in P3; no compatibility shim survives the branch | revert P3 |
 | R6 | Planner overhead makes the pass slower | Low | Medium | plan only each phase's candidates; benchmark gate in P6/P7 | revert P6 |
 | R7 | The pipeline becomes a god module | Medium | Medium | banner sections with a stated size budget; no section-to-section imports; ranking stays a pure section | split the ranking section back out |
@@ -779,9 +784,9 @@ before/after, not argued about:
 - `docs/bug_report/`: **resolved in the old code 2026-11-02** — `2026-11-02-housing-refill-proposes-visited-home.md`
   (L11; `relocateFamily` retries past a refused destination, invariant seed 2 and idempotency pass).
   **P0 files L1, L3, L4, L5, L7, L9, L10** (seven distinct defects) and indexes them in
-  `docs/BUG_REPORTS/SUMMARY.md`. L2 is closed by `ce853298` and recorded as fixed in the report, not
-  filed open. L6 (unreachable rollback) and L8 (documented reason collapse) are notes, not defects,
-  and are not filed.
+  `docs/BUG_REPORTS/SUMMARY.md`. L2 was half-closed by `ce853298` (member comparison); the T0
+  working tree adopts the write counter, and no report is filed for it. L6 (unreachable rollback) and
+  L8 (documented reason collapse) are notes, not defects, and are not filed.
 - Historical documents untouched.
 
 ---
@@ -827,9 +832,9 @@ snapshots the report shape, and the registry records it as a report field). File
 - One eligibility predicate, one write context (`HousingMoveContext`), one manor allowlist, one
   occupant rule; the 15 rival literals and the redundant aliases are gone; `buildFamilyGroups` still
   serves the Population tab from `housingModel`.
-- The 33 existing housing suites (141 tests) pass unchanged where they pin existing promises; the
+- The 34 suites / 148 tests on the T0 tree pass unchanged where they pin existing promises; the
   planner suites pass; types, lint, `check:source`, `audit`, `build` clean; benchmark hash identical
   and no slower.
 - A full simulated year with zero housing invariant violations.
 - Both registers, the architecture note and the changelog updated; seven bug reports filed and
-  indexed; `ce853298` recorded as the fix that closed the old attempt-counting defect.
+  indexed; `ce853298` recorded as the first counter, and `context.onMove` (T0) as the retained rule.
