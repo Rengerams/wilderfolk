@@ -114,6 +114,9 @@ export class GameWorkerHost {
   );
   private tickRequestTimes: number[] = [];
   private lastCompletedTickLatencyMs: number | null = null;
+  private lastWorkerErrorMessage = '';
+  private lastWorkerErrorLoggedAt = 0;
+  private suppressedWorkerErrors = 0;
   getLastCompletedTickLatencyMs(): number | null { return this.lastCompletedTickLatencyMs; }
   private latestPerformanceSnapshot: PerformanceSnapshot | null = null;
   private nextProfilingRequestId = 0;
@@ -356,6 +359,21 @@ export class GameWorkerHost {
     // Leave both the active display slot and a command render slot available.
     return !this.uploadBarrier && this.pendingExport == null
       && this.ticksInFlight < this.tickPipelineDepth && this.pendingCommand == null;
+  }
+
+  private reportWorkerError(message: string): void {
+    const now = performance.now();
+    if (this.lastWorkerErrorMessage === message && now - this.lastWorkerErrorLoggedAt < 3000) {
+      this.suppressedWorkerErrors++;
+      return;
+    }
+    if (this.suppressedWorkerErrors > 0) {
+      console.error('[GameWorker] repeated errors suppressed:', this.suppressedWorkerErrors);
+      this.suppressedWorkerErrors = 0;
+    }
+    console.error('[GameWorker]', message);
+    this.lastWorkerErrorMessage = message;
+    this.lastWorkerErrorLoggedAt = now;
   }
 
   hasCommandInFlight(): boolean {
@@ -763,7 +781,7 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'error') {
-      console.error('[GameWorker]', msg.message);
+      this.reportWorkerError(msg.message);
       if (msg.source === 'tick') {
         this.ticksInFlight = Math.max(0, this.ticksInFlight - 1);
         this.tickRequestTimes.shift();
