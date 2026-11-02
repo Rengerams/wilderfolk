@@ -1,6 +1,6 @@
 # Handover — housing plan/apply pipeline — 2026-11-02
 
-**Branch:** `main` · **Status:** P0a–P7 and T0–T4 complete (two documented exceptions) ·
+**Branch:** `main` · **Status:** P0a–P7 and T0–T4 complete (F6 accepted, §7 adult owner open, T3 gap) ·
 **Last commit:** `219714d5` · **Suite:** 34 files / 166 tests · **Target:** V.0.6.5.2
 
 ## What is done
@@ -16,7 +16,7 @@ scheduled housing phase was routed through it.
 | P2 | custody, custodian, capacity and surplus needs; capacity ranks/retries; surplus only when no destination; adoption/custodian placement planned | `6cc9a80c`, `185f6205` |
 | P3 | leave-home planned (L1 minor household, L7 vacancy refresh); commute planned; public `housingUnitNeedsReassignment` retired (private `unitNeedsMove`) | `fd63ad00`, `e010fcdd`, `2e88a4a2` |
 | P4 | marriage (couple need); leader death clears the office while the family stays in the manor; divorce keeps the betrayed spouse + children and the cheater leaves alone; one-hop reshuffle removed; manor seating documented as event-driven | `71e46a77`, `acea0183`, `c4d2ce6b` |
-| P5 | `isAssignableHome` gates every picker/list/diagnostic/population read; rival literals removed from housing paths; diagnostics/population import owners; single `MANOR_MOVE_REASONS`; L3 traits/beds, L5 protection counted once, L9 pair count; T3 test retirement | `b99458c3`, `3743c065` |
+| P5 | `isAssignableHome` gates every picker/list/diagnostic/population read; rival literals removed from housing paths; diagnostics/population import owners; single `MANOR_MOVE_REASONS`; L3/L5/L9; T3 test retirement; the `dayCycle` housing barrel was removed concurrently in `71422ede` | `b99458c3`, `3743c065`, `71422ede` |
 | P6 | full tick measured at 600/1 200/2 400 (25/98/422 ms avg); `stats.passes` 1 on the stuck fixture; F6 accepted as the 2× predicate cost | `abaf9b0d`, `31d759ae` |
 | P7 | benchmark numbers in the architecture, registers, changelog, relocation hash identical at 600/1 200 | `31d759ae` |
 | T0–T4 | invariants + generator; plan-level predicate tests; internal tests retired (35→34 files, 171→166 tests); ceiling moved to `PERF_DAY_BOUNDARY`; 30/360-day report; T1 end-to-end refusal via the resume-ledger seam | `219714d5` |
@@ -59,9 +59,8 @@ The test plan's original 27/236/92/16 counts have drifted; these are the current
 
 ## Documented exceptions / accepted costs
 
-1. **`dayCycle` barrel re-export** still forwards the housing names. Removing it means repointing the
-   remaining importers (`SelectedBuildingPanel`, worker/diagnostics paths); it is the established
-   compatibility boundary.
+1. **`dayCycle` barrel — resolved concurrently.** `71422ede` removed the housing re-exports and
+   repointed the 28 affected files; no longer an exception.
 2. **F6** — the sort and the planner each evaluate `unitNeedsMove` (2× common path). The plan-based
    sort experiment broke three invariants (lawful, input order, idempotent) because plans computed
    before earlier moves go stale; the safe fix is the P6 occupancy-version design, deliberately not
@@ -85,11 +84,11 @@ The test plan's original 27/236/92/16 counts have drifted; these are the current
 
 ## Where to continue
 
-1. **P5 barrel cleanup** — remove the housing re-exports from `src/game/dayCycle.ts`, repoint importers,
-   keep the import-cycle gate green.
-2. **P6 occupancy version** (optional) — version the occupancy/move counter, invalidate affected plans,
+1. **§7 adult owner** — add `isMinor`/`isAdult` in the household model, replace the 28 hand-rolled
+   comparisons, make tests call the owner.
+2. **Capacity excess eviction** (open report) — the smallest user-visible defect left.
+3. **P6 occupancy version** (optional) — version the occupancy/move counter, invalidate affected plans,
    and re-run the plan-based sort experiment with a differential test; only then claim F6.
-3. **Capacity excess eviction** (open report) — the smallest user-visible defect left.
 4. **Churn investigation** — use `scripts/run-full-year.mts` (30/360 report) and `PERF_RELOCATION=1`.
 5. **T3 capacity table + remaining mutations.**
 
