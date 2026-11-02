@@ -34,6 +34,8 @@ import {
 
 const SAVE_PATH = process.env.PERF_SAVE;
 const TICKS = Number(process.env.TICKS ?? (SAVE_PATH ? 2000 : 6000));
+const COMMANDS = Number(process.env.COMMANDS ?? 0);
+const PERF_MEASURE = process.env.PERF_MEASURE === '1';
 const HUMANS = 120;
 const MAX_IN_FLIGHT = 4;
 /** GameLoop's watchdog floor is 10000 ms; 2500 keeps this harness sensitive to a real gap. */
@@ -97,6 +99,11 @@ async function main(): Promise<void> {
   let pendingCommand: { cmd: WorkerCommandEnvelope; t0: number } | null = null;
   let lastError: string | null = null;
   let stallLoggedAt = -1;
+  let bufferExhaustionErrors = 0;
+  let commandsCompleted = 0;
+  let sampledDeltaBytes = 0;
+  let sampledDeltaMaxBytes = 0;
+  let deltaSamples = 0;
   let buffersReceived = 0;
   let buffersReturned = 0;
   let bufferReturnFailures = 0;
@@ -158,6 +165,12 @@ async function main(): Promise<void> {
       case 'tickResult': {
         ticksInFlight = Math.max(0, ticksInFlight - 1);
         results++;
+        if (PERF_MEASURE && results % 20 === 0) {
+          const bytes = Buffer.byteLength(JSON.stringify(msg.delta));
+          sampledDeltaBytes += bytes;
+          sampledDeltaMaxBytes = Math.max(sampledDeltaMaxBytes, bytes);
+          deltaSamples++;
+        }
         if (lastResultAt > 0) {
           const gap = arrivedAt - lastResultAt;
           gapHistogram.push(gap);
@@ -181,12 +194,18 @@ async function main(): Promise<void> {
       }
       case 'commandResult': {
         pendingCommand = null;
+        commandsCompleted++;
+        if (!msg.ok) {
+          errors++;
+          lastError = msg.reason ?? 'Worker command failed';
+        }
         break;
       }
       case 'error': {
         errors++;
         lastError = msg.message;
         console.error(`[worker error] source=${msg.source} ${msg.message}`);
+        if (msg.message.includes('Render buffer pool exhausted')) bufferExhaustionErrors++;
         if (msg.source === 'tick') ticksInFlight = Math.max(0, ticksInFlight - 1);
         if (msg.source === 'command') pendingCommand = null;
         break;
@@ -244,6 +263,22 @@ async function main(): Promise<void> {
   const elapsedMs = performance.now() - startedAt;
   const finalTick = ticksDone;
 
+  // Commands exercise the same render-refresh and return-buffer path under sustained load.
+  const remainingCommands = Math.max(0, COMMANDS - commandsCompleted);
+  for (let i = 0; i < remainingCommands && errors === 0; i++) {
+    pendingCommand = { cmd: { proto: 1, op: 'autoStaffWorkers' }, t0: performance.now() };
+    send({ type: 'command', proto: WORKER_PROTO, cmd: pendingCommand.cmd });
+    const deadline = performance.now() + 20000;
+    while (pendingCommand && performance.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    if (pendingCommand) {
+      errors++;
+      lastError = 'Command render stress timed out';
+      break;
+    }
+  }
+
   // export check — full-world transfer path
   if (isIdle()) {
     send({ type: 'exportSave', proto: WORKER_PROTO });
@@ -265,12 +300,13 @@ async function main(): Promise<void> {
   console.log('==========================================');
   console.log(`requested=${ticksRequested} results=${results} doneTick=${finalTick}`);
   console.log(`errors=${errors}${lastError ? ` lastError="${lastError}"` : ''}`);
-  console.log(`buffersReceived=${buffersReceived} buffersReturned=${buffersReturned} bufferReturnFailures=${bufferReturnFailures} maxOutstandingBuffers=${maxOutstandingBuffers}`);
+  console.log(`buffersReceived=${buffersReceived} buffersReturned=${buffersReturned} bufferReturnFailures=${bufferReturnFailures} maxOutstandingBuffers=${maxOutstandingBuffers} poolExhaustions=${bufferExhaustionErrors}`);
+  console.log(`commandsCompleted=${commandsCompleted} commandsRequired=${COMMANDS} deltaSamples=${deltaSamples} deltaAverageBytes=${deltaSamples ? Math.round(sampledDeltaBytes / deltaSamples) : 0} deltaMaxBytes=${sampledDeltaMaxBytes}`);
   if (buffersReceived !== buffersReturned) {
     console.error('[RESULT] Render buffers remained outstanding after drain');
     process.exitCode = 1;
   }
-  if (errors > 0 || finalTick < TICKS || maxResultGap > STALL_MS) process.exitCode = 1;
+  if (errors > 0 || finalTick < TICKS || commandsCompleted < COMMANDS || maxResultGap > STALL_MS) process.exitCode = 1;
   console.log(`wallMs=${Math.round(elapsedMs)} ticksPerSec=${(results / (elapsedMs / 1000)).toFixed(1)}`);
   console.log(
     `interResultGap: mean=${mean.toFixed(1)}ms p50=${pct(0.5).toFixed(1)}ms p95=${pct(0.95).toFixed(1)}ms `
