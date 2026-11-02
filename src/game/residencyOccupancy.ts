@@ -105,15 +105,27 @@ export function isResidenceOccupantEntity(entity: Entity): boolean {
   return entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed && !entity.faction;
 }
 
-export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
+function residenceCountsBy(
+  humans: readonly Entity[],
+  includes: (human: Entity) => boolean,
+): ResidenceOccupancy {
   const occupancy: ResidenceOccupancy = new Map();
   for (const h of humans) {
-    if (!isResidenceOccupantEntity(h)) continue;
+    if (!includes(h)) continue;
     const id = h.residenceBuildingId;
     if (id == null) continue;
     occupancy.set(id, (occupancy.get(id) ?? 0) + 1);
   }
   return occupancy;
+}
+
+export function buildResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
+  return residenceCountsBy(humans, isResidenceOccupantEntity);
+}
+
+/** Player-human residents per residence — the count the "shares with outsiders" check reads. */
+export function buildPlayerResidenceOccupancy(humans: readonly Entity[]): ResidenceOccupancy {
+  return residenceCountsBy(humans, (human) => human.alive && isPlayerHuman(human));
 }
 
 export function occupancyMove(occupancy: ResidenceOccupancy, fromId: number | undefined, toId: number | undefined): void {

@@ -623,3 +623,9 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Functions | Sole owner | Responsibility |
 |---|---|---|
 | `writableFriendships`, `writableFeuds`, `writableFeudPeaks`, `hurtFriendshipRecord` | `game/relationships.ts` | Replace a relationship record before an in-place edit, so the rollback snapshot keeps the pre-tick object. |
+
+## Player residence counts for the housing pass (2 November 2026)
+
+| Area | Owner module | Cadence | Entry functions |
+|---|---|---|---|
+| Housing and player occupancy counts | `game/residencyOccupancy.ts` | housing pass | `buildResidenceOccupancy`, `buildPlayerResidenceOccupancy` |

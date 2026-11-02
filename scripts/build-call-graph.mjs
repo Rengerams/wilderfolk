@@ -208,21 +208,30 @@ const DEFINITION_PATTERNS = [
  * property type, or a concise arrow). Bounded and terminated by `;`, `}` or a blank line so a
  * bodyless declaration cannot adopt the *next* function's braces.
  */
-function findBodyBrace(code, from) {
+function findBodyBrace(code, from, startsInParams = false) {
   const limit = Math.min(code.length, from + 400);
+  let depth = startsInParams ? 1 : 0;
   for (let i = from; i < limit; i++) {
     const ch = code[i];
+    if (ch === '(') {
+      depth++;
+      continue;
+    }
+    if (ch === ')') {
+      if (depth > 0) depth--;
+      continue;
+    }
     if (ch === '{') {
-      // `): { x: number; y: number } {` — a brace after `:` that closes and is followed by `{`
-      // is the return type, not the body; taking it truncated the whole function to its signature.
-      let prev = i - 1;
-      while (prev >= from && /\s/.test(code[prev])) prev--;
-      if (code[prev] === ':') {
-        const close = matchBrace(code, i);
-        let next = close + 1;
-        while (next < limit && /\s/.test(code[next])) next++;
-        if (code[next] === '{') return next;
+      // Braces inside the parameter list are types or default values; braces after it are the
+      // return type (when followed by `{`) or the body.
+      if (depth > 0) {
+        i = matchBrace(code, i);
+        continue;
       }
+      const close = matchBrace(code, i);
+      let next = close + 1;
+      while (next < limit && /\s/.test(code[next])) next++;
+      if (code[next] === '{') return next;
       return i;
     }
     if (ch === ';' || ch === '}') return -1;
@@ -319,7 +328,7 @@ export function extractDefinitions(code, raw, file, classes = []) {
 
       const braceIndex = match[0].endsWith('{')
         ? matchStart + match[0].length - 1
-        : findBodyBrace(code, matchStart + match[0].length);
+        : findBodyBrace(code, matchStart + match[0].length, match[0].endsWith('('));
       if (blockBody && braceIndex === -1) continue;
       seen.add(dedupeKey);
 

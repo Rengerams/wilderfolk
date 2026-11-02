@@ -3,7 +3,7 @@ import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian } from './householdComposition';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './residencyOccupancy';
+import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './residencyOccupancy';
 import { listPlayerResidences, familyFitsInResidence, pickResidenceForFamily, pickResidenceForHuman, pickResidenceFromChildCustodian, buildHousingUnits, housingUnitBucket, housingUnitNeedsReassignment, sortHousingUnitsForAssignment, pickLeastCrowdedResidence, buildResidenceTraits, residenceTraitMove, pickCommuteRelocation, buildCommuteRelocationIndex, MAX_RELOCATIONS_PER_DAY } from './residencySelection';
 import type { ResidenceTraitsById } from './residencySelection';
 import { beginCommuteRoutePass } from './commuteReach';
@@ -97,6 +97,8 @@ export interface HousingMoveContext {
   occupancy: ResidenceOccupancy;
   traits: ResidenceTraitsById;
   ledger: HousingLedger;
+  /** Player-human residents, maintained on every move for the outsider check. */
+  playerOccupancy?: ResidenceOccupancy;
 }
 
 /** The context a caller outside the pipeline gets: one run of its own over the inputs it holds. */
@@ -106,6 +108,7 @@ export function standaloneMoveContext(
   occupancy?: ResidenceOccupancy,
   traits?: ResidenceTraitsById,
   ledger: HousingLedger = createHousingLedger(),
+  playerOccupancy?: ResidenceOccupancy,
 ): HousingMoveContext {
   return {
     alive,
@@ -114,6 +117,7 @@ export function standaloneMoveContext(
     occupancy: occupancy ?? buildResidenceOccupancy(alive),
     traits: traits ?? buildResidenceTraits(alive),
     ledger,
+    playerOccupancy,
   };
 }
 
@@ -267,13 +271,21 @@ function endHousingPhase(ledger: HousingLedger, phase: HousingPhase, alive: read
 function writeResidence(
   human: Entity,
   toId: number | undefined,
-  context: { occupancy?: ResidenceOccupancy; traits?: ResidenceTraitsById; buildings?: Building[] } = {},
+  context: {
+    occupancy?: ResidenceOccupancy;
+    playerOccupancy?: ResidenceOccupancy;
+    traits?: ResidenceTraitsById;
+    buildings?: Building[];
+  } = {},
 ): void {
   const fromId = human.residenceBuildingId;
   if (fromId === toId) return;
   const previous = context.buildings?.find((building) => building.id === fromId);
   const target = context.buildings?.find((building) => building.id === toId);
   if (context.occupancy) occupancyMove(context.occupancy, fromId, toId);
+  if (context.playerOccupancy && human.alive && isPlayerHuman(human)) {
+    occupancyMove(context.playerOccupancy, fromId, toId);
+  }
   if (context.traits) residenceTraitMove(context.traits, human, fromId, toId);
   human.residenceBuildingId = toId;
   if (context.buildings) {
@@ -289,7 +301,12 @@ export function moveResident(
   human: Entity,
   toId: number | undefined,
   reason: ResidenceMoveReason,
-  context: { occupancy?: ResidenceOccupancy; traits?: ResidenceTraitsById; buildings?: Building[] } = {},
+  context: {
+    occupancy?: ResidenceOccupancy;
+    playerOccupancy?: ResidenceOccupancy;
+    traits?: ResidenceTraitsById;
+    buildings?: Building[];
+  } = {},
 ): void {
   if (human.residenceBuildingId === toId) return;
   if (residenceMoveRefused(human, toId, reason, context.buildings)) return;
@@ -590,17 +607,19 @@ export function assignMissingResidences(
       // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
       // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
       const occupancy = buildResidenceOccupancy(residents);
+      const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
-      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
+      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
       const housingUnits = sortHousingUnitsForAssignment(
         housingUnitsBase,
         alive,
         residences,
         occupancy,
         traits,
+        playerOccupancy,
       );
       for (const unit of housingUnits) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
         reassigned++;
@@ -624,12 +643,13 @@ export function assignMissingResidences(
     );
     for (let pass = 0; pass < 3; pass++) {
       const occupancy = buildResidenceOccupancy(residents);
+      const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
-      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
-      const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits);
+      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
+      const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits, playerOccupancy);
       let moved = false;
       for (const unit of orderedUnits) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
         moved = true;
@@ -648,11 +668,12 @@ export function assignMissingResidences(
     // re-running the expensive 24-pass unsplit allocator every tick.
     if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
       const occupancy = buildResidenceOccupancy(residents);
+      const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
-      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
-      const ordered = sortHousingUnitsForAssignment(housingUnitsBase, alive, residences, occupancy, traits);
+      const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
+      const ordered = sortHousingUnitsForAssignment(housingUnitsBase, alive, residences, occupancy, traits, playerOccupancy);
       for (const unit of ordered) {
-        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits)) continue;
+        if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
       }
     }

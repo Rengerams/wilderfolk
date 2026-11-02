@@ -211,7 +211,15 @@ function unitSharesResidenceWithOutsiders(
   unit: Entity[],
   humans: Entity[],
   residenceId: number,
+  playerOccupancy?: ResidenceOccupancy,
 ): boolean {
+  if (playerOccupancy) {
+    const residents = playerOccupancy.get(residenceId) ?? 0;
+    if (residents === 0) return false;
+    let here = 0;
+    for (const member of unit) if (member.residenceBuildingId === residenceId) here++;
+    return residents - here > 0;
+  }
   const unitIds = new Set(unit.map((m) => m.id));
   return humans.some(
     (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residenceId && !unitIds.has(h.id),
@@ -268,6 +276,7 @@ export function housingUnitNeedsReassignment(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
   traits?: ResidenceTraitsById,
+  playerOccupancy?: ResidenceOccupancy,
 ): boolean {
   const homeId = unitResidenceId(unit);
   const home = residences.find((residence) => residence.id === homeId);
@@ -286,7 +295,7 @@ export function housingUnitNeedsReassignment(
   if (homeId == null) return true;
 
   if (isLoneSettler(unit, alive)) {
-    if (!unitSharesResidenceWithOutsiders(unit, alive, homeId)) return false;
+    if (!unitSharesResidenceWithOutsiders(unit, alive, homeId, playerOccupancy)) return false;
     if (hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return true;
     if (
       residenceHostsCouple(homeId, alive, traits) &&
@@ -309,7 +318,7 @@ export function housingUnitNeedsReassignment(
 
   if (!hasEmptyResidenceForUnit(unit, alive, residences, occupancy)) return false;
   if (countResidentsInBuilding(alive, homeId, occupancy) === unit.length) return false;
-  return unitSharesResidenceWithOutsiders(unit, alive, homeId);
+  return unitSharesResidenceWithOutsiders(unit, alive, homeId, playerOccupancy);
 }
 
 /** Family shortages are derived, so the warning disappears as soon as the household reunites. */
@@ -372,9 +381,10 @@ export function sortHousingUnitsForAssignment(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
   traits?: ResidenceTraitsById,
+  playerOccupancy?: ResidenceOccupancy,
 ): Entity[][] {
   const needReassign = units.map((u) =>
-    housingUnitNeedsReassignment(u, alive, residences, occupancy, traits),
+    housingUnitNeedsReassignment(u, alive, residences, occupancy, traits, playerOccupancy),
   );
   return units
     .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length }))
