@@ -69,8 +69,8 @@ beheerRouter.get(
         }
       } else if (periode.status === "gepubliceerd" && vandaagDatum <= periode.aanmelddeadline) {
         taak = {
-          titel: "Opgegeven worden",
-          uitleg: `De opgave loopt tot en met ${datumLang(periode.aanmelddeadline)}. Neem de telefoon aan en leg de opgaven vast.`,
+          titel: "Opgaven innemen",
+          uitleg: `Mensen kunnen zich opgeven tot en met ${datumLang(periode.aanmelddeadline)}. Neem de telefoon aan en leg de opgaven vast.`,
           link: "/opgave",
           knop: "Opgave invoeren",
         }

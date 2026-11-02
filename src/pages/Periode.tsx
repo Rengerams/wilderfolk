@@ -284,7 +284,7 @@ export function PeriodeDetail() {
           periode.status === "concept"
             ? "Controleer de datums, tijden, prijzen en het aantal plekken."
             : periode.status === "gepubliceerd"
-              ? `De opgave loopt tot en met ${datumNumeriek(periode.aanmelddeadline)}.`
+              ? `Mensen kunnen zich opgeven tot en met ${datumNumeriek(periode.aanmelddeadline)}.`
               : "De opgave is gesloten."
         }
         acties={
