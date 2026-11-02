@@ -1,3 +1,4 @@
+import { markHistoryChanged } from './simBuffers/historyRevisions';
 import { pickSite } from './worldEventSites';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type {
@@ -50,6 +51,7 @@ function findLiveRequestSource(state: WorldState, request: VillageRequest): Visi
 function appendVillageRequestHistory(state: WorldState, entry: VillageRequestHistoryEntry): void {
   const history = state.villageRequestHistory ?? [];
   state.villageRequestHistory = [...history, entry].slice(-20);
+  markHistoryChanged(state, 'villageRequestHistory');
 }
 
 function finishVillageRequest(
