@@ -77,6 +77,7 @@ export interface RenderSnapshot {
    */
   readonly logistics: LogisticsOverlayData | null;
   readonly festival: WorldState['festival'];
+  readonly spotlightLore: WorldState['spotlightLore'];
   readonly visitorGroups: WorldState['visitorGroups'];
   readonly rivalSettlements: WorldState['rivalSettlements'];
   readonly highlightedCampKey: string | null;
@@ -194,6 +195,7 @@ export function buildRenderSnapshot(
     // snapshot key includes the camera, which lerps at frame rate (`logisticsOverlayData`).
     logistics: view.showLogistics ? computeLogisticsOverlayCached(world) : null,
     festival: world.festival,
+    spotlightLore: world.spotlightLore,
     visitorGroups: world.visitorGroups ?? [],
     rivalSettlements: world.rivalSettlements ?? [],
     highlightedCampKey: view.highlightedCampKey,

@@ -16,7 +16,7 @@ import { bindNumberedPresentationSpeakers, getPresentationDialogue } from '../sr
 import type { Entity } from '../src/game/gameTypes';
 import {
   presentationPosition, setSpotlightPresentationFrame, getSpotlightPresentationMotion,
-  resetMotionInterpolation,
+  getSpotlightPresentationSpeech, resetMotionInterpolation,
 } from '../src/game/renderer/motionInterpolation';
 
 describe('spotlight choreography — canonical JSON 1.3 captions and stable cues', () => {
@@ -150,6 +150,23 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
     expect([0, 5, 8, 11]).toContain(radius);
     expect(spotlightSafePoseRadius({ ...world, worldMap: null }, { x: 480, y: 350 })).toBe(0);
   });
+  it('projects one authored line through the chat painter only for the current speaker and frame', () => {
+    const speech = { speakerId: 101, text: "She's got the look" };
+    resetMotionInterpolation();
+    setSpotlightPresentationFrame({
+      id: 99, x: 480, y: 350, moving: false, facingLeft: false, speech,
+    });
+    expect(getSpotlightPresentationSpeech(101)).toBe(speech.text);
+    expect(getSpotlightPresentationSpeech(99)).toBeNull();
+    expect(getSpotlightPresentationSpeech(102)).toBeNull();
+    setSpotlightPresentationFrame({
+      id: 99, x: 480, y: 350, moving: true, facingLeft: true, speech: null,
+    });
+    expect(getSpotlightPresentationSpeech(101)).toBeNull();
+    setSpotlightPresentationFrame(null);
+    expect(getSpotlightPresentationSpeech(101)).toBeNull();
+  });
+
   it('projects the actual juvenile sprite only during the render frame without changing the entity', () => {
     const original = { id: 99, x: 480, y: 350 } as Entity;
     resetMotionInterpolation();

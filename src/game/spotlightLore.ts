@@ -1,5 +1,5 @@
 import type { Entity, SpotlightLoreState, WorldState } from './gameTypes';
-import { EntityType } from './gameTypes';
+import { BuildingType, EntityType } from './gameTypes';
 import { getAbsoluteCalendarDay, getHourOfDay, isStartOfClockHour, isWeekend } from './dayCycleClock';
 import { personDayRoll } from './simRng';
 import { isPlayerHuman } from './playerHuman';
@@ -69,6 +69,29 @@ function buildSpotlightLoreScene(
   };
 }
 
+/** Place the chosen cast on their validated marks without copying actors or movement rules. */
+function stageSpotlightLoreCast(
+  state: WorldState, scene: SpotlightLoreState, girl: Entity, chorus: readonly Entity[],
+): void {
+  for (const actor of [girl, ...chorus]) {
+    actor.indoorBuildingId = undefined;
+    actor.huntTargetId = undefined;
+    actor.vx = 0;
+    actor.vy = 0;
+  }
+  girl.x = scene.gatherX;
+  girl.y = scene.gatherY;
+  for (const slot of scene.slots) {
+    const actor = chorus.find((man) => man.id === slot.humanId);
+    if (actor) {
+      actor.x = slot.x;
+      actor.y = slot.y;
+    }
+  }
+  scene.phase = 'ready';
+  scene.readyAtTick = state.tick;
+}
+
 /** Called from the existing realtime pulse; the inactive path is O(1). */
 export function maybeStartSpotlightLore(state: WorldState): boolean {
   if (state.spotlightLore || state.paused || !state.worldMap ||
@@ -98,11 +121,21 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   }).slice(0, SPOTLIGHT_MAX_CHORUS);
   if (chorus.length < SPOTLIGHT_MIN_CHORUS) return false;
 
-  const scene = buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`);
+  const square = state.buildings.find((b) =>
+    b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
+  const squareOrigin = square
+    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, square.x, square.y)
+    : null;
+  const scene = square
+    ? squareOrigin && buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`, squareOrigin)
+    : buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`);
   if (!scene) return false;
+  if (square) stageSpotlightLoreCast(state, scene, girl, chorus);
   state.spotlightLore = scene;
   state.spotlightLoreLastDay = day;
-  logEvent(state, 'event', `A curious crowd began gathering around ${girl.name ?? 'a young villager'} for an impromptu performance.`, girl.name);
+  logEvent(state, 'event', square
+    ? `A curious cast appeared at the Village Square around ${girl.name ?? 'a young villager'}.`
+    : `A curious crowd began gathering around ${girl.name ?? 'a young villager'} for an impromptu performance.`, girl.name);
   return true;
 }
 
@@ -130,7 +163,10 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
 
   // Stage on a walkable open point, not wherever the heroine happens to be standing.
   const camp = map.campSite ?? { x: state.width / 2, y: state.height / 2 };
+  const square = state.buildings.find((b) =>
+    b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
   const candidates = [
+    ...(square ? [{ x: square.x, y: square.y }] : []),
     { x: girl.x, y: girl.y },
     { x: camp.x, y: camp.y },
     { x: state.width / 2, y: state.height / 2 },
@@ -162,24 +198,7 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
     );
     if (!scene) continue;
 
-    // Preview: put the real cast on its marks and pause, so the cinematic starts without a walk.
-    for (const actor of [girl, ...chorus]) {
-      actor.indoorBuildingId = undefined;
-      actor.huntTargetId = undefined;
-      actor.vx = 0;
-      actor.vy = 0;
-    }
-    girl.x = origin.x;
-    girl.y = origin.y;
-    for (const slot of scene.slots) {
-      const actor = chorus.find((man) => man.id === slot.humanId);
-      if (actor) {
-        actor.x = slot.x;
-        actor.y = slot.y;
-      }
-    }
-    scene.phase = 'ready';
-    scene.readyAtTick = state.tick;
+    stageSpotlightLoreCast(state, scene, girl, chorus);
     state.spotlightLore = scene;
     state.paused = true;
     logEvent(state, 'event', `A stage-ready Spotlight cast of ${scene.performerIds.length} villagers awaits.`, girl.name);
