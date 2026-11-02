@@ -200,15 +200,42 @@ export function isAdultChildAtHome(
   return parents.some((parent) => parent.residenceBuildingId === human.residenceBuildingId);
 }
 
-/** Parent ids of a settler, biological and adoptive. */
-function parentIdsOf(human: Entity): (number | undefined)[] {
-  return [human.motherId, human.fatherId, human.adoptiveMotherId, human.adoptiveFatherId];
+/** A housing unit's member ids and their parents, built once per unit per pass. */
+export interface UnitKinIndex {
+  ids: Set<number>;
+  parents: Set<number>;
 }
 
-/** Close family living apart: a parent/child link or a shared parent (siblings). */
-export function areCloseKin(a: Entity, b: Entity): boolean {
-  const aParents = parentIdsOf(a);
-  const bParents = parentIdsOf(b);
-  if (aParents.includes(b.id) || bParents.includes(a.id)) return true;
-  return aParents.some((parentId) => parentId != null && bParents.includes(parentId));
+const unitKinIndexCache = new WeakMap<Entity[], UnitKinIndex>();
+
+export function unitKinIndex(unit: Entity[]): UnitKinIndex {
+  const cached = unitKinIndexCache.get(unit);
+  if (cached) return cached;
+  const ids = new Set<number>();
+  const parents = new Set<number>();
+  for (const member of unit) {
+    ids.add(member.id);
+    if (member.motherId != null) parents.add(member.motherId);
+    if (member.fatherId != null) parents.add(member.fatherId);
+    if (member.adoptiveMotherId != null) parents.add(member.adoptiveMotherId);
+    if (member.adoptiveFatherId != null) parents.add(member.adoptiveFatherId);
+  }
+  const index = { ids, parents };
+  unitKinIndexCache.set(unit, index);
+  return index;
+}
+
+/**
+ * Close family living apart: some member is a parent of `other`, `other` is a parent of a member,
+ * or they share a parent (siblings).
+ */
+export function unitIsKinOf(index: UnitKinIndex, other: Entity): boolean {
+  if (index.ids.has(other.id) || index.parents.has(other.id)) return true;
+  if (other.motherId != null && (index.ids.has(other.motherId) || index.parents.has(other.motherId))) return true;
+  if (other.fatherId != null && (index.ids.has(other.fatherId) || index.parents.has(other.fatherId))) return true;
+  if (other.adoptiveMotherId != null
+    && (index.ids.has(other.adoptiveMotherId) || index.parents.has(other.adoptiveMotherId))) return true;
+  if (other.adoptiveFatherId != null
+    && (index.ids.has(other.adoptiveFatherId) || index.parents.has(other.adoptiveFatherId))) return true;
+  return false;
 }

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Loading a large colony now builds one kin index per housing unit instead of parent arrays for every comparison, cutting a 2,000-settler save's load by about a quarter.
+
 - **Changed (2 November 2026):** Rollback snapshots share the relationship records instead of cloning them every tick, and their writers replace the record first. A 2,200-settler colony's rollback snapshot fell from ~56 ms to ~21 ms per tick.
 
 - **Fixed (2 November 2026):** Settlers now enter their assigned home from any side; entry no longer assumes a south-only porch and no longer targets a point inside tall houses.

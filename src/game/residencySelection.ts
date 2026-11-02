@@ -3,13 +3,14 @@ import { BuildingType } from './gameTypes';
 import type { ResidenceOccupancy } from './residencyOccupancy';
 import { estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import {
-  areCloseKin,
   findLivingHuman,
   collectFamilyMembers,
   collectMinorHousehold,
   collectOwnHousehold,
   getChildCustodian,
   isMinorChild,
+  unitIsKinOf,
+  unitKinIndex,
 } from './householdComposition';
 import {
   isResidenceBuilding,
@@ -622,10 +623,6 @@ function residenceHostsOnlySingles(
   return entry.adults > 0;
 }
 
-function unitIdSet(unit: Entity[]): Set<number> {
-  return new Set(unit.map((member) => member.id));
-}
-
 /** A couple in the residence that no member of the unit is related to. */
 function residenceHostsUnrelatedCouple(
   unit: Entity[],
@@ -635,15 +632,14 @@ function residenceHostsUnrelatedCouple(
 ): boolean {
   const entry = traitsFor(humans, traits).get(residenceId);
   if (!entry) return false;
-  const unitIds = unitIdSet(unit);
+  const kin = unitKinIndex(unit);
   for (const occupant of entry.occupants.values()) {
-    if (unitIds.has(occupant.id)) continue;
+    if (kin.ids.has(occupant.id)) continue;
     const partnerId = occupant.partnerId;
-    if (partnerId == null || unitIds.has(partnerId)) continue;
+    if (partnerId == null || kin.ids.has(partnerId)) continue;
     const partner = entry.occupants.get(partnerId);
     if (!partner) continue;
-    const related = unit.some((member) => areCloseKin(member, occupant) || areCloseKin(member, partner));
-    if (!related) return true;
+    if (!unitIsKinOf(kin, occupant) && !unitIsKinOf(kin, partner)) return true;
   }
   return false;
 }
@@ -657,10 +653,10 @@ function residenceHostsKin(
 ): boolean {
   const entry = traitsFor(humans, traits).get(residenceId);
   if (!entry) return false;
-  const unitIds = unitIdSet(unit);
+  const kin = unitKinIndex(unit);
   for (const occupant of entry.occupants.values()) {
-    if (unitIds.has(occupant.id)) continue;
-    if (unit.some((member) => areCloseKin(member, occupant))) return true;
+    if (kin.ids.has(occupant.id)) continue;
+    if (unitIsKinOf(kin, occupant)) return true;
   }
   return false;
 }
