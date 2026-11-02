@@ -1,7 +1,10 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
+import { recordCareerWork } from './careers/careerHistory';
+import { advanceCareerProgression } from './careers/careerProgression';
 import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
 
 const MEANINGFUL_FATIGUE_CHANGE = 8;
@@ -53,12 +56,13 @@ function formatHours(hours: number): string {
 /**
  * Resolves each eligible settler's schedule fatigue at the day boundary and
  * writes at most one meaningful village-level chronicle event. Individual
- * fatigue remains authoritative on the people; this module only aggregates
- * their player-facing explanation.
+ * fatigue remains authoritative on the people; this module also dispatches a
+ * verified career credit immediately as each completed day is settled.
  */
 export function resolveDailyVillageScheduleFatigue(
   state: WorldState,
   humans: readonly Entity[],
+  buildingById: ReadonlyMap<number, Building>,
   moonHowlers: readonly Entity[] = [],
 ): void {
   const results: FatigueResult[] = [];
@@ -66,15 +70,23 @@ export function resolveDailyVillageScheduleFatigue(
   // written only at the worker boundary (`simPrep`/`simDelta`) and nothing in this loop touches it —
   // so it is derived once instead of twice per settler.
   const targetHours = getScheduleTargetHours(state);
+  const completedDay = getAbsoluteCalendarDay(state.tick) - 1;
 
   // Settle a transformed settler's previous human shift at midnight.
   for (let i = 0; i < humans.length + moonHowlers.length; i++) {
     const inMoonForm = i >= humans.length;
     const human = inMoonForm ? moonHowlers[i - humans.length] : humans[i];
     if (!human.alive || human.isJuvenile) continue;
-    if (inMoonForm && (human.type !== EntityType.Werewolf || !human.moonHowlerCursed
-      || !human.moonHowlerSaved || human.faction)) continue;
+    if (inMoonForm && (human.type !== EntityType.Werewolf || !isPlayerHumanShiftOwner(human))) continue;
     const result = resolveDailyScheduleFatigue(human, state, targetHours);
+    // Credit the just-completed day's witnessed shift now, not at tomorrow's noon
+    // production pass. Reuse this settlement loop and the tick context's building index.
+    const site = human.scheduleLastWorkedSiteId == null
+      ? undefined : buildingById.get(human.scheduleLastWorkedSiteId);
+    const job = human.scheduleLastWorkedJob;
+    if (site && job && recordCareerWork(human, site, job, completedDay, result.workedHours)) {
+      advanceCareerProgression(human, job, completedDay, 'work');
+    }
     if (Math.abs(result.fatigueAfter - result.fatigueBefore) >= MEANINGFUL_FATIGUE_CHANGE) {
       results.push(result);
     }
