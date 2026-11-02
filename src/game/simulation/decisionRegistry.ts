@@ -93,10 +93,10 @@ export const SIMULATION_DECISIONS = {
   workerMotionPresentation: {
     owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
-    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
+    cadenceNote: 'Worker admission awaits the shared census gate and failed fallback ticks retain elapsed time. Worker transport applies versioned changed-entity deltas in order, reuses the acknowledged entity lookup, selectively retains unchanged geometry caches and reserves render slots for commands at depth two. Existing owners mark genuine history writes, while genealogy retains structural comparison. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
-    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
+    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts, tests/simDelta.incrementalEntities.test.ts, tests/simDelta.storyRoundtrip.test.ts, tests/workerDisplayCache.ownership.test.ts, tests/gameWorker.pipelineDepth.test.ts, tests/gameWorker.errorLogging.test.ts',
   },
   chronicleProseNames: {
     owner: 'citizenId.ts — citizenFullName, formatDeathLog',
