@@ -5,7 +5,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('worker diagnostics sampling', () => {
   it('logs first failure, batches repeated errors and still reports distinct failures', () => {
-    const host = new GameWorkerHost() as GameWorkerHost & {
+    const host = new GameWorkerHost() as unknown as {
       reportWorkerError: (message: string) => void;
     };
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
