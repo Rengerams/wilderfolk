@@ -247,6 +247,7 @@ describe('ambient chatter at home after dark', () => {
       x: 120,
       y: 120,
       residenceBuildingId: 1,
+      indoorBuildingId: 1,
       chatPhrase: 'Still talking.',
       chatTicks: 6,
     });
