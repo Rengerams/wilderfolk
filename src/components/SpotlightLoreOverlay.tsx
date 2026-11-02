@@ -200,8 +200,8 @@ export default function SpotlightLoreOverlay({
         const rect = canvasRef.current?.getBoundingClientRect();
         const viewX = (rect?.left ?? 0) + onScreen.x;
         const viewY = (rect?.top ?? 0) + onScreen.y - 38;
-        const hole = `radial-gradient(ellipse 94px 122px at ${viewX}px ${viewY}px,
-          transparent 0%, transparent 45%, black 100%)`;
+        const hole = `radial-gradient(ellipse 190px 220px at ${viewX}px ${viewY}px,
+          transparent 0%, transparent 55%, black 100%)`;
         blackoutRef.current.style.maskImage = opening.spotlightVisible ? hole : 'none';
         blackoutRef.current.style.webkitMaskImage = opening.spotlightVisible ? hole : 'none';
       }
@@ -223,8 +223,8 @@ export default function SpotlightLoreOverlay({
       }
       if (radialRef.current) {
         radialRef.current.style.background =
-          'radial-gradient(ellipse 180px 145px at ' + onScreen.x + 'px ' + (onScreen.y - 32) +
-          'px, transparent 0%, rgba(12,11,8,0.08) 40%, rgba(12,11,8,0.5) 100%)';
+          'radial-gradient(ellipse 320px 260px at ' + onScreen.x + 'px ' + (onScreen.y - 32) +
+          'px, transparent 0%, rgba(12,11,8,0.03) 55%, rgba(12,11,8,0.3) 100%)';
       }
       if (ringRef.current) {
         ringRef.current.style.opacity = step.kind === 'intro' && !opening.spotlightVisible ? '0' : '1';
@@ -238,8 +238,9 @@ export default function SpotlightLoreOverlay({
       const sourcePosition = speakingId === stage.heroineId ? onScreen
         : speakingEntity ? project(speakingEntity.x, speakingEntity.y) : onScreen;
       if (bubbleRef.current) {
-        bubbleRef.current.style.left = Math.min(cw - 160, Math.max(160, sourcePosition.x)) + 'px';
-        bubbleRef.current.style.top = (Math.max(85, Math.min(ch - 140, sourcePosition.y - 82)) - 30) + 'px';
+        const halfWidth = Math.min(112, Math.max(0, (cw - 16) / 2));
+        bubbleRef.current.style.left = Math.min(cw - halfWidth, Math.max(halfWidth, sourcePosition.x)) + 'px';
+        bubbleRef.current.style.top = Math.max(12, Math.min(ch - 92, sourcePosition.y - 120)) + 'px';
       }
 
       // Deterministic, bounded comic stage confetti; never generates gameplay relationships.
@@ -306,7 +307,7 @@ export default function SpotlightLoreOverlay({
         document.body,
       )}
       <div ref={ringRef}
-        className="absolute z-[31] h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
+        className="absolute z-[31] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_40px_20px_rgba(251,191,36,0.2)]"
         aria-hidden="true" />
       <div ref={particleRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
         {Array.from({ length: PARTICLE_LIMIT }, (_, i) => (
@@ -330,10 +331,10 @@ export default function SpotlightLoreOverlay({
       ) : line && speakingEntity && (stageKind === 'caption' || stageKind === 'pose') ? (
         <>
           <div ref={bubbleRef}
-            className="absolute z-10 w-[min(20rem,75%)] -translate-x-1/2 rounded-xl border border-stone-700 bg-amber-50 px-4 py-3 text-center text-sm text-stone-900 shadow-2xl"
+            className="absolute z-10 w-[min(14rem,75%)] -translate-x-1/2 rounded-lg border border-stone-700 bg-amber-50 px-2.5 py-1.5 text-center text-xs leading-4 text-stone-900 shadow-lg"
             role="status" aria-live="polite">
-            <p className="mb-1 text-[11px] font-bold text-amber-800">{speakingEntity.name ?? 'Villager'}</p>
-            <p className="whitespace-pre-line font-semibold">{formatChatLine(line.text, speakingEntity)}</p>
+            <p className="mb-0.5 text-[10px] font-bold text-amber-800">{speakingEntity.name ?? 'Villager'}</p>
+            <p className="whitespace-pre-line break-words font-medium">{formatChatLine(line.text, speakingEntity)}</p>
           </div>
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/80 px-3 py-1 text-xs text-amber-100">
             {lineIndex + 1} / {SPOTLIGHT_CAPTIONS.length}{stageKind === 'pose' ? ' · Show-off walk (7 sec)' : ''}
