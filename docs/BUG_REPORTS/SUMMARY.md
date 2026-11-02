@@ -2151,3 +2151,7 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 - **Capacity surplus evicts a whole household for a one-bed excess — resolved:** an overfull home now sheds only the settlers above its bed count (adults before partners, never a minor or a remaining minor's custodian), so the freed beds stay usable and the homeless phase seats the excess. [Report](../bug_report/2026-11-02-housing-surplus-evicts-whole-unit.md).
 - **A dead leader stays in office while an election is pending — resolved:** when the leader dies, the office can keep their id until the pending election resolves, so the simulation invariant "the leader references a living acting head" fails. Fixed in `acea0183`. [Report](../bug_report/2026-11-02-leader-vacancy-dead-leader.md).
 - **A cleared office arms the succession silently — resolved:** when the death handler had already cleared the leader id, the daily vacancy tick armed the successor date with no notice; it now logs the election and returns the vacancy news. [Report](../bug_report/2026-11-02-leader-vacancy-silent-succession.md).
+
+## 2026-11-02 — Schedule review
+
+- **Leisure home preference ignored the configured work schedule — resolved:** a parent’s home preference used the legacy 07–16 window beside a configured shift check. Fixed in `1b3adaac`. [Report](bug_report/2026-11-02-leisure-ignores-configured-work-schedule.md).
