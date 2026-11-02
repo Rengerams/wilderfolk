@@ -88,7 +88,7 @@ describe('history delta fingerprints', () => {
   it('preserves omitted histories, detects in-place edits and transports clears', () => {
     const world = initGame({ size: MapSize.Medium, seed: 123 });
     const target = structuredClone(world);
-    const baseline = new Map<string, string | undefined>();
+    const baseline = new Map<string, unknown>();
     const first = extractSimTickDelta(world, [], { headless: true, nextHistories: baseline });
     applySimTickDelta(target, structuredClone(first));
     const retained = target.populationHistory;
@@ -99,7 +99,7 @@ describe('history delta fingerprints', () => {
     expect(target.populationHistory).toBe(retained);
 
     world.populationHistory.push({ tick: 1, year: 9, grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, humans: 42, werewolves: 0, wildkin: 0, buildings: 0 });
-    const nextBaseline = new Map<string, string | undefined>();
+    const nextBaseline = new Map<string, unknown>();
     const changed = extractSimTickDelta(world, [], {
       headless: true, prevHistories: baseline, nextHistories: nextBaseline,
     });
