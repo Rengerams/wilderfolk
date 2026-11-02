@@ -17,6 +17,7 @@ import {
 } from '../src/game/housingModel';
 import { buildHousingColony } from '../src/test/housingColony';
 import type { HousingColony } from '../src/test/housingColony';
+import { building, human } from '../src/test/factories';
 
 function assignment(colony: HousingColony): Map<number, number | undefined> {
   return new Map(colony.humans.map((person) => [person.id, person.residenceBuildingId]));
@@ -142,5 +143,18 @@ describe('generated housing colonies', () => {
     const colony = buildHousingColony(2);
     run(colony);
     expect(run(colony).relocations).toEqual([]);
+  });
+
+  it('never overfills a home when a household cannot fit', () => {
+    const home = building(1, BuildingType.House);
+    const residents = [1, 2, 3, 4, 5].map((id) => human(id, { residenceBuildingId: home.id }));
+    const movers = [11, 12, 13, 14].map((id) => human(id));
+    const humans = [...residents, ...movers];
+
+    const report = assignMissingResidences(humans, [home], humans);
+
+    expect(report.violations).toEqual([]);
+    expect(buildResidenceOccupancy(humans).get(home.id)).toBe(getResidenceCapacity(home));
+    expect(movers.filter((person) => person.residenceBuildingId == null)).toHaveLength(3);
   });
 });
