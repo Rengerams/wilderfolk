@@ -55,6 +55,7 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, import('../gameTypes').Building> | null = null;
 let prevHistoriesSnapshot: Map<string, unknown> | null = null;
+let prevEntitiesSnapshot: Map<number, Entity> | null = null;
 let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
@@ -115,6 +116,7 @@ function packAndPostTickResult(
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, import('../gameTypes').Building>();
     const nextHistories = new Map<string, unknown>();
+    const nextEntities = new Map<number, Entity>();
     const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
       focus: lastFocus,
@@ -124,6 +126,8 @@ function packAndPostTickResult(
       prevHistories: prevHistoriesSnapshot,
       nextHistories,
       previousEventHeadId,
+      prevEntities: prevEntitiesSnapshot,
+      nextEntities,
     });
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
@@ -149,6 +153,7 @@ function packAndPostTickResult(
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
     prevHistoriesSnapshot = nextHistories;
+    prevEntitiesSnapshot = nextEntities;
     previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
@@ -171,6 +176,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevHistoriesSnapshot = null;
+  prevEntitiesSnapshot = null;
   previousEventHeadId = undefined;
 }
 
@@ -270,6 +276,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
           prevHistoriesSnapshot = null;
+          prevEntitiesSnapshot = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
         } catch (err) {
