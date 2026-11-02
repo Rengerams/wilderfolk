@@ -155,7 +155,7 @@ export default function BuildCatalogPanel({
                       emoji instead, the same fallback the map's pad uses. */}
                   {(config.sprite || type === BuildingType.GroundReinforcement) ? (
                     <img
-                      src={type === BuildingType.GroundReinforcement ? '/sprites/ground_soil.PNG' : config.sprite}
+                      src={type === BuildingType.GroundReinforcement ? '/sprites/ground_soil.png' : config.sprite}
                       alt=""
                       className="h-10 w-10 shrink-0 object-contain"
                       style={{ imageRendering: 'pixelated' }}
