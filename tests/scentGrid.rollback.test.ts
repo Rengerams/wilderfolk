@@ -74,7 +74,7 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
     const { shim, posted } = await workerWithSelfShim();
     const world = initGame({ size: MapSize.Medium, seed: 31 });
     // The worker adopts the uploaded world (`init` → `resetWorkerSession`) by reference.
-    shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true } });
+    await shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true } });
 
     const grid = ensureScentGrid(world);
     grid.values[3] = 11;
@@ -83,7 +83,7 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
     const originalRngStamp = world.simRng;
 
     posted.length = 0;
-    shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
+    await shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
 
     const result = posted.find((message) => message.type === 'exportSaveResult');
     expect(result).toBeDefined();
@@ -104,7 +104,7 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
   it('keeps live state intact when save serialization throws', async () => {
     const { shim, posted } = await workerWithSelfShim();
     const world = initGame({ size: MapSize.Medium, seed: 37 });
-    shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true } });
+    await shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true } });
     const grid = ensureScentGrid(world);
     grid.values[3] = 17;
     const entityIndex = world.entityById;
@@ -118,7 +118,7 @@ describe('scent field rollback and save persistence (F-1/F-2/F-3)', () => {
       originalPost(message);
     };
     try {
-      shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
+      await shim.onmessage!({ data: { type: 'exportSave', proto: WORKER_PROTO } });
       expect(posted.some((message) => message.type === 'error' && message.source === 'export')).toBe(true);
       expect(world.scentGrid).toBe(grid);
       expect(world.scentGrid?.values[3]).toBe(17);
