@@ -1,4 +1,11 @@
 # Bug report summary — one line per report
+
+**2026-11-02 — [Worker delta converted absent graves into an empty list](../bug_report/2026-11-02-grave-history-absence-altered-by-worker-delta.md):** Real boundary audit found an optional field changed by tick and command delta. Transport now preserves absence distinctly from an empty history; CI pending.
+
+**2026-11-02 — [New village building ID changes after reload](../bug_report/2026-11-02-new-building-id-allocator-save-drift.md):** Initial counter started at zero although the loader requires a positive next ID. Fresh villages now initialize at one; save/load regression added.
+
+**2026-11-02 — [Genealogy audit compared raw undefined fields to JSON](../bug_report/2026-11-02-genealogy-audit-compares-undefined-fields.md):** The audit confused optional undefined keys with lost genealogy. Source is now compared in the same actual JSON representation as the saved payload; data differences still fail.
+
 **2026-11-02 — [Worker census dispatch race](../bug_report/2026-11-02-worker-census-gate-dispatch-race.md):** Early requests could execute before the asynchronous census load settled. Worker admission now awaits the shared name gate; tests committed, CI pending.
 
 **2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; regression committed, CI pending.
