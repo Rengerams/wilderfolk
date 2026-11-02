@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Rollback snapshots share the relationship records instead of cloning them every tick, and their writers replace the record first. A 2,200-settler colony's rollback snapshot fell from ~56 ms to ~21 ms per tick.
+
+- **Fixed (2 November 2026):** Settlers now enter their assigned home from any side; entry no longer assumes a south-only porch and no longer targets a point inside tall houses.
+
 - **Changed (2 November 2026):** Automatic staffing keeps one per-building worker count for the whole pass instead of rescanning every settler per vacancy, halving the daily assignment spike at large colonies.
 
 - **Changed (2 November 2026):** Repeated worker faults log once per window instead of every occurrence, and the opt-in profiler splits the rollback snapshot into entity, building, genealogy and grave sections.

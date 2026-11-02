@@ -212,7 +212,19 @@ function findBodyBrace(code, from) {
   const limit = Math.min(code.length, from + 400);
   for (let i = from; i < limit; i++) {
     const ch = code[i];
-    if (ch === '{') return i;
+    if (ch === '{') {
+      // `): { x: number; y: number } {` — a brace after `:` that closes and is followed by `{`
+      // is the return type, not the body; taking it truncated the whole function to its signature.
+      let prev = i - 1;
+      while (prev >= from && /\s/.test(code[prev])) prev--;
+      if (code[prev] === ':') {
+        const close = matchBrace(code, i);
+        let next = close + 1;
+        while (next < limit && /\s/.test(code[next])) next++;
+        if (code[next] === '{') return next;
+      }
+      return i;
+    }
     if (ch === ';' || ch === '}') return -1;
     if (ch === '\n' && /^\s*\n/.test(code.slice(i + 1, i + 3))) return -1;
   }

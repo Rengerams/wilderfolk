@@ -136,8 +136,9 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     settler.skills![JobType.Farmer] = 99;
     settler.childrenIds!.push(9);
     settler.childhoodFriendsIds!.push(10);
-    settler.friendships!['2'] = 0.9;
-    settler.feuds!['3'] = 0.8;
+    // Relationship records are copy-on-write: a writer replaces the record, never mutates it.
+    settler.friendships = { ...settler.friendships, '2': 0.9 };
+    settler.feuds = { ...settler.feuds, '3': 0.8 };
     settler.moonHowlerSaved!.energy = 500;
     world.tradeRoutes[0].caravanWaitTicks = 9;
     world.tradeRoutes[0].caravansCompleted = 4;

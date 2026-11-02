@@ -173,9 +173,9 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       traits: e.traits ? [...e.traits] : e.traits,
       childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
       childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,
-      friendships: e.friendships ? { ...e.friendships } : e.friendships,
-      feuds: e.feuds ? { ...e.feuds } : e.feuds,
-      feudPeaks: e.feudPeaks ? { ...e.feudPeaks } : e.feudPeaks,
+      friendships: e.friendships,
+      feuds: e.feuds,
+      feudPeaks: e.feudPeaks,
       ...(e.needs !== undefined ? { needs: { ...e.needs } } : {}),
       ...(e.moonHowlerSaved !== undefined ? {
         moonHowlerSaved: {

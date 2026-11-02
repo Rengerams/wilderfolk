@@ -72,14 +72,35 @@ export function feudScore(e: Entity, otherId: number): number {
   return e.feuds?.[feudKey(otherId)] ?? 0;
 }
 
+function hurtFriendshipRecord(entity: Entity, key: string, amount: number): void {
+  const next = { ...(entity.friendships ?? {}) };
+  next[key] = Math.max(0, (next[key] ?? 0) - amount);
+  entity.friendships = next;
+}
+
 export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
   if (a.id === b.id || amount <= 0) return;
-  a.friendships = a.friendships || {};
-  b.friendships = b.friendships || {};
-  const aKey = friendKey(b.id);
-  const bKey = friendKey(a.id);
-  a.friendships[aKey] = Math.max(0, (a.friendships[aKey] ?? 0) - amount);
-  b.friendships[bKey] = Math.max(0, (b.friendships[bKey] ?? 0) - amount);
+  hurtFriendshipRecord(a, friendKey(b.id), amount);
+  hurtFriendshipRecord(b, friendKey(a.id), amount);
+}
+
+/** Replace a record before an in-place edit, so the rollback snapshot keeps the old object. */
+function writableFriendships(entity: Entity): Record<string, number> {
+  const next = { ...(entity.friendships ?? {}) };
+  entity.friendships = next;
+  return next;
+}
+
+function writableFeuds(entity: Entity): Record<string, number> {
+  const next = { ...(entity.feuds ?? {}) };
+  entity.feuds = next;
+  return next;
+}
+
+function writableFeudPeaks(entity: Entity): Record<string, number> {
+  const next = { ...(entity.feudPeaks ?? {}) };
+  entity.feudPeaks = next;
+  return next;
 }
 
 export function friendCount(e: Entity): number {
@@ -125,7 +146,10 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       const otherId = Number(key.slice(FRIEND_PREFIX.length));
       const b = byId.get(otherId);
       if (!b || b.id === a.id) {
-        if (b?.id === a.id) delete a.friendships![key];
+        if (b?.id === a.id) {
+          const next = writableFriendships(a);
+          delete next[key];
+        }
         continue;
       }
       const pair = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
@@ -135,7 +159,8 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       // remove links to people who have actually died.
       if (!originallyMutual.has(pair) && friendCount(a) <= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
       // Drop just below the close-friend threshold, preserving acquaintance history.
-      a.friendships![key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
+      const next = writableFriendships(a);
+      next[key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
     }
   }
 }
@@ -230,10 +255,10 @@ export function advanceSocialRelationships(
       closeFriendsById.set(b.id, (closeFriendsById.get(b.id) ?? 0) + 1);
     }
 
-    a.friendships = a.friendships || {};
-    b.friendships = b.friendships || {};
-    a.friendships[friendKey(b.id)] = next;
-    b.friendships[friendKey(a.id)] = next;
+    const aFriendships = writableFriendships(a);
+    const bFriendships = writableFriendships(b);
+    aFriendships[friendKey(b.id)] = next;
+    bFriendships[friendKey(a.id)] = next;
   };
 
   const driftIntoFeud = (a: Entity, b: Entity) => {
@@ -277,6 +302,10 @@ export function advanceSocialRelationships(
   for (const p of people) {
     const feuds = p.feuds;
     if (!feuds) continue;
+    let ownFeuds: Record<string, number> | null = null;
+    let ownPeaks: Record<string, number> | null = null;
+    const mutableFeuds = (): Record<string, number> => (ownFeuds ??= { ...feuds });
+    const mutablePeaks = (): Record<string, number> => (ownPeaks ??= { ...(p.feudPeaks ?? {}) });
 
     for (const key in feuds) {
       if (!hasOwn(feuds, key)) continue;
@@ -286,8 +315,8 @@ export function advanceSocialRelationships(
       const other = byId.get(otherId);
       if (!other) {
         if (!aliveIds.has(otherId)) {
-          delete feuds[key];
-          if (p.feudPeaks) delete p.feudPeaks[key];
+          delete mutableFeuds()[key];
+          if (p.feudPeaks) delete mutablePeaks()[key];
         }
         continue;
       }
@@ -296,8 +325,7 @@ export function advanceSocialRelationships(
 
       if (p.id > otherId) {
         if (!other.feuds || !hasOwn(other.feuds, otherKey)) {
-          other.feuds = other.feuds || {};
-          other.feuds[otherKey] = feuds[key];
+          writableFeuds(other)[otherKey] = feuds[key];
         }
         continue;
       }
@@ -306,10 +334,16 @@ export function advanceSocialRelationships(
 
       if (next <= 0) {
         const peak = Math.max(p.feudPeaks?.[key] ?? 0, other.feudPeaks?.[otherKey] ?? 0);
-        delete feuds[key];
-        if (other.feuds) delete other.feuds[otherKey];
-        if (p.feudPeaks) delete p.feudPeaks[key];
-        if (other.feudPeaks) delete other.feudPeaks[otherKey];
+        delete mutableFeuds()[key];
+        if (other.feuds) {
+          const otherFeuds = writableFeuds(other);
+          if (otherKey in otherFeuds) delete otherFeuds[otherKey];
+        }
+        if (p.feudPeaks) delete mutablePeaks()[key];
+        if (other.feudPeaks) {
+          const otherPeaks = writableFeudPeaks(other);
+          if (otherKey in otherPeaks) delete otherPeaks[otherKey];
+        }
 
         // A feud announced when it crossed the brewing threshold is announced when it ends:
         // the drift feud peaks at exactly that threshold, so this is the pair to the start line.
@@ -317,19 +351,22 @@ export function advanceSocialRelationships(
           logEvent(state, 'event', `${p.name ?? 'A settler'} and ${other.name ?? 'another settler'} have settled their feud`);
         }
       } else {
-        feuds[key] = next;
-        other.feuds = other.feuds || {};
-        other.feuds[otherKey] = next;
+        mutableFeuds()[key] = next;
+        writableFeuds(other)[otherKey] = next;
 
         adjustHumanStaminaFromEnergy(p, -FEUD_ENERGY_DRAIN);
         adjustHumanStaminaFromEnergy(other, -FEUD_ENERGY_DRAIN);
       }
     }
+    if (ownFeuds) p.feuds = ownFeuds;
+    if (ownPeaks) p.feudPeaks = ownPeaks;
   }
 
   for (const p of people) {
     const friendships = p.friendships;
     if (!friendships) continue;
+    let ownFriendships: Record<string, number> | null = null;
+    const mutableFriendships = (): Record<string, number> => (ownFriendships ??= { ...friendships });
 
     for (const key in friendships) {
       if (!hasOwn(friendships, key)) continue;
@@ -338,7 +375,7 @@ export function advanceSocialRelationships(
 
       const other = byId.get(otherId);
       if (!other) {
-        if (!aliveIds.has(otherId)) delete friendships[key];
+        if (!aliveIds.has(otherId)) delete mutableFriendships()[key];
         continue;
       }
       if (p.id > otherId) continue;
@@ -347,14 +384,17 @@ export function advanceSocialRelationships(
       const next = Math.max(0, friendships[key] - FRIENDSHIP_DECAY_PER_DAY);
       const otherKey = friendKey(p.id);
       if (next <= 0) {
-        delete friendships[key];
-        if (other.friendships) delete other.friendships[otherKey];
+        delete mutableFriendships()[key];
+        if (other.friendships) {
+          const otherFriendships = writableFriendships(other);
+          if (otherKey in otherFriendships) delete otherFriendships[otherKey];
+        }
       } else {
-        friendships[key] = next;
-        other.friendships = other.friendships || {};
-        other.friendships[otherKey] = next;
+        mutableFriendships()[key] = next;
+        writableFriendships(other)[otherKey] = next;
       }
     }
+    if (ownFriendships) p.friendships = ownFriendships;
   }
 
   for (const p of people) {
@@ -368,25 +408,25 @@ export function advanceSocialRelationships(
 export function startFeud(state: WorldState, wronged: Entity, wrongdoer: Entity, amount = 25): void {
   if (wronged.id === wrongdoer.id) return;
 
-  wronged.feuds = wronged.feuds || {};
-  wrongdoer.feuds = wrongdoer.feuds || {};
-  wronged.feudPeaks = wronged.feudPeaks || {};
-  wrongdoer.feudPeaks = wrongdoer.feudPeaks || {};
+  const wrongedFeuds = writableFeuds(wronged);
+  const wrongdoerFeuds = writableFeuds(wrongdoer);
+  const wrongedPeaks = writableFeudPeaks(wronged);
+  const wrongdoerPeaks = writableFeudPeaks(wrongdoer);
 
   const wrongedKey = feudKey(wrongdoer.id);
   const wrongdoerKey = feudKey(wronged.id);
 
-  const wrongedBefore = wronged.feuds[wrongedKey] ?? 0;
-  const wrongdoerBefore = wrongdoer.feuds[wrongdoerKey] ?? 0;
+  const wrongedBefore = wrongedFeuds[wrongedKey] ?? 0;
+  const wrongdoerBefore = wrongdoerFeuds[wrongdoerKey] ?? 0;
 
   const newWrongedScore = Math.min(100, wrongedBefore + amount);
   const newWrongdoerScore = Math.min(100, wrongdoerBefore + amount);
 
-  wronged.feuds[wrongedKey] = newWrongedScore;
-  wrongdoer.feuds[wrongdoerKey] = newWrongdoerScore;
+  wrongedFeuds[wrongedKey] = newWrongedScore;
+  wrongdoerFeuds[wrongdoerKey] = newWrongdoerScore;
 
-  wronged.feudPeaks[wrongedKey] = Math.max(wronged.feudPeaks[wrongedKey] ?? 0, newWrongedScore);
-  wrongdoer.feudPeaks[wrongdoerKey] = Math.max(wrongdoer.feudPeaks[wrongdoerKey] ?? 0, newWrongdoerScore);
+  wrongedPeaks[wrongedKey] = Math.max(wrongedPeaks[wrongedKey] ?? 0, newWrongedScore);
+  wrongdoerPeaks[wrongdoerKey] = Math.max(wrongdoerPeaks[wrongdoerKey] ?? 0, newWrongdoerScore);
 
   hurtFriendship(wronged, wrongdoer, amount);
 
