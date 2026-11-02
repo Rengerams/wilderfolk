@@ -170,8 +170,9 @@ describe('affair rendezvous belongs to the lovers, not random houses', () => {
     cheater.indoorBuildingId = MARITAL_HOME_ID;
     paramour.indoorBuildingId = MARITAL_HOME_ID;
     recordAffairTrystSite(cheater, paramour, world, buildingById, entityById);
-    expect(cheater.lastAffairSiteX).toBe(120);
-    expect(paramour.lastAffairSiteY).toBe(120);
+    // Building coordinates are centre positions, not top-left footprint corners.
+    expect(cheater.lastAffairSiteX).toBe(100);
+    expect(paramour.lastAffairSiteY).toBe(100);
   });
 
   it('refuses a spouse-occupied home rather than treating it as an indoor tryst', () => {
