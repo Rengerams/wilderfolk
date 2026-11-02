@@ -175,28 +175,31 @@ export function getBuildingUpgradeEligibility(
   return { ok: true };
 }
 
-export function upgradeBuilding(originalState: WorldState, buildingId: number): WorldState {
-  const state = structuredClone(originalState);
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building) return state;
+export function upgradeBuilding(
+  originalState: WorldState,
+  buildingId: number,
+  ownership: 'isolated' | 'owned' = 'isolated',
+): WorldState {
+  const originalBuilding = originalState.buildings.find((candidate) => candidate.id === buildingId);
+  if (!originalBuilding) return originalState;
 
   const eligibility = getBuildingUpgradeEligibility(originalState, buildingId);
+  const structural = !originalBuilding.completed
+    || originalBuilding.level >= MAX_BUILDING_LEVEL
+    || !buildingTypeHasLevelBenefit(originalBuilding.type);
+  if (!eligibility.ok && structural) return originalState;
+
+  // The worker already owns its state. Isolated callers retain their copy-on-write contract.
+  const state = ownership === 'owned' ? originalState : structuredClone(originalState);
+  const building = state.buildings.find((candidate) => candidate.id === buildingId)!;
   if (!eligibility.ok) {
-    // Unfinished or capped stays silent (no button in the UI); an affordable-looking upgrade the
-    // colony cannot pay for shows the price.
-    const structural =
-      !building.completed
-      || building.level >= MAX_BUILDING_LEVEL
-      || !buildingTypeHasLevelBenefit(building.type);
-    if (!structural) {
-      addFloatingText(
-        state,
-        building.x + building.width / 2,
-        building.y,
-        eligibility.blockReason ?? 'Cannot upgrade',
-        '#ef4444',
-      );
-    }
+    addFloatingText(
+      state,
+      building.x + building.width / 2,
+      building.y,
+      eligibility.blockReason ?? 'Cannot upgrade',
+      '#ef4444',
+    );
     return state;
   }
 

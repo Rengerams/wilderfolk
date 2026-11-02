@@ -149,6 +149,7 @@ wilderfolk test runner - one entry point, choose with args
 
   npm test                        standard gate: check -> owners -> semantic -> cycles --strict -> dup -> types -> lint -> unit
   npm test -- standard            same as above
+  npm test -- standard --changed <sha>  standard checks; only affected unit tests
   npm test -- all                 same steps as standard
   npm test -- full                standard + year and colony integration + invariants
   npm test -- accept              build + the real-browser gate
@@ -217,7 +218,14 @@ if (name === 'unit') {
 } else if (name === 'cycles' && rest.length > 0) {
   steps = [`${STEP.cycles} ${rest.join(' ')}`];
 } else if (GATE[name]) {
-  steps = GATE[name].map((key) => STEP[key]);
+  if (rest.length > 0 && (name !== 'standard' || rest.length !== 2
+    || rest[0] !== '--changed' || !/^[a-f0-9]{40}$/.test(rest[1]))) {
+    process.stderr.write('runner: expected standard --changed <40-character commit SHA>.\n');
+    process.exit(1);
+  }
+  steps = GATE[name].map((key) => key === 'unit' && rest.length > 0
+    ? `${STEP.unit} --changed=${rest[1]} --passWithNoTests`
+    : STEP[key]);
 } else if (ALIAS[name]) {
   steps = ALIAS[name].map((key) => STEP[key]);
 } else {

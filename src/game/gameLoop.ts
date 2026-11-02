@@ -49,9 +49,14 @@ function catchUpBudgetFor(speed: number): number {
   return Math.min(240, Math.max(MAX_CATCHUP_STEPS, Math.ceil(requested * 2)));
 }
 
+/** Commands that change only top-level policy fields, never entities or buildings. */
+function isLightweightWorkerCommand(cmd: WorkerCommand): boolean {
+  return cmd.op === 'setWorkSchedule' || cmd.op === 'setVenueSchedule' || cmd.op === 'setWorkforcePolicy';
+}
+
 /** Only bounded edits may replay on the UI thread while the worker is authoritative. */
 function canPreviewWorkerCommand(cmd: WorkerCommand): boolean {
-  return cmd.op === 'setVenueSchedule' || (cmd.op === 'assignWorker' && cmd.humanId != null);
+  return isLightweightWorkerCommand(cmd) || (cmd.op === 'assignWorker' && cmd.humanId != null);
 }
 
 function pageHidden(): boolean {
@@ -130,6 +135,7 @@ export class GameLoop {
   private view: ViewState;
   private readonly catalog = new EntityCatalog();
   private lastCatalogByTypeRef: unknown = undefined;
+  private catalogDirtyFromDeferredTick = false;
   private rafId = 0;
   private running = false;
   private tickAccumulator = 0;
@@ -381,7 +387,10 @@ export class GameLoop {
         this.world = nextWorld;
         const rebuildStart = profileStart();
         this.catalog.rebuild(this.world.entities);
+        this.catalogDirtyFromDeferredTick = false;
         profileEnd('main.catalogRebuild', rebuildStart);
+      } else {
+        this.catalogDirtyFromDeferredTick = true;
       }
 
       if (render) {
@@ -407,8 +416,8 @@ export class GameLoop {
       if (this.workerHost !== host) return;
       this.lastWorkerActivity = performance.now();
 
-      const hadOptimistic = this.optimisticCommands.length > 0;
-      if (hadOptimistic) this.optimisticCommands.shift();
+      const completedCommand = this.optimisticCommands.shift();
+      const hadOptimistic = completedCommand != null;
 
       this.world = world;
       this.invalidateRenderSnapshot();
@@ -424,8 +433,11 @@ export class GameLoop {
       }
 
       if (hadOptimistic) {
-        this.catalog.rebuild(this.world.entities);
-        this.pruneStaleSelection();
+        if (!isLightweightWorkerCommand(completedCommand) || this.catalogDirtyFromDeferredTick) {
+          this.catalog.rebuild(this.world.entities);
+          this.pruneStaleSelection();
+          this.catalogDirtyFromDeferredTick = false;
+        }
         this.notify(true, false, true);
       }
 
@@ -454,6 +466,7 @@ export class GameLoop {
     this.deferredWorkerCommands.unshift(...retryCommands.map((cmd) => ({ cmd, sessionGen: this.sessionGen })));
     this.syncAfterWorkerMutation();
     this.catalog.rebuild(this.world.entities);
+    this.catalogDirtyFromDeferredTick = false;
     this.pruneStaleSelection();
     this.notify(true, false, true);
 
@@ -573,6 +586,7 @@ export class GameLoop {
     this.lastNotifiedTick = world.tick;
     this.lastDailyBoundaryTick = Math.floor(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     this.catalog.rebuild(world.entities);
+    this.catalogDirtyFromDeferredTick = false;
     this.renderSoA = null;
     this.renderMetaBySlot = null;
     this.scentReader = null;
@@ -642,7 +656,10 @@ export class GameLoop {
     if (!authoritative) return;
 
     const previews = this.optimisticCommands.filter(canPreviewWorkerCommand);
-    let display = previews.length > 0 ? createOptimisticDisplayWorld(authoritative) : authoritative;
+    const needsEntityCopy = previews.some((cmd) => !isLightweightWorkerCommand(cmd));
+    let display = needsEntityCopy
+      ? createOptimisticDisplayWorld(authoritative)
+      : previews.length > 0 ? { ...authoritative } : authoritative;
     carryPresentationControls(display, this.world);
 
     for (const command of previews) {
@@ -666,8 +683,11 @@ export class GameLoop {
     if (this.workerEnabled && this.workerHost?.isReady()) {
       this.optimisticCommands.push(cmd);
       this.rebuildOptimisticDisplay();
-      this.catalog.rebuild(this.world.entities);
-      this.pruneStaleSelection();
+      if (this.world.entities !== this.workerHost.getAuthoritativeWorld()?.entities) {
+        this.catalog.rebuild(this.world.entities);
+        this.pruneStaleSelection();
+        this.catalogDirtyFromDeferredTick = false;
+      }
       this.notify(true, false, true);
 
       const cmdGen = this.sessionGen;
@@ -690,6 +710,7 @@ export class GameLoop {
             else this.syncAfterWorkerMutation();
             this.catalog.rebuild(this.world.entities);
             this.pruneStaleSelection();
+            this.catalogDirtyFromDeferredTick = false;
             this.notify(true, false, true);
           }
           console.warn('[GameLoop] Worker command failed — reverted to authoritative state', err);

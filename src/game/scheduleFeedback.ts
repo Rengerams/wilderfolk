@@ -51,7 +51,8 @@ export function getScheduleImpactPreview(
 ): ScheduleImpactPreview {
   const types = new Set(staffedBuildingTypes(kind));
   const buildings = state.buildings.filter((building) => building.completed && types.has(building.type));
-  const assignedWorkers = buildings.reduce((sum, building) => sum + building.occupants.filter((id) => state.entities.some((entity) => entity.id === id && isAssignedWorker(entity))).length, 0);
+  const eligibleWorkerIds = new Set(state.entities.filter(isAssignedWorker).map((entity) => entity.id));
+  const assignedWorkers = buildings.reduce((sum, building) => sum + building.occupants.filter((id) => eligibleWorkerIds.has(id)).length, 0);
   const durationDelta = nextHours - currentHours;
   const warning = durationDelta > 0
     ? `${durationDelta} extra hour${durationDelta === 1 ? '' : 's'} may increase next-day fatigue and reduce staffed output.`

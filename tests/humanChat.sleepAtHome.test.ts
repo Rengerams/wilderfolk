@@ -31,6 +31,7 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { initGame } from '../src/game/worldGen';
 import { SOCIAL_STAGGER } from '../src/game/adaptiveSpatialQuery';
 import { tickHumans } from '../src/game/humanTick';
+import { commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
 
 const TEST_SEED = 20_260_916;
 const AMBIENT_CHANCE = 0.036 * PER_TICK_RATE_SCALE;
@@ -227,10 +228,16 @@ describe('ambient chatter at home after dark', () => {
     // The same settler at home on the same tick: asleep, so silent.
     const homeWorld = newWorld();
     homeWorld.tick = tick;
-    homeWorld.buildings = [house(1)];
-    const sleeping = settler(1, { x: 120, y: 120, residenceBuildingId: 1, indoorBuildingId: 1 });
-    const homePeer = settler(2, { x: 130, y: 120 });
+    const home = house(1, { occupants: [1] });
+    homeWorld.buildings = [home];
+    const sleeping = settler(1, {
+      ...humanBuildingTarget(home, 1, true),
+      residenceBuildingId: home.id,
+    });
+    const homePeer = settler(2, humanBuildingTarget(home, 2, true));
     homeWorld.entities = [sleeping, homePeer];
+    expect(commuteHumanToBuilding(sleeping, home, 2, true)).toBe(true);
+    expect(sleeping.indoorBuildingId).toBe(home.id);
     setSimSeed(TEST_SEED);
     tickHumans(homeWorld, contextFor(homeWorld, [sleeping, homePeer]));
     expect(sleeping.chatPhrase).toBeUndefined();
@@ -242,17 +249,18 @@ describe('ambient chatter at home after dark', () => {
     resetDialogueSessions();
     const state = newWorld();
     state.tick = tick;
-    state.buildings = [house(1)];
+    const home = house(1, { occupants: [1] });
+    state.buildings = [home];
     const talker = settler(1, {
-      x: 120,
-      y: 120,
-      residenceBuildingId: 1,
-      indoorBuildingId: 1,
+      ...humanBuildingTarget(home, 1, true),
+      residenceBuildingId: home.id,
       chatPhrase: 'Still talking.',
       chatTicks: 6,
     });
     state.entities = [talker];
 
+    expect(commuteHumanToBuilding(talker, home, 2, true)).toBe(true);
+    expect(talker.indoorBuildingId).toBe(home.id);
     tickHumans(state, contextFor(state, [talker]));
 
     expect(talker.chatPhrase).toBeUndefined();
