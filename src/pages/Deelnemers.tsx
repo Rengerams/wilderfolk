@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { api, bestandAlsBase64, download, duplicatenUitFout, foutTekst } from "../api"
+import { api, bestandAlsBase64, download, duplicatenUitFout, foutTekst, initiaal } from "../api"
 import { DeelnemerForm, type DeelnemerVelden } from "../components/DeelnemerForm"
 import { GeschiedenisImport } from "../components/GeschiedenisImport"
 import {
@@ -13,8 +13,8 @@ import {
   Melding,
   Modal,
   PaginaKop,
-  Select,
   Tabel,
+  TabelGroep,
   Veld,
 } from "../components/ui"
 import { datumNumeriek, volledigeNaam } from "../lib/format"
@@ -31,6 +31,25 @@ type ImportRegel = {
   fouten: string[]
   duplicaat: string | null
 }
+
+const STATUS_TABS = [
+  { waarde: "actief", label: "Actief" },
+  { waarde: "gepauzeerd", label: "Gepauzeerd" },
+  { waarde: "gestopt", label: "Gestopt" },
+  { waarde: "alles", label: "Alles" },
+] as const
+
+const STATUS_LABEL: Record<string, string> = {
+  actief: "Actief",
+  gepauzeerd: "Gepauzeerd",
+  gestopt: "Gestopt",
+}
+
+const STATUS_GROEPEN = [
+  { waarde: "actief", label: "Actief", toon: "goed" },
+  { waarde: "gepauzeerd", label: "Tijdelijk gepauzeerd", toon: "waarschuwing" },
+  { waarde: "gestopt", label: "Gestopt", toon: "neutraal" },
+] as const
 
 type ImportControle = {
   regels: ImportRegel[]
@@ -178,6 +197,19 @@ export function Deelnemers() {
       {fout && <Melding type="fout">{fout}</Melding>}
 
       <Kaart>
+        <div className="weergave-balk" role="group" aria-label="Status van deelnemers">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.waarde}
+              type="button"
+              className={`weergave-tab${status === tab.waarde ? " is-actief" : ""}`}
+              aria-pressed={status === tab.waarde}
+              onClick={() => setStatus(tab.waarde)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <div className="filters">
           <div className="zoekveld">
             <label htmlFor="deelnemer-zoek" className="veld__label">
@@ -192,15 +224,6 @@ export function Deelnemers() {
               autoFocus
             />
           </div>
-          <label className="veld">
-            <span className="veld__label">Status</span>
-            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="actief">Actief</option>
-              <option value="gepauzeerd">Tijdelijk gepauzeerd</option>
-              <option value="gestopt">Gestopt</option>
-              <option value="alles">Alles</option>
-            </Select>
-          </label>
         </div>
 
         {laden ? (
@@ -223,29 +246,43 @@ export function Deelnemers() {
           </div>
         ) : (
           <Tabel kolommen={["Naam", "Telefoon", "Groepje", "Kaarten", "Status", "Laatst mee", { tekst: "Deelnames", getal: true }]}>
-            {deelnemers.map((deelnemer) => (
-              <tr key={deelnemer.id}>
-                <td className="tabel__naam">
-                  <Link to={`/deelnemers/${deelnemer.id}`}>{volledigeNaam(deelnemer)}</Link>
-                </td>
-                <td className="nu">{deelnemer.telefoon ?? <span className="muted">—</span>}</td>
-                <td>{deelnemer.groepje_naam ?? <span className="muted">—</span>}</td>
-                <td>
-                  {deelnemer.heeft_mk && <span className="tag">MK</span>}
-                  {deelnemer.heeft_vl && <span className="tag">VL</span>}
-                  {!deelnemer.heeft_mk && !deelnemer.heeft_vl && <span className="muted">—</span>}
-                </td>
-                <td>
-                  <Badge toon={deelnemer.status === "actief" ? "goed" : deelnemer.status === "gepauzeerd" ? "waarschuwing" : "neutraal"}>
-                    {deelnemer.status}
-                  </Badge>
-                </td>
-                <td className="nu">
-                  {deelnemer.laatste_deelname ? datumNumeriek(deelnemer.laatste_deelname) : <span className="muted">nog nooit</span>}
-                </td>
-                <td className="getal">{deelnemer.totaal_deelnames}</td>
-              </tr>
-            ))}
+            {STATUS_GROEPEN.map((groep) => {
+              const rijen = deelnemers.filter((deelnemer) => deelnemer.status === groep.waarde)
+              if (rijen.length === 0) return null
+              return (
+                <Fragment key={groep.waarde}>
+                  <TabelGroep label={groep.label} aantal={rijen.length} toon={groep.toon} kolommen={7} />
+                  {rijen.map((deelnemer) => (
+                    <tr key={deelnemer.id}>
+                      <td className="tabel__naam">
+                        <span className="tabel__persoon">
+                          <span className="avatar avatar--zacht" aria-hidden="true">
+                            {initiaal(volledigeNaam(deelnemer))}
+                          </span>
+                          <Link to={`/deelnemers/${deelnemer.id}`}>{volledigeNaam(deelnemer)}</Link>
+                        </span>
+                      </td>
+                      <td className="nu">{deelnemer.telefoon ?? <span className="muted">—</span>}</td>
+                      <td>{deelnemer.groepje_naam ?? <span className="muted">—</span>}</td>
+                      <td>
+                        {deelnemer.heeft_mk && <span className="tag">MK</span>}
+                        {deelnemer.heeft_vl && <span className="tag">VL</span>}
+                        {!deelnemer.heeft_mk && !deelnemer.heeft_vl && <span className="muted">—</span>}
+                      </td>
+                      <td>
+                        <Badge toon={deelnemer.status === "actief" ? "goed" : deelnemer.status === "gepauzeerd" ? "waarschuwing" : "neutraal"}>
+                          {STATUS_LABEL[deelnemer.status] ?? deelnemer.status}
+                        </Badge>
+                      </td>
+                      <td className="nu">
+                        {deelnemer.laatste_deelname ? datumNumeriek(deelnemer.laatste_deelname) : <span className="muted">nog nooit</span>}
+                      </td>
+                      <td className="getal">{deelnemer.totaal_deelnames}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              )
+            })}
           </Tabel>
         )}
       </Kaart>

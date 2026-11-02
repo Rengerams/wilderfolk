@@ -293,21 +293,23 @@ export function Logboek() {
         stap="Zoek op medewerker, onderdeel of datum."
       />
 
-      <div className="filters" role="group" aria-label="Soort logboek">
-        <Knop
-          variant={tab === "acties" ? "primair" : "secundair"}
+      <div className="weergave-balk" role="group" aria-label="Soort logboek">
+        <button
+          type="button"
+          className={`weergave-tab${tab === "acties" ? " is-actief" : ""}`}
           aria-pressed={tab === "acties"}
           onClick={() => setTab("acties")}
         >
           Alle acties
-        </Knop>
-        <Knop
-          variant={tab === "wijzigingen" ? "primair" : "secundair"}
+        </button>
+        <button
+          type="button"
+          className={`weergave-tab${tab === "wijzigingen" ? " is-actief" : ""}`}
           aria-pressed={tab === "wijzigingen"}
           onClick={() => setTab("wijzigingen")}
         >
           Wijzigingen met oude en nieuwe waarde
-        </Knop>
+        </button>
       </div>
 
       {tab === "acties" ? <Acties /> : <Wijzigingen />}

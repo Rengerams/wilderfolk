@@ -374,21 +374,23 @@ export function PeriodeDetail() {
             >
               Leeg sjabloon
             </Knop>
-            <div className="rij" role="group" aria-label="Weergave van het programma">
-              <Knop
-                variant={weergave === "lijst" ? "primair" : undefined}
+            <div className="weergave-balk weergave-balk--in-kop" role="group" aria-label="Weergave van het programma">
+              <button
+                type="button"
+                className={`weergave-tab${weergave === "lijst" ? " is-actief" : ""}`}
                 onClick={() => setWeergave("lijst")}
                 aria-pressed={weergave === "lijst"}
               >
                 Lijst
-              </Knop>
-              <Knop
-                variant={weergave === "kalender" ? "primair" : undefined}
+              </button>
+              <button
+                type="button"
+                className={`weergave-tab${weergave === "kalender" ? " is-actief" : ""}`}
                 onClick={() => setWeergave("kalender")}
                 aria-pressed={weergave === "kalender"}
               >
                 Kalender
-              </Knop>
+              </button>
             </div>
           </>
         }

@@ -364,3 +364,27 @@ export function Tabel({
     </div>
   )
 }
+
+/** Gegroepeerde rij in een tabel: gekleurd balkje met de groepsnaam. */
+export function TabelGroep({
+  label,
+  aantal,
+  kolommen,
+  toon = "info",
+}: {
+  label: string
+  aantal?: number
+  kolommen: number
+  toon?: "goed" | "info" | "waarschuwing" | "neutraal"
+}) {
+  return (
+    <tr className={`tabel__groep tabel__groep--${toon}`}>
+      <td colSpan={kolommen}>
+        <span className="tabel__groep-inhoud">
+          {label}
+          {typeof aantal === "number" && <span className="tabel__groep-telling">{aantal}</span>}
+        </span>
+      </td>
+    </tr>
+  )
+}
