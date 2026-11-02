@@ -1,18 +1,8 @@
-name: PR99 performance - large population (1800)
+name: Population performance - large population (1800)
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'src/game/**'
-      - 'scripts/perf-at-pop.ts'
-      - 'scripts/perf-population-colony.mts'
-      - 'scripts/simCityProfile.ts'
-      - 'scripts/compare-population-benchmarks.mjs'
-      - 'scripts/compare-population-colony.mjs'
-      - 'scripts/compare-population-colony.test.mjs'
-      - '.github/workflows/perf-population-large.yml'
-      - '.github/workflows/perf-population-reusable.yml'
   workflow_dispatch:
     inputs:
       days:
@@ -31,7 +21,6 @@ concurrency:
 
 jobs:
   benchmark:
-    if: github.event_name != 'pull_request' || github.event.pull_request.number == 99
     uses: ./.github/workflows/perf-population-reusable.yml
     with:
       tier: large

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI (2 November 2026):** All three population performance benchmarks (250/750/1800) now run on every pull request targeting main instead of only PR #99, regardless of changed paths. The duplicate producer-colony workflow is now manual-only; the existing automatic simulation gate remains active. No gameplay, test assertions, or benchmark criteria changed.
+
 - **Changed (2 November 2026):** Pull requests run unit tests affected by their changes and imported dependencies. Main retains the full suite; project-wide static checks and build remain required.
 
 - **Fixed (1 November 2026):** Virtual Player plans food for six mouths per two-worker Farm, restores understaffed food posts during shortages, and preserves manual staffing. Real food consumption and the strict long-run gate remain unchanged; CI verification pending.

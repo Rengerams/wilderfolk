@@ -1,15 +1,13 @@
-name: 120-day simulation gate
+name: Legacy producer colony simulation (manual)
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: simulation-120-day-${{ github.workflow }}-${{ github.ref }}
+  group: legacy-producer-colony-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
