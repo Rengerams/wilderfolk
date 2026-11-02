@@ -27,6 +27,7 @@ interface Props {
   /** The existing canvas draws this same sprite once, at a temporary visual location. */
   onPresentation: (presentation: {
     id: number; x: number; y: number; moving: boolean; facingLeft: boolean;
+    speech?: { speakerId: number; text: string } | null;
   } | null) => void;
   onFinish: (sceneId: string, reason: EndReason) => void;
 }
@@ -45,7 +46,6 @@ export default function SpotlightLoreOverlay({
   const callbacks = useRef({ getCamera, onCameraTarget, onPresentation, onFinish });
   const radialRef = useRef<HTMLDivElement | null>(null);
   const ringRef = useRef<HTMLDivElement | null>(null);
-  const bubbleRef = useRef<HTMLDivElement | null>(null);
   const particleRef = useRef<HTMLDivElement | null>(null);
   const applauseRef = useRef<HTMLDivElement | null>(null);
   const applauseSoundRef = useRef<{ stop: () => void } | null>(null);
@@ -121,6 +121,14 @@ export default function SpotlightLoreOverlay({
     let soundtrackStarted = false;
     let soundtrackFaded = false;
     let soundtrackStopped = false;
+    // Resolve and wrap the script once, rather than repeating chat layout on every animation frame.
+    const scriptedSpeech = captions.map((caption) => {
+      const speakerId = caption.speakerId;
+      const actor = speakerId === stage.heroineId
+        ? stageGirl : resolveEntity(stageWorld, speakerId ?? -1);
+      return speakerId != null && actor
+        ? { speakerId, text: formatChatLine(caption.text, actor) } : null;
+    });
     const men = stage.slots.filter((slot) => resolveEntity(stageWorld, slot.humanId)?.gender === 'male');
     const effectTargets = men.length > 0 ? men : stage.slots;
     const chorusMean = effectTargets.reduce(
@@ -183,8 +191,11 @@ export default function SpotlightLoreOverlay({
         ? Math.sin(step.poseProgress * Math.PI * 2) < 0
         : exit.x < from.x;
 
-      // Renderer uses the actual heroine's sprite once, with a frame-scoped display projection.
-      callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft });
+      // One frame-scoped projection drives the sprite and the ordinary chat bubble painter.
+      // Neither the scripted caption nor the heroine pose touches the simulation's chat fields.
+      const speech = (step.kind === 'caption' || step.kind === 'pose') && step.lineIndex !== null
+        ? scriptedSpeech[step.lineIndex] ?? null : null;
+      callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft, speech });
       if (step.farewellProgress > 0) callbacks.current.onCameraTarget(x, y);
 
       const camera = callbacks.current.getCamera();
@@ -200,8 +211,8 @@ export default function SpotlightLoreOverlay({
         const rect = canvasRef.current?.getBoundingClientRect();
         const viewX = (rect?.left ?? 0) + onScreen.x;
         const viewY = (rect?.top ?? 0) + onScreen.y - 38;
-        const hole = `radial-gradient(ellipse 94px 122px at ${viewX}px ${viewY}px,
-          transparent 0%, transparent 45%, black 100%)`;
+        const hole = `radial-gradient(ellipse 190px 220px at ${viewX}px ${viewY}px,
+          transparent 0%, transparent 55%, black 100%)`;
         blackoutRef.current.style.maskImage = opening.spotlightVisible ? hole : 'none';
         blackoutRef.current.style.webkitMaskImage = opening.spotlightVisible ? hole : 'none';
       }
@@ -223,25 +234,14 @@ export default function SpotlightLoreOverlay({
       }
       if (radialRef.current) {
         radialRef.current.style.background =
-          'radial-gradient(ellipse 180px 145px at ' + onScreen.x + 'px ' + (onScreen.y - 32) +
-          'px, transparent 0%, rgba(12,11,8,0.08) 40%, rgba(12,11,8,0.5) 100%)';
+          'radial-gradient(ellipse 320px 260px at ' + onScreen.x + 'px ' + (onScreen.y - 32) +
+          'px, transparent 0%, rgba(12,11,8,0.03) 55%, rgba(12,11,8,0.3) 100%)';
       }
       if (ringRef.current) {
         ringRef.current.style.opacity = step.kind === 'intro' && !opening.spotlightVisible ? '0' : '1';
         ringRef.current.style.left = onScreen.x + 'px';
         ringRef.current.style.top = (onScreen.y - 18) + 'px';
       }
-      const caption = step.lineIndex === null ? null : captions[step.lineIndex];
-      const speakingId = caption?.speakerId ?? null;
-      const speakingEntity = speakingId === stage.heroineId
-        ? stageGirl : resolveEntity(stageWorld, speakingId ?? -1) ?? undefined;
-      const sourcePosition = speakingId === stage.heroineId ? onScreen
-        : speakingEntity ? project(speakingEntity.x, speakingEntity.y) : onScreen;
-      if (bubbleRef.current) {
-        bubbleRef.current.style.left = Math.min(cw - 160, Math.max(160, sourcePosition.x)) + 'px';
-        bubbleRef.current.style.top = (Math.max(85, Math.min(ch - 140, sourcePosition.y - 82)) - 30) + 'px';
-      }
-
       // Deterministic, bounded comic stage confetti; never generates gameplay relationships.
       const nodes = particleRef.current?.children;
       if (nodes) {
@@ -280,10 +280,6 @@ export default function SpotlightLoreOverlay({
   }, [scene.id, scene.phase, canvasRef]);
 
   const line = lineIndex >= 0 ? boundCaptions[lineIndex] : null;
-  const speakingId = line?.speakerId ?? null;
-  const speakingEntity: Entity | undefined = speakingId === scene.heroineId
-    ? girl : resolveEntity(world, speakingId ?? -1) ?? undefined;
-
   const skip = () => {
     if (completed.current) return;
     completed.current = true;
@@ -306,7 +302,7 @@ export default function SpotlightLoreOverlay({
         document.body,
       )}
       <div ref={ringRef}
-        className="absolute z-[31] h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_36px_16px_rgba(251,191,36,0.25)]"
+        className="absolute z-[31] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300/80 shadow-[0_0_40px_20px_rgba(251,191,36,0.2)]"
         aria-hidden="true" />
       <div ref={particleRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
         {Array.from({ length: PARTICLE_LIMIT }, (_, i) => (
@@ -327,14 +323,9 @@ export default function SpotlightLoreOverlay({
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/85 px-4 py-2 text-sm text-amber-100">
           The neighbours are gathering. Nobody knows why.
         </div>
-      ) : line && speakingEntity && (stageKind === 'caption' || stageKind === 'pose') ? (
+      ) : line && (stageKind === 'caption' || stageKind === 'pose') ? (
         <>
-          <div ref={bubbleRef}
-            className="absolute z-10 w-[min(20rem,75%)] -translate-x-1/2 rounded-xl border border-stone-700 bg-amber-50 px-4 py-3 text-center text-sm text-stone-900 shadow-2xl"
-            role="status" aria-live="polite">
-            <p className="mb-1 text-[11px] font-bold text-amber-800">{speakingEntity.name ?? 'Villager'}</p>
-            <p className="whitespace-pre-line font-semibold">{formatChatLine(line.text, speakingEntity)}</p>
-          </div>
+          <span className="sr-only" role="status" aria-live="polite">{line.text}</span>
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/80 px-3 py-1 text-xs text-amber-100">
             {lineIndex + 1} / {SPOTLIGHT_CAPTIONS.length}{stageKind === 'pose' ? ' · Show-off walk (7 sec)' : ''}
           </div>

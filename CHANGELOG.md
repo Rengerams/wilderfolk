@@ -2,6 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
+<<<<<<< HEAD
 - **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
 
 - **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
@@ -15,6 +16,9 @@
 - **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.
 
 - **Fixed (2 November 2026):** A colony now settles into the same homes whatever order its settlers are supplied in, so a worker hand-off or save load cannot reshuffle its housing.
+=======
+- **Changed (2 November 2026):** Spotlight Lore now uses the normal settler-chat speech bubbles, not a separate HTML balloon. The spotlight is wider; a completed Village Square hosts the cast and hides unrelated settlers visually until the scene ends. Otherwise, normal gathering remains.
+>>>>>>> 6075a9981de570d1fb583a76d4457a3a5a1d5803
 
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 

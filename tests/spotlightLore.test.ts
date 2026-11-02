@@ -170,6 +170,40 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(startSpotlightLoreDebug(world)).toBe(false);
   });
 
+  it('stages the complete cast directly on a finished Village Square without moving bystanders', () => {
+    const { world, girl, adults } = makeFixture();
+    world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
+    world.buildings = [];
+    resetPathGridCaches();
+    const square = createBuilding(BuildingType.Square, 520, 360, 91919);
+    square.completed = true;
+    square.constructionProgress = 100;
+    world.buildings.push(square);
+    const bystander = createEntity(EntityType.Human, 440, 390, 100080, undefined, false, {
+      name: 'Bystander', gender: 'female', ageYears: 30, colonyDay: 120,
+    });
+    world.entities.push(bystander);
+    const bystanderPosition = { x: bystander.x, y: bystander.y };
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    const scene = world.spotlightLore!;
+    expect(scene.phase).toBe('ready');
+    expect(scene.gatherX).toBe(square.x);
+    expect(scene.gatherY).toBe(square.y);
+    expect(girl.x).toBe(square.x);
+    expect(girl.y).toBe(square.y);
+    expect(scene.readyAtTick).toBe(world.tick);
+    expect(scene.performerIds).toHaveLength(adults.length);
+    for (const slot of scene.slots) {
+      const actor = world.entities.find((entity) => entity.id === slot.humanId)!;
+      expect(actor.x).toBe(slot.x);
+      expect(actor.y).toBe(slot.y);
+    }
+    expect({ x: bystander.x, y: bystander.y }).toEqual(bystanderPosition);
+    expect(finishSpotlightLore(world, scene.id, 'skipped')).toBe(true);
+    expect(world.spotlightLore).toBeNull();
+  });
+
   it('starts the dev preview through the typed worker command', () => {
     const { world } = makeFixture();
     world.tick = TICKS_PER_DAY * 120 + 5 * TICKS_PER_HOUR;

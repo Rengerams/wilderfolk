@@ -40,6 +40,7 @@ import {
   resolveSpeechBubbleRect,
   resolveStatusBadgeKind,
   shouldDrawHumanNameLabel,
+  shouldDrawSpotlightHuman,
   type HumanStatusFacts,
   type HumanStatusKind,
   type OverheadRect,
@@ -47,7 +48,9 @@ import {
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { getSpotlightPresentationMotion, presentationPosition } from './motionInterpolation';
+import {
+  getSpotlightPresentationMotion, getSpotlightPresentationSpeech, presentationPosition,
+} from './motionInterpolation';
 import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
@@ -663,7 +666,8 @@ export function drawLeaderAuraOverlay(
   const cam = state.camera;
   if (cam.zoom <= 0.22 || state.villageLeaderId == null) return;
   const leader = _cachedHumans.find((h) => h.id === state.villageLeaderId && !h.faction);
-  if (!leader || leader.indoorBuildingId != null) return;
+  if (!leader || leader.indoorBuildingId != null
+      || !shouldDrawSpotlightHuman(state.spotlightLore, leader.id)) return;
 
   const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
   if (!isSel) {
@@ -739,7 +743,7 @@ export function drawHumans(
   }[] = [];
   for (const human of _cachedHumans) {
     // Rivals live on the strategic map; the village layer never draws their parties.
-    if (human.faction === 'rival') continue;
+    if (human.faction === 'rival' || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
     if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
@@ -831,7 +835,12 @@ export function drawHumans(
       drawCombatBurst(ctx, sx, footY - spriteH * 0.45, drawSize, human.id);
     }
 
-    const isTalking = (human.chatTicks ?? 0) > 0;
+    // The scene's read-only line uses the same chat bubble, without setting chatPhrase or
+    // allowing earlier simulated conversations to overlap with the presentation.
+    const spotlightSpeech = state.spotlightLore?.phase === 'ready'
+      ? getSpotlightPresentationSpeech(human.id) : null;
+    const isTalking = spotlightSpeech !== null
+      || (state.spotlightLore?.phase !== 'ready' && (human.chatTicks ?? 0) > 0);
 
     // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
     // name plate and a neighbour's whatever order the settlers are drawn in.
@@ -857,7 +866,7 @@ export function drawHumans(
         sx,
         headY,
         size: drawSize,
-        text: getChatBubbleText(human, tick),
+        text: spotlightSpeech ?? getChatBubbleText(human, tick),
         entityId: human.id,
         isLeader,
       });

@@ -282,8 +282,8 @@ export function planRelocation(
     case 'surplus': return planSurplus(unit, context, residences);
     case 'leave-home': return planLeaveHome(unit, context);
     case 'commute': return planCommutePlacement(unit, context);
+    case 'couple': return planPlacement(unit, context, 'family', 'couple placement', residences);
     case 'manor':
-    case 'couple':
       return { move: false, reason: 'assignment', why: `${need} is still a direct phase write` };
     default: {
       const unreachable: never = need;
@@ -1053,19 +1053,21 @@ export function syncPartnerResidence(
   }
 
   const context = standaloneMoveContext(humans, residences);
-  const familyHome = pickResidenceForFamily(household, humans, residences);
-  if (familyHome !== undefined && relocateHousehold(household, familyHome, 'homeless', 'family', context)) return;
+  const familyPlan = planRelocation(household, 'couple', context);
+  if (familyPlan.move && applyRelocation(household, familyPlan, 'homeless', context)) return;
 
   // No home fits the whole family, so only the couple moves — one mover may already live there.
-  const coupleHome = pickLeastCrowdedResidence(humans, residences, 2, {}, undefined, [human, partner]);
-  if (coupleHome === undefined) return;
-  if (!relocateHousehold([human, partner], coupleHome, 'homeless', 'family', context)) return;
+  const couplePlan = planRelocation([human, partner], 'couple', context);
+  if (!couplePlan.move || couplePlan.to === undefined) return;
+  if (applyRelocation([human, partner], couplePlan, 'homeless', context) === undefined) return;
+  const coupleHome = couplePlan.to;
 
   // A minor child then follows into a home that has room for them, by the child-custodian rule.
   for (const member of household) {
     if (member.residenceBuildingId === coupleHome) continue;
     if (pickResidenceFromChildCustodian(member, humans, residences) !== coupleHome) continue;
-    relocateHousehold([member], coupleHome, 'guardianship', 'guardian', context);
+    const childPlan = planRelocation([member], 'custodian', context);
+    if (childPlan.move) applyRelocation([member], childPlan, 'guardianship', context);
   }
 }
 

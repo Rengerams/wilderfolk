@@ -34,6 +34,8 @@ export interface SpotlightPresentation {
   readonly y: number;
   readonly moving: boolean;
   readonly facingLeft: boolean;
+  /** Current authored line, displayed by the normal chat painter without altering chat state. */
+  readonly speech?: { readonly speakerId: number; readonly text: string } | null;
 }
 let spotlightPresentation: SpotlightPresentation | null = null;
 export function setSpotlightPresentationFrame(value: SpotlightPresentation | null): void {
@@ -41,6 +43,12 @@ export function setSpotlightPresentationFrame(value: SpotlightPresentation | nul
 }
 export function getSpotlightPresentationMotion(id: number): SpotlightPresentation | null {
   return spotlightPresentation?.id === id ? spotlightPresentation : null;
+}
+
+/** Read-only speech projection; only the requested cast member can show this line. */
+export function getSpotlightPresentationSpeech(id: number): string | null {
+  const speech = spotlightPresentation?.speech;
+  return speech?.speakerId === id ? speech.text : null;
 }
 
 /** Where each mover stood at the previous tick, keyed by entity id. */
