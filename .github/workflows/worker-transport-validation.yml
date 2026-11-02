@@ -1,0 +1,43 @@
+name: Worker transport validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/game/**'
+      - 'scripts/repro-worker-stall.mts'
+      - 'tests/gameWorker*.test.ts'
+      - 'tests/renderBufferPool*.test.ts'
+      - 'tests/simDelta*.test.ts'
+      - '.github/workflows/worker-transport-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-transport-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render-worker-stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '26.12.1'
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Worker source and boundary regression tests
+        run: npx vitest run tests/simDelta.incrementalEntities.test.ts tests/simDelta.storyRoundtrip.test.ts tests/workerDisplayCache.ownership.test.ts tests/renderPacking.aliveRosterParity.test.ts tests/gameWorker.pipelineDepth.test.ts tests/gameWorker.errorLogging.test.ts tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameWorker.profilerStop.test.ts tests/workerMainThread.parity.test.ts tests/renderBufferPool.stress.test.ts
+      - name: Render worker 5000 ticks and 1000 command transfers
+        env:
+          TICKS: '5000'
+          COMMANDS: '1000'
+          PERF_MEASURE: '1'
+          STALL_MS: '2500'
+        run: node --expose-gc --import tsx scripts/repro-worker-stall.mts
+      - name: Worker boundary field coverage
+        run: npx tsx scripts/worker-boundary-audit.mts
