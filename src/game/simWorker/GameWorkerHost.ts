@@ -794,7 +794,7 @@ export class GameWorkerHost {
       if (msg.ok === false) {
         if (delta) {
           applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
-                    hydrateWorldRuntimeCaches(this.worldRef);
+          hydrateWorldRuntimeCaches(this.worldRef);
         }
         this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
         pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
@@ -805,7 +805,7 @@ export class GameWorkerHost {
       applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
       profileEnd('main.applyCommandDelta', applyStart);
       const hydrateStart = profileStart();
-            hydrateWorldRuntimeCaches(this.worldRef);
+      hydrateWorldRuntimeCaches(this.worldRef);
       profileEnd('main.hydrateCommand', hydrateStart);
       let render: WorkerTickRender | null = null;
       if (msg.renderBuffer != null && msg.bufferIndex != null) {
@@ -844,7 +844,10 @@ export class GameWorkerHost {
     applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
     profileEnd('main.applySimDelta', applyStart);
     const hydrateStart = profileStart();
-        hydrateWorldRuntimeCaches(this.worldRef);
+    const geometryUnchanged = delta.changedBuildings !== undefined
+      && delta.changedBuildings.length === 0
+      && (delta.removedBuildingIds?.length ?? 0) === 0;
+    hydrateWorldRuntimeCaches(this.worldRef, geometryUnchanged);
     profileEnd('main.hydrateCaches', hydrateStart);
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
