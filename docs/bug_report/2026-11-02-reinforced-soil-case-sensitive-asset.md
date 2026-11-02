@@ -11,7 +11,8 @@
 - Related PR/commit: PR #119
 
 ## Status history
-- 2026-11-02 — investigating: Initially changed readers to the GitHub-tracked uppercase extension, then normalized the tracked binary to `ground_soil.png` (same blob SHA) and all three UI/runtime readers to lowercase; CI revalidation pending.
+- 2026-11-02 — investigating: Initially changed readers to the GitHub-tracked uppercase extension, then normalized the tracked binary to `ground_soil.png` (same blob SHA) and all three UI/runtime readers to lowercase.
+- 2026-11-02 — CI run 41370677389 revealed a remaining stale literal in `tests/uxBatch.interactionWindows.test.ts` still expecting `ground_soil.PNG`. Updated the assertion to the actual tracked lowercase asset; CI rerun pending.
 
 ## Observed behavior
 `tests/renderBatch.sprites.test.ts:83` reports missing `/sprites/ground_soil.png`; case-sensitive hosts cannot load reinforced-soil art.
@@ -38,4 +39,4 @@ None.
 
 ## Verification result
 - CI run 41324964638: FAIL before correction.
-- Revised CI: pending; local repository test commands NOT RUN.
+- Revised CI run 41370677389: 2864 tests passed, but one UI catalogue fixture expected the obsolete uppercase path. The assertion has been corrected and is pending rerun; local repository test commands NOT RUN.
