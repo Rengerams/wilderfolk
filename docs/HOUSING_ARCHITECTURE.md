@@ -7,8 +7,8 @@ relocation rules, the decisions the owner confirmed, and what is still open.
 Owner module: `src/game/housingPipeline.ts`.
 
 **Status (2026-11-02):** the plan/apply pipeline is finished and verified (P0a–P7, T0–T4). The only
-open items are the oversized-household target policy in §4/§14 (**OPEN** — confirmed policy, not yet
-implemented) and the relocation-churn investigation; F6 stays accepted by design.
+open item is the relocation-churn investigation; the oversized-household male-partner-first target is
+recorded in §4/§14 as an unimplemented proposal, not a rule. F6 stays accepted by design.
 
 This document describes the code as it stands after the 2026-10-25 consolidation. If the two disagree, the
 code is right and this file is a bug.
@@ -121,32 +121,28 @@ An adoption that replaced a **dead** parent is permanent and is never cleared th
 ### 4. Capacity
 
 `rebalanceOvercrowdedResidences` relieves an over-full home **before** anyone new is seated, so a newcomer
-can never be packed into a house that was already too full. The shortage order is fixed:
+can never be packed into a house that was already too full. The implemented shortage order:
 
-1. move unrelated residents and independent adult children out first, where suitable beds exist;
-2. before displacing the family, try reshuffling eligible residents across other completed homes to free
-   enough beds for the entire parent-and-minor household, while respecting capacity and existing custody;
-3. if a complete-family move becomes possible, relocate the family together, never scattering everyone;
-4. only if no feasible reshuffle or whole-family residence exists, temporarily relocate the adult male
-   partner first, provided he is not a minor's required custodian whose departure would leave that child
-   without their necessary caregiver; preserve mother/remaining custodians with their minor children in
-   the original home whenever capacity allows;
-5. if the male is a necessary custodian, find another custody-safe dependent-group arrangement instead.
-   Do not leave minors unaccompanied or evict an entire family simply because one home is undersized.
-   Reunite the household automatically when a suitable whole-family residence becomes available.
+1. a family with a dependent minor in the over-full home keeps its custodial unit in place; unrelated
+   residents and independent adult children are moved out first, where suitable beds exist;
+2. otherwise the occupants are grouped by kin, largest group first; a group that fits the remaining beds
+   stays, and a group that does not is first planned as a whole through `planRelocation` (capacity need);
+3. when no home fits the whole group, only the excess is shed — `selectSurplusMembers` picks
+   `occupancy − capacity` members, adults before partners, singles before partners, never a minor and never
+   the custodian a remaining minor still needs — and plans that subset (capacity, then surplus);
+4. surplus (unhousing) is reached only when no destination exists; a settler who can be rehoused is not
+   unhoused, and the homeless phase seats the excess when a bed frees.
 
-**Status: OPEN.** This is the confirmed target policy, not yet the implemented capacity algorithm: the
-rebalance sheds only the excess today, and the male-partner-first reshuffle below is not implemented.
-The reshuffle must avoid oscillation, obey residence eligibility and respect the per-run housing ledger.
-The temporary male relocation is not a custody override, and an imprisoned settler's reserved bed
-must not be treated as free.
+The rebalance never evicts a whole family for an undersized home, obeys residence eligibility and the
+per-run ledger, and never counts an imprisoned settler's reserved bed as free.
+
+**Not implemented — owner-confirmed target, open design question.** Moving the adult male partner first,
+reshuffling whole families across homes, and the automatic reunion are **not** the code today; the
+excess-only rule above is. Implementing the target changes who leaves first and needs custody, oscillation
+and reserved-bed tests.
 
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
-
-When a home is over its beds the rebalance sheds only `occupancy − capacity` members — adults before
-partners, never a minor or the custodian a remaining minor still needs — instead of unhousing the whole
-household; the homeless phase seats them where beds free.
 
 A jailed settler counts toward the home's occupancy but never moves here: their bed is reserved for their
 return, so the family or unrelated resident who is present carries the shortage instead.
@@ -604,12 +600,11 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/residenceCommuteRel
   blocking household are implemented. Focused divorce, leader succession, worker transport and
   saved-game regressions pass locally. Full remote CI remains required. This one-hop reshuffle does not
   guarantee a home if a multi-step chain of moves would be necessary.
-* **Oversized households — OPEN: owner policy confirmed, implementation not yet verified.**
-  First try to free capacity by moving unrelated people and independent adults or reshuffling other
-  households. Keep the parent-and-minor family in place if possible. If no suitable full-family home
-  exists, move the adult male temporarily before disturbing the remaining dependents, but only when
-  his departure is custody-safe. Reunite everyone once a suitable home becomes available; do not
-  evict all family members just because the present home is too small.
+* **Oversized households — DONE as excess-only; the male-partner-first target is an unimplemented proposal.**
+  The code keeps the parent-and-minor family in place and sheds only the excess (`selectSurplusMembers`:
+  adults before partners, never a minor or a remaining minor's custodian), rehousing through
+  `planRelocation` and unhousing only with no destination — see §4. The male-partner-first reshuffle and
+  the automatic reunion are not implemented; they remain an open design question, not a rule.
 * **Blended and guardian households — regression verification required.** Build dependent groups around
   each minor's actual custodians, not the first child's mother or an arbitrary shared parent. If a blended
   family exceeds the largest home, do not strand any minor by moving their custodian into a different
