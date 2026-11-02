@@ -32,6 +32,7 @@ import {
   type WorkerRequest,
   type WorkerResponse,
 } from '../src/game/simWorker/protocol';
+import type { PerformanceSnapshot } from '../src/game/performanceProfiler';
 
 const SAVE_PATH = process.env.PERF_SAVE;
 const TICKS = Number(process.env.TICKS ?? (SAVE_PATH ? 2000 : 6000));
@@ -106,6 +107,8 @@ async function main(): Promise<void> {
   let lastCommandTick = -1;
   const gapHistogram: number[] = [];
   const deltaBytes: number[] = [];
+  let deltaBreakdownPrinted = false;
+  let settleProfiling: ((snapshot: PerformanceSnapshot) => void) | null = null;
   const commandPending = () => pendingCommand != null;
   const isIdle = () => ticksInFlight === 0 && !commandPending();
 
@@ -178,6 +181,18 @@ async function main(): Promise<void> {
           }
         }
         if (msg.delta) {
+          if (!deltaBreakdownPrinted) {
+            deltaBreakdownPrinted = true;
+            const parts = Object.entries(msg.delta as Record<string, unknown>)
+              .map(([key, value]) => {
+                try {
+                  return `${key}=${v8Serialize(value).byteLength}`;
+                } catch {
+                  return `${key}=?`;
+                }
+              });
+            console.log(`[delta] per-field V8 bytes: ${parts.join(' ')}`);
+          }
           const t = (msg.delta as { tick: number }).tick;
           if (lastTick >= 0 && t !== lastTick + 1) {
             console.error(`[GAP] tick jumped ${lastTick} -> ${t}`);
@@ -204,6 +219,10 @@ async function main(): Promise<void> {
       case 'exportSaveResult':
         exported = true;
         break;
+      case 'profilingStopped':
+        settleProfiling?.(msg.snapshot);
+        settleProfiling = null;
+        break;
     }
   });
 
@@ -227,6 +246,7 @@ async function main(): Promise<void> {
   }
 
   const stallTimer = setInterval(checkStall, 200);
+  send({ type: 'setProfiling', proto: WORKER_PROTO, enabled: true });
   const startedAt = performance.now();
 
   // pipeline driver — mimic GameLoop.frame: keep up to MAX_IN_FLIGHT ticks queued
@@ -253,6 +273,27 @@ async function main(): Promise<void> {
   clearInterval(stallTimer);
   const elapsedMs = performance.now() - startedAt;
   const finalTick = ticksDone;
+
+  // Worker-side cost split: sim tick vs pack vs delta extraction (profiler enabled above).
+  const profilingSnapshot = await new Promise<PerformanceSnapshot | null>((resolve) => {
+    settleProfiling = resolve;
+    send({ type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId: 1 });
+    setTimeout(() => {
+      if (settleProfiling) {
+        settleProfiling = null;
+        resolve(null);
+      }
+    }, 5000);
+  });
+  if (profilingSnapshot) {
+    console.log(`[profiler] worker scope ${profilingSnapshot.ticks} ticks over ${profilingSnapshot.sections.reduce((sum, s) => sum + s.totalMs, 0).toFixed(0)}ms total`);
+    for (const section of profilingSnapshot.sections.slice(0, 12)) {
+      console.log(
+        `[profiler] ${section.name} calls=${section.calls} total=${section.totalMs.toFixed(0)}ms `
+          + `avg=${section.averageMs.toFixed(2)}ms max=${section.maxMs.toFixed(1)}ms`,
+      );
+    }
+  }
 
   // export check — full-world transfer path
   if (isIdle()) {

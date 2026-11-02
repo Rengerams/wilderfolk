@@ -14,7 +14,7 @@ import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } fro
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingCenter } from './placementUtils';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
-import { getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
+import { buildCeremonySeatIndex, getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
 import { getSpotlightGatherTarget } from './spotlightLore';
 
 import {
@@ -87,6 +87,7 @@ import {
 } from './humanVenueBehavior';
 import {
   checkoutVisitor,
+  createHotelLodgingIndex,
   isSettlerLodgingAtHotel,
   lodgingHotelFor,
   steerVisitorToHotel,
@@ -422,8 +423,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     return buildingCampAnchor ?? getPlayerSettlerCenter(state);
   };
 
-  const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {
-    if (
+  const advancePregnancy = (entity: Entity, conceivedToday: boolean): void => {    if (
       entity.alive &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
@@ -434,6 +434,12 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       tickPregnancyAndBirth(state, ctx, entity, { livingHumanAt });
     }
   };
+
+  // Lodging runs for every settler each tick; build the hotel list and bed counts once so a
+  // candidate hotel never rescans every entity for each settler.
+  const hotelLodging = createHotelLodgingIndex(updatedBuildings, allHumans, buildingById, entityById);
+  // Ceremony seats are the same id-sorted ranks for every settler; build them once per tick.
+  const ceremonySeats = state.electionCeremony ? buildCeremonySeatIndex(state) : undefined;
 
   for (const entity of allHumans) {
     if (!entity.alive) continue;
@@ -664,7 +670,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // A ceremony holds its **attendees**, not the whole village: the owner's *"they again in a circle"*
     // was a thousand settlers sharing sixty ring slots. Everyone else keeps their day.
     const inElectionCeremony =
-      !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id);
+      !prisonCommuteDue && state.electionCeremony != null && isPlayerHuman(entity) && isCeremonyAttendee(state, entity.id, ceremonySeats);
     // Only the selected actors receive exclusive gathering movement; everyone else
     // keeps the normal commute, social and work priority rules.
     const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
@@ -882,10 +888,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inSpotlightGathering &&
       !festivalGathering &&
       hasResidenceAssignment(entity)
-        ? lodgingHotelFor(entity, updatedBuildings, allHumans, state.tick)
+        ? lodgingHotelFor(entity, updatedBuildings, allHumans, state.tick, hotelLodging)
         : undefined;
 
-    if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) checkoutVisitor(entity);
+    if (!lodgingHotel && isPlayerHuman(entity) && entity.hotelStayBuildingId != null) {
+      hotelLodging.release(entity.hotelStayBuildingId);
+      checkoutVisitor(entity);
+    }
 
     if (onMoonPriestShift) {
       suppressIdle = true;
@@ -937,7 +946,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         onSchedule = true;
       }
     } else if (inElectionCeremony && state.electionCeremony) {
-      const target = getElectionGatherTarget(state, entity.id);
+      const target = getElectionGatherTarget(state, entity.id, ceremonySeats);
       const dx = target.x - entity.x;
       const dy = target.y - entity.y;
       const dist = Math.hypot(dx, dy) || 1;

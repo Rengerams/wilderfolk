@@ -18,6 +18,7 @@ import { profileStart, profileEnd } from './performanceProfiler';
 import type { TickContext } from './simulation/simulationTypes';
 import { releasePrisoners } from './workforce';
 import { maybeTriggerRenffrOmen, tickRenffrOmen } from './renffrStar';
+import { bumpHistoryRevision } from './historyRevisions';
 import {
   isNightHour,
   getAbsoluteCalendarDay,
@@ -219,6 +220,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     if (state.populationHistory.length > POPULATION_HISTORY_MAX) {
       state.populationHistory.shift();
     }
+    bumpHistoryRevision(state, 'populationHistory');
   }
 
   // Zero-allocation particle animation

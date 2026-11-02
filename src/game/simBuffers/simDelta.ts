@@ -3,6 +3,7 @@ import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
+import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
 export const SIM_DELTA_PROTO = 3;
@@ -160,8 +161,7 @@ export interface ExtractSimTickDeltaOptions {
   cloneMode?: SimDeltaCloneMode;
   prevBuildings?: ReadonlyMap<number, string> | null;
   nextBuildings?: Map<number, string>;
-  prevHistories?: ReadonlyMap<string, string | undefined> | null;
-  nextHistories?: Map<string, string | undefined>;
+  prevHistoryRevisions?: HistoryRevisions | null;
   previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
@@ -378,13 +378,14 @@ export function extractSimTickDelta(
     delta.buildings = deltaClone(world.buildings, cloneMode);
   }
 
-  if (options?.prevHistories || options?.nextHistories) {
-    for (const key of ['graveRecords', 'populationHistory', 'yearlyStats', 'chronicleChapters', 'villageRequestHistory', 'genealogyRegistry'] as const) {
-      const fingerprint = JSON.stringify(delta[key]);
-      options?.nextHistories?.set(key, fingerprint);
-      if (options?.prevHistories?.has(key) && options.prevHistories.get(key) === fingerprint) {
-        delete delta[key];
-      }
+  if (options?.prevHistoryRevisions) {
+    // Histories cross the boundary only when their owner bumped the revision, so the per-tick
+    // JSON fingerprint over grave and genealogy history disappears from the worker loop.
+    const currentRevisions = snapshotHistoryRevisions(world);
+    const previousRevisions = options.prevHistoryRevisions;
+    const deltaRecord = delta as unknown as Record<string, unknown>;
+    for (const family of HISTORY_FAMILIES) {
+      if (previousRevisions[family] === currentRevisions[family]) delete deltaRecord[family];
     }
   }
 

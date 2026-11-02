@@ -113,6 +113,28 @@ for (const [file, samples] of [...byFile.entries()].sort((a, b) => b[1] - a[1]).
   console.log(`${pad(file.slice(0, 51), 52)}${num(ms(samples), 8)}${num(pct(samples), 7)}%`);
 }
 
+const callersArg = args.find((a) => a.startsWith('--callers='))?.slice(10);
+if (callersArg) {
+  const parentByChild = new Map();
+  for (const node of prof.nodes) {
+    for (const child of node.children ?? []) parentByChild.set(child, node.id);
+  }
+  const byCaller = new Map();
+  for (const node of prof.nodes) {
+    if (!(node.callFrame.functionName ?? '').includes(callersArg)) continue;
+    const self = selfByNode.get(node.id) ?? 0;
+    if (self === 0) continue;
+    const parent = nodes.get(parentByChild.get(node.id));
+    const key = parent ? label(parent).key : '(root)';
+    byCaller.set(key, (byCaller.get(key) ?? 0) + self);
+  }
+  console.log('');
+  console.log(`CALLERS OF ${callersArg} (its self samples, attributed to the immediate caller)`);
+  for (const [key, samples] of [...byCaller.entries()].sort((a, b) => b[1] - a[1]).slice(0, topN)) {
+    console.log(`${pad(key.slice(0, 70), 72)}${num(ms(samples), 8)}${num(pct(samples), 7)}%`);
+  }
+}
+
 if (jsonOut) {
   writeFileSync(
     jsonOut,

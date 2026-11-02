@@ -7,6 +7,7 @@ import {
   invalidateWorldRuntimeCaches,
 } from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
+import { snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import { areNamesLoaded, loadNames } from '../nameLoader';
 import { repairJuvenileAssignmentsOnLoad } from '../dayCycle';
 
@@ -53,7 +54,8 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
-let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+/** History revisions at the last acknowledged tick; unchanged families are not re-shipped. */
+let prevHistoryRevisions: HistoryRevisions | null = null;
 let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
@@ -113,13 +115,11 @@ function packAndPostTickResult(
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, string>();
-    const nextHistories = new Map<string, string | undefined>();
     const delta = extractSimTickDelta(world, aliveNow, {
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
       nextBuildings,
-      prevHistories: prevHistoriesSnapshot,
-      nextHistories,
+      prevHistoryRevisions,
       previousEventHeadId,
     });
     profileEnd('worker.extractDelta', deltaStart);
@@ -145,7 +145,7 @@ function packAndPostTickResult(
     };
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
-    prevHistoriesSnapshot = nextHistories;
+    prevHistoryRevisions = snapshotHistoryRevisions(world);
     previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
@@ -166,7 +166,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
-  prevHistoriesSnapshot = null;
+  prevHistoryRevisions = null;
   previousEventHeadId = undefined;
 }
 
@@ -265,7 +265,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         try {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
-          prevHistoriesSnapshot = null;
+          prevHistoryRevisions = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
         } catch (err) {

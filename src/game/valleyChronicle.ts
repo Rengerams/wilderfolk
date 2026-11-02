@@ -5,6 +5,7 @@ import { isRivalAtPeace } from './rivalPeace';
 import { addCappedResource } from './resourceUtils';
 import { recordFoodProduced } from './economyLedger';
 import { hasDynasty } from './familyLegacy';
+import { bumpHistoryRevision } from './historyRevisions';
 
 /**
  * Valley Chronicle — the sandbox's story spine (replaces the removed victory
@@ -88,6 +89,7 @@ export function advanceValleyChronicle(state: WorldState): string[] {
     if (done.has(ch.id)) continue;
     if (ch.isMet(state)) {
       state.chronicleChapters = [...(state.chronicleChapters ?? []), ch.id];
+      bumpHistoryRevision(state, 'chronicleChapters');
       logEvent(state, 'milestone', `${ch.icon} ${ch.title} — ${ch.detail}`);
       if (ch.reward) {
         for (const [key, amount] of Object.entries(ch.reward)) {

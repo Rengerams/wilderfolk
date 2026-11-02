@@ -21,7 +21,7 @@
 | PERF3 | Closed by adoption | `EntityCatalog.adoptWorldIndex` shares the validated authoritative lookup instead of rescanning entities per worker tick; the identity/removal regression lives in `tests/workerDisplayCache.ownership.test.ts`, and `rebuild` remains for save import, recovery and debug validation. |
 | PERF4 | Implemented and verified | Worker passes the precomputed alive roster into render packing; parity regression pins render SoA and overflow ordering. |
 | PERF5 | Open | Building fingerprint removal requires auditing all mutable building writers and ensuring revision bumps on every occupancy/staffing/upgrade/production change. Keep fingerprints until coverage is proven. |
-| PERF6 | Open | History fingerprint removal requires revision writes for all six history families, plus save/load/import/rollback integration. No reference-equality shortcuts allowed. |
+| PERF6 | Implemented and verified | The six history families ship by per-world owner revisions (`bumpHistoryRevision`), so the worker no longer JSON-fingerprints grave, genealogy, population, yearly, chronicle and village-request history every tick. `tests/historyRevisions.test.ts` pins every owner bump, the yearly rollover and a seeded run in which any content change without a bump fails. |
 | PERF7 | Partly implemented; profile required | Reuses worker render slot lookup and avoids a non-overflow copy; render metadata is now packed once on the host from the buffer ids instead of twice, and never crosses the port. Heap and overflow top-k allocations still require a 10,000-tick profile. |
 | PERF8 | Implemented and verified | Removed unused catalogue entity payload; the transient delta protocol has since advanced to 3 for the render-sidecar move. Boundary audit is unchanged from the pre-change baseline and worker/main parity passes. |
 | PERF9 | Existing behavior confirmed | Worker profiler samples stay behind the explicit enable flag with the 3,000 ms publication gap; no per-tick production logging was added. |
@@ -50,7 +50,17 @@ $env:TICKS='5000'; npx tsx scripts/repro-worker-stall.mts
 - Render-sidecar move (per-slot metadata now rebuilt on the host): `tests/renderMeta.hostParity.test.ts` PASS (field-for-field parity, overflow slot order, and the render-enabled worker delta carries no sidecar); 20 affected suites / 113 tests PASS. Delta measurements on the same fixtures: huge 120-day V8 4,044,851 → 2,749,091 (-32.0%), JSON 1,642,881 → 1,439,671 (-12.4%), identical colony outcome (59 settlers) and a lower RSS peak; huge 3-day V8 3,897,476 → 2,627,841 (-32.6%), JSON 1,473,135 → 1,281,987 (-13.0%); medium V8 1,152,395 → 774,651 (-32.8%); the 120-settler render stress harness reports `renderDeltaV8Bytes` 3,085,389 → 1,890,015 (-38.7%). The perf harness's worker-transport phase is headless, so its number is unchanged by design.
 - Long-horizon huge run (120 days, 34,560 ticks, forced GC): 0 stalled ticks, 0 invariant violations over 120 daily checks, tick p50 2.20 ms / p95 3.53 / p99 4.97, worker sample 0 fallbacks and 0 errors, delta V8 avg 2.75 MB, heap 39.9 → 91.2 MB (peak 91.2, peak RSS 594 MB). The pre-change run on the same seed reported the same colony outcome with a 635 MB RSS peak.
 - `npm run test:standard`, `npm run audit:deps:cycles` and CI were not run in this session.
-- Remaining measurement work: PERF2 cache-rebuild counts and PERF7 allocation profile, PERF5/PERF6 revisions, PERF10 pipeline depth.
+- Remaining measurement work: PERF2 cache-rebuild counts and PERF7 allocation profile, PERF5 building revisions, PERF10 pipeline depth.
+
+## Save-scale round (2 November 2026, real 2,200-settler save)
+
+Measured on `wilderfolk-New-Frontier-Y4-D64.json` (tick 329,744; 2,692 entities; 1,059 buildings; 2,027 living humans) with the existing harnesses (`scripts/perf-at-pop.ts` and `scripts/repro-worker-stall.mts`).
+
+- Before: in-process avg 290 ms / p95 347 ms; worker `sim.totalTick` avg 739 ms, `realtime.tickHumans` 647 ms, `simulation.rollbackSnapshot` 58 ms, `worker.packRenderSoA` 6.3 ms, `worker.extractDelta` 1.4 ms; worker result gap p50 426 ms / p95 1111 ms / max 4804 ms; delta 6.79 MB (95 % `aliveEntities`).
+- Caused by two O(settlers × buildings or entities) per-tick scans: hotel lodging asked every candidate hotel for its vacancy (scanning all entities per candidate) and the election ceremony ranked all attendees per settler.
+- Fixes: one per-tick hotel list and settler-bed index with reserve/release, keeping a valid reservation without rescanning; one per-tick ceremony seat index (live single pass retained as the no-index fallback); PERF6 revisions remove the per-tick history JSON.
+- After: in-process avg 95.6 ms / p50 75.9 / p95 122.3, throughput 10.46 ticks/s (was 290 ms / 4.0); worker `sim.totalTick` avg 227 ms, `tickHumans` 141 ms, rollback 54 ms, pack 6.2 ms, extract below the reported top sections; gap p50 244 ms / p95 325 ms / max 2444 ms (under the 2,500 ms stall threshold).
+- Still open from this measurement: the rollback snapshot (54 ms/tick, now the largest worker-side fixed cost), the once-per-day assignment pass (`assignMissingWorkers` ≈1.6 s, visible spike), the load-time residence assignment (≈7 s at this population) and the 6.4 MB entity snapshot on the wire.
 
 Use identical seed/map/population and record tick p50/p95/p99, clone/delta bytes, worker gaps, heap after forced GC, catalog/cache rebuild counts, error/fallback counts and buffer counts before making a performance claim.
 

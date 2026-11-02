@@ -2,7 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Added (2 November 2026):** A `?debug=1` Guide action stages the rare Spotlight performance on demand from the loaded colony, with the cast already on its marks.
+- **Changed (2 November 2026):** Exterminating a surrendered rival now directly asks the question, kills every remaining inhabitant and releases no one.
+
+- **Changed (2 November 2026):** Hotel lodging uses one per-tick hotel and settler-bed index and keeps a valid reservation without rescanning every entity, cutting the largest tick cost at large colonies.
+
+- **Changed (2 November 2026):** Election ceremonies use one per-tick seat index, and history sections ship by owner revision instead of a JSON fingerprint every tick.
+
+- **Changed (2 November 2026):** All ambient chats now live in one centralized source; a settler no longer repeats a line they said in the last three days, while another settler may use it, and solo/paired scenes still require one/two real settlers.
+
+- **Changed (2 November 2026):** Town Hall food-aid dialogue now names the bread and grain the petition actually grants.
+
+- **Added (2 November 2026):** The rare Spotlight performance can be staged on demand from the developer menu or the debug Guide, with the cast already on its marks in the loaded colony.
 
 - **Changed (2 November 2026):** Render-tick metadata is rebuilt on the host from the packed buffer instead of being shipped beside it, cutting the render delta by about a third; the transient delta protocol advances.
 

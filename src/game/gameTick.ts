@@ -16,6 +16,7 @@ import {
 } from './gameTypes';
 import { recordYearlyStats, updateLifetimeStats } from './stats';
 import { logEvent } from './eventLog';
+import { bumpHistoryRevision } from './historyRevisions';
 import { ensureEntityByIdMap } from './entityIndex';
 import { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
 import {
@@ -100,6 +101,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     const yearlyStat = recordYearlyStats(state, state.year);
     state.yearlyStats.push(yearlyStat);
     if (state.yearlyStats.length > 50) state.yearlyStats.shift();
+    bumpHistoryRevision(state, 'yearlyStats');
     state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
     // One line a year for the colony's social state, instead of a line per bond. That
     // pattern made 60 % of a real exported 2 000-event chronicle friendship noise, and

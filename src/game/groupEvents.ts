@@ -18,6 +18,7 @@ import {
   getAvailableStorageHeadroom,
 } from './resourceUtils';
 import { recordFoodProduced, spendFood } from './economyLedger';
+import { bumpHistoryRevision } from './historyRevisions';
 import { getRandomSurname } from './nameLoader';
 import { maybeStartVisitorQuest } from './visitorQuest';
 import { logEvent } from './eventLog';
@@ -50,6 +51,7 @@ function findLiveRequestSource(state: WorldState, request: VillageRequest): Visi
 function appendVillageRequestHistory(state: WorldState, entry: VillageRequestHistoryEntry): void {
   const history = state.villageRequestHistory ?? [];
   state.villageRequestHistory = [...history, entry].slice(-20);
+  bumpHistoryRevision(state, 'villageRequestHistory');
 }
 
 function finishVillageRequest(

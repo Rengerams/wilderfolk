@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize } from '../src/game/gameTypes';
 import { extractSimTickDelta, applySimTickDelta } from '../src/game/simBuffers/simDelta';
+import {
+  bumpHistoryRevision,
+  resetHistoryRevisions,
+  snapshotHistoryRevisions,
+} from '../src/game/historyRevisions';
 
 describe('sim delta story/campaign transport (audit CRITICAL)', () => {
   it('round-trips storyFlags, pendingStoryEvents, and guidedCampaign', () => {
@@ -81,33 +86,34 @@ describe('sim delta story/campaign transport (audit CRITICAL)', () => {
   });
 });
 
-describe('history delta fingerprints', () => {
-  it('preserves omitted histories, detects in-place edits and transports clears', () => {
+describe('history delta revisions', () => {
+  it('preserves unrevised histories, ships bumped edits and transports clears', () => {
     const world = initGame({ size: MapSize.Medium, seed: 123 });
+    resetHistoryRevisions(world);
     const target = structuredClone(world);
-    const baseline = new Map<string, string | undefined>();
-    const first = extractSimTickDelta(world, [], { nextHistories: baseline });
+    const baseline = snapshotHistoryRevisions(world);
+    const first = extractSimTickDelta(world, [], {});
     applySimTickDelta(target, structuredClone(first));
     const retained = target.populationHistory;
-    const unchanged = extractSimTickDelta(world, [], { prevHistories: baseline });
+    const unchanged = extractSimTickDelta(world, [], { prevHistoryRevisions: baseline });
     expect(Object.hasOwn(unchanged, 'populationHistory')).toBe(false);
     expect(Object.hasOwn(unchanged, 'genealogyRegistry')).toBe(false);
     applySimTickDelta(target, structuredClone(unchanged));
     expect(target.populationHistory).toBe(retained);
 
     world.populationHistory.push({ tick: 1, year: 9, grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, humans: 42, werewolves: 0, wildkin: 0, buildings: 0 });
-    const nextBaseline = new Map<string, string | undefined>();
-    const changed = extractSimTickDelta(world, [], {
-      prevHistories: baseline, nextHistories: nextBaseline,
-    });
+    bumpHistoryRevision(world, 'populationHistory');
+    const afterPush = snapshotHistoryRevisions(world);
+    const changed = extractSimTickDelta(world, [], { prevHistoryRevisions: baseline });
     expect(changed.populationHistory).toEqual(world.populationHistory);
     applySimTickDelta(target, structuredClone(changed));
     expect(target.populationHistory).toEqual(world.populationHistory);
-    expect(baseline.get('populationHistory')).not.toBe(nextBaseline.get('populationHistory'));
 
     world.populationHistory.length = 0;
     world.genealogyRegistry = undefined;
-    const cleared = extractSimTickDelta(world, [], { prevHistories: nextBaseline });
+    bumpHistoryRevision(world, 'populationHistory');
+    bumpHistoryRevision(world, 'genealogyRegistry');
+    const cleared = extractSimTickDelta(world, [], { prevHistoryRevisions: afterPush });
     applySimTickDelta(target, structuredClone(cleared));
     expect(target.populationHistory).toEqual([]);
     expect(target.genealogyRegistry).toBeUndefined();
