@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** Seeded Virtual Player benchmarks now rebuild entity and spatial runtime caches after a worker command replaces the world. Prevents stale entity references from losing real shift credits at 1,800 settlers. Added regression coverage; large-scale CI verification pending.
+
 - **Documentation (2 November 2026):** Aligned the ownership and decision registries with real nighttime chat termination, worker preview gates, food-target planning and refugee-choice policy.
 
 - **Tests (2 November 2026):** Updated ground-bake regression to require visible forest-clearance changes; kept the snowy-clearing colour check meaningful without relying on an overstrict one-pixel threshold. Renderer logic unchanged.

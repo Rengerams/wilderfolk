@@ -50,6 +50,7 @@ import {
 import { BASE_TICKS_PER_SECOND } from '../src/game/gameLoop';
 import { setSimSeed } from '../src/game/simRng';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
+import { hydrateWorldRuntimeCaches } from '../src/game/worldRuntimeCaches';
 import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 
 /** Apply the real Virtual Player command, retaining cloned worker command results. */
@@ -64,6 +65,8 @@ export function applyColonyBotAction(world: WorldState): string | null {
       if (!(key in source)) delete target[key];
     }
     Object.assign(target, source);
+    // The replacement entities invalidate WeakMap buckets keyed by the reused world shell.
+    hydrateWorldRuntimeCaches(world);
   }
   return decision.command.op;
 }

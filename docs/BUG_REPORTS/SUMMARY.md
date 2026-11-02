@@ -50,6 +50,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-11-02 — [Reinforced-soil filename case mismatch](../bug_report/2026-11-02-ground-soil-filename-case-mismatch.md):** Case-sensitive CI found a preloaded sprite URL with the wrong filename suffix. Loader and renderer now use the tracked uppercase extension; CI and browser verification pending.
 
+**2026-11-02 — [Colony bot world replacement keeps stale entity caches](../bug_report/2026-11-02-colony-bot-replacement-keeps-stale-entity-caches.md):** 1,800-resident benchmark lost all observed career credits despite 1,441 active attendance records. Headless command adapter reused the same world shell after `structuredClone` while weak caches still referenced superseded humans. Explicit cache hydration added after world adoption; CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
