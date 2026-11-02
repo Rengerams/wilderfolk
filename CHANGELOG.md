@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI (2 November 2026):** Restored the benchmark script before switching from baseline to PR code, fixing checkout failures once that script became tracked on both commits. Preserved full comparison and career-credit requirements.
+
 - **Fixed (2 November 2026, PR #118):** Actual worked hours now earn their career day when midnight settles the completed shift, not twelve in-game hours later at noon. The existing daily attendance loop reuses the indexed workplace map and credits Moon Howler-transformed settlers' genuine human shifts without double payment. The large-population benchmark remains two days and retains its strict witnessed-work requirement; CI verification pending.
 
 - **Fixed (2 November 2026):** Seeded Virtual Player benchmarks now rebuild entity and spatial runtime caches after a worker command replaces the world. Prevents stale entity references from losing real shift credits at 1,800 settlers. Added regression coverage; large-scale CI verification pending.
