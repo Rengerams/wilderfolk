@@ -621,8 +621,9 @@ export function assignMissingResidences(
       for (const unit of housingUnits) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
+        const before = unit.map((member) => member.residenceBuildingId);
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
-        reassigned++;
+        if (unit.some((member, index) => member.residenceBuildingId !== before[index])) reassigned++;
       }
       const evicted = rebalanceOvercrowdedResidences(residents, residences, ledger);
       if (evicted) {
@@ -651,8 +652,9 @@ export function assignMissingResidences(
       for (const unit of orderedUnits) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
+        const before = unit.map((member) => member.residenceBuildingId);
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
-        moved = true;
+        if (unit.some((member, index) => member.residenceBuildingId !== before[index])) moved = true;
       }
       if (!moved) break;
     }

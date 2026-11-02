@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Housing convergence counts real moves instead of needy households, so an over-subscribed colony stops after a no-progress pass instead of running all 24; a 2,200-settler load fell from ~8.5 s to ~2.5 s in an A/B with identical assignments.
+
 - **Changed (2 November 2026):** The daily social pass copies each settler's friendship, feud and peak maps once per pass instead of once per write, cutting that pass from ~4.5 s to under a second at 2,000 settlers.
 
 - **Fixed (2 November 2026):** Work status, work sounds, town-hall hours and home preference now use the configured work window (07–16 by default, or the player's custom hours) instead of the old hard-coded 07–18 fallback.
