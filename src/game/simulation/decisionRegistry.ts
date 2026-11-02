@@ -188,6 +188,14 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
     testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
   },
+  school: {
+    owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolTime (weekday 09–15), buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation',
+    cadence: 'realtime',
+    cadenceNote: 'School keeps its own weekday 09–15 day, independent of the configured work window. syncSchoolAssignments reassigns pupils on the new calendar day; humanTick records attendance ticks only while the teacher is present and the pupil is at school; creditChildSchoolDay runs at the day close. The dashboard reads isSchoolTime for its in-session state.',
+    writes: ['child.schoolBuildingId', 'child.schoolTicksToday', 'child.schoolDays', 'child.educated'],
+    scheduledFrom: 'humanTick.ts (syncSchoolAssignments, recordChildSchoolTick, creditChildSchoolDay); dashboardData reads isSchoolTime',
+    testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
+  },
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActionRouting.assignIdleWorkerToBuilding',
     cadence: 'assignment',
