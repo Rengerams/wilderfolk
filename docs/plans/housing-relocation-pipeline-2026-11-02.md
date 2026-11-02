@@ -1,9 +1,10 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
 **Status:** P0a `d37efff9`, P1 `98c0f393`, the audit fixes `508c1f2f`/`029ef61f` and P2
-(`6cc9a80c`/`185f6205`) are committed. **P3 is in progress**: the adult-child leave-home move plans
-through `planRelocation`, L1 (minor household only) and L7 (vacancies refresh) are fixed; the plan-driven
-sort, the predicate deletion and the commute need are next. Current tree: 35 files / 168 tests.
+(`6cc9a80c`/`185f6205`) are committed. **P3 is in progress**: leave-home plans through `planRelocation`,
+L1/L7 are fixed, and the second audit round closed the custody, surplus-visited and stats gaps;
+the plan-driven sort, the predicate deletion and the commute need are next. Current tree: 35 files /
+170 tests.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.

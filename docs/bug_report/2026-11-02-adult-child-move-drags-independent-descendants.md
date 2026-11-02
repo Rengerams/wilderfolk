@@ -47,4 +47,4 @@ None: in-memory state only.
 
 ## Verification
 
-Fixed: the 35-file housing suite passes (168 tests), including the new L1 regression.
+Fixed: the 35-file housing suite passes (168 tests), including the L1 regression, which sets `adult.childrenIds` and would fail without the minor-household fix.

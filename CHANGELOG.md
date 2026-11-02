@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
+
+- **Fixed (2 November 2026):** A capacity eviction no longer marks the vacated home as visited, so the same run can re-seat the evicted household when a bed is free; run stats now count capacity and repair moves.
+
 - **Fixed (2 November 2026):** An adult child leaving the family home now takes only their minor household, so an independent adult grandchild keeps their own home; a home vacated during the pass is offered to later candidates.
 
 - **Changed (2 November 2026):** Capacity and custody now go through the same relocation plan as homelessness: a capacity household is ranked, retried and moved before anyone is made surplus, and surplus only unhouses when no home fits.

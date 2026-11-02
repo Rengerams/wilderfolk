@@ -240,11 +240,12 @@ otherwise. The report is diagnostic data — no phase reads it to decide anythin
 ### The plan contract
 
 `planRelocation(unit, need, context)` in `housingPipeline.ts` answers one question: does this
-household move, and where? It returns `{ move, to, reason, why }`, with `settled: true` when the phase
-sweep has nothing to do (already housed, or the stable-shortage guard). `applyRelocation` is the only
-way a plan becomes a write. The homeless phase plans first and applies; a household with no
-whole-family destination falls back to the custodian split, and the final repair pass attempts every
-partially housed unit directly, whatever the sweep decided. A plan never names a destination the writer refuses —
+household move, and where? It returns `{ move, to, reason, why }`, with `settled: true` when every
+member is housed and `shortage: true` when the stable-shortage guard suppresses the sweep. `applyRelocation`
+is the only way a plan becomes a write for the planned needs; homeless, custody, custodian, capacity,
+surplus and leave-home plan today, while manor, couple and commute still write directly until P4/P5.
+The homeless phase plans first and applies; a household with no whole-family destination falls back to
+the custodian split, and the final repair pass attempts every partially housed unit directly. A plan never names a destination the writer refuses —
 a home the run already visited, the manor under an ordinary reason, a home that does not fit, or a
 minor's custodian left behind — and planning writes nothing, counts nothing and settles nothing.
 

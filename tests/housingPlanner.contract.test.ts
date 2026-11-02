@@ -14,6 +14,7 @@ import {
   familyFitsInResidence,
   listPlayerResidences,
   planRelocation,
+  relocateChildToCustodian,
   standaloneMoveContext,
   tryMoveOutOfFamilyHome,
 } from '../src/game/housingPipeline';
@@ -119,7 +120,7 @@ describe('the relocation plan contract', () => {
     expect(unit.every((member) => member.residenceBuildingId === 11)).toBe(true);
   });
 
-  it('reports the home the movers actually leave', () => {
+  it('reports one origin when a split household moves together', () => {
     const home = building(10, BuildingType.House);
     const elsewhere = building(11, BuildingType.House);
     const mother = human(1, { age: 30, residenceBuildingId: 10 });
@@ -245,11 +246,20 @@ describe('the relocation plan contract', () => {
     const report = assignMissingResidences(humans, [home], humans);
 
     expect(report.relocations).toHaveLength(0);
-    expect(report.stats.passes).toBeGreaterThan(0);
-    expect(report.stats.passes).toBeLessThanOrEqual(3);
+    expect(report.stats.passes).toBe(1);
     expect(report.stats.considered).toBeGreaterThan(0);
     expect(report.stats.moved).toBe(0);
     expect(unit.every((member) => member.residenceBuildingId == null)).toBe(true);
+  });
+
+  it('moves a lone minor to the custodian when the family home fits them', () => {
+    const familyHome = building(10, BuildingType.House);
+    const custodianHome = building(11, BuildingType.House);
+    const father = human(1, { age: 40, residenceBuildingId: 11 });
+    const child = human(3, { age: 6, isJuvenile: true, fatherId: 1, residenceBuildingId: 10 });
+
+    expect(relocateChildToCustodian(child, [father, child], [familyHome, custodianHome])).toBe(true);
+    expect(child.residenceBuildingId).toBe(11);
   });
 
   it('plans only destinations the writer accepts across generated colonies', () => {
@@ -309,6 +319,17 @@ describe('the relocation plan contract', () => {
     expect(surplus.to).toBeUndefined();
     expect(applyRelocation(unit, surplus, 'capacity', context)).toBeDefined();
     expect(unit.every((member) => member.residenceBuildingId == null)).toBe(true);
+    expect(context.ledger.visited.get(mother.id)?.has(10)).toBe(false);
+  });
+
+  it('moves a lone minor to the custodian when the family home fits them', () => {
+    const familyHome = building(10, BuildingType.House);
+    const custodianHome = building(11, BuildingType.House);
+    const father = human(1, { age: 40, residenceBuildingId: 11 });
+    const child = human(3, { age: 6, isJuvenile: true, fatherId: 1, residenceBuildingId: 10 });
+
+    expect(relocateChildToCustodian(child, [father, child], [familyHome, custodianHome])).toBe(true);
+    expect(child.residenceBuildingId).toBe(11);
   });
 
   it('plans custody placement with the custodian, not an empty home', () => {
@@ -334,6 +355,7 @@ describe('the relocation plan contract', () => {
     const parent = human(1, { age: 70, residenceBuildingId: 10 });
     const adult = human(2, { age: 40, motherId: 1, residenceBuildingId: 10 });
     const grandchild = human(3, { age: 20, motherId: 2, residenceBuildingId: 11 });
+    adult.childrenIds = [grandchild.id];
     const humans = [parent, adult, grandchild];
 
     expect(tryMoveOutOfFamilyHome(adult, humans, [familyHome, grandchildHome, empty])).toBe(true);

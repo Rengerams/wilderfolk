@@ -30,16 +30,16 @@ export interface HousingRelocation {
   to?: number;
 }
 
-/** Why a household is being planned. Only `homeless` has a planner in P1; the rest follow. */
+/** Why a household is being planned; manor, couple and commute still write directly. */
 export type RelocationNeed =
   | 'homeless'
   | 'custody'
+  | 'custodian'
   | 'capacity'
   | 'surplus'
   | 'leave-home'
   | 'manor'
   | 'couple'
-  | 'leave-home'
   | 'commute';
 
 /** The one answer: no move means stay — no write, no report line, no retry. */
@@ -249,7 +249,7 @@ export function relocateHousehold(
   }
   for (const member of unit) {
     const visited = context.ledger.visited.get(member.id) ?? new Set<number>();
-    if (fromId !== undefined) visited.add(fromId);
+    if (fromId !== undefined && toId !== undefined) visited.add(fromId);
     if (toId !== undefined) visited.add(toId);
     context.ledger.visited.set(member.id, visited);
     context.ledger.settled.set(member.id, phase);
@@ -272,12 +272,22 @@ export function planRelocation(
   context: HousingMoveContext,
   residences: Building[] = context.residences,
 ): RelocationPlan {
-  if (need === 'homeless') return planPlacement(unit, context, 'assignment', 'homeless placement', residences);
-  if (need === 'custody') return planPlacement(unit, context, 'guardian', 'custodian placement', residences);
-  if (need === 'capacity') return planPlacement(unit, context, 'family', 'capacity placement', residences);
-  if (need === 'surplus') return planSurplus(unit, context, residences);
-  if (need === 'leave-home') return planLeaveHome(unit, context);
-  return { move: false, reason: 'assignment', why: `no ${need} planner yet` };
+  switch (need) {
+    case 'homeless': return planPlacement(unit, context, 'assignment', 'homeless placement', residences);
+    case 'custody': return planPlacement(unit, context, 'guardian', 'custodian placement', residences);
+    case 'custodian': return planCustodian(unit, context);
+    case 'capacity': return planPlacement(unit, context, 'family', 'capacity placement', residences);
+    case 'surplus': return planSurplus(unit, context, residences);
+    case 'leave-home': return planLeaveHome(unit, context);
+    case 'manor':
+    case 'couple':
+    case 'commute':
+      return { move: false, reason: 'assignment', why: `${need} is still a direct phase write` };
+    default: {
+      const unreachable: never = need;
+      return { move: false, reason: 'assignment', why: `${String(unreachable)} is unknown` };
+    }
+  }
 }
 
 /** Applies a plan through the sole household writer; undefined when it stayed, was refused, or was a no-op. */
@@ -288,8 +298,14 @@ export function applyRelocation(
   context: HousingMoveContext,
 ): HousingRelocation | undefined {
   if (!plan.move) return undefined;
+  const stats = context.ledger.report.stats;
   const before = context.ledger.report.relocations.length;
-  if (!relocateHousehold(unit, plan.to, phase, plan.reason, context)) return undefined;
+  if (!relocateHousehold(unit, plan.to, phase, plan.reason, context)) {
+    stats.stayed += 1;
+    return undefined;
+  }
+  if (context.ledger.report.relocations.length > before) stats.moved += 1;
+  else stats.stayed += 1;
   return context.ledger.report.relocations[before];
 }
 
@@ -302,18 +318,19 @@ function placeHomelessUnit(
   context: HousingMoveContext,
 ): void {
   const stats = context.ledger.report.stats;
-  const relocationsBefore = context.ledger.report.relocations.length;
   stats.considered += 1;
 
   const plan = planRelocation(unit, 'homeless', context);
   if (plan.move) {
     applyRelocation(unit, plan, 'homeless', context);
   } else if (!plan.settled && !plan.shortage) {
+    const before = context.ledger.report.relocations.length;
     assignFamilyToResidence(unit, alive, residences, allHumans, 'homeless', context);
+    if (context.ledger.report.relocations.length > before) stats.moved += 1;
+    else stats.stayed += 1;
+  } else {
+    stats.stayed += 1;
   }
-
-  if (context.ledger.report.relocations.length > relocationsBefore) stats.moved += 1;
-  else stats.stayed += 1;
 }
 
 function planPlacement(
@@ -335,7 +352,7 @@ function planPlacement(
       : { move: false, shortage: true, reason, why: 'stable shortage' };
   }
 
-  const picked = findAcceptedDestination(members, context.alive, context, residences);
+  const picked = findAcceptedDestination(members, context.alive, context, residences, reason);
   return picked === undefined
     ? { move: false, reason, why: 'no accepted destination' }
     : { move: true, to: picked, reason, why };
@@ -347,6 +364,7 @@ function findAcceptedDestination(
   alive: Entity[],
   context: HousingMoveContext,
   residences: Building[],
+  reason: ResidenceMoveReason,
 ): number | undefined {
   const refused = new Set<number>();
   for (let attempt = 0; attempt <= residences.length; attempt += 1) {
@@ -354,7 +372,7 @@ function findAcceptedDestination(
       members, alive, residences, context.occupancy, context.traits, refused,
     );
     if (picked === undefined) return undefined;
-    if (destinationRefusedByWriter(members, picked, context)) {
+    if (destinationRefusedByWriter(members, picked, context, reason)) {
       refused.add(picked);
       continue;
     }
@@ -371,7 +389,9 @@ function planSurplus(
 ): RelocationPlan {
   const members = [...unit];
   if (members.length === 0) return { move: false, settled: true, reason: 'family', why: 'empty household' };
-  if (findAcceptedDestination(members, context.alive, context, residences) !== undefined) {
+  const current = members.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
+  const pool = current === undefined ? residences : residences.filter((home) => home.id !== current);
+  if (findAcceptedDestination(members, context.alive, context, pool, 'family') !== undefined) {
     return { move: false, reason: 'family', why: 'a destination exists' };
   }
   return { move: true, to: undefined, reason: 'family', why: 'surplus leaves the overfull home' };
@@ -383,7 +403,7 @@ function planLeaveHome(unit: readonly Entity[], context: HousingMoveContext): Re
   if (members.length === 0) return { move: false, settled: true, reason: 'family', why: 'empty household' };
   const empty = context.residences.filter((home) => !isLeaderHouseResidence(home)
     && countResidentsInBuilding(context.alive, home.id, context.occupancy) === 0);
-  const picked = findAcceptedDestination(members, context.alive, context, empty);
+  const picked = findAcceptedDestination(members, context.alive, context, empty, 'family');
   return picked === undefined
     ? { move: false, reason: 'family', why: 'no empty home' }
     : { move: true, to: picked, reason: 'family', why: 'leave-home placement' };
@@ -393,9 +413,24 @@ function destinationRefusedByWriter(
   unit: readonly Entity[],
   toId: number,
   context: HousingMoveContext,
+  reason: ResidenceMoveReason,
 ): boolean {
-  if (!householdMayMove(unit, toId, 'assignment', context)) return true;
-  return unit.some((member) => residenceMoveRefused(member, toId, 'assignment', context.buildings));
+  if (!householdMayMove(unit, toId, reason, context)) return true;
+  return unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings));
+}
+
+/** Custody repair: the minor moves to the custodian's bed; not gated on the current fit. */
+function planCustodian(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
+  const members = [...unit];
+  const child = members.find((member) => isMinorChild(member));
+  if (!child) return { move: false, settled: true, reason: 'guardian', why: 'no minor' };
+  const homeId = pickResidenceFromChildCustodian(child, context.alive, context.residences, context.occupancy);
+  if (homeId === undefined) return { move: false, reason: 'guardian', why: 'no custodian bed' };
+  if (child.residenceBuildingId === homeId) return { move: false, settled: true, reason: 'guardian', why: 'already with custodian' };
+  if (destinationRefusedByWriter(members, homeId, context, 'guardian')) {
+    return { move: false, reason: 'guardian', why: 'custodian home refused' };
+  }
+  return { move: true, to: homeId, reason: 'guardian', why: 'custodian placement' };
 }
 
 function snapshotResidences(alive: readonly Entity[], into: Map<number, number | undefined>): void {
@@ -577,7 +612,7 @@ export function rebalanceOvercrowdedResidences(
         const unit = units.find((candidate) => candidate.includes(outsider)) ?? [outsider];
         const surplus = unit.filter((member) => member.residenceBuildingId === residence.id);
         if (surplus.length === 0) continue;
-        if (movePlanned(surplus, 'surplus', context.residences)) moved = true;
+        if (movePlanned(surplus, 'surplus', alternatives)) moved = true;
         if ((occupancy.get(residence.id) ?? 0) <= cap) break;
       }
       const before = dependentUnit.map((member) => member.residenceBuildingId);
@@ -593,7 +628,7 @@ export function rebalanceOvercrowdedResidences(
     for (const group of groups) {
       if (kept + group.length <= cap) { kept += group.length; continue; }
       if (movePlanned(group, 'capacity', alternatives)) { moved = true; continue; }
-      if (movePlanned(group, 'surplus', context.residences)) moved = true;
+      if (movePlanned(group, 'surplus', alternatives)) moved = true;
     }
   }
   return moved;
@@ -635,7 +670,7 @@ function relocateFamily(
   phase: HousingPhase,
   context: HousingMoveContext,
 ): boolean {
-  const picked = findAcceptedDestination(family, alive, context, residences);
+  const picked = findAcceptedDestination(family, alive, context, residences, 'assignment');
   return picked !== undefined && relocateHousehold(family, picked, phase, 'assignment', context);
 }
 
@@ -698,10 +733,15 @@ function fillHomelessAfterEviction(
   // Avoid rebuilding household relations when there is nobody left to house.
   if (!alive.some((human) => !hasResidenceAssignment(human))) return;
   const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
+  const stats = ledger.report.stats;
   for (const unit of buildHousingUnits(alive)) {
     if (unit.every(hasResidenceAssignment)) continue;
     // The repair pass seats any partially housed unit, whatever the phase sweep decided.
+    stats.considered += 1;
+    const before = ledger.report.relocations.length;
     assignFamilyToResidence(unit, alive, residences, alive, 'homeless', context);
+    if (ledger.report.relocations.length > before) stats.moved += 1;
+    else stats.stayed += 1;
   }
 }
 
@@ -865,6 +905,7 @@ export function assignMissingResidences(
     // against the now-current occupancy. This removes the one-day delay without
     // re-running the expensive 24-pass unsplit allocator every tick.
     if (bucket === RESIDENCE_SWEEP_BUCKETS - 1) {
+      ledger.report.stats.passes += 1;
       const occupancy = buildResidenceOccupancy(residents);
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
@@ -1106,7 +1147,7 @@ export function relocateChildToCustodian(
 ): boolean {
   const alive = humans.filter((h) => h.alive && isPlayerHuman(h));
   const context = standaloneMoveContext(alive, residences);
-  const plan = planRelocation([child], 'custody', context);
+  const plan = planRelocation([child], 'custodian', context);
   if (!plan.move) return false;
   return applyRelocation([child], plan, 'guardianship', context) !== undefined;
 }
@@ -1158,6 +1199,7 @@ export function ensureOrphanAdoption(
   if (!guardian) {
     const context = standaloneMoveContext(residents, residences, occupancy, traits, ledger);
     const plan = planRelocation(siblings, 'custody', context);
+    if (plan.settled) return true;
     if (!plan.move) return false;
     return applyRelocation(siblings, plan, 'guardianship', context) !== undefined;
   }
@@ -1167,7 +1209,7 @@ export function ensureOrphanAdoption(
     .map((member) => [member.id, member])).values()];
   const context = standaloneMoveContext(residents, residences, occupancy, traits, ledger);
   const plan = planRelocation(household, 'custody', context);
-  if (!plan.move) return false;
+  if (!plan.move && !plan.settled) return false;
   const previous = siblings.map((sibling) => ({
     sibling,
     motherId: sibling.adoptiveMotherId,
@@ -1185,6 +1227,7 @@ export function ensureOrphanAdoption(
       if (!adult.childrenIds.includes(sibling.id)) adult.childrenIds.push(sibling.id);
     }
   }
+  if (plan.settled || (plan.to !== undefined && household.every((member) => member.residenceBuildingId === plan.to))) return true;
   if (applyRelocation(household, plan, 'guardianship', context)) return true;
   for (const entry of previous) {
     entry.sibling.adoptiveMotherId = entry.motherId;
