@@ -706,9 +706,13 @@ export class GameWorkerHost {
 
   private returnRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
     if (!this.worker) return;
-    const returnMsg: WorkerRequest = { type: 'returnBuffer', proto: WORKER_PROTO, bufferIndex, buffer };
+    const detached = buffer.byteLength === 0;
+    const returnMsg: WorkerRequest = {
+      type: 'returnBuffer', proto: WORKER_PROTO, bufferIndex,
+      buffer: detached ? new ArrayBuffer(0) : buffer,
+    };
     try {
-      this.worker.postMessage(returnMsg, buffer.byteLength === 0 ? [] : [buffer]);
+      this.worker.postMessage(returnMsg, detached ? [] : [buffer]);
     } catch (err) {
       console.warn('[GameWorker] Failed to return render buffer', err);
     }
