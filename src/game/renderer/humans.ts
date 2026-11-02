@@ -48,7 +48,9 @@ import {
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { getSpotlightPresentationMotion, presentationPosition } from './motionInterpolation';
+import {
+  getSpotlightPresentationMotion, getSpotlightPresentationSpeech, presentationPosition,
+} from './motionInterpolation';
 import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
@@ -833,7 +835,12 @@ export function drawHumans(
       drawCombatBurst(ctx, sx, footY - spriteH * 0.45, drawSize, human.id);
     }
 
-    const isTalking = (human.chatTicks ?? 0) > 0;
+    // The scene's read-only line uses the same chat bubble, without setting chatPhrase or
+    // allowing earlier simulated conversations to overlap with the presentation.
+    const spotlightSpeech = state.spotlightLore?.phase === 'ready'
+      ? getSpotlightPresentationSpeech(human.id) : null;
+    const isTalking = spotlightSpeech !== null
+      || (state.spotlightLore?.phase !== 'ready' && (human.chatTicks ?? 0) > 0);
 
     // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
     // name plate and a neighbour's whatever order the settlers are drawn in.
@@ -859,7 +866,7 @@ export function drawHumans(
         sx,
         headY,
         size: drawSize,
-        text: getChatBubbleText(human, tick),
+        text: spotlightSpeech ?? getChatBubbleText(human, tick),
         entityId: human.id,
         isLeader,
       });
