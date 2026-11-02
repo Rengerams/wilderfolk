@@ -6,26 +6,26 @@
 
 **Minimal change:** repair admission, rollback and buffer lifecycles first; eliminate demonstrably redundant render data and cache work; preserve a single authoritative worker, deterministic tick order and save semantics.
 
-**Risk-impact:** P1 makes worker message dispatch asynchronous until the shared gate resolves. PERF8 increments the transient SimTickDelta protocol to 2. No persisted save migration, player rule, producer-colony policy or housing rule changes. Runtime verification and CI remain required.
+**Risk-impact:** P1 makes worker message dispatch asynchronous until the shared gate resolves. The incremental entity delta advances the transient SimTickDelta protocol to 3. No persisted save migration, player rule, producer-colony policy or housing rule changes. Runtime verification and CI remain required.
 
 ## Work register
 
 | ID | Status in this branch | Reason and verification requirement |
 |---|---|---|
-| P1 | Implemented, not CI-verified | Shared async name-pool gate now awaited before all worker dispatch. Verify init/tick ordering and rejected loads. |
-| P2 | Implemented, not CI-verified | Fallback accumulator debit occurs only after a successful tick. Verify rollback and recovery. |
-| T1 | Implemented, not runtime-verified | Stress harness returns command/tick render buffers, detects outstanding leases, waits for export ack, and fails on incomplete run. Verify 5,000 render ticks. |
-| D1 | Implemented, not CI-verified | Pool now accepts only exact schema lengths. Stress 200,000 acquire/release cycles and invalid returns. |
-| PERF1 | Partly implemented; benchmark required | Redundant human catalogue transfer removed. Full alive entity snapshots are still authoritative; design dirty section revisions after boundary audits and baseline delta measurements. Target at least 30% average delta reduction. |
-| PERF2 | Partly implemented; benchmark required | Removed duplicate invalidate-before-hydrate passes. Selective cache retention requires a proved dirty-field ownership model and save/import regression tests. |
-| PERF3 | Open | Incremental EntityCatalog needs authoritative add/update/remove revisions across worker commands, ticks and session swaps; no unsafe shadow catalogue introduced. |
-| PERF4 | Implemented, not CI-verified | Worker passes precomputed alive roster into render packing; no duplicate full-roster filter. Compare render SoA and overflow ordering. |
-| PERF5 | Open | Building fingerprint removal requires auditing all mutable building writers and ensuring revision bumps on every occupancy/staffing/upgrade/production change. Keep fingerprints until coverage is proven. |
-| PERF6 | Open | History fingerprint removal requires revision writes for all six history families, plus save/load/import/rollback integration. No reference-equality shortcuts allowed. |
-| PERF7 | Partly implemented; profile required | Reuses worker render slot lookup and avoids a non-overflow copy. Heap and overflow top-k allocations still require a 10,000-tick profile. |
-| PERF8 | Implemented, not CI-verified | Removed unused catalogue entity payload; bumped transient delta protocol. Boundary audit and parity required. |
-| PERF9 | Existing behavior confirmed, verify in stress | Worker profiler samples already gated by explicit enable flag and a minimum 3,000 ms publication gap; regular production tick logging should remain absent. |
-| PERF10 | Deliberately gated | Do not increase single in-flight production depth until end-to-end command ordering, upload/save barriers, held display buffer and memory tests establish safe additional slots. |
+| P1 | Implemented; final CI pending | Every worker request awaits the same name-load gate and a rejected load cannot partially dispatch. |
+| P2 | Implemented; final CI pending | Local fallback tick time is debited only after success; rollback and recovery regression added. |
+| T1 | Implemented; render stress pending | Return and count all tick/command buffers, verify real save export, and run 5,000 ticks plus 1,000 refresh commands. |
+| D1 | Implemented; final CI pending | Exact buffer lengths, invalid releases and 200,000 acquisition cycles covered. |
+| PERF1 | Implemented; size benchmark pending | Versioned entity-change transport sends only changed entities, removed ids and authoritative order on structural change, with full fallback; history and event tails also reduced. |
+| PERF2 | Implemented; parity benchmark pending | Acknowledged empty building diffs preserve geometry caches; entity, scent and transient caches still refresh. |
+| PERF3 | Implemented; parity benchmark pending | EntityCatalog adopts the already rebuilt canonical lookup on worker ticks instead of scanning the full alive roster twice; full rebuild retained for recovery and commands. |
+| PERF4 | Implemented; byte parity pending | Render packing receives the worker's already filtered alive list. |
+| PERF5 | Implemented through equivalent change detection; benchmark pending | Replace per-building JSON serialization with reusable independent structural snapshots; accurately detect nested array, occupant, upgrade and construction changes without auditing every writer. |
+| PERF6 | Implemented with hybrid revisions; benchmark pending | Five histories use actual owner-marked revisions; genealogy uses full structural comparison because additional writers mutate it. No normal history JSON fingerprint remains. |
+| PERF7 | Implemented in safe allocation paths; heap profile pending | Reuse alive lists and slot lookup scratch, avoid unneeded non-overflow copies; preserve overflow result isolation. |
+| PERF8 | Implemented; boundary audit pending | Remove unused duplicated catalogue humans, transient delta protocol now 3; full/patch path must pass parity. |
+| PERF9 | Implemented; profile verification pending | Existing worker profiling is opt-in and throttled; identical worker errors are now aggregated in host logs while faults still propagate. |
+| PERF10 | Default depth 2 implemented; performance proof pending | Reserve one display and one command buffer, bound at depth 3 with five slots, and block further ticks during command/upload/export. Tests cover depth 1–4 clamp. |
 
 ## Exact verification commands
 
@@ -38,11 +38,11 @@ npm run audit:deps:cycles
 npm run test:standard
 npx vitest run tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameLoop.fallbackTickRollback.test.ts tests/renderBufferPool.stress.test.ts tests/workerMainThread.parity.test.ts
 npx tsx scripts/worker-boundary-audit.mts
-TICKS=5000 node --expose-gc --import tsx scripts/repro-worker-stall.mts
+TICKS=5000 COMMANDS=1000 PERF_MEASURE=1 node --expose-gc --import tsx scripts/repro-worker-stall.mts
 ```
 
 The GitHub connector cannot execute these in a checkout, and this branch has not passed these commands locally. CI may expose additional integration fixtures to correct. Use identical seed/map/population and record tick p50/p95/p99, clone/delta bytes, worker gaps, heap after forced GC, catalog/cache rebuild counts, error/fallback counts and buffer counts before making a performance claim.
 
 ## Acceptance
 
-Retain existing worker/main parity, producer-colony invariants, housing and career attendance rules, real-time work-hours application, and deterministic saves. No pipeline depth increase until validated. Record performance changes individually and keep the authoritative producer-colony and catalogue contracts unchanged.
+Retain existing worker/main parity, producer-colony invariants, housing and career attendance rules, real-time work-hours application, and deterministic saves. Pipeline depth two is enabled in the branch but must be reverted if the dedicated transport stress or performance comparison fails. Record performance changes individually and keep the authoritative producer-colony and catalogue contracts unchanged.
