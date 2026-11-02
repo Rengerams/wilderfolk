@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Large-tier career audit window too short](../bug_report/2026-11-02-large-population-career-window-too-short.md):** At 1,800 residents the two-day CI run has real accumulated and settled shift hours but no credited career day yet. Large-tier baseline and PR now run a three-day comparison with the strict career-credit check retained; CI pending.
+
 **2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.
 
 **2026-11-02 — [Reinforced-soil image path case mismatch](../bug_report/2026-11-02-reinforced-soil-case-sensitive-asset.md):** The tracked sprite was `ground_soil.PNG`, unlike the intended local `.png` spelling. The asset is now tracked as `ground_soil.png` and preload, terrain and catalogue references match; CI pending.
