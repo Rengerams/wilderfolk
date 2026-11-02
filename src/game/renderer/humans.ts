@@ -19,7 +19,7 @@ import {
   pickHumanVariant,
   HUMAN_SPRITE_MIN_ZOOM,
   HUMAN_WALK_SPEED_THRESHOLD,
-  humanRenderDetail,
+  overviewRenderDetail,
   type HumanGender,
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
@@ -765,7 +765,7 @@ export function drawHumans(
       && !human.faction;
 
     // Zoomed-out LOD: one dot per settler, no sprite/shadow/bob/badge/bubble/name.
-    if (humanRenderDetail(cam.zoom, isSel, _cachedHumans.length) === 'marker') {
+    if (overviewRenderDetail(cam.zoom, isSel, _cachedHumans.length) === 'marker') {
       drawHumanMarker(ctx, sx, sy, human, cam.zoom, isLeader);
       continue;
     }
@@ -845,10 +845,13 @@ export function drawHumans(
 
     // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
     // name plate and a neighbour's whatever order the settlers are drawn in.
+    // A running performance shows no plates at all: ten labels buried the girl in the middle.
+    const stageHidesPlates = state.spotlightLore?.phase === 'ready';
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
-    if (shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
+    if (!stageHidesPlates
+      && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
         showRole: cam.zoom > 0.5,

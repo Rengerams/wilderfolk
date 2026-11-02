@@ -17,7 +17,7 @@ import {
   getHumanSelectionBounds,
   getHumanVariantLabel,
   getHumanWalkSheetPath,
-  humanRenderDetail,
+  overviewRenderDetail,
   pickHumanVariant,
   sliceWalkFrame,
 } from '../src/game/humanSprites';
@@ -238,26 +238,26 @@ describe('humanSprites.zoomMarker.test.ts', () => {
     it('marks every far zoom preset as markers and every close one as sprites', () => {
       for (const preset of CAMERA_ZOOM_PRESETS) {
         const expected = preset < HUMAN_SPRITE_MIN_ZOOM ? 'marker' : 'sprite';
-        expect(humanRenderDetail(preset), `preset ${preset}`).toBe(expected);
+        expect(overviewRenderDetail(preset), `preset ${preset}`).toBe(expected);
       }
       // The boundary itself belongs to the sprite side, so the threshold reads as
       // "closer than this shows people".
-      expect(humanRenderDetail(HUMAN_SPRITE_MIN_ZOOM)).toBe('sprite');
-      expect(humanRenderDetail(HUMAN_SPRITE_MIN_ZOOM - 0.01)).toBe('marker');
+      expect(overviewRenderDetail(HUMAN_SPRITE_MIN_ZOOM)).toBe('sprite');
+      expect(overviewRenderDetail(HUMAN_SPRITE_MIN_ZOOM - 0.01)).toBe('marker');
     });
 
     it('always keeps a selected settler as a full sprite', () => {
-      expect(humanRenderDetail(0.5, false)).toBe('marker');
-      expect(humanRenderDetail(0.5, true)).toBe('sprite');
-      expect(humanRenderDetail(3.0, true)).toBe('sprite');
+      expect(overviewRenderDetail(0.5, false)).toBe('marker');
+      expect(overviewRenderDetail(0.5, true)).toBe('sprite');
+      expect(overviewRenderDetail(3.0, true)).toBe('sprite');
     });
 
     it('keeps founding settlers recognizable before a village becomes crowded', () => {
-      expect(humanRenderDetail(0.25, false, 2)).toBe('sprite');
-      expect(humanRenderDetail(0.5, false, 12)).toBe('sprite');
-      expect(humanRenderDetail(0.5, false, 13)).toBe('marker');
-      expect(humanRenderDetail(0.5, true, 200)).toBe('sprite');
-      expect(humanRenderDetail(1.25, false, 200)).toBe('sprite');
+      expect(overviewRenderDetail(0.25, false, 2)).toBe('sprite');
+      expect(overviewRenderDetail(0.5, false, 12)).toBe('sprite');
+      expect(overviewRenderDetail(0.5, false, 13)).toBe('marker');
+      expect(overviewRenderDetail(0.5, true, 200)).toBe('sprite');
+      expect(overviewRenderDetail(1.25, false, 200)).toBe('sprite');
     });
 
     it('keeps the marker small, clamped, and smaller than the sprite it replaces', () => {

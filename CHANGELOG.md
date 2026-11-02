@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (3 November 2026):** At overview zoom, wildlife now shrinks to small species-coloured markers like settlers, instead of staying 18–26 px tall while the village shrinks.
+
 - **Fixed (3 November 2026):** Settlers can enter a large hospital from its door instead of hovering outside the footprint centre until they never rest.
 
 - **Fixed (3 November 2026):** School pupils, well visitors and venue crowds each take their own place instead of stacking on one cell in front of the building.

@@ -1,6 +1,7 @@
 import { EntityType } from '../gameTypes';
 import { SPECIES_CONFIG } from '../speciesConfig';
 import { ANIMAL_SPRITE_ANCHOR_Y, getAnimalSpriteMetrics } from '../entitySprites';
+import { overviewRenderDetail } from '../humanSprites';
 import { isActiveMoonHowler } from '../moonHowler';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { getSpriteFrame } from '../spriteLoader';
@@ -46,6 +47,16 @@ export function drawAnimals(
     ) continue;
 
     const sel = state.selectedEntityIds.includes(e.id) || state.selectedEntity?.id === e.id;
+    // Overview LOD: wildlife follows the settlers' marker rule, so a zoomed-out village does not
+    // keep 18–26 px animals while the buildings shrink.
+    if (overviewRenderDetail(cam.zoom, sel, _cachedAnimals.length) === 'marker') {
+      const leaderWolf = e.type === EntityType.Werewolf && state.villageLeaderId === e.id && !e.faction;
+      ctx.fillStyle = leaderWolf ? '#fde047' : cfg.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
     const flipX = e.vx < 0;
 
     // Shared SE contact shadow keeps wildlife grounded without touching pathing or hit geometry.
