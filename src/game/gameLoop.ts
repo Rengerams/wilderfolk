@@ -386,7 +386,7 @@ export class GameLoop {
       if (this.optimisticCommands.length === 0) {
         this.world = nextWorld;
         const rebuildStart = profileStart();
-        this.catalog.rebuild(this.world.entities);
+        this.catalog.adoptWorldIndex(this.world);
         this.catalogDirtyFromDeferredTick = false;
         profileEnd('main.catalogRebuild', rebuildStart);
       } else {
