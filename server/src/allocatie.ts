@@ -304,26 +304,40 @@ export function berekenIndeling(invoer: {
     if (!rijenPerUitje.has(rij.uitje_id)) rijenPerUitje.set(rij.uitje_id, new Set())
     rijenPerUitje.get(rij.uitje_id)!.add(rij.deelnemer_id)
   }
+
+  // Eén plek per reeks, ook bij de garantie van een tweede uitje: wie al geplaatst
+  // is op een datum van de reeks, hoort niet op de reservelijst van een andere datum
+  // van diezelfde reeks te staan.
+  const geplaatstPerReeks = new Set<string>()
+  for (const rij of rijen) {
+    if (rij.status !== "geplaatst") continue
+    const reeksId = uitjeMap.get(rij.uitje_id)?.reeks_id ?? null
+    if (reeksId) geplaatstPerReeks.add(reeksSleutel(rij.deelnemer_id, reeksId))
+  }
+
   for (const uitje of uitjes) {
     const lijst = (reserves.get(uitje.id) ?? []).sort((a, b) => vergelijk(a.eenheid, b.eenheid))
-    let positie = 0
-    const totaalVraag =
-      (rijenPerUitje.get(uitje.id)?.size ?? 0) +
-      lijst.reduce((som, item) => som + item.eenheid.leden.length, 0)
-    for (const { eenheid, uitleg } of lijst) {
-      for (const lid of eenheid.leden) {
-        if (rijenPerUitje.get(uitje.id)?.has(lid)) continue
-        positie += 1
-        rijen.push({
-          uitje_id: uitje.id,
-          deelnemer_id: lid,
-          status: "reserve",
-          uitleg: `${uitleg} Geen plek: ${uitje.capaciteit} plekken en ${totaalVraag} opgaven.`
-            + (positie > 1 ? ` Staat ${positie}e op de reservelijst.` : " Staat bovenaan de reservelijst."),
-          positie,
+    const kandidaten = lijst.flatMap(({ eenheid, uitleg }) =>
+      eenheid.leden
+        .filter((lid) => !rijenPerUitje.get(uitje.id)?.has(lid))
+        .filter((lid) => {
+          const sleutel = reeksSleutel(lid, uitje.reeks_id)
+          return !sleutel || !geplaatstPerReeks.has(sleutel)
         })
-      }
-    }
+        .map((lid) => ({ lid, uitleg })),
+    )
+    const totaalVraag = (rijenPerUitje.get(uitje.id)?.size ?? 0) + kandidaten.length
+    kandidaten.forEach(({ lid, uitleg }, index) => {
+      const positie = index + 1
+      rijen.push({
+        uitje_id: uitje.id,
+        deelnemer_id: lid,
+        status: "reserve",
+        uitleg: `${uitleg} Geen plek: ${uitje.capaciteit} plekken en ${totaalVraag} opgaven.`
+          + (positie > 1 ? ` Staat ${positie}e op de reservelijst.` : " Staat bovenaan de reservelijst."),
+        positie,
+      })
+    })
   }
 
   const geplaatst = rijen.filter((rij) => rij.status === "geplaatst").length

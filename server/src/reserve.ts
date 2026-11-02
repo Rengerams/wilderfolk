@@ -55,9 +55,18 @@ export async function vraagReservisten(uitjeId: number): Promise<ReservistMeldin
     telefoon: string | null
     positie: number | null
   }>(
+    // Wie al op een andere datum van dezelfde reeks is geplaatst, bellen we hier niet
+    // voor: één plek per reeks.
     `select r.deelnemer_id, d.voornaam, d.tussenvoegsel, d.achternaam, d.telefoon, r.positie
        from indeling_rijen r join deelnemers d on d.id = r.deelnemer_id
       where r.run_id = $1 and r.uitje_id = $2 and r.status = 'reserve' and d.status <> 'gestopt'
+        and not exists (
+          select 1 from indeling_rijen p
+            join uitjes up on up.id = p.uitje_id
+            join uitjes ur on ur.id = $2
+           where p.run_id = r.run_id and p.deelnemer_id = r.deelnemer_id
+             and p.status = 'geplaatst' and up.reeks_id is not null and up.reeks_id = ur.reeks_id
+        )
       order by r.positie nulls last, d.achternaam`,
     [run.id, uitje.id],
   )
