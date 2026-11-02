@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **CI (2 November 2026):** Run 250/750-resident benchmarks for two days and 1,800 for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
+- **CI (2 November 2026):** Run small- and medium-colony benchmarks for two days and the large-colony benchmark for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
 
 - **Fixed (2 November 2026, PR #118):** Midnight now credits the actual previous workday, including human shifts recorded before Moon Howler transformation. Keeps the strict three-day large-population audit without duplicate credits; CI pending.
 
