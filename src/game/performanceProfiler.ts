@@ -1,4 +1,5 @@
 import type { PathfinderReport } from './pathfindingMetrics';
+import { getHousingRelocationSnapshot, setHousingRelocationMonitorEnabled, type HousingRelocationSnapshot } from './housingRelocationMonitor';
 
 /** Opt-in per-realm CPU-time sampling with bounded call-site names. */
 export interface PerformanceSection {
@@ -25,6 +26,8 @@ export interface PerformanceSnapshot {
   sections: PerformanceSection[];
   /** A* shape behind the pathfinding stages; only the sim realm that ran A* attaches it. */
   pathfinder?: PathfinderReport;
+  /** Relocated households (churn investigation); present when the dev switch is on or has data. */
+  housingRelocations?: HousingRelocationSnapshot;
 }
 
 export const PERFORMANCE_SAMPLE_LIMIT = 512;
@@ -66,6 +69,8 @@ export function setPerformanceProfilingEnabled(next: boolean): void {
     lastPublished = startedAt;
   }
   enabled = next;
+  // One dev switch: CPU sampling and the relocation monitor start and stop together.
+  setHousingRelocationMonitorEnabled(next);
 }
 
 export function profileStart(): number {
@@ -112,6 +117,7 @@ export function profileRenderedFrame(tick: number, currentWeather: string): void
 
 export function getPerformanceSnapshot(): PerformanceSnapshot {
   const now = performance.now();
+  const housingRelocations = getHousingRelocationSnapshot();
   return {
     enabled,
     elapsedMs: startedAt ? now - startedAt : 0,
@@ -120,6 +126,7 @@ export function getPerformanceSnapshot(): PerformanceSnapshot {
     lastTick,
     population,
     weather,
+    ...(housingRelocations.enabled || housingRelocations.totalMoves > 0 ? { housingRelocations } : {}),
     sections: [...sections].map(([name, s]) => {
       const sorted = s.samples.slice(0, s.sampleCount).sort();
       const percentile = (fraction: number): number => sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;

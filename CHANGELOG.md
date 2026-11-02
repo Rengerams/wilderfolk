@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (2 November 2026):** The development performance panel now lists relocated households — moves, repeats, unhoused moves, phases and reasons — for the churn investigation.
+
 - **Fixed (2 November 2026):** A parent’s home preference and child leisure now follow the configured work hours instead of the legacy 07–16 default.
 
 - **Fixed (2 November 2026):** A leader's death now announces the succession election even though the office is cleared immediately, instead of arming the date silently.

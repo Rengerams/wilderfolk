@@ -8,6 +8,7 @@ import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HO
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { recordHousingRelocation } from './housingRelocationMonitor';
 
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
@@ -267,6 +268,13 @@ export function relocateHousehold(
     if (fromId !== undefined) relocation.from = fromId;
     if (toId !== undefined) relocation.to = toId;
     context.ledger.report.relocations.push(relocation);
+    recordHousingRelocation({
+      phase,
+      reason,
+      members: unit,
+      ...(fromId !== undefined ? { from: fromId } : {}),
+      ...(toId !== undefined ? { to: toId } : {}),
+    });
   }
   return true;
 }

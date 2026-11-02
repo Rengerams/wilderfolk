@@ -77,6 +77,7 @@ import {
 import { assertSimInvariants } from './simulation/simInvariants';
 import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
 import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
+import { stampHousingRelocationClock } from './housingRelocationMonitor';
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused || isSettlementDestroyed(state)) return state;
@@ -96,6 +97,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   const prevCalendarDay = state.tick <= 1 ? 0 : getCalendarDay(state.tick - 1);
   const yearRollover = state.dayInYear === 0 && prevCalendarDay > 0;
   const newYear = yearRollover ? state.year + 1 : state.year;
+  stampHousingRelocationClock(state.tick, newYear, state.dayInYear);
 
   if (yearRollover) {
     const yearlyStat = recordYearlyStats(state, state.year);

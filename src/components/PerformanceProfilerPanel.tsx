@@ -1,6 +1,7 @@
 import { useEffect, useState, type RefObject } from 'react';
 import type { GameLoop } from '../game/gameLoop';
 import type { PerformanceSnapshot } from '../game/performanceProfiler';
+import type { HousingRelocationSnapshot } from '../game/housingRelocationMonitor';
 
 interface Props {
   loopRef: RefObject<GameLoop | null>;
@@ -147,6 +148,7 @@ function DevPerformanceProfilerPanel({ loopRef }: Props) {
           </p>
           <ProfileTable name="Simulation worker" report={report?.worker ?? null} />
           <PathfinderSummary report={report?.worker?.pathfinder} />
+          <RelocationSummary snapshot={report?.worker?.housingRelocations ?? report?.main.housingRelocations} />
           <ProfileTable name="Main thread / rendering" report={report?.main ?? null} />
         </section>
       }
@@ -172,6 +174,50 @@ function PathfinderSummary({ report }: { report: PerformanceSnapshot['pathfinder
       {' · '}waypoint hit {(report.cacheHitRate * 100).toFixed(0)}%
       {' · '}{report.perTick.lineChecks.toFixed(0)} line checks/tick
     </p>
+  );
+}
+
+/** Households the housing pipeline relocated, newest first: the churn investigation's view. */
+function RelocationSummary({ snapshot }: { snapshot?: HousingRelocationSnapshot }) {
+  if (!snapshot || snapshot.totalMoves === 0) return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] leading-relaxed text-stone-400">
+        <span className="font-bold text-stone-300">Relocated households</span>
+        {' · '}{snapshot.totalMoves} moves
+        {' · '}{snapshot.distinctHouseholds} households
+        {' · '}{snapshot.repeatMoves} repeats
+        {' · '}{snapshot.homelessMoves} unhoused
+      </p>
+      <p className="text-[10px] leading-relaxed text-stone-500">
+        Phases: {snapshot.byPhase.map((row) => `${row.phase} ${row.moves}`).join(', ') || '—'}
+        {' · '}Reasons: {snapshot.byReason.map((row) => `${row.reason} ${row.moves}`).join(', ') || '—'}
+      </p>
+      <div className="max-h-40 overflow-y-auto">
+        <table className="w-full min-w-[540px] text-[10px] tabular-nums">
+          <thead className="text-left text-stone-500">
+            <tr>
+              <th className="w-[8%] px-1 py-1">Tick</th>
+              <th className="w-[12%] px-1 py-1">Day</th>
+              <th className="w-[22%] px-1 py-1">Phase / reason</th>
+              <th className="w-[18%] px-1 py-1">Home</th>
+              <th className="px-1 py-1">Household</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...snapshot.recent].reverse().map((event, index) => (
+              <tr key={`${event.tick}-${index}`} className="border-t border-stone-800">
+                <td className="px-1 py-1 text-stone-400">{event.tick}</td>
+                <td className="px-1 py-1 text-stone-400">{event.year} · {event.dayInYear}</td>
+                <td className="px-1 py-1 text-stone-300">{event.phase} / {event.reason}</td>
+                <td className="px-1 py-1 text-stone-300">{event.from ?? '—'} → {event.to ?? 'unhoused'}</td>
+                <td className="px-1 py-1 text-stone-400">{event.names.join(', ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
