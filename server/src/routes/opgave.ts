@@ -2,7 +2,7 @@ import { Router } from "express"
 import { een, q } from "../db"
 import { logWijziging } from "../audit"
 import { mag } from "../auth"
-import { ah, datumKort, datumLang, naam, stuurFout, veiligeTekst, vandaag } from "../util"
+import { ah, datumKort, datumLang, getalParam, naam, stuurFout, veiligeTekst, vandaag } from "../util"
 import { reserveZin, vraagReservisten } from "../reserve"
 
 export const opgaveRouter = Router()
@@ -88,7 +88,11 @@ async function haalUitjesVanPeriode(periodeId: number) {
 opgaveRouter.get(
   "/overzicht",
   ah(async (req, res) => {
-    const periodeId = Number(req.query.periode_id)
+    const periodeId = getalParam(req.query.periode_id)
+    if (periodeId === null) {
+      stuurFout(res, 400, "Kies eerst een periode.")
+      return
+    }
     const periode = await een<Periode>("select * from periodes where id = $1", [periodeId])
     if (!periode) {
       stuurFout(res, 404, "Kies eerst een periode.")
@@ -112,7 +116,11 @@ opgaveRouter.get(
       stuurFout(res, 404, "Deze deelnemer bestaat niet.")
       return
     }
-    const periodeId = Number(req.query.periode_id)
+    const periodeId = getalParam(req.query.periode_id)
+    if (periodeId === null) {
+      stuurFout(res, 400, "Kies eerst een periode.")
+      return
+    }
     const periode = await een<Periode>("select * from periodes where id = $1", [periodeId])
     if (!periode) {
       stuurFout(res, 404, "Kies eerst een periode.")
