@@ -52,6 +52,8 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-11-02 — [Colony bot world replacement keeps stale entity caches](../bug_report/2026-11-02-colony-bot-replacement-keeps-stale-entity-caches.md):** 1,800-resident benchmark lost all observed career credits despite 1,441 active attendance records. Headless command adapter reused the same world shell after `structuredClone` while weak caches still referenced superseded humans. Explicit cache hydration added after world adoption; CI pending.
 
+**2026-11-02 — [Career credit delayed until the following noon](../bug_report/2026-11-02-career-credit-lags-midnight-attendance.md):** PR #118's 1,800-resident benchmark exposed a genuine timing defect: midnight settled 1,441 witnessed worker shifts but noon's separate economy pass did not credit them until 12 in-game hours later. Career credit now runs in the existing midnight fatigue settlement with indexed site/job validation; no extension to the two-day benchmark. CI verification pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
