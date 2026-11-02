@@ -17,7 +17,7 @@
 A married settler with an absent spouse chooses their own empty home as a tryst site; their single lover, evaluating the same pair in reverse order, previously lacks the married-home preference and may choose the other person's residence or no building. `sleepingAtLover` separately insists on `lover.residenceBuildingId` rather than the actual shared tryst site. A real indoor visit therefore can fail to qualify as sleep.
 
 ## Expected behavior
-Both members of an established pair choose the same usable house regardless of processing order. An unmarried lover sleeping in the married partner's house should not lose their own residence assignment, and should receive ordinary sleep recovery only after actual indoor admission at the shared venue. A distant/outdoor encounter cannot count as indoor sleep.
+Affairs may happen outdoors. Any indoor venue must be a usable residence assigned to at least one of the two lovers, never a random unrelated home; both partners must select the same eligible home regardless of processing order. An unmarried lover sleeping in the married partner's house should not lose their own residence assignment, and should receive ordinary sleep recovery only after actual indoor admission at the shared venue. A distant/outdoor encounter cannot count as indoor sleep.
 
 ## Reproduction steps
 1. Put a married partner in home 10 with their spouse far away; give their unmarried lover home 20.
@@ -31,7 +31,9 @@ Both members of an established pair choose the same usable house regardless of p
 Actor-relative caller role changes the venue choice; sleep eligibility was duplicated across site-specific booleans instead of one location-aware observation.
 
 ## Fix / proposed fix
-Make `getAffairTrystBuilding` choose canonical pair roles independent of caller order. Use one `observeHumanSleep` in `humanTick` to observe real location, duty and time across all eligible sleep sites; delegate all reserve writes to `advanceHumanNeeds`. The same tick owner also permits scheduled home movement to override an idle stamina pause.
+Make `getAffairTrystBuilding` use only the two lovers' actual residences when near the encounter, without treating every affair as an indoor event. An outdoor tryst is located at the lovers' actual positions. The choice remains symmetric independent of caller order. Use one `observeHumanSleep` in `humanTick` to observe real location, duty and time across all eligible sleep sites; delegate all reserve writes to `advanceHumanNeeds`. The same tick owner also permits scheduled home movement to override an idle stamina pause.
+
+- 2026-11-02 — corrected indoor-only assumption: outdoors is a valid encounter location; regression tests cover unrelated houses and each lover's residence. CI pending.
 
 ## Save/migration impact
 None; no new entity fields or serialization changes.
