@@ -11,7 +11,7 @@ import { selectRenderEntities } from './packRenderSoA';
 import { RENDER_MAX_SLOTS } from './schema';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 2;
+export const SIM_DELTA_PROTO = 3;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -92,6 +92,11 @@ export interface SimTickDelta {
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
   aliveEntities: Entity[];
+  entityChanges?: {
+    changed: Entity[];
+    removedIds: number[];
+    order?: number[];
+  };
   eventLogTail: WorldState['eventLog'];
   graveRecords?: WorldState['graveRecords'];
   genealogyRegistry?: WorldState['genealogyRegistry'];
@@ -172,6 +177,8 @@ export interface ExtractSimTickDeltaOptions {
   nextBuildings?: Map<number, Building>;
   prevHistories?: ReadonlyMap<string, unknown> | null;
   nextHistories?: Map<string, unknown>;
+  prevEntities?: ReadonlyMap<number, Entity> | null;
+  nextEntities?: Map<number, Entity>;
   previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
@@ -201,6 +208,8 @@ function sameSnapshotValue(left: unknown, right: unknown): boolean {
   }
   return true;
 }
+
+const entityPositions = new WeakMap<WorldState, Map<number, number>>();
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
   const alive = world.entities.filter((e) => e.alive);
@@ -409,6 +418,37 @@ export function extractSimTickDelta(
     delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
   }
 
+  if (options?.nextEntities) {
+    const previous = options.prevEntities;
+    const changed: Entity[] = [];
+    const removedIds: number[] = [];
+    let orderChanged = !previous || previous.size !== aliveNow.length;
+    const previousOrder = previous?.keys();
+    for (const entity of aliveNow) {
+      const previousEntity = previous?.get(entity.id);
+      if (!previousEntity || !sameSnapshotValue(previousEntity, entity)) {
+        changed.push(entity);
+        options.nextEntities.set(entity.id, structuredClone(entity));
+      } else {
+        options.nextEntities.set(entity.id, previousEntity);
+      }
+      if (previousOrder && previousOrder.next().value !== entity.id) orderChanged = true;
+    }
+    if (previous) {
+      for (const id of previous.keys()) {
+        if (!options.nextEntities.has(id)) removedIds.push(id);
+      }
+      if (changed.length * 2 < aliveNow.length) {
+        delta.aliveEntities = [];
+        delta.entityChanges = {
+          changed: deltaClone(changed, cloneMode),
+          removedIds,
+          ...(orderChanged ? { order: aliveNow.map((entity) => entity.id) } : {}),
+        };
+      }
+    }
+  }
+
   if (options?.prevHistories || options?.nextHistories) {
     for (const key of ['graveRecords', 'populationHistory', 'yearlyStats', 'chronicleChapters', 'villageRequestHistory', 'genealogyRegistry'] as const) {
       const revision = historyRevision(world, key);
@@ -599,9 +639,36 @@ export function applySimTickDelta(
     consumed: { ...sample.consumed },
   }));
 
-  world.entities = deltaClone(delta.aliveEntities, cloneMode);
-
-  // The authoritative alive snapshot is the sole entity delta payload.
+  if (delta.entityChanges) {
+    const positions = entityPositions.get(world) ?? new Map(
+      world.entities.map((entity, index) => [entity.id, index]),
+    );
+    const changed = deltaClone(delta.entityChanges.changed, cloneMode);
+    if (delta.entityChanges.order) {
+      const lookup = new Map(world.entities.map((entity) => [entity.id, entity]));
+      for (const id of delta.entityChanges.removedIds) lookup.delete(id);
+      for (const entity of changed) lookup.set(entity.id, entity);
+      world.entities = delta.entityChanges.order.map((id) => {
+        const entity = lookup.get(id);
+        if (!entity) throw new Error(`Missing entity in tick delta: ${id}`);
+        return entity;
+      });
+      entityPositions.set(world, new Map(world.entities.map((entity, index) => [entity.id, index])));
+    } else {
+      if (delta.entityChanges.removedIds.length > 0) {
+        throw new Error('Entity removal requires authoritative entity order');
+      }
+      for (const entity of changed) {
+        const index = positions.get(entity.id);
+        if (index === undefined) throw new Error(`Missing entity index in tick delta: ${entity.id}`);
+        world.entities[index] = entity;
+      }
+      entityPositions.set(world, positions);
+    }
+  } else {
+    world.entities = deltaClone(delta.aliveEntities, cloneMode);
+    entityPositions.set(world, new Map(world.entities.map((entity, index) => [entity.id, index])));
+  }
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));
