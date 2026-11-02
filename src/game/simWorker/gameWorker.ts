@@ -19,6 +19,7 @@ import type { Entity, WorldState } from '../gameTypes';
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta } from '../simBuffers/simDelta';
+import { initializeHistoryRevisions } from '../simBuffers/historyRevisions';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
@@ -53,7 +54,7 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, import('../gameTypes').Building> | null = null;
-let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+let prevHistoriesSnapshot: Map<string, unknown> | null = null;
 let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
@@ -113,7 +114,7 @@ function packAndPostTickResult(
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, import('../gameTypes').Building>();
-    const nextHistories = new Map<string, string | undefined>();
+    const nextHistories = new Map<string, unknown>();
     const delta = extractSimTickDelta(world, aliveNow, {
       renderPacked: pack.packedEntities,
       focus: lastFocus,
@@ -166,6 +167,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   adoptSimSeedFromWorld(nextWorld);
   restoreSimRng(nextWorld.simRng);
   world = nextWorld;
+  initializeHistoryRevisions(nextWorld);
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
   prevHistoriesSnapshot = null;
