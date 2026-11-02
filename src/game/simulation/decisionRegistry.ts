@@ -48,6 +48,7 @@ export interface DecisionOwner {
  * Stable decision keys representing each distinct simulation subsystem.
  */
 export type DecisionKey =
+  | 'workerTransportIntegrity'
   | 'workerMotionPresentation'
   | 'virtualPlayer'
   | 'chronicleProseNames'
@@ -82,6 +83,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  workerTransportIntegrity: {
+    owner: 'simWorker/gameWorker.ts — ensureNamePoolSettled, installWorkerMessageHandlers and packAndPostTickResult',
+    cadence: 'on-demand',
+    cadenceNote: 'Each worker request waits for the shared name-census gate before synchronous dispatch. Render leases are owned by simBuffers/renderBufferPool.ts; GameWorkerHost handles display cache hydration. No independent gameplay ticks, RNG decisions or state writers are introduced.',
+    writes: [],
+    scheduledFrom: 'Worker message event → gameWorker.installWorkerMessageHandlers → gameTick / worker command owner; render lease acknowledgements from GameWorkerHost',
+    testFile: 'tests/gameWorker.namePool.dispatchGate.test.ts, tests/gameWorker.seed.test.ts, tests/renderBufferPool.stress.test.ts, tests/workerMainThread.parity.test.ts',
+  },
   virtualPlayer: {
     owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
     cadence: 'on-demand',
@@ -91,12 +100,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
   },
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
+    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
     cadenceNote: 'On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
-    testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
   },
   chronicleProseNames: {
     owner: 'citizenId.ts — citizenFullName, formatDeathLog',
