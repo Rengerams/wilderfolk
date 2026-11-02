@@ -9,7 +9,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 
 | Responsibility | Sole owner | Invocation |
 |---|---|---|
-| CI and standard/slow gate routing | `scripts/test.mjs` | `npm run test:standard`, `npm test -- colony-integration`, `npm test -- full` |
+| CI and standard/slow gate routing | `scripts/test.mjs` — `run` | `npm run test:standard`; PRs pass `--changed <base SHA>` to select affected unit tests through Vitest's import graph; main keeps the full standard suite. Static gates and build remain project-wide. `npm test -- colony-integration`, `npm test -- full` retain their separate slow gates. |
 | Bounded simulation CI | `.github/workflows/simulation-120-day.yml` | PR simulation-rule changes and manual dispatch; seeded producer bot, 120 days, 30-day invariant checkpoints |
 | Incremental function overlap review | `scripts/check-function-overlap.mjs` — `changedLines`, `lex`, `dice`, `overlap`, `checkOverlaps` and internal comparison helpers | Standard CI after `scripts/build-call-graph.mjs`; fingerprints and test-backed exceptions in `docs/tools/semantic-overlap-reviewed.json` |
 | PR99 population benchmark workflows | `.github/workflows/perf-population-small.yml`, `perf-population-medium.yml`, `perf-population-large.yml` → `.github/workflows/perf-population-reusable.yml` | Three independent, fixed-seed baseline-vs-PR Actions measurements; no gameplay write authority |

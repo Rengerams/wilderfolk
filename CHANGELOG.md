@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Pull requests run unit tests affected by their changes and imported dependencies. Main retains the full suite; project-wide static checks and build remain required.
+
 - **Fixed (1 November 2026):** Virtual Player plans food for six mouths per two-worker Farm, restores understaffed food posts during shortages, and preserves manual staffing. Real food consumption and the strict long-run gate remain unchanged; CI verification pending.
 
 
