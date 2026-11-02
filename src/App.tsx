@@ -19,6 +19,7 @@ import { Modules } from "./pages/Modules"
 import { Opgave } from "./pages/Opgave"
 import { PeriodeDetail } from "./pages/Periode"
 import { Programma } from "./pages/Programma"
+import { Tutorial } from "./pages/Tutorial"
 import { Logboek, Rollen } from "./pages/Rollen"
 import { UitjeDetail } from "./pages/UitjeDetail"
 import { Vervoer } from "./pages/Vervoer"
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/feedback" element={<Feedback />} />
         <Route path="/assistent" element={<Assistent />} />
         <Route path="/hulp" element={<Hulp />} />
+        <Route path="/start" element={<Tutorial />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
