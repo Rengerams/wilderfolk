@@ -41,6 +41,10 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
 
+**2026-11-02 — [Changelog guard flags slash-separated prose](../bug_report/2026-11-02-changelog-check-slash-prose-false-positive.md):** The latest changelog contained `Skip/restore.`, which the filename guard treated as a path. Source fix now requires a known source/document extension; CI pending.
+
+**2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** Removed uncalled `isMealCheckHour`, its sole `Human` import, and obsolete entries from both active ownership registries; CI pending.
+
 ## At a glance
 
 **2026-10-28 — [Spotlight camera zoom shortcut](../bug_report/2026-10-28-spotlight-initial-zoom-shortcut.md):** Fixed on PR #91 by checking camera zoom as well as target position; live validation pending.
