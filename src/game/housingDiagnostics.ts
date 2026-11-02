@@ -1,7 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding, TICKS_PER_DAY } from './dayCycle';
-import { countHomelessSettlers, countResidentsInBuilding } from './residencyOccupancy';
+import { countHomelessSettlers, countResidentsInBuilding } from './housingModel';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { isPlayerHuman } from './playerHuman';
 

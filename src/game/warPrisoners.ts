@@ -10,7 +10,7 @@ import { logDeath, logEvent } from './eventLog';
 import { killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
-import { moveResident, assignMissingResidences } from './residencyReconciliation';
+import { moveResident, assignMissingResidences } from './housingPipeline';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';

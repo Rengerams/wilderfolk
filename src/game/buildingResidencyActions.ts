@@ -1,10 +1,10 @@
 import { applyLeaderHousePhase } from './leaderHouse';
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import type { WorldState } from './gameTypes';
 import { assignMissingWorkers } from './workforce';
 import { allPlayerHumans } from './playerHuman';
-import { isResidenceBuilding } from './residencyOccupancy';
-import { assignMissingResidences, syncResidenceOccupants } from './residencyReconciliation';
+import { isResidenceBuilding } from './housingModel';
+import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 
 /** Living player humans — command actions reconcile this list only after a housing change. */
 /**

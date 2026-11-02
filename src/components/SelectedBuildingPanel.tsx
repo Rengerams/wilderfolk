@@ -28,7 +28,8 @@ import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TO
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster, isSettlerLodgingAtHotel } from '../game/hotelStay';
-import { isResidenceOccupantEntity } from '../game/residencyReconciliation';
+import { isResidenceOccupantEntity } from '../game/housingModel';
+
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
 import { hospitalDoctorRoster, hospitalCoverageSummary, HOSPITAL_SHIFT_WINDOWS } from '../game/hospitalShifts';
 import { getAbsoluteCalendarDay } from '../game/dayCycleClock';

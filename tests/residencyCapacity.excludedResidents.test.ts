@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
-import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { assignMissingResidences } from '../src/game/housingPipeline';
+import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/housingModel';
 
 describe('capacity counts settlers the pass may not move', () => {
   it('keeps a full house full when part of its household is left out of the movable list', () => {

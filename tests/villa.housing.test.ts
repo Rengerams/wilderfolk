@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDING_CONFIGS, BuildingType, createInitialResearchNodes, LEVEL_BENEFIT_BUILDING_TYPES } from '../src/game/gameTypes';
 import { BUILDING_CATEGORIES } from '../src/game/buildCatalog';
-import { getResidenceCapacity, getResidenceUpgradeSlotGain, isResidenceBuildingType } from '../src/game/residencyOccupancy';
+import { getResidenceCapacity, getResidenceUpgradeSlotGain, isResidenceBuildingType } from '../src/game/housingModel';
 import { getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { isBuildingTechUnlocked } from '../src/game/placementUtils';
 import { initGame } from '../src/game/worldGen';

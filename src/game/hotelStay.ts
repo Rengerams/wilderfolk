@@ -22,7 +22,7 @@ import {
 } from './dayCycle';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
-import { hasResidenceAssignment } from './residencyOccupancy';
+import { hasResidenceAssignment } from './housingModel';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
 import { isOnWalkableRoadAt, steerWithPath } from './pathfinding';

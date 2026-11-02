@@ -1,4 +1,4 @@
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { EVENT_INTERVAL, ticksForDays } from './dayCycle';

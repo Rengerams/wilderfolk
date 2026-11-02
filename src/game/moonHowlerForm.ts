@@ -1,5 +1,5 @@
 import { normalizeHumanNeeds, rebaseHumanNeedsClockAfterFormRestore } from './simulation/humanPhysiology';
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 /**
  * Moon Howler **form state** — the human form snapshot, the restore that puts a cursed settler back
  * into it, and the predicates that keep a cursed settler counted as the settler they were.
@@ -17,7 +17,7 @@ import { BUILDING_CONFIGS, BuildingType, EntityType, JobType, LEADER_OCCUPATION 
 import { prisonPrisonerCapacity } from './prisonShifts';
 import type { Building, Entity } from './gameTypes';
 import { countWorkersAtBuilding, detachWorkplaceReference } from './workforce';
-import { countResidentsInBuilding, getResidenceCapacity } from './residencyOccupancy';
+import { countResidentsInBuilding, getResidenceCapacity } from './housingModel';
 import { getSimRng } from './simRng';
 
 /** Human-form body metrics restored when a werewolf reverts (policy lives in `moonHowler.ts`). */

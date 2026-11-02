@@ -23,7 +23,7 @@ import {
 } from './defenseStructures';
 import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { isImprisoned } from './residencyOccupancy';
+import { isImprisoned } from './housingModel';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { TraitContext } from './personality/traitEffectCatalog';
 

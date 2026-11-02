@@ -2,7 +2,7 @@ import type { RaidEvent, RivalSettlement, WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { isPlayerHuman } from './playerHuman';
-import { isResidenceBuilding } from './residencyOccupancy';
+import { isResidenceBuilding } from './housingModel';
 import { demolishBuildingsInPlace } from './buildingMaintenanceActions';
 import { JobType } from './gameTypes';
 import { logEvent } from './eventLog';

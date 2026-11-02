@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:205:installWorkerMessageHandlers@ed0effa9595a0d3b3be39bd56bd49afee929bd4f4f2eba69a0502ecd504fee75 <-> src/game/simWorker/gameWorker.ts:218:onmessage@cecb6059cf5f7f2f88e741141cbf662bf1a865c5fc6b44ae4e2f92ee1e5f45e1",
+      "key": "src/game/simWorker/gameWorker.ts:216:installWorkerMessageHandlers@6907937aa56ec27cf27cba832183ee2b651441c8601d7f232d6fea7c7e99538f <-> src/game/simWorker/gameWorker.ts:229:onmessage@5c7dc4e98f448b1c9a7643e4b6efd0241c20d24e60eab33b3dd284143f76b97b",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
@@ -30,6 +30,24 @@
         "tests/workerCommand.roundtrip.test.ts",
         "tests/workerAssignment.test.ts",
         "tests/virtualPlayer.staffingAndRepairBatch.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/housingModel.ts:104:isResidenceOccupantEntity@8cb8691eb775d0ecf0c3fa98f96eb42366d9103cbd96cbff949288d781d0eade <-> src/game/moonHowlerForm.ts:40:isSettlerRelationshipEntity@320002da3895aa1ee994e1dab3f7f3f55bedb3acf4034666ddcf01cd90a64465",
+      "reason": "The residence-occupant rule counts only player-owned settlers (and cursed Moon Howlers with no faction) for beds and rosters; the settler-relationship rule accepts any living human of any faction, and a cursed werewolf regardless of faction, for form restoration and relationship cleanup. Merging them would either seat visitors and rivals in beds or drop foreign settlers from relationship restoration. They are distinct predicates with different consumers and faction rules.",
+      "tests": [
+        "tests/housingPipeline.invariants.test.ts",
+        "tests/residenceMoonHowler.marriedGrandchild.test.ts",
+        "tests/leaderHouse.moonHowlerChurn.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/factionWander.ts:35:completedPlayerBuildings@33cd3500125253b0da390ffe1f44d1e0b8fa1d08a2335298cf221ba05127b13a <-> src/game/housingPipeline.ts:1242:listPlayerResidences@2a37aa826854c1278a777ddb74b303266eb9ea7914f17a5b9c98e43a10a2e4d0",
+      "reason": "The wander helper filters completed non-rival buildings of any type so a faction member can pick a social venue; the housing owner filters completed non-rival buildings to residence types only. They share the completed/non-rival boundary by design but differ in type scope, caller and write contract (the wander list is read-only venue selection, the residence list feeds assignment). Merging them would either offer houses as venues or accept taverns as homes.",
+      "tests": [
+        "tests/housingPipeline.invariants.test.ts",
+        "tests/medium-N4-campAnchor.test.ts",
+        "tests/medium-B1-replacementCounter.test.ts"
       ]
     }
   ]

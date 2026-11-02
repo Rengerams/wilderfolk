@@ -12,9 +12,9 @@ import {
   isHousingUnitProtected,
   relocateHousehold,
   rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
-} from '../src/game/residencyReconciliation';
-import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/residencyOccupancy';
-import { buildResidenceTraits } from '../src/game/residencySelection';
+} from '../src/game/housingPipeline';
+import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/housingModel';
+import { buildResidenceTraits } from '../src/game/housingPipeline';
 
 function moveContext(alive: Entity[], residences: ReturnType<typeof building>[]) {
   return {

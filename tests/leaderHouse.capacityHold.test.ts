@@ -7,7 +7,7 @@ import { building, human } from '../src/test/factories';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsedOutcome, parseSaveJson } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 
 const CHILD_IDS = Array.from({ length: 19 }, (_, index) => index + 3);
 

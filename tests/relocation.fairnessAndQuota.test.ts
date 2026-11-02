@@ -4,13 +4,13 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { buildResidenceOccupancy } from '../src/game/residencyOccupancy';
-import { relocateHouseholdsForCommute } from '../src/game/residencyReconciliation';
+import { buildResidenceOccupancy } from '../src/game/housingModel';
+import { relocateHouseholdsForCommute } from '../src/game/housingPipeline';
 import {
   buildResidenceTraits,
   MAX_RELOCATIONS_PER_DAY,
   pickCommuteRelocation,
-} from '../src/game/residencySelection';
+} from '../src/game/housingPipeline';
 
 /** Human walk speed the movement owner uses; kept in step with the pickers' default. */
 const WALK_SPEED = 6.4;

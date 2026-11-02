@@ -5,7 +5,7 @@ import { isPlayerHuman } from './playerHuman';
 import { summarizeFoodLedger } from './economyLedger';
 import { isFoodAlertAmount } from './resourceUtils';
 import { computeVillageStats } from './uiSimSummary';
-import { countHomelessSettlers } from './residencyOccupancy';
+import { countHomelessSettlers } from './housingModel';
 import { isMarriedOrExpecting } from './civilStatus';
 import { AFFAIR_ESTABLISHED_LOG_PHRASE } from './simulation/humanRelationships';
 

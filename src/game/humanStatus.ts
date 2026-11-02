@@ -10,7 +10,7 @@ import { JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
 import { EVENING_START } from './dayCycle';
 import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './humanSchedule';
-import { isNearResidence } from './residencyOccupancy';
+import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { MARRIAGE_DAILY_AMICABLE_DIVORCE_CHANCE, tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
-import { getChildCustodian } from '../src/game/householdComposition';
+import { getChildCustodian } from '../src/game/housingModel';
 
 function human(id: number, gender: 'male' | 'female', overrides: Partial<Entity> = {}): Entity {
   return {

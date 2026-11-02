@@ -8,13 +8,13 @@ import type { Entity } from '../src/game/gameTypes';
 import {
   assignMissingResidences,
   type HousingReport,
-} from '../src/game/residencyReconciliation';
+} from '../src/game/housingPipeline';
 import {
   buildResidenceOccupancy,
   getResidenceCapacity,
   isLeaderHouseResidence,
   isResidenceOccupantEntity,
-} from '../src/game/residencyOccupancy';
+} from '../src/game/housingModel';
 import { buildHousingColony } from '../src/test/housingColony';
 import type { HousingColony } from '../src/test/housingColony';
 
@@ -86,6 +86,18 @@ describe('generated housing colonies', () => {
       run(first);
       const second = buildHousingColony(seed);
       run(second);
+
+      expect(assignment(second), `seed ${seed}`).toEqual(assignment(first));
+    }
+  });
+
+  it('settles the same colony the same way whatever order the settlers arrive in', () => {
+    for (let seed = 1; seed <= 6; seed++) {
+      const first = buildHousingColony(seed);
+      run(first);
+
+      const second = buildHousingColony(seed);
+      run(second, [...second.humans].reverse());
 
       expect(assignment(second), `seed ${seed}`).toEqual(assignment(first));
     }

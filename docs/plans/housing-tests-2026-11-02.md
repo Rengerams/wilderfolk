@@ -1,8 +1,8 @@
 # Housing test suite — critical review and replacement plan — 2026-11-02
 
-**Status:** T0 is committed as `95ca783a update housing`; current HEAD `5ba14bf5` is docs only on top.
-Everything else is scheduled against the pipeline plan
-(`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
+**Status:** T0 is committed as `95ca783a update housing`; P0a (the 5→3 merge) is implemented in the
+working tree. Current HEAD `5ba14bf5` is docs only on top of T0. Everything else is scheduled against
+the pipeline plan (`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
 **Baseline:** T0 `95ca783a` — 34 housing files, 148 tests, 15.73 s. Pre-T0 `58ca1793` — 33 files
 / 141 tests, 19.33 s.
 
@@ -113,12 +113,18 @@ passing (2 → 0). The fixture later moved to the `simRng` factory, which change
 seed no longer reproduces the refusal; an owner-level exclusion test now pins the mechanism, and T1
 rebuilds the end-to-end fixture. Report: `docs/bug_report/2026-11-02-housing-refill-proposes-visited-home.md`.
 
+**Second finding, fixed the same day:** the order property showed the same colony settling into
+different homes when the settler array was reversed — 18–30 settlers per seed. `sortHousingUnitsForAssignment`
+ordered units by need and size only, so equal units competed in arrival order. A stable
+lowest-member-id tie-break now orders the pass; the property passes on six seeds (0 differing
+settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing-settlement-input-order.md`.
+
 ## 5. Schedule (ties into the pipeline plan)
 
 | Stage | With | Work | Gate |
 | :--- | :--- | :--- | :--- |
 | **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
-| **T1** | P0a | imports only change paths; no behavioural edits; rebuild the focused refused-destination fixture lost when the generator moved to `simRng` | 34 suites (T0) still green; seed-independent refusal fixture passes |
+| **T1** | P0a done | rebuild the focused refused-destination fixture lost when the generator moved to `simRng` | 34 suites still green; seed-independent refusal fixture passes; input-order property landed |
 | **T2** | P3 | delete the `housingUnitNeedsReassignment` tests (3 files) and rewrite them as plan-level cases | invariants + contract green |
 | **T3** | P5 | retire the internal tests (traits, bucket, ledger, sort); promote their promises into the tables | suite shrinks; mutation checklist passes |
 | **T4** | P6/P7 | move the 5 s ceiling into the benchmark; add a 30/360-day housing report (moves/household/year, homeless-days, churn) | harness numbers recorded |

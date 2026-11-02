@@ -2109,3 +2109,8 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 - **A household evicted by the capacity phase was left homeless while beds existed — resolved:** after the capacity phase unhoused one member, the refill re-picked the same home the run had already recorded as visited; `relocateHousehold` refused it and no alternative was attempted. The placement now retries past a refused destination (next-best, up to three) before splitting, so the family is housed in the same run and the second run is a no-op; the generated case is the regression. [Report](../bug_report/2026-11-02-housing-refill-proposes-visited-home.md).
 
+## 2026-11-02 — Housing settlement depends on input order
+
+- **The same colony settled differently when its settlers were supplied in another order — resolved:** units of equal need and size kept the caller's array order as their processing order, so competing households claimed homes in arrival order. A stable lowest-member-id tie-break now orders the pass; 18–30 differing settlers per seed became 0 on 12 seeds, pinned by a generated invariant. [Report](../bug_report/2026-11-02-housing-settlement-input-order.md).
+
+

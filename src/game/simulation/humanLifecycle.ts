@@ -1,4 +1,4 @@
-import { moveResident } from '../residencyReconciliation';
+import { moveResident } from '../housingPipeline';
 import type { Entity, WorldState } from '../gameTypes';
 import { EntityType, JobType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
@@ -26,7 +26,7 @@ import { adjustHumanStaminaFromEnergy } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
 import { seededRandomForRun } from '../simRng';
 import { addReputation } from '../simHelpers';
-import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../residencyOccupancy';
+import { isResidenceBuilding, isLeaderHouseResidence, residenceRoomFor } from '../housingModel';
 
 const BIRTH_TALENT_JOBS = [
   JobType.Farmer, JobType.Lumberjack, JobType.Miner, JobType.Blacksmith,

@@ -1,22 +1,22 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
-**Status:** plan only, nothing implemented for the merge. **Target version:** V.0.6.5.2.
-**Owner module after this work:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules
-keep one job each and lose every decision.
+**Status:** **P0a is implemented in the working tree** — five modules became three, imports repointed,
+gates green. P1 is next. **Target version:** V.0.6.5.2.
+**Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
+and lose every decision.
 
-**Baselines.** T0 is committed as `95ca783a update housing`, so the merge starts from it. Current
-HEAD is `5ba14bf5` (docs on top of T0; the code and test base is still `95ca783a`).
+**Baselines.**
 
-| Commit | Suites / tests | Recorded | Contains |
+| Tree | Suites / tests | Recorded | Contains |
 | :--- | :--- | :--- | :--- |
 | `58ca1793` (pre-T0) | 33 files / 141 tests, 19.33 s | 08:51 | the original housing suite; the L2 counter was the *member comparison* from `ce853298` |
-| **`95ca783a` (T0 commit)** | **34 files / 148 tests, 15.73 s** | **09:36** | the invariant suite (6), the selection exclusion test (1), the retry fix, and the write counter (`context.onMove`) |
-| `5ba14bf5` (HEAD at plan time) | 34 files / 148 tests (unchanged) | 09:47 | documentation only on top of T0 |
+| `95ca783a` (T0 commit) | 34 files / 148 tests, 15.73 s | 09:36 | the invariant suite, the selection exclusion test, the retry fix, the write counter (`context.onMove`) |
+| **Working tree (P0a)** | **34 files / 149 tests, 32.12 s** | **10:26** | `housingModel` + `housingPipeline` + `housingDiagnostics`; the four old modules are gone; types, lint, build, duplicates, overlaps, cycles and source checks pass |
 
 `95ca783a` also swept unrelated work from other agents in the tree (scripts, visitor/dialogue,
-audio); it is the verified tree nonetheless. **P0a branches from this commit** — branching from
-`58ca1793` would drop the invariant suite, the retry fix and the write counter. The L2 rule the plan
-builds on is the committed one: progress is any residence write, not the member comparison.
+audio); it is the verified tree nonetheless. P0a started from that commit and is now in the working
+tree; P1 starts from the merged tree. The L2 rule the plan builds on is the committed one: progress
+is any residence write, not the member comparison.
 
 **Audited 2026-11-02 08:48** by an independent read-only review; this version incorporates all 25
 findings. One finding was overtaken by the tree twice: `ce853298` replaced attempt-counting with a
@@ -322,6 +322,7 @@ export function applyRelocation(
 | G6 | A plan carries its own `why`; the report line can explain itself | nested moves say `assignment` |
 | G7 | Planning is side-effect free; only `applyRelocation` writes, logs or settles | `isHousingUnitProtected` counts |
 | G8 | Second run on the same state relocates nothing (existing promise, kept) | holds |
+| G9 | Settlement depends on the set of settlers, not their input order: units are ordered by need, then size, then lowest member id | fixed with a stable tie-break; invariant suite |
 
 ### 4.3 Need → rule → destination
 
@@ -477,7 +478,11 @@ move by ownership: facts and grouping (`buildHousingUnits`, `listPlayerResidence
 `collectFamilyHousingShortages`, `buildFamilyGroups`, the traits-free occupancy helpers) to
 `housingModel`; ranking and writes to `housingPipeline`.
 
-### 4.10 Module map — decided: five become three
+### 4.10 Module map — merged: five became three
+
+**P0a is implemented in the working tree:** the three modules exist, the four old paths are gone,
+every importer is repointed, and types, lint, build, duplicate, overlap, cycle and source gates pass.
+The sections below are the record of how it was done.
 
 **Why not one file.** Not for taste — for dependency direction. Two consumers pull in opposite
 directions:
@@ -552,7 +557,7 @@ home. The script harness is `scripts/colonyHealth.ts`; this module is the projec
    move here, in the same change as the merge (AGENTS §5.9); P7 then only adds the new pipeline
    decision rows.
 7. Gate: `npm run test:types`, `npm run lint`, `npm run audit` (cycles), `npm run build`, and the
-   **34 suites / 148 tests on the T0 tree (`95ca783a`)** — identical results, because nothing but paths
+   **34 suites / 149 tests (T0 plus the order property)** — identical results, because nothing but paths
    and register rows moved.
 
 **Naming, and the names rejected:**
@@ -575,7 +580,7 @@ Each work package is one commit, green on its own, and revertable alone.
 
 | ID | Work package | Depends on | Files | Done when |
 | :--- | :--- | :--- | :--- | :--- |
-| **P0a** | **Merge five modules into three + honest names** (mechanical + register rows) | T0 commit (`95ca783a`) | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 148 tests identical on the T0 tree**; `buildFamilyGroups` still reachable from the Population tab; no logic changed |
+| **P0a** | **Merge five modules into three + honest names** — **done in the working tree** | T0 commit (`95ca783a`) | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 149 tests identical**; `buildFamilyGroups` still reachable from the Population tab; two latent duplicates refactored; overlap approvals recorded |
 | **P0** | Contract + baseline + bug reports + close `stats` | P0a | `housingPipeline.ts` (types only), `docs/bug_report/*`, `BUG_REPORTS/SUMMARY.md` | `RelocationPlan`/`RelocationNeed` compile unused; `HousingReport.stats` shape agreed and recorded in the registry; baseline re-recorded on the new names; L1/L3/L4/L5/L7/L9/L10 filed and indexed |
 | **P1** | Planner core + **homeless** need only | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase runs through `planRelocation`; G1/G2/G4/G7 pass — G4 guards the committed write counter (`onMove`), not the old member comparison; **L11 stays fixed** — `relocateFamily` already retries past a refused destination, and the planner must keep the same guarantee (G1/G3) instead of removing the retry |
 | **P2** | **custody**, **capacity**, **surplus** | P1 | same | guardianship/capacity rebuilt on needs; adoption stays a custody pre-step; capacity takes the pass's occupancy/traits; L7 fixed (vacancy set grows) |
@@ -632,7 +637,7 @@ gantt
 
 | Session | When | Content | Gate before the next session |
 | :--- | :--- | :--- | :--- |
-| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 34 suites / 148 tests identical on the T0 tree; Population tab still renders |
+| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 34 suites / 149 tests identical; Population tab still renders |
 | S1 | Mon 02 Nov — PM | P0: contract types, bug reports, close `stats` | contract compiles; reports indexed; `stats` shape registered |
 | S2 | Tue 03 Nov — AM | P1: planner core, homeless need | homeless phase green; G1/G2/G4/G7 contract tests |
 | S3 | Tue 03 Nov — PM | P2: custody, capacity, surplus | mandatory needs green; capacity/custody suites |
@@ -678,6 +683,7 @@ recoverable; a stale doc presented as done is not.
 | G6 — a plan explains itself | `stats` + report `why` asserted in the contract test | P5 |
 | G7 — planning is pure | contract test: planning a unit leaves entities, ledger and report untouched | P1 |
 | G8 — idempotency | existing `tests/housingAuthority.pipeline.test.ts` (unchanged) | every session |
+| G9 — input-order determinism | invariant suite, six seeds (0 differing settlers on twelve) | landed |
 | L1 — adult child never drags independent descendants | extend `tests/adultChild.moveOutTarget.test.ts`: a 22-year-old grandchild already housed elsewhere is not in the departing household | P3 |
 | L7 — a vacated home becomes usable in the same phase | new case in `tests/housingAuthority.pipeline.test.ts` | P2 |
 | One order, protection, whole household, quota, reserved beds, custody | the existing housing suites (33 pre-T0, 34 with T0), unchanged expectations | every session |
@@ -687,36 +693,33 @@ recoverable; a stale doc presented as done is not.
 
 ### 7.1 Commands
 
-Pre-T0 baseline (`58ca1793`, 33 files, 141 tests — 08:25 before `ce853298`, 08:51 on it):
+Current housing suite after P0a (34 files / 149 tests):
 
 ```sh
-npx vitest run tests/housingAuthority.pipeline.test.ts tests/housingDiagnostics.test.ts \
-  tests/adultChild.moveOutTarget.test.ts tests/housingHouseholdAtomic.test.ts \
-  tests/housingUnits.composition.test.ts tests/residencyCapacity.excludedResidents.test.ts \
-  tests/residencyCapacity.prisonReservedBeds.test.ts tests/residencyCapacity.writers.test.ts \
-  tests/residencyReconciliation.occupantOrder.test.ts tests/relocation.fairnessAndQuota.test.ts \
-  tests/residenceCommuteRelocation.test.ts tests/residenceBestFit.owner.test.ts \
-  tests/residenceCoupleSharing.test.ts tests/residency.dayBoundary.budget.test.ts \
-  tests/housingArchitecture.completion.test.ts tests/cacheAnchorHousing.regression.test.ts \
-  tests/divorceHousing.custody.test.ts tests/residency.blendedCustody.test.ts \
-  tests/guardianship.jailedParents.test.ts tests/adoption.leaderHouse.test.ts \
-  tests/leaderHouse.capacityHold.test.ts tests/leaderHouse.pipelineStability.test.ts \
-  tests/leaderHouse.settledDescendants.test.ts tests/leaderHouse.successionHousehold.test.ts \
-  tests/leaderHouse.jailedResident.test.ts tests/leaderHouse.nuclearHouseholds.test.ts \
-  tests/leaderHouse.moonHowlerChurn.test.ts tests/leaderHouse.expansion.test.ts \
-  tests/leaderRemarriage.residency.test.ts tests/prisonerHousing.assign.test.ts \
-  tests/prisonStay.holdsHomeAndPost.test.ts tests/villa.housing.test.ts \
-  tests/priorityAlerts.housing.test.ts
+npx vitest run tests/housingPipeline.invariants.test.ts tests/housingAuthority.pipeline.test.ts \
+  tests/housingDiagnostics.test.ts tests/adultChild.moveOutTarget.test.ts \
+  tests/housingHouseholdAtomic.test.ts tests/housingUnits.composition.test.ts \
+  tests/residencyCapacity.excludedResidents.test.ts tests/residencyCapacity.prisonReservedBeds.test.ts \
+  tests/residencyCapacity.writers.test.ts tests/housingPipeline.occupantOrder.test.ts \
+  tests/relocation.fairnessAndQuota.test.ts tests/residenceCommuteRelocation.test.ts \
+  tests/residenceBestFit.owner.test.ts tests/residenceCoupleSharing.test.ts \
+  tests/residency.dayBoundary.budget.test.ts tests/housingArchitecture.completion.test.ts \
+  tests/cacheAnchorHousing.regression.test.ts tests/divorceHousing.custody.test.ts \
+  tests/residency.blendedCustody.test.ts tests/guardianship.jailedParents.test.ts \
+  tests/adoption.leaderHouse.test.ts tests/leaderHouse.capacityHold.test.ts \
+  tests/leaderHouse.pipelineStability.test.ts tests/leaderHouse.settledDescendants.test.ts \
+  tests/leaderHouse.successionHousehold.test.ts tests/leaderHouse.jailedResident.test.ts \
+  tests/leaderHouse.nuclearHouseholds.test.ts tests/leaderHouse.moonHowlerChurn.test.ts \
+  tests/leaderHouse.expansion.test.ts tests/leaderRemarriage.residency.test.ts \
+  tests/prisonerHousing.assign.test.ts tests/prisonStay.holdsHomeAndPost.test.ts \
+  tests/villa.housing.test.ts tests/priorityAlerts.housing.test.ts
 ```
 
-T0 adds `tests/housingPipeline.invariants.test.ts` (6 tests) and one exclusion case inside
-`tests/residenceBestFit.owner.test.ts`; the T0 commit (`95ca783a`) is **34 files / 148 tests**.
-
-From P1 onward: the same list, with `residencyReconciliation.occupantOrder` replaced by
-`housingPipeline.occupantOrder`, plus `tests/housingPlanner.contract.test.ts` and
-`tests/housingPlanner.stuckColony.test.ts` (35 files: 32 unchanged + 1 renamed + 2 new). The
-baseline's 33 files are the directories' existing suites; a static count of top-level `it` blocks
-reads lower because several suites generate cases in loops, so trust the runner's file/test totals.
+P1 adds `tests/housingPlanner.contract.test.ts` and `tests/housingPlanner.stuckColony.test.ts` (36
+files). The pre-T0 baseline (`58ca1793`) was 33 files / 141 tests; T0 brought the invariant file and
+the exclusion case to 34 / 148; P0a renamed the occupant-order file under the pipeline name and left
+the count unchanged (34 / 149 after the order property). A static count of top-level `it` blocks
+reads lower because several suites generate cases in loops, so trust the runner's totals.
 
 Broad gates, every session:
 
@@ -827,12 +830,15 @@ snapshots the report shape, and the registry records it as a report field). File
   phase, trigger, view or script to answer it another way (no exported boolean predicate remains).
 - Every plan is applied or refused atomically; a household that cannot be placed is planned as stay
   and the pass ends; the audit never reports a violation the pipeline itself created.
+- Settlement is a function of the settlers and the world, not of the array order they arrive in
+  (stable unit ordering; the invariant suite's order property).
 - One eligibility predicate, one write context (`HousingMoveContext`), one manor allowlist, one
   occupant rule; the 15 rival literals and the redundant aliases are gone; `buildFamilyGroups` still
   serves the Population tab from `housingModel`.
-- The 34 suites / 148 tests on the T0 tree pass unchanged where they pin existing promises; the
-  planner suites pass; types, lint, `check:source`, `audit`, `build` clean; benchmark hash identical
-  and no slower.
+- The 34 suites / 149 tests (T0 plus the input-order property) pass unchanged where they pin
+  existing promises; the planner suites pass; types, lint, `check:source`, `audit`, `build` clean;
+  benchmark hash identical and no slower.
 - A full simulated year with zero housing invariant violations.
-- Both registers, the architecture note and the changelog updated; seven bug reports filed and
-  indexed; `ce853298` recorded as the first counter, and `context.onMove` (T0) as the retained rule.
+- Both registers, the architecture note and the changelog updated; the two filed reports (refill,
+  input order) plus the seven P0 reports filed and indexed; `ce853298` recorded as the first counter,
+  and `context.onMove` (T0) as the retained rule.

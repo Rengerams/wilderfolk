@@ -8,7 +8,7 @@ import { getAbsoluteCalendarDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/ga
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { buildEntityByType } from '../src/game/simFocus';
-import { moveResident, syncResidenceOccupants } from '../src/game/residencyReconciliation';
+import { moveResident, syncResidenceOccupants } from '../src/game/housingPipeline';
 import { assignWorkerTransition, syncJobBuildingOccupants } from '../src/game/workforce';
 import { updateStorageCaps } from '../src/game/economy';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';

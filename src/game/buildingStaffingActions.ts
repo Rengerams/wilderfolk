@@ -14,7 +14,7 @@ import {
   staffingCapFor,
   transferWorkerBetweenBuildings,
 } from './workforce';
-import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './residencyOccupancy';
+import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { allPlayerHumans, isPlayerHuman } from './playerHuman';
 
 /** 

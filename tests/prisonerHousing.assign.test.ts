@@ -6,7 +6,7 @@
  * in a bed (and folded a jailed spouse into the free partner's unit).
  */
 import { describe, expect, it } from 'vitest';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BuildingType } from '../src/game/gameTypes';
 import { human, finishedBuilding } from '../src/test/factories';
 

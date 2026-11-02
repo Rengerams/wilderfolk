@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from '../src/game/leaderHouse';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 import { LAYER_ASSIGN_INTERVAL } from '../src/game/tickLayerAssign';
 import { building, human } from '../src/test/factories';
 

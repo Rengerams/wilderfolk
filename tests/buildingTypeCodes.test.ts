@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPE_CODES, BuildingType } from '../src/game/buildings';
-import { isResidenceBuildingType } from '../src/game/residencyOccupancy';
+import { isResidenceBuildingType } from '../src/game/housingModel';
 
 describe('building type codes', () => {
   const codes = Object.values(BUILDING_TYPE_CODES);

@@ -2,7 +2,7 @@ import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';

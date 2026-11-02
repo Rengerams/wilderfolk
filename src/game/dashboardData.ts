@@ -27,7 +27,7 @@ import {
   hasWorkAssignment,
   isHomelessSettler,
   isResidenceBuildingType,
-} from './residencyOccupancy';
+} from './housingModel';
 import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew, staffingCapFor } from './workforce';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';

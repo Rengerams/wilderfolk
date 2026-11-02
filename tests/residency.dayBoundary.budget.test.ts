@@ -12,20 +12,20 @@ import { EntityType, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createBuilding, createEntity, initGame } from '../src/game/worldGen';
 import { gameTick } from '../src/game/gameEngine';
-import { RESIDENCE_SWEEP_BUCKETS, assignMissingResidences } from '../src/game/residencyReconciliation';
+import { RESIDENCE_SWEEP_BUCKETS, assignMissingResidences } from '../src/game/housingPipeline';
 import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
 import {
   buildHousingUnits,
   buildResidenceTraits,
   housingUnitBucket,
   housingUnitNeedsReassignment,
-} from '../src/game/residencySelection';
+} from '../src/game/housingPipeline';
 import {
   buildResidenceOccupancy,
   getResidenceCapacity,
   isImprisoned,
   isResidenceBuilding,
-} from '../src/game/residencyOccupancy';
+} from '../src/game/housingModel';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { resetSimRng } from '../src/game/simRng';
 

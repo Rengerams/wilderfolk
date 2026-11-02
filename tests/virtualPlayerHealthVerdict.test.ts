@@ -33,7 +33,7 @@ import { canAfford, isFoodAlert } from '../src/game/resourceUtils';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { formatResourceCostNeed } from '../src/game/resourceCost';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
-import { countHomelessSettlers } from '../src/game/residencyOccupancy';
+import { countHomelessSettlers } from '../src/game/housingModel';
 import { REPAIR_COST } from '../src/game/buildingMaintenanceActions';
 
 const MAP_WIDTH = 1200;

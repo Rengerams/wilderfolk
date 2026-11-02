@@ -1,4 +1,4 @@
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import { unindexEntityFromState } from './entityIndex';
 import type { Building, Entity, GameEventLog, RivalSettlement, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';

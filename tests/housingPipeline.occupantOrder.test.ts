@@ -23,8 +23,10 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { isResidenceBuilding } from '../src/game/residencyOccupancy';
-import { isResidenceOccupantEntity, syncResidenceOccupants } from '../src/game/residencyReconciliation';
+import { isResidenceBuilding } from '../src/game/housingModel';
+import { syncResidenceOccupants } from '../src/game/housingPipeline';
+import { isResidenceOccupantEntity } from '../src/game/housingModel';
+
 import { setSimSeed } from '../src/game/simRng';
 
 const FIXTURE_SEED = 20_260_920;

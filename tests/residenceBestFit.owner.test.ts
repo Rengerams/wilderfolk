@@ -17,7 +17,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { pickLeastCrowdedResidence, pickResidenceForFamily } from '../src/game/residencySelection';
+import { pickLeastCrowdedResidence, pickResidenceForFamily } from '../src/game/housingPipeline';
 
 /** A completed House through the production factory — no hand-built Building literal. */
 function residence(id: number): Building {
@@ -70,7 +70,7 @@ describe('the least-crowded residence rule has one owner', () => {
 
   it('keeps the shared-residence caller on the owner', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/game/residencyReconciliation.ts'),
+      resolve(process.cwd(), 'src/game/housingPipeline.ts'),
       'utf8',
     );
     expect(source, 'the shared-residence caller no longer delegates to the owner').toContain(

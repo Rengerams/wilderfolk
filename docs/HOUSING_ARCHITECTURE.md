@@ -4,7 +4,7 @@
 
 The single reference for how the colony decides **who sleeps where**: the model, the pipeline, the
 relocation rules, the decisions the owner confirmed, and what is still open.
-Owner module: `src/game/residencyReconciliation.ts`.
+Owner module: `src/game/housingPipeline.ts`.
 
 This document describes the code as it stands after the 2026-10-25 consolidation. If the two disagree, the
 code is right and this file is a bug.
@@ -26,7 +26,7 @@ Today there is exactly one of each thing that matters:
 | **When** housing is decided | `assignMissingResidences` — full seven-phase housing scheduler; `syncLeaderHouseResidency` — immediate leader-only event transition |
 | **What was already decided this run** | `HousingLedger` — one per run |
 | **How a decision is applied** | `relocateHousehold` for a household, `moveResident` for one settler |
-| **Which home a settler should get (pure scoring)** | `residencySelection.ts` |
+| **Which home a settler should get (pure scoring)** | `housingPipeline.ts` |
 | **One residence write** | `moveResident` |
 
 No phase function is exported as a scheduler. `tryMoveOutOfFamilyHome`,
@@ -485,9 +485,9 @@ docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF
 * **Staffing and job posts** — `workforce.ts` (`clearWorkerAssignment`, `detachWorkplaceReference`).
 * **Leader entitlement** (who the manor admits) — `leaderHouse.ts`, which applies it through the `leader`
   phase of this pipeline rather than writing residence ids itself.
-* **Pure scoring** (which home fits, which trade is worth it) — `residencySelection.ts`.
+* **Pure scoring** (which home fits, which trade is worth it) — `housingPipeline.ts`.
 * **Derived rosters for views** — `syncResidenceOccupants`, called once at the end of a run.
-* **Family structure** — `householdComposition.ts` / `genealogyTypes.ts`.
+* **Family structure** — `housingModel.ts` / `genealogyTypes.ts`.
 
 A rule belongs in exactly one of these. If a housing rule appears in a caller, it is in the wrong place.
 
@@ -497,7 +497,7 @@ A rule belongs in exactly one of these. If a housing rule appears in a caller, i
 
 1. **Choose the phase.** A correction of a wrong state is a mandatory phase; an improvement is optional.
    Adding a phase means adding it to `HOUSING_PHASE_ORDER` and deciding its class in `MANDATORY_PHASES`.
-2. **Keep selection pure.** Scoring lives in `residencySelection.ts` and returns a decision, never applies it.
+2. **Keep selection pure.** Scoring lives in `housingPipeline.ts` and returns a decision, never applies it.
 3. **Apply through `relocateHousehold`.** Never write `residenceBuildingId` outside `moveResident`; never
    move part of a household through it.
 4. **Take the ledger.** Every optional move asks `isHousingUnitProtected` first; every phase is wrapped so

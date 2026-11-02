@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { initGame } from '../src/game/gameEngine';
 import { MapSize, BuildingType } from '../src/game/gameTypes';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 import { resetPathGridCaches, setCurrentPathMap } from '../src/game/pathfinding';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { enableSeededGlobalRandom } from '../src/game/simRng';

@@ -15,7 +15,7 @@ import { canAfford, consumeResources } from './resourceUtils';
 import { formatResourceCostNeed } from './resourceCost';
 import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
-import { countHomelessSettlers, isResidenceBuilding } from './residencyOccupancy';
+import { countHomelessSettlers, isResidenceBuilding } from './housingModel';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';

@@ -6,7 +6,7 @@ import {
   isWorkDay,
 } from './dayCycleClock';
 import { personDayRoll } from './simRng';
-import { isNearResidence } from './residencyOccupancy';
+import { isNearResidence } from './housingModel';
 import {
   DEFAULT_WORK_END_HOUR,
   DEFAULT_WORK_SCHEDULE,

@@ -23,7 +23,7 @@ import {
 } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { applyWorkerCommand, WORKER_CMD_PROTO, type WorkerCommand } from '../src/game/simWorker/commands';
-import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { getResidenceCapacity } from '../src/game/housingModel';
 import { getBuildingUpgradeEligibility } from '../src/game/buildingMaintenanceActions';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 

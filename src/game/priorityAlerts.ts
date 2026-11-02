@@ -1,7 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
-import { countHomelessSettlers } from './residencyOccupancy';
-import { collectFamilyHousingShortages } from './residencySelection';
+import { countHomelessSettlers } from './housingModel';
+import { collectFamilyHousingShortages } from './housingPipeline';
 import { isFoodCritical } from './resourceUtils';
 import { getBuildingCenter } from './placementUtils';
 import {

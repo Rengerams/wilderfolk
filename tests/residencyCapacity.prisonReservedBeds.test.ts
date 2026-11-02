@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
-import { rebalanceOvercrowdedResidences } from '../src/game/residencyReconciliation';
-import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { rebalanceOvercrowdedResidences } from '../src/game/housingPipeline';
+import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/housingModel';
 
 describe('capacity rebalance honors imprisoned residents', () => {
   it('counts a prisoner bed before retaining unrelated movable adults', () => {

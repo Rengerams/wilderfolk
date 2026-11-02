@@ -1,6 +1,6 @@
 import type { WorldState } from './gameTypes';
 import { EntityType, BuildingType } from './gameTypes';
-import { isResidenceBuilding } from './residencyOccupancy';
+import { isResidenceBuilding } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { TickContext } from './simulation/simulationTypes';

@@ -3,8 +3,8 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { assignMissingResidences } from '../src/game/residencyReconciliation';
-import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { assignMissingResidences } from '../src/game/housingPipeline';
+import { getResidenceCapacity } from '../src/game/housingModel';
 
 function person(id: number, overrides: Partial<Entity> = {}): Entity {
   const entity = createEntity(EntityType.Human, 400, 400, id, 200);

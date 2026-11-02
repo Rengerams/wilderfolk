@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.
+
+- **Fixed (2 November 2026):** A colony now settles into the same homes whatever order its settlers are supplied in, so a worker hand-off or save load cannot reshuffle its housing.
+
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 
 - **Fixed (2 November 2026):** A household evicted by the capacity pass is retried against the next fitting home instead of being left outside until the next housing run; one refused destination no longer ends the placement attempt.

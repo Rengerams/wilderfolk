@@ -2,7 +2,7 @@ import { EntityType, JobType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
-import { hasWorkAssignment } from './residencyOccupancy';
+import { hasWorkAssignment } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
 import {
   DAYS_PER_YEAR,
@@ -79,33 +79,30 @@ export {
   occupancyMove,
   residenceRoomFor,
   shareResidence,
-} from './residencyOccupancy';
-
-export {
+  isResidenceOccupantEntity,
+  buildFamilyGroups,
   collectFamilyMembers,
   collectOwnHousehold,
   getChildCustodian,
   isAdultChildAtHome,
-} from './householdComposition';
+} from './housingModel';
 
 export {
   auditHousingSharingIssues,
-  buildFamilyGroups,
   buildHousingUnits,
   housingUnitNeedsReassignment,
   pickResidenceForFamily,
   pickResidenceForHuman,
   pickResidenceFromChildCustodian,
-} from './residencySelection';
+} from './housingPipeline';
 
 export {
   assignMissingResidences,
-  isResidenceOccupantEntity,
   rebuildChildrenIds,
   syncPartnerResidence,
   syncResidenceOccupants,
-} from './residencyReconciliation';
-export type { ResidenceOccupancy } from './residencyOccupancy';
+} from './housingPipeline';
+export type { ResidenceOccupancy } from './housingModel';
 
 export {
   DAYS_PER_MOON_CYCLE,

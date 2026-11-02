@@ -1,4 +1,4 @@
-import { reassignDivorcedResidences } from '../residencyReconciliation';
+import { reassignDivorcedResidences } from '../housingPipeline';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';

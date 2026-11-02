@@ -9,7 +9,7 @@ import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
 import { indexLivingEntity } from './entityIndex';
 import { getResidenceCapacity } from './dayCycle';
-import { assignMissingResidences } from './residencyReconciliation';
+import { assignMissingResidences } from './housingPipeline';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';
 import { isPlayerHuman } from './playerHuman';

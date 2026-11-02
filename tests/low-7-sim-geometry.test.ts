@@ -49,8 +49,8 @@ import { createEntity } from '../src/game/entityFactory';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 
 import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEntities';
-import * as residencySelection from '../src/game/residencySelection';
-import { auditHousingSharingIssues } from '../src/game/residencySelection';
+import * as housingPipeline from '../src/game/housingPipeline';
+import { auditHousingSharingIssues } from '../src/game/housingPipeline';
 import { classifyJunction, connectionsAt } from '../src/game/stripJunction';
 import { buildEntityByType } from '../src/game/simFocus';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
@@ -220,7 +220,7 @@ describe('L21/L22 factory juvenile threshold', () => {
 
 describe('L54 dead family scorer', () => {
   it('no longer exports the unreachable duplicate shared-residence scorer', () => {
-    expect('pickSharedResidenceForFamily' in residencySelection).toBe(false);
+    expect('pickSharedResidenceForFamily' in housingPipeline).toBe(false);
   });
 });
 
