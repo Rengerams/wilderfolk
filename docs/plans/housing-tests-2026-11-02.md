@@ -126,7 +126,7 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 | **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
 | **T1** | P0a done; P1 contract landed | rebuild the end-to-end refused-destination fixture lost when the generator moved to `simRng` (the planner-level refusal case is landed) | 35 suites / 154 tests green; seed-independent refusal fixture passes; input-order property landed |
 | **T2** | P3 | delete the `housingUnitNeedsReassignment` tests (3 files) and rewrite them as plan-level cases | invariants + contract green |
-| **T3** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests; mutation checklist below |
+| **T3** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed and commute-margin all caught; `familyFitsInResidence` is caught by the capacity contract case, **not** the invariants (they never attempt an overfill); `pairs` stays intentionally uncaught (readers test `> 0`) |
 | **T4** | P6/P7 | move the 5 s ceiling into the benchmark; add a 30/360-day housing report (moves/household/year, homeless-days, churn) | harness numbers recorded |
 
 ## 6. Acceptance for the replacement
