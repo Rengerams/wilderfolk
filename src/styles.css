@@ -125,8 +125,9 @@ a:hover { color: var(--primair-donker); }
 .zijbalk__merk {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.2rem 0.45rem 0.9rem;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.35rem 0.45rem 1rem;
   border-bottom: 1px solid var(--rand);
 }
 
@@ -140,9 +141,13 @@ a:hover { color: var(--primair-donker); }
 .zijbalk__naam {
   font-weight: 700;
   line-height: 1.25;
-  font-size: 0.7rem;
-  color: var(--primair);
-  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  color: var(--inkt-zacht);
+  background: var(--oppervlak-zacht);
+  border: 1px solid var(--rand);
+  border-radius: 999px;
+  padding: 0.18rem 0.62rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
