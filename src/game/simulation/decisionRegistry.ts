@@ -286,7 +286,7 @@ export const SIMULATION_DECISIONS = {
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
     cadence: 'new-calendar-day',
-    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects a symmetric canonical pair site on demand regardless of which lover is the caller',
+    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection',
     writes: [
       'human.affairPartnerId',
       'human.affairProgress',
