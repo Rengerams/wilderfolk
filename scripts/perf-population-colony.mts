@@ -20,7 +20,7 @@ import { prepareColonyWorld, createCompletedBuilding, applyColonyBotAction, coll
 // The same real gameTick + hourly VirtualPlayer command route used by run-full-year.mts.
 // The setup is a one-time seeded, staffed colony: no free births, resources or buildings during measurement.
 const POPULATION = Number(process.env.PERF_POPS ?? '250');
-const DAYS = Number(process.env.PERF_DAYS ?? '2');
+const DAYS = Number(process.env.PERF_DAYS ?? '360');
 const SEED = Number(process.env.PERF_SEED ?? '12345');
 const WARMUP = Number(process.env.PERF_WARMUP ?? '12');
 const REPORT = process.env.PERF_REPORT;
@@ -30,7 +30,7 @@ if (!Number.isSafeInteger(POPULATION) || POPULATION < 24 || POPULATION > 5000 ||
     !Number.isSafeInteger(DAYS) || DAYS < 1 || DAYS > 180 ||
     !Number.isSafeInteger(WARMUP) || WARMUP < 0 || WARMUP >= TICKS_PER_DAY ||
     !Number.isSafeInteger(SEED) || !REPORT) {
-  throw new Error('Requires PERF_POPS=250|750|1800, PERF_DAYS=1..180, PERF_WARMUP=0..287, PERF_SEED and PERF_REPORT');
+  throw new Error('Requires PERF_POPS=250|750|1800, PERF_DAYS=1..360, PERF_WARMUP=0..287, PERF_SEED and PERF_REPORT');
 }
 
 function percentile(values: readonly number[], fraction: number): number {

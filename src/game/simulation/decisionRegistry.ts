@@ -189,7 +189,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
   },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActions.assignIdleWorkerToBuilding',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActionRouting.assignIdleWorkerToBuilding',
     cadence: 'assignment',
     cadenceNote: 'The idle-only assignWorkerInPlace choice preserves commute eligibility, squared distance, existing skill and first-encountered stability; optional career/DNA fit breaks only exact ties and never changes transfer/rebalance/cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
@@ -200,7 +200,7 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingActions on place/recruit/death',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingStaffingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
@@ -216,7 +216,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/simulation.invariants.test.ts (residence occupants consistency), tests/church.manualStaffing.test.ts (residence cleanup on removal), tests/longRunColony.integration.test.ts',
   },
   construction: {
-    owner: 'buildingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
+    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
     cadence: 'work',
     cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. the crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
     writes: [
@@ -424,7 +424,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
-    owner: 'commands.ts (simWorker) → domain owner in buildingActions.ts (assignIdleWorkerToBuilding, repairBuilding, upgradeBuilding, demolishBuilding, setMineMode, workshop recipes, modes)',
+    owner: 'commands.ts (simWorker) → domain owners: buildingActionRouting, buildingStaffingActions, buildingResidencyActions, buildingMaintenanceActions and buildingConfigurationActions',
     cadence: 'player-command',
     cadenceNote: 'main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
