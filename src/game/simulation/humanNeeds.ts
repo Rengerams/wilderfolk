@@ -10,7 +10,6 @@ import { formatCitizenName, formatDeathLog } from '../citizenId';
 import { spendFood } from '../economyLedger';
 import { resolveHumanNeedsIntent, creditHumanNutritionFromFood } from './humanPhysiology';
 import { isPlayerHuman } from '../playerHuman';
-import { Human } from '../gameConstants';
 
 const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
   [EntityType.Deer]: 52,
@@ -19,12 +18,6 @@ const HUNT_BASE_YIELD: Partial<Record<EntityType, number>> = {
   [EntityType.Rabbit]: 22,
 };
 const HUNT_DEFAULT_BASE_YIELD = 18;
-
-/** Evaluates whether the current clock hour is a scheduled meal check (00:00, 04:00, 08:00, etc.). */
-export function isMealCheckHour(hourOfDay: number): boolean {
-  const normalizedHour = ((hourOfDay % 24) + 24) % 24;
-  return normalizedHour % Human.MEAL_CHECK_INTERVAL_HOURS === 0;
-}
 
 /**
  * The one colony-larder meal rule, read without eating: every gate {@link tryEatColonyMeal}
