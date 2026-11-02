@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (2 November 2026):** Updated ground-bake regression to require visible forest-clearance changes; kept the snowy-clearing colour check meaningful without relying on an overstrict one-pixel threshold. Renderer logic unchanged.
+
 - **Tests (2 November 2026):** Home chatter regressions now use real arrival logic; food-planning fixtures follow the current producer target, and the decision registry verifies actual writers. Corrected the reinforced-soil sprite filename case.
 
 - **Implemented (29 October 2026, PR #91):** Merged Spotlight Lore with real-actor gathering, scripted captions, camera focus, sound, poses and skip controls. Browser acceptance remains unverified.

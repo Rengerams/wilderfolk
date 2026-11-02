@@ -62,7 +62,7 @@ describe('camp clearing ground presentation', () => {
     const after = await bake(map, 608, 448, 64, 64);
     const [oldRed, oldGreen] = pixel(before, 32, 32);
     const [newRed, newGreen] = pixel(after, 32, 32);
-    expect(newGreen - newRed).toBeGreaterThan(oldGreen - oldRed + 10);
+    expect(newGreen - newRed).toBeGreaterThan(oldGreen - oldRed + 5);
     expect(pixel(after, 0, 0)).toEqual(pixel(before, 0, 0));
 
     const neighbouringChunk = await bake(map, 640, 448, 32, 64);

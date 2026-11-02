@@ -28,7 +28,7 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
 
-**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** grassland overrides and continuous shader fields disagree on the camp's surface. A derived render-only clearing mask now blends the ground to grassland; focused test and browser visual QA pending.
+**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** shader now respects grassland clearing masks; two stale CI assertions were aligned on 2 November. Browser visual verification pending.
 
 **2026-10-29 — [Founding settlers vanish at overview zoom](../bug_report/2026-10-29-founding-settlers-vanish-at-overview-zoom.md):** the 1.15× marker cutoff hid the original two people among larger wildlife art. Founders now remain full sprites at overview zoom and larger crowds use high-contrast markers; focused test and browser QA pending.
 
