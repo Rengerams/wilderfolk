@@ -79,6 +79,12 @@ export type WorkerUiPatch = Pick<
  */
 export const MAX_PIPELINE_DEPTH = Math.max(0, RENDER_BUFFER_POOL_SIZE - 1);
 
+export function allowedTickPipelineDepth(requested: number): number {
+  return Number.isFinite(requested)
+    ? Math.max(1, Math.min(RENDER_BUFFER_POOL_SIZE - 2, Math.floor(requested)))
+    : 1;
+}
+
 /** A requested export, and the timer that frees the host if its reply never arrives. */
 type PendingExport = {
   resolve: (world: WorldState) => void;
@@ -103,6 +109,9 @@ export class GameWorkerHost {
   private worker: Worker | null = null;
   private ready = false;
   private ticksInFlight = 0;
+  private readonly tickPipelineDepth = allowedTickPipelineDepth(
+    Number(import.meta.env?.VITE_WORKER_PIPELINE_DEPTH ?? 2),
+  );
   private tickRequestTimes: number[] = [];
   private lastCompletedTickLatencyMs: number | null = null;
   getLastCompletedTickLatencyMs(): number | null { return this.lastCompletedTickLatencyMs; }
@@ -344,9 +353,9 @@ export class GameWorkerHost {
    * posts it as soon as this returns true.
    */
   canPipelineTick(): boolean {
-    // Keep a single authoritative tick outstanding. A multi-tick backlog delays player
-    // commands and increases the stale-state window during worker recovery.
-    return !this.uploadBarrier && this.ticksInFlight < Math.min(1, MAX_PIPELINE_DEPTH) && this.pendingCommand == null;
+    // Leave both the active display slot and a command render slot available.
+    return !this.uploadBarrier && this.pendingExport == null
+      && this.ticksInFlight < this.tickPipelineDepth && this.pendingCommand == null;
   }
 
   hasCommandInFlight(): boolean {
@@ -678,10 +687,10 @@ export class GameWorkerHost {
   }
 
   private returnRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
-    if (!this.worker || buffer.byteLength === 0) return;
+    if (!this.worker) return;
     const returnMsg: WorkerRequest = { type: 'returnBuffer', proto: WORKER_PROTO, bufferIndex, buffer };
     try {
-      this.worker.postMessage(returnMsg, [buffer]);
+      this.worker.postMessage(returnMsg, buffer.byteLength === 0 ? [] : [buffer]);
     } catch (err) {
       console.warn('[GameWorker] Failed to return render buffer', err);
     }
