@@ -1,5 +1,6 @@
 import { BuildingType, type Building, type Entity, type HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
+import { NIGHT_END, NIGHT_START } from '../daycycleconstants';
 import { evaluateTraitInfluence } from '../personality/traitEvaluation';
 import type { TraitContext } from '../personality/traitEffectCatalog';
 
@@ -11,11 +12,10 @@ export const HUMAN_NEEDS = {
   EAT_ENTER_NUTRITION: 70,
   EAT_COOLDOWN_SIM_HOURS: 2,
   REST_LOSS_AWAKE_PER_SIM_HOUR: 4,
-  REST_RECOVERY_SLEEP_PER_SIM_HOUR: 12.5,
+  SLEEP_RECOVERY_PER_SIM_HOUR: 100 / (24 - NIGHT_START + NIGHT_END),
   STAMINA_WORK_LOSS_PER_SIM_HOUR: 9,
   STAMINA_WALK_LOSS_PER_SIM_HOUR: 5,
   STAMINA_IDLE_RECOVERY_PER_SIM_HOUR: 5,
-  STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR: 12.5,
   WELL_STAMINA_DRAIN_MULTIPLIER: 0.8,
   WELL_RADIUS_PX: 400,
   HOSPITAL_STAMINA_RECOVERY_MULTIPLIER: 1.1,
@@ -95,8 +95,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     + (obs.moving ? HUMAN_NEEDS.NUTRITION_WALK_EXTRA_PER_SIM_HOUR : 0);
   needs.nutrition = bounded(needs.nutrition - nutritionLoss * hours * (entity.isJuvenile ? 0.85 : 1), 0);
   needs.rest = bounded(needs.rest + hours * (obs.sleeping
-    ? HUMAN_NEEDS.REST_RECOVERY_SLEEP_PER_SIM_HOUR : -HUMAN_NEEDS.REST_LOSS_AWAKE_PER_SIM_HOUR), 0);
-  let staminaRate = obs.sleeping ? HUMAN_NEEDS.STAMINA_SLEEP_RECOVERY_PER_SIM_HOUR
+    ? HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR : -HUMAN_NEEDS.REST_LOSS_AWAKE_PER_SIM_HOUR), 0);
+  let staminaRate = obs.sleeping ? HUMAN_NEEDS.SLEEP_RECOVERY_PER_SIM_HOUR
     : obs.working ? -HUMAN_NEEDS.STAMINA_WORK_LOSS_PER_SIM_HOUR
       : obs.moving ? -HUMAN_NEEDS.STAMINA_WALK_LOSS_PER_SIM_HOUR
         : HUMAN_NEEDS.STAMINA_IDLE_RECOVERY_PER_SIM_HOUR;

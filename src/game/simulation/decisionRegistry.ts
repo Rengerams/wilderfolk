@@ -140,7 +140,7 @@ export const SIMULATION_DECISIONS = {
   humanPhysiology: {
     owner: 'simulation/humanPhysiology.ts — initialHumanNeeds, normalizeHumanNeeds, advanceHumanNeeds, resolveHumanNeedsIntent, getHumanNeedsWorkMultiplier, hasFatalStarvation, creditHumanNutritionFromFood, adjustHumanStaminaFromEnergy, rebaseHumanNeedsClockAfterFormRestore, hasNearbyWell',
     cadence: 'realtime',
-    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. Sleep requires a confirmed indoor arrival from the movement owner: humanMovement.homeStandPosition targets outside the housing footprint, with home leisure using the same porch; this decision does not own navigation. Work-shift stamina loss is divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain; walking keeps its base drain.',
+    cadenceNote: 'Player humans advance once per tick before offscreen throttling. Creation, load migration and form restoration initialize or restore saved needs. Resolve intent and work effects as read-only queries. The legacy human energy field is a one-way stamina projection. The sole seven-hour-night recovery rate is shared by rest and stamina, and humanTick.observeHumanSleep observes eligible homes, hotels, wards, cells and lover visits before the single physiology write. Sleep requires a confirmed indoor arrival from the movement owner: humanMovement.homeStandPosition targets outside the housing footprint, with home leisure using the same porch; this decision does not own navigation. Work-shift stamina loss is divided by the catalog physiology/labor factor, so endurance DNA reaches the player work drain; walking keeps its base drain.',
     writes: [
       'human.needs',
       'human.needs.nutrition',
@@ -154,7 +154,7 @@ export const SIMULATION_DECISIONS = {
       'human.energy (derived projection)',
     ],
     scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
-    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts',
   },
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
@@ -249,7 +249,7 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. Scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. This owner writes human.dialogueRecentScenes and is not a read-only projection; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts',
@@ -285,8 +285,8 @@ export const SIMULATION_DECISIONS = {
   },
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
-    cadence: 'new-calendar-day',
-    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks',
+    cadence: 'staggered-social',
+    cadenceNote: 'authority declares staggered/daily — tryst PROGRESS advances every realtime tick (affairProgress += rate * PER_TICK_RATE_SCALE, no stagger); establishment/gossip/scandal roll on the daily gate; caught-in-act exposure can fire from realtime proximity checks; getAffairTrystBuilding selects only an available home of either lover when nearby; otherwise affairs remain outdoors; partner order never changes site selection; recordAffairTrystSite records an indoor location only when both lovers actually entered it',
     writes: [
       'human.affairPartnerId',
       'human.affairProgress',
@@ -297,8 +297,8 @@ export const SIMULATION_DECISIONS = {
       'prison fields on arrest',
       'villageReputation',
     ],
-    scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → humanRelationships.tryDailyAffairEncounter; realtime proximity for caught-in-act',
-    testFile: 'tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts',
+    scheduledFrom: 'humanTick.ts tickHumans → one daily lover-specific waking-hour gate for tryDailyAffairEncounter and tryDailyAffairGossip; realtime meeting/progress and caught-in-act proximity, with shared tryst site read-only in humanRelationships.getAffairTrystBuilding',
+    testFile: 'tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
     owner: 'humanRelationships.ts — tryDailyConception (ONLY conception owner)',

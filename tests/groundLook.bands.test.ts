@@ -299,12 +299,9 @@ describe('the ground bake paints the classification it is drawn under', () => {
     expect(a!.rows).toBe(map.rows);
   });
 
-  it('ignores the sparse override layer — the invariant the chunk key rests on', async () => {
-    // `renderer/terrain.ts` keys the ground chunks on seed/preset/dims and the bake step, and **not**
-    // on `getTerrainRevision()`, because that counter is bumped when a building footprint is cleared
-    // while the bake reads none of the arrays the clearing writes. If this ever becomes false, the
-    // chunks go stale for a frame; if the key is "fixed" back, a routine build freezes every visible
-    // chunk to produce a byte-identical image.
+  it('renders sparse forest-clearing overrides that invalidate the chunk revision key', async () => {
+    // The Whittaker field builder now reads sparse grassland clearings, and the
+    // renderer includes getTerrainRevision() in its chunk cache key.
     const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, MapPreset.Continental);
     const before = await bakeMap(map);
     const beforeHash = hashPixels(before.data);
@@ -323,8 +320,8 @@ describe('the ground bake paints the classification it is drawn under', () => {
     expect(cleared, 'forest tiles cleared').toBe(40);
 
     const after = await bakeMap(map);
-    expect(hashPixels(after.data)).toBe(beforeHash);
-    // The tile projection did change — so the bake is ignoring a real edit, not a no-op.
+    expect(hashPixels(after.data)).not.toBe(beforeHash);
+    // Clearing changes the actual ground presentation, not just the tile projection.
     expect(map.overrides?.size).toBe(40);
   });
 

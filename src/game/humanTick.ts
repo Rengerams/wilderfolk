@@ -174,6 +174,51 @@ function getAffairTrystTarget(
   return { x: paramour.x, y: paramour.y };
 }
 
+/** Sole tick-level sleep observation; physiology alone owns rest and stamina recovery. */
+function observeHumanSleep(entity: Entity, context: {
+  hourOfDay: number;
+  previousIndoorBuildingId: number | undefined;
+  onDuty: boolean;
+  recoveringSleep: boolean;
+  buildings: Building[];
+  buildingById: Map<number, Building>;
+  entityById: Map<number, Entity>;
+  tick: number;
+}): { sleeping: boolean; hasHospital: boolean } {
+  const { hourOfDay, previousIndoorBuildingId, onDuty, recoveringSleep, buildings, buildingById, entityById, tick } = context;
+  if (entity.raidDeploymentId) return { sleeping: false, hasHospital: false };
+  const night = isNightHour(hourOfDay);
+  if (entity.prisonBuildingId != null) {
+    const cell = buildingById.get(entity.prisonBuildingId);
+    return {
+      sleeping: Boolean(cell?.completed && night && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18),
+      hasHospital: false,
+    };
+  }
+  if (onDuty) return { sleeping: false, hasHospital: false };
+
+  const home = entity.residenceBuildingId == null ? undefined : buildingById.get(entity.residenceBuildingId);
+  const atHome = !!home && home.faction !== 'rival' && isResidenceBuilding(home)
+    && previousIndoorBuildingId === home.id;
+  const atHotel = entity.hotelStayBuildingId != null
+    && previousIndoorBuildingId === entity.hotelStayBuildingId
+    && isSettlerLodgingAtHotel(entity, buildings, hourOfDay);
+  const ward = previousIndoorBuildingId == null ? undefined : buildingById.get(previousIndoorBuildingId);
+  const hasHospital = isRestingHospitalPatient(entity, ward, tick, previousIndoorBuildingId);
+
+  const lover = entity.affairPartnerId == null ? undefined : entityById.get(entity.affairPartnerId);
+  const site = lover?.alive && isSettlerRelationshipEntity(lover) && hasAffairPartner(entity, entityById)
+    ? getAffairTrystBuilding(entity, lover, entityById, buildingById) : undefined;
+  const atLover = !!site && !!lover && (night || recoveringSleep)
+    && previousIndoorBuildingId === site.id && lover?.indoorBuildingId === site.id
+    && isValidAffairTrystSite(entity, lover, entityById, buildingById, 55, hourOfDay);
+
+  return {
+    sleeping: (atHome && (night || recoveringSleep)) || atHotel || hasHospital || atLover,
+    hasHospital,
+  };
+}
+
 export function tickHumans(state: WorldState, ctx: TickContext): void {
   const {
     width,
@@ -625,38 +670,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const inSpotlightGathering = spotlightActorIds?.has(entity.id) === true;
 
     const onDutyForSleep = onJobShift || onOfficialShift || onPriestShift || schoolCommuteDue;
-    const cell = isPrisoner ? buildingById.get(entity.prisonBuildingId!) : undefined;
-    const sleepingInCell = Boolean(cell?.completed && isNightHour(hourOfDay)
-      && Math.hypot(entity.x - cell.x, entity.y - cell.y) <= 18);
-    const home = entity.residenceBuildingId == null
-      ? undefined : buildingById.get(entity.residenceBuildingId);
-    const insideOwnHome = !isPrisoner && !onDutyForSleep
-      && !!home && home.faction !== 'rival' && isResidenceBuilding(home)
-      && previousIndoorBuildingId === home.id;
-    const asleepAtHome = insideOwnHome && isNightHour(hourOfDay);
-    const sleepingAtHotel = !isPrisoner && !onDutyForSleep
-      && entity.hotelStayBuildingId != null
-      && previousIndoorBuildingId === entity.hotelStayBuildingId
-      && isSettlerLodgingAtHotel(entity, updatedBuildings, hourOfDay);
-    const recoveryAtHome = insideOwnHome && recoveringSleep;
-    const ward = previousIndoorBuildingId == null
-      ? undefined : buildingById.get(previousIndoorBuildingId);
-    const sleepingAtHospital = !isPrisoner && !onDutyForSleep
-      && isRestingHospitalPatient(entity, ward, state.tick, previousIndoorBuildingId);
-    const lover = entity.affairPartnerId == null
-      ? undefined : livingHumanAt(entity.affairPartnerId);
-    const loverHome = lover?.residenceBuildingId == null
-      ? undefined : buildingById.get(lover.residenceBuildingId);
-    const sleepingAtLover = !isPrisoner && !onDutyForSleep && isNightHour(hourOfDay)
-      && !!lover && hasAffairPartner(entity, entityById)
-      && !!loverHome?.completed && previousIndoorBuildingId === loverHome.id
-      && isNearResidence(lover, buildingById)
-      && isValidAffairTrystSite(entity, lover, entityById, buildingById, 55, hourOfDay);
-    const sleepingForNeeds = !entity.raidDeploymentId && (
-      sleepingInCell || (!isPrisoner && (
-        asleepAtHome || sleepingAtHotel || recoveryAtHome || sleepingAtHospital || sleepingAtLover
-      ))
-    );
+    const sleep = observeHumanSleep(entity, {
+      hourOfDay, previousIndoorBuildingId, onDuty: onDutyForSleep, recoveringSleep,
+      buildings: updatedBuildings, buildingById, entityById, tick: state.tick,
+    });
+    const sleepingForNeeds = sleep.sleeping;
     let ateMeal = false;
     if (isPlayerHuman(entity)) {
       advanceHumanNeeds(entity, {
@@ -665,7 +683,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         nightDuty: (onJobShift || onOfficialShift || onPriestShift) && isNightHour(hourOfDay),
         moving: Math.hypot(entity.vx, entity.vy) > 0.1,
         hasWell: hasNearbyWell(entity, nearbyWells),
-        hasHospital: sleepingAtHospital,
+        hasHospital: sleep.hasHospital,
       });
       if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
@@ -1848,7 +1866,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     // Idle stamina recovery requires an actual stationary break; keep danger,
     // scheduled duty and ceremonies free to override it.
-    if (takingNeedsBreak && !inSpotlightGathering && !huntingWere && !inElectionCeremony && !festivalGathering &&
+    if (takingNeedsBreak && !onSchedule && !inSpotlightGathering && !huntingWere && !inElectionCeremony && !festivalGathering &&
       !hospitalCommuteDue && !prisonCommuteDue && !schoolCommuteDue && !entity.raidDeploymentId) {
       entity.vx = 0;
       entity.vy = 0;
