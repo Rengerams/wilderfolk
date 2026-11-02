@@ -71,6 +71,28 @@ async function gebruikerAntwoord(id: number) {
 
 const PREVIEW = process.env.BASE44_PREVIEW_MODE === "1"
 
+/**
+ * Inlog- en herstelcodes staan gehasht in de database, net als wachtwoorden.
+ * Een code van het oude formaat (zes cijfers zonder hash) blijft werken tot hij
+ * verloopt, zodat een draaiende omgeving niet ineens iedereen buitensluit.
+ */
+function hashCode(code: string): string {
+  return hashWachtwoord(code)
+}
+
+function controleerCode(opgeslagen: string, code: string): boolean {
+  if (opgeslagen.includes("$")) return controleerWachtwoord(code, opgeslagen)
+  return veiligeVergelijking(opgeslagen, code)
+}
+
+/** Zet een code in de mailwachtrij; in de preview tonen we hem liever direct op het scherm. */
+async function mailCode(email: string, onderwerp: string, tekst: string): Promise<void> {
+  await q(
+    `insert into email_outbox (email, onderwerp, tekst, status) values ($1,$2,$3,'in_wachtrij')`,
+    [email, onderwerp, tekst],
+  )
+}
+
 /** Voor een onbekend e-mailadres doen we toch rekenwerk, zodat de reactietijd niets verraadt. */
 const NEP_HASH = hashWachtwoord("nep-wachtwoord-voor-gelijke-reactietijd")
 
@@ -121,9 +143,17 @@ authRouter.post(
       await q(
         `update gebruikers set twee_staps_code = $1, twee_staps_verloopt = now() + interval '10 minutes'
           where id = $2`,
-        [code, gebruiker.id],
+        [hashCode(code), gebruiker.id],
       )
       // In de previewomgeving is er geen mailserver; dan tonen we de code zodat de app bruikbaar is.
+      // Daarbuiten gaat de code naar de mailwachtrij, zodat hij echt verstuurd kan worden.
+      if (!PREVIEW) {
+        await mailCode(
+          gebruiker.email,
+          "Je inlogcode voor het beheersysteem",
+          `Je inlogcode is ${code}. De code is 10 minuten geldig. Heb je niet geprobeerd in te loggen? Neem contact op met de beheerder.`,
+        )
+      }
       res.json({ twee_staps: true, code: PREVIEW ? code : undefined })
       return
     }
@@ -148,7 +178,7 @@ authRouter.post(
       return
     }
     const gebruiker = await gebruikerBijEmail(email)
-    if (!gebruiker || !gebruiker.twee_staps_code || !veiligeVergelijking(gebruiker.twee_staps_code, code)) {
+    if (!gebruiker || !gebruiker.twee_staps_code || !controleerCode(gebruiker.twee_staps_code, code)) {
       registreerPoging(codeSleutel)
       // Na vijf foute codes de code laten vervallen, zodat doorgaan geen zin heeft.
       if (teVaakGeprobeerd(codeSleutel, 5, 15) > 0 && gebruiker) {
@@ -214,8 +244,15 @@ authRouter.post(
       await q(
         `update gebruikers set reset_code = $1, reset_verloopt = now() + interval '30 minutes'
           where id = $2`,
-        [code, gebruiker.id],
+        [hashCode(code), gebruiker.id],
       )
+      if (!PREVIEW) {
+        await mailCode(
+          gebruiker.email,
+          "Je herstelcode voor het beheersysteem",
+          `Je herstelcode is ${code}. De code is 30 minuten geldig. Heb je geen nieuw wachtwoord aangevraagd? Negeer deze e-mail dan.`,
+        )
+      }
       res.json({
         bericht: "Als dit e-mailadres bekend is, hebben we een herstelcode gestuurd.",
         code: PREVIEW ? code : undefined,
@@ -244,7 +281,7 @@ authRouter.post(
       return
     }
     const gebruiker = await gebruikerBijEmail(email)
-    if (!gebruiker || !gebruiker.reset_code || !veiligeVergelijking(gebruiker.reset_code, code)) {
+    if (!gebruiker || !gebruiker.reset_code || !controleerCode(gebruiker.reset_code, code)) {
       registreerPoging(herstelSleutel)
       stuurFout(res, 400, "De herstelcode klopt niet.")
       return

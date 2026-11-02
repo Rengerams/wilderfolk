@@ -9,7 +9,7 @@
  */
 import { Router } from "express"
 import * as XLSX from "xlsx"
-import { een, q } from "../db"
+import { metTransactie, q } from "../db"
 import { logWijziging } from "../audit"
 import { ah, stuurFout } from "../util"
 
@@ -105,17 +105,24 @@ function controleerDatum(waarde: string): string | null {
   return waarde
 }
 
+/** Bovengrens voor uploads, zodat een groot of kwaadaardig bestand de server niet platlegt. */
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024
+const MAX_IMPORT_RIJEN = 5000
+
 function leesTabel(bestand: unknown): unknown[][] {
   const ruw = Buffer.isBuffer(bestand) ? bestand : Buffer.from(String(bestand), "base64")
+  if (ruw.length > MAX_IMPORT_BYTES) throw new Error("Het bestand is te groot (maximaal 5 MB).")
   const werkboek = XLSX.read(ruw, { type: "buffer", cellDates: false })
   const eersteBlad = werkboek.SheetNames[0]
   if (!eersteBlad) throw new Error("Het bestand bevat geen werkblad.")
-  return XLSX.utils.sheet_to_json<unknown[]>(werkboek.Sheets[eersteBlad], {
+  const rijen = XLSX.utils.sheet_to_json<unknown[]>(werkboek.Sheets[eersteBlad], {
     header: 1,
     raw: false,
     defval: "",
     dateNF: "yyyy-mm-dd",
   }) as unknown[][]
+  if (rijen.length > MAX_IMPORT_RIJEN) throw new Error("Het bestand bevat te veel rijen (maximaal 5000).")
+  return rijen
 }
 
 async function haalDeelnemers(): Promise<DeelnemerKort[]> {
@@ -287,52 +294,77 @@ geschiedenisImportRouter.post(
       stuurFout(res, 400, "Er zijn geen bezoeken om op te slaan.")
       return
     }
+    if (geldig.length > 2000) {
+      stuurFout(res, 400, "Er zijn te veel uitjes om in één keer op te slaan (maximaal 2000).")
+      return
+    }
+    if (geldig.some((groep) => groep.omschrijving.length > 200)) {
+      stuurFout(res, 400, "Een omschrijving is te lang (maximaal 200 tekens).")
+      return
+    }
+    // De bevestiging komt uit de browser: controleer dat elke deelnemer echt bestaat.
+    const alleDeelnemers = [...new Set(geldig.flatMap((groep) => groep.deelnemers))]
+    const bestaandeDeelnemers = await q<{ id: number }>(
+      "select id from deelnemers where id = any($1::int[])",
+      [alleDeelnemers],
+    )
+    if (bestaandeDeelnemers.length !== alleDeelnemers.length) {
+      stuurFout(res, 400, "Er staan deelnemers in de bevestiging die niet in het systeem bestaan.")
+      return
+    }
 
     const datums = geldig.map((groep) => groep.datum as string).sort()
     const eerste = datums[0]
     const laatste = datums[datums.length - 1]
-    const bestaandePeriode = await een<{ id: number }>(
-      "select id from periodes where naam = $1",
-      [ARCHIEF_PERIODE],
-    )
-    const periode =
-      bestaandePeriode ??
-      (await een<{ id: number }>(
-        `insert into periodes (naam, start_op, eind_op, aanmelddeadline, status, standaard_capaciteit)
-         values ($1,$2,$3,$2,'gesloten',14) returning id`,
-        [ARCHIEF_PERIODE, eerste, laatste],
-      ))
-    await q(
-      `update periodes set start_op = least(start_op, $2), eind_op = greatest(eind_op, $3)
-        where id = $1`,
-      [periode!.id, eerste, laatste],
-    )
 
     let toegevoegd = 0
-    for (const groep of geldig) {
-      const bestaandUitje = await een<{ id: number }>(
-        `select id from uitjes
-          where periode_id = $1 and datum = $2 and lower(trim(omschrijving)) = lower(trim($3))
-          limit 1`,
-        [periode!.id, groep.datum, groep.omschrijving],
+    // Alles in één transactie: een fout halverwege laat geen halve import achter.
+    await metTransactie(async (client) => {
+      const bestaandePeriode = await client.query<{ id: number }>(
+        "select id from periodes where naam = $1",
+        [ARCHIEF_PERIODE],
       )
-      const uitje =
-        bestaandUitje ??
-        (await een<{ id: number }>(
-          `insert into uitjes
-            (periode_id, datum, omschrijving, capaciteit, status, bron, afgerond_op)
-           values ($1,$2,$3,$4,'actief','import',now()) returning id`,
-          [periode!.id, groep.datum, groep.omschrijving, groep.deelnemers.length],
-        ))
-      for (const deelnemerId of groep.deelnemers) {
-        const rij = await een(
-          `insert into aanwezigheid (uitje_id, deelnemer_id, aanwezig) values ($1,$2,true)
-           on conflict (uitje_id, deelnemer_id) do nothing returning deelnemer_id`,
-          [uitje!.id, deelnemerId],
+      let periodeId = bestaandePeriode.rows[0]?.id
+      if (!periodeId) {
+        const nieuw = await client.query<{ id: number }>(
+          `insert into periodes (naam, start_op, eind_op, aanmelddeadline, status, standaard_capaciteit)
+           values ($1,$2,$3,$2,'gesloten',14) returning id`,
+          [ARCHIEF_PERIODE, eerste, laatste],
         )
-        if (rij) toegevoegd += 1
+        periodeId = nieuw.rows[0].id
       }
-    }
+      await client.query(
+        `update periodes set start_op = least(start_op, $2), eind_op = greatest(eind_op, $3)
+          where id = $1`,
+        [periodeId, eerste, laatste],
+      )
+      for (const groep of geldig) {
+        const bestaandUitje = await client.query<{ id: number }>(
+          `select id from uitjes
+            where periode_id = $1 and datum = $2 and lower(trim(omschrijving)) = lower(trim($3))
+            limit 1`,
+          [periodeId, groep.datum, groep.omschrijving],
+        )
+        let uitjeId = bestaandUitje.rows[0]?.id
+        if (!uitjeId) {
+          const nieuwUitje = await client.query<{ id: number }>(
+            `insert into uitjes
+              (periode_id, datum, omschrijving, capaciteit, status, bron, afgerond_op)
+             values ($1,$2,$3,$4,'actief','import',now()) returning id`,
+            [periodeId, groep.datum, groep.omschrijving, groep.deelnemers.length],
+          )
+          uitjeId = nieuwUitje.rows[0].id
+        }
+        for (const deelnemerId of groep.deelnemers) {
+          const rij = await client.query(
+            `insert into aanwezigheid (uitje_id, deelnemer_id, aanwezig) values ($1,$2,true)
+             on conflict (uitje_id, deelnemer_id) do nothing returning deelnemer_id`,
+            [uitjeId, deelnemerId],
+          )
+          if (rij.rowCount) toegevoegd += 1
+        }
+      }
+    })
 
     await logWijziging(req, {
       actie: "importeren",

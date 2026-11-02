@@ -231,6 +231,8 @@ export function Declaraties() {
   if (!data) return null
 
   const isChauffeur = gebruiker?.rol === "Chauffeur"
+  // Beoordelen en uitbetalen zijn voorbehouden aan de penningmeester en beheerders.
+  const isFinancieel = ["Penningmeester", "Admin", "Beheerder"].includes(gebruiker?.rol ?? "")
   const zichtbaar = data.declaraties.filter((declaratie) => filter === "alles" || declaratie.status === filter)
   const teBeoordelen = data.declaraties.filter((declaratie) => declaratie.status === "ingediend").length
 
@@ -447,7 +449,8 @@ export function Declaraties() {
                           )}
                         </>
                       )}
-                    {declaratie.status === "ingediend" && !isChauffeur && mag("declaraties", "wijzigen") && (
+                    {declaratie.status === "ingediend" && isFinancieel &&
+                      declaratie.chauffeur_id !== gebruiker?.id && mag("declaraties", "wijzigen") && (
                       <>
                         <Knop variant="primair" onClick={() => { setBeoordeel({ declaratie, goedkeuren: true }); setReden("") }}>
                           Goedkeuren
@@ -457,7 +460,8 @@ export function Declaraties() {
                         </Knop>
                       </>
                     )}
-                    {declaratie.status === "goedgekeurd" && !isChauffeur && mag("declaraties", "wijzigen") && (
+                    {declaratie.status === "goedgekeurd" && isFinancieel &&
+                      declaratie.chauffeur_id !== gebruiker?.id && mag("declaraties", "wijzigen") && (
                       <Knop onClick={() => void betaalUit(declaratie.id)}>Uitbetalen</Knop>
                     )}
                   </div>

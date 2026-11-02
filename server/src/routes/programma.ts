@@ -1,7 +1,8 @@
 import { Router } from "express"
 import * as XLSX from "xlsx"
-import { een, q } from "../db"
+import { een, metTransactie, q } from "../db"
 import { logWijziging } from "../audit"
+import { mag } from "../auth"
 import { reserveZin, vraagReservisten } from "../reserve"
 import {
   ah,
@@ -394,13 +395,20 @@ function normaliseerOmschrijving(tekst: string): string {
   return tekst.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
 }
 
+/** Bovengrens voor uploads, zodat een groot of kwaadaardig bestand de server niet platlegt. */
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024
+const MAX_IMPORT_RIJEN = 2000
+
 function leesRijen(bestand: unknown, _bestandsnaam: string): unknown[][] {
   const ruw = Buffer.isBuffer(bestand) ? bestand : Buffer.from(String(bestand), "base64")
+  if (ruw.length > MAX_IMPORT_BYTES) throw new Error("Het bestand is te groot (maximaal 5 MB).")
   const werkboek = XLSX.read(ruw, { type: "buffer", cellDates: false })
   const eersteBlad = werkboek.SheetNames[0]
   if (!eersteBlad) throw new Error("Het bestand bevat geen werkblad.")
   const blad = werkboek.Sheets[eersteBlad]
-  return XLSX.utils.sheet_to_json<unknown[]>(blad, { header: 1, raw: false, defval: "" }) as unknown[][]
+  const rijen = XLSX.utils.sheet_to_json<unknown[]>(blad, { header: 1, raw: false, defval: "" }) as unknown[][]
+  if (rijen.length > MAX_IMPORT_RIJEN) throw new Error("Het bestand bevat te veel rijen (maximaal 2000).")
+  return rijen
 }
 
 function parseProgramma(rijen: unknown[][], periode: Periode, standaardCapaciteit: number) {
@@ -545,6 +553,41 @@ function parseProgramma(rijen: unknown[][], periode: Periode, standaardCapacitei
   return resultaat
 }
 
+/**
+ * Controleert een importregel opnieuw op het moment van bevestigen. De preview
+ * komt uit de browser en mag daarom niet vertrouwd worden: datums, tijden,
+ * prijzen, capaciteiten en labels worden hier opnieuw tegen de periode getoetst.
+ */
+function valideerImportRij(rij: ImportRij, periode: Periode): string | null {
+  if (!rij || typeof rij !== "object") return "Onbekende regel in de import."
+  const omschrijving = String(rij.omschrijving ?? "").trim()
+  if (!omschrijving) return "Een regel mist een omschrijving."
+  if (omschrijving.length > 200) return "Een omschrijving is te lang (maximaal 200 tekens)."
+  const datum = String(rij.datum ?? "").slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || !datumValtInPeriode(datum, periode)) {
+    return "Een datum valt buiten deze periode."
+  }
+  const tijdOk = (waarde: unknown) =>
+    waarde === null || waarde === undefined || waarde === "" ||
+    /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(String(waarde))
+  if (!tijdOk(rij.begin_tijd) || !tijdOk(rij.eind_tijd)) return "Een regel heeft een ongeldige tijd."
+  const prijs = Number(rij.prijs ?? 0)
+  if (!Number.isFinite(prijs) || prijs < 0 || prijs > 5000) {
+    return "Een prijs ligt buiten het toegestane bereik (0–5000)."
+  }
+  const capaciteit = Number(rij.capaciteit ?? 0)
+  if (!Number.isInteger(capaciteit) || capaciteit < 1 || capaciteit > 200) {
+    return "Een capaciteit ligt buiten het toegestane bereik (1–200)."
+  }
+  if (Array.isArray(rij.labels) && rij.labels.some((label) => !LABELS.includes(String(label)))) {
+    return "Een regel heeft een onbekend label."
+  }
+  if (String(rij.extra_kosten ?? "").length > 100) {
+    return "De extra kosten zijn te lang (maximaal 100 tekens)."
+  }
+  return null
+}
+
 programmaRouter.post(
   "/:id/import",
   ah(async (req, res) => {
@@ -592,14 +635,34 @@ programmaRouter.post(
       return
     }
     const regels = Array.isArray(req.body?.regels) ? (req.body.regels as ImportRij[]) : []
-    const geldig = regels.filter((rij) => (rij.fouten ?? []).length === 0 && rij.omschrijving)
+    if (regels.length > MAX_IMPORT_RIJEN) {
+      stuurFout(res, 400, "Er zijn te veel regels om op te slaan (maximaal 2000).")
+      return
+    }
+    // De foutmarkeringen uit de browser zijn niet betrouwbaar; elke regel wordt
+    // hier opnieuw gecontroleerd. Ongeldige regels worden niet opgeslagen.
+    const gecontroleerd = regels.map((rij) => ({ rij, fout: valideerImportRij(rij, periode) }))
+    const geldig = gecontroleerd
+      .filter((regel) => !regel.fout)
+      .map(({ rij }) => ({
+        rij: rij.rij,
+        datum: String(rij.datum).slice(0, 10),
+        begin_tijd: rij.begin_tijd ? String(rij.begin_tijd) : null,
+        eind_tijd: rij.eind_tijd ? String(rij.eind_tijd) : null,
+        omschrijving: String(rij.omschrijving).trim(),
+        prijs: Number(rij.prijs ?? 0),
+        extra_kosten: rij.extra_kosten ? String(rij.extra_kosten).trim() : null,
+        capaciteit: Number(rij.capaciteit),
+        labels: Array.isArray(rij.labels) ? rij.labels.map(String) : [],
+        reeks_sleutel: typeof rij.reeks_sleutel === "string" ? rij.reeks_sleutel : null,
+      })) as ImportRij[]
     if (geldig.length === 0) {
-      stuurFout(res, 400, "Er zijn geen regels zonder fouten om op te slaan.")
+      stuurFout(res, 400, gecontroleerd.find((regel) => regel.fout)?.fout ?? "Er zijn geen geldige regels om op te slaan.")
       return
     }
     const batch = await een<{ id: number }>(
-      "insert into import_batches (periode_id, soort, aantal, details) values ($1,'programma',$2,$3) returning id",
-      [periode.id, geldig.length, JSON.stringify({ rijen: geldig })],
+      "insert into import_batches (periode_id, soort, aantal, details, door) values ($1,'programma',$2,$3,$4) returning id",
+      [periode.id, geldig.length, JSON.stringify({ rijen: geldig }), req.gebruiker!.id],
     )
     const reeksMap = new Map<string, number>()
     for (const rij of geldig) {
@@ -644,7 +707,7 @@ programmaRouter.post(
   "/import/:batchId/ongedaan",
   ah(async (req, res) => {
     const batchId = Number(req.params.batchId)
-    const batch = await een<{ id: number; periode_id: number; aantal: number }>(
+    const batch = await een<{ id: number; periode_id: number; aantal: number; door: number | null }>(
       "select * from import_batches where id = $1",
       [batchId],
     )
@@ -652,14 +715,41 @@ programmaRouter.post(
       stuurFout(res, 404, "Deze import bestaat niet.")
       return
     }
+    // Alleen de maker mag zijn eigen import terugdraaien. Iemand anders heeft
+    // daar het recht 'programma verwijderen' voor nodig.
+    if (batch.door !== req.gebruiker!.id && !mag(req.gebruiker, "programma", "verwijderen")) {
+      stuurFout(res, 403, "Alleen de maker van deze import of een beheerder kan hem ongedaan maken.")
+      return
+    }
     const uitjes = await q<{ uitje_id: number }>(
       "select uitje_id from import_batch_uitjes where batch_id = $1",
       [batchId],
     )
-    for (const { uitje_id } of uitjes) {
-      await q("delete from uitjes where id = $1", [uitje_id])
+    const ids = uitjes.map((uitje) => uitje.uitje_id)
+    // Niets weggooien waar al opgaven, aanwezigheid, indelingen of geldzaken aan hangen.
+    const afhankelijk = await een<{ aantal: string }>(
+      `select count(*)::text as aantal
+         from uitjes u
+        where u.id = any($1::int[])
+          and (exists (select 1 from opgaven o where o.uitje_id = u.id)
+            or exists (select 1 from aanwezigheid a where a.uitje_id = u.id)
+            or exists (select 1 from indeling_rijen r where r.uitje_id = u.id)
+            or exists (select 1 from declaraties d where d.uitje_id = u.id)
+            or exists (select 1 from kas_afsluitingen k where k.uitje_id = u.id))`,
+      [ids],
+    )
+    if (Number(afhankelijk?.aantal ?? 0) > 0) {
+      stuurFout(
+        res,
+        409,
+        "Deze import kan niet ongedaan worden gemaakt: er staan al opgaven, aanwezigheid, indelingen of geldzaken op. Ruim die eerst op.",
+      )
+      return
     }
-    await q("delete from import_batches where id = $1", [batchId])
+    await metTransactie(async (client) => {
+      await client.query("delete from uitjes where id = any($1::int[])", [ids])
+      await client.query("delete from import_batches where id = $1", [batchId])
+    })
     await logWijziging(req, {
       actie: "import-ongedaan",
       entiteit: "periode",
@@ -853,6 +943,41 @@ programmaRouter.post(
   }),
 )
 
+/**
+ * Wie mogen voor dit uitje als aanwezig worden geregistreerd? De definitieve
+ * indeling is leidend; zonder indeling de opgaven. Al geregistreerde deelnemers
+ * blijven geldig, zodat bestaande gegevens nooit blokkeren.
+ */
+async function toegestaneAanwezigen(uitje: { id: number; periode_id: number }): Promise<Set<number>> {
+  const definitief = await een<{ id: number }>(
+    "select id from indeling_runs where periode_id = $1 and modus = 'definitief' order by id desc limit 1",
+    [uitje.periode_id],
+  )
+  const uitIndeling = definitief
+    ? await q<{ deelnemer_id: number }>(
+        `select r.deelnemer_id from indeling_rijen r
+           join deelnemers d on d.id = r.deelnemer_id
+          where r.run_id = $1 and r.uitje_id = $2 and r.status = 'geplaatst' and d.status <> 'gestopt'`,
+        [definitief.id, uitje.id],
+      )
+    : []
+  const uitOpgaven = uitIndeling.length > 0
+    ? []
+    : await q<{ deelnemer_id: number }>(
+        `select o.deelnemer_id from opgaven o
+           join deelnemers d on d.id = o.deelnemer_id
+          where o.uitje_id = $1 and d.status <> 'gestopt'`,
+        [uitje.id],
+      )
+  const alGeregistreerd = await q<{ deelnemer_id: number }>(
+    "select deelnemer_id from aanwezigheid where uitje_id = $1",
+    [uitje.id],
+  )
+  return new Set(
+    [...uitIndeling, ...uitOpgaven, ...alGeregistreerd].map((rij) => rij.deelnemer_id),
+  )
+}
+
 programmaRouter.post(
   "/uitje/:id/afronden",
   ah(async (req, res) => {
@@ -861,17 +986,40 @@ programmaRouter.post(
       stuurFout(res, 404, "Dit uitje bestaat niet.")
       return
     }
-    const aanwezigen: number[] = Array.isArray(req.body?.aanwezig)
-      ? req.body.aanwezig.map(Number).filter(Boolean)
-      : []
-    await q("delete from aanwezigheid where uitje_id = $1", [uitje.id])
-    for (const deelnemerId of aanwezigen) {
-      await q(
-        "insert into aanwezigheid (uitje_id, deelnemer_id, aanwezig) values ($1,$2,true) on conflict do nothing",
-        [uitje.id, deelnemerId],
-      )
+    if (!Array.isArray(req.body?.aanwezig)) {
+      stuurFout(res, 400, "Geef door welke deelnemers er aanwezig waren.")
+      return
     }
-    await q("update uitjes set afgerond_op = now() where id = $1", [uitje.id])
+    const aanwezigen: number[] = [
+      ...new Set(
+        (req.body.aanwezig as unknown[])
+          .map(Number)
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    ]
+    const toegestaan = await toegestaneAanwezigen(uitje)
+    if (aanwezigen.some((id) => !toegestaan.has(id))) {
+      stuurFout(
+        res,
+        400,
+        "Er staan deelnemers bij die niet voor dit uitje zijn ingedeeld of aangemeld.",
+      )
+      return
+    }
+    if (aanwezigen.length === 0 && toegestaan.size > 0) {
+      stuurFout(res, 400, "Er is niemand aangevinkt. Vink de deelnemers aan die mee waren.")
+      return
+    }
+    await metTransactie(async (client) => {
+      await client.query("delete from aanwezigheid where uitje_id = $1", [uitje.id])
+      for (const deelnemerId of aanwezigen) {
+        await client.query(
+          "insert into aanwezigheid (uitje_id, deelnemer_id, aanwezig) values ($1,$2,true) on conflict do nothing",
+          [uitje.id, deelnemerId],
+        )
+      }
+      await client.query("update uitjes set afgerond_op = now() where id = $1", [uitje.id])
+    })
     await logWijziging(req, {
       actie: "afronden",
       entiteit: "uitje",
@@ -974,6 +1122,51 @@ programmaRouter.post(
     if (!voertuig) {
       stuurFout(res, 400, "Kies een voertuig.")
       return
+    }
+    if (chauffeurId !== null) {
+      const chauffeur = await een<{ actief: boolean; rol: string }>(
+        `select g.actief, r.naam as rol from gebruikers g
+           join rollen r on r.id = g.rol_id where g.id = $1`,
+        [chauffeurId],
+      )
+      if (!chauffeur?.actief) {
+        stuurFout(res, 400, "Kies een actieve chauffeur.")
+        return
+      }
+      if (!["Chauffeur", "Admin", "Beheerder", "Coördinator"].includes(chauffeur.rol)) {
+        stuurFout(res, 400, "Deze gebruiker is geen chauffeur.")
+        return
+      }
+    }
+    if (begeleiderId !== null) {
+      const begeleider = await een<{ actief: boolean }>(
+        "select actief from gebruikers where id = $1",
+        [begeleiderId],
+      )
+      if (!begeleider?.actief) {
+        stuurFout(res, 400, "Kies een actieve begeleider.")
+        return
+      }
+      if (chauffeurId !== null && begeleiderId === chauffeurId) {
+        stuurFout(res, 400, "De chauffeur en de begeleider zijn dezelfde persoon.")
+        return
+      }
+    }
+    // Niemand kan op dezelfde dag op twee uitjes ingezet worden.
+    const ingezet = [...new Set([chauffeurId, begeleiderId])].filter(
+      (id): id is number => id !== null,
+    )
+    for (const gebruikerId of ingezet) {
+      const conflict = await een(
+        `select 1 from uitje_voertuigen uv join uitjes u on u.id = uv.uitje_id
+          where u.datum = $1 and uv.uitje_id <> $2
+            and (uv.chauffeur_id = $3 or uv.begeleider_id = $3)`,
+        [uitje.datum, uitje.id, gebruikerId],
+      )
+      if (conflict) {
+        stuurFout(res, 409, "Deze medewerker is op deze dag al aan een ander uitje gekoppeld.")
+        return
+      }
     }
     const dubbel = await een(
       `select 1 from uitje_voertuigen uv join uitjes u on u.id = uv.uitje_id

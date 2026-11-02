@@ -30,6 +30,27 @@ export async function een<T = Record<string, unknown>>(
   return rijen[0]
 }
 
+/**
+ * Voert meerdere schrijfacties uit als één geheel: alles slaagt, of niets.
+ * Gebruik dit voor werkflows die anders halve gegevens achterlaten.
+ */
+export async function metTransactie<T>(
+  werk: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    const resultaat = await werk(client)
+    await client.query("commit")
+    return resultaat
+  } catch (fout) {
+    await client.query("rollback")
+    throw fout
+  } finally {
+    client.release()
+  }
+}
+
 export async function initDb(): Promise<void> {
   let laatsteFout: unknown
   for (let poging = 1; poging <= 30; poging++) {

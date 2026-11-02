@@ -155,7 +155,11 @@ deelnemersRouter.get(
         d.plaats ?? "", d.status, (d.mobiliteit ?? []).join("; "), d.heeft_mk ? "ja" : "nee",
         d.heeft_vl ? "ja" : "nee", String(d.totaal_deelnames),
       ]
-        .map((veld) => `"${String(veld).replaceAll('"', '""')}"`)
+        .map((veld) => {
+          // Een cel die met =, +, - of @ begint, voert in Excel een formule uit.
+          const tekst = String(veld ?? "")
+          return `"${(/^[=+\-@\t\r]/.test(tekst) ? `'${tekst}` : tekst).replaceAll('"', '""')}"`
+        })
         .join(";"),
     )
     res.setHeader("Content-Type", "text/csv; charset=utf-8")
@@ -470,16 +474,23 @@ export type ImportDeelnemer = {
   duplicaat: string | null
 }
 
+/** Bovengrens voor uploads, zodat een groot of kwaadaardig bestand de server niet platlegt. */
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024
+const MAX_IMPORT_RIJEN = 5000
+
 function leesTabel(bestand: unknown): unknown[][] {
   const ruw = Buffer.isBuffer(bestand) ? bestand : Buffer.from(String(bestand), "base64")
+  if (ruw.length > MAX_IMPORT_BYTES) throw new Error("Het bestand is te groot (maximaal 5 MB).")
   const werkboek = XLSX.read(ruw, { type: "buffer", cellDates: false })
   const eersteBlad = werkboek.SheetNames[0]
   if (!eersteBlad) throw new Error("Het bestand bevat geen werkblad.")
-  return XLSX.utils.sheet_to_json<unknown[]>(werkboek.Sheets[eersteBlad], {
+  const rijen = XLSX.utils.sheet_to_json<unknown[]>(werkboek.Sheets[eersteBlad], {
     header: 1,
     raw: false,
     defval: "",
   }) as unknown[][]
+  if (rijen.length > MAX_IMPORT_RIJEN) throw new Error("Het bestand bevat te veel rijen (maximaal 5000).")
+  return rijen
 }
 
 function parseDeelnemers(rijen: unknown[][], bestaand: DeelnemerRij[]): ImportDeelnemer[] {

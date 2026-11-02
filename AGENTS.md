@@ -46,7 +46,28 @@ docker compose -f docker-compose.base44.yml up -d --build
   (`bron = 'import'`) en `aanwezigheid`-rijen; opnieuw importeren van dezelfde
   datum + omschrijving maakt geen dubbel uitje.
 - Er is in de sandbox geen mailserver: e-mails belanden in `email_outbox`. Staat
-  `BASE44_PREVIEW_MODE=1`, dan toont de app de herstelcode op het scherm.
+  `BASE44_PREVIEW_MODE=1`, dan toont de app de herstelcode op het scherm; anders gaat
+  de code als `in_wachtrij` naar `email_outbox` (2FA en herstel). Codes staan gehasht
+  (`scrypt$…`) in `reset_code` / `twee_staps_code`; oude cijfers-codes blijven werken
+  tot ze verlopen.
+- Integriteitsregels (zie `server/tests/integriteit.test.ts`):
+  - Een import ongedaan maken mag alleen de maker (`import_batches.door`) of iemand met
+    `programma: verwijderen`; het kan niet als er opgaven, aanwezigheid, indelingen,
+    declaraties of kasafsluitingen aan de uitjes hangen (409). Verwijderen gebeurt in
+    één transactie (`metTransactie` uit `db.ts`).
+  - Aanwezigheid wordt server-side beperkt tot deelnemers uit de definitieve indeling,
+    anders de opgaven; een lege lijst met deelnemers erin wordt geweigerd.
+  - Importbevestigingen worden opnieuw gevalideerd (datum binnen periode, tijden,
+    prijs 0–5000, capaciteit 1–200, labels); de foutmarkeringen van de browser gelden
+    niet meer.
+  - Declaraties: `ingediend → goedgekeurd/afgekeurd → uitbetaald`, conditionele
+    updates; alleen Penningmeester/Admin/Beheerder beoordelen of betalen en nooit de
+    eigen declaratie.
+  - Voertuigtoewijzing eist een actieve chauffeur met de juiste rol en weigert iemand
+    die op dezelfde dag al op een ander uitje staat.
+  - Eén kasafsluiting per uitje (route geeft 409, plus unieke index) en bedragen
+    mogen niet negatief zijn.
+  - CSV-exports zetten een apostrof voor waarden die met `= + - @` beginnen.
 - Beveiliging (`server/src/auth.ts`, `server/src/limiet.ts`, `server/src/index.ts`):
   wachtwoorden via scrypt (N=32768; het oude `zout:hash`-formaat blijft werken),
   minstens 10 tekens. Inloggen, twee-staps en herstelcodes zijn begrensd op

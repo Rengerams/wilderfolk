@@ -317,6 +317,16 @@ create table if not exists import_batch_uitjes (
 -- Uitbreidingen op bestaande databases.
 alter table voertuigen add column if not exists kenteken text;
 alter table uitje_voertuigen add column if not exists begeleider_id integer references gebruikers(id) on delete set null;
+alter table import_batches add column if not exists door integer references gebruikers(id);
+
+-- Eén kasafsluiting per uitje. Bestaande databases met dubbele afsluitingen
+-- mogen niet stuklopen op de index; de route weigert nieuwe duplicaten altijd.
+do $$
+begin
+  create unique index if not exists kas_afsluitingen_uitje_uniek on kas_afsluitingen(uitje_id);
+exception when others then
+  raise notice 'unieke kasafsluiting per uitje niet aangemaakt: %', sqlerrm;
+end $$;
 
 -- Elke rit heeft een chauffeur én een begeleider. Begeleiders zijn medewerkers met
 -- een eigen account, zodat ze de deelnemerslijst van hun uitje kunnen zien.

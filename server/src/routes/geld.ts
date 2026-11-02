@@ -17,18 +17,19 @@ export const voertuigenRouter = Router()
 
 const SOORTEN = ["drinken", "parkeren", "brandstof", "overig"]
 
-function csv(velden: (string | number)[][]): string {
-  return (
-    "\uFEFF" +
-    velden
-      .map((rij) =>
-        rij
-          .map((veld) => `"${String(veld ?? "").replaceAll('"', '""')}"`)
-          .join(";"),
-      )
-      .join("\r\n")
-  )
+/** Eén CSV-veld, beschermd tegen formule-uitvoering in Excel en LibreOffice. */
+function csvVeld(veld: string | number): string {
+  let tekst = String(veld ?? "")
+  if (/^[=+\-@\t\r]/.test(tekst)) tekst = `'${tekst}`
+  return `"${tekst.replaceAll('"', '""')}"`
 }
+
+function csv(velden: (string | number)[][]): string {
+  return "\uFEFF" + velden.map((rij) => rij.map(csvVeld).join(";")).join("\r\n")
+}
+
+/** Wie mogen declaraties beoordelen en uitbetalen? */
+const FINANCIELE_ROLLEN = ["Penningmeester", "Admin", "Beheerder"]
 
 async function chauffeurScoped(req: Request): Promise<boolean> {
   return req.gebruiker!.rol_naam === "Chauffeur" && !mag(req.gebruiker, "declaraties", "verwijderen")
@@ -152,7 +153,7 @@ geldRouter.patch(
     }
     const bijgewerkt = await een(
       `update declaraties set bedrag = $1, soort = $2, omschrijving = $3, bon = coalesce($4, bon)
-        where id = $5 returning *`,
+        where id = $5 and status = 'ingediend' returning *`,
       [
         bedrag,
         soort || rij.soort,
@@ -185,17 +186,35 @@ geldRouter.post(
       stuurFout(res, 404, "Deze declaratie bestaat niet.")
       return
     }
+    if (!FINANCIELE_ROLLEN.includes(req.gebruiker!.rol_naam)) {
+      stuurFout(res, 403, "Alleen de penningmeester of een beheerder kan declaraties beoordelen.")
+      return
+    }
+    if (rij.chauffeur_id === req.gebruiker!.id) {
+      stuurFout(res, 403, "Je kunt je eigen declaratie niet beoordelen.")
+      return
+    }
+    if (rij.status !== "ingediend") {
+      stuurFout(res, 409, "Deze declaratie is al beoordeeld.")
+      return
+    }
     const goedkeuren = req.body?.goedkeuren === true
     const reden = veiligeTekst(req.body?.reden)
     if (!goedkeuren && !reden) {
       stuurFout(res, 400, "Geef een reden op als je de declaratie afkeurt.")
       return
     }
+    // Alleen van 'ingediend' naar 'goedgekeurd' of 'afgekeurd'; een tweede
+    // beoordeling (of een betaalde declaratie) kan de status niet meer wijzigen.
     const bijgewerkt = await een(
       `update declaraties set status = $1, goedgekeurd_door = $2, goedgekeurd_op = now(),
-         afgekeurd_reden = $3 where id = $4 returning *`,
+         afgekeurd_reden = $3 where id = $4 and status = 'ingediend' returning *`,
       [goedkeuren ? "goedgekeurd" : "afgekeurd", req.gebruiker!.id, goedkeuren ? null : reden, rij.id],
     )
+    if (!bijgewerkt) {
+      stuurFout(res, 409, "Deze declaratie is al beoordeeld.")
+      return
+    }
     await logWijziging(req, {
       actie: goedkeuren ? "declaratie-goedkeuren" : "declaratie-afkeuren",
       entiteit: "declaratie",
@@ -212,7 +231,7 @@ geldRouter.post(
   "/:id/uitbetalen",
   vereisModule("chauffeurskosten", "Chauffeurskosten"),
   ah(async (req, res) => {
-    const rij = await een<{ id: number; status: string; bedrag: number }>(
+    const rij = await een<{ id: number; status: string; bedrag: number; chauffeur_id: number }>(
       "select * from declaraties where id = $1",
       [Number(req.params.id)],
     )
@@ -220,14 +239,31 @@ geldRouter.post(
       stuurFout(res, 404, "Deze declaratie bestaat niet.")
       return
     }
+    if (!FINANCIELE_ROLLEN.includes(req.gebruiker!.rol_naam)) {
+      stuurFout(res, 403, "Alleen de penningmeester of een beheerder kan declaraties uitbetalen.")
+      return
+    }
+    if (rij.chauffeur_id === req.gebruiker!.id) {
+      stuurFout(res, 403, "Je kunt je eigen declaratie niet uitbetalen.")
+      return
+    }
     if (rij.status !== "goedgekeurd") {
+      if (rij.status === "uitbetaald") {
+        stuurFout(res, 409, "Deze declaratie is al uitbetaald.")
+        return
+      }
       stuurFout(res, 400, "Alleen een goedgekeurde declaratie kan worden uitbetaald.")
       return
     }
+    // Conditioneel op 'goedgekeurd', zodat dubbel uitbetalen onmogelijk is.
     const bijgewerkt = await een(
-      "update declaraties set status = 'uitbetaald', uitbetaald_op = now() where id = $1 returning *",
+      "update declaraties set status = 'uitbetaald', uitbetaald_op = now() where id = $1 and status = 'goedgekeurd' returning *",
       [rij.id],
     )
+    if (!bijgewerkt) {
+      stuurFout(res, 409, "Deze declaratie is al uitbetaald.")
+      return
+    }
     await logWijziging(req, {
       actie: "declaratie-uitbetalen",
       entiteit: "declaratie",
@@ -461,12 +497,36 @@ geldRouter.post(
       stuurFout(res, 400, "Kies een uitje.")
       return
     }
-    const verschil = Math.round((geteld - verwacht) * 100) / 100
-    const rij = await een(
-      `insert into kas_afsluitingen (uitje_id, verwacht, geteld, verschil, geteld_door, opmerking)
-       values ($1,$2,$3,$4,$5,$6) returning *`,
-      [uitjeId, verwacht, geteld, verschil, req.gebruiker!.id, veiligeTekst(req.body?.opmerking) || null],
+    if (
+      !Number.isFinite(verwacht) || !Number.isFinite(geteld) ||
+      verwacht < 0 || geteld < 0 || verwacht > 1_000_000 || geteld > 1_000_000
+    ) {
+      stuurFout(res, 400, "Vul bedragen tussen € 0,00 en € 1.000.000,00 in.")
+      return
+    }
+    const bestaandeAfsluiting = await een<{ id: number }>(
+      "select id from kas_afsluitingen where uitje_id = $1",
+      [uitjeId],
     )
+    if (bestaandeAfsluiting) {
+      stuurFout(res, 409, "Voor dit uitje is de kas al afgesloten. Gebruik een correctie in plaats van een tweede afsluiting.")
+      return
+    }
+    const verschil = Math.round((geteld - verwacht) * 100) / 100
+    let rij: unknown
+    try {
+      rij = await een(
+        `insert into kas_afsluitingen (uitje_id, verwacht, geteld, verschil, geteld_door, opmerking)
+         values ($1,$2,$3,$4,$5,$6) returning *`,
+        [uitjeId, verwacht, geteld, verschil, req.gebruiker!.id, veiligeTekst(req.body?.opmerking) || null],
+      )
+    } catch (fout) {
+      if ((fout as { code?: string }).code === "23505") {
+        stuurFout(res, 409, "Voor dit uitje is de kas al afgesloten.")
+        return
+      }
+      throw fout
+    }
     await logWijziging(req, {
       actie: "kasafsluiting",
       entiteit: "kas",
