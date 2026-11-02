@@ -2,7 +2,7 @@
  * Presentation-only spacing rules shared by human overhead overlays.
  * They intentionally contain no simulation state or timing decisions.
  */
-import type { Entity } from '../gameTypes';
+import type { Entity, SpotlightLoreState } from '../gameTypes';
 
 /** The entity fields the name plate reads. */
 export type HumanNameLabelSubject = Pick<
@@ -34,6 +34,12 @@ export function formatHumanNameLabel(
   const idTag = !subject.faction && !context.isLeader && context.showId ? ` #${subject.id}` : '';
   const childTag = subject.isJuvenile ? ' · child' : '';
   return prefix + genderGlyph + fullName + roleTag + idTag + childTag;
+}
+
+/** A ready performance shows only its real cast, without hiding anyone in simulation state. */
+export function shouldDrawSpotlightHuman(scene: SpotlightLoreState | null | undefined, humanId: number): boolean {
+  return !scene || scene.phase !== 'ready'
+    || scene.heroineId === humanId || scene.performerIds.includes(humanId);
 }
 
 export function getSpeechBubbleFontSize(zoom: number): number {
