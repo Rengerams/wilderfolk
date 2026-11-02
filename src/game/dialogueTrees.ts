@@ -33,8 +33,6 @@ export const DIALOGUE_EVENT_KEYS = [
   'famine.hunger',
   'pregnancy.daily',
   'workplace.banter.solo',
-  'workplace.banter.start',
-  'workplace.banter.reply',
   'workplace.banter',
   'neighbor.greeting.start',
   'neighbor.greeting.reply',

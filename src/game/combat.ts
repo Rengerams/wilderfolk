@@ -11,7 +11,7 @@ import {
 import type { ForgeOrderId, VillageForgeState } from './gameTypes';
 import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
-import { resolveResearchEffect } from './simHelpers';
+import { hasTech, resolveResearchEffect } from './simHelpers';
 
 export const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -20,10 +20,6 @@ export const EMPTY_FORGE: VillageForgeState = {
 };
 
 type CombatContext = Pick<WorldState, 'unlockedTechs' | 'researchNodes' | 'buildings' | 'villageForge'>;
-
-function hasTech(state: CombatContext, techId: string): boolean {
-  return state.unlockedTechs.includes(techId);
-}
 
 export function hasStoneSpears(state: CombatContext): boolean {
   return hasTech(state, COMBAT_TECH.stoneSpears);

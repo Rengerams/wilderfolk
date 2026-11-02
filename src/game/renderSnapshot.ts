@@ -1,6 +1,7 @@
 import { BuildingType, EntityType, emptyEntityByType, type Building, type Camera, type Entity, type EntityByType, type ResearchNode, type WorldState } from './gameTypes';
 import { buildEntityByType } from './simFocus';
 import { getHourOfDay } from './dayCycle';
+import { getWorkSchedule } from './workSchedule';
 import { loadJuiceEffectsEnabled } from './preferences';
 import type { EntityCatalog } from './entityCatalog';
 import type { EntityRenderMeta } from './simBuffers/entityRenderMeta';
@@ -46,6 +47,7 @@ export interface RenderSnapshot {
   readonly huntVisuals: WorldState['huntVisuals'];
   readonly tick: number;
   readonly hourOfDay: number;
+  readonly workSchedule?: WorldState['workSchedule'];
   readonly season: WorldState['season'];
   readonly year: number;
   readonly dayInYear: number;
@@ -165,6 +167,7 @@ export function buildRenderSnapshot(
     huntVisuals: world.huntVisuals ?? [],
     tick: world.tick,
     hourOfDay: getHourOfDay(world.tick),
+    workSchedule: getWorkSchedule(world),
     season: world.season,
     year: world.year,
     dayInYear: world.dayInYear,

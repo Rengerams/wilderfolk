@@ -1,7 +1,7 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:189:installWorkerMessageHandlers@5e9563b0275be1621805ae6f26ea6154ba8c7cb11371cf106324f6ec7e3e3f9b <-> src/game/simWorker/gameWorker.ts:202:onmessage@d520e0ed039022bd635ab615b857f983b87d02c5339e9ec41caea1d2e1f926b6",
+      "key": "src/game/simWorker/gameWorker.ts:205:installWorkerMessageHandlers@ed0effa9595a0d3b3be39bd56bd49afee929bd4f4f2eba69a0502ecd504fee75 <-> src/game/simWorker/gameWorker.ts:218:onmessage@cecb6059cf5f7f2f88e741141cbf662bf1a865c5fc6b44ae4e2f92ee1e5f45e1",
       "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",

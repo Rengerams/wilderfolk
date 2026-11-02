@@ -2104,3 +2104,8 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 **2026-10-29 — [Dev server served the router cookie dependency as raw CommonJS](../bug_report/2026-10-29-dev-server-serves-router-cookie-as-commonjs.md):** the router's development chunk imported `parse`/`serialize` from cookie's CommonJS file, which has no ES named exports, so the page failed to boot with a module syntax error. Cookie is now prebundled with the router; cold-cache load verified. Status: resolved.
 **2026-10-29 — [Pathfinder counters never left their tick bucket](../bug_report/2026-10-29-pathfinder-counters-never-flushed.md):** `flushPathfinderTickToSession` had no caller outside tests, so the A* counters read zero however long a colony ran. The tick now resets and flushes them once per tick like the spatial counters, a profiler session switches them on, and the panel prints the A* shape (calls per tick, nodes per search, node-cap and early-reject shares, waypoint hit rate).
+
+## 2026-11-02 — Housing refill proposes a visited home
+
+- **A household evicted by the capacity phase was left homeless while beds existed — resolved:** after the capacity phase unhoused one member, the refill re-picked the same home the run had already recorded as visited; `relocateHousehold` refused it and no alternative was attempted. The placement now retries past a refused destination (next-best, up to three) before splitting, so the family is housed in the same run and the second run is a no-op; the generated seed-2 case is the regression. [Report](../bug_report/2026-11-02-housing-refill-proposes-visited-home.md).
+

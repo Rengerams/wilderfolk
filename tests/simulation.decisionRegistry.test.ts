@@ -30,6 +30,7 @@ const REQUIRED_DECISIONS = [
   'workerFit',
   'humanPhysiology',
   'humanMeals',
+  'workSchedule',
   'workforce',
   'housing',
   'construction',

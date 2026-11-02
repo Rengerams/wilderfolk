@@ -690,10 +690,12 @@ function anyOpenBeds(
   humans: Entity[],
   residences: Building[],
   occupancy?: ResidenceOccupancy,
+  excluded?: ReadonlySet<number>,
 ): boolean {
   return residences.some(
     (r) =>
       !isLeaderHouseResidence(r) &&
+      !excluded?.has(r.id) &&
       countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
   );
 }
@@ -704,6 +706,7 @@ export function pickResidenceForFamily(
   residences: Building[],
   occupancy?: ResidenceOccupancy,
   traitsIn?: ResidenceTraitsById,
+  excluded?: ReadonlySet<number>,
 ): number | undefined {
   if (residences.length === 0 || family.length === 0) return undefined;
 
@@ -718,7 +721,7 @@ export function pickResidenceForFamily(
   const singlesFriendlyHouseIds = new Set<number>();
 
   for (const r of residences) {
-    if (isLeaderHouseResidence(r) || r.faction === 'rival') continue;
+    if (isLeaderHouseResidence(r) || r.faction === 'rival' || excluded?.has(r.id)) continue;
     const count = countResidentsInBuilding(humans, r.id, occupancy);
     if (count === 0) {
       emptyHouseCount++;
@@ -729,7 +732,7 @@ export function pickResidenceForFamily(
   }
 
   const anyEmptyHouse = emptyHouseCount > 0;
-  const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences, occupancy);
+  const housingShortage = !anyEmptyHouse || !anyOpenBeds(humans, residences, occupancy, excluded);
 
   let best: Building | undefined;
   let bestScore = Infinity;
@@ -737,6 +740,7 @@ export function pickResidenceForFamily(
 
   for (const residence of residences) {
     if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
+    if (excluded?.has(residence.id)) continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 
     const count = countResidentsInBuilding(humans, residence.id, occupancy);

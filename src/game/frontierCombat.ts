@@ -19,28 +19,14 @@ import { unindexEntityFromState } from './entityIndex';
 import { applyWarCommunityReaction, captureRaidPrisoners } from './warPrisoners';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
-
-/**
- * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
- * else the map centre.
- *
- * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
- * lines it draws must leave from the same point the simulated raid is marching to, and the two used
- * to disagree (`tests/villageAnchor.singleOwner.test.ts`). Re-exported through this module because
- * `frontierCombat` is where the simulation has always read it from, and `gameEngine.ts` is the
- * public surface that re-exports it from here.
- */
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
-
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
-
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
-
 export const RAID_BATTLE_HOURS = 6;
 const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
 const RIVAL_RAZE_INTENT_CHANCE = 0.15;
@@ -104,11 +90,6 @@ export function getIncomingRaidExpireTicks(distancePixels: number): number {
   return getIncomingRaidResponseDays(getCampDistanceTiles(distancePixels)) * TICKS_PER_DAY;
 }
 
-/**
- * When a raid expires. A legacy save that carries neither field yields `NaN` — a genuinely unknown
- * deadline, expressed *here* rather than by a wrapper at the call site, so both raid cards render the
- * same thing (duplication A16).
- */
 export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>): number {
   if (evt.expiresAtTick != null) return evt.expiresAtTick;
   if (evt.createdAtTick == null) return Number.NaN;
@@ -193,15 +174,6 @@ export const RAID_GROWTH_BASE_ADULTS = 8;
 
 /** Ceiling on one raid's prize, in the same units as `getRaidGrowthScale` — the prize rides the raid. */
 export const RAID_LOOT_MAX_SCALE = 3.5;
-
-/**
- * Raid pressure as a multiple of the camp's own war-band: a village of `RAID_GROWTH_BASE_ADULTS` is
- * raided at the camp's raw strength, and every further band of adults scales the raid with it.
- *
- * Linear is deliberate and pinned by `tests/frontierCombat.raidGold.test.ts`: militia strength grows
- * with the same adults, so the ratio — and therefore `resolveDefenseRatio`'s tier — stays flat and
- * growth never turns a raid into a walkover. Escalation comes from the camp's own growth instead.
- */
 export function getRaidGrowthScale(adultCount: number): number {
   const adults = Number.isFinite(adultCount) ? Math.max(0, adultCount) : 0;
   return Math.max(1, adults / RAID_GROWTH_BASE_ADULTS);
@@ -250,17 +222,6 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
     getRaidParticipants(state, state.entities, 'outgoing').length,
   );
 }
-
-/**
- * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
- * else the map centre.
- *
- * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
- * lines it draws must leave from the same point the simulated raid is marching to, and the two used
- * to disagree (`tests/villageAnchor.singleOwner.test.ts`). The import at the top of this file is
- * re-exported because `frontierCombat` is where the simulation has always read the anchor from, and
- * `gameEngine.ts` is the public surface that re-exports it from here.
- */
 
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
   return (state.pendingRaidEvents ?? []).some((r) => r.rivalId === groupId);

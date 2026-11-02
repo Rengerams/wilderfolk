@@ -118,6 +118,11 @@ function isEligibleBuilderForBuilding(
   );
 }
 
+function findPlayerBuilding(state: WorldState, buildingId: number): Building | undefined {
+  const building = state.buildings.find((candidate) => candidate.id === buildingId);
+  return !building || building.faction === 'rival' ? undefined : building;
+}
+
 /** 
  * Mutates state — assign a settler to help build an unfinished structure. 
  * Internal mutating version to avoid redundant structuredClone in loops.
@@ -128,8 +133,8 @@ function _applyBuilderAssignmentMut(
   preferredHumanId?: number,
   quiet = false,
 ): WorldState {
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival' || building.completed) return state;
+  const building = findPlayerBuilding(state, buildingId);
+  if (!building || building.completed) return state;
 
   const config = BUILDING_CONFIGS[building.type];
   if (building.occupants.length >= config.maxOccupants) return state;
@@ -178,8 +183,8 @@ function _assignIdleWorkerToBuildingMut(
   preferredHumanId?: number,
   quiet = false,
 ): WorldState {
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || building.faction === 'rival') return state;
+  const building = findPlayerBuilding(state, buildingId);
+  if (!building) return state;
 
   if (!building.completed) {
     return _applyBuilderAssignmentMut(state, buildingId, preferredHumanId, quiet);

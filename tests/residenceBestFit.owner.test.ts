@@ -17,7 +17,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { pickLeastCrowdedResidence } from '../src/game/residencySelection';
+import { pickLeastCrowdedResidence, pickResidenceForFamily } from '../src/game/residencySelection';
 
 /** A completed House through the production factory — no hand-built Building literal. */
 function residence(id: number): Building {
@@ -78,5 +78,22 @@ describe('the least-crowded residence rule has one owner', () => {
     );
     // The pre-fix copy opened with `const needed = 2;` and carried its own best-fit comparison.
     expect(source, 'the duplicated selection loop is back').not.toContain('const needed = 2;');
+  });
+});
+
+describe('the family picker', () => {
+  it('skips a destination the run has already refused', () => {
+    const houses = [residence(100), residence(101)];
+    const mother = settler(1);
+    mother.age = 30;
+    mother.isJuvenile = false;
+    const child = settler(2);
+    child.age = 6;
+    child.isJuvenile = true;
+    child.motherId = mother.id;
+    const family = [mother, child];
+
+    expect(pickResidenceForFamily(family, family, houses)).toBe(100);
+    expect(pickResidenceForFamily(family, family, houses, undefined, undefined, new Set([100]))).toBe(101);
   });
 });

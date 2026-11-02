@@ -50,7 +50,7 @@ const STEP = {
    * ride inside the step `npm test` already runs.
    */
   check: 'node scripts/check-source-shadow-files.mjs && node scripts/check-dialogue-ownership.mjs && node scripts/check-dialogue-circumstances.mjs && node scripts/check-docs.mjs && node scripts/check-comments.mjs',
-  dup: 'jscpd src --min-lines 6 --min-tokens 60 --format typescript,tsx,javascript --ignore "**/test/**,**/*.test.ts,**/data/**"',
+  dup: 'node scripts/check-duplicate-code.mjs',
   unit: 'vitest run --exclude tests/fullYear.integration.test.ts --exclude tests/longRunColony.integration.test.ts',
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
@@ -104,6 +104,7 @@ const STEP = {
   cyclesStrict: 'node scripts/check-import-cycles.mjs --strict',
   owners: 'node scripts/build-call-graph.mjs --json-only --verify-owners',
   semantic: 'node --test scripts/check-function-overlap.test.mjs scripts/check-function-overlap.integration.test.mjs && node scripts/check-function-overlap.mjs',
+  semanticDup: 'node scripts/check-semantic-duplicates.mjs',
   invariants: 'tsx scripts/run-full-year.mts',
   browser: 'node scripts/browser-smoke.mjs',
   build: 'npm run build',
@@ -117,9 +118,9 @@ const STEP = {
  * gate, which is what the `&&` chains these replace did.
  */
 const GATE = {
-  standard: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  all: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
+  standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -136,6 +137,7 @@ const ALIAS = {
   cycles: ['cycles'],
   owners: ['owners'],
   semantic: ['owners', 'semantic'],
+  'semantic-dup': ['owners', 'semantic', 'semanticDup'],
   invariants: ['invariants'],
   'invariant-test': ['invariantTest'],
   'colony-integration': ['colonyIntegrationTest'],

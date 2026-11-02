@@ -3,6 +3,7 @@ import type { WorldState } from '../game/gameEngine';
 import { EntityType } from '../game/gameEngine';
 import { isNightHour, getHourOfDay } from '../game/dayCycle';
 import { isPlayerHuman } from '../game/playerHuman';
+import { getWorkSchedule } from '../game/workSchedule';
 import { detectInteractionSounds } from '../audio/interactionDetect';
 import { detectWorkActivity, detectFootstepSurface } from '../audio/workDetect';
 import { playWorkSfx, playFootstepSfx } from '../audio/workSfx';
@@ -93,7 +94,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     // Work & footstep ambience — throttled so they read as ambience, not noise.
     ambienceTickRef.current++;
     if (ambienceTickRef.current % 8 === 0) {
-      const workKind = detectWorkActivity(currentBuildings, getHourOfDay(world.tick));
+      const workKind = detectWorkActivity(currentBuildings, getHourOfDay(world.tick), getWorkSchedule({ workSchedule: world.workSchedule }));
       if (workKind) playWorkSfx(workKind);
     }
     if (ambienceTickRef.current % 10 === 0) {
@@ -135,7 +136,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
 
     prevEntitiesRef.current = currentEntities;
     prevBuildingsRef.current = currentBuildings;
-  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes, world.worldMap]);
+  }, [world.tick, enabled, world.entities, world.buildings, world.disasters.length, world.researchNodes, world.worldMap, world.workSchedule]);
 
   return { muted, volumePreset, toggleMute: handleToggleMute, setVolumePreset: handleVolumePreset };
 }

@@ -58,6 +58,7 @@ export type DecisionKey =
   | 'workerFit'
   | 'humanPhysiology'
   | 'humanMeals'
+  | 'workSchedule'
   | 'workforce'
   | 'housing'
   | 'construction'
@@ -179,6 +180,14 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain',
     testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
   },
+  workSchedule: {
+    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule; humanSchedule.ts — isWorkHourFor, shouldBeAtHomeFor, isOnWorkShiftFor',
+    cadence: 'player-command',
+    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. Renderer status, work audio, town-hall hours, home preference and shift checks read that configured window hourly instead of a hard-coded legacy 07–18 default.',
+    writes: ['workSchedule'],
+    scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
+    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
+  },
   workforce: {
     owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActions.assignIdleWorkerToBuilding',
     cadence: 'assignment',
@@ -195,7 +204,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'residencyReconciliation.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; moveResident stays the sole write; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
+    owner: 'residencyReconciliation.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
     cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [

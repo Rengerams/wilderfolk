@@ -114,8 +114,6 @@ function policyFor(eventKey) {
     'hunting.scarce': { label: 'scarce hunt', require: /hunt|scarce|empty|prey|animal|trail|starve/i },
     'hunting.thinTrails': { label: 'thin trails', require: /hunt|trail|prey|animal|thin|track/i },
     'workplace.banter': { label: 'workplace banter', require: /work|shift|cowork|boss|job|break|bench|shop/i },
-    'workplace.banter.start': { label: 'workplace start', require: /work|shift|cowork|boss|job|break|bench|shop/i },
-    'workplace.banter.reply': { label: 'workplace reply', require: /work|shift|cowork|boss|job|break|bench|shop/i },
     'workplace.banter.solo': { label: 'workplace solo', require: /work|shift|cowork|boss|job|break|bench|shop/i },
     'neighbor.greeting': { label: 'neighbour greeting', require: /hello|greet|neighbor|good morning|good evening|day/i },
     'neighbor.greeting.start': { label: 'neighbour greeting', require: /hello|greet|neighbor|good morning|good evening|day/i },

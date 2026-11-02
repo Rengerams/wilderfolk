@@ -1,5 +1,5 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
-import { isWorkHour, shouldBeAtHome } from '../dayCycle';
+import { isWorkHourFor, shouldBeAtHomeFor } from '../humanSchedule';
 import { isChildAtSchool, isSchoolTime } from '../education';
 import {
   buildHumanCombatStatusFlags,
@@ -169,6 +169,7 @@ function buildConstructionWorkerIds(buildings: RenderSnapshot['buildings']): Set
 
 interface HumanStatusIconContext {
   hourOfDay: number;
+  workSchedule: RenderSnapshot['workSchedule'];
   classHours: boolean;
   villageLeaderId: number | null;
   constructionWorkerIds: Set<number>;
@@ -190,6 +191,7 @@ function buildHumanStatusIconContext(
   }
   return {
     hourOfDay: state.hourOfDay,
+    workSchedule: state.workSchedule,
     classHours: isSchoolTime(state.tick, state.hourOfDay),
     villageLeaderId: state.villageLeaderId,
     constructionWorkerIds: buildConstructionWorkerIds(state.buildings),
@@ -214,9 +216,9 @@ function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatus
     isJuvenile: !!human.isJuvenile,
     schoolStatus: schoolHours ? (isChildAtSchool(human, school) ? 'atSchool' : 'toSchool') : null,
     isPregnant: !!human.pregnant,
-    isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay),
-    isAtHome: shouldBeAtHome(ctx.hourOfDay),
-    isWorking: isWorkHour(ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
+    isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
+    isAtHome: shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
+    isWorking: isWorkHourFor(ctx.workSchedule, ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
     isMarried: human.relationshipStatus === 'married' && !!human.partnerId,
   };
 }

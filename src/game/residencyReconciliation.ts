@@ -99,6 +99,19 @@ export interface HousingMoveContext {
   ledger: HousingLedger;
   /** Player-human residents, maintained on every move for the outsider check. */
   playerOccupancy?: ResidenceOccupancy;
+  /** Called after each residence write, so a pass can tell real progress from a refused assignment. */
+  onMove?: () => void;
+}
+
+/** Counts residence writes so a pass can tell real progress from a refused assignment. */
+function moveCounter(): { onMove: () => void; moves: () => number } {
+  let moves = 0;
+  return {
+    onMove: () => {
+      moves++;
+    },
+    moves: () => moves,
+  };
 }
 
 /** The context a caller outside the pipeline gets: one run of its own over the inputs it holds. */
@@ -276,6 +289,7 @@ function writeResidence(
     playerOccupancy?: ResidenceOccupancy;
     traits?: ResidenceTraitsById;
     buildings?: Building[];
+    onMove?: () => void;
   } = {},
 ): void {
   const fromId = human.residenceBuildingId;
@@ -294,6 +308,7 @@ function writeResidence(
       target.occupants.push(human.id);
     }
   }
+  context.onMove?.();
 }
 
 /** The sole residence write for one settler; refuses what the leader-house and rival rules forbid. */
@@ -306,6 +321,7 @@ export function moveResident(
     playerOccupancy?: ResidenceOccupancy;
     traits?: ResidenceTraitsById;
     buildings?: Building[];
+    onMove?: () => void;
   } = {},
 ): void {
   if (human.residenceBuildingId === toId) return;
@@ -439,6 +455,27 @@ export function syncResidenceOccupants(humans: Entity[], buildings: Building[]):
   }
 }
 
+/** Destinations the writer refuses are retried next-best; one refusal never leaves a family outside. */
+const MAX_PLACEMENT_ATTEMPTS = 3;
+
+/** Rank, place, and retry past a refused destination before falling back to the split path. */
+function relocateFamily(
+  family: Entity[],
+  alive: Entity[],
+  residences: Building[],
+  phase: HousingPhase,
+  context: HousingMoveContext,
+): boolean {
+  const refused = new Set<number>();
+  for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt += 1) {
+    const picked = pickResidenceForFamily(family, alive, residences, context.occupancy, context.traits, refused);
+    if (picked === undefined) return false;
+    if (relocateHousehold(family, picked, phase, 'assignment', context)) return true;
+    refused.add(picked);
+  }
+  return false;
+}
+
 /** Place a family — keeps children with custodian; only splits when no home fits everyone. */
 function assignFamilyToResidence(
   family: Entity[],
@@ -449,14 +486,7 @@ function assignFamilyToResidence(
   context: HousingMoveContext,
 ): void {
   const { occupancy, traits } = context;
-  // A family that fits nowhere falls through to the split path below; the old
-  // `?? pickSharedResidenceForFamily(...)` fallback re-ran the same fit test over the same
-  // residences, so it could never contribute a placement.
-  const picked = pickResidenceForFamily(family, alive, residences, occupancy, traits);
-  if (picked !== undefined) {
-    relocateHousehold(family, picked, phase, 'assignment', context);
-    return;
-  }
+  if (relocateFamily(family, alive, residences, phase, context)) return;
 
   const dependentGroups = new Map<number, Entity[]>();
   for (const child of family.filter(isMinorChild)) {
@@ -610,6 +640,8 @@ export function assignMissingResidences(
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
       const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
+      const moves = moveCounter();
+      context.onMove = moves.onMove;
       const housingUnits = sortHousingUnitsForAssignment(
         housingUnitsBase,
         alive,
@@ -621,9 +653,9 @@ export function assignMissingResidences(
       for (const unit of housingUnits) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
-        const before = unit.map((member) => member.residenceBuildingId);
+        const before = moves.moves();
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
-        if (unit.some((member, index) => member.residenceBuildingId !== before[index])) reassigned++;
+        if (moves.moves() > before) reassigned++;
       }
       const evicted = rebalanceOvercrowdedResidences(residents, residences, ledger);
       if (evicted) {
@@ -647,14 +679,16 @@ export function assignMissingResidences(
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
       const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger, playerOccupancy);
+      const moves = moveCounter();
+      context.onMove = moves.onMove;
       const orderedUnits = sortHousingUnitsForAssignment(sweepUnits, alive, residences, occupancy, traits, playerOccupancy);
       let moved = false;
       for (const unit of orderedUnits) {
         if (!housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits, playerOccupancy)) continue;
 
-        const before = unit.map((member) => member.residenceBuildingId);
+        const before = moves.moves();
         assignFamilyToResidence(unit, alive, residences, genealogyPool, 'homeless', context);
-        if (unit.some((member, index) => member.residenceBuildingId !== before[index])) moved = true;
+        if (moves.moves() > before) moved = true;
       }
       if (!moved) break;
     }
@@ -1189,4 +1223,7 @@ export function reassignDivorcedResidences(
   }
   syncResidenceOccupants(villagers, buildings);
 }
+
+
+
 

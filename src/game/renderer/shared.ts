@@ -5,6 +5,11 @@ import { BuildingType } from '../gameTypes';
 export const MAX_FRAME_DELTA_S = 0.1;
 
 let _lastRenderTime = 0;
+/** Deterministic 0–1 procedural jitter shared by decor and strip drawing. */
+export function seeded(n: number): number {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
 /** Global render time in seconds, advanced once per frame by {@link tickRenderClock}. */
 export let renderTime = 0;
 /** Seconds since the previous frame, clamped — the one delta every per-frame motion integrates. */

@@ -1,7 +1,9 @@
 import { personDayRoll } from './simRng';
 import type { WorldState, Building, Entity } from './gameTypes';
 import { BuildingType, JobType } from './gameTypes';
-import { ticksForDays, TICKS_PER_DAY, getHourOfDay, isWorkHour } from './dayCycle';
+import { ticksForDays, TICKS_PER_DAY, getHourOfDay } from './dayCycle';
+import { isWorkHourFor } from './humanSchedule';
+import { getWorkSchedule } from './workSchedule';
 import { readSkill, rewardProductionSkills, gainSkill } from './skills';
 import { addReputation } from './simHelpers';
 import { spendFood } from './economyLedger';
@@ -199,7 +201,7 @@ export function resolveCivicPetition(
     && Math.hypot(leader.x - hx, leader.y - hy) < 50;
 
   const hour = getHourOfDay(state.tick);
-  const openHours = isWorkHour(hour) || (hour >= 16 && hour < 19);
+  const openHours = isWorkHourFor(getWorkSchedule(state), hour) || (hour >= 16 && hour < 19);
 
   if (!openHours && !leaderHere) return { kind: 'none' };
 

@@ -27,19 +27,6 @@ import {
   type WorkforcePolicy,
 } from './workforcePolicy';
 
-/**
- * A settler's display name for these log lines.
- *
- * Delegates to `citizenId.humanDisplayName`, which already owns this exact format (given name, then
- * surname, then title). This was a private copy with its own `'Settler'` fallback while
- * `villageLeadership` carried a second copy falling back to `'Unknown'`, so the same nameless settler
- * was "Settler" in a workforce log and "Unknown" in an election notice while the owner said
- * "A settler" (`tests/settlerNameFallback.singleOwner.test.ts`).
- */
-function formatSettlerName(entity: Entity): string {
-  return humanDisplayName(entity);
-}
-
 /** The one membership rule: is this settler on any unfinished building's crew? One building may be ignored. */
 export function isOnConstructionCrew(
   buildings: readonly Building[],
@@ -957,7 +944,7 @@ export function releasePrisoners(state: WorldState): void {
       entity.occupation = LEADER_OCCUPATION;
     }
 
-    const name = formatSettlerName(entity);
+    const name = humanDisplayName(entity);
     // `'prison'`, not `'event'`: the release belongs with the jailing it ends, under the same filter.
     logEvent(state, 'prison', `${name} was released from prison`, name);
     addNotification(state, 'Released', `${name} served their sentence and is free again`, 'success');

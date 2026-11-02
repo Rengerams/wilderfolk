@@ -125,8 +125,8 @@ export function mineOreForMode(mode: string | undefined): MineMode {
   return mode === 'gold' ? 'gold' : 'iron';
 }
 
-/** Discrete 90-degree building orientation steps. */
-export type BuildingRotation = 0 | 90 | 180 | 270;
+/** Legacy stored orientation; effective rendering uses the canonical 0|90 run axis. */
+export type StoredBuildingRotation = 0 | 90 | 180 | 270;
 
 export interface BuildingCost {
   wood: number;
@@ -162,7 +162,7 @@ export interface Building {
   /** Workshop only — which goods this building crafts */
   workshopRecipeId?: string;
   /** Strip orientation — 0/90 straight; 0/90/180/270 for wall corners. */
-  rotation?: BuildingRotation;
+  rotation?: StoredBuildingRotation;
   /** WallGate only — closed gates block walkers; absent means open in legacy saves. */
   gateClosed?: boolean;
   /** Hotel only — visitor entity ids currently lodging (max HOTEL_GUEST_CAPACITY). */

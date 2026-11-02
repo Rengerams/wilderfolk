@@ -4,6 +4,7 @@ import { normalizeCornerRotation } from './buildingRotation';
 import { cornerArms } from './stripJunction';
 import type { JunctionKind, StripJunctionInfo } from './stripJunction';
 import { getSpriteFrame } from './spriteLoader';
+import { seeded } from './renderer/shared';
 
 const PAVEMENT_SPRITE = '/sprites/tile_pavement.png';
 const ROAD_STRAIGHT_HORIZONTAL = '/sprites/roads/road_straight_1.png';
@@ -75,11 +76,6 @@ function paintRpgPavementPattern(
   ctx.fillRect(offsetX, offsetY, width / scale, height / scale);
   ctx.restore();
   return true;
-}
-
-function seeded(seed: number): number {
-  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
 }
 
 function beginRotatedStripFrame(

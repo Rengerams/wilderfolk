@@ -148,7 +148,7 @@ export function resolveVillageRequest(
     return originalState;
   }
 
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const request = state.activeVillageRequest;
   if (!request || request.id !== requestId) return state;
   const day = getAbsoluteCalendarDay(state.tick);
@@ -189,10 +189,6 @@ export function resolveVillageRequest(
 
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getSimRng, seededRandomForRun } from './simRng';
-
-function cloneWorldStateForAction(originalState: WorldState): WorldState {
-  return structuredClone(originalState);
-}
 
 function buildAliveEntityIndex(allAlive: Entity[]): Map<number, Entity> {
   const index = new Map<number, Entity>();
@@ -480,7 +476,7 @@ export function getVisitorLeaderTalkMeta(group: VisitorGroup): VisitorLeaderTalk
 }
 
 export function talkToVisitorLeader(originalState: WorldState, groupId: string): WorldState {
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId);
   if (!group || group.leaderTalked) return state;
 
@@ -679,7 +675,7 @@ export function tradeWithVisitors(
   const eligibility = getVisitorTradeEligibility(originalState, groupId, action);
   if (!eligibility.ok && eligibility.silent) return originalState;
 
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId);
   if (!group) return state;
 
@@ -774,7 +770,7 @@ export function negotiateRefugees(
   const eligibility = getRefugeeChoiceEligibility(originalState, groupId, choice);
   if (!eligibility.ok && eligibility.silent) return originalState;
 
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const group = state.visitorGroups.find((g) => g.id === groupId);
   if (!group) return state;
 

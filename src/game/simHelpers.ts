@@ -56,7 +56,7 @@ export function getReproductionMultiplier(season: Season): number {
   }
 }
 
-export function hasTech(state: WorldState, techId: string): boolean {
+export function hasTech(state: Pick<WorldState, 'unlockedTechs'>, techId: string): boolean {
   return state.unlockedTechs.includes(techId);
 }
 
