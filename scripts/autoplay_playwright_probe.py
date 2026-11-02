@@ -13,9 +13,11 @@ USAGE
     python scripts/autoplay_playwright_probe.py --url http://127.0.0.1:5173/ --seconds 25
     # Ground look — the pixels the live app painted, one fresh game per preset, at a chosen zoom:
     python scripts/autoplay_playwright_probe.py --ground-presets "Islands,Meadows" --ground-zoom 0.5
+    # Spotlight stage — the live cast around the heroine, captured after the opening blackout:
+    python scripts/autoplay_playwright_probe.py --spotlight-save tmp/stage.json --spotlight-screenshot tmp/stage.png
 
 Exits 0 when the farm is built before the research and the status line is visible; the
---ground-presets mode exits 0 after printing its table.
+--ground-presets and --spotlight-save modes exit 0 after printing what they observed.
 """
 
 from __future__ import annotations
@@ -389,6 +391,89 @@ def run_infrastructure_visual(args) -> int:
         return 1 if errors else 0
 
 
+SPOTLIGHT_SCENE_JS = """
+() => {
+  const overlay = document.querySelector('[aria-label="Village spotlight scene"]');
+  const blackout = document.querySelector('div[class*="z-[9999]"]');
+  const banner = [...document.querySelectorAll('p')]
+    .map((p) => (p.textContent || '').trim())
+    .find((text) => text.endsWith('has the look!'));
+  const progress = [...document.querySelectorAll('div')]
+    .map((d) => (d.textContent || '').trim())
+    .find((text) => /^\\d+ \\/ \\d+( · .*)?$/.test(text));
+  return {
+    overlay: !!overlay,
+    blackoutOpacity: blackout ? Number(blackout.style.opacity || 0) : 0,
+    banner: banner || null,
+    progress: progress || null,
+  };
+}
+"""
+
+
+def dismiss_tutorial(page) -> bool:
+    """Close the Quick start panel by its own label, never the scene's 'Skip scene'."""
+    return bool(
+        page.evaluate(
+            """() => {
+              const hit = [...document.querySelectorAll('button')]
+                .find((b) => /^(skip|got it|skip tutorial)$/i.test((b.textContent || '').trim()));
+              if (!hit) return false;
+              hit.click();
+              return true;
+            }"""
+        )
+    )
+
+
+def run_spotlight_stage(args) -> int:
+    """Load a save with a staged Spotlight cast and capture the stage the game paints."""
+    from pathlib import Path
+    payload = Path(args.spotlight_save).read_text(encoding="utf8")
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=not args.headful,
+            executable_path=args.browser_executable or None,
+            args=["--no-sandbox", "--disable-dev-shm-usage"])
+        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.add_init_script("localStorage.setItem('ecosim_save', " + json.dumps(payload) + ");")
+        page.goto(args.url, wait_until="load")
+        if not click_text(page, "skip intro"):
+            click_text(page, "choose your land")
+        wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+        if not click_text(page, "load saved game"):
+            raise RuntimeError("Load saved game was unavailable")
+        page.wait_for_function(
+            "() => !!document.querySelector('[aria-label=\\'Village spotlight scene\\']')",
+            timeout=90000,
+        )
+        dismiss_tutorial(page)
+        # The opening blackout covers the map; the cast is only readable once it has faded.
+        page.wait_for_function(
+            """() => {
+              const blackout = document.querySelector('div[class*="z-[9999]"]');
+              return !blackout || Number(blackout.style.opacity || 0) < 0.05;
+            }""",
+            timeout=30000,
+        )
+        observed = page.evaluate(SPOTLIGHT_SCENE_JS)
+        if not observed["progress"]:
+            # Captions start the moment the blackout clears; the stage is only "live" from there.
+            page.wait_for_function(
+                """() => [...document.querySelectorAll('div')]
+                  .some((d) => /^\\d+ \\/ \\d+( · .*)?$/.test((d.textContent || '').trim()))""",
+                timeout=15000,
+            )
+            observed = page.evaluate(SPOTLIGHT_SCENE_JS)
+        if args.spotlight_screenshot:
+            page.screenshot(path=args.spotlight_screenshot)
+        observed["page_errors"] = errors
+        print(json.dumps(observed))
+        browser.close()
+        return 0 if observed["overlay"] and observed["progress"] and not errors else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:5173/")
@@ -417,7 +502,12 @@ def main() -> int:
     parser.add_argument("--indoor-screenshot", default="")
     parser.add_argument("--infrastructure-save", default="")
     parser.add_argument("--infrastructure-screenshot-prefix", default="tmp/infrastructure")
+    parser.add_argument("--spotlight-save", default="",
+        help="Load a save with a staged Spotlight cast and capture the live stage")
+    parser.add_argument("--spotlight-screenshot", default="")
     args = parser.parse_args()
+    if args.spotlight_save:
+        return run_spotlight_stage(args)
     if args.infrastructure_save:
         return run_infrastructure_visual(args)
     if args.warfare_save:

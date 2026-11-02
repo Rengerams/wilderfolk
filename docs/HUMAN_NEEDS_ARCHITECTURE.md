@@ -1,6 +1,42 @@
 # Wilderfolk — Human Needs Architecture
 
-**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** merged into `main` and accepted on 2026-10-27; additional verification is tracked as post-merge hardening.
+**Issue:** #61 | **PR:** #62 | **Reviewed:** 2026-10-27 | **State:** merged into `main` and accepted on 2026-10-27; additional verification is tracked as post-merge hardening. **Known debt:** the player-human `energy` migration is incomplete — see §1a; `energy` is not a second need and must not drive player decisions.
+
+## 1a. Legacy energy compatibility — unfinished
+
+`Entity.energy` / `maxEnergy` are **not** part of `HumanNeedsState`. They remain for four distinct reasons, only one of which is a migration concern:
+
+- **Intentional current users:** foreign war captives (no `needs` state) and nonhuman creatures (their own energy pool).
+- **Form bridge:** a Moon Howler form saves/restores `energy` alongside `needs`.
+- **Old-save fallback:** a human saved before `needs` existed seeds `stamina` from `energy` in `normalizeHumanNeeds`.
+- **Unfinished player-human migration:** old readers/writers still use the mirror.
+
+Migrated so far: `hospitalCare.needsMedicalCare`, `medicalUrgency`, `medicalCareReason` and the `humanHospitalBehavior` treatment gate now read `getHumanStaminaRatio`; the hospital no longer calls a settler exhausted from a stale mirror.
+
+Remaining player-human `energy` paths (the actual acceptance list):
+
+| Owner | Path | Target |
+| --- | --- | --- |
+| `hospitalCare.treatPatientAtHospital` | heal sizing from `maxEnergy - energy` | stamina via `adjustHumanStaminaFromEnergy` (the conversion bridge) |
+| `simulation/humanRelationships.ts` | married/youth conception thresholds | `getHumanStaminaRatio` |
+| `humanTick.ts` | courtship eligibility thresholds | `getHumanStaminaRatio` |
+| `socialLife.ts` | exhausted/vulnerable/critical impulse ratios | `getHumanStaminaRatio` |
+| `hotelStay.ts` | direct `energy +=` rest | `adjustHumanStaminaFromEnergy` |
+| `simulation/humanLifecycle.ts` | maternal energy cost and birth recovery | stamina |
+| `animalCare.ts` | tamer owner energy bonus | `adjustHumanStaminaFromEnergy` |
+| `warPrisoners.ts` | recruited captive seeds needs from energy | one-time transition conversion |
+| `humanHuntingBehavior.ts` | no-`needs` fallback | keep the fallback only |
+| `humanEnergy` display/worker metadata | read-only projection | read `needs` for settlers, energy only for captives/nonhumans |
+
+Rules for new code:
+
+1. Player-human decisions read `needs.stamina` / `needs.rest` (or `getHumanStaminaRatio`), never `Entity.energy`.
+2. Legacy-sized effects write through `adjustHumanStaminaFromEnergy`; do not assign `Entity.energy` directly.
+3. `energy` is never a second authority for a rule that stamina already owns.
+4. Captives and nonhuman creatures remain excluded from this rule; their energy is their own model.
+
+There is no source gate yet. The table above is the migration checklist; a future `*.legacyEnergyAudit.test.ts` should fail when a player-human module adds a new `energy` read outside the allowlist.
+
 
 ## 1. Purpose and invariants
 

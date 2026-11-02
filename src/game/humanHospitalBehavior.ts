@@ -14,6 +14,7 @@ import {
   pickHospitalWalkTarget,
   treatPatientAtHospital,
 } from './hospitalCare';
+import { getHumanStaminaRatio } from './simulation/humanPhysiology';
 
 const PATIENT_ARRIVAL_RADIUS_PX = 36;
 
@@ -56,7 +57,7 @@ export function shouldAttemptHospitalTreatment(
 ): boolean {
   return !!(needsMedicalCare(entity, tick) || entity.pregnant || !onJobShift)
     && isPlayerHuman(entity)
-    && !!(entity.energy < entity.maxEnergy * 0.5 || entity.pregnant)
+    && !!(getHumanStaminaRatio(entity) < 0.5 || entity.pregnant)
     && hasStaffedHospital;
 }
 

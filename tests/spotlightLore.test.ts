@@ -100,6 +100,26 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(maybeStartSpotlightLore(world)).toBe(false);
   });
 
+  it('rings the chorus around the heroine instead of stacking the men in front of her', () => {
+    const { world } = makeFixture();
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    const scene = world.spotlightLore!;
+    // One ring at one radius: she keeps the middle and every man keeps his own ground.
+    for (const slot of scene.slots) {
+      const fromHer = Math.hypot(slot.x - scene.gatherX, slot.y - scene.gatherY);
+      expect(fromHer).toBeGreaterThanOrEqual(30);
+      expect(fromHer).toBeLessThanOrEqual(50);
+    }
+    for (let i = 0; i < scene.slots.length; i++) {
+      for (let j = i + 1; j < scene.slots.length; j++) {
+        const gap = Math.hypot(scene.slots[i].x - scene.slots[j].x, scene.slots[i].y - scene.slots[j].y);
+        // A settler sprite is ~14 px wide; anything closer reads as two men standing on each other.
+        expect(gap).toBeGreaterThanOrEqual(20);
+      }
+    }
+  });
+
   it('casts a chorus of actual adult men, not female neighbours who also happen to be nearby', () => {
     const { world, adults } = makeFixture();
     // Six eligible adult men, two ineligible adult women right beside the stage.

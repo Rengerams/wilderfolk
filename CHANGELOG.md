@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (3 November 2026):** Hospital care now reads a settler's stamina reserve instead of the legacy energy mirror, so a rested settler is no longer shown as exhausted in the ward.
+
+- **Fixed (3 November 2026):** A running Spotlight performance now hides settler name plates and the gold upgrade frames, pennants and level tags on buildings, so the girl and her cast are not buried under interface marks.
+
 - **Fixed (3 November 2026):** At overview zoom, wildlife now shrinks to small species-coloured markers like settlers, instead of staying 18–26 px tall while the village shrinks.
 
 - **Fixed (3 November 2026):** Settlers can enter a large hospital from its door instead of hovering outside the footprint centre until they never rest.

@@ -13,6 +13,10 @@ const SPOTLIGHT_READY_TIMEOUT_TICKS = 150;
 const SPOTLIGHT_ARRIVAL_DISTANCE = 11;
 const SPOTLIGHT_MIN_CHORUS = 6;
 const SPOTLIGHT_MAX_CHORUS = 10;
+/** A settler sprite is ~14 px wide and ~20 px tall; this ring keeps her clear and the men apart. */
+const SPOTLIGHT_RING_RADIUS_PX = 40;
+/** Two staged men closer than one sprite width would overlap, so that ground is refused. */
+const SPOTLIGHT_MIN_SLOT_GAP_PX = 16;
 
 /** A settler physically free to reach the stage; each caller owns its own role and age rule. */
 function availableSpotlightActor(entity: Entity): boolean {
@@ -43,16 +47,26 @@ function buildSpotlightLoreScene(
 ): SpotlightLoreState | null {
   if (!state.worldMap) return null;
   const slots: SpotlightLoreState['slots'] = [];
+  // A full ring at one radius: every man gets his own ground facing her, none stands on another.
+  const step = (Math.PI * 2) / Math.max(1, chorus.length);
+  // Half a step past south keeps the camera side open, so nobody stands in front of the heroine.
+  const startAngle = Math.PI / 2 + step / 2;
+  // The ring must fit on the map: move the stage inward, never squeeze the formation.
+  const ringX = Math.min(
+    Math.max(origin.x, SPOTLIGHT_RING_RADIUS_PX), state.width - SPOTLIGHT_RING_RADIUS_PX,
+  );
+  const ringY = Math.min(
+    Math.max(origin.y, SPOTLIGHT_RING_RADIUS_PX), state.height - SPOTLIGHT_RING_RADIUS_PX,
+  );
   for (let i = 0; i < chorus.length; i++) {
-    const angle = Math.PI * (0.12 + 0.76 * i / Math.max(1, chorus.length - 1));
-    const radius = 27 + (i % 2) * 9;
-    const candidateX = Math.max(0, Math.min(state.width - 1, origin.x + Math.cos(angle) * radius));
-    const candidateY = Math.max(0, Math.min(state.height - 1, origin.y + Math.sin(angle) * radius));
+    const angle = startAngle + i * step;
+    const candidateX = ringX + Math.cos(angle) * SPOTLIGHT_RING_RADIUS_PX;
+    const candidateY = ringY + Math.sin(angle) * SPOTLIGHT_RING_RADIUS_PX;
     const point = nearestWalkableWorldPoint(
       state.worldMap, state.buildings, candidateX, candidateY,
     );
     if (!point || point.x < 0 || point.x >= state.width || point.y < 0 || point.y >= state.height
-      || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < 12)) {
+      || slots.some((slot) => Math.hypot(slot.x - point.x, slot.y - point.y) < SPOTLIGHT_MIN_SLOT_GAP_PX)) {
       return null;
     }
     slots.push({ humanId: chorus[i].id, x: point.x, y: point.y });
@@ -63,8 +77,8 @@ function buildSpotlightLoreScene(
     performerIds: chorus.map((h) => h.id),
     phase: 'gathering',
     startedAtTick: state.tick,
-    gatherX: origin.x,
-    gatherY: origin.y,
+    gatherX: ringX,
+    gatherY: ringY,
     slots,
   };
 }

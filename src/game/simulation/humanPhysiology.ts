@@ -159,6 +159,18 @@ export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: numbe
   entity.energy = entity.maxEnergy * needs.stamina / 100;
 }
 
+/**
+ * Player stamina is the authoritative reserve; `energy` is only the legacy mirror for a human
+ * saved before `needs` existed. Captives and nonhumans do not use this helper.
+ */
+export function getHumanStaminaRatio(entity: Entity): number {
+  const stamina = entity.needs?.stamina;
+  if (typeof stamina === 'number' && Number.isFinite(stamina)) {
+    return Math.max(0, Math.min(1, stamina / 100));
+  }
+  return entity.maxEnergy > 0 ? Math.max(0, Math.min(1, entity.energy / entity.maxEnergy)) : 0;
+}
+
 /** Resume at the human-form tick, without charging the Moon Howler night again. */
 export function rebaseHumanNeedsClockAfterFormRestore(entity: Entity, tick?: number): void {
   if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;

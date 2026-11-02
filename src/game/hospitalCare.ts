@@ -12,7 +12,7 @@ import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees'
 import { gainSkill } from './skills';
 import { isPlayerHuman } from './playerHuman';
 import { spendFood } from './economyLedger';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStaminaFromEnergy, getHumanStaminaRatio } from './simulation/humanPhysiology';
 
 /** Flat reputation a staffed hospital grants on each production interval. */
 export const HOSPITAL_REPUTATION_PER_INTERVAL = 2;
@@ -70,8 +70,9 @@ export function isDoctorAtHospital(
 export function needsMedicalCare(entity: Entity, tick: number): boolean {
   if (!entity.alive || entity.isJuvenile === undefined) return false;
   if (entity.pregnant) return true;
-  if (entity.energy < entity.maxEnergy * 0.42) return true;
-  if ((entity.griefUntilTick ?? 0) > tick && entity.energy < entity.maxEnergy * 0.7) return true;
+  const stamina = getHumanStaminaRatio(entity);
+  if (stamina < 0.42) return true;
+  if ((entity.griefUntilTick ?? 0) > tick && stamina < 0.7) return true;
   return false;
 }
 
@@ -99,10 +100,10 @@ export function medicalUrgency(entity: Entity): number {
     const term = Math.max(1, entity.pregnancyProgress ?? 0);
     return 0.55 + Math.min(0.4, term / 1800);
   }
-  const energyRatio = entity.energy / Math.max(1, entity.maxEnergy);
-  if (energyRatio < 0.28) return 0.85;
-  if (energyRatio < 0.42) return 0.55;
-  if (energyRatio < 0.55) return 0.3;
+  const stamina = getHumanStaminaRatio(entity);
+  if (stamina < 0.28) return 0.85;
+  if (stamina < 0.42) return 0.55;
+  if (stamina < 0.55) return 0.3;
   return 0;
 }
 
@@ -110,7 +111,7 @@ export function medicalUrgency(entity: Entity): number {
 export function medicalCareReason(entity: Entity, tick: number): string | null {
   if (!needsMedicalCare(entity, tick)) return null;
   if (entity.pregnant) return 'expecting';
-  if (entity.energy < entity.maxEnergy * 0.42) return 'exhausted';
+  if (getHumanStaminaRatio(entity) < 0.42) return 'exhausted';
   return 'grieving';
 }
 
