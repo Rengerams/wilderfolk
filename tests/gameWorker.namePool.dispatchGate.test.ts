@@ -11,6 +11,7 @@ afterEach(() => {
 describe('simulation worker message admission waits for the name pool', () => {
   it('queues early init and tick until the shared load completes in arrival order', async () => {
     const world = initGame({ size: MapSize.Medium, seed: 81 });
+    const initialTick = world.tick;
     vi.resetModules();
     const names = await import('../src/game/nameLoader');
     let releaseLoad: (() => void) | undefined;
@@ -41,17 +42,18 @@ describe('simulation worker message admission waits for the name pool', () => {
     const ticking = shim.onmessage({ data: { type: 'tick', proto: WORKER_PROTO } });
     await Promise.resolve();
     expect(posted).toHaveLength(0);
-    expect(world.tick).toBe(0);
+    expect(world.tick).toBe(initialTick);
 
     releaseLoad?.();
     await Promise.all([initializing, ticking]);
     expect(posted[0]?.type).toBe('ready');
     expect(posted[1]?.type).toBe('tickResult');
-    expect(world.tick).toBe(1);
+    expect(world.tick).toBe(initialTick + 1);
   });
 
   it('reports rejected loading without applying an early tick', async () => {
     const world = initGame({ size: MapSize.Medium, seed: 82 });
+    const initialTick = world.tick;
     vi.resetModules();
     const names = await import('../src/game/nameLoader');
     vi.spyOn(names, 'loadNames').mockRejectedValue(new Error('census unavailable'));
@@ -82,6 +84,6 @@ describe('simulation worker message admission waits for the name pool', () => {
       expect.objectContaining({ type: 'error', source: 'general' }),
       expect.objectContaining({ type: 'error', source: 'tick' }),
     ]);
-    expect(world.tick).toBe(0);
+    expect(world.tick).toBe(initialTick);
   });
 });
