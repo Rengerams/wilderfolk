@@ -1,3 +1,4 @@
+import { markHistoryChanged } from './simBuffers/historyRevisions';
 import { formatCitizenName } from './citizenId';
 import { isPlayerHuman } from './playerHuman';
 import { BuildingType } from './buildings';
@@ -88,6 +89,7 @@ export function logDeath(
     tick: state.tick,
     deceasedId: deceased?.id,
   });
+  markHistoryChanged(state, 'graveRecords');
   assignPendingGraves(state);
 }
 
@@ -116,6 +118,7 @@ export function assignPendingGraves(state: WorldState): void {
     for (const [id, spaces] of capacity) {
       if (spaces <= 0) continue;
       grave.graveyardId = id;
+      markHistoryChanged(state, 'graveRecords');
       capacity.set(id, spaces - 1);
       break;
     }
