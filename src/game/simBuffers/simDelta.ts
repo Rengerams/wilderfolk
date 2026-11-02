@@ -171,6 +171,7 @@ export interface ExtractSimTickDeltaOptions {
   nextBuildings?: Map<number, string>;
   prevHistories?: ReadonlyMap<string, string | undefined> | null;
   nextHistories?: Map<string, string | undefined>;
+  previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
 export interface ApplySimTickDeltaOptions {
@@ -229,7 +230,13 @@ export function extractSimTickDelta(
     : options?.renderPacked
       ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
 
-  const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
+  const previousEventIndex = options?.previousEventHeadId == null
+    ? -1
+    : world.eventLog.findIndex((event) => event.id === options.previousEventHeadId);
+  const eventLogTail = world.eventLog.slice(
+    0,
+    previousEventIndex >= 0 ? previousEventIndex : EVENT_LOG_DELTA_TAIL_MAX,
+  );
 
   const prevBuildings = options?.prevBuildings;
   let changedBuildings: Building[] | undefined;
