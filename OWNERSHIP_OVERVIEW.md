@@ -161,7 +161,7 @@ Cadence and the calling layer are taken from the observed call sites, not from i
 
 | Decision | True owner | Cadence / called from | Key entry functions |
 |---|---|---|---|
-| Player-settler identification | `playerHuman.ts` | — (predicate on every human query) | `isPlayerHuman`, `playerHumanCount` |
+| Player-settler identification | `playerHuman.ts` | — (predicate on every human query and midnight completed-shift eligibility) | `isPlayerHuman`, `isPlayerHumanShiftOwner` (player-owned human or temporary Moon Howler form retaining saved human state), `playerHumansFrom`, `allPlayerHumans`, `playerHumanCount`; one canonical faction classification |
 | Entity construction and spawn defaults | `entityFactory.ts` | on spawn (world gen, birth, immigration, groups, foraging) | `createEntity`, `finalizeSettlerAge` |
 | Immigration party composition (lone youth 12–17, couple with children, single adult) | `worldGen.ts` | on arrival (daily immigration, `tickImmigration`) | `createImmigrantSettler` |
 | New-world spawns, version-3 jittered biome-weighted tree groves and wildlife replenishment | `worldGen.ts` | world init and ecology events | `simRandom`, `getRandomInt`, `getTileAtWorld`, `isPassableWildlifePosition`, `registerSpawnedWildlife`, `maxRingRadiusFromCenter`, `spawnWildlifeAtRandomPassable`, `setEntityBirthDate`, `createBuilding`, `spawnGrassPatch`, `spawnWildlifeRing`, `replenishDepletedWildlife`, `initGame` |
