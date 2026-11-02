@@ -157,7 +157,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts',
   },
   humanMeals: {
-    owner: 'simulation/humanNeeds.ts — isMealCheckHour, canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
+    owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
     cadence: 'realtime',
     cadenceNote: 'Only tryEatColonyMeal debits the colony food ledger. Successful player meals delegate nutrition credit to humanPhysiology; foreign captives consume at most one ledger-debited 08:00 ration per calendar day; the persisted custody stamp prevents duplicate charges across calls and reload without creating stamina or energy needs. Free hunting invokes the yield helper. Death actions are delegated to the existing human lifecycle/death owner. Foreign captive metabolism and exhaustion deaths are retired: prisoners do not work or roam. Player settlers read the catalog labor factor in humanPhysiology on their own needs state, never this one.',
     writes: [
