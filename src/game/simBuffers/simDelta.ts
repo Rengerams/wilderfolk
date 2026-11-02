@@ -167,8 +167,8 @@ export interface ExtractSimTickDeltaOptions {
   focus?: SimulationFocus;
   headless?: boolean;
   cloneMode?: SimDeltaCloneMode;
-  prevBuildings?: ReadonlyMap<number, string> | null;
-  nextBuildings?: Map<number, string>;
+  prevBuildings?: ReadonlyMap<number, Building> | null;
+  nextBuildings?: Map<number, Building>;
   prevHistories?: ReadonlyMap<string, string | undefined> | null;
   nextHistories?: Map<string, string | undefined>;
   previousEventHeadId?: WorldState['eventLog'][number]['id'];
@@ -187,8 +187,18 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
   return mode === 'isolated' ? structuredClone(value) : value;
 }
 
-function buildingFingerprint(building: Building): string {
-  return JSON.stringify(building);
+function sameSnapshotValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  const l = left as Record<string, unknown>;
+  const r = right as Record<string, unknown>;
+  const keys = Object.keys(l);
+  if (keys.length !== Object.keys(r).length) return false;
+  for (const key of keys) {
+    if (!Object.hasOwn(r, key) || !sameSnapshotValue(l[key], r[key])) return false;
+  }
+  return true;
 }
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
@@ -248,11 +258,12 @@ export function extractSimTickDelta(
     const currentIds = new Set<number>();
     for (const building of world.buildings) {
       currentIds.add(building.id);
-      const fingerprint = buildingFingerprint(building);
-      options?.nextBuildings?.set(building.id, fingerprint);
       const prev = prevBuildings?.get(building.id);
-      if (prev !== fingerprint) {
+      if (!prev || !sameSnapshotValue(prev, building)) {
         changedBuildings.push(building);
+        options?.nextBuildings?.set(building.id, structuredClone(building));
+      } else {
+        options?.nextBuildings?.set(building.id, prev);
       }
     }
     for (const id of prevBuildings?.keys() ?? []) {
