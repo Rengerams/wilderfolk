@@ -1182,15 +1182,19 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   }
   if (state.pendingElectionYear != null) return null;
 
+  const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
+  const electionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
+
   const leaderId = state.villageLeaderId;
   if (leaderId == null) {
     // A death handler or old save may already have cleared the office holder.
     // Do not schedule over an active ceremony; its winner will fill this vacancy.
-    if (!state.electionCeremony) {
-      state.pendingElectionYear =
-        state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR + VACANCY_ELECTION_DELAY_YEARS;
-    }
-    return null;
+    if (state.electionCeremony) return null;
+    state.pendingElectionYear = electionYear;
+    const delayText = formatElectionDelay(VACANCY_ELECTION_DELAY_YEARS);
+    const message = `The village head seat is vacant. A succession election will take place in ${delayText}.`;
+    logEvent(state, 'election', message, 'The village head');
+    return { title: '👑 Leadership vacancy', message };
   }
 
   const leader = state.entities.find((e) => e.id === leaderId);
@@ -1199,8 +1203,6 @@ export function tickLeaderVacancy(state: WorldState): ElectionBuildupNotice | nu
   // A death and a non-fatal deposition use the same succession schedule.
   // Announce it even if no candidate is currently eligible; a candidate can emerge
   // during the two-month vacancy.
-  const currentFraction = state.year + (state.dayInYear ?? 0) / DAYS_PER_YEAR;
-  const electionYear = currentFraction + VACANCY_ELECTION_DELAY_YEARS;
   // Snapshot the actual living manor residents at the moment the office becomes
   // vacant. Their entitlement must outlive the late leader's entity and relationship
   // cleanup, and survive save/load until a successor takes office.

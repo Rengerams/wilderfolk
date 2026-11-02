@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** A leader's death now announces the succession election even though the office is cleared immediately, instead of arming the date silently.
+
 - **Fixed (2 November 2026):** An overfull home now unhouses only the settlers above its bed count, so a one-bed excess no longer empties a whole household and leaves beds unused.
 
 - **Changed (2 November 2026):** Homeless, custody, capacity, surplus, leave-home, commute and couple relocations now share one plan-and-apply decision path; manor seating stays event-driven.
