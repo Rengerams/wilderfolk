@@ -11,7 +11,7 @@ import {
   detectFootstepSurface,
   terrainAt,
 } from '../src/audio/workDetect';
-import { isWorkHour } from '../src/game/dayCycle';
+import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSchedule';
 import { setTileOverride } from '../src/game/terrain/terrainGrid';
 
 /**
@@ -70,7 +70,7 @@ function stubHuman(id: number, x: number, y: number, alive = true): Entity {
 
 describe('work & footstep detection (Phase 3.3)', () => {
   it('a staffed lumber mill means chopping during work hours', () => {
-    const workHour = [...Array(24).keys()].find((h) => isWorkHour(h)) ?? 9;
+    const workHour = [...Array(24).keys()].find((h) => isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, h)) ?? 9;
     expect(detectWorkActivity([stubBuilding(BuildingType.LumberMill, 2)], workHour)).toBe('chop');
   });
 
@@ -99,7 +99,7 @@ describe('work & footstep detection (Phase 3.3)', () => {
   });
 
   it('no work sounds outside work hours', () => {
-    const nightHour = [...Array(24).keys()].find((h) => !isWorkHour(h)) ?? 20;
+    const nightHour = [...Array(24).keys()].find((h) => !isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, h)) ?? 20;
     expect(detectWorkActivity([stubBuilding(BuildingType.LumberMill, 2)], nightHour)).toBeNull();
   });
 

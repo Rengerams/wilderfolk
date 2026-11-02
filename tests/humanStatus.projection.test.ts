@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/gameEngine';
 import { BuildingType, MapSize, EntityType } from '../src/game/gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR, prefersHomeTonight } from '../src/game/dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { prefersHomeTonightFor } from '../src/game/humanSchedule';
+import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
 import { getHumanActivityProjection } from '../src/game/humanStatus';
 
 describe('selected human activity projection', () => {
@@ -107,7 +109,7 @@ describe('selected human activity projection', () => {
     human.residenceBuildingId = undefined;
 
     const eveningTick = Array.from({ length: 100 }, (_, day) => day * TICKS_PER_DAY + 19 * TICKS_PER_HOUR)
-      .find((tick) => !prefersHomeTonight(human.id, tick, 19));
+      .find((tick) => !prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, human.id, tick, 19));
     if (eveningTick === undefined) throw new Error('Expected a deterministic evening outing sample');
     world.tick = eveningTick;
 

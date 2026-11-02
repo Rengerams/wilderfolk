@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** School sessions and social-life checks now read the configured work hours; the legacy default-window schedule wrappers are gone.
+
 - **Added (2 November 2026):** The development performance panel now lists relocated households — moves, repeats, unhoused moves, phases and reasons — for the churn investigation.
 
 - **Fixed (2 November 2026):** A parent’s home preference and child leisure now follow the configured work hours instead of the legacy 07–16 default.

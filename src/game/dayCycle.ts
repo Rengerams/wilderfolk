@@ -47,19 +47,14 @@ export {
   TAVERN_SHIFT_END,
   TAVERN_SHIFT_START,
   WORK_HOURS_PER_DAY,
-  allowSocialLife,
   buildWorkHours,
   formatHour,
   isActiveFreeDay,
   isFestivalGatheringHour,
   isOnInnkeeperShift,
   isOnMoonHowlerNightShift,
-  isOnWorkShift,
   isTavernOpen,
   isTavernServiceHour,
-  isWorkHour,
-  prefersHomeTonight,
-  shouldBeAtHome,
 } from './humanSchedule';
 
 export {

@@ -3,7 +3,6 @@ import {
   getAbsoluteCalendarDay,
   getHourOfDay,
   isWeekend,
-  isWorkDay,
 } from './dayCycleClock';
 import { personDayRoll } from './simRng';
 import { isNearResidence } from './housingModel';
@@ -29,16 +28,6 @@ export const WORK_HOURS_PER_DAY = DEFAULT_WORK_END_HOUR - DEFAULT_WORK_START_HOU
 
 export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
-}
-
-export function isWorkHour(hour: number): boolean {
-  return isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, hour);
-}
-
-export function isOnWorkShift(tick: number, hour?: number): boolean {
-  if (!isWorkDay(tick)) return false;
-  const currentHour = hour ?? getHourOfDay(tick);
-  return isWorkHour(currentHour);
 }
 
 export function isTavernServiceHour(hour: number): boolean {
@@ -86,10 +75,6 @@ export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
 export function shouldBeAtHomeFor(schedule: WorkSchedule | undefined, hour: number): boolean {
   const s = schedule ?? DEFAULT_WORK_SCHEDULE;
   return isNightHour(hour) || hour < s.startHour || hour >= s.endHour;
-}
-
-export function shouldBeAtHome(hour: number): boolean {
-  return shouldBeAtHomeFor(undefined, hour);
 }
 
 /**
@@ -145,13 +130,9 @@ export function prefersHomeTonightFor(
   return false;
 }
 
-export function prefersHomeTonight(entityId: number, tick: number, hour: number): boolean {
-  return prefersHomeTonightFor(undefined, entityId, tick, hour);
-}
-
 export function isActiveFreeDay(entityId: number, tick: number): boolean {
   if (isWeekend(tick)) return personDayRoll(entityId, tick, 201) >= 0.3;
-  return !prefersHomeTonight(entityId, tick, EVENING_START + 1);
+  return !prefersHomeTonightFor(DEFAULT_WORK_SCHEDULE, entityId, tick, EVENING_START + 1);
 }
 
 export function formatHour(hour: number): string {
@@ -169,8 +150,4 @@ export function allowSocialLifeFor(
 ): boolean {
   if (tick != null && isWeekend(tick)) return true;
   return !(isWorkScheduleHour(schedule ?? DEFAULT_WORK_SCHEDULE, hour) && hasWorkplace);
-}
-
-export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {
-  return allowSocialLifeFor(undefined, hour, hasWorkplace, tick);
 }

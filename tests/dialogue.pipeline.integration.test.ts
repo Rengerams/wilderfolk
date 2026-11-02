@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { personDayRoll } from '../src/game/simRng';
-import { getHourOfDay, isWorkHour, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { getHourOfDay, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
+import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSchedule';
 import { BuildingType, EntityType, JobType, type Building } from '../src/game/gameTypes';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { resolveCivicPetition } from '../src/game/townHall';
@@ -47,7 +48,7 @@ describe('chat pipeline — trigger, session, line memory', () => {
     world.resources.food = 8;
     const tick = Array.from({ length: 5000 }, (_, i) => i + 1).find((candidate) => {
       const day = Math.floor(candidate / TICKS_PER_DAY);
-      return isWorkHour(getHourOfDay(candidate))
+      return isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, getHourOfDay(candidate))
         && personDayRoll(petitioner.id, candidate, 821 + day) <= 0.4
         && personDayRoll(petitioner.id, candidate, 822) < 0.45;
     });

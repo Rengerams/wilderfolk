@@ -15,7 +15,8 @@ import {
   summarizeSchooling,
 } from '../src/game/education';
 import { SCHOOL_MIN_AGE } from '../src/game/gameConstants';
-import { isOnWorkShift } from '../src/game/dayCycle';
+import { isWorkDay } from '../src/game/dayCycleClock';
+import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSchedule';
 import { summarizeTradeRouteBlocks } from '../src/game/tradeCaravans';
 
 const CLASS_TICK = 0;
@@ -135,7 +136,7 @@ describe('the schooling owner explains an empty classroom', () => {
     const state = village([child(1, 7, 100, 100), farChild, tutor], [school(50, [900])]);
     const summary = summarizeSchooling(state, CLASS_TICK, CLASS_HOUR);
 
-    expect(summary.classHours).toBe(isOnWorkShift(CLASS_TICK, CLASS_HOUR));
+    expect(summary.classHours).toBe(isWorkDay(CLASS_TICK) && isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, CLASS_HOUR));
     expect(summary.enrolled).toBe(2);
     if (summary.classHours) {
       expect(summary.inClassNow).toBe(1);

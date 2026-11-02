@@ -22,7 +22,8 @@ import {
 import { humanBuildingTarget } from '../src/game/simulation/humanMovement';
 import { assignMissingWorkers } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
-import { isOnWorkShift } from '../src/game/humanSchedule';
+import { isWorkDay } from '../src/game/dayCycleClock';
+import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../src/game/workSchedule';
 
 /**
  * Regression: schoolyard bonds — kids at school befriend classmates, and those
@@ -350,7 +351,7 @@ describe('school.roster.test.ts', () => {
   function classTick(): number {
     for (let day = 1; day < 10; day++) {
       const tick = day * TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
-      if (isOnWorkShift(tick, 10)) return tick;
+      if (isWorkDay(tick) && isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, 10)) return tick;
     }
     throw new Error('no workday class tick found');
   }
@@ -520,7 +521,7 @@ describe('school.roster.test.ts', () => {
   function dayTickAt(hour: number): number {
     for (let day = 1; day < 10; day++) {
       const tick = day * TICKS_PER_DAY + hour * TICKS_PER_HOUR;
-      if (!isOnWorkShift(tick, 10) || isOnWorkShift(tick, hour)) continue;
+      if (!isWorkDay(tick) && isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, 10) || isWorkDay(tick) && isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, hour)) continue;
       return tick;
     }
     throw new Error(`no workday tick found outside class hours at ${hour}:00`);

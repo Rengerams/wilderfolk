@@ -27,7 +27,6 @@ import {
   HUMAN_FERTILITY_START,
   HUMAN_YOUTH_FERTILITY_END,
   getYouthConceptionMultiplier,
-  allowSocialLife,
   getAbsoluteCalendarDay,
   isWeekend,
   killHuman,
@@ -63,6 +62,7 @@ import { addReputation } from '../simHelpers';
 const CONCEPTION_CONTEXT = { kind: 'family', activity: 'conception' } as const satisfies ExactTraitContext;
 
 
+import { allowSocialLifeFor } from '../humanSchedule';
 export const AFFAIR_SPOUSE_BLOCK_RADIUS = 22;
 export const AFFAIR_BUILDING_NEAR_RADIUS = 55;
 export const AFFAIR_DAILY_TRYST_RADIUS = 95;
@@ -1487,7 +1487,7 @@ export function canPursueSecretAffair(
   // Off-duty evenings are prime social time, including the hours after the
   // generic night flag starts; actual sleep is checked by the caller.
   if (hourOfDay >= 18 && hourOfDay < 23 && !isWorkScheduleHour(workSchedule, hourOfDay)) return true;
-  if (allowSocialLife(hourOfDay, workplace != null)) return true;
+  if (allowSocialLifeFor(workSchedule, hourOfDay, workplace != null)) return true;
   if (!isWorkScheduleHour(workSchedule, hourOfDay) || entity.partnerId == null) return false;
 
   const spouse = getLivingEntity(entity.partnerId, entityById);
