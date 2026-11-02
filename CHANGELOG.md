@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Homeless, custody, capacity, surplus, leave-home, commute and couple relocations now share one plan-and-apply decision path; manor seating stays event-driven.
+
 - **Changed (2 November 2026):** The housing entry can resume from an existing run ledger, which pins the end-to-end retry past a refused destination.
 
 - **Changed (2 November 2026):** Housing eligibility is now one predicate used by pickers, diagnostics and population growth, so rival, unfinished and non-residence buildings cannot leak in.
