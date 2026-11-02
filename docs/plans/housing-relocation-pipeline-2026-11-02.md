@@ -6,8 +6,7 @@ finished except the dayCycle barrel boundary**: `isAssignableHome` now gates eve
 list, diagnostic and population read; the rival literals are gone from the housing paths; L3/L5/L9 and
 the single protection count are fixed; the manor allowlist is one constant; T3 is done. **P6 and P7 are finished**: the full tick is 25/98/422 ms avg at 600/1 200/2 400 settlers, the 5 s
 ceiling is `PERF_DAY_BOUNDARY`, the 30/360-day report records 283 moves, 1 920 homeless-days and 13.48
-moves/household-year, and the relocation hash is identical to the reference at 600/1 200. Test plan:
-T0/T2/T3/T4 done; **T1 deferred** (mechanism covered by the planner-level refusal and the invariants). Manor seating is event-driven by design.
+moves/household-year, and the relocation hash is identical to the reference at 600/1 200. Test plan: **T0–T4 are done**; T1 uses an existing-ledger seam to pin the end-to-end refusal retry. Manor seating is event-driven by design.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.

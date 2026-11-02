@@ -797,9 +797,11 @@ export function assignMissingResidences(
   sweepTick?: number,
   genealogy?: GenealogyRegistry,
   leaderPhase?: (ledger: HousingLedger) => void,
+  /** Resume with an existing run ledger; production always starts a fresh one. */
+  existingLedger?: HousingLedger,
 ): HousingReport {
   const residences = listPlayerResidences(buildings);
-  const ledger = createHousingLedger();
+  const ledger = existingLedger ?? createHousingLedger();
   if (residences.length === 0) return ledger.report;
 
   for (const h of humans) {

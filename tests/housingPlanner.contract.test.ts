@@ -66,6 +66,19 @@ describe('the relocation plan contract', () => {
     expect(child.residenceBuildingId).toBeUndefined();
   });
 
+  it('retries past a visited home end to end', () => {
+    const visitedHome = building(10, BuildingType.House);
+    const nextHome = building(11, BuildingType.House);
+    const unit = family();
+    const ledger = createHousingLedger();
+    for (const member of unit) ledger.visited.set(member.id, new Set([visitedHome.id]));
+
+    const report = assignMissingResidences(unit, [visitedHome, nextHome], unit, undefined, undefined, undefined, ledger);
+
+    expect(unit.every((member) => member.residenceBuildingId === nextHome.id)).toBe(true);
+    expect(report.relocations.length).toBeGreaterThan(0);
+  });
+
   it('plans deterministically without writing', () => {
     const homes = [building(10, BuildingType.House)];
     const unit = family();

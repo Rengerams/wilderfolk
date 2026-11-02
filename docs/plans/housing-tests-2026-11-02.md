@@ -3,7 +3,7 @@
 **Status:** P0a is committed as `d37efff9`; P1 as `98c0f393`; the audit fixes (fill regression,
 exhaustive retry, report origin, shared building predicate, shortage semantics, stats) and the
 contract suite are in the working tree. Everything else is scheduled against the pipeline plan.
-**Baseline:** 34 housing files / 165 tests on the P5 tree (T3 retirement). T4 harness: 600-settler max tick 107.6 ms; 360-day churn 13.48 moves/household-year. T0 `95ca783a` — 34 files / 148 tests,
+**Baseline:** 34 housing files / 166 tests (T1 closed). T4 harness: 600-settler max tick 107.6 ms; 360-day churn 13.48 moves/household-year. T0 `95ca783a` — 34 files / 148 tests,
 15.73 s. Pre-T0 `58ca1793` — 33 files / 141 tests, 19.33 s.
 
 ---
@@ -124,7 +124,7 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 | Stage | With | Work | Gate |
 | :--- | :--- | :--- | :--- |
 | **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
-| **T1 — deferred** | P0a done; P1 contract landed | needs ledger injection or a stable seed; the planner-level refusal case and generated invariants cover the mechanism | accepted gap |
+| **T1 — done** | P0a done; P1 contract landed | the end-to-end refusal case seeds a ledger, so the run refuses the visited home and seats the family in the next one | 34 files / 166 tests green |
 | **T2 — done** | P3 | the `housingUnitNeedsReassignment` tests were rewritten as plan-level cases; the predicate is now private | invariants + contract green |
 | **T3** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed and commute-margin all caught; `familyFitsInResidence` is caught by the capacity contract case, **not** the invariants (they never attempt an overfill); `pairs` stays intentionally uncaught (readers test `> 0`) |
 | **T4** | P6/P7 | moved the ceiling to `PERF_DAY_BOUNDARY` (max tick ≤ 5 000 ms); `run-full-year` prints moves/household-year, homeless-days and repeat moves every 30 days | 30 d: 9 moves / 0 homeless-days / 0 repeat; 360 d: 283 moves / 1 920 homeless-days / 117 repeat / 13.48 moves per household-year; 600-settler max tick **107.6 ms** |
