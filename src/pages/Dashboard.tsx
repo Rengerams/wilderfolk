@@ -98,7 +98,7 @@ export function Dashboard() {
         <div className="hero__tekst">
           <p className="hero__datum">{datumLang(data.vandaag)}</p>
           <h1>Welkom{gebruiker ? `, ${gebruiker.naam.split(" ")[0]}` : ""}</h1>
-          <p>Alles wat vandaag aandacht vraagt, staat hieronder bij elkaar.</p>
+          <p>Hier zie je wat er vandaag speelt.</p>
         </div>
         <div className="hero__acties">
           {mag("deelnemers", "zien") && (
@@ -131,6 +131,39 @@ export function Dashboard() {
         <Stat icoon="opgave" waarde={data.cijfers.opgaven} label="opgaven vastgelegd" toon="groen" />
         <Stat icoon="bellijst" waarde={data.cijfers.teBellen} label="mensen op de bellijst" toon="amber" />
       </div>
+
+      <Kaart titel="Snel aan de slag" uitleg="De taken die het vaakst voorkomen.">
+        <div className="snelraster">
+          {mag("opgave", "aanmaken") && (
+            <Link className="sneltegel" to="/opgave">
+              <span className="sneltegel__icoon"><Icoon naam="opgave" /></span>
+              <span><strong>Beschikbaarheid invoeren</strong><span>Beschikbaarheid per telefoon doorgeven</span></span>
+              <Icoon naam="pijl" />
+            </Link>
+          )}
+          {mag("indeling", "zien") && (
+            <Link className="sneltegel" to="/indeling">
+              <span className="sneltegel__icoon"><Icoon naam="indeling" /></span>
+              <span><strong>Eerlijke indeling</strong><span>Voorstel berekenen en uitleg per plek</span></span>
+              <Icoon naam="pijl" />
+            </Link>
+          )}
+          {mag("reservelijst", "zien") && (
+            <Link className="sneltegel" to="/bellijst">
+              <span className="sneltegel__icoon"><Icoon naam="bellijst" /></span>
+              <span><strong>Bellijst</strong><span>Wie bellen we over de uitslag?</span></span>
+              <Icoon naam="pijl" />
+            </Link>
+          )}
+          {mag("deelnemers", "zien") && (
+            <Link className="sneltegel" to="/deelnemers">
+              <span className="sneltegel__icoon"><Icoon naam="deelnemers" /></span>
+              <span><strong>Deelnemers</strong><span>Zoeken, bellen en geschiedenis zien</span></span>
+              <Icoon naam="pijl" />
+            </Link>
+          )}
+        </div>
+      </Kaart>
 
       {gebruiker?.rol === "Chauffeur" && (
         <Kaart titel="Mijn uitjes" uitleg="Je ziet alleen de uitjes waarvoor jij als chauffeur staat ingedeeld.">
@@ -243,38 +276,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      <Kaart titel="Snel aan de slag" uitleg="De taken die het vaakst voorkomen.">
-        <div className="snelraster">
-          {mag("opgave", "aanmaken") && (
-            <Link className="sneltegel" to="/opgave">
-              <span className="sneltegel__icoon"><Icoon naam="opgave" /></span>
-              <span><strong>Beschikbaarheid invoeren</strong><span>Beschikbaarheid per telefoon doorgeven</span></span>
-              <Icoon naam="pijl" />
-            </Link>
-          )}
-          {mag("indeling", "zien") && (
-            <Link className="sneltegel" to="/indeling">
-              <span className="sneltegel__icoon"><Icoon naam="indeling" /></span>
-              <span><strong>Eerlijke indeling</strong><span>Voorstel berekenen en uitleg per plek</span></span>
-              <Icoon naam="pijl" />
-            </Link>
-          )}
-          {mag("reservelijst", "zien") && (
-            <Link className="sneltegel" to="/bellijst">
-              <span className="sneltegel__icoon"><Icoon naam="bellijst" /></span>
-              <span><strong>Bellijst</strong><span>Wie bellen we over de uitslag?</span></span>
-              <Icoon naam="pijl" />
-            </Link>
-          )}
-          {mag("deelnemers", "zien") && (
-            <Link className="sneltegel" to="/deelnemers">
-              <span className="sneltegel__icoon"><Icoon naam="deelnemers" /></span>
-              <span><strong>Deelnemers</strong><span>Zoeken, bellen en geschiedenis zien</span></span>
-              <Icoon naam="pijl" />
-            </Link>
-          )}
-        </div>
-      </Kaart>
     </div>
   )
 }

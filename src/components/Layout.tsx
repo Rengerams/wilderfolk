@@ -9,7 +9,7 @@ type NavItem = {
   pad: string
   label: string
   icoon: IcoonNaam
-  groep: "Overzicht" | "Klanten" | "Evenementen" | "Geld" | "Beheer"
+  groep: "Overzicht" | "Klanten" | "Evenementen" | "Financiën" | "Beheer"
   recht?: [string, "zien"]
   module?: string
 }
@@ -29,11 +29,11 @@ const NAV: NavItem[] = [
     pad: "/declaraties",
     label: "Declaraties",
     icoon: "declaraties",
-    groep: "Geld",
+    groep: "Financiën",
     recht: ["declaraties", "zien"],
     module: "chauffeurskosten",
   },
-  { pad: "/kas", label: "Kas", icoon: "kas", groep: "Geld", recht: ["kas", "zien"], module: "kas" },
+  { pad: "/kas", label: "Kas", icoon: "kas", groep: "Financiën", recht: ["kas", "zien"], module: "kas" },
   { pad: "/gebruikers", label: "Gebruikers", icoon: "gebruikers", groep: "Beheer", recht: ["gebruikers", "zien"] },
   { pad: "/rollen", label: "Rollen", icoon: "rollen", groep: "Beheer", recht: ["rollen", "zien"] },
   { pad: "/modules", label: "Functies", icoon: "functies", groep: "Beheer", recht: ["modules", "zien"] },
@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { pad: "/hulp", label: "Hulp", icoon: "hulp", groep: "Beheer" },
 ]
 
-const GROEPEN = ["Overzicht", "Klanten", "Evenementen", "Geld", "Beheer"] as const
+const GROEPEN = ["Overzicht", "Klanten", "Evenementen", "Financiën", "Beheer"] as const
 
 function FeedbackKnop() {
   const { gebruiker } = useAuth()
