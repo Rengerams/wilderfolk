@@ -11,7 +11,7 @@
 - Related PR/commit: PR #119
 
 ## Status history
-- 2026-11-02 — investigating: Updated both consumers to the actual on-disk casing; CI revalidation pending.
+- 2026-11-02 — investigating: Initially changed readers to the GitHub-tracked uppercase extension, then normalized the tracked binary to `ground_soil.png` (same blob SHA) and all three UI/runtime readers to lowercase; CI revalidation pending.
 
 ## Observed behavior
 `tests/renderBatch.sprites.test.ts:83` reports missing `/sprites/ground_soil.png`; case-sensitive hosts cannot load reinforced-soil art.
@@ -31,7 +31,7 @@ GitHub Contents API lists `ground_soil.PNG`; `BuildCatalogPanel.tsx` already use
 A filename case mismatch hidden on case-insensitive development systems.
 
 ## Fix / proposed fix
-Change both source references to `/sprites/ground_soil.PNG`; retain the real asset and the strict existence test.
+Rename the tracked binary from `public/sprites/ground_soil.PNG` to `public/sprites/ground_soil.png` without altering its blob, and use `/sprites/ground_soil.png` in preload, terrain rendering and build catalogue. Retain the strict asset existence test.
 
 ## Save/migration impact
 None.
