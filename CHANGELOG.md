@@ -10,6 +10,8 @@
 - **Fixed (1 November 2026):** The 23:00–06:00 night now restores empty rest and stamina to 100% in seven actual sleep hours. One shared rate in `advanceHumanNeeds` handles all eligible sleep sites; six hours remain insufficient.
 - **Fixed (1 November 2026):** Lovers now choose the same tryst house regardless of caller order. One `observeHumanSleep` checks actual indoor sleep before recovery; exhausted settlers can still finish scheduled walks home.
 
+- **Implemented (29 October 2026, PR #91):** Merged rare Spotlight Lore with real-actor gathering, 44 JSON captions, cinematic reveal, instrumental and applause MP3s, two timed poses, farewell camera and Skip/restore. Browser acceptance remains unverified.
+
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
 
