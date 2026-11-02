@@ -231,7 +231,7 @@ export function Login() {
                 <Veld label="Herstelcode" verplicht>
                   <Invoer value={code} onChange={(e) => setCode(e.target.value)} autoFocus required />
                 </Veld>
-                <Veld label="Nieuw wachtwoord" hint="Minstens 8 tekens. Een lange zin werkt het beste." verplicht>
+                <Veld label="Nieuw wachtwoord" hint="Minstens 10 tekens. Een lange zin werkt het beste." verplicht>
                   <Invoer
                     type="password"
                     value={nieuwWachtwoord}

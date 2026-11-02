@@ -8,7 +8,11 @@ import {
   nieuweSessie,
   SESSIE_COOKIE,
   vereisLogin,
+  wachtwoordFout,
+  WACHTWOORD_MAX_LENGTE,
+  zetSessieCookie,
 } from "../auth"
+import { registreerPoging, teVaakGeprobeerd, veiligeVergelijking, wisPogingen } from "../limiet"
 import { logWijziging } from "../audit"
 import { functiesVoorGebruiker } from "../functies"
 import { ah, stuurFout } from "../util"
@@ -64,32 +68,49 @@ async function gebruikerAntwoord(id: number) {
   }
 }
 
-function zetSessieCookie(res: Response, token: string, verloopt: Date) {
-  res.cookie(SESSIE_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false,
-    expires: verloopt,
-    path: "/",
-  })
-}
-
 const PREVIEW = process.env.BASE44_PREVIEW_MODE === "1"
+
+/** Voor een onbekend e-mailadres doen we toch rekenwerk, zodat de reactietijd niets verraadt. */
+const NEP_HASH = hashWachtwoord("nep-wachtwoord-voor-gelijke-reactietijd")
+
+/** Te veel mislukte pogingen? Dan krijgt de client een 429 met een wachttijd. */
+function stuurTeVaak(res: Response, seconden: number) {
+  res.setHeader("Retry-After", String(seconden))
+  stuurFout(
+    res,
+    429,
+    `Te veel pogingen achter elkaar. Probeer het over ${Math.ceil(seconden / 60)} minuut/minuten opnieuw.`,
+  )
+}
 
 authRouter.post(
   "/login",
   ah(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim()
-    const wachtwoord = String(req.body?.wachtwoord ?? "")
+    const email = String(req.body?.email ?? "").trim().slice(0, 254)
+    const wachtwoord = String(req.body?.wachtwoord ?? "").slice(0, WACHTWOORD_MAX_LENGTE)
     if (!email || !wachtwoord) {
       stuurFout(res, 400, "Vul je e-mailadres en wachtwoord in.")
       return
     }
+    const emailSleutel = `login:email:${email.toLowerCase()}`
+    const ipSleutel = `login:ip:${req.ip ?? "onbekend"}`
+    // Ruim per adres, strakker per e-mailadres: zo blokkeert één drukke locatie niet meteen iedereen.
+    const wacht = Math.max(teVaakGeprobeerd(emailSleutel, 5, 15), teVaakGeprobeerd(ipSleutel, 50, 15))
+    if (wacht > 0) {
+      stuurTeVaak(res, wacht)
+      return
+    }
     const gebruiker = await gebruikerBijEmail(email)
-    if (!gebruiker || !controleerWachtwoord(wachtwoord, gebruiker.wachtwoord_hash)) {
+    const wachtwoordJuist = gebruiker
+      ? controleerWachtwoord(wachtwoord, gebruiker.wachtwoord_hash)
+      : !controleerWachtwoord(wachtwoord, NEP_HASH)
+    if (!gebruiker || !wachtwoordJuist) {
+      registreerPoging(emailSleutel)
+      registreerPoging(ipSleutel)
       stuurFout(res, 401, "E-mailadres of wachtwoord is niet juist.")
       return
     }
+    wisPogingen(emailSleutel)
     if (!gebruiker.actief) {
       stuurFout(res, 403, "Dit account is uitgeschakeld. Neem contact op met de beheerder.")
       return
@@ -107,7 +128,7 @@ authRouter.post(
     }
     const sessie = await nieuweSessie(gebruiker.id)
     await q("update gebruikers set laatste_login = now() where id = $1", [gebruiker.id])
-    zetSessieCookie(res, sessie.token, sessie.verloopt)
+    zetSessieCookie(req, res, sessie.token, sessie.verloopt)
     res.json({ gebruiker: await gebruikerAntwoord(gebruiker.id) })
   }),
 )
@@ -115,10 +136,23 @@ authRouter.post(
 authRouter.post(
   "/twee-staps",
   ah(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim()
-    const code = String(req.body?.code ?? "").trim()
+    const email = String(req.body?.email ?? "").trim().slice(0, 254)
+    const code = String(req.body?.code ?? "").trim().slice(0, 10)
+    const codeSleutel = `twee-staps:${email.toLowerCase()}`
+    const wacht = teVaakGeprobeerd(codeSleutel, 5, 15)
+    if (wacht > 0) {
+      stuurTeVaak(res, wacht)
+      return
+    }
     const gebruiker = await gebruikerBijEmail(email)
-    if (!gebruiker || !gebruiker.twee_staps_code || gebruiker.twee_staps_code !== code) {
+    if (!gebruiker || !gebruiker.twee_staps_code || !veiligeVergelijking(gebruiker.twee_staps_code, code)) {
+      registreerPoging(codeSleutel)
+      // Na vijf foute codes de code laten vervallen, zodat doorgaan geen zin heeft.
+      if (teVaakGeprobeerd(codeSleutel, 5, 15) > 0 && gebruiker) {
+        await q("update gebruikers set twee_staps_code = null, twee_staps_verloopt = null where id = $1", [
+          gebruiker.id,
+        ])
+      }
       stuurFout(res, 401, "De code klopt niet. Vraag een nieuwe code aan.")
       return
     }
@@ -126,12 +160,13 @@ authRouter.post(
       stuurFout(res, 401, "De code is verlopen. Log opnieuw in.")
       return
     }
+    wisPogingen(codeSleutel)
     await q("update gebruikers set twee_staps_code = null, twee_staps_verloopt = null where id = $1", [
       gebruiker.id,
     ])
     const sessie = await nieuweSessie(gebruiker.id)
     await q("update gebruikers set laatste_login = now() where id = $1", [gebruiker.id])
-    zetSessieCookie(res, sessie.token, sessie.verloopt)
+    zetSessieCookie(req, res, sessie.token, sessie.verloopt)
     res.json({ gebruiker: await gebruikerAntwoord(gebruiker.id) })
   }),
 )
@@ -141,7 +176,7 @@ authRouter.post(
   ah(async (req, res) => {
     const token = leesCookie(req, SESSIE_COOKIE)
     if (token) await q("delete from sessies where token = $1", [token])
-    res.clearCookie(SESSIE_COOKIE, { path: "/" })
+    res.clearCookie(SESSIE_COOKIE, { path: "/", httpOnly: true, sameSite: "lax" })
     res.json({ gelukt: true })
   }),
 )
@@ -157,9 +192,16 @@ authRouter.get(
 authRouter.post(
   "/wachtwoord-vergeten",
   ah(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim()
-    const gebruiker = await gebruikerBijEmail(email)
-    // Altijd hetzelfde antwoord, ook als het adres niet bestaat (geen e-mailadressen lekken).
+    const email = String(req.body?.email ?? "").trim().slice(0, 254)
+    const vraagSleutel = `herstel-vragen:${email.toLowerCase()}`
+    // Altijd hetzelfde antwoord, ook als het adres niet bestaat (geen e-mailadressen lekken)
+    // en ook als er te vaak is gevraagd; alleen dan sturen we geen nieuwe code.
+    const teVaak =
+      teVaakGeprobeerd(vraagSleutel, 3, 15) > 0 ||
+      teVaakGeprobeerd(`herstel-vragen:ip:${req.ip ?? "onbekend"}`, 10, 15) > 0
+    const gebruiker = teVaak ? undefined : await gebruikerBijEmail(email)
+    registreerPoging(`herstel-vragen:ip:${req.ip ?? "onbekend"}`)
+    if (email) registreerPoging(vraagSleutel)
     if (gebruiker && gebruiker.actief) {
       const code = String(randomInt(100000, 999999))
       await q(
@@ -180,15 +222,23 @@ authRouter.post(
 authRouter.post(
   "/wachtwoord-herstellen",
   ah(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim()
-    const code = String(req.body?.code ?? "").trim()
+    const email = String(req.body?.email ?? "").trim().slice(0, 254)
+    const code = String(req.body?.code ?? "").trim().slice(0, 10)
     const nieuw = String(req.body?.nieuw_wachtwoord ?? "")
-    if (nieuw.length < 8) {
-      stuurFout(res, 400, "Kies een wachtwoord van minstens 8 tekens.")
+    const beleid = wachtwoordFout(nieuw)
+    if (beleid) {
+      stuurFout(res, 400, beleid)
+      return
+    }
+    const herstelSleutel = `herstel-code:${email.toLowerCase()}`
+    const wacht = teVaakGeprobeerd(herstelSleutel, 5, 15)
+    if (wacht > 0) {
+      stuurTeVaak(res, wacht)
       return
     }
     const gebruiker = await gebruikerBijEmail(email)
-    if (!gebruiker || !gebruiker.reset_code || gebruiker.reset_code !== code) {
+    if (!gebruiker || !gebruiker.reset_code || !veiligeVergelijking(gebruiker.reset_code, code)) {
+      registreerPoging(herstelSleutel)
       stuurFout(res, 400, "De herstelcode klopt niet.")
       return
     }
@@ -196,6 +246,7 @@ authRouter.post(
       stuurFout(res, 400, "De herstelcode is verlopen. Vraag een nieuwe aan.")
       return
     }
+    wisPogingen(herstelSleutel)
     await q(
       `update gebruikers set wachtwoord_hash = $1, reset_code = null, reset_verloopt = null where id = $2`,
       [hashWachtwoord(nieuw), gebruiker.id],

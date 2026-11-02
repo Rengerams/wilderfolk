@@ -169,7 +169,7 @@ export function Gebruikers() {
               <Knop
                 variant="primair"
                 onClick={() => void maakAccount()}
-                disabled={bezig || !formulier.naam || !formulier.email || formulier.wachtwoord.length < 8 || !formulier.rol_id}
+                disabled={bezig || !formulier.naam || !formulier.email || formulier.wachtwoord.length < 10 || !formulier.rol_id}
               >
                 {bezig ? "Opslaan…" : "Account aanmaken"}
               </Knop>
@@ -182,7 +182,7 @@ export function Gebruikers() {
           <Veld label="E-mailadres" verplicht>
             <Invoer type="email" value={formulier.email} onChange={(e) => setFormulier({ ...formulier, email: e.target.value })} />
           </Veld>
-          <Veld label="Tijdelijk wachtwoord" hint="Minstens 8 tekens. Een lange zin werkt het beste. Geef het persoonlijk door." verplicht>
+          <Veld label="Tijdelijk wachtwoord" hint="Minstens 10 tekens. Een lange zin werkt het beste. Geef het persoonlijk door." verplicht>
             <Invoer
               type="text"
               value={formulier.wachtwoord}

@@ -1,6 +1,6 @@
 import { Router } from "express"
 import { een, q } from "../db"
-import { hashWachtwoord, mag, vereisRecht } from "../auth"
+import { hashWachtwoord, mag, vereisRecht, wachtwoordFout } from "../auth"
 import { logWijziging } from "../audit"
 import { functieAan } from "../functies"
 import { RECHTEN_ACTIES, RECHTEN_ONDERDELEN } from "../schema"
@@ -193,8 +193,9 @@ beheerRouter.post(
       stuurFout(res, 400, "Vul een naam, e-mailadres, wachtwoord en rol in.")
       return
     }
-    if (wachtwoord.length < 8) {
-      stuurFout(res, 400, "Kies een wachtwoord van minstens 8 tekens. Een lange zin werkt het beste.")
+    const beleid = wachtwoordFout(wachtwoord)
+    if (beleid) {
+      stuurFout(res, 400, beleid)
       return
     }
     const bestaat = await een("select 1 from gebruikers where lower(email) = $1", [email])
@@ -243,32 +244,26 @@ beheerRouter.patch(
       return
     }
     const nieuwWachtwoord = veiligeTekst(req.body?.wachtwoord)
-    if (nieuwWachtwoord && nieuwWachtwoord.length < 8) {
-      stuurFout(res, 400, "Kies een wachtwoord van minstens 8 tekens.")
-      return
+    if (nieuwWachtwoord) {
+      const beleid = wachtwoordFout(nieuwWachtwoord)
+      if (beleid) {
+        stuurFout(res, 400, beleid)
+        return
+      }
     }
     const bijgewerkt = await een(
-      `update gebruikers set naam = $1, email = $2, rol_id = $3, actief = $4, twee_staps = $5
-         ${nieuwWachtwoord ? ", wachtwoord_hash = $6" : ""}
+      `update gebruikers set naam = $1, email = $2, rol_id = $3, actief = $4, twee_staps = $5,
+         wachtwoord_hash = coalesce($6, wachtwoord_hash)
        where id = $7 returning id, naam, email, rol_id, actief, twee_staps`,
-      nieuwWachtwoord
-        ? [
-            veiligeTekst(req.body?.naam) || bestaand.naam,
-            veiligeTekst(req.body?.email).toLowerCase() || bestaand.email,
-            Number(req.body?.rol_id) || bestaand.rol_id,
-            typeof req.body?.actief === "boolean" ? req.body.actief : bestaand.actief,
-            typeof req.body?.twee_staps === "boolean" ? req.body.twee_staps : bestaand.twee_staps,
-            hashWachtwoord(nieuwWachtwoord),
-            id,
-          ]
-        : [
-            veiligeTekst(req.body?.naam) || bestaand.naam,
-            veiligeTekst(req.body?.email).toLowerCase() || bestaand.email,
-            Number(req.body?.rol_id) || bestaand.rol_id,
-            typeof req.body?.actief === "boolean" ? req.body.actief : bestaand.actief,
-            typeof req.body?.twee_staps === "boolean" ? req.body.twee_staps : bestaand.twee_staps,
-            id,
-          ],
+      [
+        veiligeTekst(req.body?.naam) || bestaand.naam,
+        veiligeTekst(req.body?.email).toLowerCase() || bestaand.email,
+        Number(req.body?.rol_id) || bestaand.rol_id,
+        typeof req.body?.actief === "boolean" ? req.body.actief : bestaand.actief,
+        typeof req.body?.twee_staps === "boolean" ? req.body.twee_staps : bestaand.twee_staps,
+        nieuwWachtwoord ? hashWachtwoord(nieuwWachtwoord) : null,
+        id,
+      ],
     )
     if (req.body?.actief === false) {
       await q("delete from sessies where gebruiker_id = $1", [id])

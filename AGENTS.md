@@ -35,6 +35,14 @@ docker compose -f docker-compose.base44.yml up -d --build
   datum + omschrijving maakt geen dubbel uitje.
 - Er is in de sandbox geen mailserver: e-mails belanden in `email_outbox`. Staat
   `BASE44_PREVIEW_MODE=1`, dan toont de app de herstelcode op het scherm.
+- Beveiliging (`server/src/auth.ts`, `server/src/limiet.ts`, `server/src/index.ts`):
+  wachtwoorden via scrypt (N=32768; het oude `zout:hash`-formaat blijft werken),
+  minstens 10 tekens. Inloggen, twee-staps en herstelcodes zijn begrensd op
+  herhaalpogingen (in het geheugen, dus per API-proces) en codes worden
+  timing-veilig vergeleken. De sessiecookie is HttpOnly, SameSite=Lax en Secure
+  zodra het verzoek via https binnenkomt. Interne serverfouten geven nooit
+  technische details terug. Een POST/PATCH/DELETE met `Sec-Fetch-Site: cross-site`
+  wordt geweigerd (403).
 
 ## Verifiëren
 
