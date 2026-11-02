@@ -1,4 +1,4 @@
-import { reassignDivorcedResidences } from '../housingPipeline';
+import { reassignDivorcedResidences, syncPartnerResidence } from '../housingPipeline';
 
 import type { WorldState, Entity, Building } from '../gameTypes';
 import { EntityType, BuildingType, JobType, BUILDING_CONFIGS } from '../gameTypes';
@@ -29,21 +29,16 @@ import {
   HUMAN_YOUTH_FERTILITY_END,
   getYouthConceptionMultiplier,
   allowSocialLife,
-  hasResidenceAssignment,
-  hasWorkAssignment,
   getAbsoluteCalendarDay,
   isWeekend,
-  isNearResidence,
-  isResidenceBuilding,
-  syncPartnerResidence,
   killHuman,
-  shareResidence,
   getFemaleFertility,
   getOldAgeDeathChance,
   ticksForDays,
   PREGNANCY_TICKS,
   isStartOfClockHour,
 } from '../dayCycle';
+import { hasResidenceAssignment, hasWorkAssignment, isNearResidence, isResidenceBuilding, shareResidence } from '../housingModel';
 import { citizenFullName, formatCitizenName, formatDeathLog, humanDisplayName } from '../citizenId';
 import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurnames } from '../nameLoader';
 import { dampScandalReputationLoss } from '../townHall';

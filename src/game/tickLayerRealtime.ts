@@ -22,9 +22,9 @@ import { bumpHistoryRevision } from './historyRevisions';
 import {
   isNightHour,
   getAbsoluteCalendarDay,
-  isResidenceOccupantEntity,
-  syncResidenceOccupants,
 } from './dayCycle';
+import { isResidenceOccupantEntity } from './housingModel';
+import { syncResidenceOccupants } from './housingPipeline';
 import { logEvent } from './eventLog';
 import {
   isActiveMoonHowler,

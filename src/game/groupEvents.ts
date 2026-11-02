@@ -5,7 +5,8 @@ import type {
   VillageRequest, VillageRequestHistoryEntry,
 } from './gameTypes';
 import { EntityType, BuildingType, JobType } from './gameTypes';
-import { assignMissingResidences, getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, syncResidenceOccupants, TICKS_PER_DAY } from './dayCycle';
+import { getAbsoluteCalendarDay, getColonyDay, HUMAN_MAX_LIFESPAN_YEARS, isNewCalendarDayTick, TICKS_PER_DAY } from './dayCycle';
+import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { indexLivingEntity, unindexEntityFromState } from './entityIndex';
 import { pushNewEntity } from './simulation/simulationEntities';

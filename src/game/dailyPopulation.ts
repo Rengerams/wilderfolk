@@ -8,7 +8,7 @@ import type { WorldState, Entity, Building } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
 import { BuildingType } from './gameTypes';
 import { indexLivingEntity } from './entityIndex';
-import { getResidenceCapacity } from './dayCycle';
+import { getResidenceCapacity } from './housingModel';
 import { assignMissingResidences } from './housingPipeline';
 import { createImmigrantSettler } from './worldGen';
 import { findHumanSpawnNear } from './terrainSystems';

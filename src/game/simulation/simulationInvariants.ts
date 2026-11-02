@@ -37,10 +37,9 @@ import { BuildingType, BUILDING_JOB_TYPES, LEADER_OCCUPATION } from '../gameType
 import { isActingVillageHead } from '../villageLeadership';
 import { countActiveMoonHowlerCurses, isActiveMoonHowler } from '../moonHowler';
 import { isSettlerRelationshipEntity } from '../moonHowlerForm';
-import { isResidenceOccupantEntity } from '../housingModel';
+import { isResidenceOccupantEntity, isResidenceBuildingType } from '../housingModel';
 
 import { BUILDING_CONFIGS } from '../buildings';
-import { isResidenceBuildingType } from '../dayCycle';
 
 type BuildingRole = 'prison' | 'residence' | 'workplace' | 'crew' | 'none';
 

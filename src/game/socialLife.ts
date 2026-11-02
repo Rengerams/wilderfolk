@@ -9,10 +9,9 @@ import {
   TICKS_PER_HOUR,
   getHourOfDay,
   getWeekday,
-  hasResidenceAssignment,
-  hasWorkAssignment,
   isWorkDay,
 } from './dayCycle';
+import { hasResidenceAssignment, hasWorkAssignment } from './housingModel';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';

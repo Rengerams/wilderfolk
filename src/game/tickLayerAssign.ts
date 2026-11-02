@@ -4,11 +4,8 @@ import { isResidenceBuilding } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import type { TickContext } from './simulation/simulationTypes';
-import {
-  syncResidenceOccupants,
-  assignMissingResidences,
-  TICKS_PER_HOUR,
-} from './dayCycle';
+import { TICKS_PER_HOUR } from './dayCycle';
+import { assignMissingResidences, syncResidenceOccupants } from './housingPipeline';
 import { assignMissingWorkers } from './workforce';
 import { applyLeaderHousePhase, collectLeaderHousehold, findLeaderHouse } from './leaderHouse';
 import { profileStart, profileEnd } from './performanceProfiler';

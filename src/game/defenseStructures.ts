@@ -1,6 +1,6 @@
 import { BuildingType, JobType } from './gameTypes';
 import type { Building, WorldState } from './gameTypes';
-import { isImprisoned } from './dayCycle';
+import { isImprisoned } from './housingModel';
 import { ensureEntityByIdMap } from './entityIndex';
 import { FORGE_BONUSES, isForgeOrderComplete } from './forge';
 import type { VillageForgeState } from './gameTypes';

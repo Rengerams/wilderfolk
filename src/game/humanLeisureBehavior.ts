@@ -1,7 +1,8 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, getChildCustodian, hasResidenceAssignment, prefersHomeTonight } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, prefersHomeTonight } from './dayCycle';
+import { getChildCustodian, hasResidenceAssignment } from './housingModel';
 import { isOnWorkScheduleShift } from './workSchedule';
 import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';

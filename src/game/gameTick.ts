@@ -26,8 +26,8 @@ import {
   markCalendarDayProcessed,
   syncHumanAgeFromCalendar,
   reconcileOrphanedMarriages,
-  syncResidenceOccupants,
 } from './dayCycle';
+import { syncResidenceOccupants } from './housingPipeline';
 import { displayYear } from './dayCycleClock';
 import { getEcosystemHealth } from './dailyEcology';
 import { buildEntityByType, type SimulationFocus } from './simFocus';

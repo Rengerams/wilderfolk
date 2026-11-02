@@ -279,15 +279,18 @@ export {
   getAgeInYears,
   getColonyDay,
   getAbsoluteCalendarDay,
-  getResidenceCapacity,
-  isResidenceBuilding,
-  isNearResidence,
-  shareResidence,
   isNightHour,
   TICKS_PER_HOUR,
   TICKS_PER_DAY,
   DAYS_PER_YEAR,
 } from './dayCycle';
+
+export {
+  getResidenceCapacity,
+  isResidenceBuilding,
+  isNearResidence,
+  shareResidence,
+} from './housingModel';
 
 export {
   getWorkSchedule,

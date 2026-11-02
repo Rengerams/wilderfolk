@@ -11,7 +11,7 @@ import { addFloatingText, createDeathParticles, impulseScreenShake } from './sim
 import { bumpTerrainRevision } from './terrainLayer';
 import { assignMissingWorkers } from './workforce';
 import { refundBuildingCost, removeBuildingFromState } from './buildingMaintenanceActions';
-import { assignMissingResidences } from './dayCycle';
+import { assignMissingResidences } from './housingPipeline';
 import { allPlayerHumans } from './playerHuman';
 import { notifyBuildingLocked } from './research';
 import {

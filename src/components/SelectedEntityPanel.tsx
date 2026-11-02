@@ -10,10 +10,8 @@ import {
   hasResidenceAssignment,
   hasWorkAssignment,
   isImprisoned,
-  PREGNANCY_TICKS,
-  daysUntilTick,
-  getBirthDateString,
-} from '../game/dayCycle';
+} from '../game/housingModel';
+import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
 import { TRAIT_DEFS } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/settlerInteractionActions';

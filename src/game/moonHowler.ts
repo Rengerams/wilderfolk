@@ -1,4 +1,4 @@
-import { moveResident } from './housingPipeline';
+import { assignMissingResidences, moveResident, syncResidenceOccupants } from './housingPipeline';
 import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {
@@ -16,10 +16,8 @@ import {
   MOON_HOWLER_NIGHT_START,
 } from './daycycleconstants';
 import {
-  assignMissingResidences,
   isStartOfClockHour,
   killHuman,
-  syncResidenceOccupants,
   TICKS_PER_HOUR,
 } from './dayCycle';
 import { isPlayerHuman } from './playerHuman';

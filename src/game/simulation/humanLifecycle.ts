@@ -1,4 +1,4 @@
-import { moveResident } from '../housingPipeline';
+import { moveResident, rebuildChildrenIds } from '../housingPipeline';
 import type { Entity, WorldState } from '../gameTypes';
 import { EntityType, JobType } from '../gameTypes';
 import type { TickContext } from './simulationTypes';
@@ -6,7 +6,6 @@ import {
   PREGNANCY_TICKS,
   REPRODUCTION_COOLDOWN_TICKS,
   ticksForDays,
-  rebuildChildrenIds,
   getColonyDay,
 } from '../dayCycle';
 import { resolveChildSurname, getRandomName } from '../nameLoader';

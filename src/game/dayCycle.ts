@@ -65,45 +65,6 @@ export {
 } from './humanSchedule';
 
 export {
-  buildResidenceOccupancy,
-  countResidentsInBuilding,
-  getResidenceCapacity,
-  getResidenceUpgradeSlotGain,
-  hasResidenceAssignment,
-  hasWorkAssignment,
-  isImprisoned,
-  isLeaderHouseResidence,
-  isNearResidence,
-  isResidenceBuilding,
-  isResidenceBuildingType,
-  occupancyMove,
-  residenceRoomFor,
-  shareResidence,
-  isResidenceOccupantEntity,
-  buildFamilyGroups,
-  collectFamilyMembers,
-  collectOwnHousehold,
-  getChildCustodian,
-  isAdultChildAtHome,
-} from './housingModel';
-
-export {
-  auditHousingSharingIssues,
-  buildHousingUnits,
-  pickResidenceForFamily,
-  pickResidenceForHuman,
-  pickResidenceFromChildCustodian,
-} from './housingPipeline';
-
-export {
-  assignMissingResidences,
-  rebuildChildrenIds,
-  syncPartnerResidence,
-  syncResidenceOccupants,
-} from './housingPipeline';
-export type { ResidenceOccupancy } from './housingModel';
-
-export {
   DAYS_PER_MOON_CYCLE,
   HUMAN_VENERABLE_AGE,
   isFullMoonDay,

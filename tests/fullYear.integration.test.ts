@@ -23,7 +23,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame, gameTick } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
-import { assignMissingResidences } from '../src/game/dayCycle';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycleClock';

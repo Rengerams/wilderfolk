@@ -23,7 +23,7 @@ import { createHash } from 'node:crypto';
 import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
-import { assignMissingResidences } from '../src/game/dayCycle';
+import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { updateStorageCaps } from '../src/game/economy';

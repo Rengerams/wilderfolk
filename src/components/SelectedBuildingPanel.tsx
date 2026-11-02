@@ -18,8 +18,9 @@ import { getDiplomacyChoiceEligibility, getRivalGiftEligibility, getRivalTradePa
 import { moonHowlerRiteWeights, countStaffedPriests } from '../game/moonHowler';
 import { ensureEntityByIdMap } from '../game/entityIndex';
 import {
-  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, daysUntilTick, getHourOfDay,
-} from '../game/dayCycle';
+  isResidenceBuildingType, getResidenceCapacity, getResidenceUpgradeSlotGain, isResidenceOccupantEntity,
+} from '../game/housingModel';
+import { daysUntilTick, getHourOfDay } from '../game/dayCycle';
 import { formatEducationLabel, getSchoolRoster, describeSchoolRoster, schoolCapacity } from '../game/education';
 import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../game/citizenId';
 import { isProductionBuildingType } from '../game/buildCatalog';
@@ -28,7 +29,6 @@ import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TO
 import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster, isSettlerLodgingAtHotel } from '../game/hotelStay';
-import { isResidenceOccupantEntity } from '../game/housingModel';
 
 import { describeHospitalReputation, describeHospitalRoster, getHospitalRoster } from '../game/hospitalCare';
 import { hospitalDoctorRoster, hospitalCoverageSummary, HOSPITAL_SHIFT_WINDOWS } from '../game/hospitalShifts';

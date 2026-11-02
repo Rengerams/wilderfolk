@@ -2,7 +2,7 @@ import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
-import { moveResident } from './housingPipeline';
+import { assignMissingResidences, moveResident, rebuildChildrenIds } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
@@ -18,9 +18,8 @@ import { ENTITY_PERSISTED_FIELDS, WORLD_STATE_SAVE_KEYS } from './saveSchema';
 import { generateWorldMap } from './terrainGen';
 import { legacyTerrainSeed } from './terrain/terragen';
 import {
-  getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges, rebuildChildrenIds,
+  getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges,
   TICKS_PER_DAY, LEGACY_TICKS_PER_DAY, DAYS_PER_YEAR,
-  assignMissingResidences,
   repairJuvenileAssignmentsOnLoad,
 } from './dayCycle';
 import { displayYear } from './dayCycleClock';

@@ -14,9 +14,9 @@ import {
   getAbsoluteCalendarDay,
   isProductionTick,
   isWeekend,
-  isNearResidence,
   NIGHT_END,
 } from '../src/game/dayCycle';
+import { isNearResidence } from '../src/game/housingModel';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { OFFSCREEN_HUMAN_THROTTLE } from '../src/game/simFocus';

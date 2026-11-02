@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { WorldState, Entity } from './gameTypes';
 import { EntityType, BUILDING_CONFIGS } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './dayCycle';
+import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './housingModel';
 import { isVillageLeader } from './villageLeadership';
 import { getPopulationGrowthReport, resolvePopulationCap } from './populationGrowth';
 import { computeVillageStats } from './uiSimSummary';

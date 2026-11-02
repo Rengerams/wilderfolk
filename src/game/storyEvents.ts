@@ -1,6 +1,7 @@
 import type { WorldState, StoryEvent } from './gameTypes';
 import { BuildingType } from './gameTypes';
-import { TICKS_PER_DAY, getColonyDay, getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './dayCycle';
+import { TICKS_PER_DAY, getColonyDay } from './dayCycle';
+import { getResidenceCapacity, isLeaderHouseResidence, isResidenceBuilding } from './housingModel';
 import { displayYear } from './dayCycleClock';
 import { addBigNews, addNotification } from './simEffects';
 import { addCappedResource } from './resourceUtils';
