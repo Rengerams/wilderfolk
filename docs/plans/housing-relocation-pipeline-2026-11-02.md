@@ -1,9 +1,9 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
-**Status:** P0a `d37efff9` and P1 `98c0f393` are committed. Four independent audits followed; their
-findings are fixed in the working tree (repair-pass regression, exhaustive refusal retry, report
-origin, shared building predicate, shortage semantics, stats and counter) and pinned by a 15-case
-contract suite. Current tree: 35 files / 164 tests. P2 is next.
+**Status:** P0a `d37efff9`, P1 `98c0f393` and the audit fixes `508c1f2f`/`029ef61f` are committed.
+**P2 is implemented in the working tree**: custody, capacity and surplus plan through `planRelocation`
+(capacity ranks and retries a move; surplus only unhouses when no destination exists; orphan placement
+uses the custody need). Current tree: 35 files / 167 tests. P3 is next.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.
@@ -586,7 +586,7 @@ Each work package is one commit, green on its own, and revertable alone.
 | **P0a** | **Merge five modules into three + honest names** — **done in the working tree** | T0 commit (`95ca783a`) | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 149 tests identical**; `buildFamilyGroups` still reachable from the Population tab; two latent duplicates refactored; overlap approvals recorded |
 | **P0** | Contract + baseline + bug reports + close `stats` | P0a | `housingPipeline.ts` (types only), `docs/bug_report/*`, `BUG_REPORTS/SUMMARY.md` | `RelocationPlan`/`RelocationNeed` compile unused; `HousingReport.stats` shape agreed and recorded in the registry; baseline re-recorded on the new names; L1/L3/L4/L5/L7/L9/L10 filed and indexed |
 | **P1** | Planner core + **homeless** need only — **done in the working tree** | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase plans through `planRelocation` and applies through `applyRelocation`; G1/G3/G4/G7 pass; **L11 stays fixed**; the split fallback remains for unplaceable households |
-| **P2** | **custody**, **capacity**, **surplus** | P1 | same | guardianship/capacity rebuilt on needs; adoption stays a custody pre-step; capacity takes the pass's occupancy/traits; L7 fixed (vacancy set grows) |
+| **P2** | **custody**, **capacity**, **surplus** — **done in the working tree** | P1 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | 'custody', 'capacity' and 'surplus' plans; capacity ranks and retries before surplus; surplus only unhouses with no destination; orphan placement uses the custody need; 18-case contract suite; L7 still open (filed) |
 | **P3** | **leave-home**, **commute**; delete the old predicate | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | L1 fixed (minor household only); `housingUnitNeedsReassignment` deleted with its 3 test imports rewritten; `sortHousingUnitsForAssignment` returns plans; optional phases green |
 | **P4** | Event triggers through the pipeline | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` (release already pipes) | death, marriage, divorce stop choosing: they change custody/link then run the pipeline; divorce's one-hop reshuffle moves into capacity; `divorceHousing.custody`, `amicableDivorce`, `residency.blendedCustody`, `guardianship.jailedParents` green |
 | **P5** | One rule, one context, one arena | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` (eligibility call) | one `isAssignableHome`, one write-context type (`HousingMoveContext`), manor allowlist single constant, 15 rival literals gone, alias/re-export/dead export gone, diagnostics reads owners, L3/L5/L9 fixed; `protectedUnits` counted once per withheld household (it currently over-reports across adult-child and commute) |

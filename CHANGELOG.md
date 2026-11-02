@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Capacity and custody now go through the same relocation plan as homelessness: a capacity household is ranked, retried and moved before anyone is made surplus, and surplus only unhouses when no home fits.
+
 - **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.
 
 - **Fixed (2 November 2026):** A colony now settles into the same homes whatever order its settlers are supplied in, so a worker hand-off or save load cannot reshuffle its housing.

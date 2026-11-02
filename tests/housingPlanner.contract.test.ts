@@ -269,4 +269,60 @@ describe('the relocation plan contract', () => {
       }
     }
   });
+
+  it('plans a capacity move out of an overfull home', () => {
+    const overfull = building(10, BuildingType.House);
+    const spare = building(11, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32, partnerId: 1, residenceBuildingId: 10 });
+    mother.partnerId = 2;
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
+    const others = Array.from({ length: 4 }, (_, index) =>
+      human(10 + index, { residenceBuildingId: 10 }));
+    const unit = [mother, father, child];
+    const context = standaloneMoveContext([...unit, ...others], [overfull, spare]);
+
+    const plan = planRelocation(unit, 'capacity', context);
+
+    expect(plan.move).toBe(true);
+    expect(plan.reason).toBe('family');
+    expect(plan.to).toBe(11);
+    expect(applyRelocation(unit, plan, 'capacity', context)).toBeDefined();
+    expect(unit.every((member) => member.residenceBuildingId === 11)).toBe(true);
+  });
+
+  it('unhouses only the surplus when no home can take the unit', () => {
+    const overfull = building(10, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32, partnerId: 1, residenceBuildingId: 10 });
+    mother.partnerId = 2;
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
+    const others = Array.from({ length: 4 }, (_, index) =>
+      human(10 + index, { residenceBuildingId: 10 }));
+    const unit = [mother, father, child];
+    const context = standaloneMoveContext([...unit, ...others], [overfull]);
+
+    expect(planRelocation(unit, 'capacity', context).move).toBe(false);
+    const surplus = planRelocation(unit, 'surplus', context);
+    expect(surplus.move).toBe(true);
+    expect(surplus.to).toBeUndefined();
+    expect(applyRelocation(unit, surplus, 'capacity', context)).toBeDefined();
+    expect(unit.every((member) => member.residenceBuildingId == null)).toBe(true);
+  });
+
+  it('plans custody placement with the custodian, not an empty home', () => {
+    const custodianHome = building(10, BuildingType.House);
+    const empty = building(11, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1 });
+    const context = standaloneMoveContext([mother, child], [custodianHome, empty]);
+
+    const plan = planRelocation([child], 'custody', context);
+
+    expect(plan.move).toBe(true);
+    expect(plan.reason).toBe('guardian');
+    expect(plan.to).toBe(10);
+    expect(applyRelocation([child], plan, 'guardianship', context)).toBeDefined();
+    expect(child.residenceBuildingId).toBe(10);
+  });
 });
