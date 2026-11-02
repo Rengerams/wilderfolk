@@ -64,6 +64,7 @@ Terrain pipeline design and layer boundaries: [Terrain architecture](docs/TERRAI
 | Workshop recipes | `workshops.ts` | — | `canAffordWorkshopRecipe(resources, recipe)` |
 | Building config lookup | `buildingConfig.ts` | — | `getBuildingConfig` (with fallback) |
 | Completed player building predicate | `game/buildings.ts` | read-only boundary used by wander and housing | `isCompletedPlayerBuilding` — one definition of a completed, non-rival building; venues and homes narrow it by type. |
+| Assignable home predicate | `game/housingModel.ts` | read-only eligibility | `isAssignableHome` — a completed player residence; every picker and residence list uses it. |
 | Building type identity: the name shown and persisted, and its stable number | `game/buildings.ts` | — (pure registry; filters read the number) | `BuildingType` (persisted name), `BUILDING_TYPE_CODES` (append-only number per type; `isResidenceBuildingType` in `housingModel.ts` matches homes on the code, never on the name) |
 | Village Requests | `groupEvents.ts` | new-calendar-day / command | `tickVillageRequests`, `resolveVillageRequest` |
 | Diplomacy card prices | `rivalDiplomacy.ts` | — (data read by the card's label, its gate and its charge) | `DIPLOMACY_TRIBUTE_PAY_FOOD`, `DIPLOMACY_TRIBUTE_NEGOTIATE_FOOD`, `DIPLOMACY_ALLIANCE_ACCEPT_GOLD`, `DIPLOMACY_ALLIANCE_COUNTER_FOOD`, `DIPLOMACY_ALLIANCE_COUNTER_GOLD`, `DIPLOMACY_PEACE_SIGN_GOLD`, `DIPLOMACY_PEACE_SIGN_FOOD`, `DIPLOMACY_PEACE_TRIBUTE_FOOD` |

@@ -3,9 +3,8 @@ import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './housingModel';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isResidenceBuildingType } from './housingModel';
+import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
 import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
-import { isCompletedPlayerBuilding } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -105,7 +104,6 @@ export function isHousingUnitProtected(ledger: HousingLedger, unit: readonly Ent
     const settledBy = ledger.settled.get(member.id);
     if (settledBy !== undefined
       && (MANDATORY_PHASES.has(settledBy) || HOUSING_PHASE_ORDER.indexOf(settledBy) < phaseIndex)) {
-      ledger.report.protectedUnits += 1;
       return true;
     }
   }
@@ -233,7 +231,10 @@ export function relocateHousehold(
   context: HousingMoveContext,
 ): boolean {
   if (unit.length === 0) return false;
-  if (isHousingUnitProtected(context.ledger, unit, phase)) return false;
+  if (isHousingUnitProtected(context.ledger, unit, phase)) {
+    context.ledger.report.protectedUnits += 1;
+    return false;
+  }
   if (!householdMayMove(unit, toId, reason, context)) return false;
   // All-or-nothing: one member the write would refuse cancels the move before anyone leaves.
   if (unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings))) return false;
@@ -598,7 +599,7 @@ export function rebalanceOvercrowdedResidences(
     return plan.move && applyRelocation(unit, plan, 'capacity', context) !== undefined;
   };
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence)) continue;
+    if (!isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     const cap = getResidenceCapacity(residence);
     if ((occupancy.get(residence.id) ?? 0) <= cap) continue;
     const alternatives = targets.filter((home) => home.id !== residence.id);
@@ -975,7 +976,7 @@ function collectHousingInvariantViolations(
     if (homeId != null && !residenceById.has(homeId)) violations.push(`settler #${settler.id} references missing home #${homeId}`);
   }
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence)) continue;
+    if (!isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     const count = occupancy.get(residence.id) ?? 0;
     if (count > getResidenceCapacity(residence)) violations.push(`home #${residence.id} holds ${count} over ${getResidenceCapacity(residence)} beds`);
   }
@@ -1412,7 +1413,7 @@ interface PickResidenceOptions {
 }
 
 export function listPlayerResidences(buildings: Building[]): Building[] {
-  return buildings.filter((b) => isCompletedPlayerBuilding(b) && isResidenceBuildingType(b.type));
+  return buildings.filter(isAssignableHome);
 }
 
 /** The one least-crowded-residence rule; every couple pick asks this owner for its verdict. */
@@ -1432,7 +1433,7 @@ export function pickLeastCrowdedResidence(
   let best: Building | undefined;
   let bestCount = Infinity;
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence)) continue;
+    if (!isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     if (options.forbidSinglesOnly && residenceHostsOnlySingles(residence.id, humans, traits)) continue;
     const cap = getResidenceCapacity(residence);
     const residents = countResidentsInBuilding(humans, residence.id, occupancy);
@@ -1923,9 +1924,6 @@ function addResidenceOccupant(traits: ResidenceTraitsById, residenceId: number, 
   if (!human.isJuvenile) entry.adults += 1;
   if (isMinorChild(human)) entry.minors += 1;
   if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs += 1;
-  for (const occupant of entry.occupants.values()) {
-    if (occupant.id !== human.id && occupant.partnerId === human.id) entry.pairs += 1;
-  }
 }
 
 function removeResidenceOccupant(traits: ResidenceTraitsById, residenceId: number, human: Entity): void {
@@ -1935,9 +1933,6 @@ function removeResidenceOccupant(traits: ResidenceTraitsById, residenceId: numbe
   if (!human.isJuvenile) entry.adults -= 1;
   if (isMinorChild(human)) entry.minors -= 1;
   if (human.partnerId != null && entry.occupants.has(human.partnerId)) entry.pairs -= 1;
-  for (const occupant of entry.occupants.values()) {
-    if (occupant.partnerId === human.id) entry.pairs -= 1;
-  }
   if (entry.occupants.size === 0) traits.delete(residenceId);
 }
 
@@ -1945,7 +1940,7 @@ function removeResidenceOccupant(traits: ResidenceTraitsById, residenceId: numbe
 export function buildResidenceTraits(humans: readonly Entity[]): ResidenceTraitsById {
   const traits: ResidenceTraitsById = new Map();
   for (const human of humans) {
-    if (!human.alive || !isPlayerHuman(human)) continue;
+    if (!human.alive || !isResidenceOccupantEntity(human)) continue;
     const residenceId = human.residenceBuildingId;
     if (residenceId == null) continue;
     addResidenceOccupant(traits, residenceId, human);
@@ -2054,6 +2049,7 @@ function anyOpenBeds(
 ): boolean {
   return residences.some(
     (r) =>
+      isAssignableHome(r) &&
       !isLeaderHouseResidence(r) &&
       !excluded?.has(r.id) &&
       countResidentsInBuilding(humans, r.id, occupancy) < getResidenceCapacity(r),
@@ -2099,7 +2095,7 @@ export function pickResidenceForFamily(
   let bestTier = Infinity;
 
   for (const residence of residences) {
-    if (isLeaderHouseResidence(residence) || residence.faction === 'rival') continue;
+    if (!isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     if (excluded?.has(residence.id)) continue;
     if (!familyFitsInResidence(family, residence, humans, occupancy)) continue;
 

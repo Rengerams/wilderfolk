@@ -3,10 +3,10 @@
 **Status:** P0a `d37efff9`, P1 `98c0f393`, the audit fixes `508c1f2f`/`029ef61f`, P2
 (`6cc9a80c`/`185f6205`) and **P3 are complete**: leave-home, commute and couple plan; L1/L7 fixed; the
 public needs predicate is retired; F6 (the sort's second predicate call) is accepted as a correctness
-cost and left for the P6 occupancy-version design. **P4 is complete**: marriage plans; a leader's death clears the office while the family keeps the
-manor; divorce keeps the betrayed spouse and children in the home, the cheater leaves alone, and the
-one-hop reshuffle is gone. Manor seating is event-driven (start/election) by design. Current tree:
-35 files / 171 tests. **P5 is next.**
+cost and left for the P6 occupancy-version design. **P4 is complete.** **P5 is in progress**: `isAssignableHome` is the one eligibility gate, L3/L5/L9 are
+fixed (traits vs beds, protection counted once, pair count once), and T3 retired the internal housing
+tests (35→34 files, 171→165 tests). Remaining: the rival literals and alias cleanup. Manor seating is
+event-driven (start/election) by design.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.
@@ -592,7 +592,7 @@ Each work package is one commit, green on its own, and revertable alone.
 | **P2** | **custody**, **capacity**, **surplus** — **done in the working tree** | P1 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | 'custody', 'capacity' and 'surplus' plans; capacity ranks and retries before surplus; surplus only unhouses with no destination; orphan placement uses the custody need; 18-case contract suite; L7 still open (filed) |
 | **P3** | **leave-home**, **commute**; delete the old predicate — **done** | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | leave-home, commute and couple plan; L1/L7 fixed; `housingUnitNeedsReassignment` removed from the public surface (private `unitNeedsMove`), its 3 test imports rewritten to planner outcomes; the sort keeps the need check (F6 accepted as the correctness cost, P6 redesign) |
 | **P4** | Event triggers through the pipeline — **done** | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` | marriage plans through the couple need; a leader's death clears the office (family keeps the manor); divorce keeps the betrayed spouse and children, the cheater leaves alone, the one-hop reshuffle is removed; amicable divorce follows the custody hash; event suites green |
-| **P5** | One rule, one context, one arena | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` (eligibility call) | one `isAssignableHome`, one write-context type (`HousingMoveContext`), manor allowlist single constant, 15 rival literals gone, alias/re-export/dead export gone, diagnostics reads owners, L3/L5/L9 fixed; `protectedUnits` counted once per withheld household (it currently over-reports across adult-child and commute) |
+| **P5** | One rule, one context, one arena — **in progress** | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` | `isAssignableHome` in every picker/list; L3/L5/L9 fixed; `protectedUnits` counted once; T3 retired the internal tests (34 files / 165 tests); remaining: rival literals, alias/re-export cleanup, diagnostics→owners |
 | **P6** | Perf: one build per run, pass count at scale | P5 | `housingPipeline.ts`, `housingModel.ts` | unit index built once and reused by the refill; occupancy/traits threaded through capacity; `stats.passes` measured at 600/1200/2400 settlers and still `≤ 3` on the stuck fixture |
 | **P7** | Registers, docs, benchmark, CI | P6 | housing rows in `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts`, `docs/HOUSING_ARCHITECTURE.md`, `CHANGELOG.md`, `scripts/perf-at-pop.ts` | pipeline decision rows added (merge rows landed in P0a); registry `testFile` lists the housing suites; architecture note describes the plan contract; changelog entry; benchmark hash identical |
 

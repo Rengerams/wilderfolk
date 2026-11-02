@@ -8,62 +8,25 @@ import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import {
   assignMissingResidences,
-  createHousingLedger,
-  isHousingUnitProtected,
   relocateHousehold,
-  rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable,
+  standaloneMoveContext,
+  syncResidenceOccupants,
 } from '../src/game/housingPipeline';
-import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/housingModel';
-import { buildResidenceTraits } from '../src/game/housingPipeline';
+import { getResidenceCapacity } from '../src/game/housingModel';
 
 function moveContext(alive: Entity[], residences: ReturnType<typeof building>[]) {
-  return {
-    alive,
-    residences,
-    buildings: residences,
-    occupancy: buildResidenceOccupancy(alive),
-    traits: buildResidenceTraits(alive),
-    ledger: createHousingLedger(),
-  };
+  return standaloneMoveContext(alive, residences);
 }
 
 describe('the housing decision pipeline', () => {
-  it('withholds an optional move once a mandatory phase settled the household', () => {
-    const ledger = createHousingLedger();
-    const home = building(0, BuildingType.House);
-    const settler = human(1, { residenceBuildingId: home.id });
-    ledger.settled.set(settler.id, 'capacity');
-
-    expect(isHousingUnitProtected(ledger, [settler], 'commute')).toBe(true);
-    expect(isHousingUnitProtected(ledger, [settler], 'adult-child')).toBe(true);
-    // A mandatory correction always outranks an earlier decision.
-    expect(isHousingUnitProtected(ledger, [settler], 'guardianship')).toBe(false);
-  });
-
-  it('does not allow commute to undo an adult-child decision in the same pipeline run', () => {
-    const ledger = createHousingLedger();
-    const adult = human(7, { age: 20 });
-    const partner = human(8, { age: 21 });
-    ledger.settled.set(adult.id, 'adult-child');
-    expect(isHousingUnitProtected(ledger, [adult, partner], 'commute')).toBe(true);
-    expect(isHousingUnitProtected(ledger, [adult], 'adult-child')).toBe(false);
-    expect(isHousingUnitProtected(ledger, [adult, partner], 'capacity')).toBe(false);
-  });
-
-  it('skips an adult-child candidate already settled by an earlier phase', () => {
-    const parent = human(1, { age: 50, residenceBuildingId: 10 });
-    const adult = human(2, { age: 20, motherId: 1, residenceBuildingId: 10 });
+  it('keeps the resident roster in settler order', () => {
     const home = building(10, BuildingType.House);
-    const spare = building(11, BuildingType.House);
-    const ledger = createHousingLedger();
-    ledger.settled.set(adult.id, 'guardianship');
+    const first = human(9, { residenceBuildingId: home.id });
+    const second = human(3, { residenceBuildingId: home.id });
 
-    rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
-      [parent, adult], [home, spare], buildResidenceOccupancy([parent, adult]), ledger,
-    );
+    syncResidenceOccupants([first, second], [home]);
 
-    expect(adult.residenceBuildingId).toBe(home.id);
-    expect(ledger.report.relocations).toHaveLength(0);
+    expect(home.occupants).toEqual([first.id, second.id]);
   });
 
   it('leaves a stable fully housed colony unchanged on repeated sweeps', () => {

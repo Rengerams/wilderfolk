@@ -1,6 +1,6 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, BUILDING_CONFIGS, EntityType } from './gameTypes';
-import { BUILDING_TYPE_CODES } from './buildings';
+import { BUILDING_TYPE_CODES, isCompletedPlayerBuilding } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingCenter } from './buildingGeometry';
 import type { GenealogyRegistry } from './genealogyTypes';
@@ -9,6 +9,11 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 export function isResidenceBuilding(b: Building): boolean {
   return b.completed && isResidenceBuildingType(b.type);
+}
+
+/** The one eligibility gate every assignment caller shares: a completed player residence. */
+export function isAssignableHome(b: Building): boolean {
+  return isCompletedPlayerBuilding(b) && isResidenceBuildingType(b.type);
 }
 
 /** The type codes that are homes — filters match on the code, never on the type name. */

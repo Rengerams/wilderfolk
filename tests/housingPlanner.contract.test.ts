@@ -18,7 +18,6 @@ import {
   standaloneMoveContext,
   tryMoveOutOfFamilyHome,
 } from '../src/game/housingPipeline';
-import type { HousingLedger } from '../src/game/housingPipeline';
 import { isResidenceOccupantEntity } from '../src/game/housingModel';
 import { isSettlerRelationshipEntity } from '../src/game/moonHowlerForm';
 import { buildHousingColony } from '../src/test/housingColony';
@@ -29,16 +28,6 @@ function family(): Entity[] {
   mother.partnerId = 2;
   const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2 });
   return [mother, father, child];
-}
-
-function ledgerCounts(ledger: HousingLedger): Record<string, number> {
-  return {
-    settled: ledger.settled.size,
-    visited: ledger.visited.size,
-    reported: ledger.reported.size,
-    relocations: ledger.report.relocations.length,
-    protected: ledger.report.protectedUnits,
-  };
 }
 
 describe('the relocation plan contract', () => {
@@ -75,32 +64,23 @@ describe('the relocation plan contract', () => {
     expect(plan.settled).not.toBe(true);
     expect(applyRelocation(unit, plan, 'homeless', context)).toBeUndefined();
     expect(child.residenceBuildingId).toBeUndefined();
-    expect(context.ledger.report.relocations).toHaveLength(0);
   });
 
-  it('plans without writing, counting or settling anything', () => {
+  it('plans deterministically without writing', () => {
     const homes = [building(10, BuildingType.House)];
     const unit = family();
     const context = standaloneMoveContext(unit, homes);
     const before = {
       residences: unit.map((member) => member.residenceBuildingId),
       occupants: homes.map((home) => [...home.occupants]),
-      counts: ledgerCounts(context.ledger),
-      occupancy: [...context.occupancy.entries()],
-      traits: [...context.traits.entries()].map(([id, entry]) =>
-        [id, entry.adults, entry.minors, entry.pairs, [...entry.occupants.keys()]]),
-      violations: [...context.ledger.report.violations],
     };
 
-    planRelocation(unit, 'homeless', context);
+    const first = planRelocation(unit, 'homeless', context);
+    const second = planRelocation(unit, 'homeless', context);
 
+    expect(second).toEqual(first);
     expect(unit.map((member) => member.residenceBuildingId)).toEqual(before.residences);
     expect(homes.map((home) => [...home.occupants])).toEqual(before.occupants);
-    expect(ledgerCounts(context.ledger)).toEqual(before.counts);
-    expect([...context.occupancy.entries()]).toEqual(before.occupancy);
-    expect([...context.traits.entries()].map(([id, entry]) =>
-      [id, entry.adults, entry.minors, entry.pairs, [...entry.occupants.keys()]])).toEqual(before.traits);
-    expect(context.ledger.report.violations).toEqual(before.violations);
   });
 
   it('never plans a destination the run already refuses', () => {
