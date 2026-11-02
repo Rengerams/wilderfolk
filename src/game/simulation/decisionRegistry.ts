@@ -59,6 +59,7 @@ export type DecisionKey =
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workSchedule'
+  | 'school'
   | 'workforce'
   | 'housing'
   | 'construction'
