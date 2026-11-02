@@ -2,9 +2,11 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Implemented (29 October 2026, PR #91):** Merged rare Spotlight Lore with real-actor gathering, 44 JSON captions, cinematic reveal, instrumental and applause MP3s, two timed poses, farewell camera and Skip/restore. Browser acceptance remains unverified.
+- **Tests (2 November 2026):** Home chatter regressions now use real arrival logic; food-planning fixtures follow the current producer target, and the decision registry verifies actual writers. Corrected the reinforced-soil sprite filename case.
 
-- **CI (2 November 2026):** All three population performance benchmarks (250/750/1800) now run on every pull request targeting main instead of only PR #99, regardless of changed paths. The duplicate producer-colony workflow is now manual-only; the existing automatic simulation gate remains active. No gameplay, test assertions, or benchmark criteria changed.
+- **Implemented (29 October 2026, PR #91):** Merged Spotlight Lore with real-actor gathering, scripted captions, camera focus, sound, poses and skip controls. Browser acceptance remains unverified.
+
+- **CI (2 November 2026):** Small, medium and large population benchmarks now run for every pull request targeting main. The duplicate producer-colony workflow is manual-only; the automatic simulation gate remains active. Criteria unchanged.
 
 - **Changed (2 November 2026):** Pull requests run unit tests affected by their changes and imported dependencies. Main retains the full suite; project-wide static checks and build remain required.
 
