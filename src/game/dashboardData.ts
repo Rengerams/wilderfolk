@@ -36,7 +36,7 @@ import type { HumanActivityTarget } from './humanStatus';
 import { getHumanActivityProjection, isAtActivityTarget } from './humanStatus';
 import type { SettlerWorkReason } from './workAbsence';
 import { getSettlerWorkReason } from './workAbsence';
-import { buildSchoolRosters } from './education';
+import { buildSchoolRosters, isSchoolTime } from './education';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { pickSocialImpulse } from './socialLife';
 import { getRouteObstruction } from './pathfinding';
@@ -526,7 +526,7 @@ export function collectDashboard(state: WorldState): DashboardData {
     // A reserved seat is not evidence of attendance outside class hours.
     for (const pupil of roster.pupils) onWayToSchoolIds.add(pupil.id);
   }
-  const classInSession = schoolRosters.size > 0 && isOnWorkScheduleShift(state);
+  const classInSession = schoolRosters.size > 0 && isSchoolTime(state.tick, getHourOfDay(state.tick));
   const settlers: DashboardSettler[] = [];
   /** Absence reasons of the posted settlers, collected in the same pass that builds the rows. */
   const postedReasons: SettlerWorkReason[] = [];

@@ -2,7 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Changed (2 November 2026):** School sessions and social-life checks now read the configured work hours; the legacy default-window schedule wrappers are gone.
+- **Fixed (2 November 2026):** The logistics overlay now refreshes when a paused command changes the world without advancing the tick, instead of drawing the previous projection.
+
+- **Fixed (2 November 2026):** A rival camp that spent its last action gathering now reads “Gathering supplies” instead of “Quiet at camp”.
+
+- **Fixed (2 November 2026):** Two rival camps can no longer share a display name, so their contact history cannot mix.
+
+- **Fixed (2 November 2026):** A rival war-band whose camp is gone is now pruned on load and at the daily pulse instead of lingering on the map.
+
+- **Changed (2 November 2026):** Rival camps no longer carry a building-id list; they never own structures on the player's map.
+
+- **Changed (2 November 2026):** Social-life checks now read the configured work hours, while school keeps its own 09–15 day; the legacy default-window schedule wrappers are gone.
 
 - **Added (2 November 2026):** The development performance panel now lists relocated households — moves, repeats, unhoused moves, phases and reasons — for the churn investigation.
 
