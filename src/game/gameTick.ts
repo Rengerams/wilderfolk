@@ -76,6 +76,7 @@ import {
 import { assertSimInvariants } from './simulation/simInvariants';
 import { collectSimulationInvariantErrors } from './simulation/simulationInvariants';
 import { profileEnd, profileSimulationTick, profileStart } from './performanceProfiler';
+import { markHistoryChanged } from './simBuffers/historyRevisions';
 
 export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState {
   if (state.paused || isSettlementDestroyed(state)) return state;
@@ -99,6 +100,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   if (yearRollover) {
     const yearlyStat = recordYearlyStats(state, state.year);
     state.yearlyStats.push(yearlyStat);
+    markHistoryChanged(state, 'yearlyStats');
     if (state.yearlyStats.length > 50) state.yearlyStats.shift();
     state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
     // One line a year for the colony's social state, instead of a line per bond. That
