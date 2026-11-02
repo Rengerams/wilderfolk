@@ -12,6 +12,7 @@ import { drawBuildings } from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
 import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
+import { shouldDrawSpotlightHuman } from './overheadLayout';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
@@ -80,7 +81,7 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     ctx.restore();
   }
   for (const human of _cachedHumans) {
-    if (human.flash <= 0) continue;
+    if (human.flash <= 0 || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const pos = presentationPosition(human);
     const sx = worldToScreenX(pos.x, cam, cw);
     const sy = worldToScreenY(pos.y, cam, ch)
