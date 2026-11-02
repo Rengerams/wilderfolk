@@ -574,3 +574,15 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Sole owning file | Named helper | Responsibility |
 |---|---|---|
 | `tests/virtualPlayerHealthVerdict.test.ts` | `deficitVillage` | Local regression fixture for measured food deficits; sets up a colony with fully upgraded staffed farms and controlled food-flow history for Mill, Silo, Greenhouse, Hunting Spot, Farm and spare-housing decision tests. This is test-only setup, not a production decision owner. |
+
+## Worker admission, rollback and transfer pool (2 November 2026)
+
+| Function | Sole owner | Responsibility |
+|---|---|---|
+| `ensureNamePoolSettled`, `installWorkerMessageHandlers` | `game/simWorker/gameWorker.ts` | Share the name-census admission barrier and dispatch worker requests in arrival order after it settles; simulation ticks remain owned by the game tick pipeline. |
+| `GameLoop.stepFallbackTick` | `game/gameLoop.ts` | Roll back failed main-thread fallback ticks; `GameLoop.frameBody` alone debits accumulated real time after success. |
+| `RenderBufferPool.acquire`, `RenderBufferPool.release`, `RenderBufferPool.availableCount` | `game/simBuffers/renderBufferPool.ts` | Own exact-size render transfer leases, replacement of invalid returns and slot accounting. |
+| `main` (worker stall reproduction) | `scripts/repro-worker-stall.mts` | Drive the real worker, return render leases, wait for export and report performance and buffer diagnostics. |
+| `GameWorkerHost.handleMessage` | `game/simWorker/GameWorkerHost.ts` | Hydrate display-derived caches after command or tick deltas without redundant invalidation. |
+| `extractSimTickDelta`, `applySimTickDelta` | `game/simBuffers/simDelta.ts` | Own the versioned worker delta; full alive entity snapshot replaces the redundant human catalogue subset. |
+| `packRenderSoA`, `selectRenderEntities` | `game/simBuffers/packRenderSoA.ts` | Reuse the worker's authoritative alive list and render-slot lookup scratch without changing entity priority ordering. |
