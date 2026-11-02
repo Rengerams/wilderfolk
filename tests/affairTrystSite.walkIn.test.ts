@@ -1,31 +1,23 @@
-/**
- * Affair tryst site and walk-in rule (owner ruling 2026-09-16).
- *
- * The two halves had to be fixed together. `getAffairTrystBuilding` always sent the pair to the
- * **paramour's** residence (its `cheater` parameter was literally unused), while
- * `wouldWalkInOnMaritalAffair` could only fire while the cheater was at their **own** marital home —
- * so the pair was never where a walk-in happens and the caught-in-the-act route stayed unreachable
- * even after the empty marital home became a legal site. The site now prefers the cheater's empty
- * home, and the walk-in is about a spouse physically arriving on the pair **wherever** they are.
- */
+/** Affair sites: either lover's own home or a genuine outdoor encounter. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import {
   AFFAIR_WALK_IN_RADIUS,
   getAffairTrystBuilding,
+  isValidAffairTrystSite,
   wouldWalkInOnAffair,
 } from '../src/game/simulation/humanRelationships';
 
 const MARITAL_HOME_ID = 10;
 const PARAMOUR_HOME_ID = 20;
 
-function house(id: number): Building {
+function house(id: number, x = 100, y = 100): Building {
   return {
     id,
     type: BuildingType.House,
-    x: 100,
-    y: 100,
+    x,
+    y,
     width: 40,
     height: 40,
     occupants: [],
@@ -106,35 +98,72 @@ function fixture(): {
     spouse,
     paramour,
     entityById: new Map(entities.map((entity) => [entity.id, entity])),
-    buildingById: new Map([[MARITAL_HOME_ID, house(MARITAL_HOME_ID)], [PARAMOUR_HOME_ID, house(PARAMOUR_HOME_ID)]]),
+    buildingById: new Map([[MARITAL_HOME_ID, house(MARITAL_HOME_ID)], [PARAMOUR_HOME_ID, house(PARAMOUR_HOME_ID, 300, 300)]]),
   };
 }
 
-describe('affair tryst site (owner ruling 2026-09-16)', () => {
-  it('uses the cheater’s own home while the spouse is away', () => {
+describe('affair rendezvous belongs to the lovers, not random houses', () => {
+  it('uses a partner’s actual home while both lovers meet there and the spouse is away', () => {
     const { cheater, paramour, entityById, buildingById } = fixture();
+    cheater.x = 110;
+    cheater.y = 110;
+    paramour.x = 115;
+    paramour.y = 110;
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
     expect(getAffairTrystBuilding(paramour, cheater, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
+    expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(true);
   });
 
-  it('falls back to the paramour’s residence when the spouse is home', () => {
+  it('uses the other lover’s home when the married lover’s spouse is at home', () => {
     const { cheater, spouse, paramour, entityById, buildingById } = fixture();
-    // The spouse is inside the marital home, so it is off limits and the pair uses the paramour's.
     spouse.x = 110;
     spouse.y = 110;
+    cheater.x = 310;
+    cheater.y = 310;
+    paramour.x = 315;
+    paramour.y = 310;
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)?.id).toBe(PARAMOUR_HOME_ID);
     expect(getAffairTrystBuilding(paramour, cheater, entityById, buildingById)?.id).toBe(PARAMOUR_HOME_ID);
   });
 
-  it('returns nothing when neither home can be used', () => {
+  it('allows an outdoor encounter even with houses elsewhere on the map', () => {
+    const { cheater, paramour, entityById, buildingById } = fixture();
+    cheater.x = 500;
+    cheater.y = 500;
+    paramour.x = 509;
+    paramour.y = 502;
+
+    expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)).toBeUndefined();
+    expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(true);
+    expect(isValidAffairTrystSite(paramour, cheater, entityById, buildingById, 22)).toBe(true);
+  });
+
+  it('never selects an unrelated house, even when the pair is standing beside it', () => {
+    const { cheater, paramour, entityById, buildingById } = fixture();
+    buildingById.set(30, house(30, 500, 500));
+    cheater.x = 510;
+    cheater.y = 510;
+    paramour.x = 515;
+    paramour.y = 513;
+
+    expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)).toBeUndefined();
+    expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(true);
+  });
+
+  it('refuses a spouse-occupied home rather than treating it as an indoor tryst', () => {
     const { cheater, spouse, paramour, entityById, buildingById } = fixture();
     spouse.x = 110;
     spouse.y = 110;
     paramour.residenceBuildingId = undefined;
+    cheater.x = 110;
+    cheater.y = 110;
+    paramour.x = 115;
+    paramour.y = 110;
 
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)).toBeUndefined();
+    expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(false);
   });
 });
 
