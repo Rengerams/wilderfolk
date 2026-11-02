@@ -195,6 +195,16 @@ async function main(): Promise<void> {
     const cpuStart = process.cpuUsage();
     const started = performance.now();
     world = gameTick(world, focus);
+    if (POPULATION === 1800 && [0, 12 * TICKS_PER_HOUR, 18 * TICKS_PER_HOUR, 23 * TICKS_PER_HOUR].includes(world.tick % TICKS_PER_DAY)) {
+      const players = livingPlayers(world);
+      console.log('[attendance-debug] tick=' + world.tick
+        + ' assigned=' + players.filter(h => h.workerBuildingId != null).length
+        + ' tracking=' + players.filter(h => (h.scheduleWorkedTicksToday ?? 0) > 0).length
+        + ' settled=' + players.filter(h => (h.scheduleLastWorkedHours ?? 0) > 0).length
+        + ' eligible=' + players.filter(h => h.alive && !h.isJuvenile && h.prisonBuildingId == null).length
+        + ' workday=' + (world.tick % (7 * TICKS_PER_DAY) < 5 * TICKS_PER_DAY)
+        + ' credits=' + careerCredits(world));
+    }
     const simMs = performance.now() - started;
     const botStart = performance.now();
     const events: Record<string, unknown>[] = [];
