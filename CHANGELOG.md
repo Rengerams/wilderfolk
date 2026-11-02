@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Divorce follows infidelity: the betrayed spouse keeps the home and children, the cheater leaves alone, and the old one-hop household reshuffle is gone.
+
 - **Fixed (2 November 2026):** A dead leader no longer stays in office while an election is pending; the office is cleared and the family keeps the manor until the successor is chosen.
 
 - **Changed (2 November 2026):** Manor seating is confirmed as event-driven only (colony start or a new election); ordinary housing phases never decide it.

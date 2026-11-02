@@ -27,7 +27,7 @@ describe('divorce custody and housing', () => {
     expect(getChildCustodian(second, people)?.id).toBe(father.id);
   });
 
-  it('moves the departing parent with assigned minor children to the farthest fitting home', () => {
+  it('moves the departing parent alone while the keeper keeps the minors', () => {
     const home = building(10, BuildingType.House, { x: 0, y: 0 });
     const near = building(20, BuildingType.Mansion, { x: 40, y: 0, level: 3 });
     const far = building(30, BuildingType.Mansion, { x: 150, y: 0, level: 3 });
@@ -37,10 +37,10 @@ describe('divorce custody and housing', () => {
     const second = human(4, { age: 8, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
     const people = [mother, father, first, second];
     reassignDivorcedResidences(mother, father, [home, near, far], people, father);
-    expect(father.residenceBuildingId).toBe(10);
     expect(mother.residenceBuildingId).toBe(30);
-    expect(first.residenceBuildingId).toBe(getChildCustodian(first, people)?.residenceBuildingId);
-    expect(second.residenceBuildingId).toBe(getChildCustodian(second, people)?.residenceBuildingId);
+    expect(father.residenceBuildingId).toBe(10);
+    expect(first.residenceBuildingId).toBe(10);
+    expect(second.residenceBuildingId).toBe(10);
   });
   it('reserves the only family-sized home for an unhoused retaining parent and minors', () => {
     const large = building(10, BuildingType.House, { x: 100, y: 0 });
@@ -73,7 +73,7 @@ describe('divorce custody and housing', () => {
     expect(housemate.residenceBuildingId).toBe(20);
   });
 
-  it('reshuffles a whole independent household to free enough beds for a parent', () => {
+  it('seats the departing parent alone and keeps the children with the keeper', () => {
     const oldHome = building(10, BuildingType.Mansion, { x: 0, y: 0, level: 3 });
     const occupied = building(20, BuildingType.Mansion, { x: 150, y: 0 });
     const spare = building(30, BuildingType.House, { x: 40, y: 0 });
@@ -88,12 +88,13 @@ describe('divorce custody and housing', () => {
     }));
     const people = [mother, father, first, second, ...moreChildren, occupant, spouse];
     reassignDivorcedResidences(mother, father, [oldHome, occupied, spare], people, father);
-    expect(occupant.residenceBuildingId).toBe(30);
-    expect(spouse.residenceBuildingId).toBe(30);
-    expect(mother.residenceBuildingId).toBe(20);
-    expect(first.residenceBuildingId).toBe(getChildCustodian(first, people)?.residenceBuildingId);
-    expect(second.residenceBuildingId).toBe(getChildCustodian(second, people)?.residenceBuildingId);
-    expect(moreChildren.every((child) => child.residenceBuildingId === mother.residenceBuildingId)).toBe(true);
+    expect(occupant.residenceBuildingId).toBe(20);
+    expect(spouse.residenceBuildingId).toBe(20);
+    expect(father.residenceBuildingId).toBe(10);
+    expect(mother.residenceBuildingId).toBe(30);
+    expect(first.residenceBuildingId).toBe(10);
+    expect(second.residenceBuildingId).toBe(10);
+    expect(moreChildren.every((child) => child.residenceBuildingId === 10)).toBe(true);
   });
 
 });

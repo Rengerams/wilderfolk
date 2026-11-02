@@ -1330,16 +1330,16 @@ export function reassignDivorcedResidences(
     ? [a, b].find((person) => person.occupation === LEADER_OCCUPATION)
     : undefined;
   const wife = a.gender === 'female' ? a : b.gender === 'female' ? b : undefined;
+  // The betrayed spouse is passed as the preferred custodian: the cheater leaves.
   const keeper = leader ?? preferredCustodian ?? wife ?? a;
   const leaver = keeper.id === a.id ? b : a;
   const formerHome = keeper.residenceBuildingId == null
     ? undefined : residences.find((home) => home.id === keeper.residenceBuildingId);
-  const dependentChildren = villagers.filter((child) =>
-    child.alive && isMinorChild(child)
+  // A betrayed keeper keeps the children; an amicable split follows the custody hash.
+  const dependentChildren = villagers.filter((child) => child.alive && isMinorChild(child)
     && getChildCustodian(child, villagers)?.id === leaver.id
-    && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(leaver.id),
-  );
-  const leavingUnit = [leaver, ...dependentChildren];
+    && [child.motherId, child.fatherId, child.adoptiveMotherId, child.adoptiveFatherId].includes(leaver.id));
+  const leavingUnit = preferredCustodian ? [leaver] : [leaver, ...dependentChildren];
   const keeperChildren = villagers.filter((child) =>
     child.alive && isMinorChild(child)
     && getChildCustodian(child, villagers)?.id === keeper.id
@@ -1379,47 +1379,10 @@ export function reassignDivorcedResidences(
   });
 
   if (!isImprisoned(leaver)) {
-    let placed = false;
     for (const home of candidates) {
-      if (relocateHousehold(leavingUnit, home.id, 'homeless', 'divorce', context)) {
-        placed = true;
-        break;
-      }
+      if (relocateHousehold(leavingUnit, home.id, 'homeless', 'divorce', context)) break;
     }
-    if (!placed) {
-      // A single custody-safe reshuffle may release a home large enough for the departing unit.
-      const units = buildHousingUnits(villagers.filter((person) =>
-        person.alive && isPlayerHuman(person) && !isImprisoned(person)));
-      const possibleHomes = residences.filter((home) =>
-        home.completed && home.faction !== 'rival' && !isLeaderHouseResidence(home)
-        && !blockedIds.has(home.id) && getResidenceCapacity(home) >= leavingUnit.length,
-      ).sort((left, right) => {
-        const ld = formerHome ? (left.x - formerHome.x) ** 2 + (left.y - formerHome.y) ** 2 : 0;
-        const rd = formerHome ? (right.x - formerHome.x) ** 2 + (right.y - formerHome.y) ** 2 : 0;
-        return rd - ld || left.id - right.id;
-      });
-      for (const destination of possibleHomes) {
-        const occupants = villagers.filter((person) =>
-          person.alive && person.residenceBuildingId === destination.id);
-        const blockingUnits = units.filter((unit) =>
-          unit.some((person) => occupants.includes(person)));
-        if (blockingUnits.length !== 1) continue;
-        const blocking = blockingUnits[0];
-        if (blocking.some((person) => !occupants.includes(person)
-          || person.id === a.id || person.id === b.id)) continue;
-        const alternatives = residences.filter((home) =>
-          home.id !== destination.id && !blockedIds.has(home.id)
-          && home.completed && home.faction !== 'rival' && !isLeaderHouseResidence(home));
-        const replacement = pickResidenceForFamily(blocking, villagers, alternatives,
-          context.occupancy, context.traits);
-        if (replacement === undefined) continue;
-        if (!relocateHousehold(blocking, replacement, 'capacity', 'family', context)) continue;
-        if (relocateHousehold(leavingUnit, destination.id, 'homeless', 'divorce', context)) {
-          placed = true;
-          break;
-        }
-      }
-    }
+
   }
   for (const child of keeperChildren) {
     if (child.residenceBuildingId !== keeper.residenceBuildingId) {
