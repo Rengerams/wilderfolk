@@ -240,6 +240,11 @@ async function main(): Promise<void> {
 
   // pipeline driver — mimic GameLoop.frame: keep up to MAX_IN_FLIGHT ticks queued
   while (ticksDone < TICKS) {
+    if (performance.now() - lastActivity > Math.max(10000, STALL_MS * 4)) {
+      errors++;
+      lastError = 'Worker stopped responding during pipelined ticks';
+      break;
+    }
     if (errors > 0 && ticksInFlight === 0) break;
     while (ticksInFlight < MAX_IN_FLIGHT && ticksRequested < TICKS) {
       send({ type: 'tick', proto: WORKER_PROTO, focus: simFocus });
