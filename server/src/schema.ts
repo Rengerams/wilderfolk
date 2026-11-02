@@ -233,6 +233,13 @@ create table if not exists modules (
   volgorde integer not null default 100
 );
 
+create table if not exists gebruiker_functies (
+  gebruiker_id integer not null references gebruikers(id) on delete cascade,
+  functie text not null references modules(sleutel) on delete cascade,
+  aan boolean not null,
+  primary key (gebruiker_id, functie)
+);
+
 create table if not exists instellingen (
   sleutel text primary key,
   waarde text not null
@@ -318,7 +325,7 @@ export const RECHTEN_ONDERDELEN: { sleutel: string; naam: string; module?: strin
   { sleutel: "gebruikers", naam: "Gebruikers" },
   { sleutel: "rollen", naam: "Rollen en rechten" },
   { sleutel: "logboek", naam: "Wijzigingsoverzicht" },
-  { sleutel: "modules", naam: "Modules" },
+  { sleutel: "modules", naam: "Functies" },
   { sleutel: "feedback", naam: "Feedback" },
 ]
 

@@ -1,29 +1,48 @@
 import { useState, type ReactNode } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../auth"
-import { api, foutTekst } from "../api"
+import { api, foutTekst, initiaal } from "../api"
+import { Icoon, type IcoonNaam } from "./Icons"
 import { Knop, Melding, Modal, Tekstvak, Veld } from "./ui"
 
-const NAV: { pad: string; label: string; recht?: [string, "zien"]; module?: string }[] = [
-  { pad: "/", label: "Vandaag" },
-  { pad: "/start", label: "Aan de slag" },
-  { pad: "/deelnemers", label: "Deelnemers", recht: ["deelnemers", "zien"] },
-  { pad: "/groepjes", label: "Groepjes", recht: ["groepjes", "zien"] },
-  { pad: "/programma", label: "Programma", recht: ["programma", "zien"] },
-  { pad: "/opgave", label: "Opgave", recht: ["opgave", "zien"] },
-  { pad: "/indeling", label: "Indeling", recht: ["indeling", "zien"] },
-  { pad: "/bellijst", label: "Bellijst", recht: ["reservelijst", "zien"] },
-  { pad: "/vervoer", label: "Vervoer", recht: ["vervoer", "zien"] },
-  { pad: "/declaraties", label: "Declaraties", recht: ["declaraties", "zien"], module: "chauffeurskosten" },
-  { pad: "/kas", label: "Kas", recht: ["kas", "zien"], module: "kas" },
-  { pad: "/gebruikers", label: "Gebruikers", recht: ["gebruikers", "zien"] },
-  { pad: "/rollen", label: "Rollen", recht: ["rollen", "zien"] },
-  { pad: "/modules", label: "Modules", recht: ["modules", "zien"] },
-  { pad: "/logboek", label: "Wijzigingen", recht: ["logboek", "zien"] },
-  { pad: "/feedback", label: "Feedback", recht: ["feedback", "zien"] },
-  { pad: "/assistent", label: "Assistent", module: "ai_assistent" },
-  { pad: "/hulp", label: "Hulp" },
+type NavItem = {
+  pad: string
+  label: string
+  icoon: IcoonNaam
+  groep: "Overzicht" | "Uitjes" | "Geld" | "Beheer"
+  recht?: [string, "zien"]
+  module?: string
+}
+
+const NAV: NavItem[] = [
+  { pad: "/", label: "Vandaag", icoon: "vandaag", groep: "Overzicht" },
+  { pad: "/start", label: "Aan de slag", icoon: "start", groep: "Overzicht" },
+  { pad: "/assistent", label: "Assistent", icoon: "assistent", groep: "Overzicht", module: "ai_assistent" },
+  { pad: "/deelnemers", label: "Deelnemers", icoon: "deelnemers", groep: "Uitjes", recht: ["deelnemers", "zien"] },
+  { pad: "/groepjes", label: "Groepjes", icoon: "groepjes", groep: "Uitjes", recht: ["groepjes", "zien"] },
+  { pad: "/programma", label: "Programma", icoon: "programma", groep: "Uitjes", recht: ["programma", "zien"] },
+  { pad: "/opgave", label: "Opgave", icoon: "opgave", groep: "Uitjes", recht: ["opgave", "zien"] },
+  { pad: "/indeling", label: "Indeling", icoon: "indeling", groep: "Uitjes", recht: ["indeling", "zien"] },
+  { pad: "/bellijst", label: "Bellijst", icoon: "bellijst", groep: "Uitjes", recht: ["reservelijst", "zien"] },
+  { pad: "/vervoer", label: "Vervoer", icoon: "vervoer", groep: "Uitjes", recht: ["vervoer", "zien"] },
+  {
+    pad: "/declaraties",
+    label: "Declaraties",
+    icoon: "declaraties",
+    groep: "Geld",
+    recht: ["declaraties", "zien"],
+    module: "chauffeurskosten",
+  },
+  { pad: "/kas", label: "Kas", icoon: "kas", groep: "Geld", recht: ["kas", "zien"], module: "kas" },
+  { pad: "/gebruikers", label: "Gebruikers", icoon: "gebruikers", groep: "Beheer", recht: ["gebruikers", "zien"] },
+  { pad: "/rollen", label: "Rollen", icoon: "rollen", groep: "Beheer", recht: ["rollen", "zien"] },
+  { pad: "/modules", label: "Functies", icoon: "functies", groep: "Beheer", recht: ["modules", "zien"] },
+  { pad: "/logboek", label: "Wijzigingen", icoon: "logboek", groep: "Beheer", recht: ["logboek", "zien"] },
+  { pad: "/feedback", label: "Feedback", icoon: "feedback", groep: "Beheer", recht: ["feedback", "zien"] },
+  { pad: "/hulp", label: "Hulp", icoon: "hulp", groep: "Beheer" },
 ]
+
+const GROEPEN = ["Overzicht", "Uitjes", "Geld", "Beheer"] as const
 
 function FeedbackKnop() {
   const { gebruiker } = useAuth()
@@ -53,8 +72,9 @@ function FeedbackKnop() {
 
   return (
     <>
-      <Knop variant="rustig" onClick={() => setOpen(true)}>
-        Iets onduidelijk of werkt het niet goed? Vertel het ons
+      <Knop variant="rustig" className="knop--met-icoon" onClick={() => setOpen(true)}>
+        <Icoon naam="feedback" />
+        Feedback geven
       </Knop>
       {open && (
         <Modal
@@ -116,6 +136,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const actief = (pad: string) =>
     pad === "/" ? locatie.pathname === "/" : locatie.pathname === pad || locatie.pathname.startsWith(`${pad}/`)
 
+  const huidig =
+    NAV.find((item) => actief(item.pad) && zichtbaar.includes(item)) ??
+    (locatie.pathname.startsWith("/uitje") ? NAV.find((item) => item.pad === "/programma") : undefined)
+
   return (
     <div className="app-shell">
       <aside className="zijbalk">
@@ -125,25 +149,40 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="zijbalk__nav" aria-label="Hoofdmenu">
-          {zichtbaar.map((item) => (
-            <Link
-              key={item.pad}
-              to={item.pad}
-              className={`nav-item${actief(item.pad) ? " is-actief" : ""}`}
-              aria-current={actief(item.pad) ? "page" : undefined}
-            >
-              <span className="nav-item__stip" aria-hidden="true" />
-              {item.label}
-            </Link>
-          ))}
+          {GROEPEN.map((groep) => {
+            const items = zichtbaar.filter((item) => item.groep === groep)
+            if (items.length === 0) return null
+            return (
+              <div className="nav-groep" key={groep}>
+                <p className="nav-groep__titel">{groep}</p>
+                {items.map((item) => (
+                  <Link
+                    key={item.pad}
+                    to={item.pad}
+                    className={`nav-item${actief(item.pad) ? " is-actief" : ""}`}
+                    aria-current={actief(item.pad) ? "page" : undefined}
+                  >
+                    <Icoon naam={item.icoon} className="nav-item__icoon" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )
+          })}
         </nav>
 
         <div className="zijbalk__voet">
-          <div>
-            <strong>{gebruiker?.naam}</strong>
-            {gebruiker?.rol}
+          <div className="gebruiker-kaart">
+            <span className="avatar" aria-hidden="true">
+              {gebruiker ? initiaal(gebruiker.naam) : "?"}
+            </span>
+            <div className="gebruiker-kaart__tekst">
+              <strong>{gebruiker?.naam}</strong>
+              <span>{gebruiker?.rol}</span>
+            </div>
           </div>
-          <button type="button" onClick={() => void uitloggen()}>
+          <button type="button" className="gebruiker-kaart__uitlog" onClick={() => void uitloggen()}>
+            <Icoon naam="uitloggen" />
             Uitloggen
           </button>
         </div>
@@ -151,11 +190,13 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="hoofd">
         <header className="topbalk">
-          <div className="topbalk__taak">
-            <strong>Hulp nodig?</strong> Gebruik de knop Hulp of vertel ons wat er beter kan.
+          <div className="topbalk__kruimel">
+            <span>Beheersysteem</span>
+            <strong>{huidig?.label ?? "Vandaag"}</strong>
           </div>
           <div className="topbalk__knoppen">
-            <Link to="/hulp" className="knop knop--klein">
+            <Link to="/hulp" className="knop knop--klein knop--met-icoon">
+              <Icoon naam="hulp" />
               Hulp
             </Link>
             <FeedbackKnop />

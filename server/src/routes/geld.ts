@@ -2,12 +2,12 @@ import { Router, type Request } from "express"
 import { een, q } from "../db"
 import { logWijziging } from "../audit"
 import { mag } from "../auth"
+import { functieAan } from "../functies"
 import {
   ah,
   alsGetal,
   datumLang,
   instelling,
-  moduleAan,
   stuurFout,
   veiligeTekst,
 } from "../util"
@@ -35,9 +35,9 @@ async function chauffeurScoped(req: Request): Promise<boolean> {
 }
 
 function vereisModule(sleutel: string, naam: string) {
-  return ah(async (_req, res, next) => {
-    if (!(await moduleAan(sleutel))) {
-      stuurFout(res, 403, `De module ${naam} staat uit. De beheerder kan deze aanzetten.`)
+  return ah(async (req, res, next) => {
+    if (!(await functieAan(req.gebruiker!.id, sleutel))) {
+      stuurFout(res, 403, `De functie ${naam} staat voor jou uit. De beheerder kan deze aanzetten.`)
       return
     }
     next()

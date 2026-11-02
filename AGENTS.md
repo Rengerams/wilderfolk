@@ -20,6 +20,12 @@ docker compose -f docker-compose.base44.yml up -d --build
 - SQL met `$n`-placeholders: tel de parameters en hergebruik geen nummers in een
   meerregelige `values`-lijst — Postgres weigert dan met
   "bind message supplies X parameters, but prepared statement requires Y".
+- Functies (modules) staan organisatiebreed in `modules` en per gebruiker in
+  `gebruiker_functies`. `server/src/functies.ts` voegt beide samen; de client krijgt
+  het resultaat als `modules` via `/api/auth/ik`. Een functie die organisatiebreed uit
+  staat, kan per gebruiker niet aangezet worden.
+- `/api/dashboard` geeft naast de cijfers ook `aankomendeUitjes` en (met recht op het
+  logboek) `recenteWijzigingen` voor de dashboardkaarten.
 - Demo-inlog: `admin@diligence.nl` / `welkom123` (zie ook de link op het inlogscherm).
 - Er is in de sandbox geen mailserver: e-mails belanden in `email_outbox`. Staat
   `BASE44_PREVIEW_MODE=1`, dan toont de app de herstelcode op het scherm.
