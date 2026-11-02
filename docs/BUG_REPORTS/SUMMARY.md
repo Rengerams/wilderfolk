@@ -2,7 +2,7 @@
 
 **2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.
 
-**2026-11-02 — [Reinforced-soil image path case mismatch](../bug_report/2026-11-02-reinforced-soil-case-sensitive-asset.md):** The checked-in sprite is `ground_soil.PNG`, while the preloader and ground renderer requested `.png`. Both readers now use the real filename; CI pending.
+**2026-11-02 — [Reinforced-soil image path case mismatch](../bug_report/2026-11-02-reinforced-soil-case-sensitive-asset.md):** The tracked sprite was `ground_soil.PNG`, unlike the intended local `.png` spelling. The asset is now tracked as `ground_soil.png` and preload, terrain and catalogue references match; CI pending.
 
 **2026-11-02 — [Dialogue registry read-only test outdated](../bug_report/2026-11-02-dialogue-registry-readonly-fixture-outdated.md):** Dialogue content persists scene-choice history. The test no longer incorrectly demands zero state writes; registry ownership stays explicit. CI pending.
 
