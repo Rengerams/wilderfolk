@@ -54,7 +54,7 @@ const REQUIRED_DECISIONS = [
   'commands',
 ] as const;
 
-/** Registered owners that calculate or present and write nothing — pure projections get `writes: []`. */
+/** Pure projections only; dialogueContent persists speaker scene history and is not read-only. */
 const READ_ONLY_DECISIONS = new Set<string>([
   'terrainRiverSurface',
   'traitInfluence',

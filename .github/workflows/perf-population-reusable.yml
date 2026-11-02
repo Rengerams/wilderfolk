@@ -69,9 +69,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clean -f -- scripts/perf-population-colony.mts
-          if git ls-files --error-unmatch -- scripts/perf-population-colony.mts > /dev/null 2>&1; then
+          if git ls-files --error-unmatch scripts/perf-population-colony.mts >/dev/null 2>&1; then
             git restore -- scripts/perf-population-colony.mts
+          else
+            git clean -f -- scripts/perf-population-colony.mts
           fi
           git checkout --detach "$HEAD_SHA"
           npm ci --prefer-offline --no-audit --no-fund

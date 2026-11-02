@@ -35,6 +35,9 @@ The reusable workflow copies the PR-only benchmark script into the baseline work
 ## Fix / proposed fix
 Commit `d007fee8` inserts `git clean -f -- scripts/perf-population-colony.mts` for untracked copies. PR #118 commit `547333d` additionally uses `git restore -- scripts/perf-population-colony.mts` to discard the temporary contents when the base now tracks the script. This stays path-limited, changes no gameplay or benchmark criteria, and permits baseline-to-head checkout in both cases.
 
+## Follow-up regression (PR #119, 2026-11-02)
+The harness is now tracked on both base and PR. When the PR changes that script, `git clean -f --` leaves its tracked modification behind, so the candidate checkout aborts with `Your local changes to the following files would be overwritten by checkout`. Reproduced in GitHub Actions run 41369452888 (250 settlers) and the other tier runs. Updated the reusable workflow to `git restore --` for a tracked script and retain `git clean -f --` only for an untracked script. CI rerun pending.
+
 ## Save/migration impact
 None.
 

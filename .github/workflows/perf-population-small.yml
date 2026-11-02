@@ -1,4 +1,4 @@
-name: Population performance - small population (250)
+name: Population performance - small (250)
 
 on:
   pull_request:

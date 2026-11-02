@@ -299,9 +299,9 @@ describe('the ground bake paints the classification it is drawn under', () => {
     expect(a!.rows).toBe(map.rows);
   });
 
-  it('renders changed ground where a forest tile is cleared to grassland', async () => {
-    // Saved forest-clearance overrides now participate in the ground bake. The new clearing
-    // mask must change the rendered pixels without mutating the original continuous fields.
+  it('renders sparse forest-clearing overrides that invalidate the chunk revision key', async () => {
+    // The Whittaker field builder now reads sparse grassland clearings, and the
+    // renderer includes getTerrainRevision() in its chunk cache key.
     const map = generateRawTerrain(WORLD_W, WORLD_H, SEED, MapSize.Medium, MapPreset.Continental);
     const before = await bakeMap(map);
     const beforeHash = hashPixels(before.data);
@@ -321,7 +321,7 @@ describe('the ground bake paints the classification it is drawn under', () => {
 
     const after = await bakeMap(map);
     expect(hashPixels(after.data)).not.toBe(beforeHash);
-    // The sparse tile edit must visibly affect the baked surface.
+    // Clearing changes the actual ground presentation, not just the tile projection.
     expect(map.overrides?.size).toBe(40);
   });
 

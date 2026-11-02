@@ -29,10 +29,10 @@ A verified shift counts toward career history at the midnight that closes the wo
 - Validate the witnessed site, profession and hours against the completed workplace as before.
 - Recognize player settlers temporarily in Moon Howler form as owners of their witnessed prior human shifts without admitting foreign factions.
 - Remove only the delayed career-write block from noon production; production still reads the settled attendance snapshot.
-- Keep the 1,800-resident benchmark at two days and preserve its strict genuine-work audit.
+- Preserve the strict genuine-work audit in the three-day 1,800-resident benchmark now on main; the midnight production defect remains independently fixed.
 
 ## Verification
 
 - Source-level pipeline and regression tests updated for immediate midnight credit, full stores, idempotence and transformed human shifts.
-- GitHub CI and real 1,800-resident two-day verification: pending.
+- GitHub CI and real 1,800-resident three-day verification: pending.
 - No save schema or migrations changed.

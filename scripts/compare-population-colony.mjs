@@ -4,7 +4,7 @@ const [baselinePath, candidatePath, populationArg, daysArg, baselineResourcesPat
 const population = Number(populationArg);
 const days = Number(daysArg);
 if (!candidatePath || !Number.isSafeInteger(population) || !Number.isSafeInteger(days) ||
-    ![2, 180].includes(days)) {
+    ![2, 3, 180].includes(days)) {
   throw new Error('Usage: node scripts/compare-population-colony.mjs BASE.json|none PR.json POP DAYS [BASE.resources PR.resources]');
 }
 const sum = values => values.reduce((total, value) => total + value, 0);

@@ -2,9 +2,9 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **CI (2 November 2026):** Restored the benchmark script before switching from baseline to PR code, fixing checkout failures once that script became tracked on both commits. Preserved full comparison and career-credit requirements.
+- **CI (2 November 2026):** Run 250/750-resident benchmarks for two days and 1,800 for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
 
-- **Fixed (2 November 2026, PR #118):** Midnight now credits the actual previous workday, including human shifts recorded before Moon Howler transformation. Keeps the strict two-day large-population audit without duplicate credits; CI pending.
+- **Fixed (2 November 2026, PR #118):** Midnight now credits the actual previous workday, including human shifts recorded before Moon Howler transformation. Keeps the strict three-day large-population audit without duplicate credits; CI pending.
 
 - **Fixed (2 November 2026):** Seeded Virtual Player benchmarks now rebuild entity and spatial runtime caches after a worker command replaces the world. Prevents stale entity references from losing real shift credits at 1,800 settlers. Added regression coverage; large-scale CI verification pending.
 
@@ -12,9 +12,7 @@
 
 - **Tests (2 November 2026):** Updated ground-bake regression to require visible forest-clearance changes; kept the snowy-clearing colour check meaningful without relying on an overstrict one-pixel threshold. Renderer logic unchanged.
 
-- **Tests (2 November 2026):** Home chatter regressions now use real arrival logic; food-planning fixtures follow the current producer target, and the decision registry verifies actual writers. Corrected the reinforced-soil sprite filename case.
-
-- **Implemented (29 October 2026, PR #91):** Merged Spotlight Lore with real-actor gathering, scripted captions, camera focus, sound, poses and skip controls. Browser acceptance remains unverified.
+- **Tests (2 November 2026):** Home chatter regressions now use real arrival logic; food-planning fixtures follow the current producer target, and the decision registry verifies actual writers. Normalized the reinforced-soil sprite filename to lowercase.
 
 - **CI (2 November 2026):** Small, medium and large population benchmarks now run for every pull request targeting main. The duplicate producer-colony workflow is manual-only; the automatic simulation gate remains active. Criteria unchanged.
 
@@ -27,6 +25,19 @@
 
 - **Fixed (29 October 2026):** Work-hours previews now index eligible settlers once and use lightweight pending schedule updates, reducing expensive UI work in large colonies.
 - **Fixed (29 October 2026):** Worker-owned building upgrades no longer clone the whole colony before changing one building; isolated callers remain protected. Large-save verification pending.
+
+- **Fixed (2 November 2026):** Affairs can take place outdoors; indoor rendezvous only use a completed residence assigned to one of the lovers, never an unrelated house. Either partner selects the same eligible venue and spouse-occupied marital homes remain off limits.
+- **Fixed (2 November 2026):** The changelog CI check no longer mistakes prose containing a slash for a nonexistent filename.
+
+- **Fixed (2 November 2026):** CI sleep-chat fixtures now require actual indoor arrival; the dialogue ownership test accepts persisted scene history. The obsolete ground-bake assertion now checks forest clearing affects pixels, and the clearing contrast check tolerates pixel rounding.
+- **Fixed (2 November 2026):** Normalize the committed soil sprite to `ground_soil.png`, matching the intended local spelling. Preload, renderer, catalogue and asset register use the same case-sensitive path.
+
+- **CI (2 November 2026):** Run 250-, 750- and 1,800-person performance benchmarks on every pull request targeting `main`, including documentation-only changes. Remove the PR #99-only job conditions and file path filters; manual stress runs remain available.
+
+- **Fixed (1 November 2026):** The 23:00–06:00 night now restores empty rest and stamina to 100% in seven actual sleep hours. One shared rate in `advanceHumanNeeds` handles all eligible sleep sites; six hours remain insufficient.
+- **Fixed (1 November 2026):** Lovers now choose the same tryst house regardless of caller order. One `observeHumanSleep` checks actual indoor sleep before recovery; exhausted settlers can still finish scheduled walks home.
+
+- **Implemented (29 October 2026, PR #91):** Rare Spotlight Lore gathers actors for a cinematic reveal, captions, music, applause and a skippable farewell. Browser acceptance remains unverified.
 
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
@@ -102,9 +113,9 @@
 - **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
 
 - **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
-- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. Merged into main; browser acceptance pending.
+- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
 
-- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay was separately merged in PR #91.
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 

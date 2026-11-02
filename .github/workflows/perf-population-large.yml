@@ -1,4 +1,4 @@
-name: Population performance - large population (1800)
+name: Population performance - large (1800)
 
 on:
   pull_request:
@@ -25,4 +25,4 @@ jobs:
     with:
       tier: large
       population: 1800
-      days: ${{ github.event_name == 'workflow_dispatch' && fromJSON(inputs.days) || 2 }}
+      days: ${{ github.event_name == 'workflow_dispatch' && fromJSON(inputs.days) || 3 }}

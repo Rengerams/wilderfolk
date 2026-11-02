@@ -1,4 +1,4 @@
-name: Population performance - medium population (750)
+name: Population performance - medium (750)
 
 on:
   pull_request:
