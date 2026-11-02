@@ -203,7 +203,7 @@ export function Dashboard() {
         </Kaart>
 
         <div>
-          <Kaart titel="Wat vraagt aandacht" uitleg="Dit is nu het belangrijkste om op te pakken.">
+          <Kaart titel="Wat vraagt aandacht" uitleg="Prioriteit">
             {aandacht.length === 0 ? (
               <p className="muted">Niets blijft liggen. Mooi werk.</p>
             ) : (
