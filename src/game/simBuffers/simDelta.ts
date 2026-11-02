@@ -320,7 +320,7 @@ export function extractSimTickDelta(
     huntVisuals: deltaClone(world.huntVisuals ?? [], cloneMode),
     aliveEntities: deltaClone(aliveNow, cloneMode),
     eventLogTail: deltaClone(eventLogTail, cloneMode),
-    graveRecords: deltaClone(world.graveRecords ?? [], cloneMode),
+    graveRecords: deltaCloneOptional(world.graveRecords, cloneMode) ?? undefined,
     genealogyRegistry: deltaCloneOptional(world.genealogyRegistry, cloneMode) ?? undefined,
     bigNews: deltaClone(world.bigNews, cloneMode),
     notifications: deltaClone(world.notifications, cloneMode),
@@ -514,7 +514,9 @@ export function applySimTickDelta(
   world.deathParticles = deltaClone(delta.deathParticles, cloneMode);
   world.huntVisuals = deltaClone(delta.huntVisuals ?? [], cloneMode);
   if ('graveRecords' in delta) {
-    world.graveRecords = deltaClone(delta.graveRecords ?? [], cloneMode);
+    world.graveRecords = delta.graveRecords === undefined
+      ? undefined
+      : deltaClone(delta.graveRecords, cloneMode);
   }
   if ('genealogyRegistry' in delta) {
     world.genealogyRegistry = deltaCloneOptional(delta.genealogyRegistry, cloneMode) ?? undefined;
