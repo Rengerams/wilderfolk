@@ -35,6 +35,10 @@ docker compose -f docker-compose.base44.yml up -d --build
   (`GET /api/logboek`), beide met recht `logboek: zien`. Beide tabellen zijn alleen
   invoegbaar; verwijder dus geen regels om een test op te ruimen.
 - Demo-inlog: `admin@diligence.nl` / `welkom123` (zie ook de link op het inlogscherm).
+- `xlsx` komt bewust niet uit de npm-registry: versie 0.18.5 daar heeft twee
+  high-severity adviezen (prototype pollution + ReDoS) zonder fix. `package.json`
+  verwijst naar de SheetJS-release `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`
+  (zelfde API). `npm ci` heeft daarvoor dus toegang tot cdn.sheetjs.com nodig.
 - Deelnemers importeren: `/api/deelnemers/import` + `/import/bevestig` (Excel/CSV).
   Bezoekgeschiedenis importeren: `/api/deelnemers/import/geschiedenis` +
   `/import/geschiedenis/bevestig` (`server/src/routes/geschiedenis-import.ts`). Die maakt
