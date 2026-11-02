@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test server/tests/*.test.ts",
     "start:api": "tsx server/src/index.ts",
     "dev:api": "tsx watch server/src/index.ts"
   },

@@ -58,3 +58,8 @@ docker compose -f docker-compose.base44.yml up -d --build
 - `docker compose -f docker-compose.base44.yml ps` moet `healthy` tonen voor `db`, `api`
   en `web`. De web-healthcheck controleert zowel `/` als `/src/main.tsx`.
 - Schermen die inloggen vereisen zijn anoniem alleen tot het inlogscherm te controleren.
+- Tests: `docker compose -f docker-compose.base44.yml exec api npm test` draait
+  `server/tests/*.test.ts` met de ingebouwde Node-testrunner (via tsx). De tests maken
+  een tijdelijke database `diligence_test` aan, gebruiken de echte routes en SQL, en
+  gooien die database na afloop weg; de ontwikkeldatabase blijft ongemoeid. Er is geen
+  Node op de sandbox-host, dus draai ze altijd in de `api`-container.
