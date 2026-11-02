@@ -1751,6 +1751,7 @@ describe('virtual player remaining action surface', () => {
         building(1, BuildingType.House, { occupants }),
         building(3, BuildingType.Quarry, { occupants: [] }),
         building(4, BuildingType.Quarry, { occupants: [] }),
+        building(5, BuildingType.FishingSpot, { x: 400, y: 200 }),
       ],
       { worldMap: unbuildableWorldMap() },
     );
