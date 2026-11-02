@@ -11,14 +11,11 @@ import {
   DEFAULT_WORK_END_HOUR,
   DEFAULT_WORK_SCHEDULE,
   DEFAULT_WORK_START_HOUR,
+  isWorkScheduleHour,
   type WorkSchedule,
 } from './workSchedule';
 import type { Building, Entity } from './gameTypes';
 
-/** Shipped default work start (07:00). */
-export const WORK_START = DEFAULT_WORK_START_HOUR;
-/** Shipped default work end, exclusive (16:00). */
-export const WORK_END = DEFAULT_WORK_END_HOUR;
 /** Evening/home transition hour — fixed, independent of the work window. */
 export const EVENING_START = 18;
 /** Tavern service window, inclusive start and exclusive end. */
@@ -28,41 +25,20 @@ export const TAVERN_SHIFT_END = 23;
 export const FESTIVAL_GATHER_START = 15;
 export const FESTIVAL_GATHER_END = 23;
 /** Default 07–16 hours per weekday (9). */
-export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
-
-/** A work-day window (start inclusive, end exclusive). */
-export type DayWindow = WorkSchedule;
-
-/** Compatibility alias for the shipped default window. */
-export const LEGACY_WINDOW: DayWindow = DEFAULT_WORK_SCHEDULE;
+export const WORK_HOURS_PER_DAY = DEFAULT_WORK_END_HOUR - DEFAULT_WORK_START_HOUR;
 
 export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));
 }
 
-/** Schedule-aware: is `hour` inside the (optionally configured) work window? */
-export function isWorkHourFor(schedule: DayWindow | undefined, hour: number): boolean {
-  const s = schedule ?? LEGACY_WINDOW;
-  return hour >= s.startHour && hour < s.endHour;
-}
-
 export function isWorkHour(hour: number): boolean {
-  return isWorkHourFor(undefined, hour);
+  return isWorkScheduleHour(DEFAULT_WORK_SCHEDULE, hour);
 }
 
 export function isOnWorkShift(tick: number, hour?: number): boolean {
   if (!isWorkDay(tick)) return false;
   const currentHour = hour ?? getHourOfDay(tick);
   return isWorkHour(currentHour);
-}
-
-export function isOnWorkShiftFor(
-  schedule: DayWindow | undefined,
-  tick: number,
-  hour?: number,
-): boolean {
-  if (!isWorkDay(tick)) return false;
-  return isWorkHourFor(schedule, hour ?? getHourOfDay(tick));
 }
 
 export function isTavernServiceHour(hour: number): boolean {
@@ -94,7 +70,7 @@ export function isFestivalGatherer(
  * Legacy innkeeper-duty query. A festival opens the Tavern to visitors and creates no worker duty, so
  * the festival flag no longer extends the shift — it stays in the signature for its existing callers.
  */
-export function isOnInnkeeperShift(tick: number, hour?: number, _festivalActive?: boolean): boolean {
+export function isOnInnkeeperShift(tick: number, hour?: number): boolean {
   return isTavernServiceHour(hour ?? getHourOfDay(tick));
 }
 
@@ -107,8 +83,8 @@ export function isOnMoonHowlerNightShift(tick: number, hour?: number): boolean {
  * Schedule-aware: should this settler be "home" right now? True at night, before
  * the configured shift start, or from the configured shift end onward.
  */
-export function shouldBeAtHomeFor(schedule: DayWindow | undefined, hour: number): boolean {
-  const s = schedule ?? LEGACY_WINDOW;
+export function shouldBeAtHomeFor(schedule: WorkSchedule | undefined, hour: number): boolean {
+  const s = schedule ?? DEFAULT_WORK_SCHEDULE;
   return isNightHour(hour) || hour < s.startHour || hour >= s.endHour;
 }
 
@@ -140,12 +116,12 @@ export function isAsleepAtHome(
 
 /** Schedule-aware preference to stay home, with probability bands around the shift. */
 export function prefersHomeTonightFor(
-  schedule: DayWindow | undefined,
+  schedule: WorkSchedule | undefined,
   entityId: number,
   tick: number,
   hour: number,
 ): boolean {
-  const s = schedule ?? LEGACY_WINDOW;
+  const s = schedule ?? DEFAULT_WORK_SCHEDULE;
   const weekend = isWeekend(tick);
   const roll = (salt: number) => personDayRoll(entityId, tick, salt);
 
@@ -186,13 +162,13 @@ export function formatHour(hour: number): string {
 }
 
 export function allowSocialLifeFor(
-  schedule: DayWindow | undefined,
+  schedule: WorkSchedule | undefined,
   hour: number,
   hasWorkplace: boolean,
   tick?: number,
 ): boolean {
   if (tick != null && isWeekend(tick)) return true;
-  return !(isWorkHourFor(schedule, hour) && hasWorkplace);
+  return !(isWorkScheduleHour(schedule ?? DEFAULT_WORK_SCHEDULE, hour) && hasWorkplace);
 }
 
 export function allowSocialLife(hour: number, hasWorkplace: boolean, tick?: number): boolean {

@@ -1,9 +1,9 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition } from './simulation/humanMovement';
+import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
-import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR, prefersHomeTonight } from './dayCycle';
+import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
-import { isOnWorkScheduleShift } from './workSchedule';
+import { getWorkSchedule, isOnWorkScheduleShift } from './workSchedule';
 import { getHourOfDay, getAbsoluteCalendarDay } from './dayCycleClock';
 import { BuildingType } from './buildings';
 import { pickSocialImpulse, type SocialBuildingPicker } from './socialLife';
@@ -11,6 +11,11 @@ import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { requestDialogue } from './dialogueTrees';
 import { isDialogueBusy } from './humanChat';
+import { prefersHomeTonightFor } from './humanSchedule';
+import type { TickContext } from './simulation/simulationTypes';
+import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
+import { seededRandomForRun, personDayRoll } from './simRng';
+import { pickBeautySpot } from './beautyGrid';
 
 /** A free child has a 72% chance to choose a nearby playmate each hour. */
 const KID_PLAY_CHANCE = 0.72;
@@ -87,7 +92,7 @@ export function tickHumanChildLeisure(args: {
   }
   const mother = entity.motherId != null ? livingHumanAt(entity.motherId) : undefined;
   const father = entity.fatherId != null ? livingHumanAt(entity.fatherId) : undefined;
-  const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonight(parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
+  const freeParent = [mother, father].find((parent) => parent?.alive && isPlayerHuman(parent) && !prefersHomeTonightFor(getWorkSchedule(state), parent.id, state.tick, hourOfDay) && !isOnWorkScheduleShift(state, hourOfDay)) ?? [mother, father].find((parent) => parent?.alive);
   const follow = freeParent ?? getChildCustodian(entity, allHumans, args.entityById);
   if (follow?.alive && personDayRoll(entity.id, state.tick, 601) > 0.22) {
     const distance = Math.hypot(follow.x - entity.x, follow.y - entity.y) || 1;
@@ -107,12 +112,6 @@ export function tickHumanChildLeisure(args: {
   }
   return args.suppressIdleInitial;
 }
-
-import type { TickContext } from './simulation/simulationTypes';
-import { forEachAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_STAGGER, SOCIAL_FRIENDSHIP_RADIUS } from './adaptiveSpatialQuery';
-import { seededRandomForRun, personDayRoll } from './simRng';
-import { crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
-import { pickBeautySpot } from './beautyGrid';
 
 
 export function idleDestination(

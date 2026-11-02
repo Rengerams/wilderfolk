@@ -21,8 +21,7 @@ describe('tavern festival hours', () => {
 
   it('does not extend the innkeeper shift for a festival, which only opens the tavern', () => {
     // A festival is visitor availability; the worker's shift is the configured window either way.
-    expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9, true)).toBe(false); // mid-day, festival
-    expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9)).toBe(false); // same hour, no festival
+    expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 9)).toBe(false); // mid-day
     expect(isOnInnkeeperShift(TICKS_PER_DAY * 10, 19)).toBe(true); // evening shift always
   });
 

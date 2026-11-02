@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** A parent’s home preference and child leisure now follow the configured work hours instead of the legacy 07–16 default.
+
 - **Fixed (2 November 2026):** A leader's death now announces the succession election even though the office is cleared immediately, instead of arming the date silently.
 
 - **Fixed (2 November 2026):** An overfull home now unhouses only the settlers above its bed count, so a one-bed excess no longer empties a whole household and leaves beds unused.
