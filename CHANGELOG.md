@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Planned (2 November 2026):** Added a proposed fourteen-dimensional heritable aptitude architecture with a separate inherited Lucky gene, real decision-owner integration, deterministic old-save conversion, and explicit strengths/weaknesses acceptance gates ([design](docs/plans/genetic-aptitudes-personality-overhaul-2026-11-02.md)); no gameplay changes.
+- **Planned (2 November 2026):** Proposed one inherited fourteen-dimensional behavioural genome for every settler, with three optional derived inspector highlights, positive/negative activity combinations, owner-level integration and deterministic old-save migration. The previous Lucky conception ×1.15 modifier is explicitly slated for retirement without a genetic replacement; old Lucky becomes flavour-only, not inherited. Includes three complete citizen examples and a dimension-by-dimension coverage matrix ([design](docs/plans/genetic-aptitudes-personality-overhaul-2026-11-02.md)); **no gameplay changes**.
 
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 
