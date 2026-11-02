@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Spotlight Lore uses compact speech captions and a larger, lighter visible stage. A completed Village Square hosts the real cast immediately on walkable marks; during the performance, unrelated settlers and their overhead graphics disappear only from rendering and return on completion or skip. The fallback without a Square still gathers naturally.
+
 - **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
 
 - **Fixed (2 November 2026):** A household evicted by the capacity pass is retried against the next fitting home instead of being left outside until the next housing run; one refused destination no longer ends the placement attempt.
