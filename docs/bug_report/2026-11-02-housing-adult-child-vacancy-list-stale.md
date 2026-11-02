@@ -1,10 +1,10 @@
 # The adult-child phase's vacancy list only shrinks
 
 - Bug: the phase builds the set of empty homes once and only removes the chosen one, so a home vacated during the same phase is never offered to later candidates.
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, working tree on `508c1f2f`
+- Version/build: V.0.6.5.1, fixed in `fd63ad00`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable`)
@@ -12,7 +12,8 @@
 
 ## Status history
 
-- 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — open: recorded from the code review and worker audits.
+- 2026-11-02 — resolved: the vacancy list is rebuilt after every move. The vacated-home case is latent in this phase (a parent keeps the family home), so the adult-child suites are the regression coverage.
 
 ## Observed behavior
 
@@ -44,4 +45,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Fixed: the 35-file housing suite passes (168 tests); the refresh is code-verified but has no dedicated fixture because the phase cannot vacate a home while the parent stays.

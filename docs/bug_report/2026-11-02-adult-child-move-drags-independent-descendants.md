@@ -1,10 +1,10 @@
 # An adult-child move drags independent adult descendants back home
 
 - Bug: the adult-child phase builds the departing household with every living child, so an adult grandchild who already lives elsewhere is moved back in with the parent.
-- Status: open
+- Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, working tree on `508c1f2f`
+- Version/build: V.0.6.5.1, fixed in `fd63ad00`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`tryMoveOutOfFamilyHome`)
@@ -12,7 +12,8 @@
 
 ## Status history
 
-- 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — open: recorded from the code review and worker audits.
+- 2026-11-02 — resolved: `tryMoveOutOfFamilyHome` uses `collectMinorHousehold` and plans through `planRelocation`; the L1 regression asserts an adult grandchild stays in their own home.
 
 ## Observed behavior
 
@@ -46,4 +47,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Fixed: the 35-file housing suite passes (168 tests), including the new L1 regression.
