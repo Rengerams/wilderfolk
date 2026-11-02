@@ -147,6 +147,7 @@ export function Vervoer() {
     <div>
       <PaginaKop
         titel="Vervoer"
+        stap="Koppel per uitje een chauffeur en een begeleider."
         uitleg="De capaciteit van een uitje bepaalt automatisch welke busjes nodig zijn. Koppel per voertuig een chauffeur én een begeleider; het systeem waarschuwt als er nog iemand ontbreekt."
         acties={
           <label className="veld" style={{ marginBottom: 0 }}>

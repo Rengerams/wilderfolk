@@ -234,6 +234,7 @@ export function UitjeDetail() {
 
       <PaginaKop
         titel={uitje.omschrijving}
+        stap="Controleer de deelnemerslijst en wijs chauffeur en begeleider toe."
         uitleg={`${datumLang(uitje.datum)} · ${tijd(uitje.begin_tijd, uitje.eind_tijd)} · ${uitje.periode.naam}`}
         acties={
           <>

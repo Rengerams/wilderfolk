@@ -138,6 +138,7 @@ export function Bellijst() {
     <div>
       <PaginaKop
         titel="Bellijst"
+        stap="Bel de bovenste persoon en zet meteen het resultaat erbij."
         uitleg="De meeste deelnemers worden gebeld. Werk de lijst van boven naar beneden af; na een afzegging komt de volgende reservist vanzelf bovenaan."
         acties={
           <>

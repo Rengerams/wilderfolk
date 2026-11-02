@@ -314,6 +314,25 @@ a:hover { color: var(--primair-donker); }
   flex-wrap: wrap;
 }
 
+/* Eis 12.4: bovenaan elk scherm staat wat de volgende stap is. */
+.pagina-kop__stap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.55rem 0 0;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--primair-licht);
+  color: var(--inkt);
+  font-size: 1rem;
+  max-width: 65ch;
+}
+
+.pagina-kop__stap strong {
+  color: var(--primair-donker);
+  white-space: nowrap;
+}
+
 /* ---------------------------------------------------------------- kaarten */
 
 .kaart {
@@ -1360,6 +1379,150 @@ a:hover { color: var(--primair-donker); }
   .filters .invoer { min-width: 0; }
   .kaart { padding: 1rem; }
   .modal-achtergrond { padding: 1rem 0.6rem; }
+}
+
+/* ---------------------------------------------------------------- kalender */
+
+.kalender {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.2rem;
+}
+
+.kalender__maand {
+  border: 1px solid var(--rand);
+  border-radius: var(--straal-klein);
+  padding: 0.9rem;
+  background: var(--oppervlak-zacht);
+}
+
+.kalender__titel {
+  font-size: 1.15rem;
+  text-transform: capitalize;
+  margin-bottom: 0.6rem;
+}
+
+.kalender__tabel {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.kalender__tabel th {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--inkt-zacht);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 0.35rem;
+}
+
+.kalender__dag,
+.kalender__leeg {
+  vertical-align: top;
+  height: 82px;
+  border: 1px solid var(--rand);
+  padding: 0.3rem;
+}
+
+.kalender__leeg {
+  background: repeating-linear-gradient(135deg, #f2f3f6, #f2f3f6 6px, #eceef3 6px, #eceef3 12px);
+}
+
+.kalender__dag.is-vandaag {
+  outline: 2px solid var(--primair);
+  outline-offset: -2px;
+  background: var(--primair-licht);
+}
+
+.kalender__datum {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--inkt-zacht);
+}
+
+.kalender__uitje {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 8px;
+  background: var(--oppervlak);
+  border-left: 3px solid var(--primair);
+  color: var(--inkt);
+  text-decoration: none;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.kalender__uitje:hover,
+.kalender__uitje:focus-visible {
+  background: var(--primair-licht);
+}
+
+.kalender__uitje.is-geannuleerd {
+  opacity: 0.55;
+  border-left-color: var(--inkt-zacht);
+  text-decoration: line-through;
+}
+
+.kalender__tijd {
+  display: block;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--primair-donker);
+}
+
+.kalender__naam {
+  display: block;
+}
+
+/* Op een smal scherm: geen weekrooster maar een lijst per maand. */
+.kalender__lijst {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kalender__lijst li {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  align-items: start;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--rand);
+}
+
+.kalender__lijst li:first-child {
+  border-top: none;
+}
+
+.kalender__lijst-datum {
+  font-weight: 700;
+  color: var(--inkt-zacht);
+  padding-top: 0.35rem;
+}
+
+.kalender__lijst .kalender__uitje {
+  margin-top: 0;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.55rem;
+}
+
+@media (max-width: 780px) {
+  .kalender__tabel {
+    display: none;
+  }
+
+  .kalender__lijst {
+    display: block;
+  }
+
+  .kalender {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------------------------------------------------------------- printen */

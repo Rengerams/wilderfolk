@@ -148,6 +148,7 @@ export function Deelnemers() {
     <div>
       <PaginaKop
         titel="Deelnemers"
+        stap="Zoek de deelnemer of maak een nieuwe aan."
         uitleg="Zoek op naam of telefoonnummer. Typ een paar letters en de lijst past zich meteen aan."
         acties={
           <>

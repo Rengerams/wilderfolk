@@ -16,6 +16,7 @@ import {
   Veld,
 } from "../components/ui"
 import { PlekkenKeuze } from "../components/PlekkenKeuze"
+import { ProgrammaKalender } from "../components/ProgrammaKalender"
 import { datumKort, datumNumeriek, euro, tijd } from "../lib/format"
 import type { Periode, Uitje } from "../types"
 import { statusBadge } from "./Programma"
@@ -67,6 +68,7 @@ export function PeriodeDetail() {
   const [fout, setFout] = useState<string | null>(null)
   const [melding, setMelding] = useState<{ tekst: string; ongedaan?: () => void } | null>(null)
   const [bezig, setBezig] = useState(false)
+  const [weergave, setWeergave] = useState<"lijst" | "kalender">("lijst")
 
   const [nieuwUitje, setNieuwUitje] = useState(false)
   const [uitjeVelden, setUitjeVelden] = useState(leegUitje(14))
@@ -271,12 +273,19 @@ export function PeriodeDetail() {
 
       <PaginaKop
         titel={periode.naam}
+        stap={
+          periode.status === "concept"
+            ? "Voeg de uitjes toe en open daarna de opgave."
+            : periode.status === "gepubliceerd"
+              ? `Voer de opgaven in. Daarna sluit je de opgave en maak je de indeling.`
+              : "Ga naar de indeling en bereken een eerlijk voorstel."
+        }
         uitleg={
           periode.status === "concept"
-            ? "Volgende stap: voeg de uitjes toe en open daarna de opgave."
+            ? "Controleer de datums, tijden, prijzen en het aantal plekken."
             : periode.status === "gepubliceerd"
-              ? `De opgave loopt tot en met ${datumNumeriek(periode.aanmelddeadline)}. Daarna sluit je de periode en maak je de indeling.`
-              : "De opgave is gesloten. Ga naar de indeling om een eerlijk voorstel te berekenen."
+              ? `De opgave loopt tot en met ${datumNumeriek(periode.aanmelddeadline)}.`
+              : "De opgave is gesloten."
         }
         acties={
           <>
@@ -365,6 +374,22 @@ export function PeriodeDetail() {
             >
               Leeg sjabloon
             </Knop>
+            <div className="rij" role="group" aria-label="Weergave van het programma">
+              <Knop
+                variant={weergave === "lijst" ? "primair" : undefined}
+                onClick={() => setWeergave("lijst")}
+                aria-pressed={weergave === "lijst"}
+              >
+                Lijst
+              </Knop>
+              <Knop
+                variant={weergave === "kalender" ? "primair" : undefined}
+                onClick={() => setWeergave("kalender")}
+                aria-pressed={weergave === "kalender"}
+              >
+                Kalender
+              </Knop>
+            </div>
           </>
         }
       >
@@ -376,6 +401,8 @@ export function PeriodeDetail() {
               Een leeg sjabloon helpt daarbij.
             </p>
           </div>
+        ) : weergave === "kalender" ? (
+          <ProgrammaKalender uitjes={uitjes} start={periode.start_op} eind={periode.eind_op} />
         ) : (
           <Tabel
             kolommen={[

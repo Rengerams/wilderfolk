@@ -169,6 +169,11 @@ export function DeelnemerDetail() {
     <div>
       <PaginaKop
         titel={naam}
+        stap={
+          opgaven.length > 0
+            ? "Bekijk waarvoor deze deelnemer is opgegeven of voer een nieuwe opgave in."
+            : "Voer een opgave in of bekijk de bezoekgeschiedenis."
+        }
         uitleg={
           opgaven.length > 0
             ? "Bekijk hieronder waarvoor deze deelnemer is opgegeven. Nieuwe opgave? Gebruik de knop Opgave invoeren."

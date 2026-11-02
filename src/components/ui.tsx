@@ -60,10 +60,13 @@ export function Kaart({
 export function PaginaKop({
   titel,
   uitleg,
+  stap,
   acties,
 }: {
   titel: string
   uitleg?: ReactNode
+  /** Wat de gebruiker op dit scherm nu het beste kan doen (eis 12.4). */
+  stap?: ReactNode
   acties?: ReactNode
 }) {
   return (
@@ -71,6 +74,11 @@ export function PaginaKop({
       <div>
         <h1>{titel}</h1>
         {uitleg && <p className="pagina-kop__uitleg">{uitleg}</p>}
+        {stap && (
+          <p className="pagina-kop__stap">
+            <strong>Volgende stap:</strong> {stap}
+          </p>
+        )}
       </div>
       {acties && <div className="pagina-kop__acties">{acties}</div>}
     </div>

@@ -198,6 +198,7 @@ export function Tutorial() {
     <div>
       <PaginaKop
         titel="Aan de slag"
+        stap="Volg de stappen hieronder in volgorde."
         uitleg="Nieuw in het systeem? In een paar minuten weet je hoe het werkt en wat je eerste stappen zijn."
         acties={
           <Link className="knop knop--primair" to="/">

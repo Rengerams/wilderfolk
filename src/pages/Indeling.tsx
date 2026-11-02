@@ -182,6 +182,13 @@ export function Indeling() {
     <div>
       <PaginaKop
         titel="Eerlijke indeling"
+        stap={
+          data.magIndelen
+            ? data.run
+              ? "Controleer het voorstel en bevestig daarna de indeling."
+              : "Bereken het voorstel. Er wordt nog niemand bevestigd of gebeld."
+            : "Sluit eerst de opgave bij het programma."
+        }
         uitleg={
           data.magIndelen
             ? "Bereken een voorstel. Het systeem legt bij elke plek uit waarom. De coördinator houdt altijd het laatste woord."

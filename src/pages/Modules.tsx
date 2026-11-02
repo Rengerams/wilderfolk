@@ -100,6 +100,7 @@ export function Modules() {
     <div>
       <PaginaKop
         titel="Functies"
+        stap="Zet een module aan of uit. De uitleg staat eronder."
         uitleg="Elk onderdeel is een functie die je aan of uit kunt zetten: voor de hele organisatie én per gebruiker. De kern staat altijd aan: deelnemers, groepjes, uitjes, opgave, indeling, reservelijst, accounts en het wijzigingsoverzicht."
       />
 
