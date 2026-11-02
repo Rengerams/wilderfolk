@@ -108,7 +108,7 @@ function packAndPostTickResult(
   }
   try {
     const packStart = profileStart();
-    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
+    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, string>();
