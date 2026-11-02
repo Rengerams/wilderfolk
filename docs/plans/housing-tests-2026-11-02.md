@@ -124,8 +124,8 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 | Stage | With | Work | Gate |
 | :--- | :--- | :--- | :--- |
 | **T0 — committed** | `95ca783a` | invariants suite + fixture generator + bug report + the retry fix; the write counter shares `residencyReconciliation.ts` with another agent's change | 34 suites / 148 tests pass; types/lint/build/source pass |
-| **T1** | P0a done; P1 contract landed | rebuild the end-to-end refused-destination fixture lost when the generator moved to `simRng` (the planner-level refusal case is landed) | 35 suites / 154 tests green; seed-independent refusal fixture passes; input-order property landed |
-| **T2** | P3 | delete the `housingUnitNeedsReassignment` tests (3 files) and rewrite them as plan-level cases | invariants + contract green |
+| **T1 — open** | P0a done; P1 contract landed | rebuild the end-to-end refused-destination fixture lost when the generator moved to `simRng` (the planner-level refusal case is landed) | **remaining:** seed-independent end-to-end refusal fixture |
+| **T2 — done** | P3 | the `housingUnitNeedsReassignment` tests were rewritten as plan-level cases; the predicate is now private | invariants + contract green |
 | **T3** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed and commute-margin all caught; `familyFitsInResidence` is caught by the capacity contract case, **not** the invariants (they never attempt an overfill); `pairs` stays intentionally uncaught (readers test `> 0`) |
 | **T4** | P6/P7 | moved the ceiling to `PERF_DAY_BOUNDARY` (max tick ≤ 5 000 ms); `run-full-year` prints moves/household-year, homeless-days and repeat moves every 30 days | 30 d: 9 moves / 0 homeless-days / 0 repeat; 360 d: 283 moves / 1 920 homeless-days / 117 repeat / 13.48 moves per household-year; 600-settler max tick **107.6 ms** |
 
