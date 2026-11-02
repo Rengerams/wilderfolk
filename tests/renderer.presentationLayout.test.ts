@@ -91,6 +91,18 @@ describe('human overhead presentation layout', () => {
     expect(shouldDrawSpotlightHuman(null, 99)).toBe(true);
   });
 
+  it('uses the existing chat bubble painter for Spotlight Lore instead of drawing another HTML bubble', () => {
+    const humans = readFileSync(resolve(process.cwd(), 'src/game/renderer/humans.ts'), 'utf8');
+    const spotlight = readFileSync(resolve(process.cwd(), 'src/components/SpotlightLoreOverlay.tsx'), 'utf8');
+    expect(humans).toContain('const spotlightSpeech =');
+    expect(humans).toContain('getSpotlightPresentationSpeech(human.id)');
+    expect(humans).toContain('text: spotlightSpeech ?? getChatBubbleText(human, tick)');
+    expect(humans).toContain('drawSpeechBubble(');
+    expect(spotlight).toContain('speech });');
+    expect(spotlight).not.toContain('bubbleRef');
+    expect(spotlight).not.toContain('bg-amber-50');
+  });
+
   it('draws the name plate at readable zoom, whether or not the settler is talking', () => {
     expect(shouldDrawHumanNameLabel(1.0, 0.45)).toBe(true);
     expect(shouldDrawHumanNameLabel(0.3, 0.45)).toBe(false);
