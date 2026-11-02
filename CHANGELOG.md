@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
+
 - **Fixed (2 November 2026):** A household evicted by the capacity pass is retried against the next fitting home instead of being left outside until the next housing run; one refused destination no longer ends the placement attempt.
 
 - **Changed (2 November 2026):** Trees and grass now travel once and only when the roster changes instead of every tick; on a 2,200-settler save the steady-state tick payload fell from 3.0 MB to 2.76 MB, 59% below the original 6.79 MB.

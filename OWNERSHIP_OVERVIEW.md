@@ -557,7 +557,6 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Audio: constants.ts | `src/audio/constants.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Audio: preferences.ts | `src/audio/preferences.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | UI: resourceLabels.ts | `src/components/resourceLabels.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
-| Game: buildingActions.ts | `src/game/buildingActions.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
 | Game: combatTech.ts | `src/game/combatTech.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: ecologyTypes.ts | `src/game/ecologyTypes.ts` | module-local | Local functions and methods defined in this module, not re-exported definitions |
 | Game: gameEngine.ts | `src/game/gameEngine.ts` | module-local | Compatibility exports only; implementation ownership stays with leaf modules |
@@ -652,3 +651,11 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | Area | Owner module | Cadence | Entry functions |
 |---|---|---|---|
 | Deterministic colonies for the housing invariant suites | `src/test/housingColony.ts` | test-only | `buildHousingColony` (seeded couples, minors, prisoners, overcrowding), `adult` (local settler builder inside the fixture) |
+
+## Profile field revisions (2 November 2026)
+
+| Area | Owner module | Cadence | Entry functions |
+|---|---|---|---|
+| Runtime field revisions | `src/game/entityRevision.ts` | delta transport | `revisionOf`, `bumpRevision` (hidden non-enumerable revisions for relationship and profile fields) |
+| Writable skill map that bumps the profile revision | `game/skills.ts` | skill credit/decay/teaching | `writableEntitySkills` |
+| Profile-field elision for the replica | `game/simBuffers/simDelta.ts` | every delta | `stripUnchangedProfile` |

@@ -14,6 +14,7 @@ import { getValleyIllnessChanceBonus } from '../ecologyStage';
 // half a building to the south-east of the building on screen. Importing the owner is the fix; the
 // duplicate was deleted rather than corrected so the two can never disagree again.
 import { getBuildingCenter } from '../placementUtils';
+import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import {
   HUMAN_MAX_LIFESPAN_YEARS,
@@ -461,6 +462,7 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
     nextChildFriends.push(friend.id);
   }
   child.childhoodFriendsIds = nextChildFriends.slice(0, RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_MAX_FRIENDS);
+  bumpRevision(child, PROFILE_REVISION);
 
   const friendFriends = friend.childhoodFriendsIds ?? [];
   const nextFriendFriends = [...friendFriends];
@@ -468,6 +470,7 @@ export function tryFormSchoolyardBond(state: WorldState, child: Entity, rng: () 
     nextFriendFriends.push(child.id);
   }
   friend.childhoodFriendsIds = nextFriendFriends.slice(0, RELATIONSHIP_CONFIG.SCHOOLYARD_BOND_MAX_FRIENDS);
+  bumpRevision(friend, PROFILE_REVISION);
 
   addFloatingText(state, child.x, child.y - 22, '👫 friends', '#fbbf24', 'brief');
   logEvent(

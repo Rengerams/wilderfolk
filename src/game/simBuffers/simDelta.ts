@@ -450,29 +450,49 @@ function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePat
   bumpTerrainRevision();
 }
 
+const RELATIONSHIP_FIELDS = ['friendships', 'feuds', 'feudPeaks'] as const;
+
+/**
+ * Replace a delta entity with a copy that omits `fields` when the replica already holds them;
+ * `include` records the revision for entities that do ship. The live entity is never mutated.
+ */
+function stripCoveredFields(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  covered: (id: number, revision: number) => boolean,
+  include: (id: number, revision: number) => void,
+  fields: readonly string[],
+): void {
+  const entities = delta.aliveEntities;
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    const revision = revisionsById.get(entity.id) ?? 0;
+    if (covered(entity.id, revision)) {
+      const sparse = { ...entity };
+      for (const field of fields) delete (sparse as Record<string, unknown>)[field];
+      entities[i] = sparse;
+    } else {
+      include(entity.id, revision);
+    }
+  }
+}
+
 /**
  * Drop relationship records the replica already holds: the maps are the bulk of the entity payload
- * and change on a minority of settlers per tick. The delta objects are replaced, never mutated.
+ * and change on a minority of settlers per tick.
  */
 export function stripUnchangedRelationships(
   delta: SimTickDelta,
   revisionsById: ReadonlyMap<number, number>,
   sent: Map<number, number>,
 ): void {
-  const entities = delta.aliveEntities;
-  for (let i = 0; i < entities.length; i++) {
-    const entity = entities[i];
-    const revision = revisionsById.get(entity.id) ?? 0;
-    if (sent.get(entity.id) === revision) {
-      const sparse = { ...entity };
-      delete sparse.friendships;
-      delete sparse.feuds;
-      delete sparse.feudPeaks;
-      entities[i] = sparse;
-    } else {
-      sent.set(entity.id, revision);
-    }
-  }
+  stripCoveredFields(
+    delta,
+    revisionsById,
+    (id, revision) => sent.get(id) === revision,
+    (id, revision) => sent.set(id, revision),
+    RELATIONSHIP_FIELDS,
+  );
 }
 
 /**
@@ -499,6 +519,33 @@ export function splitStaticProps(delta: SimTickDelta, sent: Set<number>): void {
   delta.staticPropsResolved = true;
   if (added.length > 0) delta.staticEntities = added;
   if (removed.length > 0) delta.removedStaticEntityIds = removed;
+}
+
+/** Profile fields the replica reads but the simulation writes rarely (bounded by a refresh). */
+const PROFILE_FIELDS = [
+  'skills', 'traits', 'careerHistory', 'careerMilestones', 'childhoodFriendsIds', 'battleLeadershipAwards',
+] as const;
+
+/** Re-ship profile fields at least this often, so a missed writer can only be briefly stale. */
+export const PROFILE_REFRESH_TICKS = 240;
+
+/** Drop profile fields the replica already holds (or refreshed recently). */
+export function stripUnchangedProfile(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, { revision: number; tick: number }>,
+  tick: number,
+): void {
+  stripCoveredFields(
+    delta,
+    revisionsById,
+    (id, revision) => {
+      const last = sent.get(id);
+      return !!last && last.revision === revision && tick - last.tick < PROFILE_REFRESH_TICKS;
+    },
+    (id, revision) => sent.set(id, { revision, tick }),
+    PROFILE_FIELDS,
+  );
 }
 
 export function applySimTickDelta(

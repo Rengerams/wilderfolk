@@ -5,6 +5,7 @@ import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { RELATIONSHIP_REVISION, bumpRevision } from './entityRevision';
 
  const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
@@ -72,24 +73,6 @@ export function feudScore(e: Entity, otherId: number): number {
   return e.feuds?.[feudKey(otherId)] ?? 0;
 }
 
-const RELATIONSHIP_REVISION = '__relationshipRevision';
-
-/** Runtime-only revision (non-enumerable): spreads, saves and structuredClone skip it. */
-function markRelationshipsChanged(entity: Entity): void {
-  const current = (entity as unknown as Record<string, number>)[RELATIONSHIP_REVISION] ?? 0;
-  Object.defineProperty(entity, RELATIONSHIP_REVISION, {
-    value: current + 1,
-    writable: true,
-    enumerable: false,
-    configurable: true,
-  });
-}
-
-/** How many times this settler's relationship records changed; the worker ships them on a change. */
-export function relationshipRevisionOf(entity: Entity): number {
-  return (entity as unknown as Record<string, number>)[RELATIONSHIP_REVISION] ?? 0;
-}
-
 function hurtFriendshipRecord(entity: Entity, key: string, amount: number): void {
   const next = writableFriendships(entity);
   next[key] = Math.max(0, (next[key] ?? 0) - amount);
@@ -105,21 +88,21 @@ export function hurtFriendship(a: Entity, b: Entity, amount: number): void {
 function writableFriendships(entity: Entity): Record<string, number> {
   const next = { ...(entity.friendships ?? {}) };
   entity.friendships = next;
-  markRelationshipsChanged(entity);
+  bumpRevision(entity, RELATIONSHIP_REVISION);
   return next;
 }
 
 function writableFeuds(entity: Entity): Record<string, number> {
   const next = { ...(entity.feuds ?? {}) };
   entity.feuds = next;
-  markRelationshipsChanged(entity);
+  bumpRevision(entity, RELATIONSHIP_REVISION);
   return next;
 }
 
 function writableFeudPeaks(entity: Entity): Record<string, number> {
   const next = { ...(entity.feudPeaks ?? {}) };
   entity.feudPeaks = next;
-  markRelationshipsChanged(entity);
+  bumpRevision(entity, RELATIONSHIP_REVISION);
   return next;
 }
 

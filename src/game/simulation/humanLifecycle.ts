@@ -17,6 +17,7 @@ import { recordGenealogyBirth } from '../genealogyRegistry';
 import { pickHumanVariant } from '../humanSprites';
 import { addBigNews, addFloatingText, addNotification, createDeathParticles } from '../simEffects';
 import { logEvent } from '../eventLog';
+import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 import { logWildkinBirth } from '../wildkinChronicle';
 import { humanDisplayName } from '../citizenId';
 import { dampScandalReputationLoss } from '../townHall';
@@ -43,6 +44,7 @@ export function grantRareBirthTalent(child: Entity, birthKey: string): void {
   const strength = seededRandomForRun(`${birthKey}:talent-strength`);
   const value = chance < 0.001 ? 80 + strength * 15 : 40 + strength * 35;
   child.skills = { ...child.skills, [job]: Math.round(value * 10) / 10 };
+  bumpRevision(child, PROFILE_REVISION);
 }
 
 export interface BirthContext {

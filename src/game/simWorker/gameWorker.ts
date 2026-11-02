@@ -19,8 +19,8 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta, splitStaticProps, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
-import { relationshipRevisionOf } from '../relationships';
+import { extractSimTickDelta, splitStaticProps, stripUnchangedProfile, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
@@ -56,6 +56,8 @@ let lastFocus: import('../simFocus').SimulationFocus | undefined;
 let relationshipRevisionsSent = new Map<number, number>();
 /** Static decor the display already holds; only roster changes ship after the first delta. */
 let staticPropsSent = new Set<number>();
+/** Profile-field revisions the display already holds; refreshed on change or every few minutes. */
+let profileFieldsSent = new Map<number, { revision: number; tick: number }>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
@@ -134,6 +136,7 @@ function packAndPostTickResult(
     });
     attachStaticProps(delta);
     attachRelationshipRevisions(delta);
+    attachProfileFields(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
@@ -184,6 +187,7 @@ function resetWorkerSession(nextWorld: WorldState): void {
   previousEventHeadId = undefined;
   relationshipRevisionsSent = new Map();
   staticPropsSent = new Set();
+  profileFieldsSent = new Map();
 }
 
 /** Split trees/grass out of the per-tick roster; the replica keeps the props it already has. */
@@ -191,11 +195,18 @@ function attachStaticProps(delta: SimTickDelta): void {
   splitStaticProps(delta, staticPropsSent);
 }
 
-/** Attach the relationship revisions the display already has, so only changed records ship. */
-function attachRelationshipRevisions(delta: SimTickDelta): void {
+/** Attach profile revisions: skill/trait/career maps cross the port only when they change. */
+function attachProfileFields(delta: SimTickDelta): void {
   if (!world) return;
   const revisions = new Map<number, number>();
-  for (const entity of world.entities) revisions.set(entity.id, relationshipRevisionOf(entity));
+  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
+  stripUnchangedProfile(delta, revisions, profileFieldsSent, world.tick);
+}
+
+/** Attach the relationship revisions the display already has, so only changed records ship. */function attachRelationshipRevisions(delta: SimTickDelta): void {
+  if (!world) return;
+  const revisions = new Map<number, number>();
+  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
   stripUnchangedRelationships(delta, revisions, relationshipRevisionsSent);
 }
 
@@ -281,6 +292,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           const delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
           attachRelationshipRevisions(delta);
+          attachProfileFields(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -303,11 +315,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           delta = safeExtractCommandDelta(world);
           attachStaticProps(delta);
           attachRelationshipRevisions(delta);
+          attachProfileFields(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const failedDelta = safeExtractCommandDelta(world);
           attachStaticProps(failedDelta);
           attachRelationshipRevisions(failedDelta);
+          attachProfileFields(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
@@ -418,6 +432,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             });
             attachStaticProps(delta);
             attachRelationshipRevisions(delta);
+            attachProfileFields(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
               type: 'tickResult',

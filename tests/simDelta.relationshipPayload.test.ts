@@ -8,7 +8,8 @@ import { initGame } from '../src/game/gameEngine';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { createEntity } from '../src/game/worldGen';
-import { hurtFriendship, relationshipRevisionOf } from '../src/game/relationships';
+import { hurtFriendship } from '../src/game/relationships';
+import { RELATIONSHIP_REVISION, revisionOf } from '../src/game/entityRevision';
 import { applySimTickDelta, extractSimTickDelta, stripUnchangedRelationships } from '../src/game/simBuffers/simDelta';
 
 function colony(size: number): { world: WorldState; people: Entity[] } {
@@ -27,7 +28,7 @@ function colony(size: number): { world: WorldState; people: Entity[] } {
 }
 
 function revisions(world: WorldState): Map<number, number> {
-  return new Map(world.entities.map((entity) => [entity.id, relationshipRevisionOf(entity)]));
+  return new Map(world.entities.map((entity) => [entity.id, revisionOf(entity, RELATIONSHIP_REVISION)]));
 }
 
 describe('relationship payload elision', () => {
