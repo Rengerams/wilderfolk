@@ -321,7 +321,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       }
 
       case 'returnBuffer': {
-        if (!bufferPool || !msg.buffer || msg.buffer.byteLength === 0) break;
+        if (!bufferPool) break;
         bufferPool.release(msg.bufferIndex, msg.buffer);
         break;
       }
