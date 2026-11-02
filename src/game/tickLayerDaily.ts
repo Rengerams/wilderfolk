@@ -46,7 +46,7 @@ export function tickLayerDaily(
   const hour = getHourOfDay(state.tick);
   if (hour === DAILY_PHASE_HOURS.fatigue) {
   const stage1 = profileStart();
-  resolveDailyVillageScheduleFatigue(state, ctx.playerHumans, ctx.byType[EntityType.Werewolf]);
+  resolveDailyVillageScheduleFatigue(state, ctx.playerHumans, ctx.buildingById, ctx.byType[EntityType.Werewolf]);
   profileEnd('daily.resolveDailyVillageScheduleFatigue', stage1);
 
   }

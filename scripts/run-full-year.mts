@@ -44,7 +44,8 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gameTick } from '../src/game/gameEngine';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
-import { EntityType, MapSize } from '../src/game/gameTypes';
+import { EntityType, MapSize, BuildingType } from '../src/game/gameTypes';
+import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import type { WorldState } from '../src/game/gameTypes';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
@@ -526,6 +527,23 @@ function run(): void {
       foodExhaustionCheckpointDays.push(day);
     }
     writeCheckpoint(day, world, startedAt, health, provisional);
+    if (options.verbose && options.bot && options.scenario === 'producers') {
+      const proposed = decideVirtualPlayerAction(world);
+      const foodSites = world.buildings.filter((building) =>
+        [BuildingType.Farm, BuildingType.FishingSpot, BuildingType.HuntingSpot, BuildingType.Greenhouse].includes(building.type));
+      writeLog({
+        kind: 'producer-bot-decision-audit', day, population: health.food.consumedToday,
+        proposed: proposed == null ? null : { command: proposed.command, reason: proposed.reason },
+        foodSites: foodSites.map((building) => ({
+          type: building.type, completed: building.completed, level: building.level,
+          staffingMode: building.staffingMode,
+          workers: world.entities.filter((entity) => entity.alive && isPlayerHuman(entity)
+            && entity.workerBuildingId === building.id).length,
+          cap: BUILDING_CONFIGS[building.type].maxOccupants,
+        })),
+        incomplete: world.buildings.filter((building) => !building.completed).map((building) => building.type),
+      });
+    }
     // Any exhausted checkpoint already fails the final supply gate. Report it now,
     // preserving the checkpoint log, rather than simulating months of an invalid run.
     assert(

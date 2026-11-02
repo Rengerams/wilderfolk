@@ -33,7 +33,7 @@ describe('daily village schedule fatigue', () => {
       human(2, { scheduleWorkedTicksToday: 12 * TICKS_PER_HOUR }),
     ];
 
-    resolveDailyVillageScheduleFatigue(world, settlers);
+    resolveDailyVillageScheduleFatigue(world, settlers, new Map());
 
     expect(world.eventLog).toHaveLength(1);
     expect(world.eventLog[0]?.message).toContain('reduced work output for 2 settlers');
@@ -54,7 +54,7 @@ describe('daily village schedule fatigue', () => {
     // 100 of fatigue against a 6-hour shift: short enough to recover well past the 8-point threshold.
     const settler = human(1, { scheduleFatigue: 100, scheduleWorkedTicksToday: 6 * TICKS_PER_HOUR });
 
-    resolveDailyVillageScheduleFatigue(world, [settler]);
+    resolveDailyVillageScheduleFatigue(world, [settler], new Map());
 
     expect(world.eventLog).toHaveLength(1);
     expect(world.eventLog[0]?.message).toContain('Short shifts spared 1 settler from that output cost');
@@ -65,7 +65,7 @@ describe('daily village schedule fatigue', () => {
     const world = state();
     const settler = human(1, { scheduleFatigue: 80, scheduleWorkedTicksToday: 0 });
 
-    resolveDailyVillageScheduleFatigue(world, [settler]);
+    resolveDailyVillageScheduleFatigue(world, [settler], new Map());
 
     // Zero hours worked, so the whole 9-hour day counts as rest:
     // 80 - (BASE_DAILY_RECOVERY 4 + 9 x RECOVERY_PER_SHORT_HOUR 3) = 80 - 31 = 49.

@@ -134,15 +134,19 @@ describe('observed career history', () => {
     expect(normalizeCareerHistory(cyclic)).toBeUndefined();
   });
 
-  it('reuses actual daily economy attendance on a full store without a second crew pass', () => {
+  it('credits a worked day at midnight even with full stores and never repeats it at noon', () => {
     const world = initGame({ seed: 4242 });
     const h = worker();
     const site = building(10, BuildingType.Farm, { occupants: [h.id] });
     world.entities = [h];
     world.buildings = [site];
-    world.tick = TICKS_PER_DAY * 2 + TICKS_PER_HOUR * 12;
+    world.tick = TICKS_PER_DAY * 2;
     world.dayInYear = 2;
     world.resources.food = world.storageMax.food;
+    h.scheduleLastWorkedHours = undefined;
+    h.scheduleLastWorkedSiteId = undefined;
+    h.scheduleLastWorkedJob = undefined;
+    recordScheduleWorkTick(h, 6 * TICKS_PER_HOUR);
     rebuildEntityByIdMap(world);
     const context: TickContext = {
       width: world.width, height: world.height, hourOfDay: 12, season: Season.Spring,
@@ -152,13 +156,16 @@ describe('observed career history', () => {
       roadBuildings: [], playerHumans: [h], entityById: new Map([[h.id, h]]),
       buildingById: new Map([[site.id, site]]), predators: [],
     };
-    tickDailyBuildingEconomy(world, context, [h]);
+    resolveDailyVillageScheduleFatigue(world, [h], context.buildingById);
     expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
+    // Noon still produces food, but no longer owns delayed career history writes.
+    world.tick += 12 * TICKS_PER_HOUR;
+    tickDailyBuildingEconomy(world, context, [h]);
     tickDailyBuildingEconomy(world, context, [h]);
     expect(h.careerHistory?.farmer?.days).toBe(1);
   });
 
-  it('settles a full-moon farmer shift at midnight and credits it after dawn, even after job displacement', () => {
+  it('credits a full-moon farmer at midnight even though the job is displaced before dawn', () => {
     const world = initGame({ seed: 4242 });
     const h = worker();
     const site = building(10, BuildingType.Farm, { occupants: [h.id] });
@@ -170,11 +177,14 @@ describe('observed career history', () => {
     expect(h.type).toBe(EntityType.Werewolf);
     expect(h.workerBuildingId).toBeUndefined();
     // Midnight: the person is a wolf, but the recorded hours belong to yesterday's farmer.
-    resolveDailyVillageScheduleFatigue(world, [], [h]);
+    world.tick = 2 * TICKS_PER_DAY;
+    resolveDailyVillageScheduleFatigue(world, [], new Map([[site.id, site]]), [h]);
     expect(h.scheduleLastWorkedHours).toBe(6);
     expect(h.scheduleLastWorkedSiteId).toBe(site.id);
     expect(h.scheduleLastWorkedJob).toBe(JobType.Farmer);
     expect(h.scheduleWorkedTicksToday).toBe(0);
+    expect(h.careerHistory?.farmer).toEqual({ days: 1, lastDay: 1 });
+    // An already settled shift may never be credited a second time.
     expect(recordCareerWork(h, site, JobType.Farmer, 1, 6)).toBe(false);
 
     // Sunrise returns the same person; the old workplace may already be full.

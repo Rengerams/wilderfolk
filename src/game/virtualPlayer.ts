@@ -27,6 +27,7 @@ import {
   isManualStaffingBuilding,
   pickWorkerToTransfer,
 } from './workforce';
+import { getWorkforcePolicy, jobBuildingPriorityForPolicy } from './workforcePolicy';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
@@ -465,13 +466,13 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
 
 
 
-/** Find a completed auto-managed food producer with no assigned worker. */
+/** Find an auto-managed food producer whose real crew cannot yet fill its capacity. */
 function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   return state.buildings.find((building) =>
     building.completed && building.faction !== 'rival'
     && FOOD_PRODUCER_TYPES.includes(building.type)
     && !isManualStaffingBuilding(building)
-    && countWorkersAtBuilding(state.entities, building.id) === 0,
+    && countWorkersAtBuilding(state.entities, building.id) < BUILDING_CONFIGS[building.type].maxOccupants,
   );
 }
 
@@ -482,17 +483,62 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
   if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !isMeasuredFoodDeficit(state)) return null;
   const producer = firstUnstaffedFoodProducer(state);
   if (!producer) return null;
+  if (isMeasuredFoodDeficit(state) && getWorkforcePolicy(state) !== 'survival') {
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'setWorkforcePolicy', preset: 'survival' },
+      reason: 'prioritize survival jobs — food production is falling behind',
+    };
+  }
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
     && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
   );
   const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
-  if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) return null;
-  return {
-    command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
-    reason: `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
-  };
+  const availableWorker = donor && pickWorkerToTransfer(humans, donor, producer, state.tick);
+  if (donor && availableWorker) {
+    // Colony-wide auto-staff resets manual posts; use the targeted removal door instead.
+    if (state.buildings.some((building) => isManualStaffingBuilding(building))) {
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: donor.id, humanId: availableWorker.id },
+        reason: `release an auto worker for the ${BUILDING_CONFIGS[producer.type].label} without changing manual staffing`,
+      };
+    }
+    return {
+      command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
+      reason: `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
+    };
+  }
+
+  // In a real shortage, release a low-priority auto worker if normal transfers fail.
+  // The workforce owner's assignment pass prioritizes food jobs immediately.
+  if (isMeasuredFoodDeficit(state)
+    && !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS * 3)) {
+    const policy = getWorkforcePolicy(state);
+    const nonessential = workplaces
+      .filter((building) =>
+        !FOOD_PRODUCER_TYPES.includes(building.type)
+        && building.type !== BuildingType.Barracks
+        && building.type !== BuildingType.Prison
+        && building.type !== BuildingType.Hospital,
+      )
+      .sort((a, b) =>
+        jobBuildingPriorityForPolicy(policy, b.type) - jobBuildingPriorityForPolicy(policy, a.type)
+        || a.id - b.id,
+      );
+    const occupied = new Set(humans.filter((human) => human.workerBuildingId != null)
+      .map((human) => human.workerBuildingId));
+    for (const building of nonessential) {
+      if (!occupied.has(building.id)) continue;
+      const worker = pickWorkerToTransfer(humans, building, producer, state.tick);
+      if (!worker) continue;
+      return {
+        command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: building.id, humanId: worker.id },
+        reason: `release a ${BUILDING_CONFIGS[building.type].label} worker to staff food production`,
+      };
+    }
+  }
+  return null;
 }
 
 function decideFood(state: WorldState): VirtualPlayerDecision | null {
@@ -1052,6 +1098,7 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
  * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
  */
 function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeChoice | null {
+  if (isMeasuredFoodDeficit(state)) return null;
   if (
     hasFoodMargin(state, VirtualPlayer.REFUGEE_FOOD_RESERVE_DAYS)
     && getOpenPlayerBeds(state) >= VirtualPlayer.REFUGEE_MIN_OPEN_BEDS

@@ -21,6 +21,7 @@ import {
 /** The decision keys required by NEXT_AGENT_OBJECTIVES.md Objective 2 (+ housing, 2026-08-20). */
 const REQUIRED_DECISIONS = [
   'workerMotionPresentation',
+  'virtualPlayer',
   'chronicleProseNames',
   'dailyPersonRoll',
   'traitInfluence',
@@ -62,6 +63,7 @@ const READ_ONLY_DECISIONS = new Set<string>([
   'chronicleProseNames',
   'dailyPersonRoll',
   'workerMotionPresentation',
+  'virtualPlayer',
 ]);
 
 /** The read-only owners that run inside the render loop rather than on a demand query. */

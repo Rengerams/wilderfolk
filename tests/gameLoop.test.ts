@@ -185,6 +185,69 @@ describe('gameLoop.commandDispatch.test.ts', () => {
       expect(fake.host.sendCommand).toHaveBeenCalledWith(cmdObj);
     });
 
+    it('previews changed work hours without deep-cloning the worker colony', async () => {
+      const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Farm)]);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const authoritative = structuredClone(world);
+      const fake = makeFakeHost(authoritative);
+      (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+      (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
+
+      const command: WorkerCommand = { proto: WORKER_CMD_PROTO, op: 'setWorkSchedule', startHour: 6, endHour: 14 };
+      loop.applyCommand(command);
+
+      expect(loop.getWorld().workSchedule).toEqual({ startHour: 6, endHour: 14 });
+      expect(loop.getWorld().entities).toBe(authoritative.entities);
+      expect(loop.getWorld().buildings).toBe(authoritative.buildings);
+      expect(authoritative.workSchedule).not.toEqual({ startHour: 6, endHour: 14 });
+      loop.stop();
+    });
+
+    it('refreshes the catalog and prunes selection after a tick completes during a pending schedule command', async () => {
+      const world = makeWorldForEntities([human(1)], []);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const authoritative = structuredClone(world);
+      const fake = makeFakeHost(authoritative);
+      (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+      (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
+      (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
+
+      loop.setView({ ...loop.getView(), selectedEntityId: 1, selectedEntityIds: [1] });
+      loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'setWorkSchedule', startHour: 6, endHour: 14 });
+      expect(loop.getEntityCatalog().getAliveHumans().map((entity) => entity.id)).toEqual([1]);
+
+      authoritative.tick++;
+      authoritative.entities = [human(2)];
+      fake.fireTick(authoritative);
+      expect(loop.getEntityCatalog().getAliveHumans().map((entity) => entity.id)).toEqual([1]);
+
+      fake.fireCommandResult(authoritative, true);
+      expect(loop.getEntityCatalog().getAliveHumans().map((entity) => entity.id)).toEqual([2]);
+      expect(loop.getView().selectedEntityId).toBeNull();
+      expect(loop.getView().selectedEntityIds).toEqual([]);
+      loop.stop();
+    });
+
+    it('does not rebuild the catalog for a lightweight command with no deferred tick', async () => {
+      const world = makeWorldForEntities([human(1)], []);
+      const loop = new GameLoop(world, createInitialView(400, 300), () => null);
+      await settleLoop(loop);
+      const authoritative = structuredClone(world);
+      const fake = makeFakeHost(authoritative);
+      (loop as unknown as { workerEnabled: boolean }).workerEnabled = true;
+      (loop as unknown as { workerHost: unknown }).workerHost = fake.host;
+      (loop as unknown as { registerWorkerHandlers: (g: number) => void }).registerWorkerHandlers(0);
+
+      const rebuild = vi.spyOn(loop.getEntityCatalog(), 'rebuild');
+      loop.applyCommand({ proto: WORKER_CMD_PROTO, op: 'setWorkSchedule', startHour: 6, endHour: 14 });
+      fake.fireCommandResult(authoritative, true);
+      expect(rebuild).not.toHaveBeenCalled();
+      rebuild.mockRestore();
+      loop.stop();
+    });
+
     it('drains tick requests before a queued command instead of starving it', async () => {
       const world = makeWorldForEntities([human(1)], [finishedBuilding(4, BuildingType.Church)]);
       world.speed = 5;

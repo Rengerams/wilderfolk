@@ -12,6 +12,7 @@
 
 ## Status history
 - 2026-10-29 — investigating: code-level mismatch confirmed; presentation fix committed, browser verification outstanding.
+- 2026-11-02 — investigating: Node CI on PR #118 found the one-pixel grass-dominance threshold too strict by one unit. The test now still requires a meaningful greener clearing; CI rerun pending.
 
 ## Observed behavior
 The supplied Black Forest screenshot shows a broad grey-white rocky/snowy centre around the camp. The generator stores Grassland tile overrides for the starting clearing, while `bakeWhittakerGround` paints with original elevation, temperature and material weights. The screenshot alone does not establish how much of the surrounding rock is intended relief.
@@ -38,6 +39,6 @@ None. The mask is a disposable presentation cache from existing overrides; no ne
 
 ## Verification result
 - Source-level code trace: confirmed.
-- Targeted Vitest regression: NOT RUN in this tool session (GitHub-only source access).
+- GitHub CI 41369836893: FAIL at terrain.clearingVisuals.test.ts, green-minus-red measured 17 against the previous 8 with a greater-than-18 expectation. Test correction not yet verified.
 - TypeScript, lint, build, and real browser seed/zoom visual acceptance: NOT RUN.
 - Status remains investigating until tests and visual QA confirm the behaviour.

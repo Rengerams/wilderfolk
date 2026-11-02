@@ -27,10 +27,13 @@ const FACTION_IS_FOREIGN: Record<NonNullable<Entity['faction']>, boolean> = {
  * specific faction check `e.faction` themselves afterwards.
  */
 export function isPlayerHuman(e: Entity): boolean {
-  return (
-    e.type === EntityType.Human &&
-    (!e.faction || !FACTION_IS_FOREIGN[e.faction])
-  );
+  return e.type === EntityType.Human && (!e.faction || !FACTION_IS_FOREIGN[e.faction]);
+}
+
+/** A player's witnessed human shift still belongs to them during a temporary Moon Howler form. */
+export function isPlayerHumanShiftOwner(e: Entity): boolean {
+  return isPlayerHuman(e) || (e.type === EntityType.Werewolf && !!e.moonHowlerCursed
+    && !!e.moonHowlerSaved && (!e.faction || !FACTION_IS_FOREIGN[e.faction]));
 }
 
 /**
