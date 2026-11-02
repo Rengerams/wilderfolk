@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Tests (2 November 2026):** Wall-gate replacement fixtures now advance building identity counters after manually inserted walls, preserving valid unique IDs and the original removal assertion.
+
 - **Fixed (2 November 2026):** Worker deltas now preserve the absence of optional grave histories rather than silently materializing empty records, with a roundtrip regression.
 
 - **Fixed (2 November 2026):** New villages start building identity allocation at the same positive floor enforced by the save loader, avoiding an immediate save reload drift.
