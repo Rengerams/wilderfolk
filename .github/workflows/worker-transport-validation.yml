@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Worker source and boundary regression tests
-        run: npx vitest run tests/simDelta.incrementalEntities.test.ts tests/simDelta.storyRoundtrip.test.ts tests/workerBoundary.optionalSaveRoundtrip.test.ts tests/workerDisplayCache.ownership.test.ts tests/renderPacking.aliveRosterParity.test.ts tests/gameWorker.pipelineDepth.test.ts tests/gameWorker.errorLogging.test.ts tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameWorker.profilerStop.test.ts tests/workerMainThread.parity.test.ts tests/renderBufferPool.stress.test.ts
+        run: npx vitest run tests/simDelta.incrementalEntities.test.ts tests/simDelta.storyRoundtrip.test.ts tests/workerBoundary.optionalSaveRoundtrip.test.ts tests/medium-C2-story.test.ts tests/workerDisplayCache.ownership.test.ts tests/renderPacking.aliveRosterParity.test.ts tests/gameWorker.pipelineDepth.test.ts tests/gameWorker.errorLogging.test.ts tests/gameWorker.namePool.dispatchGate.test.ts tests/gameWorker.seed.test.ts tests/gameWorker.profilerStop.test.ts tests/workerMainThread.parity.test.ts tests/renderBufferPool.stress.test.ts
       - name: Render worker 5000 ticks and 1000 command transfers
         env:
           TICKS: '5000'
