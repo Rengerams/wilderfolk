@@ -584,5 +584,19 @@ take ownership away from their leaf implementations. Module-qualified names keep
 | `RenderBufferPool.acquire`, `RenderBufferPool.release`, `RenderBufferPool.availableCount` | `game/simBuffers/renderBufferPool.ts` | Own exact-size render transfer leases, replacement of invalid returns and slot accounting. |
 | `main` (worker stall reproduction) | `scripts/repro-worker-stall.mts` | Drive the real worker, return render leases, wait for export and report performance and buffer diagnostics. |
 | `GameWorkerHost.handleMessage` | `game/simWorker/GameWorkerHost.ts` | Hydrate display-derived caches after command or tick deltas without redundant invalidation. |
-| `extractSimTickDelta`, `applySimTickDelta` | `game/simBuffers/simDelta.ts` | Own the versioned worker delta; full alive entity snapshot replaces the redundant human catalogue subset. |
+| `extractSimTickDelta`, `applySimTickDelta`, `sameSnapshotValue` | `game/simBuffers/simDelta.ts` | Own full/patch entity delta ordering, exact building snapshot comparison, incremental event tails and history revisions; full fallback on session reset. |
 | `packRenderSoA`, `selectRenderEntities` | `game/simBuffers/packRenderSoA.ts` | Reuse the worker's authoritative alive list and render-slot lookup scratch without changing entity priority ordering. |
+
+## Worker performance owners (2 November 2026)
+
+| Function | Sole owner | Responsibility |
+|---|---|---|
+| `initializeHistoryRevisions`, `markHistoryChanged`, `historyRevision` | `game/simBuffers/historyRevisions.ts` | Per-world ephemeral history revisions; actual state writes remain exclusively with their preexisting domain owners. |
+| `tickLayerRealtime` | `game/tickLayerRealtime.ts` | Mark population-history revisions at the existing ten-tick sample pulse. |
+| `gameTick` | `game/gameTick.ts` | Mark yearly-stat revisions only at the authoritative annual turnover. |
+| `advanceValleyChronicle` | `game/valleyChronicle.ts` | Mark chapter revisions when a chapter unlocks, without creating a new scheduler. |
+| `appendVillageRequestHistory` | `game/groupEvents.ts` | Mark the existing bounded village-request history append. |
+| `logDeath`, `assignPendingGraves` | `game/eventLog.ts` | Mark actual grave record additions and burial assignments. |
+| `EntityCatalog.adoptWorldIndex` | `game/entityCatalog.ts` | Borrow the validated live id map and lazily materialize UI type buckets; preserve full rebuild for save/recovery and optimistic commands. |
+| `hydrateWorldRuntimeCaches` | `game/worldRuntimeCaches.ts` | Preserve geometry-only indices on an acknowledged tick with empty building changes, never entity or scent caches. |
+| `allowedTickPipelineDepth`, `GameWorkerHost.canPipelineTick`, `GameWorkerHost.reportWorkerError` | `game/simWorker/GameWorkerHost.ts` | Bound ticks to the pool minus display/command reserves, protect save/upload/command barriers and sample repeated diagnostics. |
