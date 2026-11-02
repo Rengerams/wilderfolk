@@ -1,5 +1,14 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Worker census dispatch race](../bug_report/2026-11-02-worker-census-gate-dispatch-race.md):** Early requests could execute before the asynchronous census load settled. Worker admission now awaits the shared name gate; tests committed, CI pending.
+
+**2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; regression committed, CI pending.
+
+**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; runtime stress not yet run.
+
+**2026-11-02 — [Render pool accepts oversized returns](../bug_report/2026-11-02-render-buffer-pool-accepts-oversize.md):** A larger-than-schema buffer silently entered the fixed-size pool. Exact-length checks and 200,000-cycle regressions committed, CI pending.
+
+
 **2026-11-02 — [Large-tier career audit window too short](../bug_report/2026-11-02-large-population-career-window-too-short.md):** At 1,800 residents the two-day CI run has real accumulated and settled shift hours but no credited career day yet. Large-tier baseline and PR now run a three-day comparison with the strict career-credit check retained; CI pending.
 
 **2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.
