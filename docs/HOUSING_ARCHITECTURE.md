@@ -139,6 +139,10 @@ must not be treated as free.
 Destinations come from `evictionTargets`: completed player homes only — never the manor, never a rival
 camp, never an unfinished site. A settler is unhoused rather than sent somewhere they cannot legally live.
 
+When a home is over its beds the rebalance sheds only `occupancy − capacity` members — adults before
+partners, never a minor or the custodian a remaining minor still needs — instead of unhousing the whole
+household; the homeless phase seats them where beds free.
+
 A jailed settler counts toward the home's occupancy but never moves here: their bed is reserved for their
 return, so the family or unrelated resident who is present carries the shortage instead.
 

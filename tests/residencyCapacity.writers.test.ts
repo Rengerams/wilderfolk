@@ -14,6 +14,7 @@ import { createBuilding, initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { syncPartnerResidence } from '../src/game/housingPipeline';
 import { pickLeastCrowdedResidence } from '../src/game/housingPipeline';
+import { rebalanceOvercrowdedResidences } from '../src/game/housingPipeline';
 import { tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/housingModel';
 import { LIFECYCLE_CONFIG, tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
@@ -189,6 +190,38 @@ describe('a divorce moves a child only into a home that has a bed for them', () 
 
     expect(father.partnerId, 'the fixture did not reach the divorce path').toBeUndefined();
     expect(daughter.residenceBuildingId).toBe(2);
+    expectWithinCapacity(houses, humans);
+  });
+});
+
+describe('an overfull home evicts only the settlers above its bed count', () => {
+  /** Two parents and their adult children, all in one kin group. */
+  function kinGroup(ids: number[], homeId: number): Entity[] {
+    const [firstId, secondId, ...childIds] = ids;
+    const first = settler(firstId, { residenceBuildingId: homeId });
+    const second = settler(secondId, { residenceBuildingId: homeId });
+    first.partnerId = second.id;
+    second.partnerId = first.id;
+    const children = childIds.map((id) => settler(id, {
+      residenceBuildingId: homeId,
+      motherId: first.id,
+      fatherId: second.id,
+    }));
+    first.childrenIds = children.map((child) => child.id);
+    second.childrenIds = children.map((child) => child.id);
+    return [first, second, ...children];
+  }
+
+  it('keeps six in the house and unhouses the one-bed excess', () => {
+    const houses = [residence(1)];
+    // Kin groups of four and three share one six-bed house; no spare home exists.
+    const humans = [...kinGroup([20, 21, 22, 23], 1), ...kinGroup([30, 31, 32], 1)];
+
+    const moved = rebalanceOvercrowdedResidences(humans, houses);
+
+    expect(moved).toBe(true);
+    expect(heldByResidence(humans).get(1)).toBe(getResidenceCapacity(houses[0]));
+    expect(humans.filter((human) => human.residenceBuildingId == null)).toHaveLength(1);
     expectWithinCapacity(houses, humans);
   });
 });

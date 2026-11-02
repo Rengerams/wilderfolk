@@ -582,6 +582,32 @@ function evictionTargets(residences: Building[]): Building[] {
   return listPlayerResidences(residences).filter((home) => !isLeaderHouseResidence(home));
 }
 
+/**
+ * The members an overfull home can shed safely: adults first, singles before partners, never a
+ * minor or the custodian a remaining minor still needs. Undefined when the excess has no safe pick.
+ */
+function selectSurplusMembers(
+  group: readonly Entity[],
+  count: number,
+  humans: Entity[],
+): Entity[] | undefined {
+  const custodians = new Set<number>();
+  for (const member of group) {
+    if (!isMinorChild(member)) continue;
+    const custodian = getChildCustodian(member, humans);
+    if (custodian) custodians.add(custodian.id);
+  }
+  const candidates = group.filter((member) => !isMinorChild(member) && !custodians.has(member.id));
+  if (candidates.length < count) return undefined;
+  const partnered = new Set<number>();
+  for (const member of candidates) {
+    if (candidates.some((other) => other.id === member.partnerId)) partnered.add(member.id);
+  }
+  return [...candidates]
+    .sort((a, b) => Number(partnered.has(a.id)) - Number(partnered.has(b.id)) || a.id - b.id)
+    .slice(0, count);
+}
+
 /** Repair a shortage in order: unrelated residents, whole household, then the father elsewhere. */
 export function rebalanceOvercrowdedResidences(
   humans: Entity[],
@@ -630,7 +656,10 @@ export function rebalanceOvercrowdedResidences(
         const unit = units.find((candidate) => candidate.includes(outsider)) ?? [outsider];
         const surplus = unit.filter((member) => member.residenceBuildingId === residence.id);
         if (surplus.length === 0) continue;
-        if (movePlanned(surplus, 'surplus', alternatives)) moved = true;
+        const excess = Math.max(1, (occupancy.get(residence.id) ?? 0) - cap);
+        const leaving = selectSurplusMembers(surplus, excess, humans) ?? surplus;
+        if (movePlanned(leaving, 'capacity', alternatives)
+          || movePlanned(leaving, 'surplus', alternatives)) moved = true;
         if ((occupancy.get(residence.id) ?? 0) <= cap) break;
       }
       const before = dependentUnit.map((member) => member.residenceBuildingId);
@@ -646,7 +675,14 @@ export function rebalanceOvercrowdedResidences(
     for (const group of groups) {
       if (kept + group.length <= cap) { kept += group.length; continue; }
       if (movePlanned(group, 'capacity', alternatives)) { moved = true; continue; }
-      if (movePlanned(group, 'surplus', alternatives)) moved = true;
+      // No home fits the whole group: shed only the excess, never the whole household.
+      const excess = Math.min(group.length, Math.max(1, kept + group.length - cap));
+      const leaving = selectSurplusMembers(group, excess, humans) ?? group;
+      if (movePlanned(leaving, 'capacity', alternatives)
+        || movePlanned(leaving, 'surplus', alternatives)) {
+        moved = true;
+        kept += group.length - leaving.length;
+      }
     }
   }
   return moved;

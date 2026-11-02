@@ -2,7 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
-<<<<<<< HEAD
+- **Fixed (2 November 2026):** An overfull home now unhouses only the settlers above its bed count, so a one-bed excess no longer empties a whole household and leaves beds unused.
+
 - **Changed (2 November 2026):** Homeless, custody, capacity, surplus, leave-home, commute and couple relocations now share one plan-and-apply decision path; manor seating stays event-driven.
 
 - **Changed (2 November 2026):** The housing entry can resume from an existing run ledger, which pins the end-to-end retry past a refused destination.
@@ -23,8 +24,6 @@
 
 - **Changed (2 November 2026):** Marriage housing now goes through the relocation plan, so a couple and their minors are placed by the same decision path as every other household; only manor moves still decide outside it.
 
-<<<<<<< HEAD
-=======
 - **Fixed (2 November 2026, PR #120 follow-up):** Restored current Virtual Player ownership, schedule and workday registry details after the prior merge accidentally replaced newer main records. The original meal-helper and changelog guard fixes remain.
 
 - **CI (2 November 2026):** Run small- and medium-colony benchmarks for two days and the large-colony benchmark for three on every PR; restore tracked or clean untracked comparison harness files before checkout. Strict real-work credit remains mandatory.
@@ -51,7 +50,6 @@
 
 - **Fixed (29 October 2026):** Worker-owned building upgrades no longer clone the whole colony before changing one building; isolated callers remain protected. Large-save verification pending.
 
->>>>>>> ced993d95dbfbb5425e92c09f170d1a6f8144975
 - **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
 
 - **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
