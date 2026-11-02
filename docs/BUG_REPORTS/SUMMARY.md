@@ -1,5 +1,13 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.
+
+**2026-11-02 — [Reinforced-soil image path case mismatch](../bug_report/2026-11-02-reinforced-soil-case-sensitive-asset.md):** The checked-in sprite is `ground_soil.PNG`, while the preloader and ground renderer requested `.png`. Both readers now use the real filename; CI pending.
+
+**2026-11-02 — [Dialogue registry read-only test outdated](../bug_report/2026-11-02-dialogue-registry-readonly-fixture-outdated.md):** Dialogue content persists scene-choice history. The test no longer incorrectly demands zero state writes; registry ownership stays explicit. CI pending.
+
+**2026-11-02 — [Terrain-clearing pixel test contracts outdated](../bug_report/2026-11-02-terrain-clearing-tests-outdated.md):** Ground masks intentionally respond to grassland overrides, contradicting a legacy bake equality assertion; a second pixel test had an overly strict green threshold. Tests retain actual-change and chunk-seam coverage. CI pending.
+
 **2026-11-01 — [Eight-hour recovery rate mismatches the seven-hour village night](../bug_report/2026-11-01-seven-hour-night-sleep-recovery.md):** A settler asleep from 23:00 through 06:00 recovered only 87.5 rest/stamina points from zero. The existing physiology owner now uses one nightly recovery rate for both reserves. Focused seven-hour regression committed; CI pending.
 
 **2026-11-01 — [Lovers select different overnight locations](../bug_report/2026-11-01-lovers-divergent-tryst-home.md):** The tryst site was computed from actor-local roles, so reversed partner calls could pick different houses and fail to credit real indoor sleep. One pair-stable site selection and a single sleep observation now govern both actors. Pair-order and indoor regressions committed; CI pending.
