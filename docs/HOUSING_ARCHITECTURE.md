@@ -486,6 +486,17 @@ optimized run uses the production sweep.
 Sweep timings, not frame rates or a colony-balance verdict. Both runs keep school-reach checking, the
 route-search budget, candidate order, tie-breaking and the improvement margins.
 
+**Measured 2026-11-02 (T4/P6), seed 12345, 120 post-warmup ticks of the full game tick:**
+
+| Settlers | avg | p95 | max |
+|---|---:|---:|---:|
+| 600 | 25.4 ms | 50.1 ms | 64.5 ms |
+| 1,200 | 97.5 ms | 196.8 ms | 219.1 ms |
+| 2,400 | 422.3 ms | 795.2 ms | 851.8 ms |
+
+The isolated relocation sweep's assignment hash is identical between the reference and production
+loops at 600 and 1,200 settlers (spare homes 0/20 and 0/40, moves 0/6).
+
 ```sh
 docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF_RELOCATION_REFERENCE=1 -e PERF_POPS=600,1200,2400 web npx tsx scripts/perf-at-pop.ts
 docker compose -f docker-compose.base44.yml exec -T -e PERF_RELOCATION=1 -e PERF_POPS=600,1200,2400 web npx tsx scripts/perf-at-pop.ts
