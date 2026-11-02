@@ -176,6 +176,7 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
     const spot = findBuildableStripSpot(state);
     const wall = building(1, BuildingType.Wall, spot.x, spot.y);
     state.buildings = [wall];
+    state.nextBuildingId = Math.max(state.nextBuildingId, wall.id + 1);
     state.resources.wood = 200;
     state.resources.stone = 200;
     state.resources.gold = 200;
