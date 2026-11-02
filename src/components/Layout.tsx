@@ -9,7 +9,7 @@ type NavItem = {
   pad: string
   label: string
   icoon: IcoonNaam
-  groep: "Overzicht" | "Klanten" | "Programma" | "Geld" | "Beheer"
+  groep: "Overzicht" | "Klanten" | "Evenementen" | "Geld" | "Beheer"
   recht?: [string, "zien"]
   module?: string
 }
@@ -20,11 +20,11 @@ const NAV: NavItem[] = [
   { pad: "/assistent", label: "Assistent", icoon: "assistent", groep: "Overzicht", module: "ai_assistent" },
   { pad: "/deelnemers", label: "Deelnemers", icoon: "deelnemers", groep: "Klanten", recht: ["deelnemers", "zien"] },
   { pad: "/groepjes", label: "Groepjes", icoon: "groepjes", groep: "Klanten", recht: ["groepjes", "zien"] },
-  { pad: "/programma", label: "Programma", icoon: "programma", groep: "Programma", recht: ["programma", "zien"] },
-  { pad: "/opgave", label: "Beschikbaarheid", icoon: "opgave", groep: "Programma", recht: ["opgave", "zien"] },
-  { pad: "/indeling", label: "Indeling", icoon: "indeling", groep: "Programma", recht: ["indeling", "zien"] },
-  { pad: "/bellijst", label: "Bellijst", icoon: "bellijst", groep: "Programma", recht: ["reservelijst", "zien"] },
-  { pad: "/vervoer", label: "Vervoer", icoon: "vervoer", groep: "Programma", recht: ["vervoer", "zien"] },
+  { pad: "/programma", label: "Programma", icoon: "programma", groep: "Evenementen", recht: ["programma", "zien"] },
+  { pad: "/opgave", label: "Beschikbaarheid", icoon: "opgave", groep: "Evenementen", recht: ["opgave", "zien"] },
+  { pad: "/indeling", label: "Indeling", icoon: "indeling", groep: "Evenementen", recht: ["indeling", "zien"] },
+  { pad: "/bellijst", label: "Bellijst", icoon: "bellijst", groep: "Evenementen", recht: ["reservelijst", "zien"] },
+  { pad: "/vervoer", label: "Vervoer", icoon: "vervoer", groep: "Evenementen", recht: ["vervoer", "zien"] },
   {
     pad: "/declaraties",
     label: "Declaraties",
@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { pad: "/hulp", label: "Hulp", icoon: "hulp", groep: "Beheer" },
 ]
 
-const GROEPEN = ["Overzicht", "Klanten", "Programma", "Geld", "Beheer"] as const
+const GROEPEN = ["Overzicht", "Klanten", "Evenementen", "Geld", "Beheer"] as const
 
 function FeedbackKnop() {
   const { gebruiker } = useAuth()
