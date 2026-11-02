@@ -144,8 +144,11 @@ describe('main-thread fallback tick rollback (P-3)', () => {
     const frameBody = (loop as unknown as { frameBody: (time: number) => void }).frameBody.bind(loop);
 
     frameBody(1000);
+    const heldTime = internals.tickAccumulator;
     frameBody(2000);
+    expect(internals.tickAccumulator).toBe(heldTime);
     frameBody(3000);
+    expect(internals.tickAccumulator).toBe(heldTime);
 
     // One attempt per frame — never the same accumulated tick retried up to MAX_CATCHUP_STEPS
     // times — and the partial tick it applied is gone.
@@ -159,5 +162,13 @@ describe('main-thread fallback tick rollback (P-3)', () => {
       String(call[0]).includes('Main-thread tick failed'),
     );
     expect(reports).toHaveLength(1);
+
+    vi.mocked(gameTick).mockImplementation((world: WorldState) => {
+      world.tick += 1;
+      return world;
+    });
+    frameBody(4000);
+    expect(loop.getWorld().tick).toBe(before.tick + 1);
+    expect(internals.tickAccumulator).toBe(heldTime - 1000);
   });
 });
