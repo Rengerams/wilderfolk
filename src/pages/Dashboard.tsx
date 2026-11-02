@@ -107,10 +107,6 @@ export function Dashboard() {
               Deelnemer zoeken
             </Link>
           )}
-          <Link className="knop knop--met-icoon" to="/hulp">
-            <Icoon naam="hulp" />
-            Hulp
-          </Link>
         </div>
       </section>
 
