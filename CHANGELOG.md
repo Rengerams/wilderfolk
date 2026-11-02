@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** The performance profile analyzer now reports GC, native and loader time, the caller chain behind each self-time leader, call edges, per-step breakdowns with a --root drill-down, and line hotspots when the profile has them.
+
 - **Changed (2 November 2026):** The daily worker rebalance now reuses the assignment index count instead of rescanning the colony per workplace, cutting the staffing pass at 2,000 settlers from ~0.93 s to ~0.20 s.
 
 - **Changed (2 November 2026):** Loading a large colony now builds one kin index per housing unit instead of parent arrays for every comparison, cutting a 2,000-settler save's load by about a quarter.
