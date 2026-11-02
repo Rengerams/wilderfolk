@@ -1406,7 +1406,10 @@ describe('virtual player remaining action surface', () => {
         ...occupants.map((id) => human(id, { residenceBuildingId: 1 })),
         human(7),
       ],
-      [building(1, BuildingType.House, { occupants })],
+      [
+        building(1, BuildingType.House, { occupants }),
+        building(5, BuildingType.FishingSpot, { x: 400, y: 200 }),
+      ],
       { worldMap: unbuildableWorldMap() },
     );
 
