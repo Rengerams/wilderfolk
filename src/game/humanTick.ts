@@ -1,4 +1,3 @@
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, WORK_COMMUTE_RUSH } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, JobType, Season } from './gameTypes';
@@ -32,7 +31,7 @@ import {
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
 import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
-import { hasResidenceAssignment, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
+import { hasResidenceAssignment, isAdult, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -1345,7 +1344,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isPlayerHuman(entity) &&
       !entity.isJuvenile &&
       entity.gender &&
-      entity.age >= HUMAN_ADULT_MIN_AGE &&
+      isAdult(entity) &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
       isMarriedOrExpecting &&

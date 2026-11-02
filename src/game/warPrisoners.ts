@@ -13,7 +13,7 @@ import { clearWorkerAssignment } from './workforce';
 import { moveResident, assignMissingResidences } from './housingPipeline';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { isAdult } from './housingModel';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { initialHumanNeeds } from './simulation/humanPhysiology';
@@ -36,7 +36,7 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
   let availableEscorts = escorts;
   const candidates = state.entities.filter((person) => person.alive && person.faction === 'rival'
     && person.type === EntityType.Human && person.job === JobType.Soldier && !person.isJuvenile
-    && person.age >= HUMAN_ADULT_MIN_AGE && rival.entityIds.includes(person.id) && !person.warCaptive);
+    && isAdult(person) && rival.entityIds.includes(person.id) && !person.warCaptive);
   for (const person of candidates) {
     if (availableEscorts <= 0 || rival.population <= 1) break;
     const prison = state.buildings.find((building) => building.type === BuildingType.Prison && building.completed

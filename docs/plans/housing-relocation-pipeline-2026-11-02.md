@@ -1,12 +1,12 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
-**Status (2026-11-02).** Implementation: **P0a, P0, P1, P2, P3 and P4 are finished**
-(`d37efff9`, `98c0f393`, `508c1f2f`/`029ef61f`, `6cc9a80c`/`185f6205`, then P3/P4). **P5 is
-finished except the §7 adult-rule owner**: `isAssignableHome` gates every housing picker, list,
+**Status (2026-11-02).** Implementation: **P0a, P0, P1, P2, P3, P4 and P5 are finished**
+(`d37efff9`, `98c0f393`, `508c1f2f`/`029ef61f`, `6cc9a80c`/`185f6205`, then P3/P4). P5:
+`isAssignableHome` gates every housing picker, list,
 diagnostic and population read; the rival literals are gone from the housing paths; L3/L5/L9 and the
 single protection count are fixed; the manor allowlist is one constant; T3 is done; the `dayCycle`
-housing barrel was removed concurrently in `71422ede`. Still open: one `isMinor`/`isAdult` owner
-replacing 28 hand-rolled comparisons. **P6 and P7 are finished**: the full tick is 25/98/422 ms avg at 600/1 200/2 400 settlers, the 5 s
+housing barrel was removed concurrently in `71422ede`; `isMinor`/`isAdult` now own the age rule
+(the §7 item: 28 hand-rolled comparisons replaced). **P6 and P7 are finished**: the full tick is 25/98/422 ms avg at 600/1 200/2 400 settlers, the 5 s
 ceiling is `PERF_DAY_BOUNDARY`, the 30/360-day report records 283 moves, 1 920 homeless-days and 13.48
 moves/household-year, and the relocation hash is identical to the reference at 600/1 200. Test plan: **T0–T4 are done**; T1 uses an existing-ledger seam to pin the end-to-end refusal retry. Manor seating is event-driven by design.
 **Target version:** V.0.6.5.2.
@@ -594,7 +594,7 @@ Each work package is one commit, green on its own, and revertable alone.
 | **P2** | **custody**, **capacity**, **surplus** — **done** | P1 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | 'custody', 'capacity' and 'surplus' plans; capacity ranks and retries before surplus; surplus only unhouses with no destination; orphan placement uses the custody need; 18-case contract suite; L7 still open (filed) |
 | **P3** | **leave-home**, **commute**; delete the old predicate — **done** | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | leave-home, commute and couple plan; L1/L7 fixed; `housingUnitNeedsReassignment` removed from the public surface (private `unitNeedsMove`), its 3 test imports rewritten to planner outcomes; the sort keeps the need check (F6 accepted as the correctness cost, P6 redesign) |
 | **P4** | Event triggers through the pipeline — **done** | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` | marriage plans through the couple need; a leader's death clears the office (family keeps the manor); divorce keeps the betrayed spouse and children, the cheater leaves alone, the one-hop reshuffle is removed; amicable divorce follows the custody hash; event suites green |
-| **P5** | One rule, one context, one arena — **done except the adult owner** | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` | `isAssignableHome` everywhere; rival literals removed; L3/L5/L9 fixed; `protectedUnits` once; manor allowlist one constant; diagnostics reads owners; T3 done; `dayCycle` barrel removed in `71422ede`; remaining: one `isMinor`/`isAdult` owner replacing 28 hand-rolled comparisons |
+| **P5** | One rule, one context, one arena — **done** | P4 | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, `populationGrowth.ts` | `isAssignableHome` everywhere; rival literals removed; L3/L5/L9 fixed; `protectedUnits` once; manor allowlist one constant; diagnostics reads owners; T3 done; `dayCycle` barrel removed in `71422ede`; the §7 age rule lives in the model (`isMinor`/`isAdult`) |
 | **P6** | Perf: one build per run, pass count at scale — **done** | P5 | `housingPipeline.ts`, `housingModel.ts` | one unit index per run; occupancy/traits threaded through capacity; `stats.passes` is 1 on the stuck fixture; full tick 25/98/422 ms avg at 600/1 200/2 400; F6 stays accepted as the 2× predicate cost |
 | **P7** | Registers, docs, benchmark, CI — **done** | P6 | same | pipeline decision rows present; registry `testFile` lists the housing suites; architecture records the plan contract and the 2026-11-02 numbers; changelog entries; relocation hash identical at 600/1 200 |
 

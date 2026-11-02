@@ -7,7 +7,7 @@ import {
   WEREWOLF_HOWL_LINES,
 } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { isAdult } from './housingModel';
 import {
   isProductionTick,
   EVENT_INTERVAL,
@@ -278,7 +278,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
       }
 
       // 3. Growth transitions
-      if (entity.isJuvenile && entity.age >= HUMAN_ADULT_MIN_AGE) {
+      if (entity.isJuvenile && isAdult(entity)) {
         entity.isJuvenile = false;
         entity.size = SPECIES_CONFIG[entity.type].size;
         entity.speed = SPECIES_CONFIG[entity.type].speed;

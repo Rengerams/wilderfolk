@@ -41,6 +41,16 @@
         "tests/leaderHouse.moonHowlerChurn.test.ts",
         "tests/housingPlanner.contract.test.ts"
       ]
+    },
+    {
+      "key": "src/game/simulation/humanRelationships.ts:1286:isEligibleToCourt@a69c59697cf77383f8438b1fece7078787a8bfa05e4179635cc4043e1dcb02db <-> src/game/simulation/humanRelationships.ts:529:isEligibleForYouthLove@37ca3a01958f74dea5e25380174a359b4fdf66303f934575d1c00b89b00fbb3f",
+      "reason": "Two disjoint age windows with different contracts: youth love is the 12-17 band (YOUTH_LOVE_MIN_AGE, minor, gender required, no courtship cooldown) while courtship is 18+ (adult, lifespan cap, cooldown). They share the necessary available-single conditions (alive, player, no partner, single status, no youth partner, not pregnant, not imprisoned), but merging would either admit minors to courtship or block youth love. Each has its own gate, and the handoff from youth love to courtship is pinned separately.",
+      "tests": [
+        "tests/citizenOverview.youthLove.test.ts",
+        "tests/youthLove.handoff.test.ts",
+        "tests/courtship.exclusivity.test.ts",
+        "tests/courtship.churchRestraint.test.ts"
+      ]
     }
   ]
 }

@@ -7,7 +7,7 @@ import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isMarriedOrExpecting } from './civilStatus';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { isAdult } from './housingModel';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 
 export type KinRelation =
@@ -248,9 +248,8 @@ function otherParentIdOfChild(child: Entity, parentId: number): number | undefin
 
 function childRelation(child: Entity): KinRelation {
   if (child.isBastard) return 'bastard_child';
-  // Age, not `isJuvenile`. The flag's boundary is ``, which is the adult floor
-  // itself; asking the ladder's own constant keeps this label one source of truth.
-  return child.age >= HUMAN_ADULT_MIN_AGE ? 'adult_child' : 'child';
+  // Age, not `isJuvenile`: the household owner's adult rule is the one boundary.
+  return isAdult(child) ? 'adult_child' : 'child';
 }
 
 function iconFor(relation: KinRelation, gender?: 'male' | 'female'): string {
@@ -746,7 +745,7 @@ function childLabel(person: Entity): string {
   const relation = childRelation(person);
   if (relation === 'child') return RELATION_LABEL.child;
   if (relation === 'adult_child') return RELATION_LABEL.adult_child;
-  return person.age >= HUMAN_ADULT_MIN_AGE ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
+  return isAdult(person) ? 'Adult child · outside wedlock' : 'Child · outside wedlock';
 }
 
 /** The small portrait glyph for one person on the tree, from their own life stage. */

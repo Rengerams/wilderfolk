@@ -2,13 +2,12 @@ import { EntityType, LEADER_OCCUPATION, BuildingType } from './gameTypes';
 import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './housingModel';
-import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
+import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdult, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
 import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 
 export type ResidenceMoveReason = 'assignment' | 'family' | 'guardian' | 'commute' | 'leader'
   | 'departure' | 'birth' | 'death' | 'demolition' | 'load' | 'moon-form' | 'divorce' | 'prison' | 'player';
@@ -1173,7 +1172,7 @@ function listVillageSingleAdults(humans: Entity[]): Entity[] {
       h.alive
       && isPlayerHuman(h)
       && !h.isJuvenile
-      && h.age >= HUMAN_ADULT_MIN_AGE
+      && isAdult(h)
       && !isImprisoned(h)
       && h.occupation !== LEADER_OCCUPATION,
   );
@@ -1688,9 +1687,12 @@ function unitNeedsMove(
     const guardian = child ? getChildCustodian(child, alive) : undefined;
     const core = guardian ? unit.filter((member) => member.id === guardian.id || isMinorChild(member)) : [];
     const coreTogether = core.length > 1 && core.every((member) => member.residenceBuildingId === guardian?.residenceBuildingId);
-    const coreCannotFit = guardian?.residenceBuildingId != null
-      || pickResidenceForFamily(core, alive, residences, occupancy, traits) === undefined;
-    const stableShortage = coreTogether && coreCannotFit
+    const guardianKeepsBed = guardian?.residenceBuildingId != null;
+    // The core is anchored when its guardian has a bed, or when no home can take the core.
+    const coreHasNoAlternative = !guardianKeepsBed
+      && pickResidenceForFamily(core, alive, residences, occupancy, traits) === undefined;
+    const coreIsAnchored = guardianKeepsBed || coreHasNoAlternative;
+    const stableShortage = coreTogether && coreIsAnchored
       && pickResidenceForFamily(unit, alive, residences, occupancy, traits) === undefined;
     return !stableShortage;
   }

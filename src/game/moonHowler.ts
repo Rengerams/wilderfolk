@@ -9,12 +9,12 @@ import {
   WEREWOLF_TAME_LINES,
 } from './gameTypes';
 import {
-  HUMAN_ADULT_MIN_AGE,
   isFullMoonDay,
   isFullMoonNight,
   NIGHT_END,
   MOON_HOWLER_NIGHT_START,
 } from './daycycleconstants';
+import { isAdult } from './housingModel';
 import {
   isStartOfClockHour,
   killHuman,
@@ -183,7 +183,7 @@ export function isMoonHowlerCureWindow(colonyDay: number, hourOfDay: number): bo
 }
 
 export function isMoonHowlerEligible(entity: Entity): boolean {
-  return !entity.isJuvenile && entity.age >= HUMAN_ADULT_MIN_AGE;
+  return !entity.isJuvenile && isAdult(entity);
 }
 
 export function canMoonHowlerCurse(entity: Entity): boolean {
@@ -191,7 +191,7 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
     entity.alive
     && isPlayerHuman(entity)
     && !entity.isJuvenile
-    && entity.age >= HUMAN_ADULT_MIN_AGE
+    && isAdult(entity)
     && !entity.moonHowlerCursed
   );
 }

@@ -4,6 +4,7 @@ import { TICKS_PER_HOUR } from './dayCycle';
 import { isWorkDay } from './dayCycleClock';
 import { SCHOOL_MIN_AGE } from './gameConstants';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { isMinor } from './housingModel';
 import { writableEntitySkills } from './skills';
 import { addNotification } from './simEffects';
 import { citizenFullName } from './citizenId';
@@ -424,7 +425,7 @@ export function formatEducationLabel(entity: Pick<Entity, 'isJuvenile' | 'school
 
 export function applyEducationGraduation(state: WorldState, entity: Entity): void {
   // Schooling may accrue throughout ages 6–17, but graduation is adulthood-only.
-  if (entity.age < HUMAN_ADULT_MIN_AGE || entity.isJuvenile) return;
+  if (isMinor(entity) || entity.isJuvenile) return;
   const days = entity.schoolDays ?? 0;
   const tier = getEducationTier(days);
   if (tier === 0) return;

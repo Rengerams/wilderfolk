@@ -149,5 +149,7 @@ age >= …` comparisons** (e.g. `listVillageSingleAdults`, `apprenticeships`, `d
 three ways. One owner (`isMinor`/`isAdult` in the household model) should replace the hand-rolled
 comparisons in P5; the new tests must call the owner, never the field.
 
-**Status 2026-11-02:** still open. Measured in `src` + `tests`: 28 `isMinorChild(`, 229 `.isJuvenile`,
-92 `HUMAN_ADULT_MIN_AGE`, and 28 hand-rolled adult comparisons in `src`.
+**Status 2026-11-02:** resolved. `isMinor`/`isAdult` live in the household model as the one age rule;
+the 28 hand-rolled adult comparisons are gone (the `isJuvenile` flag writer and an apprenticeship age
+bound remain by design), and `tests/housingModel.adultRule.test.ts` pins the stale-flag and
+emancipation cases.

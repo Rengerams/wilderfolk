@@ -2,7 +2,7 @@ import { EntityType, JobType } from './gameTypes';
 import type { Entity, WorldState } from './gameTypes';
 
 import { HUMAN_ADULT_MIN_AGE,HUMAN_VENERABLE_AGE } from './daycycleconstants';
-import { hasWorkAssignment } from './housingModel';
+import { hasWorkAssignment, isAdult, isMinor } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
 import {
   DAYS_PER_YEAR,
@@ -81,7 +81,7 @@ export function tryGraduateHumanChild(
   adultSpeed: number,
   onGraduate?: (entity: Entity) => void,
 ): boolean {
-  if (!entity.isJuvenile || entity.age < HUMAN_ADULT_MIN_AGE) return false;
+  if (!entity.isJuvenile || isMinor(entity)) return false;
   entity.isJuvenile = false;
   entity.size = adultSize;
   entity.speed = adultSpeed;
@@ -212,7 +212,7 @@ export function syncHumanAgeFromCalendar(
 export function repairJuvenileAssignmentsOnLoad(world: WorldState): void {
   for (const entity of world.entities ?? []) {
     if (entity.type !== EntityType.Human) continue;
-    if (entity.age >= HUMAN_ADULT_MIN_AGE) continue;
+    if (isAdult(entity)) continue;
     entity.isJuvenile = true;
     // Children cannot retain work attendance or fatigue from invalid legacy assignments.
     entity.scheduleWorkedTicksToday = 0;
@@ -380,7 +380,7 @@ export function migrateHumanAges(
       human.maxAge = HUMAN_MAX_LIFESPAN_YEARS;
       human.age = ageYears;
     }
-    if (human.isJuvenile && human.age >= HUMAN_ADULT_MIN_AGE) {
+    if (human.isJuvenile && isAdult(human)) {
       human.isJuvenile = false;
     }
   }
