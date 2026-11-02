@@ -37,7 +37,6 @@ import {
   syncPartnerResidence,
   killHuman,
   shareResidence,
-  shouldBeAtHome,
   getFemaleFertility,
   getOldAgeDeathChance,
   ticksForDays,
@@ -291,7 +290,7 @@ export function isValidAffairTrystSite(
   entityById: Map<number, Entity>,
   buildingById: Map<number, Building>,
   intimateDist = AFFAIR_BUILDING_NEAR_RADIUS,
-  hourOfDay?: number,
+  _hourOfDay?: number,
 ): boolean {
   if (!cheater.alive || !paramour.alive) return false;
 
