@@ -607,7 +607,7 @@ export function initGame(options: InitGameOptions = {}): WorldState {
     width,
     height,
     nextEntityId: 0,
-    nextBuildingId: 0,
+    nextBuildingId: 1,
     nextFloatingTextId: 0,
     paused: false,
     speed: 1,
