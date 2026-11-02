@@ -17,6 +17,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { pad: "/", label: "Vandaag", icoon: "vandaag", groep: "Overzicht" },
   { pad: "/start", label: "Aan de slag", icoon: "start", groep: "Overzicht" },
+  { pad: "/rapportage", label: "Rapportage", icoon: "rapportage", groep: "Overzicht", recht: ["rapportage", "zien"] },
   { pad: "/assistent", label: "Assistent", icoon: "assistent", groep: "Overzicht", module: "ai_assistent" },
   { pad: "/deelnemers", label: "Deelnemers", icoon: "deelnemers", groep: "Klanten", recht: ["deelnemers", "zien"] },
   { pad: "/groepjes", label: "Groepjes", icoon: "groepjes", groep: "Klanten", recht: ["groepjes", "zien"] },

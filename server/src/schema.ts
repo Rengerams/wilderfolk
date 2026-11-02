@@ -338,6 +338,14 @@ values (
   true
 )
 on conflict (naam) do nothing;
+
+-- Rapportage is later toegevoegd. Rollen die het wijzigingsoverzicht mogen zien,
+-- krijgen het rapportagescherm er automatisch bij; de beheerder kan het per rol
+-- daarna weer uitzetten.
+update rollen
+   set rechten = rechten || '{"rapportage":{"zien":true,"aanmaken":true,"wijzigen":true,"verwijderen":true}}'::jsonb
+ where rechten ? 'logboek'
+   and not (rechten ? 'rapportage');
 `;
 
 /** Alle onderdelen waarop rechten per rol ingesteld kunnen worden. */
@@ -354,6 +362,7 @@ export const RECHTEN_ONDERDELEN: { sleutel: string; naam: string; module?: strin
   { sleutel: "gebruikers", naam: "Gebruikers" },
   { sleutel: "rollen", naam: "Rollen en rechten" },
   { sleutel: "logboek", naam: "Wijzigingsoverzicht" },
+  { sleutel: "rapportage", naam: "Rapportage" },
   { sleutel: "modules", naam: "Functies" },
   { sleutel: "feedback", naam: "Feedback" },
 ]

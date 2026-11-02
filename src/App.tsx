@@ -20,6 +20,7 @@ import { Modules } from "./pages/Modules"
 import { Opgave } from "./pages/Opgave"
 import { PeriodeDetail } from "./pages/Periode"
 import { Programma } from "./pages/Programma"
+import { Rapportage } from "./pages/Rapportage"
 import { Tutorial } from "./pages/Tutorial"
 import { Logboek } from "./pages/Logboek"
 import { Rollen } from "./pages/Rollen"
@@ -67,6 +68,7 @@ export function App() {
           <Route path="/vervoer" element={<Vervoer />} />
           <Route path="/declaraties" element={<Declaraties />} />
           <Route path="/kas" element={<Kas />} />
+          <Route path="/rapportage" element={<Rapportage />} />
           <Route path="/gebruikers" element={<Gebruikers />} />
           <Route path="/rollen" element={<Rollen />} />
           <Route path="/modules" element={<Modules />} />

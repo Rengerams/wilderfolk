@@ -11,6 +11,7 @@ import { geldRouter, voertuigenRouter } from "./routes/geld"
 import { groepjesRouter } from "./routes/groepjes"
 import { opgaveRouter } from "./routes/opgave"
 import { programmaRouter } from "./routes/programma"
+import { rapportageRouter } from "./routes/rapportage"
 
 const app = express()
 app.set("trust proxy", true)
@@ -128,6 +129,7 @@ app.use(
   geldRouter,
 )
 app.use("/api/voertuigen", poort("vervoer"), voertuigenRouter)
+app.use("/api/rapportage", poort("rapportage"), rapportageRouter)
 app.use("/api", beheerRouter)
 
 app.use((req, res) => {

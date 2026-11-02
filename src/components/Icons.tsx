@@ -120,6 +120,14 @@ const PADEN: Record<string, ReactNode> = {
       <path d="M12 17h.01" />
     </>
   ),
+  rapportage: (
+    <>
+      <path d="M4 19.5h16" />
+      <rect x="6" y="11" width="3.2" height="6" rx="1" />
+      <rect x="11.4" y="7" width="3.2" height="10" rx="1" />
+      <rect x="16.8" y="13.5" width="3.2" height="3.5" rx="1" />
+    </>
+  ),
   klok: (
     <>
       <circle cx="12" cy="12" r="8.8" />
