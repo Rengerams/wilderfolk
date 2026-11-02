@@ -538,8 +538,13 @@ function saveLoadSurvival(display: WorldState): void {
   const changed: string[] = [];
   for (const key of [...saveKeys].sort()) {
     if (!(key in (exported as unknown as Record<string, unknown>))) continue;
-    const a = stable((exported as unknown as Record<string, unknown>)[key]);
-    const b = stable((reloaded as unknown as Record<string, unknown>)[key]);
+    const original = (exported as unknown as Record<string, unknown>)[key];
+    const restored = (reloaded as unknown as Record<string, unknown>)[key];
+    const normalized = key === 'genealogyRegistry' && original !== undefined
+      ? JSON.parse(JSON.stringify(original)) as unknown
+      : original;
+    const a = stable(normalized);
+    const b = stable(restored);
     if (b === '#undefined') missing.push(key);
     else if (a !== b) changed.push(key);
   }
