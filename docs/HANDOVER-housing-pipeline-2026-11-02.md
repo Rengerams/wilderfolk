@@ -81,7 +81,8 @@ drifted; these were the numbers at the time.
   (7 people in 6 beds → 6 housed, 1 unhoused). `selectSurplusMembers` sheds only the excess, adults before
   partners, never a minor or a remaining minor's custodian.
 - **OPEN — Churn:** 13.48 moves/household-year and 117 repeat moves at 360 days is high; the T4 harness is
-  the place to investigate (event triggers vs capacity refill).
+  the place to investigate (event triggers vs capacity refill). A dev-only relocation monitor now lists the
+  recent moves, households, repeats, phases and reasons in the performance panel (`69d3ed5f`).
 - **✅ finished (2026-11-02, `35893a82`):** T3 capacity table — the behaviour table
   (`tests/housingCapacity.table.test.ts`) and the no-overfill invariant pin the mutation; the remaining
   checklist items (prisoner count, visited check, sync skip) were run and caught.
