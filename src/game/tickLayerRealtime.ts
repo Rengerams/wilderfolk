@@ -36,6 +36,7 @@ import { tickElectionCeremony } from './villageLeadership';
 import { findPlayerTownHall } from './playerTownHall';
 import { addBigNews, addNotification, impulseScreenShake } from './simEffects';
 import { getEcosystemHealth } from './dailyEcology';
+import { markHistoryChanged } from './simBuffers/historyRevisions';
 
 /** How often we sample world metrics into populationHistory. */
 export const STATS_SAMPLE_INTERVAL_TICKS = 10;
@@ -216,6 +217,7 @@ export function tickLayerRealtime(state: WorldState, ctx: TickContext): void {
     };
 
     state.populationHistory.push(snapshot);
+    markHistoryChanged(state, 'populationHistory');
     if (state.populationHistory.length > POPULATION_HISTORY_MAX) {
       state.populationHistory.shift();
     }
