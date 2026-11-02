@@ -50,6 +50,7 @@ import type { WorldState } from '../src/game/gameTypes';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
 import { getResidenceCapacity, isResidenceBuilding } from '../src/game/housingModel';
+import { buildHousingUnits } from '../src/game/housingPipeline';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import {
   collectHousingDiagnostics,
@@ -177,6 +178,7 @@ interface RunCounters {
   /** Housing stability: settlers who changed home, and those moved again in the next window. */
   housingRelocations: number;
   housingRepeatMoves: number;
+  homelessDays: number;
 }
 
 const counters: RunCounters = {
@@ -189,6 +191,7 @@ const counters: RunCounters = {
   botByOp: {},
   housingRelocations: 0,
   housingRepeatMoves: 0,
+  homelessDays: 0,
 };
 
 /** The world the running attempt owns, so a failure still leaves its event-log trace on disk. */
@@ -284,6 +287,9 @@ function sumDiagnostics(
  * health record goes to the JSONL log (and to stdout with --verbose).
  */
 function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall: ColonyStallVerdict): string {
+  const households = buildHousingUnits(world.entities).length;
+  const years = Math.max(health.day / 360, 1 / 360);
+  const movesPerHouseholdYear = counters.housingRelocations / Math.max(1, households) / years;
   return [
     `[colony] day ${health.day}`,
     `tick ${health.tick}`,
@@ -300,6 +306,8 @@ function checkpointSummary(health: ColonyHealthReport, world: WorldState, stall:
     `beds=${health.housing.occupiedBeds}/${health.housing.totalBeds}`,
     `homeless=${health.housing.homelessPlayerHumans}`,
     `relocations=${counters.housingRelocations}`,
+    `movesPerHouseholdYear=${movesPerHouseholdYear.toFixed(2)}`,
+    `homelessDays=${counters.homelessDays}`,
     `repeatMoves=${counters.housingRepeatMoves}`,
     `working=${health.workforce.working}`,
     `idle=${health.workforce.idle}`,
@@ -514,6 +522,7 @@ function run(): void {
     const deltas = sampleDelta(world);
     if (deltas.serializeMs > SERIALIZATION_SPIKE_MS) counters.serializationSpikes += 1;
     const health = observer.observe(day, deltas, invariantErrors);
+    counters.homelessDays += health.housing.homelessPlayerHumans * CHECKPOINT_INTERVAL_DAYS;
     healthObserved.push(health);
     // Evaluated from the observations so far, so a stalled colony is named at the checkpoint it
     // first reads as stalled rather than only at the end of the run.

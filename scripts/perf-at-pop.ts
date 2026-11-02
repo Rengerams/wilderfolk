@@ -316,7 +316,11 @@ async function main() {
       { ...DEFAULT_CITY_TARGETS, playerHumans: countPlayerHumans(state) },
       false,
     );
-    if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
+    if (process.env.PERF_DAY_BOUNDARY === '1' && report.maxMs > 5000) {
+      console.error(`day-boundary ceiling exceeded: ${report.maxMs.toFixed(0)} ms`);
+      process.exitCode = 1;
+    }
+  if (REPORT) writeFileSync(REPORT, JSON.stringify({ version: 2, node: process.version, platform: process.platform, arch: process.arch, seed: SEED, fullSim, profiling: PROFILE, createdAt: new Date().toISOString(), save: basename(savePath), reports: benchmarkReports }, null, 2) + '\n');
     return;
   }
 

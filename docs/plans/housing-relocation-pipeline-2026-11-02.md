@@ -4,9 +4,10 @@
 (`6cc9a80c`/`185f6205`) and **P3 are complete**: leave-home, commute and couple plan; L1/L7 fixed; the
 public needs predicate is retired; F6 (the sort's second predicate call) is accepted as a correctness
 cost and left for the P6 occupancy-version design. **P4 is complete.** **P5 is in progress**: `isAssignableHome` is the one eligibility gate, L3/L5/L9 are
-fixed (traits vs beds, protection counted once, pair count once), and T3 retired the internal housing
-tests (35→34 files, 171→165 tests). Remaining: the rival literals and alias cleanup. Manor seating is
-event-driven (start/election) by design.
+fixed, and T3 retired the internal housing tests (35→34 files, 171→165 tests). **T4 harness is done**:
+the 5 s ceiling moved to `PERF_DAY_BOUNDARY` (600-settler max 107.6 ms), and the 30/360-day report
+records moves, homeless-days and churn (13.48 moves/household-year). Remaining P5: rival literals and
+alias cleanup. Manor seating stays event-driven by design.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.

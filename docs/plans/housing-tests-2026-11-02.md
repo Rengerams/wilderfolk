@@ -3,7 +3,7 @@
 **Status:** P0a is committed as `d37efff9`; P1 as `98c0f393`; the audit fixes (fill regression,
 exhaustive retry, report origin, shared building predicate, shortage semantics, stats) and the
 contract suite are in the working tree. Everything else is scheduled against the pipeline plan.
-**Baseline:** 34 housing files / 165 tests on the P5 tree (T3 retirement). T0 `95ca783a` — 34 files / 148 tests,
+**Baseline:** 34 housing files / 165 tests on the P5 tree (T3 retirement). T4 harness: 600-settler max tick 107.6 ms; 360-day churn 13.48 moves/household-year. T0 `95ca783a` — 34 files / 148 tests,
 15.73 s. Pre-T0 `58ca1793` — 33 files / 141 tests, 19.33 s.
 
 ---
@@ -127,7 +127,7 @@ settlers on twelve checked by hand). Report: `docs/bug_report/2026-11-02-housing
 | **T1** | P0a done; P1 contract landed | rebuild the end-to-end refused-destination fixture lost when the generator moved to `simRng` (the planner-level refusal case is landed) | 35 suites / 154 tests green; seed-independent refusal fixture passes; input-order property landed |
 | **T2** | P3 | delete the `housingUnitNeedsReassignment` tests (3 files) and rewrite them as plan-level cases | invariants + contract green |
 | **T3** | P5 | retired the ledger/protection/purity assertions and the occupant-order reference diff; roster order is one observable table case in `housingAuthority.pipeline` | suite 35→**34** files / 171→**165** tests. Mutations run: custodian-travels, unlimited-capacity, manor-allowed and commute-margin all caught; `familyFitsInResidence` is caught by the capacity contract case, **not** the invariants (they never attempt an overfill); `pairs` stays intentionally uncaught (readers test `> 0`) |
-| **T4** | P6/P7 | move the 5 s ceiling into the benchmark; add a 30/360-day housing report (moves/household/year, homeless-days, churn) | harness numbers recorded |
+| **T4** | P6/P7 | moved the ceiling to `PERF_DAY_BOUNDARY` (max tick ≤ 5 000 ms); `run-full-year` prints moves/household-year, homeless-days and repeat moves every 30 days | 30 d: 9 moves / 0 homeless-days / 0 repeat; 360 d: 283 moves / 1 920 homeless-days / 117 repeat / 13.48 moves per household-year; 600-settler max tick **107.6 ms** |
 
 ## 6. Acceptance for the replacement
 
