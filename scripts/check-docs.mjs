@@ -44,12 +44,9 @@ const LINK_DOCS = [
  *  average is 1 698. */
 const MAX_ENTRY_CHARS = 300;
 
-/** A path or a filename with an extension. Entries must name no files: files
- *  move and die, and an entry pointing at one becomes a lie nobody can verify.
- *  Deliberately conservative so the gate does not cry wolf - it matches a token
- *  containing `/`, or a token ending in a known source/document extension. A
- *  bare word like `tsconfig` or a command like `npm test` passes. */
-const PATH_LIKE = /(?:\S*\/\S*|[\w.-]+\.(?:md|ts|tsx|mjs|mts|cjs|js|json|py|gd|yml|yaml|toml|html|css))/;
+/** File references require a known source/document extension. Bare slash-separated
+ *  prose such as "Skip/restore" is not a path and must not fail documentation checks. */
+const PATH_LIKE = /(?:[\w.-]+\/)*[\w.-]+\.(?:md|ts|tsx|mjs|mts|cjs|js|json|py|gd|yml|yaml|toml|html|css)\b/;
 
 const problems = [];
 
