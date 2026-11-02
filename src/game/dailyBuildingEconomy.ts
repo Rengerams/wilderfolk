@@ -390,7 +390,7 @@ function tickBuildingProduction(
   ctx: TickContext,
   allAlive: Entity[],
 ): void {
-  const { updatedBuildings, entityById, buildingById, byType, roadBuildings } = ctx;
+  const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
   // Production runs at noon, but isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
