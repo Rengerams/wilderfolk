@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** The daily worker rebalance now reuses the assignment index count instead of rescanning the colony per workplace, cutting the staffing pass at 2,000 settlers from ~0.93 s to ~0.20 s.
+
 - **Changed (2 November 2026):** Loading a large colony now builds one kin index per housing unit instead of parent arrays for every comparison, cutting a 2,000-settler save's load by about a quarter.
 
 - **Changed (2 November 2026):** Rollback snapshots share the relationship records instead of cloning them every tick, and their writers replace the record first. A 2,200-settler colony's rollback snapshot fell from ~56 ms to ~21 ms per tick.

@@ -426,7 +426,7 @@ export function rebalanceJobWorkers(
       if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       const staffed = index.counts.get(needy.id) ?? 0;
-      const capacity = staffingCapFor(needy, humans).cap;
+      const capacity = staffingCapFor(needy, humans, staffed).cap;
       if (staffed >= capacity) continue;
       // Food production and guard coverage grow to three posts; other workplaces only start.
       if (staffed >= minimumAutoCoverage(needy)) continue;
