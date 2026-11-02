@@ -1,18 +1,19 @@
 # Housing traits and beds disagree about a cursed Moon Howler
 
 - Bug: the trait map counts occupants with `isPlayerHuman` while beds and rosters count `isResidenceOccupantEntity`, so a cursed Moon Howler is invisible to couple/singles scoring and can enter the threaded map without a fresh build ever containing them.
-- Status: open
+- Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-02
 - Version/build: V.0.6.5.1, working tree on `508c1f2f`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`buildResidenceTraits`, `residenceTraitMove`, `writeResidence`)
-- Related PR/commit: none yet; fix scheduled with P5
+- Related PR/commit: fixed in P5 (`b99458c3`, `3743c065`); regression and closure 2026-11-02
 
 ## Status history
 
 - 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — resolved: `buildResidenceTraits` and `residenceTraitMove` now use `isResidenceOccupantEntity`, the same rule as the beds and rosters; a cursed Moon Howler counts in both.
 
 ## Observed behavior
 
@@ -38,7 +39,7 @@ Use `isResidenceOccupantEntity` in `buildResidenceTraits` and in the trait move,
 
 ## Regression coverage
 
-- Scheduled with P5; no test pins it yet.
+- `tests/housingArchitecture.completion.test.ts`: "counts a cursed Moon Howler in the traits exactly as in the beds" — the same one cursed settler and one human are counted by `buildResidenceTraits` and `countResidentsInBuilding`.
 
 ## Save compatibility
 
@@ -46,4 +47,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Verified: `npx vitest run tests/housingArchitecture.completion.test.ts` — 17 passed.

@@ -1,18 +1,19 @@
 # Housing pickers trust caller-filtered residence lists
 
 - Bug: the pickers filter only the manor and rival buildings, not `completed` or residence type, so a caller passing raw buildings can be given an unfinished site or a non-home.
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-02
 - Version/build: V.0.6.5.1, working tree on `508c1f2f`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`pickResidenceForFamily`, `pickLeastCrowdedResidence`)
-- Related PR/commit: none yet; fix scheduled with P5
+- Related PR/commit: fixed in P5 (`b99458c3`, `3743c065`); regression and closure 2026-11-02
 
 ## Status history
 
 - 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — resolved: both pickers apply `isAssignableHome`, so a completed player residence is the only kind of building they can return and the rival/manor literals are gone.
 
 ## Observed behavior
 
@@ -36,7 +37,7 @@ Route both pickers through `isCompletedPlayerBuilding` + `isResidenceBuildingTyp
 
 ## Regression coverage
 
-- Scheduled with P5; no test pins it yet.
+- `tests/housingPlanner.contract.test.ts`: "never plans an unfinished home", "never plans the manor for an ordinary household", and "lists completed player residences, not venues or unfinished sites".
 
 ## Save compatibility
 
@@ -44,4 +45,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Verified: `npx vitest run tests/housingPlanner.contract.test.ts` — passed as part of the 34-file / 170-test housing set.

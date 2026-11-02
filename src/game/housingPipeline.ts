@@ -525,7 +525,7 @@ function writeResidence(
   if (context.playerOccupancy && human.alive && isPlayerHuman(human)) {
     occupancyMove(context.playerOccupancy, fromId, toId);
   }
-  if (context.traits) residenceTraitMove(context.traits, human, fromId, toId);
+  if (context.traits && isResidenceOccupantEntity(human)) residenceTraitMove(context.traits, human, fromId, toId);
   human.residenceBuildingId = toId;
   if (context.buildings) {
     if (previous && isResidenceBuilding(previous)) previous.occupants = previous.occupants.filter((id) => id !== human.id);

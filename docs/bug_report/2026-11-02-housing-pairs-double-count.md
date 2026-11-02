@@ -1,18 +1,19 @@
 # Housing trait `pairs` counts each couple twice
 
 - Bug: adding the second partner increments `pairs` once for the mover and once for the existing occupant, so a house with one couple reads 2 while its comment says "occupants whose partner is a housemate".
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-02
 - Version/build: V.0.6.5.1, working tree on `508c1f2f`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`addResidenceOccupant`)
-- Related PR/commit: none yet; fix scheduled with P5
+- Related PR/commit: fixed in P5 (`b99458c3`, `3743c065`); regression and closure 2026-11-02
 
 ## Status history
 
 - 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — resolved: adding the second partner is the only increment, so one couple reads one pair; removal stays symmetric.
 
 ## Observed behavior
 
@@ -36,7 +37,7 @@ Count each couple once (or rename to `pairLinks` and document it).
 
 ## Regression coverage
 
-- Scheduled with P5; no test pins it yet.
+- `tests/housingArchitecture.completion.test.ts`: "counts a couple as one pair, not two links".
 
 ## Save compatibility
 
@@ -44,4 +45,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Verified: `npx vitest run tests/housingArchitecture.completion.test.ts` — 17 passed.

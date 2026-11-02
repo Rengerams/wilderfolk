@@ -8,6 +8,8 @@ import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import {
   assignMissingResidences,
+  createHousingLedger,
+  isHousingUnitProtected,
   relocateHousehold,
   standaloneMoveContext,
   syncResidenceOccupants,
@@ -19,6 +21,15 @@ function moveContext(alive: Entity[], residences: ReturnType<typeof building>[])
 }
 
 describe('the housing decision pipeline', () => {
+  it('does not count a protection query as a withheld move', () => {
+    const ledger = createHousingLedger();
+    const person = human(1);
+
+    expect(isHousingUnitProtected(ledger, [person], 'commute')).toBe(false);
+    expect(isHousingUnitProtected(ledger, [person], 'commute')).toBe(false);
+    expect(ledger.report.protectedUnits).toBe(0);
+  });
+
   it('keeps the resident roster in settler order', () => {
     const home = building(10, BuildingType.House);
     const first = human(9, { residenceBuildingId: home.id });

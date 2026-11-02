@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingType, LEADER_OCCUPATION } from '../src/game/gameTypes';
+import { BuildingType, EntityType, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
 import { getChildCustodian } from '../src/game/housingModel';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from '../src/game/leaderHouse';
 import { assignMissingResidences, ensureOrphanAdoption, moveResident, rebalanceOvercrowdedResidences } from '../src/game/housingPipeline';
 import { buildCommuteRelocationIndex, buildResidenceTraits, collectFamilyHousingShortages, pickCommuteRelocation } from '../src/game/housingPipeline';
-import { buildResidenceOccupancy, getResidenceCapacity } from '../src/game/housingModel';
+import { buildResidenceOccupancy, countResidentsInBuilding, getResidenceCapacity } from '../src/game/housingModel';
 import { getPriorityAlerts } from '../src/game/priorityAlerts';
+import { createEntity } from '../src/game/entityFactory';
 import { initGame } from '../src/game/worldGen';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -145,6 +146,31 @@ describe('family shortage, reunion and a single residence writer', () => {
     expect(second.occupants).toEqual([1]);
     expect([...occupancy]).toEqual([[second.id, 1]]);
     expect(traits.get(second.id)?.occupants.size).toBe(1);
+  });
+
+  it('counts a cursed Moon Howler in the traits exactly as in the beds', () => {
+    const home = building(0, BuildingType.House);
+    const resident = human(1, { residenceBuildingId: home.id });
+    const cursed = createEntity(EntityType.Werewolf, 0, 0, 2, 100);
+    cursed.faction = undefined;
+    cursed.moonHowlerCursed = true;
+    cursed.residenceBuildingId = home.id;
+    const occupants = [resident, cursed];
+
+    const traits = buildResidenceTraits(occupants);
+
+    expect(traits.get(home.id)?.occupants.size).toBe(2);
+    expect(countResidentsInBuilding(occupants, home.id)).toBe(2);
+  });
+
+  it('counts a couple as one pair, not two links', () => {
+    const home = building(0, BuildingType.House);
+    const first = human(1, { residenceBuildingId: home.id, partnerId: 2 });
+    const second = human(2, { residenceBuildingId: home.id, partnerId: 1 });
+
+    const traits = buildResidenceTraits([first, second]);
+
+    expect(traits.get(home.id)?.pairs).toBe(1);
   });
 });
 

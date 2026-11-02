@@ -1,18 +1,19 @@
 # Housing protection predicate counts what it is asked
 
 - Bug: a query mutates `report.protectedUnits`, so asking twice about the same household double-counts and a read-only call changes the report.
-- Status: open
+- Status: resolved
 - Severity: low
 - Date discovered: 2026-11-02
 - Version/build: V.0.6.5.1, working tree on `508c1f2f`
 - Reporter: housing review and independent audits
 - Area: housing assignment
 - Owner module: src/game/housingPipeline.ts (`isHousingUnitProtected`)
-- Related PR/commit: none yet; fix scheduled with P5
+- Related PR/commit: fixed in P5 (`b99458c3`, `3743c065`); regression and closure 2026-11-02
 
 ## Status history
 
 - 2026-11-02 — open: recorded from the code review and worker audits; no fix applied.
+- 2026-11-02 — resolved: `isHousingUnitProtected` now only reads the ledger and returns a verdict; `protectedUnits` is counted once in `relocateHousehold`, where the move is withheld.
 
 ## Observed behavior
 
@@ -36,7 +37,7 @@ Return a boolean and count in the caller/phase, deduplicated per household.
 
 ## Regression coverage
 
-- Scheduled with P5; no test pins it yet.
+- `tests/housingAuthority.pipeline.test.ts`: "does not count a protection query as a withheld move" — querying the predicate twice leaves `report.protectedUnits` at 0.
 
 ## Save compatibility
 
@@ -44,4 +45,4 @@ None: in-memory state only.
 
 ## Verification
 
-Code-reading evidence; the defect has not been fixed, so nothing is verified as fixed.
+Verified: `npx vitest run tests/housingAuthority.pipeline.test.ts` — 8 passed.
