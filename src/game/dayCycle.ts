@@ -90,7 +90,6 @@ export {
 export {
   auditHousingSharingIssues,
   buildHousingUnits,
-  housingUnitNeedsReassignment,
   pickResidenceForFamily,
   pickResidenceForHuman,
   pickResidenceFromChildCustodian,

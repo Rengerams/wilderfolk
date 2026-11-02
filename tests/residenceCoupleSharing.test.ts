@@ -10,8 +10,9 @@ import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import {
   buildHousingUnits,
-  housingUnitNeedsReassignment,
   pickResidenceForFamily,
+  planRelocation,
+  standaloneMoveContext,
 } from '../src/game/housingPipeline';
 
 /** A completed House through the production factory — no hand-built Building literal. */
@@ -50,7 +51,7 @@ describe('a couple never shares its house with another couple', () => {
     const unit = unitOf(humans, subject.id);
 
     expect(unit.map((m) => m.id).sort((a, b) => a - b)).toEqual([12, 13]);
-    expect(housingUnitNeedsReassignment(unit, humans, residences)).toBe(true);
+    expect(planRelocation(unit, 'homeless', standaloneMoveContext(humans, residences)).move).toBe(true);
     expect(pickResidenceForFamily(unit, humans, residences)).toBe(familyHome.id);
   });
 
@@ -68,7 +69,7 @@ describe('a couple never shares its house with another couple', () => {
     const humans = [parent, otherParent, spouse, subject, ...strangers];
     const unit = unitOf(humans, subject.id);
 
-    expect(housingUnitNeedsReassignment(unit, humans, [parentsHome, strangersHome])).toBe(false);
+    expect(planRelocation(unit, 'homeless', standaloneMoveContext(humans, [parentsHome, strangersHome])).settled).toBe(true);
   });
 
   it('prefers the family home over a house of unrelated singles', () => {
@@ -105,7 +106,7 @@ describe('singles keep to a singles house', () => {
     const residences = [coupleHome, singlesHome];
 
     expect(unit.map((m) => m.id)).toEqual([12]);
-    expect(housingUnitNeedsReassignment(unit, humans, residences)).toBe(true);
+    expect(planRelocation(unit, 'homeless', standaloneMoveContext(humans, residences)).move).toBe(true);
     expect(pickResidenceForFamily(unit, humans, residences)).toBe(singlesHome.id);
   });
 });

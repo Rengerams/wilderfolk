@@ -18,7 +18,8 @@ import {
   buildHousingUnits,
   buildResidenceTraits,
   housingUnitBucket,
-  housingUnitNeedsReassignment,
+  planRelocation,
+  standaloneMoveContext,
 } from '../src/game/housingPipeline';
 import {
   buildResidenceOccupancy,
@@ -214,7 +215,7 @@ describe('the residency sweep is spread across the day', () => {
     const occupancy = buildResidenceOccupancy(alive);
     const traits = buildResidenceTraits(alive);
     const stillWaiting = buildHousingUnits(alive).filter((unit) =>
-      housingUnitNeedsReassignment(unit, alive, residences, occupancy, traits),
+      planRelocation(unit, 'homeless', standaloneMoveContext(unit, residences, occupancy, traits)).move,
     );
     expect(stillWaiting.length).toBe(0);
   });

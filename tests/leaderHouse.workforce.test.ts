@@ -3,7 +3,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { LEADER_OCCUPATION, applyLeaderOccupation, syncLeaderHouseResidency } from '../src/game/leaderHouse';
 import { isManualStaffingBuilding } from '../src/game/workforce';
-import { housingUnitNeedsReassignment } from '../src/game/housingPipeline';
+import { planRelocation, standaloneMoveContext } from '../src/game/housingPipeline';
 import { assignMissingResidences } from '../src/game/housingPipeline';
 import { getResidenceCapacity } from '../src/game/housingModel';
 import { tickLayerAssign, LAYER_ASSIGN_PHASE_TICK } from '../src/game/tickLayerAssign';
@@ -64,7 +64,8 @@ describe("Leader's House", () => {
       residenceBuildingId: 0, motherId: 1, isJuvenile: true, age: 8,
     }));
     const household = [leader, ...children];
-    expect(housingUnitNeedsReassignment(household, household, [manor, ordinary])).toBe(false);
+    const context = standaloneMoveContext(household, [manor, ordinary]);
+    expect(planRelocation(household, 'homeless', context).settled).toBe(true);
     assignMissingResidences(household, [manor, ordinary], household);
     assignMissingResidences(household, [manor, ordinary], household);
     expect(household.every((member) => member.residenceBuildingId === 0)).toBe(true);

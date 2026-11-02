@@ -344,7 +344,7 @@ function planPlacement(
 ): RelocationPlan {
   const members = [...unit];
   if (members.length === 0) return { move: false, settled: true, reason, why: 'empty household' };
-  const needsMove = housingUnitNeedsReassignment(
+  const needsMove = unitNeedsMove(
     members, context.alive, context.residences, context.occupancy, context.traits, context.playerOccupancy,
   );
   if (!needsMove) {
@@ -1668,7 +1668,7 @@ export function housingUnitBucket(unit: Entity[], buckets: number): number {
 }
 
 /** Determines if a unit should vacate its current residence in favour of a better option. */
-export function housingUnitNeedsReassignment(
+function unitNeedsMove(
   unit: Entity[],
   alive: Entity[],
   residences: Building[],
@@ -1736,7 +1736,7 @@ function isUnnecessarilySharingHousing(
   occupancy?: ResidenceOccupancy,
   traits?: ResidenceTraitsById,
 ): boolean {
-  return housingUnitNeedsReassignment(unit, humans, residences, occupancy, traits);
+  return unitNeedsMove(unit, humans, residences, occupancy, traits);
 }
 
 export function auditHousingSharingIssues(humans: Entity[], buildings: Building[]): string[] {
@@ -1782,7 +1782,7 @@ export function sortHousingUnitsForAssignment(
   playerOccupancy?: ResidenceOccupancy,
 ): Entity[][] {
   const needReassign = units.map((u) =>
-    housingUnitNeedsReassignment(u, alive, residences, occupancy, traits, playerOccupancy),
+    unitNeedsMove(u, alive, residences, occupancy, traits, playerOccupancy),
   );
   return units
     .map((unit, i) => ({ unit, need: needReassign[i] ? 0 : 1, len: unit.length, key: lowestMemberId(unit) }))

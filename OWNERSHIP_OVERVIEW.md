@@ -484,7 +484,7 @@ If two modules export the same function name with the same responsibility:
 | `percentile`, `showComparison`, `countPlayerHumans`, `bench`, `loadSave`, `main` | `scripts/perf-at-pop.ts` | Seed repeatable population tiers or load real saves; measure timings, stage profiles and final delta fingerprints. |
 | `buildWorkforceAssignmentIndex`, `pickOverstaffedDonor`, `findOverstaffedDonorBuilding`, `rebalanceJobWorkers` | `game/workforce.ts` | Reuse assignment counts during rebalancing, updating them after each transfer without changing donor ranking or cooldowns. |
 | `canPreviewWorkerCommand`, `GameLoop.rebuildOptimisticDisplay`, `GameLoop.applyCommand` | `game/gameLoop.ts` | Keep colony-wide commands on the worker; preview bounded edits and defer actions through recovery. |
-| `housingUnitNeedsReassignment` | `game/housingPipeline.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |
+| `unitNeedsMove` (private) | `game/housingPipeline.ts` | Protect an already housed manor household before ordinary capacity validation; leave incomplete household repair eligible; send a couple out of a house it shares with an unrelated couple into its own family's. |
 
 ## PR #59 — function-level ownership supplement (2026-10-27)
 
