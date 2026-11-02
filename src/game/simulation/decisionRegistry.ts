@@ -83,7 +83,7 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, isMeasuredFoodDeficit (read-only policy proposals)',
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
     cadence: 'on-demand',
     cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Actual world writes remain with the worker command and workforce owners.',
     writes: [],
