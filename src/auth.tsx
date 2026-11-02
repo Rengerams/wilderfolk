@@ -9,6 +9,7 @@ export type Gebruiker = {
   rechten: Record<string, Record<string, boolean>>
   twee_staps: boolean
   modules: Record<string, boolean>
+  thema: string
 }
 
 export type RechtActie = "zien" | "aanmaken" | "wijzigen" | "verwijderen"
@@ -44,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void herlaad()
   }, [herlaad])
+
+  useEffect(() => {
+    document.documentElement.dataset.thema = gebruiker?.thema ?? "rood"
+  }, [gebruiker?.thema])
 
   const login = useCallback(async (email: string, wachtwoord: string) => {
     try {

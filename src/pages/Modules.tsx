@@ -16,6 +16,13 @@ import {
 
 type Module = { sleutel: string; naam: string; uitleg: string; aan: boolean; optioneel: boolean }
 
+const THEMAS = [
+  { waarde: "rood", naam: "Diligence-rood", kleur: "#c22127" },
+  { waarde: "blauw", naam: "Blauw", kleur: "#1761a8" },
+  { waarde: "groen", naam: "Groen", kleur: "#0e7a56" },
+  { waarde: "paars", naam: "Paars", kleur: "#6b3fc4" },
+]
+
 export function Modules() {
   const { herlaad, mag } = useAuth()
   const [modules, setModules] = useState<Module[]>([])
@@ -161,7 +168,7 @@ export function Modules() {
 
       {mag("gebruikers", "zien") && <GebruikerFuncties kanWijzigen={kanWijzigen} />}
 
-      <Kaart titel="Instellingen" uitleg="Deze waarden gebruikt het systeem bij de import, de eerlijke indeling en de kas.">
+      <Kaart titel="Instellingen" uitleg="Deze waarden gebruikt het systeem bij de import, de eerlijke indeling en de kas. Het kleurthema geldt voor iedereen in de organisatie.">
         <div className="grid-2">
           <Veld label="Standaard aantal plekken" hint="Gebruikt bij import als het bestand geen capaciteit noemt.">
             <Invoer
@@ -191,6 +198,31 @@ export function Modules() {
             />
           </Veld>
         </div>
+
+        <fieldset className="thema-keuze">
+          <legend>Kleurthema</legend>
+          {THEMAS.map((thema) => {
+            const gekozen = (instellingen.thema ?? "rood") === thema.waarde
+            return (
+              <label
+                key={thema.waarde}
+                className={`thema-keuze__optie${gekozen ? " is-gekozen" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="thema"
+                  value={thema.waarde}
+                  checked={gekozen}
+                  disabled={!kanWijzigen}
+                  onChange={() => setInstellingen({ ...instellingen, thema: thema.waarde })}
+                />
+                <span className="thema-keuze__stip" style={{ background: thema.kleur }} aria-hidden="true" />
+                <span>{thema.naam}</span>
+              </label>
+            )
+          })}
+        </fieldset>
+
         {kanWijzigen && (
           <Knop variant="primair" onClick={() => void slaInstellingenOp()} disabled={bezig}>
             Instellingen opslaan

@@ -529,9 +529,11 @@ beheerRouter.patch(
   "/instellingen",
   vereisRecht("modules", "wijzigen"),
   ah(async (req, res) => {
-    const toegestaan = ["standaard_capaciteit", "terugkijk_maanden", "kas_grens", "organisatie_naam"]
+    const toegestaan = ["standaard_capaciteit", "terugkijk_maanden", "kas_grens", "organisatie_naam", "thema"]
+    const themas = ["rood", "blauw", "groen", "paars"]
     for (const sleutel of toegestaan) {
       if (req.body?.[sleutel] === undefined) continue
+      if (sleutel === "thema" && !themas.includes(String(req.body[sleutel]))) continue
       await q(
         `insert into instellingen (sleutel, waarde) values ($1,$2)
          on conflict (sleutel) do update set waarde = excluded.waarde`,

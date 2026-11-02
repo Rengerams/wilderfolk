@@ -66,6 +66,7 @@ async function gebruikerAntwoord(id: number) {
     rechten: rij!.rechten,
     twee_staps: rij!.twee_staps,
     modules: await functiesVoorGebruiker(rij!.id),
+    thema: (await een<{ waarde: string }>("select waarde from instellingen where sleutel = 'thema'"))?.waarde ?? "rood",
   }
 }
 

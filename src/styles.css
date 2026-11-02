@@ -38,6 +38,24 @@
   color-scheme: light;
 }
 
+/* Kleurthema: de beheerder kiest dit bij Functies → Instellingen.
+   Alleen de accentkleur verandert; tekst en achtergrond blijven hoog contrast. */
+:root[data-thema="blauw"] {
+  --primair: #1761a8;
+  --primair-donker: #10497f;
+  --primair-licht: #e8f2fc;
+}
+:root[data-thema="groen"] {
+  --primair: #0e7a56;
+  --primair-donker: #0a5b40;
+  --primair-licht: #e4f7ee;
+}
+:root[data-thema="paars"] {
+  --primair: #6b3fc4;
+  --primair-donker: #4f2d95;
+  --primair-licht: #f1ebfe;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -208,7 +226,7 @@ a:hover { color: var(--primair-donker); }
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #c22127, #e0575b);
+  background: linear-gradient(135deg, var(--primair), var(--primair-donker));
   color: #ffffff;
   font-weight: 800;
   font-size: 0.88rem;
@@ -1213,7 +1231,7 @@ a:hover { color: var(--primair-donker); }
   justify-content: space-between;
   gap: 1.5rem;
   flex-wrap: wrap;
-  background: linear-gradient(118deg, #fdeff1 0%, #f8f2fd 48%, #edf5ff 100%);
+  background: linear-gradient(118deg, var(--primair-licht) 0%, #f8f2fd 48%, #edf5ff 100%);
   border: 1px solid #ece5f5;
   border-radius: 18px;
   padding: 1.9rem 2.1rem;
@@ -1228,7 +1246,7 @@ a:hover { color: var(--primair-donker); }
   width: 230px;
   height: 230px;
   border-radius: 50%;
-  background: radial-gradient(circle, #f7cfd0, transparent 70%);
+  background: radial-gradient(circle, var(--primair-licht), transparent 70%);
   opacity: 0.8;
   pointer-events: none;
 }
@@ -1369,7 +1387,7 @@ a:hover { color: var(--primair-donker); }
   display: block;
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #c22127, #e46a6e);
+  background: linear-gradient(90deg, var(--primair), var(--primair-donker));
 }
 
 .aandacht { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -1708,4 +1726,54 @@ a:hover { color: var(--primair-donker); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* ---------------------------------------------------------------- themakeuze */
+.thema-keuze {
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  padding: 0.7rem 1rem 1rem;
+  margin: 0.4rem 0 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.thema-keuze legend {
+  font-weight: 650;
+  padding: 0 0.4rem;
+}
+
+.thema-keuze__optie {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px solid var(--rand);
+  border-radius: 10px;
+  background: var(--oppervlak);
+  cursor: pointer;
+  font-size: 0.96rem;
+}
+
+.thema-keuze__optie:hover { border-color: var(--rand-sterk); }
+
+.thema-keuze__optie.is-gekozen {
+  border-color: var(--primair);
+  background: var(--primair-licht);
+}
+
+.thema-keuze__optie input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--primair);
+}
+
+.thema-keuze__stip {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }

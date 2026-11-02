@@ -339,6 +339,10 @@ values (
 )
 on conflict (naam) do nothing;
 
+-- Kleurthema van de organisatie (rood, blauw, groen of paars).
+insert into instellingen (sleutel, waarde) values ('thema', 'rood')
+on conflict (sleutel) do nothing;
+
 -- Rapportage is later toegevoegd. Rollen die het wijzigingsoverzicht mogen zien,
 -- krijgen het rapportagescherm er automatisch bij; de beheerder kan het per rol
 -- daarna weer uitzetten.
