@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** The daily social pass copies each settler's friendship, feud and peak maps once per pass instead of once per write, cutting that pass from ~4.5 s to under a second at 2,000 settlers.
+
+- **Fixed (2 November 2026):** Work status, work sounds, town-hall hours and home preference now use the configured work window (07–16 by default, or the player's custom hours) instead of the old hard-coded 07–18 fallback.
+
 - **Changed (2 November 2026):** A tick now ships a settler's friendship, feud and feud-peak maps only when they changed, and the display keeps the rest; on a 2,200-settler save the steady-state tick payload fell from 6.8 MB to 3.0 MB.
 
 - **Fixed (2 November 2026):** Settlers could end up with more than six close friends (legacy saves carried up to 31, and one unilateral bond could sit over the cap). Loading now trims each settler to its six strongest bonds.

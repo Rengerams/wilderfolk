@@ -272,6 +272,17 @@ export function advanceSocialRelationships(
   const feudRolledPairs = new Set<string>();
   let feudRollsLeft = FEUD_ROLL_BUDGET;
 
+  /** One copy-on-write clone per settler per pass; a replaced map is re-cloned on demand. */
+  const bumpedFriendships = new Map<Entity, Record<string, number>>();
+  const writableForBump = (entity: Entity): Record<string, number> => {
+    let map = bumpedFriendships.get(entity);
+    if (!map || map !== entity.friendships) {
+      map = writableFriendships(entity);
+      bumpedFriendships.set(entity, map);
+    }
+    return map;
+  };
+
   const liveFeudsById = new Map<number, number>();
   const closeFriendsById = new Map<number, number>();
   for (const p of people) {
@@ -298,8 +309,8 @@ export function advanceSocialRelationships(
       closeFriendsById.set(b.id, (closeFriendsById.get(b.id) ?? 0) + 1);
     }
 
-    const aFriendships = writableFriendships(a);
-    const bFriendships = writableFriendships(b);
+    const aFriendships = writableForBump(a);
+    const bFriendships = writableForBump(b);
     aFriendships[friendKey(b.id)] = next;
     bFriendships[friendKey(a.id)] = next;
   };
@@ -342,13 +353,30 @@ export function advanceSocialRelationships(
     }
   }
 
+  /** One copy-on-write clone per settler and field per pass; a replaced map re-clones. */
+  type RelationshipField = 'friendships' | 'feuds' | 'feudPeaks';
+  const decayMaps = new Map<Entity, Partial<Record<RelationshipField, Record<string, number>>>>();
+  const mapForDecay = (entity: Entity, field: RelationshipField): Record<string, number> => {
+    let entry = decayMaps.get(entity);
+    if (!entry) {
+      entry = {};
+      decayMaps.set(entity, entry);
+    }
+    let map = entry[field];
+    if (!map || map !== entity[field]) {
+      map = field === 'friendships'
+        ? writableFriendships(entity)
+        : field === 'feuds'
+          ? writableFeuds(entity)
+          : writableFeudPeaks(entity);
+      entry[field] = map;
+    }
+    return map;
+  };
+
   for (const p of people) {
     const feuds = p.feuds;
     if (!feuds) continue;
-    let ownFeuds: Record<string, number> | null = null;
-    let ownPeaks: Record<string, number> | null = null;
-    const mutableFeuds = (): Record<string, number> => (ownFeuds ??= { ...feuds });
-    const mutablePeaks = (): Record<string, number> => (ownPeaks ??= { ...(p.feudPeaks ?? {}) });
 
     for (const key in feuds) {
       if (!hasOwn(feuds, key)) continue;
@@ -358,8 +386,8 @@ export function advanceSocialRelationships(
       const other = byId.get(otherId);
       if (!other) {
         if (!aliveIds.has(otherId)) {
-          delete mutableFeuds()[key];
-          if (p.feudPeaks) delete mutablePeaks()[key];
+          delete mapForDecay(p, 'feuds')[key];
+          if (p.feudPeaks) delete mapForDecay(p, 'feudPeaks')[key];
         }
         continue;
       }
@@ -368,7 +396,7 @@ export function advanceSocialRelationships(
 
       if (p.id > otherId) {
         if (!other.feuds || !hasOwn(other.feuds, otherKey)) {
-          writableFeuds(other)[otherKey] = feuds[key];
+          mapForDecay(other, 'feuds')[otherKey] = feuds[key];
         }
         continue;
       }
@@ -377,14 +405,14 @@ export function advanceSocialRelationships(
 
       if (next <= 0) {
         const peak = Math.max(p.feudPeaks?.[key] ?? 0, other.feudPeaks?.[otherKey] ?? 0);
-        delete mutableFeuds()[key];
+        delete mapForDecay(p, 'feuds')[key];
         if (other.feuds) {
-          const otherFeuds = writableFeuds(other);
+          const otherFeuds = mapForDecay(other, 'feuds');
           if (otherKey in otherFeuds) delete otherFeuds[otherKey];
         }
-        if (p.feudPeaks) delete mutablePeaks()[key];
+        if (p.feudPeaks) delete mapForDecay(p, 'feudPeaks')[key];
         if (other.feudPeaks) {
-          const otherPeaks = writableFeudPeaks(other);
+          const otherPeaks = mapForDecay(other, 'feudPeaks');
           if (otherKey in otherPeaks) delete otherPeaks[otherKey];
         }
 
@@ -394,28 +422,18 @@ export function advanceSocialRelationships(
           logEvent(state, 'event', `${p.name ?? 'A settler'} and ${other.name ?? 'another settler'} have settled their feud`);
         }
       } else {
-        mutableFeuds()[key] = next;
-        writableFeuds(other)[otherKey] = next;
+        mapForDecay(p, 'feuds')[key] = next;
+        mapForDecay(other, 'feuds')[otherKey] = next;
 
         adjustHumanStaminaFromEnergy(p, -FEUD_ENERGY_DRAIN);
         adjustHumanStaminaFromEnergy(other, -FEUD_ENERGY_DRAIN);
       }
-    }
-    if (ownFeuds) {
-      p.feuds = ownFeuds;
-      markRelationshipsChanged(p);
-    }
-    if (ownPeaks) {
-      p.feudPeaks = ownPeaks;
-      markRelationshipsChanged(p);
     }
   }
 
   for (const p of people) {
     const friendships = p.friendships;
     if (!friendships) continue;
-    let ownFriendships: Record<string, number> | null = null;
-    const mutableFriendships = (): Record<string, number> => (ownFriendships ??= { ...friendships });
 
     for (const key in friendships) {
       if (!hasOwn(friendships, key)) continue;
@@ -424,7 +442,7 @@ export function advanceSocialRelationships(
 
       const other = byId.get(otherId);
       if (!other) {
-        if (!aliveIds.has(otherId)) delete mutableFriendships()[key];
+        if (!aliveIds.has(otherId)) delete mapForDecay(p, 'friendships')[key];
         continue;
       }
       if (p.id > otherId) continue;
@@ -433,19 +451,15 @@ export function advanceSocialRelationships(
       const next = Math.max(0, friendships[key] - FRIENDSHIP_DECAY_PER_DAY);
       const otherKey = friendKey(p.id);
       if (next <= 0) {
-        delete mutableFriendships()[key];
+        delete mapForDecay(p, 'friendships')[key];
         if (other.friendships) {
-          const otherFriendships = writableFriendships(other);
+          const otherFriendships = mapForDecay(other, 'friendships');
           if (otherKey in otherFriendships) delete otherFriendships[otherKey];
         }
       } else {
-        mutableFriendships()[key] = next;
-        writableFriendships(other)[otherKey] = next;
+        mapForDecay(p, 'friendships')[key] = next;
+        mapForDecay(other, 'friendships')[otherKey] = next;
       }
-    }
-    if (ownFriendships) {
-      p.friendships = ownFriendships;
-      markRelationshipsChanged(p);
     }
   }
 
