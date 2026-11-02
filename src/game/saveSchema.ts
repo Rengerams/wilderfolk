@@ -91,7 +91,7 @@ export const WORLD_STATE_SAVE_KEYS = [
  * (Not top-level WORLD_STATE_SAVE_KEYS — those are world-level only.)
  */
 export const ENTITY_PERSISTED_FIELDS = [
-  'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes',
+  'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',
   'scheduleWorkedJobToday', 'scheduleLastWorkedJob',
   'battleLeadershipMerit',

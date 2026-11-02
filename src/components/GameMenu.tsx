@@ -41,6 +41,7 @@ export interface GameMenuSettingsCallbacks {
   onVolumePreset: (v: VolumePreset) => void;
   onOpenGuide: () => void;
   onStartNewGame: () => void;
+  onStartSpotlightDebug: () => void;
 }
 
 interface Props extends GameMenuSettingsCallbacks {
@@ -191,6 +192,7 @@ export default function GameMenu({
   onVolumePreset,
   onOpenGuide,
   onStartNewGame,
+  onStartSpotlightDebug,
 }: Props) {
   const [weatherVisualsEnabled, setWeatherVisualsEnabled] = useState(
     () => weatherVisualEnabled(),
@@ -469,6 +471,23 @@ export default function GameMenu({
                   onChange={onToggleValleyStageWarnings}
                 />
               </MenuSection>
+
+              {import.meta.env.DEV && (
+                <>
+                  <div className="mx-3 h-px bg-stone-700" />
+                  <MenuSection title="Developer">
+                    <MenuAction
+                      icon="🎬"
+                      label="Run Spotlight Event"
+                      hint="Stage the rare performance immediately"
+                      onClick={() => {
+                        onStartSpotlightDebug();
+                        close();
+                      }}
+                    />
+                  </MenuSection>
+                </>
+              )}
 
               <div className="mx-3 h-px bg-stone-700" />
 

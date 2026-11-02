@@ -30,6 +30,25 @@ export function spotlightOpeningFrame(elapsedMs: number): SpotlightOpeningFrame 
     musicShouldStart: elapsed >= SPOTLIGHT_MUSIC_CUE_MS,
   };
 }
+
+export interface SpotlightOpeningActions {
+  readonly focusCamera: boolean;
+  readonly startMusic: boolean;
+}
+
+/** A throttled tab can skip the intro; keep the cues outside it, but never start in the applause. */
+export function spotlightOpeningCues(
+  elapsedMs: number,
+  stepKind: SpotlightStep['kind'],
+  started: { readonly camera: boolean; readonly music: boolean },
+): SpotlightOpeningActions {
+  if (stepKind === 'applause') return { focusCamera: false, startMusic: false };
+  const opening = spotlightOpeningFrame(elapsedMs);
+  return {
+    focusCamera: opening.cameraShouldFocus && !started.camera,
+    startMusic: opening.musicShouldStart && !started.music,
+  };
+}
 /** Hold the actual 6.1-second audience cheering sample and a brief silent tail. */
 export const SPOTLIGHT_APPLAUSE_MS = 6400;
 

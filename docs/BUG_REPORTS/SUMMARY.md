@@ -1,5 +1,26 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Close-friend cap exceeded (legacy saves and a unilateral over-cap bond)](../bug_report/2026-11-02-close-friend-cap-exceeded-legacy-saves.md):** A long save carried up to 31 close friends per settler and one unilateral bond could sit over the six-friend cap. Loading now trims to the six strongest, the keep rule is strictly below the cap, and the count is tracked once per settler.
+
+
+## 2026-11-02 triage sweep (report headers unchanged)
+
+This sweep records the current tree; the individual report headers were deliberately left untouched. Of the 95 reports, 53 are not marked resolved. They break down as follows.
+
+**Verified fixed in the current tree** — targeted regressions pass for captive rations and false exhaustion, seven-hour sleep recovery, career attribution/Moon Howler/player-marker paths, dialogue routing/session/duration/migration, Spotlight cast/chorus/gathering/keyboard/reload/audio, founding-settler overview LOD, lover tryst symmetry, river materials, colony-bot cache hydration, Virtual Player food (100-day producer run completed healthy), save/worker/game-loop/schedule paths, and the stale asset/export/documentation checks. TypeScript, lint, build and the documentation gate pass.
+
+**Verification-only pending** — code fixes are present, but the large or live check has not been run:
+- [1,800-resident three-day career benchmark](../bug_report/2026-11-02-large-population-career-window-too-short.md)
+- [Large population performance comparison](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md)
+- [Camp snow clearing visual QA](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md)
+- [Auto-fill in a ~2,000-settler save](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md)
+- [Visitor speech in the live worker/save path](../bug_report/2026-10-28-visitor-speech-bypassed-session-owner.md)
+- [Spotlight live keyboard/reload/gathering checks](../bug_report/2026-10-29-spotlight-keyboard-leaks-to-gameplay.md)
+
+**Fixed during this sweep** — [the 120-day simulation gate](../bug_report/2026-10-28-simulation-pr-gate-deleted.md) was named for 120 days but ran `--days=100`; it now runs `--days=120`. The workflow change still needs a CI run.
+
+**2026-11-02 — [Settlers could not enter their home from a non-south approach](../bug_report/2026-11-02-settlers-cannot-enter-home.md):** Some residents stayed outside because the entry target was a fixed south porch, sometimes inside the footprint itself. Entry now uses the nearest walkable side and accepts any wall within 24 px; four-side and large-house regressions pass.
+
 **2026-11-02 — [Reinforced ground never reaches the display world](../bug_report/2026-11-02-reinforced-ground-not-transported-to-display.md):** Ground Reinforcement patched only the worker's terrain map, so the client still saw hard ground and refused the next building. Command deltas now carry the patched tiles and rebake the replica; the transport regression fails before the fix and passes after.
 
 **2026-11-02 — [Same settler repeated their own dialogue line](../bug_report/2026-11-02-dialogue-same-settler-line-repeat.md):** Scene rotation ignored individual lines, so a settler could repeat a line shared by another variant; per-settler line history now filters those scenes for three days while other settlers may reuse the line. Regression committed, CI pending.

@@ -1,50 +1,11 @@
-import chaosDialogueJson from './data/chaos.json' with { type: 'json' };
-import environmentDialogueJson from './data/environment.json' with { type: 'json' };
-import existentialDialogueJson from './data/existential.json' with { type: 'json' };
-import festivalDialogueJson from './data/festival.json' with { type: 'json' };
-import needsDialogueJson from './data/needs.json' with { type: 'json' };
-import socialDialogueJson from './data/social.json' with { type: 'json' };
-import workDialogueJson from './data/work.json' with { type: 'json' };
-import ambientSoloSocialJson from './data/dialogue/ambient-solo-social.json' with { type: 'json' };
-import ambientSoloNeedsJson from './data/dialogue/ambient-solo-needs.json' with { type: 'json' };
-import ambientSoloWorkJson from './data/dialogue/ambient-solo-work.json' with { type: 'json' };
-import ambientSoloChaosJson from './data/dialogue/ambient-solo-chaos.json' with { type: 'json' };
-import ambientSoloExistentialJson from './data/dialogue/ambient-solo-existential.json' with { type: 'json' };
-import ambientSoloEnvironmentJson from './data/dialogue/ambient-solo-environment.json' with { type: 'json' };
-import ambientSoloFestivalJson from './data/dialogue/ambient-solo-festival.json' with { type: 'json' };
-import eventWorkplaceDialogueJson from './data/dialogue/workplace.json' with { type: 'json' };
-import eventNeighborDialogueJson from './data/dialogue/neighbor.json' with { type: 'json' };
-import eventChild_playDialogueJson from './data/dialogue/child-play.json' with { type: 'json' };
-import eventHuntingDialogueJson from './data/dialogue/hunting.json' with { type: 'json' };
-import eventHotelDialogueJson from './data/dialogue/hotel.json' with { type: 'json' };
-import eventHospitalDialogueJson from './data/dialogue/hospital.json' with { type: 'json' };
-import eventTown_hallDialogueJson from './data/dialogue/town-hall.json' with { type: 'json' };
-import eventMarriageDialogueJson from './data/dialogue/marriage.json' with { type: 'json' };
-import eventRenffr_omenDialogueJson from './data/dialogue/renffr-omen.json' with { type: 'json' };
-import eventElectionDialogueJson from './data/dialogue/election.json' with { type: 'json' };
-import eventSocial_impulseDialogueJson from './data/dialogue/social-impulse.json' with { type: 'json' };
-import eventVisitorDialogueJson from './data/dialogue/visitor.json' with { type: 'json' };
+import ambientDialogueJson from './data/dialogue/ambient.json' with { type: 'json' };
 import spotlightPresentationJson from './data/dialogue/spotlight-lore.json' with { type: 'json' };
-import eventFamilyDialogueJson from './data/Family.json' with { type: 'json' };
-import eventFamineDialogueJson from './data/Famine.json' with { type: 'json' };
-import eventPregnancyDialogueJson from './data/pregnancy.json' with { type: 'json' };
 import { readUtf8RelativeToModule } from './nodeRuntime';
 
 import { seededRandomForRun } from './simRng';
 import { PER_TICK_RATE_SCALE, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 import { isDialogueBusy, startDialogueTreeChat, prepareScriptedDialogue, tickHumanChat, type ChatSpeaker, type HumanChatContext, type ChatPickOptions } from './humanChat';
-export const DIALOGUE_CATEGORIES = [
-  'work',
-  'needs',
-  'social',
-  'existential',
-  'chaos',
-  'environment',
-  'festival',
-  'family',
-  'famine',
-  'pregnancy',
-] as const;
+export const DIALOGUE_CATEGORIES = ['dialogue'] as const;
 
 export type DialogueCategory = (typeof DIALOGUE_CATEGORIES)[number];
 
@@ -191,67 +152,11 @@ interface DialogueSourceFile {
 }
 
 const DIALOGUE_SOURCE_FILES: readonly DialogueSourceFile[] = [
-  chaosDialogueJson as unknown as DialogueSourceFile,
-  environmentDialogueJson as unknown as DialogueSourceFile,
-  existentialDialogueJson as unknown as DialogueSourceFile,
-  festivalDialogueJson as unknown as DialogueSourceFile,
-  needsDialogueJson as unknown as DialogueSourceFile,
-  socialDialogueJson as unknown as DialogueSourceFile,
-  workDialogueJson as unknown as DialogueSourceFile,
-  ambientSoloSocialJson as unknown as DialogueSourceFile,
-  ambientSoloNeedsJson as unknown as DialogueSourceFile,
-  ambientSoloWorkJson as unknown as DialogueSourceFile,
-  ambientSoloChaosJson as unknown as DialogueSourceFile,
-  ambientSoloExistentialJson as unknown as DialogueSourceFile,
-  ambientSoloEnvironmentJson as unknown as DialogueSourceFile,
-  ambientSoloFestivalJson as unknown as DialogueSourceFile,
-  eventWorkplaceDialogueJson as unknown as DialogueSourceFile,
-  eventNeighborDialogueJson as unknown as DialogueSourceFile,
-  eventChild_playDialogueJson as unknown as DialogueSourceFile,
-  eventHuntingDialogueJson as unknown as DialogueSourceFile,
-  eventHotelDialogueJson as unknown as DialogueSourceFile,
-  eventHospitalDialogueJson as unknown as DialogueSourceFile,
-  eventTown_hallDialogueJson as unknown as DialogueSourceFile,
-  eventMarriageDialogueJson as unknown as DialogueSourceFile,
-  eventRenffr_omenDialogueJson as unknown as DialogueSourceFile,
-  eventElectionDialogueJson as unknown as DialogueSourceFile,
-  eventSocial_impulseDialogueJson as unknown as DialogueSourceFile,
-  eventVisitorDialogueJson as unknown as DialogueSourceFile,
-  eventFamilyDialogueJson as unknown as DialogueSourceFile,
-  eventFamineDialogueJson as unknown as DialogueSourceFile,
-  eventPregnancyDialogueJson as unknown as DialogueSourceFile,
+  ambientDialogueJson as unknown as DialogueSourceFile,
 ];
 
 const DIALOGUE_SOURCE_FILE_NAMES = [
-  'chaos.json',
-  'environment.json',
-  'existential.json',
-  'festival.json',
-  'needs.json',
-  'social.json',
-  'work.json',
-  'dialogue/ambient-solo-social.json',
-  'dialogue/ambient-solo-needs.json',
-  'dialogue/ambient-solo-work.json',
-  'dialogue/ambient-solo-chaos.json',
-  'dialogue/ambient-solo-existential.json',
-  'dialogue/ambient-solo-environment.json',
-  'dialogue/ambient-solo-festival.json',
-  'dialogue/workplace.json',
-  'dialogue/neighbor.json',
-  'dialogue/child-play.json',
-  'dialogue/hunting.json',
-  'dialogue/hotel.json',
-  'dialogue/hospital.json',
-  'dialogue/town-hall.json',
-  'dialogue/marriage.json',
-  'dialogue/renffr-omen.json',
-  'dialogue/election.json',
-  'dialogue/social-impulse.json',
-  'dialogue/visitor.json',
-  'Family.json',
-  'Famine.json',
-  'pregnancy.json',
+  'dialogue/ambient.json',
 ] as const;
 
 function isDialogueCategory(value: string): value is DialogueCategory {
@@ -663,17 +568,53 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
   const explicit = request.treeId ? treesById.get(request.treeId) : undefined;
   if (request.treeId && (!explicit || !choices.includes(explicit))) return false;
   const historyKey = eventKey + ':' + mode + (roles ? ':' + [...roles].sort().join(':') : '');
+  const lineCooldownTicks = TICKS_PER_DAY * 3;
+  const lineKey = (text: string): string => {
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index++) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  };
+  const lineSpeakers = partner ? [speaker, partner] : [speaker];
+  for (const who of lineSpeakers) {
+    const recent = who.dialogueRecentLines;
+    if (!recent) continue;
+    for (const [key, at] of Object.entries(recent)) {
+      if (tick - at >= lineCooldownTicks) delete recent[key];
+    }
+  }
+  const whoSays = (tree: DialogueTree, line: DialogueLine): ChatSpeaker | null => {
+    if (!partner) return speaker;
+    const swappedForTree = Boolean(roles?.length === 2
+      && tree.speakers[0] === roles[1] && tree.speakers[1] === roles[0]);
+    return line.speaker === tree.speakers[0]
+      ? (swappedForTree ? partner : speaker)
+      : (swappedForTree ? speaker : partner);
+  };
+  const repeatsOwnLine = (tree: DialogueTree): boolean => tree.lines.some((line) => {
+    const who = whoSays(tree, line);
+    const at = who?.dialogueRecentLines?.[lineKey(line.text)];
+    return at != null && tick - at < lineCooldownTicks;
+  });
+  let selectionPool = choices;
+  if (!request.treeId && request.priority !== 'scripted') {
+    const clean = choices.filter((tree) => !repeatsOwnLine(tree));
+    if (clean.length === 0) return false;
+    selectionPool = clean;
+  }
   const last = speaker.dialogueRecentScenes?.[historyKey];
-  const lastIndex = choices.findIndex((scene) => scene.id === last?.id);
+  const lastIndex = selectionPool.findIndex((scene) => scene.id === last?.id);
   const recentlySpoken = last && Number.isSafeInteger(last.tick) && tick >= last.tick
     && tick - last.tick < TICKS_PER_DAY * 3;
   if (!explicit && choices.length === 1 && request.priority !== 'scripted'
     && recentlySpoken) return false;
   const roll = request.selectionRoll ?? (request.treeId ? 0
     : seededRandomForRun('dialogue-content:' + eventKey + ':' + speaker.id + ':' + (partner?.id ?? 0) + ':' + tick));
-  const initialIndex = Math.max(0, Math.min(choices.length - 1, Math.floor(roll * choices.length)));
-  const selected = explicit ?? choices[lastIndex >= 0 && choices.length > 1
-    ? (lastIndex + 1) % choices.length : initialIndex]!;
+  const initialIndex = Math.max(0, Math.min(selectionPool.length - 1, Math.floor(roll * selectionPool.length)));
+  const selected = explicit ?? selectionPool[lastIndex >= 0 && selectionPool.length > 1
+    ? (lastIndex + 1) % selectionPool.length : initialIndex]!;
   if (request.priority === 'scripted') {
     prepareScriptedDialogue(speaker, request.resolvePartner);
     if (partner) prepareScriptedDialogue(partner, request.resolvePartner);
@@ -688,6 +629,11 @@ export function requestDialogue(request: Readonly<DialogueRequest>): boolean {
     tree, mode === 'solo', request.durationHours);
   if (!request.treeId) {
     (speaker.dialogueRecentScenes ??= {})[historyKey] = { id: selected.id, tick };
+  }
+  for (const line of selected.lines) {
+    const who = whoSays(selected, line);
+    if (!who) continue;
+    (who.dialogueRecentLines ??= {})[lineKey(line.text)] = tick;
   }
   return true;
 }

@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** Settlers could end up with more than six close friends (legacy saves carried up to 31, and one unilateral bond could sit over the cap). Loading now trims each settler to its six strongest bonds.
+
 - **Changed (2 November 2026):** The housing pass reads a maintained player-resident count instead of rescanning every settler for each housing unit, cutting a 2,000-settler save's load from ~2.2 s to ~1.5 s.
 
 - **Changed (2 November 2026):** The performance profile analyzer now reports GC, native and loader time, the caller chain behind each self-time leader, call edges, per-step breakdowns with a --root drill-down, and line hotspots when the profile has them.

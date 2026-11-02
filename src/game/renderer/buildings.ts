@@ -254,6 +254,7 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
   }
 
   for (const b of completedDepthSortedBuildings(state.buildings)) {
+    if (b.faction === 'rival') continue;
     const { sx, sy, w, h } = getBuildingScreenRect(b, state, cam, cw, ch);
     if (sx + w < -20 || sx - w > cw + 20 || sy + h < -20 || sy - h > ch + 20) continue;
 
@@ -271,9 +272,6 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
     );
 
     drawGroundAO(ctx, sx, sy + h * 0.34, Math.max(w, h) * 0.8, state.juiceEffectsEnabled ? 0.10 : 0.06);
-
-    const isRival = b.faction === 'rival';
-    const tint = isRival ? '#312e81' : cfg.backgroundColor;
 
     if (isDecorType(b.type)) {
       drawProceduralDecor(ctx, b.type, sx, sy - h * 0.04, w, h);
@@ -293,29 +291,18 @@ export function drawBuildings(ctx: CanvasRenderingContext2D, state: RenderSnapsh
         sy - h * 0.04,
         w,
         h,
-        tint,
-        darkerColor(tint, 0.35),
+        cfg.backgroundColor,
+        darkerColor(cfg.backgroundColor, 0.35),
         sel ? 0.5 : 0.32,
         categoryBorderDashForType(b.type),
         sel ? 2 : 1,
       );
     }
 
-    if (b.faction !== 'rival' && !isDecorType(b.type)) {
+    if (!isDecorType(b.type)) {
       drawBuildingLevelUpgrades(ctx, b.level, sx, sy, w, h, cam.zoom);
     }
     drawBuildingLevelMark(ctx, b.level, sx, sy, w, h, cam.zoom);
-
-    if (isRival && b.campLabel && cam.zoom > 0.45) {
-      ctx.font = `bold ${Math.max(7, 8 * cam.zoom)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
-      const label = b.campLabel;
-      const tw = ctx.measureText(label).width;
-      ctx.fillRect(sx - tw / 2 - 4, sy - h / 2 - 14, tw + 8, 12);
-      ctx.fillStyle = '#a5b4fc';
-      ctx.fillText(label, sx, sy - h / 2 - 5);
-    }
 
     // Geen selectiering of kaders meer
 

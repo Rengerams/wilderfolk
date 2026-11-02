@@ -277,9 +277,11 @@ describe('settler lodging overnight', () => {
     expect(lodgingHotelFor(walker, state.buildings, state.entities, state.tick)).toBeUndefined();
 
     setSimSeed(TEST_SEED);
-    tickHumans(state, contextFor(state, [walker]));
+    for (let tick = 0; tick < 30 && walker.indoorBuildingId !== home.id; tick++) {
+      tickHumans(state, contextFor(state, [walker]));
+    }
 
-    expect(walker.vx, 'walks home, which is to the left').toBeLessThan(0);
+    expect(walker.indoorBuildingId, 'enters the nearby home rather than reserving a hotel').toBe(home.id);
   });
 
   it('falls back to walking home when no hotel exists or every bed is taken', () => {

@@ -25,6 +25,42 @@ export function enterHumanBuilding(entity: Entity, building: Building): void {
   entity.vy = 0;
 }
 
+/** A settler already at any wall counts as home, whatever direction they approached from. */
+const HOME_ENTRY_MARGIN_PX = 24;
+
+function isAtBuildingEdge(entity: Entity, building: Building, margin = HOME_ENTRY_MARGIN_PX): boolean {
+  const nearestX = Math.max(building.x, Math.min(building.x + building.width, entity.x));
+  const nearestY = Math.max(building.y, Math.min(building.y + building.height, entity.y));
+  return Math.hypot(entity.x - nearestX, entity.y - nearestY) <= margin;
+}
+
+/** Nearest walkable side of a residence; entry must not assume a south-only porch. */
+export function homeEntryPosition(
+  building: Building,
+  fromX: number,
+  fromY: number,
+): { x: number; y: number } {
+  const midX = building.x + building.width / 2;
+  const midY = building.y + building.height / 2;
+  const candidates = [
+    { x: midX, y: building.y + building.height + 12 },
+    { x: midX, y: building.y - 12 },
+    { x: building.x + building.width + 12, y: midY },
+    { x: building.x - 12, y: midY },
+  ];
+  let best = walkableStandPoint(candidates[0].x, candidates[0].y);
+  let bestDistance = Math.hypot(best.x - fromX, best.y - fromY);
+  for (const candidate of candidates.slice(1)) {
+    const point = walkableStandPoint(candidate.x, candidate.y);
+    const distance = Math.hypot(point.x - fromX, point.y - fromY);
+    if (distance < bestDistance) {
+      best = point;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 // ============ COMMUTE HELPERS ============
 
 /** Cells probed for a blocked stand point, nearest ring first and south before north. */
@@ -133,7 +169,7 @@ export function homeStandPosition(building: Building, entityId: number): { x: nu
   // The approach must stay south of the entire footprint, including a large Leader's House.
   return walkableStandPoint(
     building.x + lateralSlot * Math.min(6, building.width / 7),
-    building.y + building.height / 2 + 12 + porchRow * 4,
+    building.y + building.height + 12 + porchRow * 4,
   );
 }
 
@@ -334,7 +370,13 @@ export function commuteHumanToBuilding(
   rush = 1,
 ): boolean {
   entity.indoorBuildingId = undefined;
-  const target = humanBuildingTarget(building, entity.id, arrivingHome);
+  if (arrivingHome && isAtBuildingEdge(entity, building)) {
+    enterHumanBuilding(entity, building);
+    return true;
+  }
+  const target = arrivingHome
+    ? homeEntryPosition(building, entity.x, entity.y)
+    : humanBuildingTarget(building, entity.id, false);
   const dx = target.x - entity.x;
   const dy = target.y - entity.y;
   const dist = Math.hypot(dx, dy);

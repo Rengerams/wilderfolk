@@ -112,6 +112,26 @@ export function friendCount(e: Entity): number {
   return count;
 }
 
+/** Keep only the strongest MAX close bonds per settler; legacy saves can carry more than the cap. */
+export function clampCloseFriendships(people: Entity[]): void {
+  for (const person of people) {
+    const friendships = person.friendships;
+    if (!friendships) continue;
+    let closeCount = 0;
+    for (const key in friendships) {
+      if (key.startsWith(FRIEND_PREFIX) && friendships[key] >= FRIEND_CLOSE_THRESHOLD) closeCount++;
+    }
+    if (closeCount <= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
+    const close = Object.entries(friendships)
+      .filter(([key, value]) => key.startsWith(FRIEND_PREFIX) && value >= FRIEND_CLOSE_THRESHOLD)
+      .sort((a, b) => b[1] - a[1]);
+    for (const [key, value] of close.slice(MAX_CLOSE_FRIENDS_PER_SETTLER)) {
+      const next = writableFriendships(person);
+      next[key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
+    }
+  }
+}
+
 /** Repair close bonds in imported/legacy state without changing weaker acquaintances.
  * Strongest mutual friendships take priority; ties use stable settler IDs.
  */
@@ -141,6 +161,7 @@ export function reconcileCloseFriendships(people: Entity[]): void {
     retained.add(`${a.id}|${b.id}`);
   }
   for (const a of people) {
+    let closeCount = friendCount(a);
     for (const [key, value] of Object.entries(a.friendships ?? {})) {
       if (!key.startsWith(FRIEND_PREFIX) || value < FRIEND_CLOSE_THRESHOLD) continue;
       const otherId = Number(key.slice(FRIEND_PREFIX.length));
@@ -149,6 +170,7 @@ export function reconcileCloseFriendships(people: Entity[]): void {
         if (b?.id === a.id) {
           const next = writableFriendships(a);
           delete next[key];
+          closeCount -= 1;
         }
         continue;
       }
@@ -157,10 +179,11 @@ export function reconcileCloseFriendships(people: Entity[]): void {
       // A one-way imported bond below the ceiling is still a valid recorded
       // friendship. Only demote excess close bonds; the normal daily pass will
       // remove links to people who have actually died.
-      if (!originallyMutual.has(pair) && friendCount(a) <= MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
+      if (!originallyMutual.has(pair) && closeCount < MAX_CLOSE_FRIENDS_PER_SETTLER) continue;
       // Drop just below the close-friend threshold, preserving acquaintance history.
       const next = writableFriendships(a);
       next[key] = Math.min(value, FRIEND_CLOSE_THRESHOLD - 1);
+      closeCount -= 1;
     }
   }
 }

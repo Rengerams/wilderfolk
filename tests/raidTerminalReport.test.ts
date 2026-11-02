@@ -153,14 +153,14 @@ describe('terminal raid presentation and backward-compatible saves', () => {
       onConfirm: () => undefined,
       onCancel: () => undefined,
     }));
-    expect(html).toContain('Raze ');
+    expect(html).toContain('exterminate this village');
     expect(html).toContain('Hillford');
     expect(html).toContain('permanently removes');
-    expect(html).toContain('inhabitant is');
-    expect(html).toContain('displaced, not killed');
+    expect(html).toContain('will be killed');
+    expect(html).toContain('No one is released');
     expect(html).toContain('diplomatic attitude');
-    expect(html).toContain('Confirm raze');
-    expect(html).toContain('Cancel');
+    expect(html).toContain('Yes — exterminate village');
+    expect(html).toContain('No — spare the village');
     expect(JSON.stringify(world)).toBe(before);
   });
 });

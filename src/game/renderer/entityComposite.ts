@@ -11,7 +11,7 @@ import { drawAnimals } from './animals';
 import { drawBuildings } from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
-import { drawHumans, drawHuntChaseLines, drawRaidMarchLines, drawTradeRouteLines } from './humans';
+import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
@@ -55,7 +55,6 @@ export function paintMovingEntities(
   // Hunt arrows stay in the overlay pass (`overlay.ts`) — they advance on a millisecond clock.
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
-  drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
   drawFloatingTexts(drawCtx, state, cw, ch);
   drawHumans(drawCtx, state, cw, ch, true);

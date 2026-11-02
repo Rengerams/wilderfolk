@@ -1,5 +1,5 @@
 import react from "@vitejs/plugin-react"
-import tailwindcss from "@tailwindcss/vite" // 1. Hier geïmporteerd [1]
+import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from "vite"
 import { srcAlias } from "./config/vite.shared.ts"
 
@@ -17,9 +17,16 @@ const gameUiRegex = new RegExp(`src/(components|game)/(${GAME_UI_MODULES.join('|
 export default defineConfig({
   base: './',
   plugins: [
-    tailwindcss(), // 2. Hier toegevoegd (vóór react) [1]
+    tailwindcss(),
     react()
   ],
+  // 1. Worker configuratie toegevoegd voor native ES-module support in WebView2 (Windows)
+  worker: {
+    format: 'es',
+    plugins: () => [
+      react() // Zorgt dat de worker TypeScript en gedeelde game-logica correct compileert
+    ]
+  },
   optimizeDeps: {
     // react-router imports cookie's old CJS `parse`/`serialize`; prebundled, cookie exposes them.
     include: ["react-router-dom", "cookie"],
@@ -30,26 +37,6 @@ export default defineConfig({
     strictPort: false,
     open: true,
     watch: {
-      // `src-tauri/target/` is Rust build output, and `cargo doc` writes thousands of
-      // generated HTML files into `src-tauri/target/doc/**`. The dev server watched them all
-      // and issued a full-page reload per file, so opening the game in a browser (or driving
-      // it from `scripts/*.mjs`) produced a reload storm and the page never settled.
-      // Nothing under `target/` is ever imported by the app — it is build output.
-      //
-      // `tmp/**` is the same class of problem for a different reason: it is scratch — probe scripts,
-      // extracted archives, third-party payloads — and none of it is imported by the app either. A
-      // *locked* file there does not just cause noise, it **kills the dev server**: chokidar's EBUSY on
-      // `tmp/godot-ai-inspect/v4payload/addons/godot_ai/LICENSE` threw from the watcher and took the
-      // whole process down (the owner's server died six times in one session that way, each time leaving
-      // them with a page that could not reload). Ignoring `tmp/` removes the cause rather than the
-      // symptom, and keeps scratch out of the reload graph entirely.
-      //
-      // `.*.tmpdir/**` is the third and most annoying one, because it is not the project's own scratch at
-      // all: the agent harness writes root files (this run: `command.md`) by atomically replacing them
-      // through a temporary directory *at the project root*
-      // (`.command.md.<pid>.<guid>.tmpdir/command.md.tmp`). Vite watched that locked temp file, threw
-      // `EBUSY` from the watcher, and died — so editing the harness's own instructions killed the dev
-      // server. Nothing inside a `*.tmpdir` is ever imported by the app; they are mid-write staging dirs.
       ignored: ['**/src-tauri/target/**', '**/tmp/**', '**/*.tmpdir/**', '**/*.tmp'],
     },
   },
@@ -66,7 +53,7 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 800,
-    // Rolldown specifieke configuratie voor Vite 8
+    // Rolldown specifieke configuratie voor Vite
     rolldownOptions: {
       output: {
         minifyInternalExports: true,
@@ -77,6 +64,12 @@ export default defineConfig({
               name: 'react',
               test: /node_modules\/(react|react-dom)\//,
               priority: 100
+            },
+            // 2. Geïsoleerde chunk-groep voor de simulatie-workers (vóór de algemene game chunks)
+            {
+              name: 'game-workers',
+              test: /src\/simWorker\//,
+              priority: 95
             },
             {
               name: 'router',

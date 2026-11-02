@@ -6,6 +6,7 @@ import {
   spotlightPoseOffset, SPOTLIGHT_PRESENTATION, SPOTLIGHT_INTRO_MS,
   SPOTLIGHT_CAMERA_FOCUS_MS, SPOTLIGHT_MUSIC_CUE_MS,
   SPOTLIGHT_LIGHT_CUE_MS, SPOTLIGHT_REVEAL_START_MS, spotlightOpeningFrame,
+  spotlightOpeningCues,
 } from '../src/components/spotlightChoreography';
 import {
   spotlightFarewellPosition, spotlightFarewellDestination, spotlightSafePoseRadius,
@@ -69,6 +70,23 @@ describe('spotlight choreography — canonical JSON 1.3 captions and stable cues
     expect(spotlightOpeningFrame(SPOTLIGHT_INTRO_MS).blackoutOpacity).toBe(0);
     expect(spotlightFrameAt(SPOTLIGHT_INTRO_MS - 1).kind).toBe('intro');
     expect(spotlightFrameAt(SPOTLIGHT_INTRO_MS).kind).toBe('caption');
+  });
+
+  it('keeps the opening cues outside the intro frame after a throttled tab', () => {
+    const fresh = { camera: false, music: false };
+    expect(spotlightOpeningCues(0, 'intro', fresh)).toEqual({ focusCamera: false, startMusic: false });
+    expect(spotlightOpeningCues(SPOTLIGHT_CAMERA_FOCUS_MS, 'intro', fresh))
+      .toEqual({ focusCamera: true, startMusic: false });
+    expect(spotlightOpeningCues(SPOTLIGHT_MUSIC_CUE_MS, 'intro', fresh))
+      .toEqual({ focusCamera: true, startMusic: true });
+    // A hidden tab resumes on a caption frame; the cues must still fire, once each.
+    expect(spotlightOpeningCues(SPOTLIGHT_INTRO_MS + 200, 'caption', fresh))
+      .toEqual({ focusCamera: true, startMusic: true });
+    expect(spotlightOpeningCues(SPOTLIGHT_INTRO_MS + 200, 'caption', { camera: true, music: true }))
+      .toEqual({ focusCamera: false, startMusic: false });
+    // Resuming only at the finale must not start the score there.
+    expect(spotlightOpeningCues(SPOTLIGHT_APPLAUSE_START, 'applause', fresh))
+      .toEqual({ focusCamera: false, startMusic: false });
   });
 
   it('holds two complete 7000ms solos and resumes the next caption only after the hold ends', () => {

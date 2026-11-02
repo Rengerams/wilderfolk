@@ -10,7 +10,7 @@ import { preloadSpotlightMusic, playSpotlightMusic, type SpotlightMusicPlayback 
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
-  spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS,
+  spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS, spotlightOpeningCues,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
@@ -56,26 +56,36 @@ export default function SpotlightLoreOverlay({
     callbacks.current = { getCamera, onCameraTarget, onPresentation, onFinish };
   });
 
-  // Look up the real actors once for this scene, never scan the population per video frame.
-  const cast = useMemo(() => {
-    const actorIds = new Set([scene.heroineId, ...scene.performerIds]);
-    return new Map(world.entities.filter((entity) => actorIds.has(entity.id)).map((entity) => [entity.id, entity]));
-  }, [scene.id, scene.phase]);
-  const girl = cast.get(scene.heroineId) ?? resolveEntity(world, scene.heroineId);
+  // Look up the real actors through the world's id index; never rescan the population per frame.
+  const girl = resolveEntity(world, scene.heroineId) ?? undefined;
   const boundCaptions = useMemo(
     () => bindNumberedPresentationSpeakers(SPOTLIGHT_PRESENTATION, scene.performerIds, scene.heroineId),
-    [scene.id, scene.phase],
+    [scene.performerIds, scene.heroineId],
   );
   // Ready actors may stand within 11 units of their slots: start where the real sprite is drawn.
   const stageOrigin = useMemo(() => ({
     x: girl?.x ?? scene.gatherX,
     y: girl?.y ?? scene.gatherY,
-  }), [scene.id, scene.phase]);
+  }), [girl, scene.gatherX, scene.gatherY]);
   const departure = useMemo(() => spotlightFarewellDestination(world, {
     ...scene, gatherX: stageOrigin.x, gatherY: stageOrigin.y,
-  }), [scene.id, scene.phase]);
+  }), [world, scene, stageOrigin]);
   const poseRadius = useMemo(() => spotlightSafePoseRadius(world, stageOrigin),
-    [scene.id, scene.phase]);
+    [world, stageOrigin]);
+  /** One layout snapshot the wall-clock animation reads, so it never restarts on a world tick. */
+  const stageViewRef = useRef<{
+    world: WorldState; scene: SpotlightLoreState; girl: Entity | undefined;
+    captions: ReturnType<typeof bindNumberedPresentationSpeakers>;
+    origin: { x: number; y: number };
+    exit: ReturnType<typeof spotlightFarewellDestination>;
+    radius: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    stageViewRef.current = {
+      world, scene, girl, captions: boundCaptions, origin: stageOrigin,
+      exit: departure, radius: poseRadius,
+    };
+  });
 
   useEffect(() => {
     if (scene.phase === 'ready' || scene.phase === 'gathering') {
@@ -97,16 +107,22 @@ export default function SpotlightLoreOverlay({
 
   useEffect(() => {
     if (scene.phase !== 'ready' || completed.current) return;
-    const from = stageOrigin;
+    const view = stageViewRef.current;
+    if (!view) return;
+    const {
+      world: stageWorld, scene: stage, girl: stageGirl,
+      captions, origin: from, exit, radius,
+    } = view;
     let frameHandle = 0;
     let previousIndex = -1;
     let previousKind: 'intro' | 'caption' | 'pose' | 'applause' | null = null;
     let startTime: number | null = null;
+    let cameraFocused = false;
     let soundtrackStarted = false;
     let soundtrackFaded = false;
     let soundtrackStopped = false;
-    const men = scene.slots.filter((slot) => cast.get(slot.humanId)?.gender === 'male');
-    const effectTargets = men.length > 0 ? men : scene.slots;
+    const men = stage.slots.filter((slot) => resolveEntity(stageWorld, slot.humanId)?.gender === 'male');
+    const effectTargets = men.length > 0 ? men : stage.slots;
     const chorusMean = effectTargets.reduce(
       (mean, slot) => ({ x: mean.x + slot.x / effectTargets.length, y: mean.y + slot.y / effectTargets.length }),
       { x: 0, y: 0 },
@@ -118,12 +134,16 @@ export default function SpotlightLoreOverlay({
       const elapsed = now - startTime;
       const step = spotlightFrameAt(elapsed);
       const opening = spotlightOpeningFrame(elapsed);
-      if (step.kind === 'intro') {
-        if (opening.cameraShouldFocus) callbacks.current.onCameraTarget(from.x, from.y);
-        if (opening.musicShouldStart && !soundtrackStarted) {
-          soundtrackStarted = true;
-          musicSoundRef.current = playSpotlightMusic();
-        }
+      const cues = spotlightOpeningCues(elapsed, step.kind, {
+        camera: cameraFocused, music: soundtrackStarted,
+      });
+      if (cues.focusCamera) {
+        cameraFocused = true;
+        callbacks.current.onCameraTarget(from.x, from.y);
+      }
+      if (cues.startMusic) {
+        soundtrackStarted = true;
+        musicSoundRef.current = playSpotlightMusic();
       }
       if (!soundtrackFaded && elapsed >= SPOTLIGHT_APPLAUSE_START - SPOTLIGHT_MUSIC_FADE_MS) {
         soundtrackFaded = true;
@@ -138,7 +158,7 @@ export default function SpotlightLoreOverlay({
         musicSoundRef.current?.stop();
         musicSoundRef.current = null;
         callbacks.current.onPresentation(null);
-        callbacks.current.onFinish(scene.id, 'complete');
+        callbacks.current.onFinish(stage.id, 'complete');
         return;
       }
       const nextIndex = step.lineIndex ?? -1;
@@ -151,8 +171,8 @@ export default function SpotlightLoreOverlay({
         setStageKind(step.kind);
       }
 
-      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, poseRadius);
-      const walked = spotlightFarewellPosition(from, departure, step.farewellProgress);
+      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, radius);
+      const walked = spotlightFarewellPosition(from, exit, step.farewellProgress);
       const x = walked.x + pose.x;
       const bowProgress = step.kind === 'applause'
         ? Math.max(0, Math.min(1, (elapsed - SPOTLIGHT_APPLAUSE_START) / 1500)) : 0;
@@ -161,18 +181,18 @@ export default function SpotlightLoreOverlay({
       const moving = step.poseProgress !== null || (step.farewellProgress > 0 && step.farewellProgress < 1);
       const facingLeft = step.poseProgress !== null
         ? Math.sin(step.poseProgress * Math.PI * 2) < 0
-        : departure.x < from.x;
+        : exit.x < from.x;
 
       // Renderer uses the actual heroine's sprite once, with a frame-scoped display projection.
-      callbacks.current.onPresentation({ id: scene.heroineId, x, y, moving, facingLeft });
+      callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft });
       if (step.farewellProgress > 0) callbacks.current.onCameraTarget(x, y);
 
       const camera = callbacks.current.getCamera();
-      const cw = canvasRef.current?.clientWidth ?? world.width;
-      const ch = canvasRef.current?.clientHeight ?? world.height;
+      const cw = canvasRef.current?.clientWidth ?? stageWorld.width;
+      const ch = canvasRef.current?.clientHeight ?? stageWorld.height;
       const project = (px: number, py: number): { x: number; y: number } => {
         const [sx, sy] = worldToScreen(px, py, camera, cw, ch);
-        return { x: sx, y: sy - terrainRiseAt(world.worldMap, px, py) * camera.zoom };
+        return { x: sx, y: sy - terrainRiseAt(stageWorld.worldMap, px, py) * camera.zoom };
       };
       const onScreen = project(x, y);
       if (blackoutRef.current) {
@@ -189,7 +209,7 @@ export default function SpotlightLoreOverlay({
       if (applauseMarkers) {
         for (let index = 0; index < applauseMarkers.length; index++) {
           const marker = applauseMarkers[index] as HTMLElement;
-          const human = cast.get(scene.performerIds[index]);
+          const human = resolveEntity(stageWorld, stage.performerIds[index]);
           if (step.kind !== 'applause' || !human) {
             marker.style.opacity = '0';
             continue;
@@ -211,10 +231,11 @@ export default function SpotlightLoreOverlay({
         ringRef.current.style.left = onScreen.x + 'px';
         ringRef.current.style.top = (onScreen.y - 18) + 'px';
       }
-      const caption = step.lineIndex === null ? null : boundCaptions[step.lineIndex];
+      const caption = step.lineIndex === null ? null : captions[step.lineIndex];
       const speakingId = caption?.speakerId ?? null;
-      const speakingEntity = speakingId === scene.heroineId ? girl : cast.get(speakingId ?? -1);
-      const sourcePosition = speakingId === scene.heroineId ? onScreen
+      const speakingEntity = speakingId === stage.heroineId
+        ? stageGirl : resolveEntity(stageWorld, speakingId ?? -1) ?? undefined;
+      const sourcePosition = speakingId === stage.heroineId ? onScreen
         : speakingEntity ? project(speakingEntity.x, speakingEntity.y) : onScreen;
       if (bubbleRef.current) {
         bubbleRef.current.style.left = Math.min(cw - 160, Math.max(160, sourcePosition.x)) + 'px';
@@ -256,12 +277,12 @@ export default function SpotlightLoreOverlay({
       musicSoundRef.current = null;
       callbacks.current.onPresentation(null);
     };
-  }, [scene.id, scene.phase]);
+  }, [scene.id, scene.phase, canvasRef]);
 
   const line = lineIndex >= 0 ? boundCaptions[lineIndex] : null;
   const speakingId = line?.speakerId ?? null;
   const speakingEntity: Entity | undefined = speakingId === scene.heroineId
-    ? girl ?? undefined : cast.get(speakingId ?? -1);
+    ? girl : resolveEntity(world, speakingId ?? -1) ?? undefined;
 
   const skip = () => {
     if (completed.current) return;

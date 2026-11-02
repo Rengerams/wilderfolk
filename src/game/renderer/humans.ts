@@ -23,7 +23,6 @@ import {
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
 import { isAsleepAtHome } from '../humanSchedule';
-import { getPlayerCampCenter } from '../villageAnchor';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
@@ -474,69 +473,6 @@ export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: Render
   }
 }
 
-export function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  const hasIncoming = (state.pendingRaidEvents?.length ?? 0) > 0;
-  const hasOutgoing = (state.pendingOutgoingRaidEvents?.length ?? 0) > 0;
-  if ((!hasIncoming && !hasOutgoing) || state.camera.zoom < 0.35) return;
-  const cam = state.camera;
-  // The anchor is the simulation's own rule (`getPlayerCampCenter`): hall, then house, then the
-  // living settlers' mean, then the map centre. A private copy of the building half used to live
-  // here and returned the first completed player building when there was no hall or house, so a
-  // drawn march line could point somewhere the simulated raid never went
-  // (`tests/villageAnchor.singleOwner.test.ts`). `RenderSnapshot` carries the three fields the rule
-  // reads, so the snapshot itself is what it is asked for — no cast.
-  const village = getPlayerCampCenter(state, state.buildings);
-  const vx = (village.x - cam.x) * cam.zoom + cw / 2;
-  const vy = (village.y - cam.y) * cam.zoom + ch / 2;
-
-  // Incoming: solid rose (threat toward village)
-  for (const raid of state.pendingRaidEvents ?? []) {
-    const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
-    if (!rival) continue;
-    const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
-    const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    ctx.strokeStyle = 'rgba(244,63,94,0.55)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(rx, ry);
-    ctx.lineTo(vx, vy);
-    ctx.stroke();
-    ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fb7185';
-    ctx.fillText('⚔️', (rx + vx) / 2, (ry + vy) / 2 - 6);
-  }
-
-  // Outgoing: dashed amber/orange, heavier stroke; counter-raid uses gold + short dash
-  for (const raid of state.pendingOutgoingRaidEvents ?? []) {
-    const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
-    if (!rival) continue;
-    const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
-    const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    const counter = !!raid.isCounterRaid;
-    ctx.strokeStyle = counter ? 'rgba(251,191,36,0.7)' : 'rgba(249,115,22,0.7)';
-    ctx.lineWidth = counter ? 3 : 2.75;
-    ctx.setLineDash(counter ? [4, 4] : [12, 6]);
-    ctx.beginPath();
-    ctx.moveTo(vx, vy);
-    ctx.lineTo(rx, ry);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // Endpoint marker toward rival camp
-    const mx = vx + (rx - vx) * 0.92;
-    const my = vy + (ry - vy) * 0.92;
-    ctx.beginPath();
-    ctx.arc(mx, my, Math.max(2.5, 3.5 * Math.min(1, cam.zoom)), 0, Math.PI * 2);
-    ctx.fillStyle = counter ? 'rgba(251,191,36,0.85)' : 'rgba(251,146,60,0.85)';
-    ctx.fill();
-    ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = counter ? '#fbbf24' : '#fb923c';
-    ctx.fillText(counter ? '🛡️' : '🥾', (vx + rx) / 2, (vy + ry) / 2 - 6);
-  }
-}
-
 export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.4) return;
   const cam = state.camera;
@@ -682,7 +618,7 @@ function drawHumanMarker(
   const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
   const { fill, outline } = getHumanMarkerColors(gender, variant);
   const radius = getHumanMarkerRadius(zoom, human.isJuvenile, isLeader);
-  const fillColor = human.faction === 'visitor' ? '#22d3ee' : human.faction === 'rival' ? '#fb923c' : fill;
+  const fillColor = human.faction === 'visitor' ? '#22d3ee' : fill;
   ctx.beginPath();
   ctx.arc(sx, sy, radius + 1.5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
@@ -800,6 +736,8 @@ export function drawHumans(
     sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
   }[] = [];
   for (const human of _cachedHumans) {
+    // Rivals live on the strategic map; the village layer never draws their parties.
+    if (human.faction === 'rival') continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
     if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
@@ -961,7 +899,7 @@ export function drawHumans(
       } else {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-        ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
+        ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
       }
       ctx.font = `bold ${namePlate.fontSize}px sans-serif`;
       ctx.textAlign = 'center';

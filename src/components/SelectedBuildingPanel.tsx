@@ -383,12 +383,17 @@ export default function SelectedBuildingPanel({
               onClick={() => onDiplomacyAction({ proto: 1, op: 'launchRaidOnRival', rivalId: rival.id })}
               className="rounded bg-orange-950 px-2 py-1 text-[10px] font-bold text-orange-100 hover:bg-orange-900 disabled:opacity-40"
               title={canLaunchRaid
-                ? `Costs ${raidFoodCost} food (march rations) · worsens relations`
+                ? (atPeace
+                  ? `Breaks the peace treaty · costs ${raidFoodCost} food (march rations)`
+                  : `Costs ${raidFoodCost} food (march rations) · worsens relations`)
                 : (raidEligibility.blockReason ?? 'Cannot raid')}
             >
               🏹 {outgoingRaidAction?.buttonLabel ?? 'Raid their camp'} ({raidFoodCost}🍖)
               {!canLaunchRaid ? refusal(raidEligibility) : ''}
             </button>
+            {atPeace && canLaunchRaid && (
+              <p className="w-full text-[10px] text-cyan-300">Attacking now will break the peace treaty.</p>
+            )}
           </div>
         )}
       </div>

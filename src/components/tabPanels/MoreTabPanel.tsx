@@ -23,6 +23,7 @@ export interface MoreTabPanelProps {
   onReplayTutorial: () => void;
   onToggleTutorials: () => void;
   onSpawnMoonHowlerDebug: () => void;
+  onStartSpotlightDebug: () => void;
   /** `?debug=1` — debug tooling must not be reachable in a normal session. */
   debugMode: boolean;
   state: WorldState;
@@ -38,6 +39,7 @@ export default function MoreTabPanel({
   onReplayTutorial,
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
+  onStartSpotlightDebug,
   debugMode,
   state,
   onStartGuidedCampaign,
@@ -244,6 +246,14 @@ export default function MoreTabPanel({
                 className="w-full rounded-lg bg-violet-800 px-3 py-2 text-[13px] font-bold text-violet-100 transition-all hover:bg-violet-700"
               >
                 🌝 Spawn Moon Howler
+              </button>
+              <p className="mb-2 mt-3 text-[13px] text-stone-300">Stage the rare Spotlight performance with this colony's settlers.</p>
+              <button
+                onClick={onStartSpotlightDebug}
+                disabled={state.spotlightLore != null}
+                className="w-full rounded-lg bg-amber-700 px-3 py-2 text-[13px] font-bold text-amber-50 transition-all hover:bg-amber-600 disabled:cursor-default disabled:opacity-50"
+              >
+                🎬 Run Spotlight Event
               </button>
             </div>
           )}

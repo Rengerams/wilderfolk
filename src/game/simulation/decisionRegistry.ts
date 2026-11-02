@@ -163,7 +163,7 @@ export const SIMULATION_DECISIONS = {
       'human.energy (derived projection)',
     ],
     scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
-    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts, tests/homeEntry.geometry.test.ts',
   },
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
@@ -258,10 +258,10 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. This owner writes human.dialogueRecentScenes and is not a read-only projection; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
-    writes: ['human.dialogueRecentScenes'],
+    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
-    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts',
+    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
   },
   dialogueSessions: {
     owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
@@ -272,11 +272,11 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   spotlightLore: {
-    owner: 'spotlightLore.ts — maybeStartSpotlightLore, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
+    owner: 'spotlightLore.ts — buildSpotlightLoreScene, maybeStartSpotlightLore, startSpotlightLoreDebug, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
     cadence: 'realtime',
-    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection through direct simRng.personDayRoll with 6–10 eligible adult male speakers and bounded walkable stage slots before cooldown, all-actor attendance/eligibility through ready, load-time cast validation and typed finish; stage movement in humanTick uses cached pathfinding velocity and one normal walk step; read-only UI choreography derives independent wall-clock 44-caption cues via one canonical captionBoundary lookup, camera projection, streamed instrumental fading before applause and cancellable SFX applause; the overlay delegates keyboard ownership and Escape-to-skip to the existing useOverlayKeyboard hook, not WorldState',
-    writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)'],
-    scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads the gathering target and delegates obstacle steering to pathfinding.steerWithPath (single humanTick movement integration); simWorker/commands.ts delegates finishSpotlightLore',
+    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection through direct simRng.personDayRoll with 6–10 eligible adult male speakers and bounded walkable stage slots before cooldown, all-actor attendance/eligibility through ready, load-time cast validation and typed finish; `startSpotlightLoreDebug` is a dev-only bypass from the `?debug=1` Guide card that stages a paused ready cast on its marks without writing the cooldown; stage movement in humanTick uses cached pathfinding velocity and one normal walk step; read-only UI choreography derives independent wall-clock 44-caption cues via one canonical captionBoundary lookup, camera projection, streamed instrumental fading before applause and cancellable SFX applause; the overlay delegates keyboard ownership and Escape-to-skip to the existing useOverlayKeyboard hook, not WorldState',
+    writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)', 'paused (debug preview only)', 'entity positions, indoorBuildingId, huntTargetId and velocity (debug preview only)'],
+    scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads the gathering target and delegates obstacle steering to pathfinding.steerWithPath (single humanTick movement integration); simWorker/commands.ts delegates finishSpotlightLore and startSpotlightLoreDebug',
     testFile: 'tests/spotlightLore.test.ts, tests/spotlightChoreography.test.ts, tests/spotlightApplause.test.ts, tests/spotlightAudioRace.test.ts',
   },
   courtship: {
@@ -369,10 +369,10 @@ export const SIMULATION_DECISIONS = {
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
     cadence: 'realtime',
-    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; events are written through the ordinary Chronicle owner.',
+    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
-    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts',
+    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts',
   },
   raidRecovery: {
     owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',

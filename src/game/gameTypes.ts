@@ -368,6 +368,8 @@ export interface Entity {
   chatPartnerId?: number;
   chatDialogueSessionKey?: string;
   dialogueRecentScenes?: Record<string, { id: string; tick: number }>;
+  /** Line hash → last tick this settler said it; keeps one person from repeating a line. */
+  dialogueRecentLines?: Record<string, number>;
   moonHowlerCursed?: boolean;
   moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
@@ -660,6 +662,7 @@ export interface RaidEvent {
   defenseChoice?: 'defend' | 'barricade';
   defenseStrength?: number;
   battleStartedAtTick?: number;
+  battleMilestones?: number[];
   battleCasualtiesApplied?: boolean;
   battlePlayerCasualties?: string[];
   soldierIds?: number[];
@@ -685,6 +688,8 @@ export interface RaidEvent {
 
 export interface OutgoingRaidEvent {
   phase?: 'marching' | 'engaging' | 'fighting' | 'returning';
+  /** The march began by attacking a settlement at peace or friendly terms. */
+  brokeTreaty?: boolean;
   leaderIdAtBattleStart?: number | null;
   battleStartedAtTick?: number;
   battleChronicle?: string[];
@@ -879,7 +884,7 @@ export interface WorldState {
     damagedBuildings: number;
     suppliesLost: { food: number; gold: number; wood: number; stone: number };
   }>;
-  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[]; credibleThreat?: boolean }>;
+  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[]; credibleThreat?: boolean; brokeTreaty?: boolean }>;
 
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;

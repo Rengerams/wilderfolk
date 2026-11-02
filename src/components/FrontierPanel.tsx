@@ -224,7 +224,7 @@ function FrontierPanel({
                     <p className="text-[13px] text-stone-300">
                       {formatRivalPopulationLabel(r)} · {formatCampDistance(getCampDistancePixels(state, state.buildings, r))}
                       · raid {raidFoodCost}🍖
-                      {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d</span>}
+                      {isRivalAtPeace(r) && <span className="text-cyan-400"> · 🕊️ {r.peaceTreatyDays}d (raid breaks treaty)</span>}
                     </p>
                     <p className="text-[10px] capitalize text-amber-300/80">{getRivalProfileLabel(profile)} · {presence.stanceLabel}</p>
                     {r.diplomacyMemory && <p className="text-[10px] text-stone-300">Valley memory: trust {r.diplomacyMemory.trust} · fear {r.diplomacyMemory.fear} · grievance {r.diplomacyMemory.grievance}</p>}

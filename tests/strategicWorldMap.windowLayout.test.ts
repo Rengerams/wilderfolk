@@ -5,11 +5,11 @@ import { resolve } from 'node:path';
 const read = (path: string): string => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Frontier world map window layout', () => {
-  it('uses the same width and outer height budget as the battle report overlay', () => {
-    const report = read('src/App.tsx');
+  it('uses the documented overlay height budget and the larger match width', () => {
+    const report = read('src/components/BattleReportScreen.tsx');
     const window = read('src/components/CitizenOverviewScreen.tsx');
 
-    expect(report).toContain('max-h-[92vh] w-full max-w-3xl');
+    expect(report).toContain('max-h-[92vh] w-full max-w-5xl');
     expect(window).toMatch(/widthClassName=\{activeNav === 'frontier'\s*\? 'w-\[calc\(100vw-2rem\)\] max-w-3xl'/);
     expect(window).toMatch(/maxBodyClassName=\{activeNav === 'frontier' \? 'max-h-\[calc\(92vh-4rem\)\]'/);
   });

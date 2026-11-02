@@ -1,4 +1,4 @@
-import { getOutgoingBattleProgressPercent } from './game/frontierCombat';
+import { getBattleProgressPercent, RAID_BATTLE_HOURS } from './game/frontierCombat';
 import { isStripBuildType } from './game/stripBuild';
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
@@ -84,7 +84,7 @@ import GamePlayLayout from './components/GamePlayLayout';
 import GameInspector from './components/GameInspector';
 import GameOverlays from './components/GameOverlays';
 import WarfareStatus from './components/WarfareStatus';
-import RazeConfirmation from './components/RazeConfirmation';
+import BattleReportScreen from './components/BattleReportScreen';
 import { downloadSaveFile } from './game/saveLoad';
 import { downloadChronicleLog } from './game/eventLogExport';
 
@@ -191,8 +191,6 @@ export default function App() {
   });
   // The dialog follows authoritative combat events rather than a fake countdown.
   const [battleReport, setBattleReport] = useState<{ rivalName: string; raidId?: string; baselineId: number; incoming?: boolean } | null>(null);
-  const [razeConfirmationId, setRazeConfirmationId] = useState<string | null>(null);
-  const razeSubmittingRef = useRef(false);
   const [view, setView] = useState<ViewState>(() => createInitialViewForWorld(world));
   const [villageStats, setVillageStats] = useState<VillageStatsSummary>(() =>
     computeVillageStats(world),
@@ -512,6 +510,10 @@ export default function App() {
     if (loopRef.current?.getWorld().spotlightLore?.id !== sceneId) return;
     applyGameAction({ proto: 1, op: 'finishSpotlightLore', sceneId, reason });
   }, [applyGameAction, loopRef]);
+
+  const startSpotlightDebug = useCallback(() => {
+    applyGameAction({ proto: 1, op: 'startSpotlightLoreDebug' });
+  }, [applyGameAction]);
 
   const resumeAfterTutorialOverlay = useCallback(() => {
     primeAudioUnlock();
@@ -1425,6 +1427,7 @@ export default function App() {
           onVolumePreset={handleVolumePreset}
           onOpenGuide={handleOpenGuide}
           onStartNewGame={startNewGame}
+          onStartSpotlightDebug={startSpotlightDebug}
           onReplayIntro={() => setShowIntro(true)}
           onOpenCitizenOverview={openCitizenOverview}
           onFocusLeader={() => {
@@ -2270,6 +2273,10 @@ export default function App() {
           onReplayTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
           onToggleTutorials={handleToggleTutorials}
           onSpawnMoonHowlerDebug={() => applyGameAction({ proto: 1, op: 'spawnMoonHowlerDebug' })}
+          onStartSpotlightDebug={() => {
+            startSpotlightDebug();
+            closeCitizenOverview();
+          }}
           debugMode={debugMode}
           onStartGuidedCampaign={() => applyGameAction({ proto: 1, op: 'startGuidedCampaign' })}
         />
@@ -2305,72 +2312,48 @@ export default function App() {
         </div>
       )}
       {battleReport && (() => {
+        const report = world.raidBattleReports?.find((entry) => entry.raidId === battleReport.raidId);
+        const battleWindowStart = report ? report.resolvedAtTick - RAID_BATTLE_HOURS * TICKS_PER_HOUR : undefined;
         const events = world.eventLog.filter((event) =>
           event.id > battleReport.baselineId &&
+          (battleWindowStart == null || event.tick >= battleWindowStart) &&
           (event.combatKind === 'outgoing_raid' || event.combatKind === 'defense' || event.combatKind === 'incoming_raid') &&
           (event.entityName === battleReport.rivalName || event.message.includes(battleReport.rivalName))
         );
         const resolved = events.some((event) => event.combatStage === 'resolved');
         const pending = (world.pendingRaidVictories ?? []).find((entry) => battleReport.raidId ? entry.raidId === battleReport.raidId : entry.rivalName === battleReport.rivalName);
-        const report = world.raidBattleReports?.find((entry) => entry.raidId === battleReport.raidId);
         const liveDefense = world.pendingRaidEvents.find((entry) => entry.id === battleReport.raidId && entry.phase === 'fighting');
-        const casualties = events.filter((event) => event.combatStage === 'casualties');
         const liveArmy = (world.pendingOutgoingRaidEvents ?? []).find((army) =>
           (battleReport.raidId ? army.id === battleReport.raidId : army.rivalName === battleReport.rivalName) && army.phase === 'fighting');
+        const progressPercent = liveArmy
+          ? getBattleProgressPercent(liveArmy, world.tick)
+          : liveDefense
+            ? getBattleProgressPercent(liveDefense, world.tick)
+            : resolved || pending ? 100 : 0;
+        const startedAtTick = liveArmy?.battleStartedAtTick ?? liveDefense?.battleStartedAtTick
+          ?? (report ? report.resolvedAtTick - RAID_BATTLE_HOURS * TICKS_PER_HOUR : undefined);
         return (
-          <div role="dialog" aria-modal="true" aria-label="Battle report" className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/95 p-4 text-stone-100">
-            <div className="flex min-h-0 max-h-[92vh] w-full max-w-3xl flex-col gap-3 rounded-2xl border border-amber-600/60 bg-stone-950 p-5 shadow-2xl sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">Battle report — recorded events</p>
-              <h2 className="text-2xl font-bold text-amber-100">{battleReport.incoming ? 'Defense against' : 'Raid on'} {battleReport.rivalName}</h2>
-              <p className="text-sm text-stone-400">{resolved ? 'The battle has resolved. These are the simulation’s recorded events.' : liveArmy ? 'LIVE · Text commentary follows the simulation. Casualties are named only after their deaths are recorded.' : 'Waiting for the simulation to resolve the battle. No result or casualties are assumed.'}</p>
-              {liveArmy && <div className="rounded border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
-                Battle underway · {liveRaidSoldierCount} soldiers still deployed · {getOutgoingBattleProgressPercent(liveArmy, world.tick)}% of battle time elapsed
-              </div>}
-              {liveDefense && <p className="text-amber-200">Defense underway · hourly battle updates · {liveDefense.battlePlayerCasualties?.length ?? 0} confirmed village casualties.</p>}
-              {report && <p className="text-emerald-300">Recorded village losses: {report.playerFallen.join(', ') || 'None'} · enemy losses: {report.enemyDeaths}, including {report.enemyFallen.length} identified fighters.</p>}
-              {pending && (
-                <div className="grid grid-cols-2 gap-2 rounded-lg border border-stone-700 p-3 text-sm">
-                  <div className="text-emerald-300">Your village: {pending.playerDead} killed</div>
-                  <div className="text-rose-300">Enemy: {pending.enemyDead} killed · {pending.enemySurvivors} survivors</div>
-                  <div className="text-emerald-300">Village dead: {pending.playerCasualties.length ? pending.playerCasualties.join(', ') : 'None'}</div>
-                  <div className="text-rose-300">Enemy dead: {pending.enemyCasualties.length ? pending.enemyCasualties.join(', ') : 'No identifiable fighters'}{pending.enemyDead > pending.enemyCasualties.length ? ` · ${pending.enemyDead - pending.enemyCasualties.length} off-map` : ''}</div>
-                </div>
-              )}
-              {pending && <p className="text-sm text-slate-300">Prisoners captured: {(world.raidPrisonerHistory ?? []).filter((entry) => entry.raidId === pending.raidId).length}. Off-map survivors are counts, not invented captives.</p>}
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-stone-700 bg-black/60 p-4 font-mono text-sm">
-                {events.length === 0 && <p className="text-amber-300">No battle events received yet.</p>}
-                {events.map((event) => (
-                  <p key={event.id} className={`border-l-2 pl-3 ${event.message.startsWith('Village fighter killed:') ? 'border-emerald-600 text-emerald-300' : event.message.startsWith('Enemy killed:') ? 'border-rose-600 text-rose-300' : event.combatStage === 'casualties' ? 'border-stone-600 text-stone-200' : 'border-amber-800 text-stone-200'}`}>{event.message}</p>
-                ))}
-                {casualties.length === 0 && resolved && !pending && <p className="text-stone-400">No casualty event was recorded for this encounter.</p>}
-              </div>
-              {pending && (
-                <div className="space-y-2 rounded-lg border border-amber-700/70 p-3">
-                  <p className="font-bold text-amber-200">{battleReport.rivalName} has surrendered. Choose its fate.</p>
-                  <p className="text-sm text-stone-300">Its remaining population is {pending.enemySurvivors}. The decision is saved until you make it.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'mercy' }); setBattleReport(null); }}>Withdraw</button>
-                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'tribute' }); setBattleReport(null); }}>Demand one-time tribute</button>
-                    <button type="button" className="rounded bg-stone-700 px-3 py-2" onClick={() => { razeSubmittingRef.current = false; setRazeConfirmationId(pending.raidId); }}>Raze settlement</button>
-                  </div>
-                  {razeConfirmationId === pending.raidId && (
-                    <RazeConfirmation
-                      pending={pending}
-                      onConfirm={() => {
-                        if (razeSubmittingRef.current) return;
-                        razeSubmittingRef.current = true;
-                        applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: 'raze' });
-                        setRazeConfirmationId(null);
-                        setBattleReport(null);
-                      }}
-                      onCancel={() => { razeSubmittingRef.current = false; setRazeConfirmationId(null); }}
-                    />
-                  )}
-                </div>
-              )}
-              <button type="button" className="self-end rounded-lg bg-amber-600 px-5 py-2 font-bold text-stone-950 hover:bg-amber-500" onClick={() => setBattleReport(null)}>{resolved || pending ? 'Return to village' : 'Close — battle still pending'}</button>
-            </div>
-          </div>
+          <BattleReportScreen
+            key={battleReport.raidId ?? battleReport.rivalName}
+            rivalName={battleReport.rivalName}
+            incoming={battleReport.incoming}
+            dayLabel={`${world.season} · Year ${world.year} · Day ${world.dayInYear}`}
+            events={events}
+            resolved={resolved}
+            pending={pending}
+            report={report}
+            liveArmy={liveArmy}
+            liveDefense={liveDefense}
+            liveSoldiers={liveRaidSoldierCount}
+            progressPercent={progressPercent}
+            startedAtTick={startedAtTick}
+            onClose={() => setBattleReport(null)}
+            onFate={(choice) => {
+              if (!pending) return;
+              applyGameAction({ proto: 1, op: 'resolveRaidVictory', eventId: pending.raidId, choiceId: choice });
+              setBattleReport(null);
+            }}
+          />
         );
       })()}
 
