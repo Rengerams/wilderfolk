@@ -1,7 +1,7 @@
 # Wilderfolk — The Look: rare juvenile spotlight lore (0.6.5.2)
 
 **Document type:** feature architecture and executable codebot implementation contract, derived from [CODEBOT_FEATURE_TEMPLATE.md](CODEBOT_FEATURE_TEMPLATE.md).  
-**Status:** Base Spotlight event and choreography implemented on PR #91 branch (not merged); PR #93 canonical parser/binder integrated, focused tests authored, CI and browser not yet verified. Historical AS-IS describes main before this feature; the new choreography contract at the top supersedes conflicting historical TO-BE details.  
+**Status:** Spotlight event and choreography implemented and merged to `main` via [PR #91](https://github.com/Rengerams/wilderfolk/pull/91) on 29 October 2026. PR #93's canonical parser/binder is integrated; focused tests exist. Live browser/audio and final-head CI acceptance are not established by this documentation update. Historical AS-IS describes main before this feature; the new choreography contract at the top supersedes conflicting historical TO-BE details.  
 **Authority:** AGENTS.md, docs/command.md, OWNERSHIP_OVERVIEW.md and simulation/decisionRegistry.ts.  
 **Evidence:** examined main at 688047375fb9a9ed966059d66c25add867912297 on 28 October 2026. Verify the live base again before editing.
 
@@ -11,7 +11,7 @@
 
 ## Choreography change request — implementation contract, 28 October 2026
 
-**Status: IMPLEMENTED IN PR #91 SOURCE, NOT YET CI/BROWSER VERIFIED.** This section is the authoritative coding contract for the choreography implemented on the PR #91 branch. The trigger stays **Saturday/Sunday 19:00, 7.5% deterministic roll and 90-day cooldown**. Do not merge or mark release-complete without verified tests and browser playthrough. The earlier AS-IS and original TO-BE below are retained as historical context; where they disagree on timing, dialogue ownership or staging, **this choreography specification takes precedence**.
+**Status: IMPLEMENTED AND MERGED VIA PR #91; RELEASE/BROWSER VERIFICATION STILL OPEN.** This is the coding contract for the choreography now present on `main`. The trigger stays **Saturday/Sunday 19:00, 7.5% deterministic roll and 90-day cooldown**. Do not claim browser or release acceptance without verified test results and a real playthrough. The earlier AS-IS and original TO-BE below are retained as historical context; where they disagree on timing, dialogue ownership or staging, **this choreography specification takes precedence**.
 
 ### A. Required chronological screenplay
 
@@ -44,7 +44,7 @@ The girl is a real **12–17-year-old** settler, and the 6–10 gathered **adult
 - **Stage circles (twice, seven seconds each):** Animate the *visible existing heroine* in a small loop around her real stage location, with an expressive “look at me” turn/pose. No teleport, no second permanent character, and no new world tick. Use a single presentation-only *render offset* derived from the wall-clock choreography (a smooth loop, bounded radius, exactly returns to its origin). The rendering path must draw her **once** using the existing juvenile art and must respect draw order and terrain occlusion. If reusing the existing render layer is necessary, pass a presentation transform into the render projection instead of mutating `Entity.x/y`, `WorldState` or worker-owned SoA.
 - **Final walk:** During the repeated outro, interpolate a smooth slow *presentation-only* displacement away from the semicircle (bounded distance, e.g. 20–35 world units over the remaining finale, after evaluating unobstructed terrain). Validate a walkable departure corridor using the canonical world grid once; if blocked, choose a safe alternative or do an in-place theatrical exit. **Never pass through walls/water** and never consume gameplay movement speed or clock ticks. The authoritative girl remains at her previous saved x/y after completion/skip.
 - **Camera follow:** `App.tsx` retains camera ownership, snapshot and restoration; while the farewell runs, the presentation sends only a bounded, latest **visual heroine target** to that controller. It uses existing `GameLoop` camera view/lerp/clamp at render cadence (not a React state update or worker command per animation frame). Avoid a second camera owner, avoid instant snapping, keep the girl and a little of the village visible. The speech bubble, halo and particles use the **same current presentation-space heroine coordinates and the live `loop.getView().camera`**, not a stale React snapshot.
-- **Hearts and kiss marks:** purely comic, non-romantic stage particles. Emanate from the girl's displayed position; visually drift toward adult chorus / around the girl without conveying affection or triggering any relationship system. A single deterministic seeded emitter, capped at **24 concurrent elements** and at most **6 emitted per second**, with finite lifetimes and a viewport-bounded draw area. One user-provided applause audio excerpt is stored as a local Ogg asset for the final applause; no additional music or photo assets required. Particles begin in `first-chorus`, stop in the gap, resume in `bridge-hearts` and continue across `farewell-walk` to applause. CSS/DOM or an existing lightweight graphics owner is fine, but do not create unbounded React per-frame state updates.
+- **Hearts and kiss marks:** purely comic, non-romantic stage particles. Emanate from the girl's displayed position; visually drift toward adult chorus / around the girl without conveying affection or triggering any relationship system. A single deterministic seeded emitter, capped at **24 concurrent elements** and at most **6 emitted per second**, with finite lifetimes and a viewport-bounded draw area. The uploaded crowd-cheering MP3 is the selected applause asset; the retained shorter Ogg is not selected. No additional music or photo assets required. Particles begin in `first-chorus`, stop in the gap, resume in `bridge-hearts` and continue across `farewell-walk` to applause. CSS/DOM or an existing lightweight graphics owner is fine, but do not create unbounded React per-frame state updates.
 - **Exit/cleanup:** exact scene ID + session revision govern the controller. Skip, app unmount, loss of actor, load/new game or world replacement stops both pose and particle effects and invalidates captured camera controls before restore. Preserve old-save/worker parity with **no new persisted fields**. No fertility, attraction, heart sprites in gameplay simulation, worker effects, pathfinding changes or permanent actor relocation.
 
 ### D. Mandatory implementation/tests and review evidence
@@ -59,7 +59,7 @@ The girl is a real **12–17-year-old** settler, and the 6–10 gathered **adult
 | Real UI | Browser smoke on the real map: six and ten performers, heroine's visible two interjections, both seven-second circles, chorus effects, final walk/camera tracking, skip/finish/reload; camera restore confirmed |
 | Governance | Update implementation architecture, owner overview, decision registry, `CHANGELOG.md` and PR #91 report after coding; bug reports and their index only when defects are actually confirmed; exact new/updated count in PR description |
 
-**Release gates still outstanding:** focused presentation tests, schema/parser tests shared with PR #93, `npm run test:standard`, types, lint, production build, browser worker/fallback pause/skip/load smoke, and diff review for unrelated gameplay drift. Mark all as **NOT RUN** until results exist. Avoid code or test changes in PR #93 merely to stage this plan; integrate when both branches can share the same canonical dialogue contract.
+**Verification boundary after merge:** focused tests are present, but this documentation update does not establish the current merged head's `npm run test:standard`, types, lint, production build or browser worker/fallback pause/skip/load result. Do not mark a gate PASS without its actual run and evidence. Avoid code or test changes in PR #93 merely to stage this plan; integrate when both branches can share the same canonical dialogue contract.
 
 ---
 
@@ -327,11 +327,13 @@ Report DONE/BLOCKED; PR/commit; implemented observable scene; each touched owner
 
 ## 9. Final review gate
 
-- [ ] Full scene exists in code, not just this document.
-- [ ] True actor walking and exact unique 6–10 adults, centered camera, relaxed readable one-by-one dialogue.
-- [ ] Paused time is wall-clock driven and never modifies gameplay needs/social state.
-- [ ] Proper transitions, completion/skip, original speed/pause/favorite/camera restoration.
+- [x] Full scene exists in code, not just this document.
+- [x] True actor walking and exact unique 6–10 adults, centered camera, relaxed readable one-by-one dialogue.
+- [x] Paused time is wall-clock driven and never modifies gameplay needs/social state.
+- [x] Proper transitions, completion/skip, original speed/pause/favorite/camera restoration.
 - [ ] Existing worker, fallback, old saves, pause/resume and headless tests pass.
-- [ ] No duplicated movement, dialogue, camera or event-log owner; no O(N²) tick loop.
-- [ ] Both registries, changelog, roadmap and bug index correct; no unrun test claimed.
-- [ ] Merged to main before marking roadmap complete.
+- [x] No duplicated movement, dialogue, camera or event-log owner; no O(N²) tick loop.
+- [x] Both registries, changelog, roadmap and bug index correct; no unrun test claimed.
+- [x] Merged to main before marking roadmap complete.
+
+**Implementation checkpoint — 29 October 2026:** PR #91 is merged at `2a9f1a72dce8e112c5e8e6adc53e7c0e62bf5397`. Canonical captions and MP3 routes, the stage/rule owners and their existing regressions are present on `main`. The ownership overview, decision registry, changelog, bug index and roadmap reflect the merged feature. The worker/fallback, old-save, full headless suite and live browser/audio evidence in the unchecked item above are **not verified by this administrative pass**; implementation acceptance does not equal a green release gate.
