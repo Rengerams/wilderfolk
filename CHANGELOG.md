@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** Changelog checks now distinguish filenames from ordinary slash-separated prose. Removed an unused meal scheduler helper and updated both active ownership registries.
+
 - **Implemented (29 October 2026, PR #91):** Merged rare Spotlight Lore with real-actor gathering, 44 JSON captions, cinematic reveal, instrumental and applause MP3s, two timed poses, farewell camera and Skip/restore. Browser acceptance remains unverified.
 
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
