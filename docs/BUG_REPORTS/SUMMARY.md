@@ -2107,5 +2107,5 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 ## 2026-11-02 — Housing refill proposes a visited home
 
-- **A household evicted by the capacity phase was left homeless while beds existed — resolved in the working tree (uncommitted):** after the capacity phase unhoused one member, the refill re-picked the same home the run had already recorded as visited; `relocateHousehold` refused it and no alternative was attempted. The placement now retries past a refused destination (next-best, up to three) before splitting, so the family is housed in the same run and the second run is a no-op; the generated case is the regression. [Report](../bug_report/2026-11-02-housing-refill-proposes-visited-home.md).
+- **A household evicted by the capacity phase was left homeless while beds existed — resolved:** after the capacity phase unhoused one member, the refill re-picked the same home the run had already recorded as visited; `relocateHousehold` refused it and no alternative was attempted. The placement now retries past a refused destination (next-best, up to three) before splitting, so the family is housed in the same run and the second run is a no-op; the generated case is the regression. [Report](../bug_report/2026-11-02-housing-refill-proposes-visited-home.md).
 

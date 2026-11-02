@@ -3,10 +3,10 @@
 - Bug: after the capacity phase unhouses one member of a split household, the refill picks that same
   home for the reunited household, `relocateHousehold` refuses it as already visited, no alternative
   is tried, and the household stays outside until the next assignment run.
-- Status: resolved in the working tree (uncommitted; HEAD still carries the old behaviour)
+- Status: resolved (HEAD `95ca783a`)
 - Severity: high
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, T0 working tree on HEAD `58ca1793`
+- Version/build: V.0.6.5.1, HEAD `95ca783a`
 - Reporter: generated invariant suite (`tests/housingPipeline.invariants.test.ts`), seed 2
 - Area: housing assignment
 - Owner module: `src/game/residencyReconciliation.ts` (assignment; selection in `residencySelection.ts`)
@@ -16,9 +16,9 @@
 
 - 2026-11-02 — open: reproduced on generated colony seed 2. No fix attempted; pinned by the new
   invariant suite.
-- 2026-11-02 — resolved in the working tree (uncommitted): the placement retries past a refused
-  destination. Seed 2 housed the family on the first run and the second run became a no-op under the
-  original fixture; the 33 housing suites and the invariant suite passed.
+- 2026-11-02 — resolved in `95ca783a`: the placement retries past a refused destination. Seed 2
+  housed the family on the first run and the second run became a no-op under the original fixture;
+  the 33 housing suites and the invariant suite passed.
 
 ## Impact in current play
 
@@ -113,7 +113,7 @@ guarantee when it lands: a destination the writer refuses is never returned as t
   forces a visited destination (capacity eviction + refill into the same home) is still TODO, so the
   end-to-end retry is currently covered by the owner-level exclusion test and the original
   reproduction, not by a failing-before pipeline case.
-- The full housing suite passed on the fixed working tree: 34 files / 148 tests with T0 (33 existing
+- The full housing suite passed on the fixed tree: 34 files / 148 tests with T0 (33 existing
   plus the invariant suite).
 
 ## Save compatibility
@@ -125,8 +125,8 @@ in-run ordering.
 
 - `npx vitest run tests/housingPipeline.invariants.test.ts` — 6/6 pass.
 - `npx vitest run tests/residenceBestFit.owner.test.ts` — 5/5 pass, including the exclusion case.
-- `npx vitest run <34 housing suites>` — 34 files, 148 tests pass on the T0 working tree (33
-  existing + the invariant suite).
+- `npx vitest run <34 housing suites>` — 34 files, 148 tests pass on HEAD (33 existing + the
+  invariant suite).
 - `npm run test:types`, `npm run lint`, `npm run check:source`, `npm run build` — all pass on the
   merged state (the build's semantic-overlap gate included). A concurrent edit by another agent
   (`moveCounter`) landed in the same module during this work and is part of those runs.

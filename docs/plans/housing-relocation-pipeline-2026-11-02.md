@@ -4,26 +4,22 @@
 **Owner module after this work:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules
 keep one job each and lose every decision.
 
-**Baselines, kept apart because T0 is not committed.**
+**Baselines.** T0 is now committed as `95ca783a update housing`, so the merge starts from it.
 
-| Tree | Suites / tests | Recorded | Contains |
+| Commit | Suites / tests | Recorded | Contains |
 | :--- | :--- | :--- | :--- |
-| HEAD (`58ca1793`) | 33 files / 141 tests, 19.33 s | 08:51 | the pre-T0 housing suite; the L2 counter is the *member comparison* from `ce853298` |
-| **Working tree (T0, uncommitted)** | **34 files / 148 tests, 15.73 s** | **09:36** | the invariant suite (6), the selection exclusion test (1), the retry fix, the write counter from another agent |
+| `58ca1793` (pre-T0) | 33 files / 141 tests, 19.33 s | 08:51 | the original housing suite; the L2 counter was the *member comparison* from `ce853298` |
+| **`95ca783a` (HEAD, T0 committed)** | **34 files / 148 tests, 15.73 s** | **09:36** | the invariant suite (6), the selection exclusion test (1), the retry fix, and the write counter (`context.onMove`) |
 
-T0 exists only in the working tree: `src/test/housingColony.ts`, `tests/housingPipeline.invariants.test.ts`
-and the bug report are untracked; `residencyReconciliation.ts`, `residencySelection.ts`,
-`residenceBestFit.owner.test.ts`, `decisionRegistry.ts` and the bug index are modified. **P0a must
-branch from this working tree** (or T0 must be committed first) — branching from HEAD would drop the
-invariant suite, the fix and the write counter. A T0 commit necessarily includes both uncommitted
-source changes in `residencyReconciliation.ts`: the retry fix and the move counter (written by
-another agent; the plan adopts it in P0a/P1 rather than rebuilding the weaker HEAD rule).
+`95ca783a` also swept unrelated work from other agents in the tree (scripts, visitor/dialogue,
+audio); it is the verified tree nonetheless. **P0a branches from this commit** — branching from
+`58ca1793` would drop the invariant suite, the retry fix and the write counter. The L2 rule the plan
+builds on is the committed one: progress is any residence write, not the member comparison.
 
 **Audited 2026-11-02 08:48** by an independent read-only review; this version incorporates all 25
 findings. One finding was overtaken by the tree twice: `ce853298` replaced attempt-counting with a
-per-unit member comparison at 08:34, and the uncommitted T0 working tree replaces that with a
-real-write counter (`context.onMove`). The plan adopts the latter (L2, G4) instead of rebuilding a
-third counter.
+per-unit member comparison at 08:34, and T0 (`95ca783a`) replaced that with a real-write counter
+(`context.onMove`). The plan adopts the committed counter (L2, G4) instead of rebuilding a third one.
 
 ---
 
@@ -81,7 +77,7 @@ Line citations use today's paths; P0a merges and renames them (§4.10) before an
 | # | Finding | Evidence |
 | :--- | :--- | :--- |
 | L1 | An adult-child move drags independent adult descendants into the new home | `collectOwnHousehold` adds every living `childrenIds` entry with no age or residence filter (householdComposition.ts:21); the adult-child move uses it at residencyReconciliation.ts:1015 in `tryMoveOutOfFamilyHome` (defined :1006); `relocateHousehold` writes every member |
-| L2 | ~~"Needs reassignment" counted attempts~~ — **half fixed in HEAD; the working tree has the right counter** | `ce853298` compares each unit member's residence before/after (:624–626, :655–657), which misses a real write to a custodian or guardian outside the unit. The uncommitted working tree counts every `writeResidence` through `context.onMove` (`moveCounter`) — the rule P0a/P1/G4 must adopt, not the member comparison |
+| L2 | ~~"Needs reassignment" counted attempts~~ — **half fixed by `ce853298`, completed by T0** | `ce853298` compares each unit member's residence before/after (:624–626, :655–657), which misses a real write to a custodian or guardian outside the unit. `95ca783a` (T0) counts every `writeResidence` through `context.onMove` (`moveCounter`) — the committed rule P0a/P1/G4 must adopt, not the member comparison |
 | L3 | The threaded trait map drifts for a cursed Moon Howler | `buildResidenceTraits` filters `isPlayerHuman` (residencySelection.ts:590), `writeResidence` calls `residenceTraitMove` unfiltered (:289), `countResidentsInBuilding` counts `isResidenceOccupantEntity` — so beds and traits disagree for that settler on every pass |
 | L4 | `coreCannotFit` is misnamed and its middle case is wrong | residencySelection.ts:289–290. Truth table: no guardian → true; guardian **has** a bed → true (short circuit); guardian has no bed → "no home fits the core". It is false only when a guardian exists, has no bed, and a home fits. The second operand is reachable — it runs exactly then. The defect is the inverted name/semantics, not dead code |
 | L5 | `isHousingUnitProtected` mutates `protectedUnits` from a predicate | residencyReconciliation.ts:70 |
@@ -319,7 +315,7 @@ export function applyRelocation(
 | G1 | `move: true` ⇒ the destination exists, is assignable, is not the manor under an ordinary reason, and fits the whole household — checked *inside* the planner, not at write time | fails with a raw building list; also the open L11 report |
 | G2 | `move: true` and `to: undefined` is legal only for `surplus` | not expressible today |
 | G3 | `chooseHome` never returns a home `relocateHousehold` would refuse — a refusal must never be treated as "no destination" | two independent rule sets; L11 |
-| G4 | A household with no reachable placement plans `move: false` (stay) and the pass ends; **progress is any residence write** (`context.onMove`), including a custodian or guardian moved outside the unit | HEAD's member comparison is narrower; the working tree's write counter is the rule to keep |
+| G4 | A household with no reachable placement plans `move: false` (stay) and the pass ends; **progress is any residence write** (`context.onMove`), including a custodian or guardian moved outside the unit | the old member comparison is narrower; the committed write counter is the rule to keep |
 | G5 | One occupant rule: beds, traits and rosters agree, cursed Moon Howlers included | three answers |
 | G6 | A plan carries its own `why`; the report line can explain itself | nested moves say `assignment` |
 | G7 | Planning is side-effect free; only `applyRelocation` writes, logs or settles | `isHousingUnitProtected` counts |
@@ -554,7 +550,7 @@ home. The script harness is `scripts/colonyHealth.ts`; this module is the projec
    move here, in the same change as the merge (AGENTS §5.9); P7 then only adds the new pipeline
    decision rows.
 7. Gate: `npm run test:types`, `npm run lint`, `npm run audit` (cycles), `npm run build`, and the
-   **34 suites / 148 tests on the T0 working tree** — identical results, because nothing but paths
+   **34 suites / 148 tests on HEAD (`95ca783a`)** — identical results, because nothing but paths
    and register rows moved.
 
 **Naming, and the names rejected:**
@@ -577,9 +573,9 @@ Each work package is one commit, green on its own, and revertable alone.
 
 | ID | Work package | Depends on | Files | Done when |
 | :--- | :--- | :--- | :--- | :--- |
-| **P0a** | **Merge five modules into three + honest names** (mechanical + register rows) | T0 working tree | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 148 tests identical on the T0 working tree** (not HEAD, which lacks T0); `buildFamilyGroups` still reachable from the Population tab; no logic changed |
+| **P0a** | **Merge five modules into three + honest names** (mechanical + register rows) | T0 committed (`95ca783a`) | `housingModel.ts`, `housingPipeline.ts`, `housingDiagnostics.ts`, all importers (127 edges), `dayCycle.ts` barrel, `OWNERSHIP_OVERVIEW.md`, `decisionRegistry.ts` | types, lint, cycles, build clean; **34 suites / 148 tests identical on HEAD**; `buildFamilyGroups` still reachable from the Population tab; no logic changed |
 | **P0** | Contract + baseline + bug reports + close `stats` | P0a | `housingPipeline.ts` (types only), `docs/bug_report/*`, `BUG_REPORTS/SUMMARY.md` | `RelocationPlan`/`RelocationNeed` compile unused; `HousingReport.stats` shape agreed and recorded in the registry; baseline re-recorded on the new names; L1/L3/L4/L5/L7/L9/L10 filed and indexed |
-| **P1** | Planner core + **homeless** need only | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase runs through `planRelocation`; G1/G2/G4/G7 pass — G4 guards the working tree's write counter (`onMove`), not HEAD's member comparison; **L11 stays fixed** — `relocateFamily` already retries past a refused destination, and the planner must keep the same guarantee (G1/G3) instead of removing the retry |
+| **P1** | Planner core + **homeless** need only | P0 | `housingPipeline.ts`, `housingModel.ts`, `tests/housingPlanner.contract.test.ts` | homeless phase runs through `planRelocation`; G1/G2/G4/G7 pass — G4 guards the committed write counter (`onMove`), not the old member comparison; **L11 stays fixed** — `relocateFamily` already retries past a refused destination, and the planner must keep the same guarantee (G1/G3) instead of removing the retry |
 | **P2** | **custody**, **capacity**, **surplus** | P1 | same | guardianship/capacity rebuilt on needs; adoption stays a custody pre-step; capacity takes the pass's occupancy/traits; L7 fixed (vacancy set grows) |
 | **P3** | **leave-home**, **commute**; delete the old predicate | P2 | same + `tests/adultChild.moveOutTarget.test.ts` | L1 fixed (minor household only); `housingUnitNeedsReassignment` deleted with its 3 test imports rewritten; `sortHousingUnitsForAssignment` returns plans; optional phases green |
 | **P4** | Event triggers through the pipeline | P3 | `housingPipeline.ts`, `humanLifecycleCleanup.ts`, `simulation/humanRelationships.ts`, `workforce.ts` (release already pipes) | death, marriage, divorce stop choosing: they change custody/link then run the pipeline; divorce's one-hop reshuffle moves into capacity; `divorceHousing.custody`, `amicableDivorce`, `residency.blendedCustody`, `guardianship.jailedParents` green |
@@ -634,7 +630,7 @@ gantt
 
 | Session | When | Content | Gate before the next session |
 | :--- | :--- | :--- | :--- |
-| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 34 suites / 148 tests identical on the T0 tree; Population tab still renders |
+| S0 | Mon 02 Nov — AM | P0a: merge five modules into model / pipeline / report | types, lint, cycles, build; 34 suites / 148 tests identical on HEAD; Population tab still renders |
 | S1 | Mon 02 Nov — PM | P0: contract types, bug reports, close `stats` | contract compiles; reports indexed; `stats` shape registered |
 | S2 | Tue 03 Nov — AM | P1: planner core, homeless need | homeless phase green; G1/G2/G4/G7 contract tests |
 | S3 | Tue 03 Nov — PM | P2: custody, capacity, surplus | mandatory needs green; capacity/custody suites |
@@ -675,7 +671,7 @@ recoverable; a stale doc presented as done is not.
 | :--- | :--- | :--- |
 | G1/G3 — a plan's destination is legal and fits | new `tests/housingPlanner.contract.test.ts` (property over the existing fixtures: every planned destination passes `relocateHousehold` without mutation) | P1 |
 | G2 — unhousing only for `surplus` | same file, exhaustive need table | P1 |
-| G4 — an impossible relocation is "stay" | `tests/housingPlanner.stuckColony.test.ts`: a household with no reachable placement plans `move: false`, `relocations` empty, **`stats.passes <= 3`** — a guard on the working tree's write counter, deliberately not a "before" claim | P1 |
+| G4 — an impossible relocation is "stay" | `tests/housingPlanner.stuckColony.test.ts`: a household with no reachable placement plans `move: false`, `relocations` empty, **`stats.passes <= 3`** — a guard on the committed write counter, deliberately not a "before" claim | P1 |
 | G5 — one occupant rule | extend `tests/housingPipeline.occupantOrder.test.ts`: cursed Moon Howler counted in beds **and** traits | P5 |
 | G6 — a plan explains itself | `stats` + report `why` asserted in the contract test | P5 |
 | G7 — planning is pure | contract test: planning a unit leaves entities, ledger and report untouched | P1 |
@@ -712,7 +708,7 @@ npx vitest run tests/housingAuthority.pipeline.test.ts tests/housingDiagnostics.
 ```
 
 T0 adds `tests/housingPipeline.invariants.test.ts` (6 tests) and one exclusion case inside
-`tests/residenceBestFit.owner.test.ts`; the uncommitted working tree is **34 files / 148 tests**.
+`tests/residenceBestFit.owner.test.ts`; HEAD (`95ca783a`) is **34 files / 148 tests**.
 
 From P1 onward: the same list, with `residencyReconciliation.occupantOrder` replaced by
 `housingPipeline.occupantOrder`, plus `tests/housingPlanner.contract.test.ts` and
@@ -739,9 +735,9 @@ npx tsx scripts/run-full-year.mts
 Every stage records `HousingReport.stats` for the standard fixtures so the pipeline can be compared
 before/after, not argued about:
 
-- `passes` per run — HEAD counts member changes; the working tree counts every residence write
-  (`context.onMove`), which is the rule to measure. The field makes it observable and the guard is
-  `≤ 3` on the stuck fixture (not a 24 → 2 improvement claim).
+- `passes` per run — HEAD (`95ca783a`) counts every residence write (`context.onMove`), which is the
+  rule to measure. The field makes it observable and the guard is `≤ 3` on the stuck fixture (not a
+  24 → 2 improvement claim).
 - `considered`, `moved`, `stayed` per phase (proves no phase lost candidates in the migration).
 - relocation count and assignment hash at 600 / 1 200 / 2 400 settlers with 0 and 20/40/80 spare
   homes — the published table in `docs/HOUSING_ARCHITECTURE.md` §10 is the baseline.
@@ -784,8 +780,8 @@ before/after, not argued about:
 - `docs/bug_report/`: **resolved in the old code 2026-11-02** — `2026-11-02-housing-refill-proposes-visited-home.md`
   (L11; `relocateFamily` retries past a refused destination, invariant seed 2 and idempotency pass).
   **P0 files L1, L3, L4, L5, L7, L9, L10** (seven distinct defects) and indexes them in
-  `docs/BUG_REPORTS/SUMMARY.md`. L2 was half-closed by `ce853298` (member comparison); the T0
-  working tree adopts the write counter, and no report is filed for it. L6 (unreachable rollback) and
+  `docs/BUG_REPORTS/SUMMARY.md`. L2 was half-closed by `ce853298` (member comparison); T0
+  (`95ca783a`) adopts the write counter, and no report is filed for it. L6 (unreachable rollback) and
   L8 (documented reason collapse) are notes, not defects, and are not filed.
 - Historical documents untouched.
 
@@ -832,7 +828,7 @@ snapshots the report shape, and the registry records it as a report field). File
 - One eligibility predicate, one write context (`HousingMoveContext`), one manor allowlist, one
   occupant rule; the 15 rival literals and the redundant aliases are gone; `buildFamilyGroups` still
   serves the Population tab from `housingModel`.
-- The 34 suites / 148 tests on the T0 tree pass unchanged where they pin existing promises; the
+- The 34 suites / 148 tests on HEAD pass unchanged where they pin existing promises; the
   planner suites pass; types, lint, `check:source`, `audit`, `build` clean; benchmark hash identical
   and no slower.
 - A full simulated year with zero housing invariant violations.
