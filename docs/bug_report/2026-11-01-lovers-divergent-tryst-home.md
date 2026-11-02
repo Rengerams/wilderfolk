@@ -11,7 +11,8 @@
 - Related PR/commit: branch `fix/central-sleep-and-affair-arrival-20261101`
 
 ## Status history
-- 2026-11-01 — investigating: Reversing the two arguments to `getAffairTrystBuilding` changes the preferred residence; pair-stable selection and unified sleep observation committed. CI pending.
+- 2026-11-01 — investigating: Reversing the two arguments to `getAffairTrystBuilding` changes the preferred residence; pair-stable selection and unified sleep observation committed.
+- 2026-11-02 — regression CI identified an incorrect test assertion: `getBuildingCenter` uses stored `building.x/y` (100/100), not the footprint corner plus half-size (120/120). The test now asserts the authoritative centre coordinates. Run 41370677389: 2864 tests passed, including the other affair-site cases; the two failing expectations were corrected. New CI pending.
 
 ## Observed behavior
 A married settler with an absent spouse chooses their own empty home as a tryst site; their single lover, evaluating the same pair in reverse order, previously lacks the married-home preference and may choose the other person's residence or no building. `sleepingAtLover` separately insists on `lover.residenceBuildingId` rather than the actual shared tryst site. A real indoor visit therefore can fail to qualify as sleep.
@@ -39,6 +40,6 @@ Make `getAffairTrystBuilding` use only the two lovers' actual residences when ne
 None; no new entity fields or serialization changes.
 
 ## Verification result
-- Pair-order and indoor lover regressions: committed; execution NOT RUN from this connector-only environment.
+- Pair-order and indoor lover regressions: executed in GitHub CI run 41370677389; the test's former incorrect centre-coordinate assertion failed, now corrected. Remaining affair tests passed.
 - `npm run test:types`, `npm run lint`, `npm run build`: NOT RUN (no full local repository checkout).
-- GitHub CI: pending.
+- GitHub CI: new head pending after two test-fixture corrections; no confirmed all-green run yet.
