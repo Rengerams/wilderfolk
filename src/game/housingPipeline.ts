@@ -36,6 +36,7 @@ export type RelocationNeed =
   | 'custody'
   | 'capacity'
   | 'surplus'
+  | 'leave-home'
   | 'manor'
   | 'couple'
   | 'leave-home'
@@ -275,6 +276,7 @@ export function planRelocation(
   if (need === 'custody') return planPlacement(unit, context, 'guardian', 'custodian placement', residences);
   if (need === 'capacity') return planPlacement(unit, context, 'family', 'capacity placement', residences);
   if (need === 'surplus') return planSurplus(unit, context, residences);
+  if (need === 'leave-home') return planLeaveHome(unit, context);
   return { move: false, reason: 'assignment', why: `no ${need} planner yet` };
 }
 
@@ -373,6 +375,18 @@ function planSurplus(
     return { move: false, reason: 'family', why: 'a destination exists' };
   }
   return { move: true, to: undefined, reason: 'family', why: 'surplus leaves the overfull home' };
+}
+
+/** Leave-home only targets a completely empty home, never the manor. */
+function planLeaveHome(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
+  const members = [...unit];
+  if (members.length === 0) return { move: false, settled: true, reason: 'family', why: 'empty household' };
+  const empty = context.residences.filter((home) => !isLeaderHouseResidence(home)
+    && countResidentsInBuilding(context.alive, home.id, context.occupancy) === 0);
+  const picked = findAcceptedDestination(members, context.alive, context, empty);
+  return picked === undefined
+    ? { move: false, reason: 'family', why: 'no empty home' }
+    : { move: true, to: picked, reason: 'family', why: 'leave-home placement' };
 }
 
 function destinationRefusedByWriter(
@@ -1190,18 +1204,11 @@ export function tryMoveOutOfFamilyHome(
 ): boolean {
   if (!isAdultChildAtHome(human, humans)) return false;
 
-  const household = collectOwnHousehold(human, humans);
-  // Select an empty home that fits the complete departing household.
-  const target = residences.find(
-    (r) =>
-      !isLeaderHouseResidence(r) &&
-      countResidentsInBuilding(humans, r.id, occupancy) === 0 &&
-      familyFitsInResidence(household, r, humans, occupancy),
-  );
-  if (!target) return false;
-
-  return relocateHousehold(household, target.id, 'adult-child', 'family',
-    standaloneMoveContext(humans, residences, occupancy, undefined, ledger));
+  const household = collectMinorHousehold(human, humans);
+  const context = standaloneMoveContext(humans, residences, occupancy, undefined, ledger);
+  const plan = planRelocation(household, 'leave-home', context);
+  if (!plan.move) return false;
+  return applyRelocation(household, plan, 'adult-child', context) !== undefined;
 }
 
 export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
@@ -1210,14 +1217,11 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
   occupancy?: ResidenceOccupancy,
   ledger?: HousingLedger,
 ): void {
-  let emptyHomeIds = residences
-    .filter(
-      (r) =>
-        !isLeaderHouseResidence(r) &&
-        r.faction !== 'rival' &&
-        countResidentsInBuilding(humans, r.id, occupancy) === 0,
-    )
+  const listEmptyHomeIds = (): number[] => residences
+    .filter((r) => !isLeaderHouseResidence(r) && r.faction !== 'rival'
+      && countResidentsInBuilding(humans, r.id, occupancy) === 0)
     .map((r) => r.id);
+  let emptyHomeIds = listEmptyHomeIds();
   if (emptyHomeIds.length === 0) return;
 
   const leaderHouseIds = new Set(residences.filter(isLeaderHouseResidence).map((r) => r.id));
@@ -1238,15 +1242,12 @@ export function rebalanceAdultChildrenFromFamilyHomeWhenEmptyAvailable(
     if (moved.has(adult.id)) continue;
     if (emptyHomeIds.length === 0) return;
 
-    const household = collectOwnHousehold(adult, humans);
+    const household = collectMinorHousehold(adult, humans);
     if (household.some((m) => moved.has(m.id))) continue;
     if (ledger && isHousingUnitProtected(ledger, household, 'adult-child')) continue;
     if (!tryMoveOutOfFamilyHome(adult, humans, residences, occupancy, ledger)) continue;
 
-    const newHomeId = adult.residenceBuildingId;
-    if (newHomeId != null) {
-      emptyHomeIds = emptyHomeIds.filter((id) => id !== newHomeId);
-    }
+    emptyHomeIds = listEmptyHomeIds();
     for (const member of household) moved.add(member.id);
   }
 }

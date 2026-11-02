@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (2 November 2026):** An adult child leaving the family home now takes only their minor household, so an independent adult grandchild keeps their own home; a home vacated during the pass is offered to later candidates.
+
 - **Changed (2 November 2026):** Capacity and custody now go through the same relocation plan as homelessness: a capacity household is ranked, retried and moved before anyone is made surplus, and surplus only unhouses when no home fits.
 
 - **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.

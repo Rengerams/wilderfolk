@@ -15,6 +15,7 @@ import {
   listPlayerResidences,
   planRelocation,
   standaloneMoveContext,
+  tryMoveOutOfFamilyHome,
 } from '../src/game/housingPipeline';
 import type { HousingLedger } from '../src/game/housingPipeline';
 import { isResidenceOccupantEntity } from '../src/game/housingModel';
@@ -324,5 +325,19 @@ describe('the relocation plan contract', () => {
     expect(plan.to).toBe(10);
     expect(applyRelocation([child], plan, 'guardianship', context)).toBeDefined();
     expect(child.residenceBuildingId).toBe(10);
+  });
+
+  it('leaves an independent adult grandchild in their own home', () => {
+    const familyHome = building(10, BuildingType.House);
+    const grandchildHome = building(11, BuildingType.House);
+    const empty = building(12, BuildingType.House);
+    const parent = human(1, { age: 70, residenceBuildingId: 10 });
+    const adult = human(2, { age: 40, motherId: 1, residenceBuildingId: 10 });
+    const grandchild = human(3, { age: 20, motherId: 2, residenceBuildingId: 11 });
+    const humans = [parent, adult, grandchild];
+
+    expect(tryMoveOutOfFamilyHome(adult, humans, [familyHome, grandchildHome, empty])).toBe(true);
+    expect(adult.residenceBuildingId).toBe(12);
+    expect(grandchild.residenceBuildingId).toBe(11);
   });
 });
