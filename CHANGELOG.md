@@ -2,6 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (2 November 2026):** Worker ticks send incremental entity changes with authoritative order fallback, and only new chronicle entries since the last acknowledged result.
+
+- **Changed (2 November 2026):** Building changes use reusable structural snapshots; five history owners update revisions instead of serializing unchanged histories, while genealogy remains structurally checked.
+
+- **Changed (2 November 2026):** Display catalogues borrow the validated entity index, and unchanged building deltas retain geometry caches while preserving entity and scent invalidation.
+
+- **Changed (2 November 2026):** Worker pipeline defaults to two in-flight ticks, reserving render and command slots; repeated diagnostic errors are sampled rather than printed on every occurrence.
+
+- **Added (2 November 2026):** Dedicated worker-transport CI covers render delta parity, 5,000 ticks, 1,000 command refreshes, buffer returns and boundary auditing.
+
+
 - **Fixed (2 November 2026):** Worker requests now wait for the shared census-name gate, and failed local recovery ticks preserve pending simulation time.
 
 - **Fixed (2 November 2026):** Transferable render buffers now reject nonexact sizes; the worker stress harness returns render leases and checks real save acknowledgements.
