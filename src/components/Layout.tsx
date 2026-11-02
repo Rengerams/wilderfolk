@@ -25,7 +25,6 @@ const NAV: NavItem[] = [
   { pad: "/opgave", label: "Beschikbaarheid", icoon: "opgave", groep: "Evenementen", recht: ["opgave", "zien"] },
   { pad: "/indeling", label: "Indeling", icoon: "indeling", groep: "Evenementen", recht: ["indeling", "zien"] },
   { pad: "/bellijst", label: "Bellijst", icoon: "bellijst", groep: "Evenementen", recht: ["reservelijst", "zien"] },
-  { pad: "/vervoer", label: "Vervoer", icoon: "vervoer", groep: "Evenementen", recht: ["vervoer", "zien"] },
   {
     pad: "/declaraties",
     label: "Declaraties",

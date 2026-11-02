@@ -25,7 +25,6 @@ import { Tutorial } from "./pages/Tutorial"
 import { Logboek } from "./pages/Logboek"
 import { Rollen } from "./pages/Rollen"
 import { UitjeDetail } from "./pages/UitjeDetail"
-import { Vervoer } from "./pages/Vervoer"
 
 export function App() {
   const { gebruiker, laden } = useAuth()
@@ -65,7 +64,6 @@ export function App() {
           <Route path="/indeling" element={<Indeling />} />
           <Route path="/indeling/:periodeId" element={<Indeling />} />
           <Route path="/bellijst" element={<Bellijst />} />
-          <Route path="/vervoer" element={<Vervoer />} />
           <Route path="/declaraties" element={<Declaraties />} />
           <Route path="/kas" element={<Kas />} />
           <Route path="/rapportage" element={<Rapportage />} />

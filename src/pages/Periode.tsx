@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { api, bestandAlsBase64, download, foutTekst } from "../api"
 import { useAuth } from "../auth"
@@ -17,6 +17,13 @@ import {
 } from "../components/ui"
 import { PlekkenKeuze } from "../components/PlekkenKeuze"
 import { ProgrammaKalender } from "../components/ProgrammaKalender"
+import {
+  UitjeVervoer,
+  VoertuigenBeheer,
+  type GekoppeldVoertuig,
+  type Persoon,
+  type VoertuigOptie,
+} from "../components/UitjeVervoer"
 import { datumKort, datumNumeriek, euro, tijd } from "../lib/format"
 import type { Periode, Uitje } from "../types"
 import { statusBadge } from "./Programma"
@@ -37,6 +44,13 @@ type ImportRegel = {
   fouten: string[]
   waarschuwingen: string[]
   reeks_sleutel: string | null
+}
+
+type VervoerData = {
+  uitjes: { id: number; voertuigen: GekoppeldVoertuig[] }[]
+  voertuigen: VoertuigOptie[]
+  chauffeurs: Persoon[]
+  medewerkers: Persoon[]
 }
 
 type PeriodeData = {
@@ -69,6 +83,8 @@ export function PeriodeDetail() {
   const [melding, setMelding] = useState<{ tekst: string; ongedaan?: () => void } | null>(null)
   const [bezig, setBezig] = useState(false)
   const [weergave, setWeergave] = useState<"lijst" | "kalender">("lijst")
+  const [vervoer, setVervoer] = useState<VervoerData | null>(null)
+  const [openVervoer, setOpenVervoer] = useState<number | null>(null)
 
   const [nieuwUitje, setNieuwUitje] = useState(false)
   const [uitjeVelden, setUitjeVelden] = useState(leegUitje(14))
@@ -80,6 +96,15 @@ export function PeriodeDetail() {
   const [bestand, setBestand] = useState<File | null>(null)
   const [standaardCap, setStandaardCap] = useState("14")
   const [preview, setPreview] = useState<{ regels: ImportRegel[]; aantal: number; fouten: number } | null>(null)
+
+  async function haalVervoer() {
+    if (!mag("vervoer", "zien")) return
+    try {
+      setVervoer(await api<VervoerData>(`/periodes/${id}/vervoer`))
+    } catch {
+      setVervoer(null)
+    }
+  }
 
   async function haal() {
     setLaden(true)
@@ -95,6 +120,7 @@ export function PeriodeDetail() {
       })
       setStandaardCap(String(antwoord.periode.standaard_capaciteit))
       setFout(null)
+      void haalVervoer()
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
@@ -420,7 +446,8 @@ export function PeriodeDetail() {
             ]}
           >
             {uitjes.map((uitje) => (
-              <tr key={uitje.id} style={uitje.status === "geannuleerd" ? { opacity: 0.6 } : undefined}>
+              <Fragment key={uitje.id}>
+              <tr style={uitje.status === "geannuleerd" ? { opacity: 0.6 } : undefined}>
                 <td className="nu">
                   <strong>{datumKort(uitje.datum)}</strong>
                   <div className="klein muted">{datumNumeriek(uitje.datum)}</div>
@@ -446,12 +473,50 @@ export function PeriodeDetail() {
                   <Link className="knop knop--klein" to={`/uitje/${uitje.id}`}>
                     Openen
                   </Link>
+                  {mag("vervoer", "zien") && (
+                    <button
+                      type="button"
+                      className="knop knop--klein"
+                      onClick={() => setOpenVervoer(openVervoer === uitje.id ? null : uitje.id)}
+                    >
+                      {openVervoer === uitje.id ? "Vervoer sluiten" : "Vervoer"}
+                    </button>
+                  )}
                 </td>
               </tr>
+              {openVervoer === uitje.id && vervoer && (
+                <tr className="vervoer-rij">
+                  <td colSpan={9}>
+                    <UitjeVervoer
+                      uitjeId={uitje.id}
+                      gekoppeld={vervoer.uitjes.find((rij) => rij.id === uitje.id)?.voertuigen ?? []}
+                      voertuigen={vervoer.voertuigen}
+                      chauffeurs={vervoer.chauffeurs}
+                      medewerkers={vervoer.medewerkers}
+                      magWijzigen={mag("vervoer", "wijzigen")}
+                      gewijzigd={haalVervoer}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </Tabel>
         )}
       </Kaart>
+
+      {vervoer && (
+        <Kaart
+          titel="Voertuigen"
+          uitleg="De busjes en auto's met hun kenteken en aantal plekken. Een voertuig kan niet dubbel geboekt worden op dezelfde dag."
+        >
+          <VoertuigenBeheer
+            voertuigen={vervoer.voertuigen}
+            magToevoegen={mag("vervoer", "aanmaken")}
+            gewijzigd={haalVervoer}
+          />
+        </Kaart>
+      )}
 
       {nieuwUitje && (
         <Modal

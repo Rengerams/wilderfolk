@@ -1782,3 +1782,11 @@ a:hover { color: var(--primair-donker); }
   display: inline-block;
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
+
+/* Vervoer direct in het programma */
+.vervoer-rij > td {
+  background: var(--oppervlak-zacht);
+  padding: 0.9rem 1rem 1.1rem;
+}
+
+.vervoer-paneel .tabel { background: var(--oppervlak); }
