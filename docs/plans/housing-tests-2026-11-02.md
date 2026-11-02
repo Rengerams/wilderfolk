@@ -1,10 +1,10 @@
 # Housing test suite — critical review and replacement plan — 2026-11-02
 
-**Status:** T0 is committed as `95ca783a update housing`; P0a (the 5→3 merge) is implemented in the
-working tree. Current HEAD `5ba14bf5` is docs only on top of T0. Everything else is scheduled against
-the pipeline plan (`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
-**Baseline:** T0 `95ca783a` — 34 housing files, 148 tests, 15.73 s. Pre-T0 `58ca1793` — 33 files
-/ 141 tests, 19.33 s.
+**Status:** P0a is committed as `d37efff9`; P1 as `98c0f393`; the four-audit fixes (fill regression,
+exhaustive refusal retry, report origin, shared building predicate) are in the working tree. Everything
+else is scheduled against the pipeline plan (`docs/plans/housing-relocation-pipeline-2026-11-02.md`).
+**Baseline:** 35 housing files / 158 tests on the fixed tree. T0 `95ca783a` — 34 files / 148 tests,
+15.73 s. Pre-T0 `58ca1793` — 33 files / 141 tests, 19.33 s.
 
 ---
 

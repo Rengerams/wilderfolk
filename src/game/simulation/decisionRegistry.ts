@@ -204,16 +204,16 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
+    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay and applyRelocation is the only plan-to-write path; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
+    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
       'household membership (couple + minor children)',
     ],
     scheduledFrom: 'gameTick tick boundary + tickLayerAssign.syncResidenceOccupants (mirror); tickLayerAssign.assignMissingResidences (assignment); commands.ts "assignResidentToBuilding"',
-    testFile: 'tests/simulation.invariants.test.ts (residence occupants consistency), tests/church.manualStaffing.test.ts (residence cleanup on removal), tests/longRunColony.integration.test.ts',
+    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts',
   },
   construction: {
     owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',

@@ -6,8 +6,8 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  *   L44  mapBounds           NaN positions must not survive the clamp
  *   L47  militiaBalance      wall-cap label must match the cap the forge grants
  *   L21/L22 entityFactory    the auto-detected juvenile flag must use the childhood floor
- *   L54  residencyReconciliation  the unreachable duplicate family scorer is gone
- *   L55  residencySelection  housing audit must ignore rival/leader housing
+ *   L54  housingPipeline  the unreachable duplicate family scorer is gone
+ *   L55  housingPipeline  housing audit must ignore rival/leader housing
  *   L63  simulationEntities  mid-tick hunters must lose a dangling prey target
  *   L71  stripJunction       the lone-crossing coercion contract (dead guard removed)
  *   X1/X2 tickLayerRealtime  owner rng forwarded; occupants rewrite gated

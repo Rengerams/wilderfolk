@@ -3,8 +3,9 @@ import type { Building, Entity } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './housingModel';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
-import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding } from './housingModel';
+import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isResidenceBuildingType } from './housingModel';
 import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { isCompletedPlayerBuilding } from './buildings';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -43,7 +44,7 @@ export type RelocationNeed =
 /** The one answer: no move means stay — no write, no report line, no retry. */
 export interface RelocationPlan {
   readonly move: boolean;
-  /** True when planning found nothing worth doing (settled, or a documented shortage). */
+  /** True when the phase sweep has nothing to do (already housed, or the stable-shortage guard). */
   readonly settled?: boolean;
   /** Omitted only for `surplus`: there is no bed and the household is unhoused. */
   readonly to?: number;
@@ -219,7 +220,7 @@ export function relocateHousehold(
   // All-or-nothing: one member the write would refuse cancels the move before anyone leaves.
   if (unit.some((member) => residenceMoveRefused(member, toId, reason, context.buildings))) return false;
   const relocated = unit.some((member) => member.residenceBuildingId !== toId);
-  const fromId = unit.find((member) => member.residenceBuildingId != null)?.residenceBuildingId;
+  const fromId = unit.find((member) => member.residenceBuildingId != null && member.residenceBuildingId !== toId)?.residenceBuildingId;
   const homes = unit.map((member) => member.residenceBuildingId);
   applyHouseholdMove(unit, toId, context);
   // A member left behind means a partial write: restore the others instead of reporting a split home.
@@ -296,7 +297,7 @@ function planHomelessPlacement(unit: readonly Entity[], context: HousingMoveCont
   if (!needsMove) return { move: false, settled: true, reason: 'assignment', why: 'settled' };
 
   const refused = new Set<number>();
-  for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt <= context.residences.length; attempt += 1) {
     const picked = pickResidenceForFamily(
       members, context.alive, context.residences, context.occupancy, context.traits, refused,
     );
@@ -527,7 +528,7 @@ export function rebalanceOvercrowdedResidences(
  * whole array once per residence. The occupant id **order** is unchanged: the per-building
  * `.filter().map()` this replaces emitted ids in `humans` order, and appending to a building's
  * bucket during the single forward pass emits exactly that order
- * (`tests/residencyReconciliation.occupantOrder.test.ts` pins it).
+ * (`tests/housingPipeline.occupantOrder.test.ts` pins it).
  */
 export function syncResidenceOccupants(humans: Entity[], buildings: Building[]): void {
   const occupantsByResidenceId = new Map<number, number[]>();
@@ -546,9 +547,6 @@ export function syncResidenceOccupants(humans: Entity[], buildings: Building[]):
   }
 }
 
-/** Destinations the writer refuses are retried next-best; one refusal never leaves a family outside. */
-const MAX_PLACEMENT_ATTEMPTS = 3;
-
 /** Rank, place, and retry past a refused destination before falling back to the split path. */
 function relocateFamily(
   family: Entity[],
@@ -558,7 +556,7 @@ function relocateFamily(
   context: HousingMoveContext,
 ): boolean {
   const refused = new Set<number>();
-  for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt <= residences.length; attempt += 1) {
     const picked = pickResidenceForFamily(family, alive, residences, context.occupancy, context.traits, refused);
     if (picked === undefined) return false;
     if (relocateHousehold(family, picked, phase, 'assignment', context)) return true;
@@ -628,7 +626,8 @@ function fillHomelessAfterEviction(
   const context = standaloneMoveContext(alive, residences, occupancy, traits, ledger);
   for (const unit of buildHousingUnits(alive)) {
     if (unit.every(hasResidenceAssignment)) continue;
-    placeHomelessUnit(unit, alive, residences, alive, context);
+    // The repair pass seats any partially housed unit, whatever the phase sweep decided.
+    assignFamilyToResidence(unit, alive, residences, alive, 'homeless', context);
   }
 }
 
@@ -1330,7 +1329,7 @@ interface PickResidenceOptions {
 }
 
 export function listPlayerResidences(buildings: Building[]): Building[] {
-  return buildings.filter((b) => isResidenceBuilding(b) && b.faction !== 'rival');
+  return buildings.filter((b) => isCompletedPlayerBuilding(b) && isResidenceBuildingType(b.type));
 }
 
 /** The one least-crowded-residence rule; every couple pick asks this owner for its verdict. */

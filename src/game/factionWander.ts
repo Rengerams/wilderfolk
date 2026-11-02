@@ -4,6 +4,7 @@
  */
 import type { WorldState, Entity, Building, VisitorKind, VisitorGroup } from './gameTypes';
 import { BuildingType } from './gameTypes';
+import { isCompletedPlayerBuilding } from './buildings';
 import { getPlayerCampCenter } from './frontierCombat';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour } from './dayCycle';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
@@ -32,10 +33,6 @@ function jitter(n: number, amount: number): number {
   return n + (getSimRng('factionWander')() - 0.5) * amount;
 }
 
-function completedPlayerBuildings(buildings: Building[]): Building[] {
-  return buildings.filter((b) => b.completed && b.faction !== 'rival');
-}
-
 function buildingCenter(b: Building): { x: number; y: number } {
   return { x: b.x + b.width / 2, y: b.y + b.height * 0.85 };
 }
@@ -44,7 +41,7 @@ function findBuilding(
   buildings: Building[],
   types: BuildingType[],
 ): Building | undefined {
-  const pool = completedPlayerBuildings(buildings).filter((b) => types.includes(b.type));
+  const pool = buildings.filter((b) => isCompletedPlayerBuilding(b) && types.includes(b.type));
   if (pool.length === 0) return undefined;
   return pool[Math.floor(getSimRng('factionWander')() * pool.length)];
 }

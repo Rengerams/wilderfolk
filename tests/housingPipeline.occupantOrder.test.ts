@@ -1,5 +1,5 @@
 /**
- * N-7 (`src/game/residencyReconciliation.ts`, `syncResidenceOccupants`) — differential equivalence,
+ * N-7 (`src/game/housingPipeline.ts`, `syncResidenceOccupants`) — differential equivalence,
  * with the occupant **order** pinned.
  *
  * The function used to re-scan the whole `humans` array for every residence

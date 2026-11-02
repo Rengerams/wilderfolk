@@ -6,10 +6,10 @@
 - Status: resolved (T0 commit `95ca783a`)
 - Severity: high
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, T0 commit `95ca783a`; current HEAD `5ba14bf5` (docs only on top)
+- Version/build: V.0.6.5.1, fixed in `95ca783a`
 - Reporter: generated invariant suite (`tests/housingPipeline.invariants.test.ts`), seed 2
 - Area: housing assignment
-- Owner module: `src/game/residencyReconciliation.ts` (assignment; selection in `residencySelection.ts`)
+- Owner module: `src/game/housingPipeline.ts` (assignment and ranking)
 - Related PR/commit: none yet; discovered while replacing the housing test suite
 
 ## Status history

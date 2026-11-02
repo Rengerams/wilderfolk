@@ -7,7 +7,7 @@
  * `residenceBuildingId` never gets the home-rest saving in `humanNeeds` while nothing on screen says so.
  * `housing-short` now fires whenever a player settler has no bed *and* a residence stands.
  *
- * Prisoners are excluded on purpose. Imprisonment clears `residenceBuildingId` (`residencyOccupancy`
+ * Prisoners are excluded on purpose. Imprisonment clears `residenceBuildingId` (`housingModel`
  * `isImprisoned` → `prisonBuildingId != null`), so a jailed settler looks homeless to a naive
  * `residenceBuildingId == null` count — the same mistake `collectHousingDiagnostics` still makes in its
  * `unassignedPlayerHumans` figure (`housingDiagnostics.ts:39`), which is how the audit found this.

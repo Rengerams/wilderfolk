@@ -197,6 +197,11 @@ export interface Building {
   mineMode?: MineMode;
 }
 
+/** A completed building the player owns — the shared boundary for venues and homes. */
+export function isCompletedPlayerBuilding(building: Building): boolean {
+  return building.completed && building.faction !== 'rival';
+}
+
 export interface BuildingConfig {
   width: number;
   height: number;

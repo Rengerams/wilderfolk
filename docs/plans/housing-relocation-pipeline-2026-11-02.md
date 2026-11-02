@@ -1,8 +1,8 @@
 # Housing relocation pipeline — implementation plan — 2026-11-02
 
-**Status:** P0a is committed as `d37efff9`; **P1 is implemented in the working tree** — the plan
-contract (`planRelocation` / `applyRelocation`) exists and the homeless phase runs through it, with
-the custodian-split fallback kept for households that cannot fit together. P2 is next.
+**Status:** P0a `d37efff9` and P1 `98c0f393` are committed. Four independent audits followed; their
+one real finding — the homeless repair pass honouring the planner's `settled` flag and skipping a
+partially housed household — is fixed in the working tree and pinned by a regression test. P2 is next.
 **Target version:** V.0.6.5.2.
 **Owner module:** `src/game/housingPipeline.ts` (the pipeline). Supporting modules keep one job each
 and lose every decision.
@@ -387,7 +387,7 @@ tier 4  none → plan says stay (or surplus, when the need allows unhousing)
 | `pickCommuteRelocation` | **keep** as the commute tier | pipeline, benchmark |
 | `buildResidenceTraits`, `residenceTraitMove` | **keep**, in `housingPipeline` (they are ranking state) | 4 tests, `perf-at-pop.ts`, `writeResidence` |
 | `occupancyMove`, `buildResidenceOccupancy`, `countResidentsInBuilding`, `residenceRoomFor`, `getResidenceCapacity` | **keep**, in `housingModel` | many |
-| `isResidenceOccupantEntity` re-export | **remove**; repoint six importers to `housingModel` | `SelectedBuildingPanel.tsx:31`, `simulation/simulationInvariants.ts:40`, `humanLifecycleCleanup.ts:15`, `dayCycle.ts:103` barrel, `tests/residencyReconciliation.occupantOrder.test.ts:27`, `tests/audit.hotPathScans.equivalence.test.ts:31` |
+| `isResidenceOccupantEntity` re-export | **remove**; repoint six importers to `housingModel` | `SelectedBuildingPanel.tsx:31`, `simulation/simulationInvariants.ts:40`, `humanLifecycleCleanup.ts:15`, `dayCycle.ts:103` barrel, `tests/housingPipeline.occupantOrder.test.ts:27`, `tests/audit.hotPathScans.equivalence.test.ts:31` |
 | all other resident exports | **keep their names**, move by ownership with no call-site logic changes | tests, scripts |
 
 ### 4.7 Pipeline pseudocode (the shape P1 must land)
@@ -646,7 +646,7 @@ gantt
 | S4 | Wed 04 Nov — AM | P3: leave-home, commute; delete the old predicate | all phases planned; L1 fixed; the housing suites |
 | S5 | Wed 04 Nov — PM | P4: death, marriage, divorce through the pipeline | event suites + idempotency |
 | S6 | Thu 05 Nov — AM | P5: one eligibility rule, one context, one arena | types, lint, audit, cycles |
-| S7 | Thu 05 Nov — PM | P6: one unit build per run, observable passes | `stats.passes` recorded; stuck fixture ≤ 3 |
+| S7 | Thu 05 Nov — PM | P6: one unit build per run, observable passes | `stats` lands; stuck fixture stays put |
 | S8 | Fri 06 Nov — AM | P7: registers, docs, benchmark, changelog | benchmark hash identical; registers complete |
 | Buffer | Fri 06 Nov — PM | failures, full year, CI, PR | `npm test -- full` green; full-year zero violations |
 
@@ -680,7 +680,7 @@ recoverable; a stale doc presented as done is not.
 | :--- | :--- | :--- |
 | G1/G3 — a plan's destination is legal and fits | new `tests/housingPlanner.contract.test.ts` (property over the existing fixtures: every planned destination passes `relocateHousehold` without mutation) | P1 |
 | G2 — unhousing only for `surplus` | same file, exhaustive need table | P1 |
-| G4 — an impossible relocation is "stay" | `tests/housingPlanner.stuckColony.test.ts`: a household with no reachable placement plans `move: false`, `relocations` empty, **`stats.passes <= 3`** — a guard on the committed write counter, deliberately not a "before" claim | P1 |
+| G4 — an impossible relocation is "stay" | `tests/housingPlanner.contract.test.ts`: "stays put when no whole-family home fits" and "plans nothing for a settled family" — a stay plan with no relocations and unchanged state. `stats` is deferred to P6 (§8). | P1 |
 | G5 — one occupant rule | extend `tests/housingPipeline.occupantOrder.test.ts`: cursed Moon Howler counted in beds **and** traits | P5 |
 | G6 — a plan explains itself | `stats` + report `why` asserted in the contract test | P5 |
 | G7 — planning is pure | contract test: planning a unit leaves entities, ledger and report untouched | P1 |
@@ -717,8 +717,7 @@ npx vitest run tests/housingPipeline.invariants.test.ts tests/housingAuthority.p
   tests/villa.housing.test.ts tests/priorityAlerts.housing.test.ts
 ```
 
-P1 adds `tests/housingPlanner.contract.test.ts` and `tests/housingPlanner.stuckColony.test.ts` (36
-files). The pre-T0 baseline (`58ca1793`) was 33 files / 141 tests; T0 brought the invariant file and
+P1 adds `tests/housingPlanner.contract.test.ts` (35 files / 158 tests after the audit fixes). The pre-T0 baseline (`58ca1793`) was 33 files / 141 tests; T0 brought the invariant file and
 the exclusion case to 34 / 148; P0a renamed the occupant-order file under the pipeline name and left
 the count unchanged (34 / 149 after the order property). A static count of top-level `it` blocks
 reads lower because several suites generate cases in loops, so trust the runner's totals.
@@ -739,12 +738,12 @@ npx tsx scripts/run-full-year.mts
 
 ## 8. Measurement
 
-Every stage records `HousingReport.stats` for the standard fixtures so the pipeline can be compared
-before/after, not argued about:
+Every stage records the pipeline's own counters for the standard fixtures so behaviour can be
+compared before/after, not argued about. `HousingReport.stats` (passes, considered, moved, stayed) is
+**deferred to P6**; until it lands the guard is the contract test's stay plan and the invariant suite,
+not a counter.
 
-- `passes` per run — the T0 tree (`95ca783a`) counts every residence write (`context.onMove`), which is
-  the rule to measure. The field makes it observable and the guard is `≤ 3` on the stuck fixture (not
-  a 24 → 2 improvement claim).
+- Passes per run: the write counter (`context.onMove`) is the rule; the field that exposes it is P6.
 - `considered`, `moved`, `stayed` per phase (proves no phase lost candidates in the migration).
 - relocation count and assignment hash at 600 / 1 200 / 2 400 settlers with 0 and 20/40/80 spare
   homes — the published table in `docs/HOUSING_ARCHITECTURE.md` §10 is the baseline.

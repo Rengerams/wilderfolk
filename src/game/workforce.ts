@@ -436,7 +436,7 @@ export function rebalanceJobWorkers(
 
 export function syncJobBuildingOccupants(humans: Entity[], buildings: Building[]): void {
   // Two bucketing passes replace a full settler-list filter per building — the single-pass
-  // shape `residencyReconciliation.syncResidenceOccupants` documents). The building loop below
+  // shape `housingPipeline.syncResidenceOccupants` documents). The building loop below
   // writes only `building.occupants`; it reads `h.alive`, `isPlayerHuman(h)`, `h.workerBuildingId`
   // and `h.prisonBuildingId`, none of which is written inside it, so one pass per predicate answers
   // every building. Each bucket preserves the `humans` order the previous `.filter().map()` emitted:

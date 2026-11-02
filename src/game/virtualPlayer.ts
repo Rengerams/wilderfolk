@@ -443,7 +443,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   }
 
   // One residence at a time — a new house only helps once it stands, and a
-  // Mansion is a residence too (`residencyOccupancy.isResidenceBuildingType`).
+  // Mansion is a residence too (`housingModel.isResidenceBuildingType`).
   if (
     isUnderConstruction(state, BuildingType.House)
     || isUnderConstruction(state, BuildingType.Mansion)

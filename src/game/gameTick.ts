@@ -407,7 +407,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // `residenceBuildingId ↔ occupants` for SIMULATION_AUTHORITY §5. The decision of *who* lives
   // where stays with the assignment layer; this only makes the mirror agree with it.
   // No pre-filter: `syncResidenceOccupants` skips non-occupants itself
-  // (`residencyReconciliation.ts` — `if (!isResidenceOccupantEntity(human)) continue;`), and
+  // (`housingPipeline.ts` — `if (!isResidenceOccupantEntity(human)) continue;`), and
   // `isResidenceOccupantEntity` already tests `entity.alive`, so
   // `allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e))` discarded every element the
   // callee discards again and produced identical buckets. Measured at 1.79 % of tick time

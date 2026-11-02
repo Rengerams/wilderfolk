@@ -5,10 +5,10 @@
 - Status: resolved
 - Severity: medium
 - Date discovered: 2026-11-02
-- Version/build: V.0.6.5.1, T0 commit `95ca783a`; fix in the working tree on top
+- Version/build: V.0.6.5.1, fixed in `d37efff9`
 - Reporter: generated invariant suite (`tests/housingPipeline.invariants.test.ts`)
 - Area: housing assignment
-- Owner module: `src/game/residencySelection.ts` (unit ordering)
+- Owner module: `src/game/housingPipeline.ts` (unit ordering)
 - Related PR/commit: none yet
 
 ## Status history

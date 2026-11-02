@@ -10,7 +10,7 @@ export interface HousingDiagnosticsSnapshot {
   calendarDay: number;
   totalBeds: number;
   /**
-   * Beds held by the residence owner's occupant rule (`residencyOccupancy.countResidentsInBuilding`),
+   * Beds held by the residence owner's occupant rule (`housingModel.countResidentsInBuilding`),
    * not by summing `building.occupants` here: the two disagree for a cursed settler in werewolf form,
    * whom the residence sync counts and `isPlayerHuman` does not.
    */

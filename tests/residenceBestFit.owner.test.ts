@@ -2,8 +2,8 @@
  * A2 — "least-occupied residence, lowest id breaks ties" was implemented twice
  * (`docs/private/audits/2026-09-16/duplication-deadcode.md`; row A2 in `LIVE-FINDINGS-STATUS.md`).
  *
- * `residencyReconciliation.pickSharedResidence` carried its own copy of the selection loop. The rule
- * now lives only in `residencySelection.pickLeastCrowdedResidence`, which takes the movers as
+ * `housingPipeline.pickSharedResidence` carried its own copy of the selection loop. The rule
+ * now lives only in `housingPipeline.pickLeastCrowdedResidence`, which takes the movers as
  * `movingTogether` so the shared-move discount (a home one mover already lives in counts them once)
  * is expressed through the owner instead of beside it.
  *

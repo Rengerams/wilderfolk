@@ -212,7 +212,7 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
   const food = state.resources?.food ?? 0;
   // The settler counters come from the labour-statistics owner (`uiSimSummary.computeVillageStats`),
   // which the top-bar HUD and the People screen also read; the housing gap comes from the residence
-  // owner (`residencyOccupancy.countHomelessSettlers`), which applies the jail exclusion the council
+  // owner (`housingModel.countHomelessSettlers`), which applies the jail exclusion the council
   // report needed. This local scan keeps only the Moon Howler tally, which has no other reader.
   const village = computeVillageStats(state);
   const humans = village.total;
@@ -803,8 +803,8 @@ function settlerName(state: WorldState, id: number): string {
  * and — for any settler the caller names — the staffing owner's own reason for refusing them.
  *
  * Every rule comes from its owner: the mode from `workforce.isManualStaffingBuilding`, the cap from
- * `BUILDING_CONFIGS` / `residencyOccupancy.getResidenceCapacity`, the roster from
- * `residencyOccupancy` / the building's occupant list, and the refusals from
+ * `BUILDING_CONFIGS` / `housingModel.getResidenceCapacity`, the roster from
+ * `housingModel` / the building's occupant list, and the refusals from
  * `buildingStaffingActions.getWorkerAssignmentRefusal`. The panel only renders {@link lines}.
  */
 export function explainBuildingStaffing(

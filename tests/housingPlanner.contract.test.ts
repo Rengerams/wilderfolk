@@ -8,11 +8,15 @@ import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
 import {
   applyRelocation,
+  assignMissingResidences,
   createHousingLedger,
+  listPlayerResidences,
   planRelocation,
   standaloneMoveContext,
 } from '../src/game/housingPipeline';
 import type { HousingLedger } from '../src/game/housingPipeline';
+import { isResidenceOccupantEntity } from '../src/game/housingModel';
+import { isSettlerRelationshipEntity } from '../src/game/moonHowlerForm';
 
 function family(): Entity[] {
   const mother = human(1, { age: 30 });
@@ -77,6 +81,10 @@ describe('the relocation plan contract', () => {
       residences: unit.map((member) => member.residenceBuildingId),
       occupants: homes.map((home) => [...home.occupants]),
       counts: ledgerCounts(context.ledger),
+      occupancy: [...context.occupancy.entries()],
+      traits: [...context.traits.entries()].map(([id, entry]) =>
+        [id, entry.adults, entry.minors, entry.pairs, [...entry.occupants.keys()]]),
+      violations: [...context.ledger.report.violations],
     };
 
     planRelocation(unit, 'homeless', context);
@@ -84,6 +92,10 @@ describe('the relocation plan contract', () => {
     expect(unit.map((member) => member.residenceBuildingId)).toEqual(before.residences);
     expect(homes.map((home) => [...home.occupants])).toEqual(before.occupants);
     expect(ledgerCounts(context.ledger)).toEqual(before.counts);
+    expect([...context.occupancy.entries()]).toEqual(before.occupancy);
+    expect([...context.traits.entries()].map(([id, entry]) =>
+      [id, entry.adults, entry.minors, entry.pairs, [...entry.occupants.keys()]])).toEqual(before.traits);
+    expect(context.ledger.report.violations).toEqual(before.violations);
   });
 
   it('never plans a destination the run already refuses', () => {
@@ -97,8 +109,63 @@ describe('the relocation plan contract', () => {
 
     expect(plan.move).toBe(true);
     expect(plan.to).toBe(11);
-    expect(applyRelocation(unit, plan, 'homeless', context)).toBeDefined();
+    const applied = applyRelocation(unit, plan, 'homeless', context);
+    expect(applied).toMatchObject({ phase: 'homeless', to: 11, members: [1, 2, 3] });
+    expect(applied?.from).toBeUndefined();
     expect(unit.every((member) => member.residenceBuildingId === 11)).toBe(true);
+  });
+
+  it('reports the home the movers actually leave', () => {
+    const home = building(10, BuildingType.House);
+    const elsewhere = building(11, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32, partnerId: 1, residenceBuildingId: 11 });
+    mother.partnerId = 2;
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
+    const unit = [mother, father, child];
+    const context = standaloneMoveContext(unit, [home, elsewhere]);
+
+    const plan = planRelocation(unit, 'homeless', context);
+
+    expect(plan.move).toBe(true);
+    expect(plan.to).toBe(10);
+    const applied = applyRelocation(unit, plan, 'homeless', context);
+    expect(applied).toMatchObject({ phase: 'homeless', to: 10, members: [1, 2, 3] });
+    expect(applied?.from).toBe(11);
+  });
+
+  it('seats a partly housed household the phase sweep leaves alone', () => {
+    const full = building(10, BuildingType.House);
+    const room = building(11, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32, partnerId: 1 });
+    mother.partnerId = 2;
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
+    const tenants = Array.from({ length: 4 }, (_, index) =>
+      human(10 + index, { residenceBuildingId: 10 }));
+    const guests = Array.from({ length: 4 }, (_, index) =>
+      human(20 + index, { residenceBuildingId: 11 }));
+    const humans = [mother, father, child, ...tenants, ...guests];
+
+    const report = assignMissingResidences(humans, [full, room], humans);
+
+    expect(humans.every((person) => person.residenceBuildingId != null)).toBe(true);
+    expect(report.violations).toEqual([]);
+  });
+
+  it('lists completed player residences, not venues or unfinished sites', () => {
+    const home = building(10, BuildingType.House);
+    const tavern = building(11, BuildingType.Tavern);
+    const unfinished = building(12, BuildingType.House, { completed: false });
+
+    expect(listPlayerResidences([home, tavern, unfinished]).map((building) => building.id)).toEqual([10]);
+  });
+
+  it('keeps bed occupancy distinct from relationship membership', () => {
+    const visitor = human(60, { faction: 'visitor' });
+
+    expect(isResidenceOccupantEntity(visitor)).toBe(false);
+    expect(isSettlerRelationshipEntity(visitor)).toBe(true);
   });
 
   it('plans nothing for an already settled family', () => {

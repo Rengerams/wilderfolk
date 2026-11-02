@@ -3,7 +3,7 @@ import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
  * An orphan must never end up in the Leader's House.
  *
  * The orphan-**housing** rule says so out loud: `pickOrphanResidence` skips any Leader's House
- * (`residencySelection.ts` — `if (isLeaderHouseResidence(residence)) continue;`). Adoption is a
+ * (`housingPipeline.ts` — `if (isLeaderHouseResidence(residence)) continue;`). Adoption is a
  * separate path that never consults it:
  *
  *   `ensureOrphanAdoption` → `pickRandomAdoptiveCouple` offers **every** player couple, the leader's
