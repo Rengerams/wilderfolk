@@ -1,26 +1,31 @@
 :root {
-  --achtergrond: #f5f6f8;
+  --achtergrond: #f6f7fb;
   --oppervlak: #ffffff;
-  --oppervlak-zacht: #f8f9fb;
-  --inkt: #191a1f;
-  --inkt-zacht: #5d6170;
-  --rand: #e5e7ee;
-  --rand-sterk: #c3c7d2;
+  --oppervlak-zacht: #f7f8fc;
+  --inkt: #1c1e2b;
+  --inkt-zacht: #63687b;
+  --rand: #e6e9f2;
+  --rand-sterk: #d2d7e3;
   --primair: #c22127;
   --primair-donker: #96181d;
-  --primair-licht: #fbe9ea;
-  --accent: #b86a12;
-  --accent-licht: #fbeedb;
-  --goed: #2b6a45;
-  --goed-licht: #e2f1e7;
+  --primair-licht: #fdeff0;
+  --accent: #b36707;
+  --accent-licht: #fdf1df;
+  --goed: #0e7a56;
+  --goed-licht: #e2f7ee;
   --fout: #9c2b2b;
   --fout-licht: #f9e3e2;
-  --info: #1d4e77;
-  --info-licht: #e3eef7;
-  --schaduw: 0 1px 2px rgba(25, 26, 31, 0.04), 0 6px 20px rgba(25, 26, 31, 0.05);
-  --schaduw-zwaar: 0 12px 32px rgba(25, 26, 31, 0.1);
-  --straal: 16px;
-  --straal-klein: 12px;
+  --info: #1761a8;
+  --info-licht: #e6f1fc;
+  /* Kleuraccenten in de trant van monday.com */
+  --paars: #7645d6;
+  --paars-licht: #f1ebfe;
+  --teal: #0b7f8a;
+  --teal-licht: #e2f5f6;
+  --schaduw: 0 1px 2px rgba(23, 26, 40, 0.04), 0 4px 14px rgba(23, 26, 40, 0.04);
+  --schaduw-zwaar: 0 14px 34px rgba(23, 26, 40, 0.12);
+  --straal: 14px;
+  --straal-klein: 9px;
   color-scheme: light;
 }
 
@@ -43,13 +48,13 @@ body {
 
 h1, h2, h3, h4 {
   margin: 0 0 0.4rem;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
 }
 
-h1 { font-size: 2rem; font-weight: 800; }
-h2 { font-size: 1.3rem; font-weight: 750; }
-h3 { font-size: 1.08rem; font-weight: 700; }
+h1 { font-size: 2.05rem; font-weight: 800; }
+h2 { font-size: 1.32rem; font-weight: 780; }
+h3 { font-size: 1.08rem; font-weight: 720; }
 
 p { margin: 0 0 0.75rem; }
 p:last-child { margin-bottom: 0; }
@@ -157,8 +162,8 @@ a:hover { color: var(--primair-donker); }
 .nav-item.is-actief {
   background: var(--primair-licht);
   color: var(--primair-donker);
-  font-weight: 700;
-  box-shadow: inset 0 0 0 1px #f6d3d4;
+  font-weight: 720;
+  box-shadow: inset 0 0 0 1px #f7d6d7;
 }
 
 .nav-item__icoon {
@@ -353,10 +358,13 @@ a:hover { color: var(--primair-donker); }
   background: var(--oppervlak);
   border: 1px solid var(--rand);
   border-radius: var(--straal);
-  padding: 1.25rem 1.35rem;
+  padding: 1.3rem 1.4rem;
   box-shadow: var(--schaduw);
-  margin-bottom: 1.15rem;
+  margin-bottom: 1.1rem;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
 }
+
+.kaart:hover { border-color: #dadeeb; }
 
 .kaart__kop {
   display: flex;
@@ -437,37 +445,44 @@ a:hover { color: var(--primair-donker); }
 .getal { text-align: right; font-variant-numeric: tabular-nums; }
 
 .stat {
+  --stat-kleur: var(--primair);
+  --stat-vlak: var(--primair-licht);
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
   background: var(--oppervlak);
   border: 1px solid var(--rand);
+  border-top: 3px solid var(--stat-kleur);
   border-radius: var(--straal);
   padding: 1.05rem 1.15rem;
   box-shadow: var(--schaduw);
+  transition: box-shadow 160ms ease, transform 160ms ease;
 }
 
+.stat:hover { box-shadow: var(--schaduw-zwaar); transform: translateY(-1px); }
+
 .stat__icoon {
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 12px;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  background: var(--primair-licht);
-  color: var(--primair);
+  background: var(--stat-vlak);
+  color: var(--stat-kleur);
 }
 
-.stat__icoon .icoon { width: 1.35rem; height: 1.35rem; }
-.stat--blauw .stat__icoon { background: var(--info-licht); color: var(--info); }
-.stat--groen .stat__icoon { background: var(--goed-licht); color: var(--goed); }
-.stat--amber .stat__icoon { background: var(--accent-licht); color: var(--accent); }
+.stat__icoon .icoon { width: 1.4rem; height: 1.4rem; }
+.stat--blauw { --stat-kleur: var(--info); --stat-vlak: var(--info-licht); }
+.stat--groen { --stat-kleur: var(--goed); --stat-vlak: var(--goed-licht); }
+.stat--amber { --stat-kleur: var(--accent); --stat-vlak: var(--accent-licht); }
+.stat--paars { --stat-kleur: var(--paars); --stat-vlak: var(--paars-licht); }
 
 .stat__waarde {
-  font-size: 1.9rem;
+  font-size: 2.05rem;
   font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -482,14 +497,14 @@ a:hover { color: var(--primair-donker); }
   justify-content: center;
   gap: 0.4rem;
   min-height: 46px;
-  padding: 0.55rem 1rem;
-  border-radius: 9px;
+  padding: 0.55rem 1.05rem;
+  border-radius: 10px;
   border: 1.5px solid var(--rand-sterk);
   background: var(--oppervlak);
   color: var(--inkt);
   font: inherit;
   font-size: 0.97rem;
-  font-weight: 650;
+  font-weight: 680;
   cursor: pointer;
   text-decoration: none;
   transition: background 120ms ease, border-color 120ms ease;
@@ -535,20 +550,20 @@ a:hover { color: var(--primair-donker); }
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.16rem 0.55rem;
-  border-radius: 999px;
+  padding: 0.18rem 0.6rem;
+  border-radius: 7px;
   font-size: 0.77rem;
-  font-weight: 700;
+  font-weight: 720;
   letter-spacing: 0.01em;
   border: 1px solid transparent;
   white-space: nowrap;
 }
 
-.badge--neutraal { background: #f0f0f1; color: #414143; }
-.badge--goed { background: var(--goed-licht); color: var(--goed); border-color: #b9d8c5; }
-.badge--waarschuwing { background: var(--accent-licht); color: #7d460a; border-color: #ecc994; }
-.badge--fout { background: var(--fout-licht); color: var(--fout); border-color: #e6b9b6; }
-.badge--info { background: var(--info-licht); color: var(--info); border-color: #b9d2e7; }
+.badge--neutraal { background: #eef0f6; color: #454a5c; }
+.badge--goed { background: var(--goed-licht); color: var(--goed); border-color: #b6e5d2; }
+.badge--waarschuwing { background: var(--accent-licht); color: #7d460a; border-color: #f2d9ab; }
+.badge--fout { background: var(--fout-licht); color: var(--fout); border-color: #eec7c4; }
+.badge--info { background: var(--info-licht); color: var(--info); border-color: #c2ddf6; }
 
 /* ---------------------------------------------------------------- meldingen */
 
@@ -759,7 +774,7 @@ a:hover { color: var(--primair-donker); }
 }
 
 .tabel tbody tr:last-child td { border-bottom: none; }
-.tabel tbody tr:hover { background: #fafafa; }
+.tabel tbody tr:hover { background: #f8f9fd; }
 .tabel--compact td, .tabel--compact th { padding: 0.45rem 0.6rem; }
 .tabel th.getal, .tabel td.getal { text-align: right; }
 
@@ -1071,10 +1086,10 @@ a:hover { color: var(--primair-donker); }
   justify-content: space-between;
   gap: 1.5rem;
   flex-wrap: wrap;
-  background: linear-gradient(120deg, #fdf1f1 0%, #fdf5f5 42%, #ffffff 100%);
-  border: 1px solid #f3d9da;
-  border-radius: 20px;
-  padding: 1.8rem 2rem;
+  background: linear-gradient(118deg, #fdeff1 0%, #f8f2fd 48%, #edf5ff 100%);
+  border: 1px solid #ece5f5;
+  border-radius: 18px;
+  padding: 1.9rem 2.1rem;
   margin-bottom: 1.1rem;
 }
 
@@ -1173,15 +1188,16 @@ a:hover { color: var(--primair-donker); }
 }
 
 .agenda__item:last-child { border-bottom: none; }
-.agenda__item:hover { background: #fdf7f7; }
+.agenda__item:hover { background: #f8f9fd; }
 .agenda__item:hover .agenda__titel { color: var(--primair-donker); }
 
 .agenda__datum {
   width: 3.1rem;
-  padding: 0.32rem 0;
-  border-radius: 12px;
-  background: var(--primair-licht);
-  color: var(--primair-donker);
+  padding: 0.34rem 0;
+  border-radius: 9px;
+  background: var(--primair);
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(194, 33, 39, 0.2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1290,12 +1306,14 @@ a:hover { color: var(--primair-donker); }
 }
 
 .sneltegel {
+  --tegel-kleur: var(--primair);
+  --tegel-vlak: var(--primair-licht);
   display: flex;
   align-items: center;
   gap: 0.8rem;
   padding: 0.85rem 0.95rem;
   border: 1px solid var(--rand);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--oppervlak);
   color: inherit;
   text-decoration: none;
@@ -1303,17 +1321,21 @@ a:hover { color: var(--primair-donker); }
 }
 
 .sneltegel:hover {
-  border-color: #f0c9cb;
+  border-color: var(--tegel-kleur);
   box-shadow: var(--schaduw);
   transform: translateY(-1px);
 }
 
+.sneltegel:nth-child(2) { --tegel-kleur: var(--paars); --tegel-vlak: var(--paars-licht); }
+.sneltegel:nth-child(3) { --tegel-kleur: var(--info); --tegel-vlak: var(--info-licht); }
+.sneltegel:nth-child(4) { --tegel-kleur: var(--goed); --tegel-vlak: var(--goed-licht); }
+
 .sneltegel__icoon {
   width: 2.3rem;
   height: 2.3rem;
-  border-radius: 11px;
-  background: var(--primair-licht);
-  color: var(--primair);
+  border-radius: 8px;
+  background: var(--tegel-vlak);
+  color: var(--tegel-kleur);
   display: grid;
   place-items: center;
   flex-shrink: 0;
