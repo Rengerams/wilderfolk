@@ -1,12 +1,13 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:174:installWorkerMessageHandlers@69647aee50fd7dedc4cf1c84a70400d307eee43528adb15642722ea985ad72a2 <-> src/game/simWorker/gameWorker.ts:187:onmessage@b01882b53d192be159f4624e2394e714b1b9252967f1163c886781ec8872580c",
-      "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
+      "key": "src/game/simWorker/gameWorker.ts:186:installWorkerMessageHandlers@7689be30112ab07b0aacb72d2fc96e25456e7044b159e35b010c7b01b512756f <-> src/game/simWorker/gameWorker.ts:199:onmessage@8d117ec3e5d294ffbfdf5b2582c5726a709b6a671c90090149f3f4901b4a6e15",
+      "reason": "The installer binds the error hooks and message receiver on the active worker self for each realm; the receiver validates and awaits census initialization, then dispatches each request, resets acknowledged transport baselines on state swaps and reports classified errors. These are different responsibilities and consolidating them would remove the test reinstallation seam or register duplicate listeners. The updated import/command/return-buffer cases do not add a second dispatch path.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
         "tests/gameWorker.seed.test.ts",
-        "tests/gameWorker.namePool.dispatchGate.test.ts"
+        "tests/gameWorker.namePool.dispatchGate.test.ts",
+        "tests/workerMainThread.parity.test.ts"
       ]
     },
     {
