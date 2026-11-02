@@ -335,8 +335,11 @@ export function recordAffairTrystSite(
   const trystBuilding = buildingById && entityById
     ? getAffairTrystBuilding(entity, paramour, entityById, buildingById)
     : undefined;
-  const siteX = trystBuilding ? getBuildingCenter(trystBuilding).x : (entity.x + paramour.x) / 2;
-  const siteY = trystBuilding ? getBuildingCenter(trystBuilding).y : (entity.y + paramour.y) / 2;
+  const homeEncounter = trystBuilding != null
+    && isNearBuilding(entity, trystBuilding, AFFAIR_DAILY_TRYST_RADIUS)
+    && isNearBuilding(paramour, trystBuilding, AFFAIR_DAILY_TRYST_RADIUS);
+  const siteX = homeEncounter ? getBuildingCenter(trystBuilding!).x : (entity.x + paramour.x) / 2;
+  const siteY = homeEncounter ? getBuildingCenter(trystBuilding!).y : (entity.y + paramour.y) / 2;
   for (const partner of [entity, paramour]) {
     partner.lastAffairSiteDay = siteDay;
     partner.lastAffairSiteX = siteX;
