@@ -58,7 +58,7 @@ function compareWith(report, events) {
     report.eventLogPath = eventPath;
     writeFileSync(path, JSON.stringify(report));
     writeFileSync(eventPath, events.map(event => JSON.stringify(event)).join('\n') + '\n');
-    return execFileSync(process.execPath, [comparator, 'none', path, '250', '2'],
+    return execFileSync(process.execPath, [comparator, 'none', path, '250', String(report.days)],
       { encoding: 'utf8', stdio: 'pipe' });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -70,6 +70,20 @@ test('valid 2-day simulation audit reconciles residents, jobs, bot commands and 
   const result = compareWith(report, logs);
   assert.match(result, /Recorded workdays/);
   assert.match(result, /farmer 1/);
+});
+
+test('valid 3-day large-colony window keeps the strict witnessed-work audit', () => {
+  const { report, logs } = fixture();
+  const third = daySnapshot(3, 1, 0);
+  report.days = 3;
+  report.ticks = 864;
+  report.botAttemptHours = 73;
+  report.botIdleHours = 72;
+  report.daySnapshots.push(third);
+  logs[0].days = 3;
+  logs.splice(logs.length - 1, 0, { kind: 'daily-summary', ...third });
+  const result = compareWith(report, logs);
+  assert.match(result, /Recorded workdays/);
 });
 
 test('a career registration without observed work hours fails', () => {

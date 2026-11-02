@@ -2,9 +2,22 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (2 November 2026):** Changelog checks now distinguish filenames from ordinary slash-separated prose. Removed an unused meal scheduler helper and updated both active ownership registries.
+- **Fixed (2 November 2026, PR #120):** Removed the unused meal-hour export and synchronized the ownership and decision registries. The changelog slash-prose guard fix is included in this PR.
 
-- **Implemented (29 October 2026, PR #91):** Merged rare Spotlight Lore with real-actor gathering, 44 JSON captions, cinematic reveal, instrumental and applause MP3s, two timed poses, farewell camera and Skip/restore. Browser acceptance remains unverified.
+- **CI (2 November 2026):** Extend only the 1,800-resident real-colony benchmark to three days so its later-settling career credits enter the measured audit. Keep real work credit mandatory; use tracked-file restore (or untracked cleanup) before switching baseline to candidate.
+
+- **Fixed (2 November 2026):** Affairs can take place outdoors; indoor rendezvous only use a completed residence assigned to one of the lovers, never an unrelated house. Either partner selects the same eligible venue and spouse-occupied marital homes remain off limits.
+- **Fixed (2 November 2026):** The changelog CI check no longer mistakes prose containing a slash for a nonexistent filename.
+
+- **Fixed (2 November 2026):** CI sleep-chat fixtures now require actual indoor arrival; the dialogue ownership test accepts persisted scene history. The obsolete ground-bake assertion now checks forest clearing affects pixels, and the clearing contrast check tolerates pixel rounding.
+- **Fixed (2 November 2026):** Normalize the committed soil sprite to `ground_soil.png`, matching the intended local spelling. Preload, renderer, catalogue and asset register use the same case-sensitive path.
+
+- **CI (2 November 2026):** Run 250-, 750- and 1,800-person performance benchmarks on every pull request targeting `main`, including documentation-only changes. Remove the PR #99-only job conditions and file path filters; manual stress runs remain available.
+
+- **Fixed (1 November 2026):** The 23:00–06:00 night now restores empty rest and stamina to 100% in seven actual sleep hours. One shared rate in `advanceHumanNeeds` handles all eligible sleep sites; six hours remain insufficient.
+- **Fixed (1 November 2026):** Lovers now choose the same tryst house regardless of caller order. One `observeHumanSleep` checks actual indoor sleep before recovery; exhausted settlers can still finish scheduled walks home.
+
+- **Implemented (29 October 2026, PR #91):** Rare Spotlight Lore gathers actors for a cinematic reveal, captions, music, applause and a skippable farewell. Browser acceptance remains unverified.
 
 - **Fixed (29 October 2026):** Route-search counters now reach the session bucket once per tick, so the pathfinder report stops reading zero; measurement turns them on and off with the profiler. Development instrumentation only, no route or gameplay change.
 - **Added (29 October 2026):** The CPU profiler reports the A* shape behind the pathfinding stages too: route searches per tick, nodes per search, node-cap and early-reject shares, waypoint cache hit rate and line checks, counted only while a measurement runs.
@@ -80,9 +93,9 @@
 - **Fixed:** Ready spotlight scenes abort if a singer or the heroine leaves the stage before pause; invalid saved ready scenes are discarded, with new regression coverage. No gameplay rewards or cooldown changes.
 
 - **Fixed:** Spotlight scenes wait for the heroine, retain staging through pause handoff, abort invalid casts and festival conflicts, reject invalid saved participants, and restart captions when reloading the same scene.
-- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. Merged into main; browser acceptance pending.
+- **Rare village spotlight (PR #91):** Added comic village gathering, camera focus, timed dialogue, pause and skip. Fixed commute interference and saved-session state leakage. In review, not merged.
 
-- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay was separately merged in PR #91.
+- **Dialogue merged (#93, 28 October 2026):** Completed canonical speech migration phases A–D; PR-head node CI, dialogue validation and seeded 120-day producer-bot simulation passed. Spotlight overlay remains separate.
 
 - **Fixed:** Dialogue session cleanup skips missing actors and expired keys, preventing a simulation crash when a speaking partner disappears; added a targeted regression.
 
