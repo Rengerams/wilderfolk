@@ -3,6 +3,7 @@ import * as XLSX from "xlsx"
 import { een, q } from "../db"
 import { logWijziging } from "../audit"
 import { ah, instelling, naam, stuurFout, veiligeTekst } from "../util"
+import { geschiedenisImportRouter } from "./geschiedenis-import"
 
 export const deelnemersRouter = Router()
 
@@ -410,6 +411,8 @@ deelnemersRouter.get(
 )
 
 // ---------------------------------------------------------------- importeren
+
+deelnemersRouter.use("/import/geschiedenis", geschiedenisImportRouter)
 
 const MOBILITEIT_WAARDEN = ["rollator", "rolstoel", "hulp bij instappen"]
 

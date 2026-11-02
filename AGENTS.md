@@ -27,6 +27,12 @@ docker compose -f docker-compose.base44.yml up -d --build
 - `/api/dashboard` geeft naast de cijfers ook `aankomendeUitjes` en (met recht op het
   logboek) `recenteWijzigingen` voor de dashboardkaarten.
 - Demo-inlog: `admin@diligence.nl` / `welkom123` (zie ook de link op het inlogscherm).
+- Deelnemers importeren: `/api/deelnemers/import` + `/import/bevestig` (Excel/CSV).
+  Bezoekgeschiedenis importeren: `/api/deelnemers/import/geschiedenis` +
+  `/import/geschiedenis/bevestig` (`server/src/routes/geschiedenis-import.ts`). Die maakt
+  een periode **"Archief oude systeem"** (status gesloten) met historische uitjes
+  (`bron = 'import'`) en `aanwezigheid`-rijen; opnieuw importeren van dezelfde
+  datum + omschrijving maakt geen dubbel uitje.
 - Er is in de sandbox geen mailserver: e-mails belanden in `email_outbox`. Staat
   `BASE44_PREVIEW_MODE=1`, dan toont de app de herstelcode op het scherm.
 

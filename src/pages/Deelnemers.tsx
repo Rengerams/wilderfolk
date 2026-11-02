@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { api, bestandAlsBase64, download, duplicatenUitFout, foutTekst } from "../api"
 import { DeelnemerForm, type DeelnemerVelden } from "../components/DeelnemerForm"
+import { GeschiedenisImport } from "../components/GeschiedenisImport"
 import {
   Badge,
   Bevestig,
@@ -54,6 +55,7 @@ export function Deelnemers() {
   const [importOpen, setImportOpen] = useState(false)
   const [importBestand, setImportBestand] = useState<File | null>(null)
   const [importControle, setImportControle] = useState<ImportControle | null>(null)
+  const [geschiedenisOpen, setGeschiedenisOpen] = useState(false)
 
   async function haal(term: string, statusFilter: string) {
     setLaden(true)
@@ -158,6 +160,7 @@ export function Deelnemers() {
             {mag("deelnemers", "aanmaken") && (
               <>
                 <Knop onClick={() => setImportOpen(true)}>Deelnemers inladen</Knop>
+                <Knop onClick={() => setGeschiedenisOpen(true)}>Bezoekgeschiedenis inladen</Knop>
                 <Knop variant="primair" onClick={() => setNieuwOpen(true)}>
                   Nieuwe deelnemer
                 </Knop>
@@ -348,6 +351,17 @@ export function Deelnemers() {
             </>
           )}
         </Modal>
+      )}
+
+      {geschiedenisOpen && (
+        <GeschiedenisImport
+          sluiten={() => setGeschiedenisOpen(false)}
+          klaar={(bericht) => {
+            setGeschiedenisOpen(false)
+            setMelding(bericht)
+            void haal(zoek, status)
+          }}
+        />
       )}
 
       {duplicaten && openstaand && (
