@@ -249,7 +249,7 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. Scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. This owner writes human.dialogueRecentScenes and is not a read-only projection; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
     writes: ['human.dialogueRecentScenes'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
     testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts',
