@@ -79,6 +79,11 @@ export function getRenderEntityLayer(type: EntityType): RenderEntityLayer {
   return 'animal';
 }
 
+/** Static decor: the display receives these once and keeps them between roster changes. */
+export function isStaticPropEntity(entity: Pick<Entity, 'type'>): boolean {
+  return entity.type === EntityType.Tree || entity.type === EntityType.Grass;
+}
+
 // Seasons as const object
 export const Season = {
   Spring: 'spring',

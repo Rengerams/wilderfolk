@@ -1,4 +1,5 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
+import { isStaticPropEntity } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
@@ -8,7 +9,7 @@ import { rebakeTerrainGrids, setTileOverride, takeTerrainPatches, type TerrainTi
 import { bumpTerrainRevision } from '../terrainLayer';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 5;
+export const SIM_DELTA_PROTO = 6;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -91,6 +92,12 @@ export interface SimTickDelta {
   /** Tiles a command patched (ground reinforcement, forest clearing), applied to the replica map. */
   terrainPatches?: TerrainTilePatch[];
   aliveEntities: Entity[];
+  /** Static decor added since the last delta; unchanged props stay on the replica. */
+  staticEntities?: Entity[];
+  /** Static decor ids removed from the world; the replica drops them. */
+  removedStaticEntityIds?: number[];
+  /** True when props are authoritative and omitted from `aliveEntities` (static channel active). */
+  staticPropsResolved?: boolean;
   eventLogTail: WorldState['eventLog'];
   graveRecords?: WorldState['graveRecords'];
   genealogyRegistry?: WorldState['genealogyRegistry'];
@@ -444,6 +451,32 @@ export function stripUnchangedRelationships(
   }
 }
 
+/**
+ * Move static decor out of the per-tick entity roster: props the replica already holds stay there,
+ * new ones ship once, felled ones ship as ids. `sent` is the prop roster the replica has.
+ */
+export function splitStaticProps(delta: SimTickDelta, sent: Set<number>): void {
+  const entities = delta.aliveEntities;
+  const props: Entity[] = [];
+  const rest: Entity[] = [];
+  for (const entity of entities) {
+    if (isStaticPropEntity(entity)) props.push(entity);
+    else rest.push(entity);
+  }
+  const current = new Set(props.map((entity) => entity.id));
+  const added = props.filter((entity) => !sent.has(entity.id));
+  const removed: number[] = [];
+  for (const id of sent) {
+    if (!current.has(id)) removed.push(id);
+  }
+  sent.clear();
+  for (const id of current) sent.add(id);
+  delta.aliveEntities = rest;
+  delta.staticPropsResolved = true;
+  if (added.length > 0) delta.staticEntities = added;
+  if (removed.length > 0) delta.removedStaticEntityIds = removed;
+}
+
 export function applySimTickDelta(
   world: WorldState,
   delta: SimTickDelta,
@@ -617,11 +650,26 @@ export function applySimTickDelta(
 
   const previousById = new Map<number, Entity>();
   for (const entity of world.entities) previousById.set(entity.id, entity);
-  world.entities = delta.aliveEntities.map((entity) => {
+  const merged = delta.aliveEntities.map((entity) => {
     const next = deltaClone(entity, cloneMode);
     const previous = previousById.get(next.id);
     return previous ? { ...previous, ...next } : next;
   });
+  const mergedIds = new Set(merged.map((entity) => entity.id));
+  if (delta.staticPropsResolved) {
+    const removed = new Set(delta.removedStaticEntityIds ?? []);
+    const propsById = new Map<number, Entity>();
+    for (const entity of world.entities) {
+      if (isStaticPropEntity(entity) && entity.alive && !removed.has(entity.id) && !mergedIds.has(entity.id)) {
+        propsById.set(entity.id, entity);
+      }
+    }
+    for (const entity of delta.staticEntities ?? []) {
+      propsById.set(entity.id, deltaClone(entity, cloneMode));
+    }
+    merged.push(...propsById.values());
+  }
+  world.entities = merged;
   applyTerrainPatches(world, delta.terrainPatches);
 
   // The authoritative alive snapshot is the sole entity delta payload.

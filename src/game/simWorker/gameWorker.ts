@@ -19,7 +19,7 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import { extractSimTickDelta, splitStaticProps, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
 import { relationshipRevisionOf } from '../relationships';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
@@ -54,6 +54,8 @@ let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 /** Relationship revisions the display world already received; reset with the session. */
 let relationshipRevisionsSent = new Map<number, number>();
+/** Static decor the display already holds; only roster changes ship after the first delta. */
+let staticPropsSent = new Set<number>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
@@ -125,6 +127,7 @@ function packAndPostTickResult(
       prevHistoryRevisions,
       previousEventHeadId,
     });
+    attachStaticProps(delta);
     attachRelationshipRevisions(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
@@ -173,6 +176,12 @@ function resetWorkerSession(nextWorld: WorldState): void {
   prevHistoryRevisions = null;
   previousEventHeadId = undefined;
   relationshipRevisionsSent = new Map();
+  staticPropsSent = new Set();
+}
+
+/** Split trees/grass out of the per-tick roster; the replica keeps the props it already has. */
+function attachStaticProps(delta: SimTickDelta): void {
+  splitStaticProps(delta, staticPropsSent);
 }
 
 /** Attach the relationship revisions the display already has, so only changed records ship. */
@@ -263,6 +272,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         }
         if (!isWorkerCommand(msg.cmd)) {
           const delta = safeExtractCommandDelta(world);
+          attachStaticProps(delta);
           attachRelationshipRevisions(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
@@ -283,10 +293,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           prevHistoryRevisions = null;
           previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
+          attachStaticProps(delta);
           attachRelationshipRevisions(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
           const failedDelta = safeExtractCommandDelta(world);
+          attachStaticProps(failedDelta);
           attachRelationshipRevisions(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
@@ -396,6 +408,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             const delta = extractSimTickDelta(world, aliveNow, {
               cloneMode: 'transfer',
             });
+            attachStaticProps(delta);
             attachRelationshipRevisions(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
