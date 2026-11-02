@@ -36,6 +36,27 @@ follows the custody hash. A dead leader's office is cleared immediately, family 
   117 repeat / 13.48 moves per household-year.
 - Relocation sweep assignment hash identical between reference and production at 600 and 1 200.
 
+## Acceptance scorecard (test plan §6)
+
+| Item | State |
+| :--- | :--- |
+| Every new file asserts observable settlement; no private predicate import | **done** — planner contract, invariants, T1 drive public entrypoints; no `unitNeedsMove` import |
+| No wall-clock assertion in a unit test | **done** — the 5 s ceiling is `PERF_DAY_BOUNDARY` |
+| Policy tables include no-legal-destination, shortage and custody-split | **partial** — the contract suite covers all three; the planned `housingPolicies.*` tables do not exist |
+| Mutation checklist run by hand and recorded | **partial** — 4 of 8 run and recorded in the test plan, not a PR; `familyFitsInResidence` is caught by the authority capacity case, not the invariants |
+| Fast housing set (all but `residency.dayBoundary.budget`) under 8 s | **fails** — 33 files / 160 tests = **15.5 s** |
+| No expected-fail cases; the seed-2 retry stays a normal test | **done** — seed 2 is in the invariants; T1 is a normal test |
+
+## §7 naming note — "adult" has three spellings
+
+Measured 2026-11-02 in `src` + `tests`: **28** `isMinorChild(` calls, **229** `.isJuvenile` mentions,
+**92** `HUMAN_ADULT_MIN_AGE` mentions, and **28 hand-rolled** adult comparisons in `src`
+(`age >= HUMAN_ADULT_MIN_AGE` / `!isJuvenile && age >= …`, e.g. `listVillageSingleAdults`,
+`apprenticeships`, `dailyScheduleFatigue`). `isMinorChild` is not a pure alias — it emancipates a
+partnered minor — but "adult" still has three spellings. **Open P5 item:** add one `isMinor`/`isAdult`
+owner in the household model, replace the hand-rolled comparisons, and make tests call the owner.
+The test plan's original 27/236/92/16 counts have drifted; these are the current numbers.
+
 ## Documented exceptions / accepted costs
 
 1. **`dayCycle` barrel re-export** still forwards the housing names. Removing it means repointing the
