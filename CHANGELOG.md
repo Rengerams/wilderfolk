@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **CI (2 November 2026):** Extend only the 1,800-resident real-colony benchmark to three days so its later-settling career credits enter the measured audit. Keep real work credit mandatory; use tracked-file restore (or untracked cleanup) before switching baseline to candidate.
+
 - **Fixed (2 November 2026):** Affairs can take place outdoors; indoor rendezvous only use a completed residence assigned to one of the lovers, never an unrelated house. Either partner selects the same eligible venue and spouse-occupied marital homes remain off limits.
 - **Fixed (2 November 2026):** The changelog CI check no longer mistakes prose containing a slash for a nonexistent filename.
 
