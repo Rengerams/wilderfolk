@@ -52,7 +52,7 @@ let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
-let prevBuildingsSnapshot: Map<number, string> | null = null;
+let prevBuildingsSnapshot: Map<number, import('../gameTypes').Building> | null = null;
 let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
 let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
