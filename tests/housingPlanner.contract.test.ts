@@ -9,7 +9,9 @@ import { building, human } from '../src/test/factories';
 import {
   applyRelocation,
   assignMissingResidences,
+  buildHousingUnits,
   createHousingLedger,
+  familyFitsInResidence,
   listPlayerResidences,
   planRelocation,
   standaloneMoveContext,
@@ -17,6 +19,7 @@ import {
 import type { HousingLedger } from '../src/game/housingPipeline';
 import { isResidenceOccupantEntity } from '../src/game/housingModel';
 import { isSettlerRelationshipEntity } from '../src/game/moonHowlerForm';
+import { buildHousingColony } from '../src/test/housingColony';
 
 function family(): Entity[] {
   const mother = human(1, { age: 30 });
@@ -179,5 +182,91 @@ describe('the relocation plan contract', () => {
     expect(plan.move).toBe(false);
     expect(plan.settled).toBe(true);
     expect(plan.why).toBe('settled');
+  });
+
+  it('names a stable shortage instead of calling a partly housed family settled', () => {
+    const full = building(10, BuildingType.House);
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32, partnerId: 1 });
+    mother.partnerId = 2;
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2, residenceBuildingId: 10 });
+    const tenants = Array.from({ length: 4 }, (_, index) =>
+      human(10 + index, { residenceBuildingId: 10 }));
+    const unit = [mother, father, child];
+    const context = standaloneMoveContext([...unit, ...tenants], [full]);
+
+    const plan = planRelocation(unit, 'homeless', context);
+
+    expect(plan.move).toBe(false);
+    expect(plan.shortage).toBe(true);
+    expect(plan.settled).not.toBe(true);
+    expect(plan.why).toBe('stable shortage');
+  });
+
+  it('never plans the manor for an ordinary household', () => {
+    const manor = building(10, BuildingType.LeaderHouse);
+    const unit = family();
+    const context = standaloneMoveContext(unit, [manor]);
+
+    expect(planRelocation(unit, 'homeless', context).move).toBe(false);
+  });
+
+  it('never plans an unfinished home', () => {
+    const unfinished = building(10, BuildingType.House, { completed: false });
+    const unit = family();
+    const context = standaloneMoveContext(unit, [unfinished]);
+
+    expect(planRelocation(unit, 'homeless', context).move).toBe(false);
+  });
+
+  it('never splits a minor from a custodian who is not in the unit', () => {
+    const mother = human(1, { age: 30, residenceBuildingId: 10 });
+    const father = human(2, { age: 32 });
+    const child = human(3, { age: 4, isJuvenile: true, motherId: 1, fatherId: 2 });
+    const unit = [father, child];
+    const homes = [building(11, BuildingType.House), building(12, BuildingType.House)];
+    const context = standaloneMoveContext([mother, father, child], homes);
+
+    const plan = planRelocation(unit, 'homeless', context);
+
+    expect(plan.move).toBe(false);
+    expect(father.residenceBuildingId).toBeUndefined();
+    expect(child.residenceBuildingId).toBeUndefined();
+  });
+
+  it('ends the sweep when no home can take the family', () => {
+    const home = building(10, BuildingType.House);
+    const residents = Array.from({ length: 6 }, (_, index) =>
+      human(10 + index, { residenceBuildingId: 10 }));
+    const unit = family();
+    const humans = [...unit, ...residents];
+
+    const report = assignMissingResidences(humans, [home], humans);
+
+    expect(report.relocations).toHaveLength(0);
+    expect(report.stats.passes).toBeGreaterThan(0);
+    expect(report.stats.passes).toBeLessThanOrEqual(3);
+    expect(report.stats.considered).toBeGreaterThan(0);
+    expect(report.stats.moved).toBe(0);
+    expect(unit.every((member) => member.residenceBuildingId == null)).toBe(true);
+  });
+
+  it('plans only destinations the writer accepts across generated colonies', () => {
+    for (let seed = 1; seed <= 2; seed++) {
+      const colony = buildHousingColony(seed);
+      const residences = listPlayerResidences(colony.buildings);
+      const context = standaloneMoveContext(colony.humans, residences);
+
+      for (const unit of buildHousingUnits(colony.humans)) {
+        const plan = planRelocation(unit, 'homeless', context);
+        if (!plan.move || plan.to === undefined) continue;
+        const target = residences.find((home) => home.id === plan.to);
+        expect(target, `seed ${seed} target`).toBeDefined();
+        expect(familyFitsInResidence(unit, target!, colony.humans, context.occupancy)).toBe(true);
+        const applied = applyRelocation(unit, plan, 'homeless', context);
+        expect(applied, `seed ${seed} unit ${unit.map((member) => member.id)}`).toBeDefined();
+        expect(unit.every((member) => member.residenceBuildingId === plan.to)).toBe(true);
+      }
+    }
   });
 });

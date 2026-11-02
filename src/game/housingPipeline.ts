@@ -44,8 +44,10 @@ export type RelocationNeed =
 /** The one answer: no move means stay — no write, no report line, no retry. */
 export interface RelocationPlan {
   readonly move: boolean;
-  /** True when the phase sweep has nothing to do (already housed, or the stable-shortage guard). */
+  /** True when every member is housed and the phase sweep has nothing to do. */
   readonly settled?: boolean;
+  /** True when a member is unhoused but the stable-shortage guard suppresses the sweep's split. */
+  readonly shortage?: boolean;
   /** Omitted only for `surplus`: there is no bed and the household is unhoused. */
   readonly to?: number;
   readonly reason: ResidenceMoveReason;
@@ -53,11 +55,20 @@ export interface RelocationPlan {
   readonly why: string;
 }
 
+/** Run counters: passes over the homeless work list, and plans considered, moved or stayed. */
+export interface HousingStats {
+  passes: number;
+  considered: number;
+  moved: number;
+  stayed: number;
+}
+
 export interface HousingReport {
   relocations: HousingRelocation[];
   /** Optional moves withheld because a mandatory phase already decided that household. */
   protectedUnits: number;
   violations: string[];
+  stats: HousingStats;
 }
 
 /** One run's decisions: which phase settled a household, the homes it already held, and the log. */
@@ -75,7 +86,12 @@ export function createHousingLedger(): HousingLedger {
   return {
     settled: new Map(),
     visited: new Map(),
-    report: { relocations: [], protectedUnits: 0, violations: [] },
+    report: {
+      relocations: [],
+      protectedUnits: 0,
+      violations: [],
+      stats: { passes: 0, considered: 0, moved: 0, stayed: 0 },
+    },
     before: new Map(),
     reported: new Map(),
   };
@@ -258,7 +274,7 @@ export function planRelocation(
   return { move: false, reason: 'assignment', why: `no ${need} planner yet` };
 }
 
-/** Applies a plan through the sole household writer; returns the logged line when it moved. */
+/** Applies a plan through the sole household writer; undefined when it stayed, was refused, or was a no-op. */
 export function applyRelocation(
   unit: readonly Entity[],
   plan: RelocationPlan,
@@ -279,13 +295,19 @@ function placeHomelessUnit(
   allHumans: Entity[],
   context: HousingMoveContext,
 ): void {
+  const stats = context.ledger.report.stats;
+  const relocationsBefore = context.ledger.report.relocations.length;
+  stats.considered += 1;
+
   const plan = planRelocation(unit, 'homeless', context);
   if (plan.move) {
     applyRelocation(unit, plan, 'homeless', context);
-    return;
+  } else if (!plan.settled && !plan.shortage) {
+    assignFamilyToResidence(unit, alive, residences, allHumans, 'homeless', context);
   }
-  if (plan.settled) return;
-  assignFamilyToResidence(unit, alive, residences, allHumans, 'homeless', context);
+
+  if (context.ledger.report.relocations.length > relocationsBefore) stats.moved += 1;
+  else stats.stayed += 1;
 }
 
 function planHomelessPlacement(unit: readonly Entity[], context: HousingMoveContext): RelocationPlan {
@@ -294,7 +316,12 @@ function planHomelessPlacement(unit: readonly Entity[], context: HousingMoveCont
   const needsMove = housingUnitNeedsReassignment(
     members, context.alive, context.residences, context.occupancy, context.traits, context.playerOccupancy,
   );
-  if (!needsMove) return { move: false, settled: true, reason: 'assignment', why: 'settled' };
+  if (!needsMove) {
+    const fullyHoused = members.every((member) => member.residenceBuildingId != null);
+    return fullyHoused
+      ? { move: false, settled: true, reason: 'assignment', why: 'settled' }
+      : { move: false, shortage: true, reason: 'assignment', why: 'stable shortage' };
+  }
 
   const refused = new Set<number>();
   for (let attempt = 0; attempt <= context.residences.length; attempt += 1) {
@@ -723,6 +750,7 @@ export function assignMissingResidences(
   beginHousingPhase(ledger, alive);
   if (sweepTick === undefined) {
     for (let pass = 0; pass < 24; pass++) {
+      ledger.report.stats.passes += 1;
       let reassigned = 0;
       // One occupancy scan per pass — O(H) then O(1) counts (EK-E2) — and one trait walk beside it,
       // threaded through every pick below instead of rebuilt per pick (F-SIM-9).
@@ -763,6 +791,7 @@ export function assignMissingResidences(
       (unit) => housingUnitBucket(unit, RESIDENCE_SWEEP_BUCKETS) === bucket,
     );
     for (let pass = 0; pass < 3; pass++) {
+      ledger.report.stats.passes += 1;
       const occupancy = buildResidenceOccupancy(residents);
       const playerOccupancy = buildPlayerResidenceOccupancy(alive);
       const traits = buildResidenceTraits(residents);
