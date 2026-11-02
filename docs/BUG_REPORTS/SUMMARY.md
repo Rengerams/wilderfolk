@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Spotlight stage obscures village cast](../bug_report/2026-11-02-spotlight-stage-visibility.md):** Gameplay screenshot shows the oversized lore caption and narrow spotlight obscuring actors. The scene now uses a completed Village Square, with nonparticipating settlers hidden only in the ready render pass; verification pending.
+
 **2026-11-02 — [Close-friend cap exceeded (legacy saves and a unilateral over-cap bond)](../bug_report/2026-11-02-close-friend-cap-exceeded-legacy-saves.md):** A long save carried up to 31 close friends per settler and one unilateral bond could sit over the six-friend cap. Loading now trims to the six strongest, the keep rule is strictly below the cap, and the count is tracked once per settler.
 
 
