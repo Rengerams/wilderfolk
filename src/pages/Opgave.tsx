@@ -255,7 +255,7 @@ export function Opgave() {
   return (
     <div>
       <PaginaKop
-        titel="Telefonische opgave"
+        titel="Beschikbaarheid doorgeven"
         stap="Zoek de deelnemer en vink de uitjes aan waarvoor die meegaat."
         uitleg="Zoek de deelnemer, bekijk het programma en vink aan waarvoor die persoon meegaat. Na opslaan lees je de bevestiging voor aan de telefoon."
         acties={

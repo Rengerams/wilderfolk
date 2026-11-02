@@ -176,14 +176,14 @@ export function DeelnemerDetail() {
         }
         uitleg={
           opgaven.length > 0
-            ? "Bekijk hieronder waarvoor deze deelnemer is opgegeven. Nieuwe opgave? Gebruik de knop Opgave invoeren."
+            ? "Bekijk hieronder waarvoor deze deelnemer is opgegeven. Nieuwe opgave? Gebruik de knop Beschikbaarheid invoeren."
             : "Nog geen opgaven voor deze deelnemer. Voer een opgave in via de telefoon, of bekijk de bezoekgeschiedenis."
         }
         acties={
           <>
             {mag("opgave", "aanmaken") && (
               <Link className="knop knop--primair" to={`/opgave?deelnemer=${deelnemer.id}`}>
-                Opgave invoeren
+                Beschikbaarheid invoeren
               </Link>
             )}
             {kanWijzigen && (
@@ -316,7 +316,7 @@ export function DeelnemerDetail() {
             <p className="leeg__titel">Nog geen opgaven</p>
             <p className="leeg__uitleg">
               {mag("opgave", "aanmaken")
-                ? "Gebruik de knop Opgave invoeren bovenaan om deze deelnemer voor een uitje op te geven."
+                ? "Gebruik de knop Beschikbaarheid invoeren bovenaan om deze deelnemer voor een uitje op te geven."
                 : "De coördinator legt de opgaven telefonisch vast."}
             </p>
           </div>

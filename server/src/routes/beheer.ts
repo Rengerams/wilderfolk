@@ -70,9 +70,9 @@ beheerRouter.get(
       } else if (periode.status === "gepubliceerd" && vandaagDatum <= periode.aanmelddeadline) {
         taak = {
           titel: "Beschikbaarheid cliënten doorgeven",
-          uitleg: `Mensen kunnen zich opgeven tot en met ${datumLang(periode.aanmelddeadline)}. Neem de telefoon aan en leg de opgaven vast.`,
+          uitleg: "",
           link: "/opgave",
-          knop: "Opgave invoeren",
+          knop: "Beschikbaarheid invoeren",
         }
       } else if (!definitief && !proef) {
         taak = {

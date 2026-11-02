@@ -117,7 +117,7 @@ export function Dashboard() {
           </span>
           <div>
             <strong>{data.taak.titel}</strong>
-            <p>{data.taak.uitleg}</p>
+            {data.taak.uitleg && <p>{data.taak.uitleg}</p>}
           </div>
           <Link className="knop knop--klein" to={data.taak.link}>
             {data.taak.knop}
@@ -248,7 +248,7 @@ export function Dashboard() {
           {mag("opgave", "aanmaken") && (
             <Link className="sneltegel" to="/opgave">
               <span className="sneltegel__icoon"><Icoon naam="opgave" /></span>
-              <span><strong>Opgave invoeren</strong><span>Aanmelding per telefoon vastleggen</span></span>
+              <span><strong>Beschikbaarheid invoeren</strong><span>Beschikbaarheid per telefoon doorgeven</span></span>
               <Icoon naam="pijl" />
             </Link>
           )}
