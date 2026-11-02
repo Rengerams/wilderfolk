@@ -57,7 +57,7 @@ describe('sim worker realm adopts the world seed', () => {
     resetSimRng();
     expect(getSimSeed()).toBe(1);
 
-    shim.onmessage!({
+    await shim.onmessage!({
       data: { type: 'init', proto: WORKER_PROTO, world, features: [], headless: true },
     });
 
@@ -71,14 +71,14 @@ describe('sim worker realm adopts the world seed', () => {
     const { shim, posted } = await workerWithSelfShim();
 
     const first = initGame({ size: MapSize.Medium, seed: 111 });
-    shim.onmessage!({
+    await shim.onmessage!({
       data: { type: 'init', proto: WORKER_PROTO, world: first, features: [], headless: true },
     });
     expect(getSimSeed()).toBe(111);
     getSimRng('entityFactory')(); // consume a draw, as a running tick would
 
     const second = initGame({ size: MapSize.Medium, seed: 222 });
-    shim.onmessage!({
+    await shim.onmessage!({
       data: { type: 'importSave', proto: WORKER_PROTO, world: second, uploadId: 42 },
     });
 
@@ -101,26 +101,26 @@ describe('worker copy boundaries', () => {
       received.push(structuredClone(response));
     };
     try {
-      shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [] } });
-      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      await shim.onmessage!({ data: { type: 'init', proto: WORKER_PROTO, world, features: [] } });
+      await shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
       expect(received.at(-1)).toMatchObject({ type: 'error', source: 'tick' });
       expect(world.tick).toBe(initialTick);
       failTick = false;
-      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      await shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
       const result = received.at(-1);
       expect(result?.type).toBe('tickResult');
       if (result?.type !== 'tickResult') throw new Error('missing tick result');
       expect(result.delta).toHaveProperty('populationHistory');
       expect(result.delta).toHaveProperty('genealogyRegistry');
       if (result.renderBuffer && result.bufferIndex !== undefined) {
-        shim.onmessage!({ data: {
+        await shim.onmessage!({ data: {
           type: 'returnBuffer', proto: WORKER_PROTO,
           bufferIndex: result.bufferIndex, buffer: result.renderBuffer,
         } });
       }
       const replacement = initGame({ size: MapSize.Medium, seed: 72 });
-      shim.onmessage!({ data: { type: 'syncWorld', proto: WORKER_PROTO, world: replacement, uploadId: 5 } });
-      shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
+      await shim.onmessage!({ data: { type: 'syncWorld', proto: WORKER_PROTO, world: replacement, uploadId: 5 } });
+      await shim.onmessage!({ data: { type: 'tick', proto: WORKER_PROTO } });
       const synced = received.at(-1);
       if (synced?.type !== 'tickResult') throw new Error('missing synced tick result');
       expect(synced.delta).toHaveProperty('populationHistory');
