@@ -51,6 +51,19 @@ const TAKEN: { titel: string; intro: string; stappen: string[] }[] = [
     ],
   },
   {
+    titel: "Hoe het systeem kiest bij de indeling",
+    intro: "Deze volgorde staat vast en is door de opdrachtgever bevestigd.",
+    stappen: [
+      'Een specifieke opgave gaat voor een opgave "alle uitjes".',
+      "Wie nog geen twee uitjes heeft gehad, krijgt voorrang; de garantie geldt over de hele periode.",
+      "Wie in de laatste 12 maanden vaker meeging, staat achteraan.",
+      "Bij een gelijke stand gaat voor wie het langst niet meeging; daarna beslist een vaste loting.",
+      "Een groepje wordt altijd als geheel geplaatst of als geheel op de reservelijst gezet.",
+      "Bij een reeks gaat de deelnemer naar de datum met de meeste ruimte.",
+      "Je kunt elke plek met de hand aanpassen. Het systeem waarschuwt bij overvolle uitjes of een gesplitst groepje, maar blokkeert nooit.",
+    ],
+  },
+  {
     titel: "De bellijst afwerken",
     intro: "De meeste deelnemers worden gebeld over de uitslag.",
     stappen: [
