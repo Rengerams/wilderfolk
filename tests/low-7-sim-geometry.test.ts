@@ -6,8 +6,8 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  *   L44  mapBounds           NaN positions must not survive the clamp
  *   L47  militiaBalance      wall-cap label must match the cap the forge grants
  *   L21/L22 entityFactory    the auto-detected juvenile flag must use the childhood floor
- *   L54  residencyReconciliation  the unreachable duplicate family scorer is gone
- *   L55  residencySelection  housing audit must ignore rival/leader housing
+ *   L54  housingPipeline  the unreachable duplicate family scorer is gone
+ *   L55  housingPipeline  housing audit must ignore rival/leader housing
  *   L63  simulationEntities  mid-tick hunters must lose a dangling prey target
  *   L71  stripJunction       the lone-crossing coercion contract (dead guard removed)
  *   X1/X2 tickLayerRealtime  owner rng forwarded; occupants rewrite gated
@@ -49,8 +49,8 @@ import { createEntity } from '../src/game/entityFactory';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 
 import { clearHuntersTargetingPrey } from '../src/game/simulation/simulationEntities';
-import * as residencySelection from '../src/game/residencySelection';
-import { auditHousingSharingIssues } from '../src/game/residencySelection';
+import * as housingPipeline from '../src/game/housingPipeline';
+import { auditHousingSharingIssues } from '../src/game/housingPipeline';
 import { classifyJunction, connectionsAt } from '../src/game/stripJunction';
 import { buildEntityByType } from '../src/game/simFocus';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
@@ -220,7 +220,7 @@ describe('L21/L22 factory juvenile threshold', () => {
 
 describe('L54 dead family scorer', () => {
   it('no longer exports the unreachable duplicate shared-residence scorer', () => {
-    expect('pickSharedResidenceForFamily' in residencySelection).toBe(false);
+    expect('pickSharedResidenceForFamily' in housingPipeline).toBe(false);
   });
 });
 

@@ -136,8 +136,9 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     settler.skills![JobType.Farmer] = 99;
     settler.childrenIds!.push(9);
     settler.childhoodFriendsIds!.push(10);
-    settler.friendships!['2'] = 0.9;
-    settler.feuds!['3'] = 0.8;
+    // Relationship records are copy-on-write: a writer replaces the record, never mutates it.
+    settler.friendships = { ...settler.friendships, '2': 0.9 };
+    settler.feuds = { ...settler.feuds, '3': 0.8 };
     settler.moonHowlerSaved!.energy = 500;
     world.tradeRoutes[0].caravanWaitTicks = 9;
     world.tradeRoutes[0].caravansCompleted = 4;
@@ -175,7 +176,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     world.huntVisuals = [visual];
 
     const delta = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     expect(delta.huntVisuals).toEqual([visual]);
@@ -188,7 +188,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     // The worker prunes the arrows itself; the removal has to reach the display too.
     world.huntVisuals = [];
     const cleared = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     applySimTickDelta(display, cleared, { cloneMode: 'isolated' });
@@ -203,7 +202,6 @@ describe('worker persistence + cache transport (audit low-1)', () => {
     world.villageCanHeat = false;
 
     const delta = extractSimTickDelta(world, undefined, {
-      headless: true,
       cloneMode: 'isolated',
     });
     expect(delta.workingSettlers).toBe(5);

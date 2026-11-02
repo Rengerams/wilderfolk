@@ -17,6 +17,7 @@
  *   STALL_MS=<n>           gap that counts as a stall (default 2500; GameLoop's floor is 10000)
  */
 import { readFileSync } from 'node:fs';
+import { serialize as v8Serialize } from 'node:v8';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { initGame } from '../src/game/gameEngine';
@@ -31,6 +32,7 @@ import {
   type WorkerRequest,
   type WorkerResponse,
 } from '../src/game/simWorker/protocol';
+import type { PerformanceSnapshot } from '../src/game/performanceProfiler';
 
 const SAVE_PATH = process.env.PERF_SAVE;
 const TICKS = Number(process.env.TICKS ?? (SAVE_PATH ? 2000 : 6000));
@@ -97,13 +99,18 @@ async function main(): Promise<void> {
   let pendingCommand: { cmd: WorkerCommandEnvelope; t0: number } | null = null;
   let lastError: string | null = null;
   let stallLoggedAt = -1;
+  let buffersReceived = 0;
+  let buffersReturned = 0;
+  let bufferReturnFailures = 0;
+  let maxOutstandingBuffers = 0;
+  let exported = false;
+  let lastCommandTick = -1;
   const gapHistogram: number[] = [];
+  const deltaBytes: number[] = [];
+  let deltaBreakdownPrinted = false;
+  let settleProfiling: ((snapshot: PerformanceSnapshot) => void) | null = null;
   const commandPending = () => pendingCommand != null;
   const isIdle = () => ticksInFlight === 0 && !commandPending();
-
-  const whenIdle = async (): Promise<void> => {
-    while (!isIdle()) await new Promise((r) => setTimeout(r, 5));
-  };
 
   const send = (msg: WorkerRequest): void => {
     worker.postMessage(msg);
@@ -136,6 +143,22 @@ async function main(): Promise<void> {
       }
       return;
     }
+    if ((msg.type === 'tickResult' || msg.type === 'commandResult')
+        && msg.renderBuffer && msg.bufferIndex !== undefined) {
+      buffersReceived++;
+      maxOutstandingBuffers = Math.max(maxOutstandingBuffers, buffersReceived - buffersReturned);
+      try {
+        worker.postMessage({
+          type: 'returnBuffer', proto: WORKER_PROTO,
+          bufferIndex: msg.bufferIndex, buffer: msg.renderBuffer,
+        } satisfies WorkerRequest, [msg.renderBuffer]);
+        buffersReturned++;
+      } catch (err) {
+        bufferReturnFailures++;
+        errors++;
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
     switch (msg.type) {
       case 'tickResult': {
         ticksInFlight = Math.max(0, ticksInFlight - 1);
@@ -149,7 +172,27 @@ async function main(): Promise<void> {
           }
         }
         lastResultAt = arrivedAt;
+        // Render-enabled delta weight over the port, sampled sparsely to keep the cost off the tick.
+        if (msg.delta && results % 100 === 0) {
+          try {
+            deltaBytes.push(v8Serialize(msg.delta).byteLength);
+          } catch {
+            /* a non-serializable delta is reported by its absence */
+          }
+        }
         if (msg.delta) {
+          if (!deltaBreakdownPrinted) {
+            deltaBreakdownPrinted = true;
+            const parts = Object.entries(msg.delta as Record<string, unknown>)
+              .map(([key, value]) => {
+                try {
+                  return `${key}=${v8Serialize(value).byteLength}`;
+                } catch {
+                  return `${key}=?`;
+                }
+              });
+            console.log(`[delta] per-field V8 bytes: ${parts.join(' ')}`);
+          }
           const t = (msg.delta as { tick: number }).tick;
           if (lastTick >= 0 && t !== lastTick + 1) {
             console.error(`[GAP] tick jumped ${lastTick} -> ${t}`);
@@ -170,9 +213,15 @@ async function main(): Promise<void> {
         lastError = msg.message;
         console.error(`[worker error] source=${msg.source} ${msg.message}`);
         if (msg.source === 'tick') ticksInFlight = Math.max(0, ticksInFlight - 1);
+        if (msg.source === 'command') pendingCommand = null;
         break;
       }
       case 'exportSaveResult':
+        exported = true;
+        break;
+      case 'profilingStopped':
+        settleProfiling?.(msg.snapshot);
+        settleProfiling = null;
         break;
     }
   });
@@ -197,17 +246,20 @@ async function main(): Promise<void> {
   }
 
   const stallTimer = setInterval(checkStall, 200);
+  send({ type: 'setProfiling', proto: WORKER_PROTO, enabled: true });
   const startedAt = performance.now();
 
   // pipeline driver — mimic GameLoop.frame: keep up to MAX_IN_FLIGHT ticks queued
   while (ticksDone < TICKS) {
+    if (errors > 0 && ticksInFlight === 0) break;
     while (ticksInFlight < MAX_IN_FLIGHT && ticksRequested < TICKS) {
       send({ type: 'tick', proto: WORKER_PROTO, focus: simFocus });
       ticksInFlight++;
       ticksRequested++;
     }
     // periodic command to exercise the command path mid-pipeline
-    if (ticksDone > 100 && !commandPending() && ticksDone % 700 === 0) {
+    if (ticksDone > 100 && !commandPending() && ticksDone !== lastCommandTick && ticksDone % 700 === 0) {
+      lastCommandTick = ticksDone;
       pendingCommand = { cmd: { proto: 1, op: 'autoStaffWorkers' }, t0: performance.now() };
       send({ type: 'command', proto: WORKER_PROTO, cmd: pendingCommand.cmd });
     }
@@ -222,16 +274,40 @@ async function main(): Promise<void> {
   const elapsedMs = performance.now() - startedAt;
   const finalTick = ticksDone;
 
-  // export check — full-world transfer path
-  await whenIdle();
-  send({ type: 'exportSave', proto: WORKER_PROTO });
-  const exportDeadline = performance.now() + 20000;
-  let exported = false;
-  while (!exported && performance.now() < exportDeadline) {
-    exported = true;
-    await new Promise((r) => setTimeout(r, 10));
+  // Worker-side cost split: sim tick vs pack vs delta extraction (profiler enabled above).
+  const profilingSnapshot = await new Promise<PerformanceSnapshot | null>((resolve) => {
+    settleProfiling = resolve;
+    send({ type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId: 1 });
+    setTimeout(() => {
+      if (settleProfiling) {
+        settleProfiling = null;
+        resolve(null);
+      }
+    }, 5000);
+  });
+  if (profilingSnapshot) {
+    console.log(`[profiler] worker scope ${profilingSnapshot.ticks} ticks over ${profilingSnapshot.sections.reduce((sum, s) => sum + s.totalMs, 0).toFixed(0)}ms total`);
+    for (const section of profilingSnapshot.sections.slice(0, 12)) {
+      console.log(
+        `[profiler] ${section.name} calls=${section.calls} total=${section.totalMs.toFixed(0)}ms `
+          + `avg=${section.averageMs.toFixed(2)}ms max=${section.maxMs.toFixed(1)}ms`,
+      );
+    }
   }
-  worker.terminate();
+
+  // export check — full-world transfer path
+  if (isIdle()) {
+    send({ type: 'exportSave', proto: WORKER_PROTO });
+    const exportDeadline = performance.now() + 20000;
+    while (!exported && performance.now() < exportDeadline) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+  if (!exported) {
+    errors++;
+    lastError = isIdle() ? 'Save export timed out' : 'Worker did not drain before export';
+  }
+  await worker.terminate();
 
   const sorted = [...gapHistogram].sort((a, b) => a - b);
   const pct = (p: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : 0);
@@ -240,6 +316,12 @@ async function main(): Promise<void> {
   console.log('==========================================');
   console.log(`requested=${ticksRequested} results=${results} doneTick=${finalTick}`);
   console.log(`errors=${errors}${lastError ? ` lastError="${lastError}"` : ''}`);
+  console.log(`buffersReceived=${buffersReceived} buffersReturned=${buffersReturned} bufferReturnFailures=${bufferReturnFailures} maxOutstandingBuffers=${maxOutstandingBuffers}`);
+  if (buffersReceived !== buffersReturned) {
+    console.error('[RESULT] Render buffers remained outstanding after drain');
+    process.exitCode = 1;
+  }
+  if (errors > 0 || finalTick < TICKS || maxResultGap > STALL_MS) process.exitCode = 1;
   console.log(`wallMs=${Math.round(elapsedMs)} ticksPerSec=${(results / (elapsedMs / 1000)).toFixed(1)}`);
   console.log(
     `interResultGap: mean=${mean.toFixed(1)}ms p50=${pct(0.5).toFixed(1)}ms p95=${pct(0.95).toFixed(1)}ms `
@@ -247,6 +329,12 @@ async function main(): Promise<void> {
   );
   console.log(`idleGapMaxMs=${Math.round(maxGap)} heapPeak=${heapPeakMb.toFixed(1)}MB stallThreshold=${STALL_MS}ms`);
   console.log(`stallLogged=${stallLoggedAt >= 0}`);
+  if (deltaBytes.length > 0) {
+    const deltaAvg = deltaBytes.reduce((sum, bytes) => sum + bytes, 0) / deltaBytes.length;
+    console.log(
+      `renderDeltaV8Bytes: samples=${deltaBytes.length} avg=${deltaAvg.toFixed(0)} max=${Math.max(...deltaBytes)}`,
+    );
+  }
   if (maxResultGap > STALL_MS) {
     console.error(`[RESULT] GAP: a ${maxResultGap.toFixed(0)}ms inter-result gap exceeded the ${STALL_MS}ms threshold`);
   } else if (finalTick < TICKS) {

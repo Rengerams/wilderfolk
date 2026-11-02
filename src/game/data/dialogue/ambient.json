@@ -1,0 +1,6819 @@
+{
+  "version": "1.3",
+  "game": "Wilderfolk Sim",
+  "category": "dialogue",
+  "categories": [
+    "dialogue"
+  ],
+  "dialogue_trees": [
+    {
+      "id": "dt_toast",
+      "category": "dialogue",
+      "speakers": [
+        "npc_arsonist",
+        "npc_confused"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_arsonist",
+          "text": "Started a fire trying to make toast."
+        },
+        {
+          "speaker": "npc_confused",
+          "text": "The bread was already toasted?"
+        },
+        {
+          "speaker": "npc_arsonist",
+          "text": "I was just holding it near the stove for moral support."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_ladder",
+      "category": "dialogue",
+      "speakers": [
+        "npc_builder",
+        "npc_concerned"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_builder",
+          "text": "Built a ladder to nowhere. It goes up. It does not come down."
+        },
+        {
+          "speaker": "npc_concerned",
+          "text": "Why?"
+        },
+        {
+          "speaker": "npc_builder",
+          "text": "I live there now. Send sandwiches."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_cow",
+      "category": "dialogue",
+      "speakers": [
+        "npc_puncher",
+        "npc_hr"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_puncher",
+          "text": "Accidentally punched a cow while trying to pet it."
+        },
+        {
+          "speaker": "npc_hr",
+          "text": "Is the cow okay?"
+        },
+        {
+          "speaker": "npc_puncher",
+          "text": "The cow filed a complaint. HR is involved."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_doorframe",
+      "category": "dialogue",
+      "speakers": [
+        "npc_traumatized",
+        "npc_curious"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_traumatized",
+          "text": "Called in sick because I got stuck in a doorframe."
+        },
+        {
+          "speaker": "npc_curious",
+          "text": "With who?"
+        },
+        {
+          "speaker": "npc_traumatized",
+          "text": "Two other people tried to walk through at the same time. It was traumatic."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_well",
+      "category": "dialogue",
+      "speakers": [
+        "npc_fallen",
+        "npc_nurse"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_fallen",
+          "text": "Fell down a well. Not an important well. Just a decorative one."
+        },
+        {
+          "speaker": "npc_nurse",
+          "text": "Are you hurt?"
+        },
+        {
+          "speaker": "npc_fallen",
+          "text": "The shame is worse than the injuries."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_fear_run",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Run!"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Wolf!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_fear_inside",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "guard"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Inside!"
+        },
+        {
+          "speaker": "guard",
+          "text": "Help!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Too close!"
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_fear_moon",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Moon curse!"
+        },
+        {
+          "speaker": "elder",
+          "text": "Inside!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Don't look back!"
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_affair_secret",
+      "category": "dialogue",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Shh…"
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Our secret."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "After dark…"
+        }
+      ],
+      "eventKey": "ambient.affair",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_affair_meet",
+      "category": "dialogue",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Meet me later."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Not here."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "They'll never know."
+        }
+      ],
+      "eventKey": "ambient.affair",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_affair_kiss",
+      "category": "dialogue",
+      "speakers": [
+        "lover_a",
+        "lover_b"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Quick kiss."
+        },
+        {
+          "speaker": "lover_b",
+          "text": "Don't tell."
+        },
+        {
+          "speaker": "lover_a",
+          "text": "Our secret."
+        }
+      ],
+      "eventKey": "ambient.affair",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_chaos_goat_court",
+      "category": "dialogue",
+      "speakers": [
+        "npc_accused",
+        "npc_goat_lawyer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_accused",
+          "text": "The goat has accused me of stealing its hat."
+        },
+        {
+          "speaker": "npc_goat_lawyer",
+          "text": "The goat has produced three witnesses and a very convincing photograph."
+        },
+        {
+          "speaker": "npc_accused",
+          "text": "That photograph is just the goat standing near a hat."
+        },
+        {
+          "speaker": "npc_goat_lawyer",
+          "text": "The court will decide whether proximity constitutes intent."
+        },
+        {
+          "speaker": "npc_accused",
+          "text": "Who appointed you as the goat's lawyer?"
+        },
+        {
+          "speaker": "npc_goat_lawyer",
+          "text": "The goat. It paid me in buttons and an alarming amount of eye contact."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_chaos_goat",
+      "category": "dialogue",
+      "speakers": [
+        "shepherd",
+        "witness"
+      ],
+      "lines": [
+        {
+          "speaker": "shepherd",
+          "text": "The goat has learned to open the grain shed."
+        },
+        {
+          "speaker": "witness",
+          "text": "Lock it."
+        },
+        {
+          "speaker": "shepherd",
+          "text": "I tried. It watched me hide the key."
+        }
+      ],
+      "eventKey": "ambient.fear",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_indoor_weather",
+      "category": "dialogue",
+      "speakers": [
+        "npc_damp",
+        "npc_fixer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_damp",
+          "text": "It's raining inside my house again."
+        },
+        {
+          "speaker": "npc_fixer",
+          "text": "Have you tried fixing the roof?"
+        },
+        {
+          "speaker": "npc_damp",
+          "text": "It is simply my indoor weather now. I do not question it."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_tornado",
+      "category": "dialogue",
+      "speakers": [
+        "npc_calm",
+        "npc_panicker"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_calm",
+          "text": "Saw a tornado coming. Made a sandwich instead."
+        },
+        {
+          "speaker": "npc_panicker",
+          "text": "You didn't go to the shelter?"
+        },
+        {
+          "speaker": "npc_calm",
+          "text": "It was a really good sandwich."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_winter_cold",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Frost again."
+        },
+        {
+          "speaker": "settler",
+          "text": "Boots frozen."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_winter_wood",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "elder"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wood's low."
+        },
+        {
+          "speaker": "elder",
+          "text": "Heat the hall."
+        },
+        {
+          "speaker": "settler",
+          "text": "Spring feels far."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_winter_snow",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Snow won't quit."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ice on the well."
+        },
+        {
+          "speaker": "settler",
+          "text": "So cold…"
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_weather_rain",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wet boots."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Mud everywhere."
+        },
+        {
+          "speaker": "settler",
+          "text": "Rain'll pass."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_weather_snow",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Deep drifts."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Paths are buried."
+        },
+        {
+          "speaker": "settler",
+          "text": "Cold out."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_weather_drought",
+      "category": "dialogue",
+      "speakers": [
+        "farmer",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Dust in the air."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Crops look thirsty."
+        },
+        {
+          "speaker": "farmer",
+          "text": "Hungry yet?"
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_environment_moon_rain",
+      "category": "dialogue",
+      "speakers": [
+        "npc_weatherwatcher",
+        "npc_practical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "The rain is falling upward tonight."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Then leave the washing on the ground."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "It is gathering in the clouds beneath us."
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "Good. The clouds can do the laundry."
+        },
+        {
+          "speaker": "npc_weatherwatcher",
+          "text": "You are not frightened?"
+        },
+        {
+          "speaker": "npc_practical",
+          "text": "I am frightened of many things. Wet clothes are not making the list."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_environment_frog",
+      "category": "dialogue",
+      "speakers": [
+        "rainwatcher",
+        "farmer"
+      ],
+      "lines": [
+        {
+          "speaker": "rainwatcher",
+          "text": "The frogs are singing again."
+        },
+        {
+          "speaker": "farmer",
+          "text": "That means rain."
+        },
+        {
+          "speaker": "rainwatcher",
+          "text": "Then they have better weather sense than the council."
+        }
+      ],
+      "eventKey": "ambient.winter",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_seam",
+      "category": "dialogue",
+      "speakers": [
+        "npc_aware",
+        "npc_denier"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_aware",
+          "text": "Pretty sure I saw a loading seam in the mountains yesterday."
+        },
+        {
+          "speaker": "npc_denier",
+          "text": "You should report that."
+        },
+        {
+          "speaker": "npc_aware",
+          "text": "I pretended I didn't. We all pretend."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_shirts",
+      "category": "dialogue",
+      "speakers": [
+        "npc_hoarder",
+        "npc_minimalist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_hoarder",
+          "text": "I have 47 identical shirts in my inventory."
+        },
+        {
+          "speaker": "npc_minimalist",
+          "text": "Why?"
+        },
+        {
+          "speaker": "npc_hoarder",
+          "text": "I will defend each one with my life. Do not test me."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_personality",
+      "category": "dialogue",
+      "speakers": [
+        "npc_wind",
+        "npc_shallow"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_wind",
+          "text": "My entire personality is 'Likes Wind.'"
+        },
+        {
+          "speaker": "npc_shallow",
+          "text": "That's... it?"
+        },
+        {
+          "speaker": "npc_wind",
+          "text": "This is all I am. I have accepted it."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_stare",
+      "category": "dialogue",
+      "speakers": [
+        "npc_thinker",
+        "npc_player_proxy"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_thinker",
+          "text": "Sometimes I stop in the middle of the road and stare at the sky."
+        },
+        {
+          "speaker": "npc_player_proxy",
+          "text": "Are you broken?"
+        },
+        {
+          "speaker": "npc_thinker",
+          "text": "I'm just thinking. The player probably thinks I'm broken too."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_renffr_stars",
+      "category": "dialogue",
+      "speakers": [
+        "gossip",
+        "skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "gossip",
+          "text": "I saw Renffr in the stars…"
+        },
+        {
+          "speaker": "skeptic",
+          "text": "Did anyone else see the sky?"
+        },
+        {
+          "speaker": "gossip",
+          "text": "Just a shepherd's tale… right?"
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_renffr_mark",
+      "category": "dialogue",
+      "speakers": [
+        "believer",
+        "doubter"
+      ],
+      "lines": [
+        {
+          "speaker": "believer",
+          "text": "The mark of Renffr… plentiful harvest?"
+        },
+        {
+          "speaker": "doubter",
+          "text": "Grandmother feared that name."
+        },
+        {
+          "speaker": "believer",
+          "text": "Something wrote Renffr up there."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_renffr_letters",
+      "category": "dialogue",
+      "speakers": [
+        "scholar",
+        "farmer"
+      ],
+      "lines": [
+        {
+          "speaker": "scholar",
+          "text": "The letters scattered…"
+        },
+        {
+          "speaker": "farmer",
+          "text": "Renffr — old valley omen."
+        },
+        {
+          "speaker": "scholar",
+          "text": "Did anyone else see the sky?"
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_election_vote",
+      "category": "dialogue",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "My vote's cast."
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Election year!"
+        }
+      ],
+      "eventKey": "ambient.election",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_election_speech",
+      "category": "dialogue",
+      "speakers": [
+        "voter",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "voter",
+          "text": "Heard the speeches?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Town meeting soon."
+        },
+        {
+          "speaker": "voter",
+          "text": "New leader, new luck."
+        }
+      ],
+      "eventKey": "ambient.election",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_election_incumbent",
+      "category": "dialogue",
+      "speakers": [
+        "voter_a",
+        "voter_b"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Incumbent again?"
+        },
+        {
+          "speaker": "voter_b",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Heard the speeches?"
+        }
+      ],
+      "eventKey": "ambient.election",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_existential_echo",
+      "category": "dialogue",
+      "speakers": [
+        "npc_echo",
+        "npc_skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_echo",
+          "text": "The valley repeated my name before I said it."
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "That is called an echo."
+        },
+        {
+          "speaker": "npc_echo",
+          "text": "An echo repeats what has already happened."
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "Perhaps you said your name yesterday."
+        },
+        {
+          "speaker": "npc_echo",
+          "text": "Then why did it sound disappointed?"
+        },
+        {
+          "speaker": "npc_skeptic",
+          "text": "Because even the valley has standards."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_existential_cloud",
+      "category": "dialogue",
+      "speakers": [
+        "dreamer",
+        "practical_one"
+      ],
+      "lines": [
+        {
+          "speaker": "dreamer",
+          "text": "Do you think clouds remember the valleys they leave?"
+        },
+        {
+          "speaker": "practical_one",
+          "text": "Only if the valley owes them money."
+        },
+        {
+          "speaker": "dreamer",
+          "text": "That explains the storm."
+        }
+      ],
+      "eventKey": "ambient.renffr",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_home",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smell the pies?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_work",
+      "category": "dialogue",
+      "speakers": [
+        "laborer",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
+        },
+        {
+          "speaker": "friend",
+          "text": "Finish before the dance."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Good yield."
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_feast_scene",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Dance!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Music tonight!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_cheers_scene",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Cheers!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Harvest revel!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Flags up!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_best_scene",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Visitors everywhere."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Best week of the year!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_festival_turnip",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "judge"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "I entered my turnip in the harvest contest."
+        },
+        {
+          "speaker": "judge",
+          "text": "It is very round."
+        },
+        {
+          "speaker": "reveler",
+          "text": "At last, a vegetable that understands presentation."
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_bathroom",
+      "category": "dialogue",
+      "speakers": [
+        "npc_humiliated",
+        "npc_logician"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_humiliated",
+          "text": "I peed myself because someone was using the bathroom."
+        },
+        {
+          "speaker": "npc_logician",
+          "text": "We have four bathrooms."
+        },
+        {
+          "speaker": "npc_humiliated",
+          "text": "It was the principle of the thing."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_bed",
+      "category": "dialogue",
+      "speakers": [
+        "npc_floor_sleeper",
+        "npc_pragmatist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_floor_sleeper",
+          "text": "Slept on the floor next to a $3000 bed because someone claimed it 0.4 seconds before me."
+        },
+        {
+          "speaker": "npc_pragmatist",
+          "text": "You could've just... asked them to move?"
+        },
+        {
+          "speaker": "npc_floor_sleeper",
+          "text": "And admit defeat? I have standards."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_potato",
+      "category": "dialogue",
+      "speakers": [
+        "npc_hungry",
+        "npc_cook"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_hungry",
+          "text": "Ate raw potatoes for 3 days because the stove was slightly too far from the fridge."
+        },
+        {
+          "speaker": "npc_cook",
+          "text": "Slightly?"
+        },
+        {
+          "speaker": "npc_hungry",
+          "text": "Four tiles. Might as well be the moon."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_berries",
+      "category": "dialogue",
+      "speakers": [
+        "npc_dead",
+        "npc_alive"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_dead",
+          "text": "Died of starvation surrounded by berries."
+        },
+        {
+          "speaker": "npc_alive",
+          "text": "Why didn't you eat them?"
+        },
+        {
+          "speaker": "npc_dead",
+          "text": "I forgot I could eat them without putting them in a crate first. Don't look at me."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_arrival",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Home at last."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Long day, huh?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Feet up soon."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_cozy",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Cozy night."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Kettle on?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Quiet evening."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_warm",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Warm fire soon."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Glad to be back."
+        },
+        {
+          "speaker": "settler",
+          "text": "Settle in?"
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_indoors",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Finally indoors."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smells like stew."
+        },
+        {
+          "speaker": "settler",
+          "text": "Good night."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_winter",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Shut the door!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Chimney smoke."
+        },
+        {
+          "speaker": "settler",
+          "text": "Blankets out."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_festival",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Smell the pies?"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_home_food",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Thin stew tonight."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Save a crust for morning."
+        },
+        {
+          "speaker": "settler",
+          "text": "Children first."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_sleep",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Zzz…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Good night."
+        },
+        {
+          "speaker": "settler",
+          "text": "Dream well."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_sleep_long",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Long day…"
+        },
+        {
+          "speaker": "housemate",
+          "text": "Quiet house."
+        },
+        {
+          "speaker": "settler",
+          "text": "Home sweet home."
+        }
+      ],
+      "eventKey": "ambient.sleep",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_food_crisis",
+      "category": "dialogue",
+      "speakers": [
+        "hungry_settler",
+        "pantry_keeper"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Cupboards bare…"
+        },
+        {
+          "speaker": "pantry_keeper",
+          "text": "Ration the grain."
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Hunters must bring more."
+        }
+      ],
+      "eventKey": "ambient.food",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_food_soup",
+      "category": "dialogue",
+      "speakers": [
+        "cook",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "Soup again?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "We need farms."
+        },
+        {
+          "speaker": "cook",
+          "text": "Winter stores thin."
+        }
+      ],
+      "eventKey": "ambient.food",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_pregnant",
+      "category": "dialogue",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "Oof…"
+        },
+        {
+          "speaker": "partner",
+          "text": "Little kick…"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Counting days…"
+        }
+      ],
+      "eventKey": "pregnancy.daily",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_pregnant_tired",
+      "category": "dialogue",
+      "speakers": [
+        "expectant_mother",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "So tired…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Nursery ready?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Baby's restless."
+        }
+      ],
+      "eventKey": "pregnancy.daily",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_longday",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Long day."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Tell me about it."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Kettle on?"
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_rain",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Smells like rain."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Hope the roof holds."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "I'll check the thatch."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_kids",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Kids asleep?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Finally quiet."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Until morning."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_wood",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Wood pile low."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "I'll chop tomorrow."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Again."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_wolves",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Heard wolves."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bars are latched."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Sleep close."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_harvest",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Good harvest?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Bins are full."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "For now."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_housemate_cold",
+      "category": "dialogue",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Cold night."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "Fire's warm enough."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Barely."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_needs_shared_blanket",
+      "category": "dialogue",
+      "speakers": [
+        "npc_cold",
+        "npc_prepared"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_cold",
+          "text": "The blanket is too small for two people."
+        },
+        {
+          "speaker": "npc_prepared",
+          "text": "That is why I brought two people."
+        },
+        {
+          "speaker": "npc_cold",
+          "text": "You brought a second person instead of a second blanket?"
+        },
+        {
+          "speaker": "npc_prepared",
+          "text": "The second person was already here and looked useful."
+        },
+        {
+          "speaker": "npc_cold",
+          "text": "I am not a heating appliance."
+        },
+        {
+          "speaker": "npc_prepared",
+          "text": "Not with that attitude."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_needs_stew",
+      "category": "dialogue",
+      "speakers": [
+        "cook",
+        "forager"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "What is in the stew?"
+        },
+        {
+          "speaker": "forager",
+          "text": "Mostly courage. And three turnips."
+        },
+        {
+          "speaker": "cook",
+          "text": "Serve the courage first. The turnips need time."
+        }
+      ],
+      "eventKey": "ambient.home",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_needs_alternative_dt_bathroom",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "I had an accident because someone was in the outhouse."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "The village has four outhouses."
+        },
+        {
+          "speaker": "settler",
+          "text": "It was the principle of the thing."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_bed",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Slept on the rug because you took the bed 0.4 seconds before me."
+        },
+        {
+          "speaker": "housemate",
+          "text": "You could've just asked me to shift over."
+        },
+        {
+          "speaker": "settler",
+          "text": "And admit defeat? I have standards."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_potato",
+      "category": "dialogue",
+      "speakers": [
+        "hungry_settler",
+        "cook"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Ate raw turnips for two days straight."
+        },
+        {
+          "speaker": "cook",
+          "text": "The soup kettle was right on the stove!"
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Four whole tiles away. Might as well be across the river."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_dt_berries",
+      "category": "dialogue",
+      "speakers": [
+        "forager",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Almost starved to death while standing directly in a berry bush."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Why didn't you just eat them?"
+        },
+        {
+          "speaker": "forager",
+          "text": "I forgot I could eat without putting them in a storage crate first."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_home_arrival",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Boots off, hearth fire stoked."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Stew is simmering in the pot."
+        },
+        {
+          "speaker": "settler",
+          "text": "Best part of the entire day."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_home_cozy",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "housemate"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "The kettle is whistling on the stove."
+        },
+        {
+          "speaker": "housemate",
+          "text": "Pour a cup before the embers burn down."
+        },
+        {
+          "speaker": "settler",
+          "text": "Nothing beats a quiet evening under a solid roof."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "wf_needs_alternative_wf_food_crisis",
+      "category": "dialogue",
+      "speakers": [
+        "hungry_settler",
+        "pantry_keeper"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "The pantry cupboards are echoing with emptiness."
+        },
+        {
+          "speaker": "pantry_keeper",
+          "text": "We're rationing the dried beans until the harvest."
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Send word to the hunters before we start boiling leather."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.food"
+    },
+    {
+      "id": "wf_needs_alternative_wf_pregnant",
+      "category": "dialogue",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby is kicking up a storm tonight."
+        },
+        {
+          "speaker": "partner",
+          "text": "I finished carving the cradle by the window."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Soon we won't be sleeping through the night for a year."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_needs_alternative_wf_funny_needs_stew",
+      "category": "dialogue",
+      "speakers": [
+        "cook",
+        "forager"
+      ],
+      "lines": [
+        {
+          "speaker": "cook",
+          "text": "What is in the stew tonight?"
+        },
+        {
+          "speaker": "forager",
+          "text": "Mostly courage. And three turnips."
+        },
+        {
+          "speaker": "cook",
+          "text": "Serve the courage first. The turnips need time."
+        }
+      ],
+      "conversation_type": "two_way",
+      "eventKey": "ambient.home"
+    },
+    {
+      "id": "dt_greg",
+      "category": "dialogue",
+      "speakers": [
+        "npc_chicken_friend",
+        "npc_judgmental"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "My best friend is a chicken. His name is Greg."
+        },
+        {
+          "speaker": "npc_judgmental",
+          "text": "You named a chicken Greg?"
+        },
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "He named himself. I just respected his choice."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_party",
+      "category": "dialogue",
+      "speakers": [
+        "npc_host",
+        "npc_sympathetic"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_host",
+          "text": "Threw a party. Nobody came. The cake rotted."
+        },
+        {
+          "speaker": "npc_sympathetic",
+          "text": "That's depressing."
+        },
+        {
+          "speaker": "npc_host",
+          "text": "I ate it anyway. 5/10, would grief again."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_friendship",
+      "category": "dialogue",
+      "speakers": [
+        "npc_invested",
+        "npc_cynical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_invested",
+          "text": "Spent 6 hours building a friendship with someone."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "That's nice."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "We're both scheduled to leave the map tomorrow. I want a refund."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_hey",
+      "category": "dialogue",
+      "speakers": [
+        "neighbor_a",
+        "neighbor_b"
+      ],
+      "lines": [
+        {
+          "speaker": "neighbor_a",
+          "text": "Hey!"
+        },
+        {
+          "speaker": "neighbor_b",
+          "text": "Fine day."
+        },
+        {
+          "speaker": "neighbor_a",
+          "text": "Fine village."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_peace",
+      "category": "dialogue",
+      "speakers": [
+        "elder",
+        "youth"
+      ],
+      "lines": [
+        {
+          "speaker": "elder",
+          "text": "Peaceful, for now."
+        },
+        {
+          "speaker": "youth",
+          "text": "Heard the news?"
+        },
+        {
+          "speaker": "elder",
+          "text": "Busy week."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_harvest",
+      "category": "dialogue",
+      "speakers": [
+        "farmer",
+        "trader"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Good harvest?"
+        },
+        {
+          "speaker": "trader",
+          "text": "Roads help."
+        },
+        {
+          "speaker": "farmer",
+          "text": "Seen the traders?"
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_kids",
+      "category": "dialogue",
+      "speakers": [
+        "parent",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Kids are loud today."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Nice weather."
+        },
+        {
+          "speaker": "parent",
+          "text": "Hungry yet?"
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_wolves",
+      "category": "dialogue",
+      "speakers": [
+        "settler",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Wolves again…"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Bars are latched."
+        },
+        {
+          "speaker": "settler",
+          "text": "Cold out."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_child_mama",
+      "category": "dialogue",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Mama!"
+        },
+        {
+          "speaker": "parent",
+          "text": "Look!"
+        },
+        {
+          "speaker": "child",
+          "text": "Race you!"
+        }
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_child_play",
+      "category": "dialogue",
+      "speakers": [
+        "child",
+        "sibling"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Yay!"
+        },
+        {
+          "speaker": "sibling",
+          "text": "I found a bug!"
+        },
+        {
+          "speaker": "child",
+          "text": "Hehe!"
+        }
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_child_help",
+      "category": "dialogue",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Can I help?"
+        },
+        {
+          "speaker": "parent",
+          "text": "Story time?"
+        },
+        {
+          "speaker": "child",
+          "text": "Wait up!"
+        }
+      ],
+      "eventKey": "ambient.child",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_school_lesson",
+      "category": "dialogue",
+      "speakers": [
+        "pupil",
+        "teacher"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Lesson time!"
+        },
+        {
+          "speaker": "teacher",
+          "text": "ABC…"
+        },
+        {
+          "speaker": "pupil",
+          "text": "I learned!"
+        }
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_school_recess",
+      "category": "dialogue",
+      "speakers": [
+        "pupil",
+        "classmate"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Recess soon?"
+        },
+        {
+          "speaker": "classmate",
+          "text": "Books!"
+        },
+        {
+          "speaker": "pupil",
+          "text": "Sums are hard."
+        }
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_school_class",
+      "category": "dialogue",
+      "speakers": [
+        "pupil",
+        "teacher"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Teacher?"
+        },
+        {
+          "speaker": "teacher",
+          "text": "Who's top of class?"
+        },
+        {
+          "speaker": "pupil",
+          "text": "Books!"
+        }
+      ],
+      "eventKey": "ambient.school",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_courtship_walk",
+      "category": "dialogue",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Walk with me?"
+        },
+        {
+          "speaker": "beloved",
+          "text": "Gladly."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Moon looks kind tonight."
+        }
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_courtship_well",
+      "category": "dialogue",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "You look well."
+        },
+        {
+          "speaker": "beloved",
+          "text": "So do you."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Care for a stroll?"
+        }
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_courtship_evening",
+      "category": "dialogue",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Lovely evening."
+        },
+        {
+          "speaker": "beloved",
+          "text": "It is now."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Fancy meeting you."
+        }
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_courtship_company",
+      "category": "dialogue",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Care for company?"
+        },
+        {
+          "speaker": "beloved",
+          "text": "I would."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Pretty view."
+        }
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_courtship_boots",
+      "category": "dialogue",
+      "speakers": [
+        "suitor",
+        "beloved"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Nice boots."
+        },
+        {
+          "speaker": "beloved",
+          "text": "Hi there."
+        },
+        {
+          "speaker": "suitor",
+          "text": "Lovely day…"
+        }
+      ],
+      "eventKey": "ambient.courtship",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_visitor_trade",
+      "category": "dialogue",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        },
+        {
+          "speaker": "host",
+          "text": "Trade?"
+        },
+        {
+          "speaker": "visitor",
+          "text": "Your reputation travels."
+        }
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_visitor_roads",
+      "category": "dialogue",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Safe roads?"
+        },
+        {
+          "speaker": "host",
+          "text": "Fine village."
+        },
+        {
+          "speaker": "visitor",
+          "text": "We brought news."
+        }
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_visitor_passing",
+      "category": "dialogue",
+      "speakers": [
+        "visitor",
+        "host"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Passing through."
+        },
+        {
+          "speaker": "host",
+          "text": "Camped down the road."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        }
+      ],
+      "eventKey": "ambient.visitor",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_rival_fences",
+      "category": "dialogue",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "settler",
+          "text": "Our land too."
+        },
+        {
+          "speaker": "rival",
+          "text": "Bold settlers."
+        }
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_rival_watch",
+      "category": "dialogue",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Watching you."
+        },
+        {
+          "speaker": "settler",
+          "text": "Hmm."
+        },
+        {
+          "speaker": "rival",
+          "text": "Keep your distance."
+        }
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_rival_slight",
+      "category": "dialogue",
+      "speakers": [
+        "rival",
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "We remember slights."
+        },
+        {
+          "speaker": "settler",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "rival",
+          "text": "Our land too."
+        }
+      ],
+      "eventKey": "ambient.rival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_feast",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Dance!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Music tonight!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_cheers",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Cheers!"
+        },
+        {
+          "speaker": "friend",
+          "text": "Harvest revel!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "Flags up!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_festival_best",
+      "category": "dialogue",
+      "speakers": [
+        "reveler",
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "reveler",
+          "text": "Visitors everywhere."
+        },
+        {
+          "speaker": "visitor",
+          "text": "Best week of the year!"
+        },
+        {
+          "speaker": "reveler",
+          "text": "What a feast!"
+        }
+      ],
+      "eventKey": "ambient.festival",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_relationship_pressure",
+      "category": "dialogue",
+      "speakers": [
+        "npc_invested",
+        "npc_cynical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_invested",
+          "text": "You keep saying you don't care, but you repaired my roof before the storm."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I repaired the roof because replacing you would have taken longer."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "Then why did you leave your coat on my chair?"
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "Because you were shivering. Don't turn a practical decision into a confession."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "I won't. But tomorrow, if you disappear, I'm coming after you."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "That's the problem. I know you mean it."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_secret_conflict",
+      "category": "dialogue",
+      "speakers": [
+        "npc_invested",
+        "npc_cynical"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_invested",
+          "text": "The council's missing ledger was in your room. Tell me you didn't take it."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I didn't take it from the council."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "That is a very careful answer. Where did you get it?"
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "You don't want the truth. You want a version that lets you keep defending me."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "I want to know whether the guards are looking for the wrong person."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "They are."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "And you know who they should be looking for?"
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I know who will be hurt if they find out. That is not the same thing."
+        },
+        {
+          "speaker": "npc_invested",
+          "text": "You promised me you wouldn't make me choose between the settlement and you."
+        },
+        {
+          "speaker": "npc_cynical",
+          "text": "I promised you nothing. You heard what you needed to hear."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_social_rumor",
+      "category": "dialogue",
+      "speakers": [
+        "npc_gossip",
+        "npc_recluse"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_gossip",
+          "text": "People say you have been meeting someone behind the old mill."
+        },
+        {
+          "speaker": "npc_recluse",
+          "text": "People say many things because silence makes them nervous."
+        },
+        {
+          "speaker": "npc_gossip",
+          "text": "So you deny it?"
+        },
+        {
+          "speaker": "npc_recluse",
+          "text": "I deny that the old mill is behind anything. It is clearly beside the river."
+        },
+        {
+          "speaker": "npc_gossip",
+          "text": "That is not the denial I asked for."
+        },
+        {
+          "speaker": "npc_recluse",
+          "text": "Then ask a question you are prepared to hear answered."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_social_crow",
+      "category": "dialogue",
+      "speakers": [
+        "neighbor",
+        "skeptic"
+      ],
+      "lines": [
+        {
+          "speaker": "neighbor",
+          "text": "A crow stole my glove."
+        },
+        {
+          "speaker": "skeptic",
+          "text": "Did you chase it?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "No. It looks better dressed than I do."
+        }
+      ],
+      "eventKey": "ambient.social",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_rock",
+      "category": "dialogue",
+      "speakers": [
+        "npc_laborer",
+        "npc_bystander"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_laborer",
+          "text": "I've been carrying this rock for 3 hours. I don't know where to put it."
+        },
+        {
+          "speaker": "npc_bystander",
+          "text": "Have you tried... setting it down?"
+        },
+        {
+          "speaker": "npc_laborer",
+          "text": "I am one with the rock now. Do not interrupt our journey."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "dt_diagonal",
+      "category": "dialogue",
+      "speakers": [
+        "npc_farmer",
+        "npc_veteran"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_farmer",
+          "text": "Just watched a guy harvest an entire field by walking diagonally through it."
+        },
+        {
+          "speaker": "npc_veteran",
+          "text": "We don't talk about the diagonal walk."
+        },
+        {
+          "speaker": "npc_farmer",
+          "text": "I tried it once. They found my body in a fence."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_shift",
+      "category": "dialogue",
+      "speakers": [
+        "laborer",
+        "foreman"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Hard work!"
+        },
+        {
+          "speaker": "foreman",
+          "text": "More wood!"
+        },
+        {
+          "speaker": "laborer",
+          "text": "Keep at it."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_busy",
+      "category": "dialogue",
+      "speakers": [
+        "farmer",
+        "helper"
+      ],
+      "lines": [
+        {
+          "speaker": "farmer",
+          "text": "Busy day."
+        },
+        {
+          "speaker": "helper",
+          "text": "Good yield."
+        },
+        {
+          "speaker": "farmer",
+          "text": "One more load."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_tools",
+      "category": "dialogue",
+      "speakers": [
+        "smith",
+        "carpenter"
+      ],
+      "lines": [
+        {
+          "speaker": "smith",
+          "text": "Sturdy beams."
+        },
+        {
+          "speaker": "carpenter",
+          "text": "Tools need sharpening."
+        },
+        {
+          "speaker": "smith",
+          "text": "Shift's long."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_winter",
+      "category": "dialogue",
+      "speakers": [
+        "laborer",
+        "foreman"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Fingers numb."
+        },
+        {
+          "speaker": "foreman",
+          "text": "Shorter daylight."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Almost done."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_rain",
+      "category": "dialogue",
+      "speakers": [
+        "builder",
+        "neighbor"
+      ],
+      "lines": [
+        {
+          "speaker": "builder",
+          "text": "Roof leak again."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Work in the barn."
+        },
+        {
+          "speaker": "builder",
+          "text": "Hope it holds."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_festival",
+      "category": "dialogue",
+      "speakers": [
+        "laborer",
+        "friend"
+      ],
+      "lines": [
+        {
+          "speaker": "laborer",
+          "text": "Half day tomorrow?"
+        },
+        {
+          "speaker": "friend",
+          "text": "Finish before the dance."
+        },
+        {
+          "speaker": "laborer",
+          "text": "Good yield."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_guard_patrol",
+      "category": "dialogue",
+      "speakers": [
+        "guard",
+        "relief"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        },
+        {
+          "speaker": "relief",
+          "text": "Perimeter clear."
+        },
+        {
+          "speaker": "guard",
+          "text": "Hold the line."
+        }
+      ],
+      "eventKey": "ambient.guard",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_guard_night",
+      "category": "dialogue",
+      "speakers": [
+        "guard",
+        "captain"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "Eyes open."
+        },
+        {
+          "speaker": "captain",
+          "text": "I saw movement."
+        },
+        {
+          "speaker": "guard",
+          "text": "Torch lit."
+        }
+      ],
+      "eventKey": "ambient.guard",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_guard_wait",
+      "category": "dialogue",
+      "speakers": [
+        "guard",
+        "relief"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "Nothing yet."
+        },
+        {
+          "speaker": "relief",
+          "text": "Relief soon?"
+        },
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        }
+      ],
+      "eventKey": "ambient.guard",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_hunt_stalk",
+      "category": "dialogue",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "There!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Shhh…"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Steady…"
+        }
+      ],
+      "eventKey": "ambient.hunt",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_hunt_catch",
+      "category": "dialogue",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "Prey!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Quiet…"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Got one!"
+        }
+      ],
+      "eventKey": "ambient.hunt",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_hunt_wind",
+      "category": "dialogue",
+      "speakers": [
+        "hunter",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "Tracks here."
+        },
+        {
+          "speaker": "partner",
+          "text": "Wind's wrong."
+        },
+        {
+          "speaker": "hunter",
+          "text": "Almost in range."
+        }
+      ],
+      "eventKey": "ambient.hunt",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_work_midnight_shift",
+      "category": "dialogue",
+      "speakers": [
+        "npc_clockmaker",
+        "npc_night_guard"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_clockmaker",
+          "text": "The clock tower struck thirteen. I think it is asking for overtime."
+        },
+        {
+          "speaker": "npc_night_guard",
+          "text": "It has been asking for overtime since I started talking to it."
+        },
+        {
+          "speaker": "npc_clockmaker",
+          "text": "You talk to the clock?"
+        },
+        {
+          "speaker": "npc_night_guard",
+          "text": "Only on nights when it lies about the hour."
+        },
+        {
+          "speaker": "npc_clockmaker",
+          "text": "Then we agree the machinery is malfunctioning."
+        },
+        {
+          "speaker": "npc_night_guard",
+          "text": "No. We agree it knows exactly what it is doing."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_funny_work_fence",
+      "category": "dialogue",
+      "speakers": [
+        "fencer",
+        "carpenter"
+      ],
+      "lines": [
+        {
+          "speaker": "fencer",
+          "text": "I repaired this fence twice today."
+        },
+        {
+          "speaker": "carpenter",
+          "text": "Was it broken twice?"
+        },
+        {
+          "speaker": "fencer",
+          "text": "No. It moved while I was looking for my hammer."
+        }
+      ],
+      "eventKey": "ambient.work",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "ambient_solo_social",
+      "category": "dialogue",
+      "eventKey": "ambient.social",
+      "speakers": [
+        "npc_chicken_friend"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "My best friend is a chicken. His name is Greg."
+        },
+        {
+          "speaker": "npc_chicken_friend",
+          "text": "He named himself. I just respected his choice."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_courtship",
+      "category": "dialogue",
+      "eventKey": "ambient.courtship",
+      "speakers": [
+        "suitor"
+      ],
+      "lines": [
+        {
+          "speaker": "suitor",
+          "text": "Walk with me?"
+        },
+        {
+          "speaker": "suitor",
+          "text": "Moon looks kind tonight."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_visitor",
+      "category": "dialogue",
+      "eventKey": "ambient.visitor",
+      "speakers": [
+        "visitor"
+      ],
+      "lines": [
+        {
+          "speaker": "visitor",
+          "text": "Greetings!"
+        },
+        {
+          "speaker": "visitor",
+          "text": "Your reputation travels."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_rival",
+      "category": "dialogue",
+      "eventKey": "ambient.rival",
+      "speakers": [
+        "rival"
+      ],
+      "lines": [
+        {
+          "speaker": "rival",
+          "text": "Mind your fences."
+        },
+        {
+          "speaker": "rival",
+          "text": "Bold settlers."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_child",
+      "category": "dialogue",
+      "eventKey": "ambient.child",
+      "speakers": [
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "Mama!"
+        },
+        {
+          "speaker": "child",
+          "text": "Race you!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_school",
+      "category": "dialogue",
+      "eventKey": "ambient.school",
+      "speakers": [
+        "pupil"
+      ],
+      "lines": [
+        {
+          "speaker": "pupil",
+          "text": "Lesson time!"
+        },
+        {
+          "speaker": "pupil",
+          "text": "I learned!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_home",
+      "category": "dialogue",
+      "eventKey": "ambient.home",
+      "speakers": [
+        "npc_humiliated"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_humiliated",
+          "text": "I peed myself because someone was using the bathroom."
+        },
+        {
+          "speaker": "npc_humiliated",
+          "text": "It was the principle of the thing."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_pregnancy",
+      "category": "dialogue",
+      "eventKey": "ambient.pregnancy",
+      "speakers": [
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "So tired…"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Baby's restless."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_sleep",
+      "category": "dialogue",
+      "eventKey": "ambient.sleep",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Long day…"
+        },
+        {
+          "speaker": "settler",
+          "text": "Home sweet home."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_food",
+      "category": "dialogue",
+      "eventKey": "ambient.food",
+      "speakers": [
+        "hungry_settler"
+      ],
+      "lines": [
+        {
+          "speaker": "hungry_settler",
+          "text": "Cupboards bare…"
+        },
+        {
+          "speaker": "hungry_settler",
+          "text": "Hunters must bring more."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_work",
+      "category": "dialogue",
+      "eventKey": "ambient.work",
+      "speakers": [
+        "npc_laborer"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_laborer",
+          "text": "I've been carrying this rock for 3 hours. I don't know where to put it."
+        },
+        {
+          "speaker": "npc_laborer",
+          "text": "I am one with the rock now. Do not interrupt our journey."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_hunt",
+      "category": "dialogue",
+      "eventKey": "ambient.hunt",
+      "speakers": [
+        "hunter"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "There!"
+        },
+        {
+          "speaker": "hunter",
+          "text": "Steady…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_guard",
+      "category": "dialogue",
+      "eventKey": "ambient.guard",
+      "speakers": [
+        "guard"
+      ],
+      "lines": [
+        {
+          "speaker": "guard",
+          "text": "All quiet."
+        },
+        {
+          "speaker": "guard",
+          "text": "Hold the line."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_affair",
+      "category": "dialogue",
+      "eventKey": "ambient.affair",
+      "speakers": [
+        "lover_a"
+      ],
+      "lines": [
+        {
+          "speaker": "lover_a",
+          "text": "Shh…"
+        },
+        {
+          "speaker": "lover_a",
+          "text": "After dark…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_fear",
+      "category": "dialogue",
+      "eventKey": "ambient.fear",
+      "speakers": [
+        "npc_arsonist"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_arsonist",
+          "text": "Started a fire trying to make toast."
+        },
+        {
+          "speaker": "npc_arsonist",
+          "text": "I was just holding it near the stove for moral support."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_renffr",
+      "category": "dialogue",
+      "eventKey": "ambient.renffr",
+      "speakers": [
+        "npc_aware"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_aware",
+          "text": "Pretty sure I saw a loading seam in the mountains yesterday."
+        },
+        {
+          "speaker": "npc_aware",
+          "text": "I pretended I didn't. We all pretend."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_election",
+      "category": "dialogue",
+      "eventKey": "ambient.election",
+      "speakers": [
+        "voter_a"
+      ],
+      "lines": [
+        {
+          "speaker": "voter_a",
+          "text": "Who'll lead us?"
+        },
+        {
+          "speaker": "voter_a",
+          "text": "Election year!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_winter",
+      "category": "dialogue",
+      "eventKey": "ambient.winter",
+      "speakers": [
+        "npc_damp"
+      ],
+      "lines": [
+        {
+          "speaker": "npc_damp",
+          "text": "It's raining inside my house again."
+        },
+        {
+          "speaker": "npc_damp",
+          "text": "It is simply my indoor weather now. I do not question it."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "ambient_solo_festival",
+      "category": "dialogue",
+      "eventKey": "ambient.festival",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Guests in the lane!"
+        },
+        {
+          "speaker": "settler",
+          "text": "Glad to be back."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_solo_0",
+      "category": "dialogue",
+      "eventKey": "workplace.banter.solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Long morning."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_solo_1",
+      "category": "dialogue",
+      "eventKey": "workplace.banter.solo",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Almost midday."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_00",
+      "category": "dialogue",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_01",
+      "category": "dialogue",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How is it going?"
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_10",
+      "category": "dialogue",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Same as ever."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_workplace_banter_pair_11",
+      "category": "dialogue",
+      "eventKey": "workplace.banter",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Steady work."
+        },
+        {
+          "speaker": "partner",
+          "text": "Could be worse."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_start_0",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_start_1",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting.start",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_0",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_reply_1",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting.reply",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_00",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_01",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Morning!"
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_10",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "Morning."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_neighbor_greeting_pair_11",
+      "category": "dialogue",
+      "eventKey": "neighbor.greeting",
+      "speakers": [
+        "speaker",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good day."
+        },
+        {
+          "speaker": "partner",
+          "text": "And to you."
+        }
+      ],
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "evt_child_play_0",
+      "category": "dialogue",
+      "eventKey": "child.play",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Tag!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_child_play_1",
+      "category": "dialogue",
+      "eventKey": "child.play",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Wait for me!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hunting_scarce_0",
+      "category": "dialogue",
+      "eventKey": "hunting.scarce",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Game's getting scarce…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hunting_thinTrails_0",
+      "category": "dialogue",
+      "eventKey": "hunting.thinTrails",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Thin trails today…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_arrival_0",
+      "category": "dialogue",
+      "eventKey": "hotel.arrival",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A soft bed…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_arrival_1",
+      "category": "dialogue",
+      "eventKey": "hotel.arrival",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Room for the night."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_service_busy_0",
+      "category": "dialogue",
+      "eventKey": "hotel.service.busy",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy night — rooms nearly full."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hotel_service_welcome_0",
+      "category": "dialogue",
+      "eventKey": "hotel.service.welcome",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Welcome, traveler."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_patient_pregnant_0",
+      "category": "dialogue",
+      "eventKey": "hospital.patient.pregnant",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The child is well…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_patient_pregnant_1",
+      "category": "dialogue",
+      "eventKey": "hospital.patient.pregnant",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Thank you, doctor."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_patient_other_0",
+      "category": "dialogue",
+      "eventKey": "hospital.patient.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I feel better."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_patient_other_1",
+      "category": "dialogue",
+      "eventKey": "hospital.patient.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Medicine helps."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_doctor_0",
+      "category": "dialogue",
+      "eventKey": "hospital.doctor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Rest and drink water."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_hospital_doctor_1",
+      "category": "dialogue",
+      "eventKey": "hospital.doctor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "You will mend."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_foodAid_0",
+      "category": "dialogue",
+      "eventKey": "townHall.foodAid",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The hall has bread to spare."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_foodAid_1",
+      "category": "dialogue",
+      "eventKey": "townHall.foodAid",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Thank the officials for the grain."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_heard_0",
+      "category": "dialogue",
+      "eventKey": "townHall.heard",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "They listened…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_heard_1",
+      "category": "dialogue",
+      "eventKey": "townHall.heard",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The record is noted."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_audience_petitioner_0",
+      "category": "dialogue",
+      "eventKey": "townHall.audience.petitioner",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A word with the leader."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_audience_petitioner_1",
+      "category": "dialogue",
+      "eventKey": "townHall.audience.petitioner",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I trust our chief."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_audience_leader_0",
+      "category": "dialogue",
+      "eventKey": "townHall.audience.leader",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Speak freely."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_audience_leader_1",
+      "category": "dialogue",
+      "eventKey": "townHall.audience.leader",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We will see it done."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_goldAid_0",
+      "category": "dialogue",
+      "eventKey": "townHall.goldAid",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A coin for the road."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_generic_0",
+      "category": "dialogue",
+      "eventKey": "townHall.generic",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy halls today."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_generic_1",
+      "category": "dialogue",
+      "eventKey": "townHall.generic",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Papers and plans…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_official_0",
+      "category": "dialogue",
+      "eventKey": "townHall.official",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Next, please."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_townHall_official_1",
+      "category": "dialogue",
+      "eventKey": "townHall.official",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village hears you."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_marriage_accepted_0",
+      "category": "dialogue",
+      "eventKey": "marriage.accepted",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Yes!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_0",
+      "category": "dialogue",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I saw the mark of Renffr in the stars tonight… the harvest will be plentiful."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_1",
+      "category": "dialogue",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Did you see it? Renffr — written across the sky!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_2",
+      "category": "dialogue",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The letters fell apart… what does Renffr want?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_renffr_omen_3",
+      "category": "dialogue",
+      "eventKey": "renffr.omen",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My grandmother spoke of Renffr on nights like this."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_election_buildup_next_year",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Election next year — will {leader} keep the crown?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_a_support",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I hear {candidateA} is gaining support…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_b_watching",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} served well — worth watching."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_buzz_leader",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village buzzes about {leader}, {candidateA}, and {candidateB}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_buzz_no_leader",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village buzzes about {candidateA} and {candidateB}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_after_leader",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will lead us after {leader}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_c_surprise",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateC} might surprise us next election."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_who",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will it be — {leader} or {candidateA}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_reputation",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Well, I know one thing — {leader} has quite the reputation in town!"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_challenge",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateA} challenges {leader} for the crown."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_hold",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Can {leader} hold off {candidateA}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_merit",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} is defending — {candidateA} has the merit, I think."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_change",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Time for a change from {leader}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_leader_b_chance",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} deserves a chance against {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_who",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who will it be — {candidateA} or {candidateB}?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_merit",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateA} has the merit, I think."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_hall",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The Hall favors {candidateB}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_change",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Time for a fresh village head?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_vote",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I’m voting {candidateA} in my heart."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_open_b_chance",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{candidateB} deserves a chance."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_quiet",
+      "category": "dialogue",
+      "eventKey": "election.tension",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Quiet… they’re about to announce…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_heart",
+      "category": "dialogue",
+      "eventKey": "election.tension",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My heart is pounding…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_merit",
+      "category": "dialogue",
+      "eventKey": "election.tension",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Who did the merit favor?"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_tension_result",
+      "category": "dialogue",
+      "eventKey": "election.tension",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Shh — here comes the result…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_economy_good",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Prosperity favors {leader} — the stores are full."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_economy_poor",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hard times hurt {leader} at the polls."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_scandal_clean",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} kept a clean name — that helps."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_scandal_bad",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Those scandals still haunt {leader}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_village_good",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village is thriving under {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_buildup_record_village_poor",
+      "category": "dialogue",
+      "eventKey": "election.buildup",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Folks blame {leader} for how bad things are."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_economy_good",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Prosperity favors {leader} — the stores are full."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_economy_poor",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hard times hurt {leader} at the polls."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_scandal_clean",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "{leader} kept a clean name — that helps."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_scandal_bad",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Those scandals still haunt {leader}…"
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_village_good",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The village is thriving under {leader}."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_ceremony_record_village_poor",
+      "category": "dialogue",
+      "eventKey": "election.ceremony",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Folks blame {leader} for how bad things are."
+        }
+      ]
+    },
+    {
+      "id": "evt_election_winner",
+      "category": "dialogue",
+      "eventKey": "election.winner",
+      "conversation_type": "one_way",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I will serve the village!"
+        }
+      ]
+    },
+    {
+      "id": "evt_social_impulse_sick_day_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.sick_day",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I need rest…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sick_day_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.sick_day",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Not feeling well."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_church_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.grief.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I miss them…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_church_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.grief.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A quiet prayer."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_grief_home_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.grief.home",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Leave me a while…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_drought_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.bad_weather.drought",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dust and heat."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_storm_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.bad_weather.storm",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Awful storm."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_snow_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.bad_weather.snow",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Too cold out."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_bad_weather_rain_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.bad_weather.rain",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Rain… maybe later."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_elder_rest_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.elder_rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "My knees…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_elder_rest_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.elder_rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Porch is fine."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_to_hospital_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.care_pregnant.to_hospital",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Easy now…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_check_spouse_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.care_pregnant.check_spouse",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "How are you feeling?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_care_pregnant_rest_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.care_pregnant.rest",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Need to sit."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_checkup_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.hospital_visit.checkup",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Check-up…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_midwives_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.hospital_visit.midwives",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "The midwives…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_hospital_visit_doctor_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.hospital_visit.doctor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I need a doctor."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sunday_service_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.sunday_service",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bless this day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_sunday_service_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.sunday_service",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Amen."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_grief_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.civic_petition.grief",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I must speak to the hall…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_food_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.civic_petition.food",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We need grain stores…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_civic_petition_general_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.civic_petition.general",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A petition for the officials."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_birthday_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.birthday",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "It is my day!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_well_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.market_errand.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Need water."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_other_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.market_errand.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A few errands."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_market_errand_other_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.market_errand.other",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "What is the price?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_comfort_neighbor_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.comfort_neighbor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "You look tired."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_comfort_neighbor_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.comfort_neighbor",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "I am here."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_day_off_0",
+      "category": "dialogue",
+      "eventKey": "social.impulse.day_off",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A day off."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_social_impulse_day_off_1",
+      "category": "dialogue",
+      "eventKey": "social.impulse.day_off",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Anyone about?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine goods?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "What is the price?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We bring cloth."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_market_3",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.market",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Trade?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Is the elder here?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We seek audience."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hall_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hall",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Greetings, village."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bless this place."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We light a candle."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_church_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.church",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Peace upon you."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "May we read?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Curious craft…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_study_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.study",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Share a map?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Tracks nearby."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Good hunting ground."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_hunt_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.hunt",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Deer that way."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Quiet woods."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Keep watch."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_trail_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.trail",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Smell of game."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Warm hearth?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Stories for bread?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_campfire_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.campfire",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Long road."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Strong walls."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Children laugh here."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_homes_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.homes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine houses."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We need shelter…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Any work for food?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_help_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.help",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Please, the cold…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Water, please."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A moment of rest."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shelter_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shelter",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Kind strangers?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A song for coin!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Gather round!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_stage_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.stage",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dance with us!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Ta-da!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Encore?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_show_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.show",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Music!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Busy square."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hello!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_square_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.square",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Nice village."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fresh water."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A drink first."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_well_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.well",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Ah…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We pray."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Sacred quiet."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_shrine_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.shrine",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Amen."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Interesting…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Write that down."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_notes_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.notes",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hmm."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Hello there."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Fine day."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_visit_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.visit",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Pardon us."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Dusty boots."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Which way?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_road_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.road",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Onward."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_0",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Mercy…"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_1",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "We fled fire."
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_plea_2",
+      "category": "dialogue",
+      "eventKey": "visitor.poi.plea",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Any room?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_0",
+      "category": "dialogue",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "♪ La la~"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_1",
+      "category": "dialogue",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Clap along!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_2",
+      "category": "dialogue",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "A tune!"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "evt_visitor_performer_3",
+      "category": "dialogue",
+      "eventKey": "visitor.performer",
+      "speakers": [
+        "speaker"
+      ],
+      "lines": [
+        {
+          "speaker": "speaker",
+          "text": "Bravo?"
+        }
+      ],
+      "conversation_type": "one_way"
+    },
+    {
+      "id": "wf_family_chore_negotiation",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner_a",
+        "partner_b"
+      ],
+      "lines": [
+        {
+          "speaker": "partner_a",
+          "text": "I'll sweep the hearth if you investigate the mysterious scratching under the porch."
+        },
+        {
+          "speaker": "partner_b",
+          "text": "Last time you investigated a scratching, you befriended a badger."
+        },
+        {
+          "speaker": "partner_a",
+          "text": "His name was Barnaby and he had excellent table manners."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_snoring_defense",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner_a",
+        "partner_b"
+      ],
+      "lines": [
+        {
+          "speaker": "partner_a",
+          "text": "You were snoring so loudly the ceiling rafters were vibrating."
+        },
+        {
+          "speaker": "partner_b",
+          "text": "I wasn't snoring. I was harmonizing with the wind in the chimney."
+        },
+        {
+          "speaker": "partner_a",
+          "text": "The wind doesn't gasp for air every thirty seconds."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_warm_spot",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner_a",
+        "partner_b"
+      ],
+      "lines": [
+        {
+          "speaker": "partner_a",
+          "text": "You stole my side of the bench by the fire."
+        },
+        {
+          "speaker": "partner_b",
+          "text": "I was merely keeping the cushion warm so you wouldn't suffer."
+        },
+        {
+          "speaker": "partner_a",
+          "text": "Such selfless devotion. Now scoot over."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_drawing_portrait",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "I drew our family with charcoal on this slate!"
+        },
+        {
+          "speaker": "parent",
+          "text": "Oh, that's lovely! Why does your father look like a hairy turnip with legs?"
+        },
+        {
+          "speaker": "child",
+          "text": "Because realism is important to my artistic vision."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_bedtime_excuses",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "child",
+        "parent"
+      ],
+      "lines": [
+        {
+          "speaker": "child",
+          "text": "I can't go to sleep yet. The shadow on the wall looks like a goblin with a fork."
+        },
+        {
+          "speaker": "parent",
+          "text": "That is literally just your coat hanging on the wooden peg."
+        },
+        {
+          "speaker": "child",
+          "text": "Then my coat has hostile intentions."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_dinner_vegetables",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "parent",
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Eat three more roasted carrots and you can go play in the yard."
+        },
+        {
+          "speaker": "child",
+          "text": "What if I eat two and compromise by looking very healthy?"
+        },
+        {
+          "speaker": "parent",
+          "text": "Three carrots, or I tell the village elder you hate farming."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_lost_boots",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "parent",
+        "child"
+      ],
+      "lines": [
+        {
+          "speaker": "parent",
+          "text": "Where are your second pair of wool socks?"
+        },
+        {
+          "speaker": "child",
+          "text": "They are currently serving as winter mittens for my pet frog."
+        },
+        {
+          "speaker": "parent",
+          "text": "The frog that lives outside in the mud?"
+        },
+        {
+          "speaker": "child",
+          "text": "He gets drafty toes!"
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_roommate_leftovers",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Someone ate the bowl of dried berries I left covered on the shelf."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "They were sitting there looking lonely and vulnerable to mold."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "I covered them with a wooden plate and wrote 'MINE' in chalk."
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "I thought it said 'MINT'. I was testing for herbal freshness."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_roommate_window",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "housemate_a",
+        "housemate_b"
+      ],
+      "lines": [
+        {
+          "speaker": "housemate_a",
+          "text": "Why is the window shutter propped open when it's freezing outside?"
+        },
+        {
+          "speaker": "housemate_b",
+          "text": "The cabin smelled like boiled cabbage."
+        },
+        {
+          "speaker": "housemate_a",
+          "text": "Now it smells like boiled cabbage and frostbite."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_solo_blanket_monologue",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Nobody here to steal the wool blanket. I am the undisputed emperor of this mattress."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_solo_pot_dining",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Eating stew directly out of the cooking pot with a big spoon. Civilization has peaked."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_family_solo_spider_truce",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "settler"
+      ],
+      "lines": [
+        {
+          "speaker": "settler",
+          "text": "Spider in the corner: you eat the pantry moths, I don't crush you with a boot. An honorable treaty."
+        }
+      ],
+      "eventKey": "family.daily"
+    },
+    {
+      "id": "wf_starving_hunt",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "hunter",
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "hunter",
+          "text": "If we don't bag something before sundown, I'm starting to eye my own left boot."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "Leave the boot. Leather's apparently good for the joints."
+        },
+        {
+          "speaker": "hunter",
+          "text": "Stay sharp. Tracks fresh near the creek – probably just a hare, but my stomach doesn't discriminate."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "I miss the taste of anything that wasn't bark or regret."
+        }
+      ],
+      "eventKey": "famine.hunger"
+    },
+    {
+      "id": "wf_foraging_blueberries",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "forager",
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Three berries. Three! A very determined squirrel could outpace this harvest."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "At least they're blue. Like the sky we're too hollow to appreciate."
+        },
+        {
+          "speaker": "forager",
+          "text": "I'm half-convinced blueberries are a village myth. Next you'll say hope is real."
+        },
+        {
+          "speaker": "starving_villager",
+          "text": "Don't jinx it. Hope's the only thing keeping us from gnawing the fence posts."
+        }
+      ],
+      "eventKey": "famine.hunger"
+    },
+    {
+      "id": "wf_one_way_starving_monologue",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "starving_villager"
+      ],
+      "lines": [
+        {
+          "speaker": "starving_villager",
+          "text": "My stomach's making sounds that would scare a ghost. I'd trade my left shoe for a rotten turnip."
+        }
+      ],
+      "eventKey": "famine.hunger"
+    },
+    {
+      "id": "wf_one_way_blueberry_mutter",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "forager"
+      ],
+      "lines": [
+        {
+          "speaker": "forager",
+          "text": "Picking berries is easy. Finding berries that aren't just sad and small… that's the real challenge."
+        }
+      ],
+      "eventKey": "famine.hunger"
+    },
+    {
+      "id": "wf_pregnant_father_happy",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I'm so happy to be a dad! Terrified, but happy!"
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_mother_waddle",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I don't walk anymore. I simply exert gravitational pull in a forward direction."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_partner_diapers",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I just folded 60 cloth diapers. I am either ready for a baby or opening a car wash."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_partner_woodworking",
+      "category": "dialogue",
+      "conversation_type": "one_way",
+      "speakers": [
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I sanded this wooden rattle for four hours. It is smoother than my own life choices."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_kicking",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby is kicking up a storm tonight."
+        },
+        {
+          "speaker": "partner",
+          "text": "Wait, did the baby kick? Or is that my heart palpitating at the thought of parenthood?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "That was definitely the baby. Your heart is just doing the cha-cha."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_karate",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I think the baby is practicing martial arts in there."
+        },
+        {
+          "speaker": "partner",
+          "text": "A future village defender! Or a very tiny percussionist."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Either way, my ribs are their favorite drum."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_cradle",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I finished carving the cradle by the window."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "It's beautiful. Though I'm pretty sure you measured it for a hobbit."
+        },
+        {
+          "speaker": "partner",
+          "text": "Hobbits are sturdy! It builds character. And saves on lumber."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_sleep",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "Soon we won't be sleeping through the night for a year."
+        },
+        {
+          "speaker": "partner",
+          "text": "Nonsense. I've trained for this by staying up late. I am a machine of the night."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "A machine that cries when the fire goes out. We're doomed."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_pillows",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "There are currently eleven pillows in this bed and I am clinging to the edge of the mattress."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "The baby required a tactical pillow fortress."
+        },
+        {
+          "speaker": "partner",
+          "text": "I am sleeping in a trench."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Your sacrifice is noted and appreciated."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_nesting",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "Did the kitchen table move across the room, or am I dreaming?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "The feng shui was wrong for birth. The cupboard was giving off negative vibes."
+        },
+        {
+          "speaker": "partner",
+          "text": "It's a wooden box with dry beans in it."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Judgmental beans."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_cravings",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "expectant_mother",
+        "partner"
+      ],
+      "lines": [
+        {
+          "speaker": "expectant_mother",
+          "text": "I need pickles and honey. Together. Right now."
+        },
+        {
+          "speaker": "partner",
+          "text": "I'll get the jar. Do we summon a wizard for this ritual or is the kitchen fine?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Just the kitchen. And don't judge me."
+        },
+        {
+          "speaker": "partner",
+          "text": "Never. I'm currently eating raw bread dough in solidarity."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_names",
+      "category": "dialogue",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I've been thinking about names. What about 'Barnaby'?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Barnaby? We are not naming our child after a 19th-century circus bear."
+        },
+        {
+          "speaker": "partner",
+          "text": "Fine. What about 'Sir Barnaby the Brave'?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "I'm going to sleep in the barn."
+        }
+      ],
+      "eventKey": "pregnancy.daily",
+      "conversation_type": "two_way"
+    },
+    {
+      "id": "wf_pregnant_panic",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I don't know how to hold a baby. Do they come with a tutorial level?"
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "They come with a high-volume alarm and no mute button."
+        },
+        {
+          "speaker": "partner",
+          "text": "Great. I'll go practice holding a watermelon. Wish me luck."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_emergency_bag",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "partner",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "partner",
+          "text": "I packed the emergency satchel: clean linen, herbal tea, and three lucky pebbles."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "Why three pebbles?"
+        },
+        {
+          "speaker": "partner",
+          "text": "In case we need to bribe a forest gnome for medical advice."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    },
+    {
+      "id": "wf_pregnant_neighbor_advice",
+      "category": "dialogue",
+      "conversation_type": "two_way",
+      "speakers": [
+        "neighbor",
+        "expectant_mother"
+      ],
+      "lines": [
+        {
+          "speaker": "neighbor",
+          "text": "If you carry high, it's a girl. If you carry low, it's a boy."
+        },
+        {
+          "speaker": "expectant_mother",
+          "text": "I am currently carrying in all four cardinal directions."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "Ah. Congratulations on expecting a compass."
+        }
+      ],
+      "eventKey": "pregnancy.daily"
+    }
+  ]
+}

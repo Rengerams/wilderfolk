@@ -122,8 +122,8 @@ Validate on the final commit with `npm run test:types`, `npm run lint`, `npm run
 ### Forwarding and compatibility
 
 - Removed the duplicated local `buildingStripRotation` adapters in `stripTopology.ts` and `stripJunction.ts`. Both call the pre-existing authoritative `normalizeBuildingRotation` helper directly. This avoids two locally owned names implementing the same one-line transformation.
-- Removed the unnecessary `isFootprintOnBuildableTerrain` re-export from `buildingPlacementActions.ts`; `buildingActions.ts`, a documented legacy public façade, now resolves it **directly** from its actual owner `placementUtils.ts`.
-- Retained the deliberate `buildingActions.ts` / `gameEngine.ts` legacy API boundaries, because deleting those exports would break established consumers without improving the underlying ownership. The pre-existing geometry re-exports from `placementUtils.ts` similarly remain as compatibility paths for existing callers, but **do not** contain alternative implementations.
+- Removed the unnecessary `isFootprintOnBuildableTerrain` re-export from `buildingPlacementActions.ts`; the surviving legacy public surface, `gameEngine.ts`, resolves it **directly** from its actual owner `placementUtils.ts`.
+- Retained the deliberate `gameEngine.ts` legacy API boundary, because deleting those exports would break established consumers without improving the underlying ownership. The obsolete `buildingActions.ts` compatibility façade was removed; `tests/footprintBounds.owner.test.ts` pins its absence. The pre-existing geometry re-exports from `placementUtils.ts` similarly remain as compatibility paths for existing callers, but **do not** contain alternative implementations.
 - `walkRoute`, `stripChainCommand` and the strip-demolition selection path were not classified as aliases: they each add a distinct retry policy, validated command construction or domain validation on top of another owner, rather than merely renaming a function.
 
 ### Function registration

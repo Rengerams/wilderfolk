@@ -1,11 +1,12 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:174:installWorkerMessageHandlers@dbebebd59c8a96b419e26814d7eec30305dc79adfa2aabd20d396982be7ad6bf <-> src/game/simWorker/gameWorker.ts:187:onmessage@62f4f195650a126f3af1c20aa7533b545d80dc72589f0e900211aa0aa9693550",
-      "reason": "installWorkerMessageHandlers is the installable wrapper: it is the export a test or a host can call once to attach error hooks and the onmessage receiver, while onmessage is the receiver itself, a plain function assigned as self.onmessage. The wrapper deliberately owns no dispatch of its own, so folding them together would either register the handlers twice on every call or lose the single-entry-point install the worker tests depend on. Both live in the same worker module and no other module implements either.",
+      "key": "src/game/simWorker/gameWorker.ts:216:installWorkerMessageHandlers@6907937aa56ec27cf27cba832183ee2b651441c8601d7f232d6fea7c7e99538f <-> src/game/simWorker/gameWorker.ts:229:onmessage@5c7dc4e98f448b1c9a7643e4b6efd0241c20d24e60eab33b3dd284143f76b97b",
+      "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
-        "tests/gameWorker.seed.test.ts"
+        "tests/gameWorker.seed.test.ts",
+        "tests/gameWorker.namePool.dispatchGate.test.ts"
       ]
     },
     {
@@ -20,6 +21,25 @@
       "reason": "Distinct lifecycle contracts: discardSpotlightReturn intentionally invalidates a previous-colony camera/pause snapshot on load without returning or restoring it, whereas takeSpotlightReturn atomically returns the prior snapshot once on ordinary scene completion. They share the necessary clear operation but differ in returned values, callers, timing, and session-safety behavior; combining into a single ambiguous call would risk restoring prior colony controls. The test verifies both one-shot consume and discard-on-load semantics.",
       "tests": [
         "tests/spotlightReturnState.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/buildingConfigurationActions.ts:108:setHuntingSpotPrey@a4710b49140fd68c2c8b2afdf3bc7d97f2ba4cec0aa82a14f64ef08c6a8fd8f3 <-> src/game/buildingConfigurationActions.ts:60:setWorkshopRecipe@4ecca3768c0272b3cb07ddd3f9444d00410eb19ddc1687d7df3f3ef005a7c3e7",
+      "reason": "Both are thin validated field setters that delegate the shared state rewrite to setValidatedOption. Workshop requires a known recipe id and a Workshop target; hunting prey requires a known prey id and a HuntingSpot target. They write different persisted fields, refuse different invalid inputs, and are invoked by different worker operations; merging them would lose the typed command surface. Regressions cover both command round-trips and no-op identity.",
+      "tests": [
+        "tests/workerCommand.roundtrip.test.ts",
+        "tests/workerAssignment.test.ts",
+        "tests/virtualPlayer.staffingAndRepairBatch.test.ts"
+      ]
+    },
+    {
+      "key": "src/game/housingModel.ts:104:isResidenceOccupantEntity@8cb8691eb775d0ecf0c3fa98f96eb42366d9103cbd96cbff949288d781d0eade <-> src/game/moonHowlerForm.ts:40:isSettlerRelationshipEntity@320002da3895aa1ee994e1dab3f7f3f55bedb3acf4034666ddcf01cd90a64465",
+      "reason": "The residence-occupant rule counts only player-owned settlers (and cursed Moon Howlers with no faction) for beds and rosters; the settler-relationship rule accepts any living human of any faction, and a cursed werewolf regardless of faction, for the relationship record (invariants, lifecycle cleanup, humanTick), never for bed occupancy. Merging them would either seat visitors and rivals in beds or drop foreign settlers from relationship restoration. They are distinct predicates with different consumers and faction rules.",
+      "tests": [
+        "tests/housingPipeline.invariants.test.ts",
+        "tests/residenceMoonHowler.marriedGrandchild.test.ts",
+        "tests/leaderHouse.moonHowlerChurn.test.ts",
+        "tests/housingPlanner.contract.test.ts"
       ]
     }
   ]

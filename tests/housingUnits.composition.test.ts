@@ -20,8 +20,8 @@
 import { describe, expect, it } from 'vitest';
 import { EntityType, JobType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
-import { getChildCustodian } from '../src/game/householdComposition';
-import { buildHousingUnits } from '../src/game/residencySelection';
+import { getChildCustodian } from '../src/game/housingModel';
+import { buildHousingUnits } from '../src/game/housingPipeline';
 
 /** A cohabiting couple: partners, each a legal custodian of their own child. */
 const MOTHER_ID = 1;

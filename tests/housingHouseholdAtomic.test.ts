@@ -10,7 +10,7 @@ import {
   assignMissingResidences,
   relocateHousehold,
   standaloneMoveContext,
-} from '../src/game/residencyReconciliation';
+} from '../src/game/housingPipeline';
 import { applyLeaderHousePhase, collectLeaderHousehold } from '../src/game/leaderHouse';
 
 const MANOR_ID = 0;

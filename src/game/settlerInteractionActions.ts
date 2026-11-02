@@ -3,7 +3,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { BuildingType, EntityType, WEREWOLF_CURSE_LINES } from './gameTypes';
 import { addBigNews, addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { assignMissingWorkers } from './workforce';
-import { assignMissingResidences } from './residencyReconciliation';
+import { assignMissingResidences } from './housingPipeline';
 import { indexLivingEntity } from './entityIndex';
 import { allPlayerHumans, isPlayerHuman, playerHumanCount } from './playerHuman';
 import { citizenFullName } from './citizenId';

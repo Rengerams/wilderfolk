@@ -80,6 +80,7 @@ export interface CitizenOverviewScreenProps {
   onReplayTutorial: () => void;
   onToggleTutorials: () => void;
   onSpawnMoonHowlerDebug: () => void;
+  onStartSpotlightDebug: () => void;
   /** `?debug=1`, owned by the shell — forwarded so the Guide can gate its debug card. */
   debugMode: boolean;
   onStartGuidedCampaign: () => void;
@@ -172,6 +173,7 @@ export default function CitizenOverviewScreen({
   onReplayTutorial,
   onToggleTutorials,
   onSpawnMoonHowlerDebug,
+  onStartSpotlightDebug,
   debugMode,
   onStartGuidedCampaign,
   onOpenShortcuts,
@@ -409,6 +411,7 @@ export default function CitizenOverviewScreen({
                 onReplayTutorial={onReplayTutorial}
                 onToggleTutorials={onToggleTutorials}
                 onSpawnMoonHowlerDebug={onSpawnMoonHowlerDebug}
+                onStartSpotlightDebug={onStartSpotlightDebug}
                 debugMode={debugMode}
                 state={state}
                 onStartGuidedCampaign={onStartGuidedCampaign}

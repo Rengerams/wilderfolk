@@ -57,7 +57,7 @@ const HousingDiagnostics = memo(function HousingDiagnostics({ state }: { state: 
           label="Homeless"
           value={housing.homelessPlayerHumans}
           icon="⚠️"
-          title="Settlers with no bed — prisoners excluded (residencyOccupancy.countHomelessSettlers)"
+          title="Settlers with no bed — prisoners excluded (housingModel.countHomelessSettlers)"
         />
       </div>
       <div className="mt-2 space-y-1 text-[12px]">

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import visitorSource from '../src/game/data/dialogue/visitor.json';
+import ambientSource from '../src/game/data/dialogue/ambient.json';
 import { requestDialogue } from '../src/game/dialogueTrees';
 import { resetDialogueSessions, type ChatSpeaker } from '../src/game/humanChat';
 
@@ -14,16 +14,17 @@ const POIS = [
 
 describe('visitor & performer dialogue migration', () => {
   it('keeps every original location category with explicit solo-mode content', () => {
-    expect(visitorSource.version).toBe('1.3');
-    expect(visitorSource.category).toBe('social');
-    expect(visitorSource.dialogue_trees).toHaveLength(62);
+    expect(ambientSource.version).toBe('1.3');
+    expect(ambientSource.category).toBe('dialogue');
+    const visitorTrees = ambientSource.dialogue_trees.filter((tree) => tree.eventKey.startsWith('visitor.'));
+    expect(visitorTrees).toHaveLength(62);
     for (const label of POIS) {
-      const trees = visitorSource.dialogue_trees.filter((tree) => tree.eventKey === `visitor.poi.${label}`);
+      const trees = visitorTrees.filter((tree) => tree.eventKey === `visitor.poi.${label}`);
       expect(trees.length, label).toBeGreaterThanOrEqual(3);
       expect(trees.every((tree) => tree.conversation_type === 'one_way'
         && tree.lines.length === 1 && tree.speakers.length === 1)).toBe(true);
     }
-    expect(visitorSource.dialogue_trees.filter((tree) => tree.eventKey === 'visitor.performer'))
+    expect(visitorTrees.filter((tree) => tree.eventKey === 'visitor.performer'))
       .toHaveLength(4);
   });
 
@@ -65,3 +66,4 @@ describe('visitor & performer dialogue migration', () => {
     expect(visitor.chatPartnerId).toBeUndefined();
   });
 });
+

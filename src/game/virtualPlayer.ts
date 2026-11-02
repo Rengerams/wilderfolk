@@ -15,7 +15,7 @@ import { canAfford, consumeResources } from './resourceUtils';
 import { formatResourceCostNeed } from './resourceCost';
 import { isBuildingTechUnlocked } from './placementUtils';
 import { PLACEMENT_FAILURE_LABELS, getPlaceBuildingFailureLabel } from './buildingPlacementLabels';
-import { countHomelessSettlers, isResidenceBuilding } from './residencyOccupancy';
+import { countHomelessSettlers, isResidenceBuilding } from './housingModel';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
@@ -443,7 +443,7 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   }
 
   // One residence at a time — a new house only helps once it stands, and a
-  // Mansion is a residence too (`residencyOccupancy.isResidenceBuildingType`).
+  // Mansion is a residence too (`housingModel.isResidenceBuildingType`).
   if (
     isUnderConstruction(state, BuildingType.House)
     || isUnderConstruction(state, BuildingType.Mansion)

@@ -91,6 +91,13 @@ describe('work & footstep detection (Phase 3.3)', () => {
     expect(detectWorkActivity([stubBuilding(BuildingType.House, 3)], workHour)).toBeNull();
   });
 
+  it('follows a configured work window instead of the default', () => {
+    const mill = stubBuilding(BuildingType.LumberMill, 2);
+    expect(detectWorkActivity([mill], 15, { startHour: 7, endHour: 16 })).toBe('chop');
+    expect(detectWorkActivity([mill], 15, { startHour: 6, endHour: 14 })).toBeNull();
+    expect(detectWorkActivity([mill], 13, { startHour: 6, endHour: 14 })).toBe('chop');
+  });
+
   it('no work sounds outside work hours', () => {
     const nightHour = [...Array(24).keys()].find((h) => !isWorkHour(h)) ?? 20;
     expect(detectWorkActivity([stubBuilding(BuildingType.LumberMill, 2)], nightHour)).toBeNull();

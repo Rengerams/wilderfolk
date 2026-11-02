@@ -22,11 +22,97 @@
 
 - **Fixed (1 November 2026):** Virtual Player plans food for six mouths per two-worker Farm, restores understaffed food posts during shortages, and preserves manual staffing. Real food consumption and the strict long-run gate remain unchanged; CI verification pending.
 
-
 - **Fixed (1 November 2026):** Settler lists and selections now refresh after worker ticks that complete during pending schedule changes, without rebuilding for unchanged lightweight commands.
 
 - **Fixed (29 October 2026):** Work-hours previews now index eligible settlers once and use lightweight pending schedule updates, reducing expensive UI work in large colonies.
+
 - **Fixed (29 October 2026):** Worker-owned building upgrades no longer clone the whole colony before changing one building; isolated callers remain protected. Large-save verification pending.
+
+- **Changed (2 November 2026):** Commute relocations now go through the same relocation plan as housing, so only the manor and couple moves still decide and write outside it.
+
+- **Fixed (2 November 2026):** A minor with a free bed at their custodian's home now moves there even when the family home still fits, and an orphan already living with their guardian completes adoption without a relocation.
+
+- **Fixed (2 November 2026):** A capacity eviction no longer marks the vacated home as visited, so the same run can re-seat the evicted household when a bed is free; run stats now count capacity and repair moves.
+
+- **Fixed (2 November 2026):** An adult child leaving the family home now takes only their minor household, so an independent adult grandchild keeps their own home; a home vacated during the pass is offered to later candidates.
+
+- **Changed (2 November 2026):** Capacity and custody now go through the same relocation plan as homelessness: a capacity household is ranked, retried and moved before anyone is made surplus, and surplus only unhouses when no home fits.
+
+- **Fixed (2 November 2026):** The roads, walls and navigation architecture and ownership records no longer cite the removed building-actions compatibility facade; the surviving game-engine boundary is documented and the decision owners match the current modules.
+
+- **Fixed (2 November 2026):** A colony now settles into the same homes whatever order its settlers are supplied in, so a worker hand-off or save load cannot reshuffle its housing.
+
+- **Changed (2 November 2026):** Spotlight Lore now uses the normal settler-chat speech bubbles, not a separate HTML balloon. The spotlight is wider; a completed Village Square hosts the cast and hides unrelated settlers visually until the scene ends. Otherwise, normal gathering remains.
+
+- **Changed (2 November 2026):** Skill, trait, career and childhood-bond data now cross to the display only when they change (with a periodic refresh); on a 2,200-settler save the steady tick payload fell from 2.76 MB to 2.46 MB, 64% below the original 6.79 MB.
+
+- **Fixed (2 November 2026):** A household evicted by the capacity pass is retried against the next fitting home instead of being left outside until the next housing run; one refused destination no longer ends the placement attempt.
+
+- **Changed (2 November 2026):** Trees and grass now travel once and only when the roster changes instead of every tick; on a 2,200-settler save the steady-state tick payload fell from 3.0 MB to 2.76 MB, 59% below the original 6.79 MB.
+
+- **Changed (2 November 2026):** Standard CI now baselines existing textual and behavior-level duplicate groups and fails new ones, so old duplication can be paid down without new copies slipping in.
+
+- **Changed (2 November 2026):** Housing convergence counts real moves instead of needy households, so an over-subscribed colony stops after a no-progress pass instead of running all 24; a 2,200-settler load fell from ~8.5 s to ~2.5 s in an A/B with identical assignments.
+
+- **Changed (2 November 2026):** The daily social pass copies each settler's friendship, feud and peak maps once per pass instead of once per write, cutting that pass from ~4.5 s to under a second at 2,000 settlers.
+
+- **Fixed (2 November 2026):** Work status, work sounds, town-hall hours and home preference now use the configured work window (07–16 by default, or the player's custom hours) instead of the old hard-coded 07–18 fallback.
+
+- **Changed (2 November 2026):** A tick now ships a settler's friendship, feud and feud-peak maps only when they changed, and the display keeps the rest; on a 2,200-settler save the steady-state tick payload fell from 6.8 MB to 3.0 MB.
+
+- **Fixed (2 November 2026):** Settlers could end up with more than six close friends (legacy saves carried up to 31, and one unilateral bond could sit over the cap). Loading now trims each settler to its six strongest bonds.
+
+- **Changed (2 November 2026):** The housing pass reads a maintained player-resident count instead of rescanning every settler for each housing unit, cutting a 2,000-settler save's load from ~2.2 s to ~1.5 s.
+
+- **Changed (2 November 2026):** The performance profile analyzer now reports GC, native and loader time, the caller chain behind each self-time leader, call edges, per-step breakdowns with a --root drill-down, and line hotspots when the profile has them.
+
+- **Changed (2 November 2026):** The daily worker rebalance now reuses the assignment index count instead of rescanning the colony per workplace, cutting the staffing pass at 2,000 settlers from ~0.93 s to ~0.20 s.
+
+- **Changed (2 November 2026):** Loading a large colony now builds one kin index per housing unit instead of parent arrays for every comparison, cutting a 2,000-settler save's load by about a quarter.
+
+- **Changed (2 November 2026):** Rollback snapshots share the relationship records instead of cloning them every tick, and their writers replace the record first. A 2,200-settler colony's rollback snapshot fell from ~56 ms to ~21 ms per tick.
+
+- **Fixed (2 November 2026):** Settlers now enter their assigned home from any side; entry no longer assumes a south-only porch and no longer targets a point inside tall houses.
+
+- **Changed (2 November 2026):** Automatic staffing keeps one per-building worker count for the whole pass instead of rescanning every settler per vacancy, halving the daily assignment spike at large colonies.
+
+- **Changed (2 November 2026):** Repeated worker faults log once per window instead of every occurrence, and the opt-in profiler splits the rollback snapshot into entity, building, genealogy and grave sections.
+
+- **Fixed (2 November 2026):** Reinforced ground now reaches the display world, so the prepared soil is visible and buildings can be placed on it immediately.
+
+- **Added (2 November 2026):** Raid battles now open a Football-Manager-style text match with a live scoreline, paced commentary, match stats and a full-time fate decision.
+
+- **Changed (2 November 2026):** A peace treaty no longer blocks a raid; attacking breaks it at a reputation cost, and villagers react to the broken pact.
+
+- **Changed (2 November 2026):** Rival camps are spaced across the map and snapped to walkable ground; old rival parties and raid overlays no longer draw on the village map.
+
+- **Changed (2 November 2026):** Exterminating a surrendered rival now directly asks the question, kills every remaining inhabitant and releases no one.
+
+- **Changed (2 November 2026):** Hotel lodging uses one per-tick hotel and settler-bed index and keeps a valid reservation without rescanning every entity, cutting the largest tick cost at large colonies.
+
+- **Changed (2 November 2026):** Election ceremonies use one per-tick seat index, and history sections ship by owner revision instead of a JSON fingerprint every tick.
+
+- **Changed (2 November 2026):** All ambient chats now live in one centralized source; a settler no longer repeats a line they said in the last three days, while another settler may use it, and solo/paired scenes still require one/two real settlers.
+
+- **Changed (2 November 2026):** Town Hall food-aid dialogue now names the bread and grain the petition actually grants.
+
+- **Added (2 November 2026):** The rare Spotlight performance can be staged on demand from the developer menu or the debug Guide, with the cast already on its marks in the loaded colony.
+
+- **Changed (2 November 2026):** Render-tick metadata is rebuilt on the host from the packed buffer instead of being shipped beside it, cutting the render delta by about a third; the transient delta protocol advances.
+
+- **Fixed (2 November 2026):** The rare village spotlight now casts any off-duty man and skips whoever is actually on shift, instead of ruling out whole professions.
+
+- **Fixed (2 November 2026):** The spotlight still focuses the camera and starts its score when a throttled tab skipped the intro, and never starts the score during the applause.
+
+- **Fixed (2 November 2026, PR #120):** Removed the unused meal-hour export and synchronized the ownership and decision registries. The changelog slash-prose guard fix is included in this PR.
+
+- **Fixed (2 November 2026):** Worker requests now wait for the shared census-name gate, and failed local recovery ticks preserve pending simulation time.
+
+- **Fixed (2 November 2026):** Transferable render buffers now reject nonexact sizes; the worker stress harness returns render leases and checks real save acknowledgements.
+
+- **Changed (2 November 2026):** Worker rendering reuses the alive roster and slot lookup; tick transfers omit redundant catalogue entities and repeated cache invalidation. Delta protocol advanced.
+
+- **CI (2 November 2026):** Extend only the 1,800-resident real-colony benchmark to three days so its later-settling career credits enter the measured audit. Keep real work credit mandatory; use tracked-file restore (or untracked cleanup) before switching baseline to candidate.
 
 - **Fixed (2 November 2026):** Affairs can take place outdoors; indoor rendezvous only use a completed residence assigned to one of the lovers, never an unrelated house. Either partner selects the same eligible venue and spouse-occupied marital homes remain off limits.
 - **Fixed (2 November 2026):** The changelog CI check no longer mistakes prose containing a slash for a nonexistent filename.

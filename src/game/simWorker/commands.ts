@@ -32,7 +32,7 @@ import { respondToOutgoingRaidEvent, resolveRaidVictory, queueRaidDefense, launc
 import { respondToStoryEvent } from '../storyEvents';
 import { startGuidedCampaign } from '../guidedCampaign';
 import { hostTownFestival } from '../townHall';
-import { finishSpotlightLore } from '../spotlightLore';
+import { finishSpotlightLore, startSpotlightLoreDebug } from '../spotlightLore';
 import {
   extractSimTickDelta,
   createFallbackSimTickDelta,
@@ -83,6 +83,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'startResearch'; researchId: string }
   | { proto: 1; op: 'establishTradeRoute'; routeId: string }
   | { proto: 1; op: 'finishSpotlightLore'; sceneId: string; reason: 'complete' | 'skipped' }
+  | { proto: 1; op: 'startSpotlightLoreDebug' }
   | { proto: 1; op: 'hostTownFestival'; buildingId: number }
   | { proto: 1; op: 'spawnMoonHowlerDebug' }
   | { proto: 1; op: 'buildDebug'; type: string; x: number; y: number }
@@ -131,6 +132,7 @@ const WORKER_COMMAND_OPS = [
   'establishTradeRoute',
   'hostTownFestival',
   'finishSpotlightLore',
+  'startSpotlightLoreDebug',
   'spawnMoonHowlerDebug',
   'buildDebug',
   'setWorkSchedule',
@@ -279,6 +281,8 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
       return isNonEmptyString(cmd.eventId) && isNonEmptyString(cmd.choiceId);
     case 'finishSpotlightLore':
       return isNonEmptyString(cmd.sceneId) && (cmd.reason === 'complete' || cmd.reason === 'skipped');
+    case 'startSpotlightLoreDebug':
+      return true;
     case 'startGuidedCampaign':
       return true;
     case 'talkToVisitorLeader':
@@ -427,6 +431,9 @@ export function applyWorkerCommand(world: WorldState, cmd: WorkerCommand, owners
       return establishTradeRoute(world, cmd.routeId);
     case 'finishSpotlightLore':
       finishSpotlightLore(world, cmd.sceneId, cmd.reason);
+      return world;
+    case 'startSpotlightLoreDebug':
+      startSpotlightLoreDebug(world);
       return world;
     case 'hostTownFestival':
       return hostTownFestival(world, cmd.buildingId);

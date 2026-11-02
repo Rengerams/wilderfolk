@@ -1,9 +1,9 @@
 /** A jailed parent is away, not gone: custody is borrowed and returns on release. */
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
-import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { getResidenceCapacity } from '../src/game/housingModel';
 import type { Building, Entity } from '../src/game/gameTypes';
-import { assignMissingResidences, ensureOrphanAdoption, restoreCustodyAfterRelease } from '../src/game/residencyReconciliation';
+import { assignMissingResidences, ensureOrphanAdoption, restoreCustodyAfterRelease } from '../src/game/housingPipeline';
 import { building, human } from '../src/test/factories';
 
 const PRISON_ID = 900;

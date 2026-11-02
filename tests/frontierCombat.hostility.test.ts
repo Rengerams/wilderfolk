@@ -125,11 +125,11 @@ function village(rivals: RivalSettlement[] = [rival()]): WorldState {
 }
 
 describe('declaring hostility on a friendly rival', () => {
-  it('refuses to raid a friendly camp, and lets the player provoke it instead', () => {
+  it('allows raiding a friendly camp as a treaty-breaking attack', () => {
     const world = village();
     const target = world.rivalSettlements[0];
 
-    expect(canLaunchRaidOnRival(world, target).blockReason).toBe('Friendly relations');
+    expect(canLaunchRaidOnRival(world, target).ok).toBe(true);
     expect(canProvokeRival(world, target).ok).toBe(true);
   });
 
@@ -274,9 +274,12 @@ describe('mobilized raid lifecycle', () => {
     expect(world.graveRecords?.length ?? 0).toBe(graveCount);
   });
 
-  it('does not allow a war declaration during an active treaty', () => {
+  it('allows breaking an active treaty, which ends the treaty and declares war', () => {
     const state = village([rival({ relationship: 'neutral', peaceTreatyDays: 14 })]);
-    expect(canProvokeRival(state, state.rivalSettlements[0]!).ok).toBe(false);
+    expect(canProvokeRival(state, state.rivalSettlements[0]!).ok).toBe(true);
+    const provoked = provokeRival(state, state.rivalSettlements[0]!.id);
+    expect(provoked.rivalSettlements[0]!.peaceTreatyDays).toBe(0);
+    expect(provoked.rivalSettlements[0]!.atWarWithPlayer).toBe(true);
   });
 });
 

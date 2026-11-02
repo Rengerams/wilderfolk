@@ -1,7 +1,7 @@
 import type { WorldState } from './gameTypes';
 import { BuildingType } from './gameTypes';
-import { countHomelessSettlers } from './residencyOccupancy';
-import { collectFamilyHousingShortages } from './residencySelection';
+import { countHomelessSettlers } from './housingModel';
+import { collectFamilyHousingShortages } from './housingPipeline';
 import { isFoodCritical } from './resourceUtils';
 import { getBuildingCenter } from './placementUtils';
 import {
@@ -124,7 +124,7 @@ export function getPriorityAlerts(state: WorldState): PriorityAlert[] {
   // there was no house at all, so a colony whose beds ran out — the normal case, because immigration
   // outruns housing by design — said nothing, even though a settler without a residence never gets the
   // home-rest energy saving (`humanNeeds`). The count is the residence owner's
-  // (`residencyOccupancy.countHomelessSettlers`), which excludes prisoners on purpose — imprisonment
+  // (`housingModel.countHomelessSettlers`), which excludes prisoners on purpose — imprisonment
   // clears `residenceBuildingId`, and counting them here is the mistake the council report already made
   // (`LIVE-FINDINGS-STATUS.md`, F10). Copy mirrors the housing hint in `focusHints.ts`.
   const homeless = countHomelessSettlers(state);

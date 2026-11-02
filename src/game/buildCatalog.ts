@@ -91,8 +91,13 @@ export const BUILDING_CATEGORIES: BuildingCategoryDef[] = [
   },
 ];
 
+const CATEGORY_BY_TYPE = new Map<BuildingType, string>();
+for (const category of BUILDING_CATEGORIES) {
+  for (const type of category.types) CATEGORY_BY_TYPE.set(type, category.id);
+}
+
 export function categoryForBuildingType(type: BuildingType): string {
-  return BUILDING_CATEGORIES.find((c) => c.types.includes(type))?.id ?? BUILDING_CATEGORIES[0].id;
+  return CATEGORY_BY_TYPE.get(type) ?? BUILDING_CATEGORIES[0].id;
 }
 
 const PRODUCTION_CATEGORY_IDS = new Set(['food', 'resources', 'industry']);

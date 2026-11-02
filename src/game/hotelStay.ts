@@ -22,7 +22,7 @@ import {
 } from './dayCycle';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
-import { hasResidenceAssignment } from './residencyOccupancy';
+import { hasResidenceAssignment } from './housingModel';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { addFloatingText, addNotification } from './simEffects';
 import { isOnWalkableRoadAt, steerWithPath } from './pathfinding';
@@ -91,22 +91,29 @@ export function needsHotelBed(
   return hoursUntilSleep(hour) < homeHours;
 }
 
+/** A completed player hotel the settler could still reach tonight. */
+function isReachableHotel(entity: Entity, hotel: Building, homeHours: number): boolean {
+  if (!hotel.completed || hotel.type !== BuildingType.Hotel || hotel.faction === 'rival') return false;
+  const hours = commuteLeadHoursFor(centreDistance(entity, hotel), HUMAN_WALK_SPEED);
+  return hours <= MAX_ASSIGNABLE_COMMUTE_HOURS && hours <= homeHours;
+}
+
 /** Completed player hotels this settler could reach tonight and that are no further than home, nearest first. */
 export function lodgingHotelsFor(
   entity: Entity,
   buildings: readonly Building[],
   hour: number,
+  options?: { hotels?: readonly Building[]; buildingsById?: ReadonlyMap<number, Building> },
 ): Building[] {
-  if (!needsHotelBed(entity, buildings, hour)) return [];
-  const home = buildingFrom(buildings, entity.residenceBuildingId!);
+  const buildingsForHome = options?.buildingsById ?? buildings;
+  if (!needsHotelBed(entity, buildingsForHome, hour)) return [];
+  const home = buildingFrom(buildingsForHome, entity.residenceBuildingId!);
   const homeHours = home
     ? commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED)
     : 0;
   const hotels: Building[] = [];
-  for (const b of buildings) {
-    if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
-    const hours = commuteLeadHoursFor(centreDistance(entity, b), HUMAN_WALK_SPEED);
-    if (hours > MAX_ASSIGNABLE_COMMUTE_HOURS || hours > homeHours) continue;
+  for (const b of options?.hotels ?? buildings) {
+    if (!isReachableHotel(entity, b, homeHours)) continue;
     hotels.push(b);
   }
   hotels.sort((a, b) => centreDistance(entity, a) - centreDistance(entity, b));
@@ -138,6 +145,57 @@ export function buildHotelSettlerLodgerCounts(
   return counts;
 }
 
+/** Per-tick hotel list and settler-bed counts, so a lodging check never rescans every entity. */
+export interface HotelLodgingIndex {
+  readonly hotels: readonly Building[];
+  readonly buildingsById?: ReadonlyMap<number, Building>;
+  readonly entitiesById?: HotelGuestIndex;
+  settlerLodgers(hotelId: number): number;
+  reserve(hotelId: number): void;
+  release(hotelId: number): void;
+}
+
+/** Build once per tick; the hotel scan and bed counts are derived on first use. */
+export function createHotelLodgingIndex(
+  buildings: readonly Building[],
+  entities: readonly Entity[],
+  buildingsById?: ReadonlyMap<number, Building>,
+  entitiesById?: HotelGuestIndex,
+): HotelLodgingIndex {
+  let hotels: Building[] | null = null;
+  const ensureHotels = (): Building[] => {
+    if (!hotels) {
+      hotels = [];
+      for (const b of buildings) {
+        if (!b.completed || b.type !== BuildingType.Hotel || b.faction === 'rival') continue;
+        hotels.push(b);
+      }
+    }
+    return hotels;
+  };
+  let counts: Map<number, number> | null = null;
+  const ensureCounts = (): Map<number, number> => {
+    counts ??= buildHotelSettlerLodgerCounts(ensureHotels(), entities);
+    return counts;
+  };
+  return {
+    get hotels() {
+      return ensureHotels();
+    },
+    buildingsById,
+    entitiesById,
+    settlerLodgers: (hotelId) => ensureCounts().get(hotelId) ?? 0,
+    reserve: (hotelId) => {
+      const byHotel = ensureCounts();
+      byHotel.set(hotelId, (byHotel.get(hotelId) ?? 0) + 1);
+    },
+    release: (hotelId) => {
+      const byHotel = ensureCounts();
+      byHotel.set(hotelId, Math.max(0, (byHotel.get(hotelId) ?? 0) - 1));
+    },
+  };
+}
+
 /** True when a settler has arrived at their reserved hotel bed during the night. */
 export function isSettlerLodgingAtHotel(
   entity: Entity,
@@ -158,15 +216,48 @@ export function lodgingHotelFor(
   buildings: readonly Building[],
   entities: readonly Entity[],
   tick: number,
+  index?: HotelLodgingIndex,
 ): Building | undefined {
-  const hotels = lodgingHotelsFor(entity, buildings, getHourOfDay(tick));
-  const reserved = hotels.find((hotel) => holdsSettlerHotelBed(entity, hotel.id));
-  if (reserved && tick < entity.hotelStayUntilTick!) return reserved;
+  const hour = getHourOfDay(tick);
+  const buildingsForHome = index?.buildingsById ?? buildings;
+  const previousHotelId = entity.hotelStayBuildingId;
+  if (!needsHotelBed(entity, buildingsForHome, hour)) {
+    if (previousHotelId != null) {
+      index?.release(previousHotelId);
+      checkoutVisitor(entity);
+    }
+    return undefined;
+  }
+
+  // A settler already holding a valid bed keeps it without scanning the hotel list every tick.
+  if (previousHotelId != null && entity.hotelStayUntilTick != null && tick < entity.hotelStayUntilTick) {
+    const reserved = index?.buildingsById?.get(previousHotelId)
+      ?? buildings.find((b) => b.id === previousHotelId);
+    const home = buildingFrom(buildingsForHome, entity.residenceBuildingId!);
+    const homeHours = home
+      ? commuteLeadHoursFor(centreDistance(entity, home), HUMAN_WALK_SPEED)
+      : 0;
+    if (reserved && holdsSettlerHotelBed(entity, reserved.id) && isReachableHotel(entity, reserved, homeHours)) {
+      return reserved;
+    }
+  }
+
+  const hotels = lodgingHotelsFor(
+    entity,
+    buildings,
+    hour,
+    index ? { hotels: index.hotels, buildingsById: index.buildingsById } : undefined,
+  );
   checkoutVisitor(entity);
+  if (previousHotelId != null) index?.release(previousHotelId);
   for (const hotel of hotels) {
-    if (!hotelHasVacancy(hotel, entities)) continue;
+    const settlerLodgers = index
+      ? index.settlerLodgers(hotel.id)
+      : countHotelSettlerLodgers(hotel, entities);
+    if (!hotelHasVacancy(hotel, entities, index?.entitiesById, settlerLodgers)) continue;
     entity.hotelStayBuildingId = hotel.id;
     entity.hotelStayUntilTick = hotelCheckoutTick(tick);
+    index?.reserve(hotel.id);
     return hotel;
   }
   return undefined;

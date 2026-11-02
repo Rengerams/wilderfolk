@@ -1,6 +1,7 @@
 import type { WorldState, Building, Entity, GameEvent, RivalSettlement } from './gameTypes';
 import { getSimRng } from './simRng';
 import { pickSite } from './worldEventSites';
+import { nearestWalkableWorldPoint } from './pathfinding';
 import { getPlayerCampCenter, rollFoundingRaidCooldownDays } from './frontierCombat';
 import { createRivalProfile } from './rivalProfiles';
 import { addBigNews } from './simEffects';
@@ -36,7 +37,19 @@ export function spawnRivalSettlement(
     ...state.rivalSettlements.map((r) => ({ x: r.campX, y: r.campY })),
     ...state.visitorGroups.map((v) => ({ x: v.campX, y: v.campY })),
   ];
-  const site = pickSite(state, center, 180, Math.min(state.width, state.height) * 0.38, avoid);
+  const span = Math.min(state.width, state.height);
+  const site = pickSite(state, center, span * 0.30, span * 0.42, avoid, {
+    margin: 100,
+    separation: span * 0.26,
+    bestOf: 48,
+  });
+  const walkable = state.worldMap
+    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, site.x, site.y)
+    : null;
+  if (walkable) {
+    site.x = walkable.x;
+    site.y = walkable.y;
+  }
   const groupId = `rival_${state.tick}_${Math.floor(getSimRng('groupEvents')() * 10000)}`;
   const pop = 4 + Math.floor(getSimRng('groupEvents')() * 4);
   const relRoll = getSimRng('groupEvents')();

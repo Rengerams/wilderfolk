@@ -117,6 +117,7 @@ tutorialsEnabled,
   onVolumePreset,
   onOpenGuide,
   onStartNewGame,
+  onStartSpotlightDebug,
   onFocusLeader,
   onOpenCitizenOverview,
   onOpenSubject,
@@ -449,6 +450,7 @@ tutorialsEnabled,
           onVolumePreset={onVolumePreset}
           onOpenGuide={onOpenGuide}
           onStartNewGame={onStartNewGame}
+          onStartSpotlightDebug={onStartSpotlightDebug}
         />
       </div>
     </header>

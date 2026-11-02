@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEntity } from '../src/game/entityFactory';
-import { BuildingType, EntityType, PATH_CELL, TerrainType, type Building, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, PATH_CELL, TerrainType, type Building, type Entity, type SpotlightLoreState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay, getCalendarDay, isWeekend, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { personDayRoll } from '../src/game/simRng';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
@@ -9,12 +9,13 @@ import { gameTick } from '../src/game/gameTick';
 import { getPathGrid, lineCrossesBlocked, resetPathGridCaches } from '../src/game/pathfinding';
 import { rebuildEntityByIdMap } from '../src/game/entityIndex';
 import { canPursueSecretAffair, hasAffairPartner } from '../src/game/simulation/humanRelationships';
+import { getSettlerWorkReason } from '../src/game/workAbsence';
 import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
-  normalizeSpotlightLoreOnLoad, tickSpotlightGathering,
+  normalizeSpotlightLoreOnLoad, startSpotlightLoreDebug, tickSpotlightGathering,
 } from '../src/game/spotlightLore';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
@@ -111,6 +112,104 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     expect(new Set(world.spotlightLore?.performerIds)).toEqual(new Set(maleIds));
     expect(world.spotlightLore?.performerIds.every((id) =>
       world.entities.find((entity) => entity.id === id)?.gender === 'male')).toBe(true);
+  });
+
+  it('selects off-duty specialists whatever their profession instead of blacklisting jobs', () => {
+    const { world, adults } = makeFixture();
+    const jobs = [
+      JobType.Doctor, JobType.PrisonGuard, JobType.Soldier,
+      JobType.Innkeeper, JobType.Hotelier, JobType.Priest,
+    ];
+    adults.slice(0, jobs.length).forEach((adult, index) => { adult.job = jobs[index]!; });
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    const chosen = new Set(world.spotlightLore?.performerIds);
+    for (const adult of adults.slice(0, jobs.length)) {
+      expect(getSettlerWorkReason(world, adult).code).not.toMatch(/^(working|walking-to-work)$/);
+      expect(chosen.has(adult.id)).toBe(true);
+    }
+  });
+
+  it('never picks a man who is working at that moment, while the free men still perform', () => {
+    const { world, girl, adults } = makeFixture();
+    const innkeeper = adults[0];
+    innkeeper.job = JobType.Innkeeper;
+    innkeeper.energy = innkeeper.maxEnergy;
+    const tavern = createBuilding(BuildingType.Tavern, girl.x + 220, girl.y - 140, 910);
+    Object.assign(tavern, {
+      occupants: [innkeeper.id], completed: true, constructionProgress: 100,
+    });
+    world.buildings = [tavern];
+    innkeeper.workerBuildingId = tavern.id;
+    world.tick = pickEligibleTick(world);
+    expect(getSettlerWorkReason(world, innkeeper).code).toMatch(/^(working|walking-to-work)$/);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    expect(world.spotlightLore?.performerIds).toHaveLength(7);
+    expect(world.spotlightLore?.performerIds).not.toContain(innkeeper.id);
+  });
+
+  it('stages the dev preview immediately from the loaded colony', () => {
+    const { world, girl, adults } = makeFixture();
+    // Any clock works: the preview bypasses the weekend/hour/cooldown gate and the 7.5% roll.
+    world.tick = TICKS_PER_DAY * 120 + 5 * TICKS_PER_HOUR;
+    world.paused = false;
+    expect(maybeStartSpotlightLore(world)).toBe(false);
+    expect(startSpotlightLoreDebug(world)).toBe(true);
+    const scene = world.spotlightLore!;
+    expect(scene.phase).toBe('ready');
+    expect(scene.readyAtTick).toBe(world.tick);
+    expect(scene.heroineId).toBe(girl.id);
+    expect(scene.performerIds).toHaveLength(adults.length);
+    expect(world.spotlightLoreLastDay).toBeUndefined();
+    expect(world.paused).toBe(true);
+    for (const slot of scene.slots) {
+      const actor = world.entities.find((entity) => entity.id === slot.humanId)!;
+      expect(Math.hypot(actor.x - slot.x, actor.y - slot.y)).toBeLessThanOrEqual(1e-9);
+      expect(actor.indoorBuildingId).toBeUndefined();
+    }
+    expect(startSpotlightLoreDebug(world)).toBe(false);
+  });
+
+  it('stages the complete cast directly on a finished Village Square without moving bystanders', () => {
+    const { world, girl, adults } = makeFixture();
+    world.worldMap = testWorldMap({ tilesX: 96, tilesY: 72, seed: 63231 });
+    world.buildings = [];
+    resetPathGridCaches();
+    const square = createBuilding(BuildingType.Square, 520, 360, 91919);
+    square.completed = true;
+    square.constructionProgress = 100;
+    world.buildings.push(square);
+    const bystander = createEntity(EntityType.Human, 440, 390, 100080, undefined, false, {
+      name: 'Bystander', gender: 'female', ageYears: 30, colonyDay: 120,
+    });
+    world.entities.push(bystander);
+    const bystanderPosition = { x: bystander.x, y: bystander.y };
+    world.tick = pickEligibleTick(world);
+    expect(maybeStartSpotlightLore(world)).toBe(true);
+    const scene = world.spotlightLore!;
+    expect(scene.phase).toBe('ready');
+    expect(scene.gatherX).toBe(square.x);
+    expect(scene.gatherY).toBe(square.y);
+    expect(girl.x).toBe(square.x);
+    expect(girl.y).toBe(square.y);
+    expect(scene.readyAtTick).toBe(world.tick);
+    expect(scene.performerIds).toHaveLength(adults.length);
+    for (const slot of scene.slots) {
+      const actor = world.entities.find((entity) => entity.id === slot.humanId)!;
+      expect(actor.x).toBe(slot.x);
+      expect(actor.y).toBe(slot.y);
+    }
+    expect({ x: bystander.x, y: bystander.y }).toEqual(bystanderPosition);
+    expect(finishSpotlightLore(world, scene.id, 'skipped')).toBe(true);
+    expect(world.spotlightLore).toBeNull();
+  });
+
+  it('starts the dev preview through the typed worker command', () => {
+    const { world } = makeFixture();
+    world.tick = TICKS_PER_DAY * 120 + 5 * TICKS_PER_HOUR;
+    applyWorkerCommand(world, { proto: 1, op: 'startSpotlightLoreDebug' });
+    expect(world.spotlightLore?.phase).toBe('ready');
+    expect(world.paused).toBe(true);
   });
 
   it('clamps a valid six-person open-ground lineup at the left border', () => {

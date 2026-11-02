@@ -49,7 +49,7 @@ import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
 import type { WorldState } from '../src/game/gameTypes';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import { BUILDING_CONFIGS } from '../src/game/buildings';
-import { getResidenceCapacity, isResidenceBuilding } from '../src/game/residencyOccupancy';
+import { getResidenceCapacity, isResidenceBuilding } from '../src/game/housingModel';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import {
   collectHousingDiagnostics,

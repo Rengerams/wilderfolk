@@ -25,15 +25,13 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import {
   getResidenceCapacity,
   isLeaderHouseResidence,
-} from '../src/game/residencyOccupancy';
-import { collectFamilyMembers, indexFamilyRelations } from '../src/game/householdComposition';
-import {
-  isResidenceOccupantEntity,
-  rebalanceOvercrowdedResidences,
-  syncResidenceOccupants,
-} from '../src/game/residencyReconciliation';
+} from '../src/game/housingModel';
+import { collectFamilyMembers, indexFamilyRelations } from '../src/game/housingModel';
+import { rebalanceOvercrowdedResidences, syncResidenceOccupants } from '../src/game/housingPipeline';
+import { isResidenceOccupantEntity } from '../src/game/housingModel';
+
 import { syncJobBuildingOccupants } from '../src/game/workforce';
-import { tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
+import { tryMoveOutOfFamilyHome } from '../src/game/housingPipeline';
 
 const FIXTURE_SEED = 20_260_921;
 

@@ -527,47 +527,11 @@ export const CEREMONY_ATTENDEE_LIMIT = GATHER_SLOTS_PER_RING * 2;
  * because a ceremony is a single day (`CEREMONY_*_HOURS`) and elections are `ELECTION_INTERVAL_YEARS`
  * years apart.
  */
-export function isCeremonyAttendee(state: WorldState, entityId: number): boolean {
-  if (!state.electionCeremony) return false;
-  if (state.electionCeremony.finalistIds?.includes(entityId)) return true;
-  // `slot` only grows, so reaching the limit settles the answer without a full sweep.
-  let slot = 0;
-  for (let i = 0; i < state.entities.length; i++) {
-    const entity = state.entities[i];
-    if (!isEligibleForLeadership(entity, state)) continue;
-    if (entity.id === entityId) return slot < CEREMONY_ATTENDEE_LIMIT;
-    if (entity.id < entityId) {
-      slot++;
-      if (slot >= CEREMONY_ATTENDEE_LIMIT) return false;
-    }
-  }
-  return false;
-}
-
-/** Radius of the outermost ring, in px. Overflow attendees share it; non-attendees stand just outside. */
-const MAX_GATHER_RADIUS_PX = 22 + MAX_GATHER_RING * 14;
-
-/** The outer ring radius stops changing past this crowd size, so counting beyond it is wasted work. */
-const ATTENDEE_COUNT_CAP = 32;
-
-export function getElectionGatherTarget(state: WorldState, entityId: number): { x: number; y: number } {
-  const c = state.electionCeremony;
-  if (!c) return getElectionGatherSite(state);
-  const finalistPosition = c.finalistIds?.indexOf(entityId) ?? -1;
-  if (finalistPosition >= 0) {
-    // Finalists stand in a line at the square's centre, not in the audience rings.
-    return { x: c.gatherX + (finalistPosition - 1) * 15, y: c.gatherY - 10 };
-  }
-
-  // This runs once per settler while a ceremony is active, and it used to rebuild and sort the whole
-  // attendee list every time. That list cannot be hoisted for the tick: it is the *live* set, and
-  // `isEligibleForLeadership` reads `alive` and `isJuvenile`, both of which this same human loop
-  // changes between two calls — it kills settlers on the exhaustion and daily-mortality paths, and
-  // `tryGraduateHumanChild` clears `isJuvenile`. So take the one number the caller needs
-  // instead: its index in the id-sorted attendee list. Ids are unique, so that index is exactly the
-  // number of eligible entities holding a smaller id — one pass, no array, no sort.
-
-  // Both answers saturate — the slot at the attendee limit, the crowd at the ring radius cap.
+/** Live single pass used only without a per-tick seat index; the slot and crowd both saturate. */
+function rankCeremonyAttendees(
+  state: WorldState,
+  entityId: number,
+): CeremonyRank {
   let slot = 0;
   let attendeeCount = 0;
   let isAttendee = false;
@@ -578,6 +542,86 @@ export function getElectionGatherTarget(state: WorldState, entityId: number): { 
     if (entity.id === entityId) isAttendee = slot < CEREMONY_ATTENDEE_LIMIT;
     else if (entity.id < entityId && slot < CEREMONY_ATTENDEE_LIMIT) slot++;
     if (slot >= CEREMONY_ATTENDEE_LIMIT && attendeeCount >= ATTENDEE_COUNT_CAP) break;
+  }
+  return { slot, attendeeCount, isAttendee };
+}
+
+export function isCeremonyAttendee(
+  state: WorldState,
+  entityId: number,
+  seats?: CeremonySeatIndex,
+): boolean {
+  if (!state.electionCeremony) return false;
+  if (seats) return seats.finalistIds.has(entityId) || seats.slots.has(entityId);
+  if (state.electionCeremony.finalistIds?.includes(entityId)) return true;
+  return rankCeremonyAttendees(state, entityId).isAttendee;
+}
+
+/** Radius of the outermost ring, in px. Overflow attendees share it; non-attendees stand just outside. */
+const MAX_GATHER_RADIUS_PX = 22 + MAX_GATHER_RING * 14;
+
+/** The outer ring radius stops changing past this crowd size, so counting beyond it is wasted work. */
+const ATTENDEE_COUNT_CAP = 32;
+
+/** The id-sorted attendee ranks a ceremony needs, built once per tick instead of per settler. */
+export interface CeremonySeatIndex {
+  readonly slots: ReadonlyMap<number, number>;
+  readonly finalistIds: ReadonlySet<number>;
+  readonly attendeeCount: number;
+}
+
+/** Where one participant stands during a ceremony. */
+export interface CeremonyGatherTarget {
+  x: number;
+  y: number;
+}
+
+interface CeremonyRank {
+  slot: number;
+  attendeeCount: number;
+  isAttendee: boolean;
+}
+
+/** One pass over the live entities; `slots` holds the attendee rank below the ceremony limit. */
+export function buildCeremonySeatIndex(state: WorldState): CeremonySeatIndex {
+  const finalistIds = new Set(state.electionCeremony?.finalistIds ?? []);
+  const eligibleIds: number[] = [];
+  for (const entity of state.entities) {
+    if (isEligibleForLeadership(entity, state)) eligibleIds.push(entity.id);
+  }
+  eligibleIds.sort((a, b) => a - b);
+  const slots = new Map<number, number>();
+  const slotCount = Math.min(eligibleIds.length, CEREMONY_ATTENDEE_LIMIT);
+  for (let i = 0; i < slotCount; i++) slots.set(eligibleIds[i], i);
+  return {
+    slots,
+    finalistIds,
+    attendeeCount: Math.min(eligibleIds.length, ATTENDEE_COUNT_CAP),
+  };
+}
+
+export function getElectionGatherTarget(
+  state: WorldState,
+  entityId: number,
+  seats?: CeremonySeatIndex,
+): CeremonyGatherTarget {
+  const c = state.electionCeremony;
+  if (!c) return getElectionGatherSite(state);
+  const finalistPosition = c.finalistIds?.indexOf(entityId) ?? -1;
+  if (finalistPosition >= 0) {
+    // Finalists stand in a line at the square's centre, not in the audience rings.
+    return { x: c.gatherX + (finalistPosition - 1) * 15, y: c.gatherY - 10 };
+  }
+
+  let slot = 0;
+  let attendeeCount = 0;
+  let isAttendee = false;
+  if (seats) {
+    slot = seats.slots.get(entityId) ?? 0;
+    attendeeCount = seats.attendeeCount;
+    isAttendee = seats.slots.has(entityId);
+  } else {
+    ({ slot, attendeeCount, isAttendee } = rankCeremonyAttendees(state, entityId));
   }
 
   if (!isAttendee) {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Entity } from '../src/game/gameTypes';
 import { building, human } from '../src/test/factories';
-import { assignMissingResidences, tryMoveOutOfFamilyHome } from '../src/game/residencyReconciliation';
+import { assignMissingResidences, tryMoveOutOfFamilyHome } from '../src/game/housingPipeline';
 
 function adultChildWorld(): { parent: Entity; child: Entity; familyHome: ReturnType<typeof building> } {
   const familyHome = building(0, BuildingType.House);

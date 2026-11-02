@@ -174,12 +174,14 @@ export function isWithinAssignableCommute(
   building: Building,
   buildings: readonly Building[],
   walkSpeed: number,
+  buildingById?: ReadonlyMap<number, Building>,
 ): boolean {
   // workerBuildingId stores the JOB, not the residence. Commute always starts
   // from the resident's home; fall back to their position if not housed.
   const home = entity.residenceBuildingId == null
     ? undefined
-    : buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
+    : buildingById?.get(entity.residenceBuildingId)
+      ?? buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
   const toX = building.x;
   const toY = building.y;

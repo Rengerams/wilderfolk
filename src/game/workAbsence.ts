@@ -31,7 +31,7 @@ import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/hum
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
-import { isImprisoned, isNearResidence } from './residencyOccupancy';
+import { isImprisoned, isNearResidence } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
 

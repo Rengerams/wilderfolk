@@ -48,7 +48,7 @@ function readSources(relative = ''): Array<{ path: string; source: JsonSource }>
 describe('v1.3 dialogue source contract', () => {
   it('normalizes every source and retains explicit one-way/two-way speaker roles', () => {
     const files = readSources();
-    expect(files.length).toBeGreaterThanOrEqual(29);
+    expect(files.length).toBeGreaterThanOrEqual(2);
 
     for (const { path, source } of files) {
       expect(source.version, path).toBe(DIALOGUE_SCHEMA_VERSION);
@@ -72,14 +72,14 @@ describe('v1.3 dialogue source contract', () => {
           expect(tree.speakers, tree.id).toContain(line.speaker);
           expect(line.text.trim(), tree.id).not.toBe('');
         }
-        if (path !== 'Elections.json') expect(tree.eventKey?.trim(), tree.id).toBeTruthy();
+        expect(tree.eventKey?.trim(), tree.id).toBeTruthy();
       }
     }
   });
 
-  it('compiles one unique runtime bank and keeps the legacy Elections duplicate inactive', () => {
+  it('compiles one unique runtime bank from the centralized sources', () => {
     const files = readSources();
-    const active = files.filter(({ path }) => path !== 'Elections.json');
+    const active = files;
     // Paused group-caption scenes are intentionally outside the ambient solo/pair bank.
     const sourceIds = active.flatMap(({ source }) =>
       source.dialogue_trees.filter((tree) => tree.conversation_type !== 'group').map((tree) => tree.id));

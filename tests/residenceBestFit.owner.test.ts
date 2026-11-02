@@ -2,8 +2,8 @@
  * A2 — "least-occupied residence, lowest id breaks ties" was implemented twice
  * (`docs/private/audits/2026-09-16/duplication-deadcode.md`; row A2 in `LIVE-FINDINGS-STATUS.md`).
  *
- * `residencyReconciliation.pickSharedResidence` carried its own copy of the selection loop. The rule
- * now lives only in `residencySelection.pickLeastCrowdedResidence`, which takes the movers as
+ * `housingPipeline.pickSharedResidence` carried its own copy of the selection loop. The rule
+ * now lives only in `housingPipeline.pickLeastCrowdedResidence`, which takes the movers as
  * `movingTogether` so the shared-move discount (a home one mover already lives in counts them once)
  * is expressed through the owner instead of beside it.
  *
@@ -17,7 +17,7 @@ import { BuildingType, EntityType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
 import { createBuilding } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
-import { pickLeastCrowdedResidence } from '../src/game/residencySelection';
+import { pickLeastCrowdedResidence, pickResidenceForFamily } from '../src/game/housingPipeline';
 
 /** A completed House through the production factory — no hand-built Building literal. */
 function residence(id: number): Building {
@@ -70,7 +70,7 @@ describe('the least-crowded residence rule has one owner', () => {
 
   it('keeps the shared-residence caller on the owner', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/game/residencyReconciliation.ts'),
+      resolve(process.cwd(), 'src/game/housingPipeline.ts'),
       'utf8',
     );
     expect(source, 'the shared-residence caller no longer delegates to the owner').toContain(
@@ -78,5 +78,22 @@ describe('the least-crowded residence rule has one owner', () => {
     );
     // The pre-fix copy opened with `const needed = 2;` and carried its own best-fit comparison.
     expect(source, 'the duplicated selection loop is back').not.toContain('const needed = 2;');
+  });
+});
+
+describe('the family picker', () => {
+  it('skips a destination the run has already refused', () => {
+    const houses = [residence(100), residence(101)];
+    const mother = settler(1);
+    mother.age = 30;
+    mother.isJuvenile = false;
+    const child = settler(2);
+    child.age = 6;
+    child.isJuvenile = true;
+    child.motherId = mother.id;
+    const family = [mother, child];
+
+    expect(pickResidenceForFamily(family, family, houses)).toBe(100);
+    expect(pickResidenceForFamily(family, family, houses, undefined, undefined, new Set([100]))).toBe(101);
   });
 });

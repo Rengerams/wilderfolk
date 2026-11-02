@@ -58,6 +58,7 @@ export type DecisionKey =
   | 'workerFit'
   | 'humanPhysiology'
   | 'humanMeals'
+  | 'workSchedule'
   | 'workforce'
   | 'housing'
   | 'construction'
@@ -91,12 +92,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
   },
   workerMotionPresentation: {
-    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
+    owner: 'gameLoop.ts — isLightweightWorkerCommand, canPreviewWorkerCommand, registerWorkerHandlers, frameBody, stepFallbackTick, applyCommand, rebuildOptimisticDisplay, exportAuthoritativeWorld, lastExportWasDegraded; scheduleFeedback.ts — getScheduleImpactPreview (read-only)',
     cadence: 'render',
-    cadenceNote: 'On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
+    cadenceNote: 'Worker message admission awaits the shared census-name gate. Failed fallback ticks retain accumulator time; buffer pooling and delta packing remain transport-only, and display caches are hydrated once. On acknowledged ticks, blend only confirmed positions. Top-level schedule/policy commands use shallow previews and skip unnecessary catalog rebuilding unless a tick completed while commands were pending; the next acknowledgement reconciles entities and stale selections. Read-only schedule impact indexes roster IDs once per render. On save, halt new ticks while earlier commands settle. No gameplay writes.',
     writes: [],
     scheduledFrom: 'GameWorkerHost tick acknowledgement and requestAnimationFrame → GameLoop.frameBody; useGamePersistence.persistGame → GameLoop.exportAuthoritativeWorld (on-demand)',
-    testFile: 'tests/gameLoop.test.ts, tests/renderer.motionAndHover.test.ts',
+    testFile: 'tests/gameLoop.test.ts, tests/gameLoop.fallbackTickRollback.test.ts, tests/renderer.motionAndHover.test.ts',
   },
   chronicleProseNames: {
     owner: 'citizenId.ts — citizenFullName, formatDeathLog',
@@ -163,7 +164,7 @@ export const SIMULATION_DECISIONS = {
       'human.energy (derived projection)',
     ],
     scheduledFrom: 'humanTick.ts → advanceHumanNeeds and resolveHumanNeedsIntent; entityFactory.ts → initialHumanNeeds; saveLoad.ts → normalizeHumanNeeds; domain effects → stamina/nutrition adjustment',
-    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts',
+    testFile: 'tests/humanNeeds.calibration.test.ts, tests/humanNeeds.mealRule.test.ts, tests/humanNeeds.restAndWell.test.ts, tests/settlers.indoors.test.ts, tests/homeEntry.geometry.test.ts',
   },
   humanMeals: {
     owner: 'simulation/humanNeeds.ts — canEatColonyMeal, tryEatColonyMeal, killFromStarvation, fract, freeHuntFoodGain',
@@ -179,8 +180,16 @@ export const SIMULATION_DECISIONS = {
     scheduledFrom: 'humanTick.ts → tryEatColonyMeal / killFromStarvation; workAbsence.ts → canEatColonyMeal; humanHuntingBehavior.ts → freeHuntFoodGain',
     testFile: 'tests/humanNeeds.mealRule.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/warfare.lifecycle.test.ts, tests/humanNeeds.calibration.test.ts',
   },
+  workSchedule: {
+    owner: 'workSchedule.ts — validateWorkSchedule, normalizeWorkSchedule, getWorkSchedule, setWorkSchedule; humanSchedule.ts — isWorkHourFor, shouldBeAtHomeFor, isOnWorkShiftFor',
+    cadence: 'player-command',
+    cadenceNote: 'The shipped window is 07–16; the player may set any non-wrapping whole-hour window. The command writes only world.workSchedule. Renderer status, work audio, town-hall hours, home preference and shift checks read that configured window hourly instead of a hard-coded legacy 07–18 default.',
+    writes: ['workSchedule'],
+    scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
+    testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/audio.workDetect.test.ts',
+  },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActions.assignIdleWorkerToBuilding',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActionRouting.assignIdleWorkerToBuilding',
     cadence: 'assignment',
     cadenceNote: 'The idle-only assignWorkerInPlace choice preserves commute eligibility, squared distance, existing skill and first-encountered stability; optional career/DNA fit breaks only exact ties and never changes transfer/rebalance/cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
@@ -191,23 +200,23 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingActions on place/recruit/death',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingStaffingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
-    owner: 'residencyReconciliation.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, and relocateHousehold applies a whole-household decision; moveResident stays the sole write; pure selection: residencySelection.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
+    owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home and commute, and applyRelocation writes a plan; manor and couple still write directly; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
     cadence: 'assignment',
-    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. Only assignMissingResidences decides — the phase functions are its steps, never independently scheduled. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
+    cadenceNote: 'Scheduled housing sweeps run four times per day; demolition reconciles displaced households immediately using the bounded tick sweep, while removals without displaced residents skip the housing pipeline; other events request immediate reconciliation or a reasoned residence transition. assignMissingResidences schedules; planRelocation answers move-or-stay for each household and applyRelocation writes; the capacity rebalance plans through it too, and the homeless repair pass still seats every partially housed unit. A mandatory phase settles a household for the run, so the optional adult-child and commute phases cannot undo it. Reconciliation owns reference and resident-roster writes; selection and leader entitlement provide rules. Worker transport applies authoritative snapshots, never new housing decisions.',
     writes: [
       'human.residenceBuildingId',
       'residence building.occupants',
       'household membership (couple + minor children)',
     ],
     scheduledFrom: 'gameTick tick boundary + tickLayerAssign.syncResidenceOccupants (mirror); tickLayerAssign.assignMissingResidences (assignment); commands.ts "assignResidentToBuilding"',
-    testFile: 'tests/simulation.invariants.test.ts (residence occupants consistency), tests/church.manualStaffing.test.ts (residence cleanup on removal), tests/longRunColony.integration.test.ts',
+    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts',
   },
   construction: {
-    owner: 'buildingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
+    owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); tickLayerDaily.tickBuildingProgress (progress advance)',
     cadence: 'work',
     cadenceNote: 'progress advances once per colony day in tickLayerDaily; crew membership changes on command/assignment phase. the crew multiplier is called with the construction action, so site progress reads only the catalog\'s work/builder/construction factor and no production-context DNA reaches it; that holds for a site with no production job too, since the crew\'s skill baseline falls back to Builder',
     writes: [
@@ -258,10 +267,10 @@ export const SIMULATION_DECISIONS = {
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, dialogueHoursFromNominalTicks, tickDialogue, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, readPresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
     cadence: 'on-demand',
-    cadenceNote: 'Content lookup matches real participant roles and cycles eligible variants before repeating. Singleton ambient lines cool down for three calendar days; per-entity history survives save/load. This owner writes human.dialogueRecentScenes and is not a read-only projection; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
-    writes: ['human.dialogueRecentScenes'],
+    cadenceNote: 'One centralized ambient source (data/dialogue/ambient.json, one neutral dialogue category); eventKey+mode lookup matches real participant roles, cycles eligible variants and applies a per-settler three-day line cooldown before repeating. Singleton ambient scenes cool down for three calendar days; per-entity scene and line history survive save/load. This owner writes human.dialogueRecentScenes and human.dialogueRecentLines; scripted exact scenes bypass rotation; humanChat alone writes visible dialogue sessions.',
+    writes: ['human.dialogueRecentScenes', 'human.dialogueRecentLines'],
     scheduledFrom: 'humanTick.ts, socialLife.ts, humanLeisureBehavior.ts, factionWander.ts and existing domain event owners; Spotlight overlay later uses read-only group adapter',
-    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts',
+    testFile: 'tests/dialogue.schema13.test.ts, tests/dialogue.eventRouting.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.variety.test.ts, tests/dialogue.lineRepeat.test.ts, tests/dialogue.pipeline.integration.test.ts',
   },
   dialogueSessions: {
     owner: 'humanChat.ts — startDialogueTreeChat, tickHumanChat, endAmbientHumanChat, prepareScriptedDialogue, releaseDialogueSession, cleanupEntityDialogueState, resetDialogueSessions',
@@ -272,12 +281,12 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/humanChat.duration.test.ts, tests/pairDialogue.orphanReclaim.test.ts, tests/dialogue.sessionModes.test.ts, tests/dialogue.workerSaveParity.test.ts, tests/dialogue.schema13.test.ts',
   },
   spotlightLore: {
-    owner: 'spotlightLore.ts — maybeStartSpotlightLore, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
+    owner: 'spotlightLore.ts — buildSpotlightLoreScene, stageSpotlightLoreCast, maybeStartSpotlightLore, startSpotlightLoreDebug, getSpotlightGatherTarget, tickSpotlightGathering, finishSpotlightLore, normalizeSpotlightLoreOnLoad',
     cadence: 'realtime',
-    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection through direct simRng.personDayRoll with 6–10 eligible adult male speakers and bounded walkable stage slots before cooldown, all-actor attendance/eligibility through ready, load-time cast validation and typed finish; stage movement in humanTick uses cached pathfinding velocity and one normal walk step; read-only UI choreography derives independent wall-clock 44-caption cues via one canonical captionBoundary lookup, camera projection, streamed instrumental fading before applause and cancellable SFX applause; the overlay delegates keyboard ownership and Escape-to-skip to the existing useOverlayKeyboard hook, not WorldState',
-    writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)'],
-    scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads the gathering target and delegates obstacle steering to pathfinding.steerWithPath (single humanTick movement integration); simWorker/commands.ts delegates finishSpotlightLore',
-    testFile: 'tests/spotlightLore.test.ts, tests/spotlightChoreography.test.ts, tests/spotlightApplause.test.ts, tests/spotlightAudioRace.test.ts',
+    cadenceNote: 'Cheap O(1) gate each sim tick, rare weekend 19:00 selection through direct simRng.personDayRoll with 6–10 eligible adult male speakers and bounded walkable stage slots before cooldown, all-actor attendance/eligibility through ready, load-time cast validation and typed finish; `startSpotlightLoreDebug` is a dev-only bypass from the `?debug=1` Guide card that stages a paused ready cast on its marks without writing the cooldown; completed Village Squares stage the real cast immediately on validated marks (other settlements still use normal gathering); stage movement in humanTick uses cached pathfinding velocity and one normal walk step; renderSnapshot plus overheadLayout.shouldDrawSpotlightHuman hide bystanders only during ready performance; read-only UI choreography derives independent wall-clock 44-caption cues via canonical captionBoundary lookup, with motionInterpolation.getSpotlightPresentationSpeech forwarding the current actor-bound line to humans.drawSpeechBubble (the same chat painter; no chat state writes), camera projection, streamed instrumental fading before applause and cancellable SFX applause; the overlay delegates keyboard ownership and Escape-to-skip to the existing useOverlayKeyboard hook, not WorldState',
+    writes: ['spotlightLore', 'spotlightLoreLastDay', 'eventLog (through logEvent)', 'paused (debug preview only)', 'entity positions, indoorBuildingId, huntTargetId and velocity (square stage or debug preview only)'],
+    scheduledFrom: 'tickLayerRealtime.ts before and after tickHumans; humanTick reads the gathering target and delegates obstacle steering to pathfinding.steerWithPath (single humanTick movement integration); simWorker/commands.ts delegates finishSpotlightLore and startSpotlightLoreDebug',
+    testFile: 'tests/spotlightLore.test.ts, tests/renderer.presentationLayout.test.ts, tests/spotlightChoreography.test.ts, tests/spotlightApplause.test.ts, tests/spotlightAudioRace.test.ts',
   },
   courtship: {
     owner: 'humanRelationships.ts — findCourtshipPartner, isEligibleToCourt, tryCompleteCourtshipMarriage; progress advance executes from humanTick.ts',
@@ -369,10 +378,10 @@ export const SIMULATION_DECISIONS = {
   raidCombat: {
     owner: 'frontierCombat.ts — queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory',
     cadence: 'realtime',
-    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; events are written through the ordinary Chronicle owner.',
+    cadenceNote: 'Incoming and outgoing battles progress on game ticks across six game hours. Raid dispatch, responses and settlement-fate choices also enter through player commands; treaties may be broken at a reputation cost, extermination kills every remaining inhabitant, and events are written through the ordinary Chronicle owner.',
     writes: ['pendingRaidEvents', 'pendingOutgoingRaidEvents', 'pendingRaidVictories', 'raidBattleReports', 'scoredRaidIds', 'human.raidDeploymentId', 'human.battleLeadershipMerit', 'rivalSettlements', 'resources (through economy owner)', 'eventLog (through logEvent)'],
     scheduledFrom: 'gameTick.ts → tickPendingRaidEvents/tickPendingOutgoingRaidEvents; simWorker/commands.ts → raid and victory commands',
-    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts',
+    testFile: 'tests/warfare.lifecycle.test.ts, tests/raidChronicle.lifecycle.test.ts, tests/raidDeadline.owner.test.ts',
   },
   raidRecovery: {
     owner: 'raidAftermath.ts — beginRaidRecovery, tickRaidRecovery, isSettlementDestroyed, rememberRivalDisposition',
@@ -415,17 +424,17 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/terrain.riverMaterials.test.ts, tests/terrain.clearingVisuals.test.ts',
   },
   commands: {
-    owner: 'commands.ts (simWorker) → buildingMaintenanceActions.ts (upgradeBuilding, repairBuilding, demolishBuilding), buildingActionRouting.ts (assignment), buildingConfigurationActions.ts (modes and recipes), workSchedule.ts and venueSchedule.ts (hours)',
+    owner: 'commands.ts (simWorker) → domain owners: buildingActionRouting, buildingStaffingActions, buildingResidencyActions, buildingMaintenanceActions and buildingConfigurationActions',
     cadence: 'player-command',
-    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without a deep clone; isolated fallback retains copy semantics. Demolition reconciles displaced households only; timeout recovery does not replay the unconfirmed command, retaining later requests.',
+    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
       'building.occupants',
       'building.level',
-      'resources',
-      'workSchedule',
-      'tavernSchedule',
-      'hotelSchedule',
       'workforcePolicy',
+      'hotelSchedule',
+      'tavernSchedule',
+      'workSchedule',
+      'resources',
       'building.workshopRecipeId',
       'building.mineMode',
       'building.staffingMode',

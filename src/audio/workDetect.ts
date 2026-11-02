@@ -5,7 +5,7 @@
 import { EntityType } from '../game/gameTypes';
 import { BuildingType } from '../game/gameTypes';
 import type { Building, Entity, TerrainType as TerrainTypeName, WorldMap } from '../game/gameTypes';
-import { isWorkHour } from '../game/dayCycle';
+import { isWorkHourFor, type DayWindow } from '../game/humanSchedule';
 import { tileTypeAtWorld } from '../game/terrain/terrainGrid';
 import type { WorkKind } from './workSfx';
 
@@ -24,8 +24,8 @@ const WORK_BUILDING_KINDS: Partial<Record<BuildingType, WorkKind>> = {
  * What work sound is the village making right now? Returns the kind of the
  * first staffed, completed production building during work hours, else null.
  */
-export function detectWorkActivity(buildings: Building[], hourOfDay: number): WorkKind | null {
-  if (!isWorkHour(hourOfDay)) return null;
+export function detectWorkActivity(buildings: Building[], hourOfDay: number, workSchedule?: DayWindow): WorkKind | null {
+  if (!isWorkHourFor(workSchedule, hourOfDay)) return null;
   for (const b of buildings) {
     if (!b.completed || b.faction === 'rival' || b.occupants.length === 0) continue;
     const kind = WORK_BUILDING_KINDS[b.type];

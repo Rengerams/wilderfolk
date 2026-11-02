@@ -74,9 +74,6 @@ const seenTrees = new Map();
 let activeScenes = 0;
 for (const filename of dataFiles) {
   const rel = slash(filename);
-  // Elections.json contains conflicting historic text under ten IDs already
-  // supplied by needs.json: keep it quarantined until intentionally resolved.
-  if (rel === 'src/game/data/Elections.json') continue;
   let value;
   try { value = JSON.parse(readFileSync(filename, 'utf8')); }
   catch (e) { errors.push(`${rel}: malformed JSON (${e.message})`); continue; }
@@ -121,24 +118,27 @@ for (const filename of dataFiles) {
     activeScenes++;
   }
 }
-// Historical Elections.json is not an election source: all ten IDs overlap
-// needs.json, but their original authored text/metadata differs and is retained.
+// The legacy source is archived outside the shipped data and must stay fully
+// represented either by the live duplicate or by an integrated alternative.
 try {
-  const legacy = JSON.parse(readFileSync(resolve('src/game/data/Elections.json'), 'utf8'));
-  const needs = JSON.parse(readFileSync(resolve('src/game/data/needs.json'), 'utf8'));
-  const primary = new Map(needs.dialogue_trees.map((scene) => [scene.id, scene]));
+  const legacy = JSON.parse(readFileSync(resolve('tests/fixtures/dialogue-legacy-elections.json'), 'utf8'));
+  const ambient = JSON.parse(readFileSync(resolve('src/game/data/dialogue/ambient.json'), 'utf8'));
+  const primary = new Map(ambient.dialogue_trees.map((scene) => [scene.id, scene]));
   const ids = new Set();
-  if (legacy.dialogue_trees.length !== 10) errors.push('Elections.json: expected ten quarantined historical scenes');
+  if (legacy.dialogue_trees.length !== 10) errors.push('legacy Elections: expected ten quarantined historical scenes');
   for (const scene of legacy.dialogue_trees) {
-    if (ids.has(scene.id) || !primary.has(scene.id)
-      || JSON.stringify(scene) === JSON.stringify(primary.get(scene.id))
-      || scene.category !== 'needs') {
-      errors.push(`Elections.json: invalid historical duplicate ${scene.id}`);
+    const duplicate = primary.get(scene.id);
+    const alternative = primary.get('wf_needs_alternative_' + scene.id);
+    const legacyText = JSON.stringify(scene.lines.map((line) => line.text));
+    const identical = duplicate && legacyText === JSON.stringify(duplicate.lines.map((line) => line.text));
+    const migrated = alternative && legacyText === JSON.stringify(alternative.lines.map((line) => line.text));
+    if (ids.has(scene.id) || !duplicate || (!identical && !migrated) || scene.category !== 'needs') {
+      errors.push(`legacy Elections: unintegrated historical scene ${scene.id}`);
     }
     ids.add(scene.id);
   }
 } catch (e) {
-  errors.push(`Elections.json: legacy duplication reconciliation failed (${e.message})`);
+  errors.push(`legacy Elections: reconciliation failed (${e.message})`);
 }
 for (const file of [...dialogueFiles, ...presentationFiles]) {
   if (!existsSync(resolve(file))) errors.push(`${rootDialoguePath}: imported missing JSON source ${file}`);

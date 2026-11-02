@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { getOpenPlayerBeds } from '../src/game/populationGrowth';
-import { getResidenceCapacity } from '../src/game/residencyOccupancy';
+import { getResidenceCapacity } from '../src/game/housingModel';
 import { building, human } from '../src/test/factories';
 
 describe('open player beds linear occupancy calculation', () => {

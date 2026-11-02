@@ -385,12 +385,12 @@ describe('one definition of the village anchor', () => {
     expect(getPlayerCampCenter(world, [barracks])).toEqual({ x: 350, y: 350 });
   });
 
-  it('is the rule the renderer draws from', () => {
+  it('does not restate the anchor rule in the renderer', () => {
     const humans = read('src/game/renderer/humans.ts');
     expect(humans, 'the renderer restated the anchor rule again')
       .not.toMatch(/function getPlayerCampCenterFromBuildings/);
-    expect(humans, 'the renderer does not ask the anchor owner')
-      .toContain('getPlayerCampCenter(state, state.buildings)');
+    expect(humans, 'the renderer should not retain a private anchor call')
+      .not.toContain('getPlayerCampCenter');
   });
 });
 

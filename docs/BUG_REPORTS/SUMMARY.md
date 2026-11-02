@@ -1,5 +1,45 @@
 # Bug report summary — one line per report
 
+**2026-11-02 — [Spotlight stage obscures village cast](../bug_report/2026-11-02-spotlight-stage-visibility.md):** Gameplay screenshot shows the oversized lore caption and narrow spotlight obscuring actors. The scene now uses a completed Village Square, with nonparticipating settlers hidden only in the ready render pass; verification pending.
+
+**2026-11-02 — [Close-friend cap exceeded (legacy saves and a unilateral over-cap bond)](../bug_report/2026-11-02-close-friend-cap-exceeded-legacy-saves.md):** A long save carried up to 31 close friends per settler and one unilateral bond could sit over the six-friend cap. Loading now trims to the six strongest, the keep rule is strictly below the cap, and the count is tracked once per settler.
+
+
+## 2026-11-02 triage sweep (report headers unchanged)
+
+This sweep records the current tree; the individual report headers were deliberately left untouched. Of the 95 reports, 53 are not marked resolved. They break down as follows.
+
+**Verified fixed in the current tree** — targeted regressions pass for captive rations and false exhaustion, seven-hour sleep recovery, career attribution/Moon Howler/player-marker paths, dialogue routing/session/duration/migration, Spotlight cast/chorus/gathering/keyboard/reload/audio, founding-settler overview LOD, lover tryst symmetry, river materials, colony-bot cache hydration, Virtual Player food (100-day producer run completed healthy), save/worker/game-loop/schedule paths, and the stale asset/export/documentation checks. TypeScript, lint, build and the documentation gate pass.
+
+**Verification-only pending** — code fixes are present, but the large or live check has not been run:
+- [1,800-resident three-day career benchmark](../bug_report/2026-11-02-large-population-career-window-too-short.md)
+- [Large population performance comparison](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md)
+- [Camp snow clearing visual QA](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md)
+- [Auto-fill in a ~2,000-settler save](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md)
+- [Visitor speech in the live worker/save path](../bug_report/2026-10-28-visitor-speech-bypassed-session-owner.md)
+- [Spotlight live keyboard/reload/gathering checks](../bug_report/2026-10-29-spotlight-keyboard-leaks-to-gameplay.md)
+
+**Fixed during this sweep** — [the 120-day simulation gate](../bug_report/2026-10-28-simulation-pr-gate-deleted.md) was named for 120 days but ran `--days=100`; it now runs `--days=120`. The workflow change still needs a CI run.
+
+**2026-11-02 — [Settlers could not enter their home from a non-south approach](../bug_report/2026-11-02-settlers-cannot-enter-home.md):** Some residents stayed outside because the entry target was a fixed south porch, sometimes inside the footprint itself. Entry now uses the nearest walkable side and accepts any wall within 24 px; four-side and large-house regressions pass.
+
+**2026-11-02 — [Reinforced ground never reaches the display world](../bug_report/2026-11-02-reinforced-ground-not-transported-to-display.md):** Ground Reinforcement patched only the worker's terrain map, so the client still saw hard ground and refused the next building. Command deltas now carry the patched tiles and rebake the replica; the transport regression fails before the fix and passes after.
+
+**2026-11-02 — [Same settler repeated their own dialogue line](../bug_report/2026-11-02-dialogue-same-settler-line-repeat.md):** Scene rotation ignored individual lines, so a settler could repeat a line shared by another variant; per-settler line history now filters those scenes for three days while other settlers may reuse the line. Regression committed, CI pending.
+
+**2026-11-02 — [Spotlight opening cues lost on a throttled tab](../bug_report/2026-11-02-spotlight-opening-cues-throttled-tab.md):** Camera focus and soundtrack start were gated on the frame still being `intro`, so a resumed background tab skipped both. Cues are now elapsed-time driven, once each, and suppressed in the applause; regressions committed, CI pending.
+
+**2026-11-02 — [Spotlight chorus excluded professions instead of current duty](../bug_report/2026-11-02-spotlight-chorus-profession-blacklist.md):** Whole professions were refused even off duty, and nobody was checked for being on shift. Selection now reads the existing work-reason owner; regressions committed, CI pending.
+
+**2026-11-02 — [Worker census dispatch race](../bug_report/2026-11-02-worker-census-gate-dispatch-race.md):** Early requests could execute before the asynchronous census load settled. Worker admission now awaits the shared name gate; gate regressions, typecheck, lint and build pass.
+
+**2026-11-02 — [Failed fallback tick loses accumulated time](../bug_report/2026-11-02-fallback-tick-consumes-time-on-failure.md):** A failed rollback-safe local tick still consumed tick time. Clock debit now occurs only after success; the rollback regression proves retained debt and no extra retry.
+
+**2026-11-02 — [Render stress harness consumes all worker leases](../bug_report/2026-11-02-worker-stress-harness-exhausts-render-buffers.md):** Tick and command render leases were never returned. Harness now transfers leases back, tracks counts and confirms save exports; 5,000 render ticks returned all 5,007 leases with no exhaustion.
+
+**2026-11-02 — [Render pool accepts oversized returns](../bug_report/2026-11-02-render-buffer-pool-accepts-oversize.md):** A larger-than-schema buffer silently entered the fixed-size pool. Exact-length checks and the 200,000-cycle capacity regression now pass.
+
+
 **2026-11-02 — [Large-tier career audit window too short](../bug_report/2026-11-02-large-population-career-window-too-short.md):** At 1,800 residents the two-day CI run has real accumulated and settled shift hours but no credited career day yet. Large-tier baseline and PR now run a three-day comparison with the strict career-credit check retained; CI pending.
 
 **2026-11-02 — [Nighttime chat test omitted indoor arrival](../bug_report/2026-11-02-sleep-chat-test-missing-indoor-arrival.md):** Chat regression fixture expected sleeping while merely standing near home. The fixture now records actual house entry; production sleep still requires valid indoor occupancy. CI pending.
@@ -42,11 +82,11 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
 
-**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** shader now respects grassland clearing masks; two stale CI assertions were aligned on 2 November. Browser visual verification pending.
+**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** grassland overrides and continuous shader fields disagree on the camp's surface. A derived render-only clearing mask now blends the ground to grassland; focused test and browser visual QA pending.
 
 **2026-10-29 — [Founding settlers vanish at overview zoom](../bug_report/2026-10-29-founding-settlers-vanish-at-overview-zoom.md):** the 1.15× marker cutoff hid the original two people among larger wildlife art. Founders now remain full sprites at overview zoom and larger crowds use high-contrast markers; focused test and browser QA pending.
 
-**2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` cleans untracked copies; PR #118 commit `547333d` also restores tracked baseline modifications. Small and medium head comparisons passed; large validation pending.
+**2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` adds path-limited untracked cleanup before checkout; new CI verification pending.
 
 **2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
 
@@ -55,11 +95,17 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
 
+**2026-11-02 — [Changelog guard flags slash-separated prose](../bug_report/2026-11-02-changelog-check-slash-prose-false-positive.md):** The changelog check interpreted `Skip/restore.` as a filename. PR #120 narrows file detection to known source/document extensions; CI verification pending.
+
+**2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** Removed uncalled `isMealCheckHour`, its unused import, and stale ownership/decision registry references; CI verification pending.
+
+
 **2026-10-29 — [Worker-owned building upgrade deep-clones large colony](../bug_report/2026-10-29-worker-upgrade-deep-clones-large-colony.md):** owned upgrade path now skips the full-world clone; isolated parity regression added. Cause of all 30-second timeouts and live 2,000+ resident verification still pending.
 
 **2026-10-29 — [Work-hours preview repeatedly searches the full population](../bug_report/2026-10-29-schedule-preview-repeated-roster-search.md):** eligible worker IDs indexed once and work/venue/policy previews avoid full-world cloning; browser INP verification pending.
 
 **2026-11-01 — [Deferred worker tick leaves stale entity catalog](../bug_report/2026-11-01-deferred-worker-tick-leaves-stale-entity-catalog.md):** PR #118 now rebuilds and prunes after a tick arrives during a pending lightweight command, while retaining the no-tick fast path. Focused tests added; execution and CI pending.
+
 **2026-11-01 — [Virtual Player food production lags population](../bug_report/2026-11-01-virtual-player-food-production-lags-population.md):** Both 29 October and 1 November 100-day producer-colony gates starved at day 90 with identical economics. PR #118 updates food capacity planning, deficit staffing, and focused tests; fresh 100-day CI pending.
 
 **2026-11-02 — [Reinforced-soil filename case mismatch](../bug_report/2026-11-02-ground-soil-filename-case-mismatch.md):** Case-sensitive CI found a preloaded sprite URL with the wrong filename suffix. Loader and renderer now reference the normalized lowercase `.png` asset; CI and browser verification pending.
@@ -67,10 +113,6 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 **2026-11-02 — [Colony bot world replacement keeps stale entity caches](../bug_report/2026-11-02-colony-bot-replacement-keeps-stale-entity-caches.md):** 1,800-resident benchmark lost all observed career credits despite 1,441 active attendance records. Headless command adapter reused the same world shell after `structuredClone` while weak caches still referenced superseded humans. Explicit cache hydration added after world adoption; CI pending.
 
 **2026-11-02 — [Career credit delayed until the following noon](../bug_report/2026-11-02-career-credit-lags-midnight-attendance.md):** PR #118's 1,800-resident benchmark exposed a genuine timing defect: midnight settled 1,441 witnessed worker shifts but noon's separate economy pass did not credit them until 12 in-game hours later. Career credit now runs in the existing midnight fatigue settlement with indexed site/job validation; no extension to the two-day benchmark. CI verification pending.
-
-**2026-11-02 — [Changelog guard flags slash-separated prose](../bug_report/2026-11-02-changelog-check-slash-prose-false-positive.md):** PR #120 narrows changelog file detection to known extensions; CI verification pending.
-
-**2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** PR #120 removes the unused helper and its ownership references; CI verification pending.
 
 **2026-11-02 — [PR #120 merge restored outdated registries](../bug_report/2026-11-02-pr120-merge-restored-outdated-registries.md):** A stale merge discarded the read-only Virtual Player decision and current workday ownership descriptions, producing four TS7053 build errors. Follow-up restores the exact main records and reapplies only the intended PR changes; fresh CI pending.
 
@@ -2081,3 +2123,30 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 
 **2026-10-29 — [Dev server served the router cookie dependency as raw CommonJS](../bug_report/2026-10-29-dev-server-serves-router-cookie-as-commonjs.md):** the router's development chunk imported `parse`/`serialize` from cookie's CommonJS file, which has no ES named exports, so the page failed to boot with a module syntax error. Cookie is now prebundled with the router; cold-cache load verified. Status: resolved.
 **2026-10-29 — [Pathfinder counters never left their tick bucket](../bug_report/2026-10-29-pathfinder-counters-never-flushed.md):** `flushPathfinderTickToSession` had no caller outside tests, so the A* counters read zero however long a colony ran. The tick now resets and flushes them once per tick like the spatial counters, a profiler session switches them on, and the panel prints the A* shape (calls per tick, nodes per search, node-cap and early-reject shares, waypoint hit rate).
+
+## 2026-11-02 — Housing refill proposes a visited home
+
+- **A household evicted by the capacity phase was left homeless while beds existed — resolved:** after the capacity phase unhoused one member, the refill re-picked the same home the run had already recorded as visited; `relocateHousehold` refused it and no alternative was attempted. The placement now retries past a refused destination (next-best, up to three) before splitting, so the family is housed in the same run and the second run is a no-op; the generated case is the regression. [Report](../bug_report/2026-11-02-housing-refill-proposes-visited-home.md).
+
+## 2026-11-02 — Housing settlement depends on input order
+
+- **The same colony settled differently when its settlers were supplied in another order — resolved:** units of equal need and size kept the caller's array order as their processing order, so competing households claimed homes in arrival order. A stable lowest-member-id tie-break now orders the pass; 18–30 differing settlers per seed became 0 on 12 seeds, pinned by a generated invariant. [Report](../bug_report/2026-11-02-housing-settlement-input-order.md).
+
+
+
+## 2026-11-02 — Housing review findings (open)
+
+- **An adult-child move drags independent adult descendants back home — resolved:** the adult-child phase builds the departing household with every living child, so an adult grandchild who already lives elsewhere is moved back in with the parent. Fixed in `fd63ad00`. [Report](../bug_report/2026-11-02-adult-child-move-drags-independent-descendants.md).
+- **Housing traits and beds disagree about a cursed Moon Howler — open:** the trait map counts occupants with `isPlayerHuman` while beds and rosters count `isResidenceOccupantEntity`, so a cursed Moon Howler is invisible to couple/singles scoring and can enter the threaded map without a fresh build ever containing them. Scheduled with P5. [Report](../bug_report/2026-11-02-housing-traits-ignore-cursed-moon-howlers.md).
+- **`coreCannotFit` is named the opposite of what it computes — open:** the guard is true when the guardian has a bed (short circuit) and false only when a guardian exists without a bed and a home fits the core, so its name and the stable-shortage rule disagree. Scheduled with P5. [Report](../bug_report/2026-11-02-housing-core-cannot-fit-name.md).
+- **Housing protection predicate counts what it is asked — open:** a query mutates `report.protectedUnits`, so asking twice about the same household double-counts and a read-only call changes the report. Scheduled with P5. [Report](../bug_report/2026-11-02-housing-protection-predicate-counts.md).
+- **The adult-child phase's vacancy list only shrinks — resolved:** the phase builds the set of empty homes once and only removes the chosen one, so a home vacated during the same phase is never offered to later candidates. Fixed in `fd63ad00`. [Report](../bug_report/2026-11-02-housing-adult-child-vacancy-list-stale.md).
+- **Housing trait `pairs` counts each couple twice — open:** adding the second partner increments `pairs` once for the mover and once for the existing occupant, so a house with one couple reads 2 while its comment says "occupants whose partner is a housemate". Scheduled with P5. [Report](../bug_report/2026-11-02-housing-pairs-double-count.md).
+- **Housing pickers trust caller-filtered residence lists — open:** the pickers filter only the manor and rival buildings, not `completed` or residence type, so a caller passing raw buildings can be given an unfinished site or a non-home. Scheduled with P5. [Report](../bug_report/2026-11-02-housing-pickers-trust-caller-lists.md).
+
+## 2026-11-02 — Second housing audit round
+
+- **Custody repair and adoption were gated by the housing-move heuristic — resolved:** routing custody through the homeless planner tied a minor following their custodian, and an orphan completing adoption, to whether the housing unit needed a move. [Report](../bug_report/2026-11-02-housing-custody-move-gate.md).
+- **A surplus eviction marked the vacated home visited and blocked rehousing — resolved:** leaving a home through a surplus eviction recorded the old home as visited, so the same run could not seat the evicted household there even after beds freed. [Report](../bug_report/2026-11-02-housing-surplus-visited-blocks-rehousing.md).
+- **Capacity surplus evicts a whole household for a one-bed excess — open:** when a residence is over capacity, the phase unhouses the whole selected unit instead of only the members above the cap, leaving empty beds and more homeless settlers than necessary. Scheduled with P5. [Report](../bug_report/2026-11-02-housing-surplus-evicts-whole-unit.md).
+- **A dead leader stays in office while an election is pending — open:** when the leader dies, the office can keep their id until the pending election resolves, so the simulation invariant "the leader references a living acting head" fails. Scheduled with P5. [Report](../bug_report/2026-11-02-leader-vacancy-dead-leader.md).

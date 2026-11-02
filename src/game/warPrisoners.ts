@@ -10,7 +10,7 @@ import { logDeath, logEvent } from './eventLog';
 import { killHuman } from './dayCycle';
 import { ensureEntityByIdMap } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
-import { moveResident, assignMissingResidences } from './residencyReconciliation';
+import { moveResident, assignMissingResidences } from './housingPipeline';
 import { applyLeaderHousePhase } from './leaderHouse';
 import { isPlayerHuman, playerHumanCount } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
@@ -62,7 +62,8 @@ export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, 
  * Called once by the authoritative prisoner or settled-raid transition.
  */
 export function applyWarCommunityReaction(state: WorldState,
-  choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string): void {
+  choice: 'release' | 'execution' | 'mercy' | 'tribute' | 'raze', rivalId: string,
+  context?: { brokeTreaty?: boolean }): void {
   const villagers = state.entities.filter((person) => person.alive && isPlayerHuman(person));
   let empathetic = 0;
   let fierce = 0;
@@ -76,8 +77,12 @@ export function applyWarCommunityReaction(state: WorldState,
     && report.resolvedAtTick <= state.tick && report.resolvedAtTick >= state.tick - 30 * TICKS_PER_DAY) ?? false;
   const underThreat = activeWar || recentAttack;
   const threatVoices = underThreat ? Math.ceil(villagers.length / 4) : 0;
+  // A war started by breaking a peace treaty lacks the public's "they threatened us" support.
+  const brokenPactVoices = context?.brokeTreaty ? Math.ceil(villagers.length / 3) : 0;
   const coercive = choice === 'execution' || choice === 'tribute' || choice === 'raze';
-  const sentiment = coercive ? fierce + threatVoices - empathetic : empathetic - fierce - threatVoices;
+  const sentiment = coercive
+    ? fierce + threatVoices - empathetic - brokenPactVoices
+    : empathetic - fierce - threatVoices + brokenPactVoices;
   const intensity = choice === 'tribute' ? 0.5 : 1;
   const opinion = sentiment === 0 ? 0 : Math.sign(sentiment) * Math.min(MAX_CUSTODY_OPINION_MERIT,
     Math.max(1, Math.round(MAX_CUSTODY_OPINION_MERIT * intensity * Math.abs(sentiment) / Math.max(1, villagers.length))));
@@ -86,7 +91,7 @@ export function applyWarCommunityReaction(state: WorldState,
     Math.min(CUSTODY_LEADERSHIP_LIMIT, (leader.battleLeadershipMerit ?? 0) + opinion));
   if (opinion !== 0) addReputation(state, opinion);
   logEvent(state, choice === 'release' || choice === 'execution' ? 'prison' : 'combat',
-    `Community reaction to ${choice}: ${empathetic} favor restraint, ${fierce} favor severity; ${underThreat ? 'recent attack or active war' : 'no recent attack or active war'}; leadership standing ${opinion > 0 ? '+' : ''}${opinion}.`);
+    `Community reaction to ${choice}: ${empathetic} favor restraint, ${fierce} favor severity; ${underThreat ? 'recent attack or active war' : 'no recent attack or active war'}${context?.brokeTreaty ? '; the war began by breaking a peace treaty' : ''}; leadership standing ${opinion > 0 ? '+' : ''}${opinion}.`);
 }
 
 /** Worker-authoritative prisoner decisions preserve identity and require willing, adult recruitment. */

@@ -1,6 +1,6 @@
 import { recordWarPrisonerOutcome } from './warPrisonerCustody';
-import { ensureOrphanAdoption, placeOrphanInHouse, relocateChildToCustodian } from './residencyReconciliation';
-import { moveResident } from './residencyReconciliation';
+import { ensureOrphanAdoption, placeOrphanInHouse, relocateChildToCustodian } from './housingPipeline';
+import { moveResident } from './housingPipeline';
 import type { Building, Entity, WorldState } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { EntityType } from './gameTypes';
@@ -9,11 +9,13 @@ import { recordGenealogyDeath } from './genealogyRegistry';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
 import { cleanupEntityDialogueState } from './humanChat';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { isMinorChild } from './householdComposition';
-import { hasResidenceAssignment } from './residencyOccupancy';
+import { isMinorChild } from './housingModel';
+import { hasResidenceAssignment } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
-import { isResidenceOccupantEntity, syncResidenceOccupants } from './residencyReconciliation';
-import { listPlayerResidences } from './residencySelection';
+import { syncResidenceOccupants } from './housingPipeline';
+import { isResidenceOccupantEntity } from './housingModel';
+
+import { listPlayerResidences } from './housingPipeline';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
 import type { ExactTraitContext } from './personality/traitEffectCatalog';
 

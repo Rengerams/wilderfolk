@@ -2,6 +2,7 @@ import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { PROFILE_REVISION, bumpRevision } from './entityRevision';
 import type { TraitContext } from './personality/traitEffectCatalog';
 
 export function getOccupationForBuilding(type: BuildingType): string {
@@ -18,6 +19,12 @@ export function ensureEntitySkills(entity: { skills?: Partial<Record<JobType, nu
     entity.skills = {};
   }
   return entity.skills;
+}
+
+/** The writable skill map: marks the profile revision so the worker ships it when it changes. */
+export function writableEntitySkills(entity: Entity): Partial<Record<JobType, number>> {
+  bumpRevision(entity, PROFILE_REVISION);
+  return ensureEntitySkills(entity);
 }
 
 export function readSkill(entity: { skills?: Partial<Record<JobType, number>> }, job: JobType): number {
@@ -56,14 +63,14 @@ export function gainSkill(
   // A supplied index is authoritative: an id it lacks is a stale slot, not a cue to scan the world.
   const human = entityById ? entityById.get(humanId) : state.entities.find((e) => e.id === humanId);
   if (!human || human.type !== EntityType.Human || human.isJuvenile || !human.alive) return;
-  const skills = ensureEntitySkills(human);
+  const skills = writableEntitySkills(human);
   skills[job] = Math.min(MAX_SKILL, (skills[job] ?? 0) + amount);
 }
 
 /** Apply a small decay to non-active job skills on calendar day rollover. */
 export function decayIdleSkills(entity: Entity, activeJob?: JobType, amount = SKILL_IDLE_DECAY_PER_DAY): void {
   if (entity.type !== EntityType.Human || !entity.alive || entity.isJuvenile) return;
-  const skills = ensureEntitySkills(entity);
+  const skills = writableEntitySkills(entity);
   for (const job of Object.values(JobType)) {
     if (job === activeJob) continue;
     const current = skills[job] ?? 0;

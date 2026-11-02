@@ -12,7 +12,7 @@ import {
   buildHousingUnits,
   housingUnitNeedsReassignment,
   pickResidenceForFamily,
-} from '../src/game/residencySelection';
+} from '../src/game/housingPipeline';
 
 /** A completed House through the production factory — no hand-built Building literal. */
 function residence(id: number): Building {

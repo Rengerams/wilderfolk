@@ -2,6 +2,7 @@ import type { Building, Entity } from '../gameTypes';
 import { BUILDING_JOB_TYPES, JobType } from '../gameTypes';
 import { HUMAN_ADULT_MIN_AGE } from '../daycycleconstants';
 import { isPlayerHumanShiftOwner } from '../playerHuman';
+import { PROFILE_REVISION, bumpRevision } from '../entityRevision';
 
 /** Compact, genuine worked shifts. One credit per person, profession and settled day. */
 export const MAX_CREDITED_DAYS = 65_535;
@@ -48,5 +49,6 @@ export function recordCareerWork(
   if (previous && (previous.lastDay >= day || previous.days >= MAX_CREDITED_DAYS)) return false;
   const history = worker.careerHistory ?? (worker.careerHistory = {});
   history[job] = { days: (previous?.days ?? 0) + 1, lastDay: day };
+  bumpRevision(worker, PROFILE_REVISION);
   return true;
 }

@@ -9,10 +9,6 @@ import { spendFood } from './economyLedger';
 import { addCappedResource } from './resourceUtils';
 import { TICKS_PER_DAY } from './dayCycle';
 
-function cloneWorldStateForAction(originalState: WorldState): WorldState {
-  return structuredClone(originalState);
-}
-
 type RivalRelationship = RivalSettlement['relationship'];
 
 const RELATIONSHIP_STEPS: RivalRelationship[] = ['tense', 'competitive', 'neutral', 'friendly'];
@@ -56,7 +52,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
 
   const eligibility = getRivalGiftEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    const state = cloneWorldStateForAction(originalState);
+    const state = structuredClone(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
@@ -64,7 +60,7 @@ export function sendRivalGift(originalState: WorldState, rivalId: string): World
     return state;
   }
 
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
   spendFood(state, 'gift', RIVAL_GIFT_FOOD_COST);
@@ -102,7 +98,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
 
   const eligibility = getRivalTradePactEligibility(originalState, rivalId);
   if (!eligibility.ok) {
-    const state = cloneWorldStateForAction(originalState);
+    const state = structuredClone(originalState);
     const rival = state.rivalSettlements.find((r) => r.id === rivalId);
     if (!rival) return state;
     const color = rivalPreview.relationship === 'friendly' ? '#94a3b8' : '#f97316';
@@ -110,7 +106,7 @@ export function establishRivalTradePact(originalState: WorldState, rivalId: stri
     return state;
   }
 
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
@@ -140,7 +136,7 @@ export function getShowStrengthEligibility(
 }
 
 export function showStrengthToRival(originalState: WorldState, rivalId: string): WorldState {
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
@@ -188,7 +184,7 @@ export function getPeaceTreatyEligibility(
 }
 
 export function signPeaceTreaty(originalState: WorldState, rivalId: string): WorldState {
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const rival = state.rivalSettlements.find((r) => r.id === rivalId);
   if (!rival) return state;
 
@@ -400,7 +396,7 @@ export function respondToDiplomacyEvent(
   eventId: string,
   choiceId: string,
 ): WorldState {
-  const state = cloneWorldStateForAction(originalState);
+  const state = structuredClone(originalState);
   const idx = state.pendingDiplomacyEvents?.findIndex((e) => e.id === eventId) ?? -1;
   if (idx < 0) return state;
 

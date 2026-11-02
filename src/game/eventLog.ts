@@ -3,6 +3,7 @@ import { isPlayerHuman } from './playerHuman';
 import { BuildingType } from './buildings';
 import type { CombatLogKind, CombatLogStage, GameEventLog, WorldState } from './gameTypes';
 import { addNotification } from './simEffects';
+import { bumpHistoryRevision } from './historyRevisions';
 
 let nextEventLogId = 1;
 
@@ -88,6 +89,7 @@ export function logDeath(
     tick: state.tick,
     deceasedId: deceased?.id,
   });
+  bumpHistoryRevision(state, 'graveRecords');
   assignPendingGraves(state);
 }
 
@@ -111,15 +113,18 @@ export function assignPendingGraves(state: WorldState): void {
       capacity.set(grave.graveyardId, Math.max(0, capacity.get(grave.graveyardId)! - 1));
     }
   }
+  let assigned = 0;
   for (const grave of graves) {
     if (grave.faction !== 'player' || grave.graveyardId != null) continue;
     for (const [id, spaces] of capacity) {
       if (spaces <= 0) continue;
       grave.graveyardId = id;
       capacity.set(id, spaces - 1);
+      assigned += 1;
       break;
     }
   }
+  if (assigned > 0) bumpHistoryRevision(state, 'graveRecords');
 }
 
 /** Legacy fallback for saves logged before combatKind existed. */

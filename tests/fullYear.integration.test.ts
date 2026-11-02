@@ -36,7 +36,7 @@ import {
   setRelationshipDiagnosticsEnabled,
 } from '../src/game/relationshipDiagnostics';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
-import { isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
+import { isResidenceOccupantEntity } from '../src/game/housingModel';
 
 const SEED = 12345;
 const FULL_YEAR_TICKS = DAYS_PER_YEAR * TICKS_PER_DAY;

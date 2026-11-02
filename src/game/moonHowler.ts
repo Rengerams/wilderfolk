@@ -1,4 +1,4 @@
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import { BuildingType, EntityType, JobType, LEADER_OCCUPATION } from './gameTypes';
 import type { Building, Entity, EntityByType, WorldState } from './gameTypes';
 import {

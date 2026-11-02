@@ -6,15 +6,20 @@ import {
   isWorkDay,
 } from './dayCycleClock';
 import { personDayRoll } from './simRng';
-import { isNearResidence } from './residencyOccupancy';
+import { isNearResidence } from './housingModel';
+import {
+  DEFAULT_WORK_END_HOUR,
+  DEFAULT_WORK_SCHEDULE,
+  DEFAULT_WORK_START_HOUR,
+  type WorkSchedule,
+} from './workSchedule';
 import type { Building, Entity } from './gameTypes';
 
-/** Legacy window start (07:00); the shipped default work schedule (07–16) also starts here. */
-export const WORK_START = 7;
-/** Legacy window end, exclusive (18:00) — not the shipped default (07–16), but still read directly
- *  by school hours, town-hall hours, work-sound detection and the renderer. */
-export const WORK_END = 18;
-/** Evening/home transition hour — a fixed clock hour, independent of the work window. */
+/** Shipped default work start (07:00). */
+export const WORK_START = DEFAULT_WORK_START_HOUR;
+/** Shipped default work end, exclusive (16:00). */
+export const WORK_END = DEFAULT_WORK_END_HOUR;
+/** Evening/home transition hour — fixed, independent of the work window. */
 export const EVENING_START = 18;
 /** Tavern service window, inclusive start and exclusive end. */
 export const TAVERN_SHIFT_START = 17;
@@ -22,18 +27,14 @@ export const TAVERN_SHIFT_END = 23;
 /** Festival gathering window for realtime movement. */
 export const FESTIVAL_GATHER_START = 15;
 export const FESTIVAL_GATHER_END = 23;
-/** Legacy 07–18 hours per weekday (11); school hours are defined in education.ts. */
+/** Default 07–16 hours per weekday (9). */
 export const WORK_HOURS_PER_DAY = WORK_END - WORK_START;
 
 /** A work-day window (start inclusive, end exclusive). */
-export interface DayWindow {
-  startHour: number;
-  endHour: number;
-}
+export type DayWindow = WorkSchedule;
 
-/** Legacy fixed 07–18 window — the fallback for `isWorkHourFor`, and read directly by the school,
- *  town-hall and renderer paths that take no schedule. */
-export const LEGACY_WINDOW: DayWindow = { startHour: WORK_START, endHour: WORK_END };
+/** Compatibility alias for the shipped default window. */
+export const LEGACY_WINDOW: DayWindow = DEFAULT_WORK_SCHEDULE;
 
 export function buildWorkHours(buildDays: number): number {
   return Math.max(WORK_HOURS_PER_DAY, Math.round(buildDays * WORK_HOURS_PER_DAY));

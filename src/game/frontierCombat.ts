@@ -19,28 +19,14 @@ import { unindexEntityFromState } from './entityIndex';
 import { applyWarCommunityReaction, captureRaidPrisoners } from './warPrisoners';
 import { isSettlementDestroyed, beginRaidRecovery, rememberRivalDisposition } from './raidAftermath';
 import { normalizeRivalProfile } from './rivalProfiles';
-
-/**
- * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
- * else the map centre.
- *
- * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
- * lines it draws must leave from the same point the simulated raid is marching to, and the two used
- * to disagree (`tests/villageAnchor.singleOwner.test.ts`). Re-exported through this module because
- * `frontierCombat` is where the simulation has always read it from, and `gameEngine.ts` is the
- * public surface that re-exports it from here.
- */
 export { getPlayerCampCenter, getPlayerCampCenterFromBuildings, getPlayerSettlerCenter };
-
 import { BARRICADE_RAID_COST, formatResourceCostNeed, canAffordResourceCost } from './resourceCost';
 import { getSimRng } from './simRng';
 import { addCappedResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { addBigNews, addFloatingText } from './simEffects';
 import { addReputation, getReputationBand } from './simHelpers';
-
 export type { RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
-
 export const RAID_BATTLE_HOURS = 6;
 const RAID_MERIT_REPEAT_COOLDOWN_DAYS = 30;
 const RIVAL_RAZE_INTENT_CHANCE = 0.15;
@@ -62,10 +48,13 @@ export function hasMilitiaWeapons(state: WorldState): boolean {
   return hasIronSwords(state) || hasIronSpears(state) || hasStoneSpears(state);
 }
 
-/** Elapsed share of the two-hour automatic text battle, for the raid UI. */
-export function getOutgoingBattleProgressPercent(event: OutgoingRaidEvent, tick: number): number {
+/** Elapsed share of a raid battle, for the raid UI; both sides share the same clock. */
+export function getBattleProgressPercent(
+  event: { phase?: OutgoingRaidEvent['phase'] | RaidEvent['phase']; battleStartedAtTick?: number },
+  tick: number,
+): number {
   if (event.phase === 'returning') return 100;
-  if (event.phase !== 'fighting' || event.battleStartedAtTick == null) return 0;
+  if (event.phase === 'marching' || event.phase === 'engaging' || event.battleStartedAtTick == null) return 0;
   const elapsed = Math.max(0, tick - event.battleStartedAtTick);
   return Math.min(100, Math.round(elapsed / (RAID_BATTLE_HOURS * TICKS_PER_HOUR) * 100));
 }
@@ -101,11 +90,6 @@ export function getIncomingRaidExpireTicks(distancePixels: number): number {
   return getIncomingRaidResponseDays(getCampDistanceTiles(distancePixels)) * TICKS_PER_DAY;
 }
 
-/**
- * When a raid expires. A legacy save that carries neither field yields `NaN` — a genuinely unknown
- * deadline, expressed *here* rather than by a wrapper at the call site, so both raid cards render the
- * same thing (duplication A16).
- */
 export function getRaidExpiresAtTick(evt: Pick<RaidEvent, 'expiresAtTick' | 'createdAtTick'>): number {
   if (evt.expiresAtTick != null) return evt.expiresAtTick;
   if (evt.createdAtTick == null) return Number.NaN;
@@ -190,15 +174,6 @@ export const RAID_GROWTH_BASE_ADULTS = 8;
 
 /** Ceiling on one raid's prize, in the same units as `getRaidGrowthScale` — the prize rides the raid. */
 export const RAID_LOOT_MAX_SCALE = 3.5;
-
-/**
- * Raid pressure as a multiple of the camp's own war-band: a village of `RAID_GROWTH_BASE_ADULTS` is
- * raided at the camp's raw strength, and every further band of adults scales the raid with it.
- *
- * Linear is deliberate and pinned by `tests/frontierCombat.raidGold.test.ts`: militia strength grows
- * with the same adults, so the ratio — and therefore `resolveDefenseRatio`'s tier — stays flat and
- * growth never turns a raid into a walkover. Escalation comes from the camp's own growth instead.
- */
 export function getRaidGrowthScale(adultCount: number): number {
   const adults = Number.isFinite(adultCount) ? Math.max(0, adultCount) : 0;
   return Math.max(1, adults / RAID_GROWTH_BASE_ADULTS);
@@ -247,17 +222,6 @@ export function getOutgoingRaidFoodCostForRival(state: WorldState, rival: RivalS
     getRaidParticipants(state, state.entities, 'outgoing').length,
   );
 }
-
-/**
- * The village anchor: completed player Town Hall, else House, else the living player settlers' mean,
- * else the map centre.
- *
- * The rule itself lives in `villageAnchor.ts`, which the renderer imports as well — the raid march
- * lines it draws must leave from the same point the simulated raid is marching to, and the two used
- * to disagree (`tests/villageAnchor.singleOwner.test.ts`). The import at the top of this file is
- * re-exported because `frontierCombat` is where the simulation has always read the anchor from, and
- * `gameEngine.ts` is the public surface that re-exports it from here.
- */
 
 export function isRaidMarchingForRival(state: WorldState, groupId: string): boolean {
   return (state.pendingRaidEvents ?? []).some((r) => r.rivalId === groupId);
@@ -351,8 +315,6 @@ export function canLaunchRaidOnRival(
   if ((state.pendingRaidVictories ?? []).some((pending) => pending.rivalId === rival.id)) {
     return { ok: false, foodCost, blockReason: 'Decide this settlement’s fate after the previous victory' };
   }
-  if (isRivalAtPeace(rival)) return { ok: false, foodCost, blockReason: 'At peace' };
-  if (rival.relationship === 'friendly') return { ok: false, foodCost, blockReason: 'Friendly relations' };
   if (getRaidParticipants(state, state.entities, 'outgoing').length === 0) return { ok: false, foodCost, blockReason: 'No available soldiers' };
   if (!hasMilitiaWeapons(state)) {
     return { ok: false, foodCost, blockReason: 'Need weapons (stone/iron spears or swords)' };
@@ -381,7 +343,6 @@ export function canProvokeRival(
 ): { ok: boolean; blockReason?: string } {
   if (!state.rivalSettlements.some((r) => r.id === rival.id)) return { ok: false, blockReason: 'No such rival' };
   if (rival.atWarWithPlayer) return { ok: false, blockReason: 'Already at war' };
-  if (isRivalAtPeace(rival)) return { ok: false, blockReason: 'Peace treaty still active' };
   return { ok: true };
 }
 
@@ -397,6 +358,7 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
   }
 
   rival.relationship = 'tense';
+  const brokeTreaty = isRivalAtPeace(rival);
   rival.atWarWithPlayer = true;
   rival.peaceTreatyDays = 0;
   rival.raidCooldownDays = Math.max(rival.raidCooldownDays, PROVOKE_RAID_COOLDOWN_DAYS);
@@ -405,14 +367,18 @@ export function provokeRival(originalState: WorldState, rivalId: string): WorldS
   addFloatingText(state, rival.campX, rival.campY - 20, '⚠️ Hostility declared', '#f87171');
   addBigNews(
     state,
-    '⚔️ War declared',
-    `${state.villageName} sent ${rival.name} a war challenge — they will answer it.`,
+    brokeTreaty ? '⚔️ Treaty broken' : '⚔️ War declared',
+    brokeTreaty
+      ? `${state.villageName} broke its peace treaty with ${rival.name} — they will answer it.`
+      : `${state.villageName} sent ${rival.name} a war challenge — they will answer it.`,
     'negative',
   );
   logEvent(
     state,
     'combat',
-    `Declared war on ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
+    brokeTreaty
+      ? `Broke the peace treaty with ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`
+      : `Declared war on ${rival.name} — relations turn tense, reputation -${PROVOKE_REPUTATION_COST}`,
     rival.name,
     'outgoing_raid',
     'challenge',
@@ -1151,7 +1117,23 @@ export function tickPendingRaidEvents(
   for (const event of [...state.pendingRaidEvents]) {
     if (event.phase !== 'fighting') continue;
     const elapsed = state.tick - (event.battleStartedAtTick ?? state.tick);
-    if (elapsed >= RAID_BATTLE_HOURS * TICKS_PER_HOUR / 2) {
+    const battleTicks = RAID_BATTLE_HOURS * TICKS_PER_HOUR;
+    const outlook = resolveDefenseRatio(event.defenseStrength ?? 0, event.attackerStrength);
+    event.battleMilestones ??= [];
+    for (const fraction of [0.2, 0.4, 0.6, 0.8]) {
+      if (elapsed < battleTicks * fraction || event.battleMilestones.includes(fraction)) continue;
+      event.battleMilestones.push(fraction);
+      const holding = outlook === 'decisive' || outlook === 'narrow';
+      const message = outlook === 'defeat'
+        ? `The raiders gain ground at the ${Math.round(fraction * 6)}-hour mark; the village line is buckling.`
+        : outlook === 'stalemate'
+          ? `The ${Math.round(fraction * 6)}-hour mark passes — the line bends, but it does not break.`
+          : holding
+            ? `The ${Math.round(fraction * 6)}-hour mark passes — the village line is holding.`
+            : `The ${Math.round(fraction * 6)}-hour mark passes — the fight hangs in the balance.`;
+      logEvent(state, 'combat', message, event.rivalName, 'defense', 'dispatched');
+    }
+    if (elapsed >= battleTicks / 2) {
       const outcome = resolveDefenseRatio(event.defenseStrength ?? 0, event.attackerStrength);
       resolveIncomingRaidCasualties(state, event, state.entities,
         outcome === 'decisive' ? 'victory' : outcome === 'narrow' ? 'costly' : outcome === 'stalemate' ? 'moderate' : 'heavy');
@@ -1592,13 +1574,14 @@ function resolveOutgoingRaidCombat(
         rivalName: rival.name,
         playerDead: playerDeaths,
         credibleThreat: event.attackerStrength <= event.defenderStrength * 4,
+        brokeTreaty: event.brokeTreaty === true,
         enemyDead: enemyDeaths,
         enemySurvivors: rival.population,
         playerCasualties,
         enemyCasualties: livingEnemyBefore.filter((person) => !person.alive).map((person) => formatCitizenName(person)),
       }];
     }
-    addBigNews(state, '⚖️ Rival settlement surrendered', `Decide whether to spare, demand terms from, or raze ${rival.name}. ${rival.population} people remain.`, 'positive');
+    addBigNews(state, '⚖️ Rival settlement surrendered', `Decide whether to spare, demand terms from, or exterminate ${rival.name}. ${rival.population} people remain.`, 'positive');
     const victoryTitle = '🏆 War-band returns victorious';
     const victoryMessage = `${verb} against ${rival.name}: ${enemyDeaths} enemy dead, ${playerDeaths} of our people lost. ${rival.population} rival inhabitants remain. ${lootNote ? `Spoils: ${lootNote}.` : 'No supplies recovered.'}`;
     addBigNews(state, victoryTitle, victoryMessage, 'positive');
@@ -1891,6 +1874,33 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   const { verb } = isCounterRaid
     ? { verb: 'Counter-raid' }
     : getOutgoingRaidActionLabel(state, rivalId);
+  const attackedAtPeace = isRivalAtPeace(rival);
+  const attackedFriendly = rival.relationship === 'friendly';
+  const brokeTreaty = attackedAtPeace || attackedFriendly;
+  if (brokeTreaty) {
+    rival.relationship = 'tense';
+    rival.atWarWithPlayer = true;
+    rival.peaceTreatyDays = 0;
+    addReputation(state, -PROVOKE_REPUTATION_COST);
+    addBigNews(
+      state,
+      attackedAtPeace ? '⚔️ Treaty broken' : '⚔️ Peaceful neighbour attacked',
+      attackedAtPeace
+        ? `${state.villageName} launched a raid on ${rival.name} despite the peace treaty.`
+        : `${state.villageName} launched an unprovoked raid on friendly ${rival.name}.`,
+      'negative',
+    );
+    logEvent(
+      state,
+      'combat',
+      attackedAtPeace
+        ? `Broke the peace treaty with ${rival.name} by marching on their camp — reputation -${PROVOKE_REPUTATION_COST}`
+        : `Attacked friendly ${rival.name} without provocation — reputation -${PROVOKE_REPUTATION_COST}`,
+      rival.name,
+      'outgoing_raid',
+      'dispatched',
+    );
+  }
 
   spendFood(state, 'raid', raidFoodCost);
   const attackerStrength = getMilitiaStrength(state, state.entities);
@@ -1906,6 +1916,7 @@ export function launchRaidOnRival(originalState: WorldState, rivalId: string): W
   const soldierIds = getRaidParticipants(state, state.entities, 'outgoing').map((person) => person.id);
   const event: OutgoingRaidEvent = {
     phase: 'marching',
+    brokeTreaty,
     soldierIds,
     launchedAtTick: state.tick,
     arrivalAtTick: state.tick + responseDays * TICKS_PER_DAY,
@@ -1972,7 +1983,8 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
   const eligibleForCivicResponse = pending.credibleThreat !== false && (rival.lastDispositionRewardTick == null
     || state.tick - rival.lastDispositionRewardTick >= RAID_MERIT_REPEAT_COOLDOWN_DAYS * TICKS_PER_DAY);
   if (eligibleForCivicResponse) {
-    applyWarCommunityReaction(state, choice as 'mercy' | 'tribute' | 'raze', rival.id);
+    applyWarCommunityReaction(state, choice as 'mercy' | 'tribute' | 'raze', rival.id,
+      { brokeTreaty: pending.brokeTreaty === true });
     rival.lastDispositionRewardTick = state.tick;
   }
   const report = state.raidBattleReports?.find((entry) => entry.raidId === pending.raidId);
@@ -2011,19 +2023,25 @@ export function resolveRaidVictory(originalState: WorldState, raidId: string, ch
       }
     }
     const personIds = new Set(rival.entityIds);
+    const killed = Math.max(0, rival.population);
     for (const person of state.entities) if (personIds.has(person.id)) {
-      person.departedAlive = true;
+      person.alive = false;
+      person.departedAlive = false;
       unindexEntityFromState(state, person.id);
     }
     state.entities = state.entities.filter((person) => !personIds.has(person.id));
     demolishBuildingsInPlace(state, rival.buildingIds, 'raid');
-    if (report) report.refugees = rival.population;
+    rival.population = 0;
+    if (report) {
+      report.refugees = 0;
+      report.enemyDeaths += pending.enemySurvivors;
+    }
     cancelPendingRaidsForRival(state, rival.id);
     cancelPendingOutgoingRaidsForRival(state, rival.id);
     state.pendingDiplomacyEvents = (state.pendingDiplomacyEvents ?? []).filter((entry) => entry.rivalId !== rival.id);
     state.rivalSettlements = state.rivalSettlements.filter((entry) => entry.id !== rival.id);
     state.pendingRaidVictories = state.pendingRaidVictories?.filter((entry) => entry.rivalId !== rival.id);
-    logEvent(state, 'combat', `Razed ${rival.name} after its surrender — ${pending.enemySurvivors} surviving inhabitants fled as displaced people; ${witnesses.length} neighboring settlements witnessed the destruction.`, rival.name, 'outgoing_raid', 'resolved');
+    logEvent(state, 'combat', `Exterminated ${rival.name} after its surrender — all ${killed} surviving inhabitants were killed; no one was released. ${witnesses.length} neighboring settlements witnessed the destruction.`, rival.name, 'outgoing_raid', 'resolved');
   }
   return state;
 }

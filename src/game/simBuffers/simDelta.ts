@@ -1,17 +1,15 @@
 import type { WorldState, Entity, Building } from '../gameTypes';
+import { isStaticPropEntity } from '../gameTypes';
 import { getWorkSchedule } from '../workSchedule';
 import { getVenueSchedule } from '../venueSchedule';
 import { getWorkforcePolicy, normalizeWorkforcePolicy } from '../workforcePolicy';
 import { EVENT_LOG_MAX_ENTRIES } from '../eventLog';
-import { EntityType } from '../gameTypes';
-import type { SimulationFocus } from '../simFocus';
-import type { EntityRenderMeta } from './entityRenderMeta';
-import { packRenderMetaForPacked } from './entityRenderMeta';
-import { selectRenderEntities } from './packRenderSoA';
-import { RENDER_MAX_SLOTS } from './schema';
+import { HISTORY_FAMILIES, snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
+import { rebakeTerrainGrids, setTileOverride, takeTerrainPatches, type TerrainTilePatch } from '../terrain/terrainGrid';
+import { bumpTerrainRevision } from '../terrainLayer';
 import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
-export const SIM_DELTA_PROTO = 1;
+export const SIM_DELTA_PROTO = 6;
 
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
@@ -91,7 +89,17 @@ export interface SimTickDelta {
   buildings?: Building[];
   changedBuildings?: Building[];
   removedBuildingIds?: number[];
+  /** True when building geometry changed (or a building was removed), so caches must rebuild. */
+  buildingGeometryChanged?: boolean;
+  /** Tiles a command patched (ground reinforcement, forest clearing), applied to the replica map. */
+  terrainPatches?: TerrainTilePatch[];
   aliveEntities: Entity[];
+  /** Static decor added since the last delta; unchanged props stay on the replica. */
+  staticEntities?: Entity[];
+  /** Static decor ids removed from the world; the replica drops them. */
+  removedStaticEntityIds?: number[];
+  /** True when props are authoritative and omitted from `aliveEntities` (static channel active). */
+  staticPropsResolved?: boolean;
   eventLogTail: WorldState['eventLog'];
   graveRecords?: WorldState['graveRecords'];
   genealogyRegistry?: WorldState['genealogyRegistry'];
@@ -150,8 +158,6 @@ export interface SimTickDelta {
   renffrChatterUntilTick: number;
   lastProcessedCalendarDay: number;
   lastWildlifeReplenishLogDay: number;
-  renderMetaBySlot?: EntityRenderMeta[];
-  catalogEntities?: Entity[];
   storyFlags: WorldState['storyFlags'];
   pendingStoryEvents: NonNullable<WorldState['pendingStoryEvents']>;
   guidedCampaign: WorldState['guidedCampaign'];
@@ -165,14 +171,14 @@ export interface SimTickDelta {
 export type SimDeltaCloneMode = 'isolated' | 'transfer';
 
 export interface ExtractSimTickDeltaOptions {
-  renderPacked?: Entity[];
-  focus?: SimulationFocus;
-  headless?: boolean;
   cloneMode?: SimDeltaCloneMode;
   prevBuildings?: ReadonlyMap<number, string> | null;
   nextBuildings?: Map<number, string>;
-  prevHistories?: ReadonlyMap<string, string | undefined> | null;
-  nextHistories?: Map<string, string | undefined>;
+  /** Geometry signature per building; whether it changed decides cache retention on the host. */
+  prevBuildingGeometry?: ReadonlyMap<number, string> | null;
+  nextBuildingGeometry?: Map<number, string>;
+  prevHistoryRevisions?: HistoryRevisions | null;
+  previousEventHeadId?: WorldState['eventLog'][number]['id'];
 }
 
 export interface ApplySimTickDeltaOptions {
@@ -190,6 +196,13 @@ function deltaCloneOptional<T>(value: T | null | undefined, mode: SimDeltaCloneM
 
 function buildingFingerprint(building: Building): string {
   return JSON.stringify(building);
+}
+
+/** The fields the derived geometry caches (road avoidance, adjacency, beauty) depend on. */
+function buildingGeometryKey(building: Building): string {
+  return `${building.id}|${building.type}|${building.x}|${building.y}|${building.width}`
+    + `|${building.height}|${building.rotation ?? 0}|${building.completed ? 1 : 0}`
+    + `|${building.faction ?? ''}`;
 }
 
 export function simTickDeltaFromWorld(world: WorldState): SimTickDelta {
@@ -223,35 +236,46 @@ export function extractSimTickDelta(
     }
   }
 
-  const headless = options?.headless ?? false;
   const cloneMode = options?.cloneMode ?? 'isolated';
 
-  const renderPacked = headless
-    ? undefined
-    : options?.renderPacked
-      ?? selectRenderEntities(aliveNow, RENDER_MAX_SLOTS, options?.focus).packed;
-
-  const eventLogTail = world.eventLog.slice(0, EVENT_LOG_DELTA_TAIL_MAX);
+  const previousEventIndex = options?.previousEventHeadId == null
+    ? -1
+    : world.eventLog.findIndex((event) => event.id === options.previousEventHeadId);
+  const eventLogTail = world.eventLog.slice(
+    0,
+    previousEventIndex >= 0 ? previousEventIndex : EVENT_LOG_DELTA_TAIL_MAX,
+  );
 
   const prevBuildings = options?.prevBuildings;
+  const prevBuildingGeometry = options?.prevBuildingGeometry;
   let changedBuildings: Building[] | undefined;
   let removedBuildingIds: number[] | undefined;
+  let buildingGeometryChanged: boolean | undefined;
 
   if (prevBuildings || options?.nextBuildings) {
     changedBuildings = [];
     removedBuildingIds = [];
+    buildingGeometryChanged = false;
     const currentIds = new Set<number>();
     for (const building of world.buildings) {
       currentIds.add(building.id);
       const fingerprint = buildingFingerprint(building);
       options?.nextBuildings?.set(building.id, fingerprint);
+      const geometry = buildingGeometryKey(building);
+      options?.nextBuildingGeometry?.set(building.id, geometry);
+      if (prevBuildingGeometry && prevBuildingGeometry.get(building.id) !== geometry) {
+        buildingGeometryChanged = true;
+      }
       const prev = prevBuildings?.get(building.id);
       if (prev !== fingerprint) {
         changedBuildings.push(building);
       }
     }
     for (const id of prevBuildings?.keys() ?? []) {
-      if (!currentIds.has(id)) removedBuildingIds.push(id);
+      if (!currentIds.has(id)) {
+        removedBuildingIds.push(id);
+        buildingGeometryChanged = true;
+      }
     }
   }
 
@@ -384,26 +408,144 @@ export function extractSimTickDelta(
   if (changedBuildings) {
     delta.changedBuildings = deltaClone(changedBuildings, cloneMode);
     delta.removedBuildingIds = removedBuildingIds;
+    delta.buildingGeometryChanged = buildingGeometryChanged;
   } else {
     delta.buildings = deltaClone(world.buildings, cloneMode);
   }
 
-  if (!headless && renderPacked) {
-    delta.renderMetaBySlot = packRenderMetaForPacked(renderPacked);
-    delta.catalogEntities = deltaClone(aliveNow.filter((e) => e.type === EntityType.Human), cloneMode);
-  }
+  const terrainPatches = takeTerrainPatches(world.worldMap);
+  if (terrainPatches.length > 0) delta.terrainPatches = terrainPatches;
 
-  if (options?.prevHistories || options?.nextHistories) {
-    for (const key of ['graveRecords', 'populationHistory', 'yearlyStats', 'chronicleChapters', 'villageRequestHistory', 'genealogyRegistry'] as const) {
-      const fingerprint = JSON.stringify(delta[key]);
-      options?.nextHistories?.set(key, fingerprint);
-      if (options?.prevHistories?.has(key) && options.prevHistories.get(key) === fingerprint) {
-        delete delta[key];
-      }
+  if (options?.prevHistoryRevisions) {
+    // Histories cross the boundary only when their owner bumped the revision, so the per-tick
+    // JSON fingerprint over grave and genealogy history disappears from the worker loop.
+    const currentRevisions = snapshotHistoryRevisions(world);
+    const previousRevisions = options.prevHistoryRevisions;
+    const deltaRecord = delta as unknown as Record<string, unknown>;
+    for (const family of HISTORY_FAMILIES) {
+      if (previousRevisions[family] === currentRevisions[family]) delete deltaRecord[family];
     }
   }
 
   return delta;
+}
+
+/** Apply a command's tile patches to the replica map and rebake the affected terrain region. */
+function applyTerrainPatches(world: WorldState, patches: readonly TerrainTilePatch[] | undefined): void {
+  const map = world.worldMap;
+  if (!map || !patches || patches.length === 0) return;
+  let startTx = Infinity;
+  let endTx = -1;
+  let startTy = Infinity;
+  let endTy = -1;
+  for (const patch of patches) {
+    setTileOverride(map, patch.tx, patch.ty, patch.tile);
+    if (patch.tx < startTx) startTx = patch.tx;
+    if (patch.tx > endTx) endTx = patch.tx;
+    if (patch.ty < startTy) startTy = patch.ty;
+    if (patch.ty > endTy) endTy = patch.ty;
+  }
+  if (endTx < 0) return;
+  rebakeTerrainGrids(map, { startTx, endTx, startTy, endTy });
+  bumpTerrainRevision();
+}
+
+const RELATIONSHIP_FIELDS = ['friendships', 'feuds', 'feudPeaks'] as const;
+
+/**
+ * Replace a delta entity with a copy that omits `fields` when the replica already holds them;
+ * `include` records the revision for entities that do ship. The live entity is never mutated.
+ */
+function stripCoveredFields(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  covered: (id: number, revision: number) => boolean,
+  include: (id: number, revision: number) => void,
+  fields: readonly string[],
+): void {
+  const entities = delta.aliveEntities;
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    const revision = revisionsById.get(entity.id) ?? 0;
+    if (covered(entity.id, revision)) {
+      const sparse = { ...entity };
+      for (const field of fields) delete (sparse as Record<string, unknown>)[field];
+      entities[i] = sparse;
+    } else {
+      include(entity.id, revision);
+    }
+  }
+}
+
+/**
+ * Drop relationship records the replica already holds: the maps are the bulk of the entity payload
+ * and change on a minority of settlers per tick.
+ */
+export function stripUnchangedRelationships(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, number>,
+): void {
+  stripCoveredFields(
+    delta,
+    revisionsById,
+    (id, revision) => sent.get(id) === revision,
+    (id, revision) => sent.set(id, revision),
+    RELATIONSHIP_FIELDS,
+  );
+}
+
+/**
+ * Move static decor out of the per-tick entity roster: props the replica already holds stay there,
+ * new ones ship once, felled ones ship as ids. `sent` is the prop roster the replica has.
+ */
+export function splitStaticProps(delta: SimTickDelta, sent: Set<number>): void {
+  const entities = delta.aliveEntities;
+  const props: Entity[] = [];
+  const rest: Entity[] = [];
+  for (const entity of entities) {
+    if (isStaticPropEntity(entity)) props.push(entity);
+    else rest.push(entity);
+  }
+  const current = new Set(props.map((entity) => entity.id));
+  const added = props.filter((entity) => !sent.has(entity.id));
+  const removed: number[] = [];
+  for (const id of sent) {
+    if (!current.has(id)) removed.push(id);
+  }
+  sent.clear();
+  for (const id of current) sent.add(id);
+  delta.aliveEntities = rest;
+  delta.staticPropsResolved = true;
+  if (added.length > 0) delta.staticEntities = added;
+  if (removed.length > 0) delta.removedStaticEntityIds = removed;
+}
+
+/** Profile fields the replica reads but the simulation writes rarely (bounded by a refresh). */
+const PROFILE_FIELDS = [
+  'skills', 'traits', 'careerHistory', 'careerMilestones', 'childhoodFriendsIds', 'battleLeadershipAwards',
+] as const;
+
+/** Re-ship profile fields at least this often, so a missed writer can only be briefly stale. */
+export const PROFILE_REFRESH_TICKS = 240;
+
+/** Drop profile fields the replica already holds (or refreshed recently). */
+export function stripUnchangedProfile(
+  delta: SimTickDelta,
+  revisionsById: ReadonlyMap<number, number>,
+  sent: Map<number, { revision: number; tick: number }>,
+  tick: number,
+): void {
+  stripCoveredFields(
+    delta,
+    revisionsById,
+    (id, revision) => {
+      const last = sent.get(id);
+      return !!last && last.revision === revision && tick - last.tick < PROFILE_REFRESH_TICKS;
+    },
+    (id, revision) => sent.set(id, { revision, tick }),
+    PROFILE_FIELDS,
+  );
 }
 
 export function applySimTickDelta(
@@ -577,12 +719,31 @@ export function applySimTickDelta(
     consumed: { ...sample.consumed },
   }));
 
-  world.entities = deltaClone(delta.aliveEntities, cloneMode);
+  const previousById = new Map<number, Entity>();
+  for (const entity of world.entities) previousById.set(entity.id, entity);
+  const merged = delta.aliveEntities.map((entity) => {
+    const next = deltaClone(entity, cloneMode);
+    const previous = previousById.get(next.id);
+    return previous ? { ...previous, ...next } : next;
+  });
+  const mergedIds = new Set(merged.map((entity) => entity.id));
+  if (delta.staticPropsResolved) {
+    const removed = new Set(delta.removedStaticEntityIds ?? []);
+    const propsById = new Map<number, Entity>();
+    for (const entity of world.entities) {
+      if (isStaticPropEntity(entity) && entity.alive && !removed.has(entity.id) && !mergedIds.has(entity.id)) {
+        propsById.set(entity.id, entity);
+      }
+    }
+    for (const entity of delta.staticEntities ?? []) {
+      propsById.set(entity.id, deltaClone(entity, cloneMode));
+    }
+    merged.push(...propsById.values());
+  }
+  world.entities = merged;
+  applyTerrainPatches(world, delta.terrainPatches);
 
-  // aliveEntities is already a complete authoritative entity snapshot.
-  // catalogEntities contains the same humans from that snapshot, so patching
-  // them again deep-cloned their skills, traits and friendships each tick.
-  // No second catalog patch pass is necessary.
+  // The authoritative alive snapshot is the sole entity delta payload.
 
   if (delta.eventLogTail.length > 0) {
     const existingIds = new Set(world.eventLog.map((e) => e.id));

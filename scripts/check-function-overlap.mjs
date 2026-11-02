@@ -55,7 +55,7 @@ function neighbors(tokens) {
   return tokens.slice(1).map((token, index) => tokens[index] + '\u0000' + token);
 }
 
-function extractFact(fn, sources) {
+export function extractFact(fn, sources) {
   const src = sources.get(fn.file);
   if (src === undefined) throw new Error('Missing source file in graph: ' + fn.file);
   if (!Number.isInteger(fn.bodyEnd) || !Number.isInteger(fn.bodyStart)) {

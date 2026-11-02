@@ -5,11 +5,7 @@
  */
 import type { BuildingType } from './buildings';
 import { BuildingType as BT } from './buildings';
-
-function seeded(n: number): number {
-  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
-}
+import { seeded } from './renderer/shared';
 
 /** Draw a decor building centered on its footprint box. */
 export function drawProceduralDecor(

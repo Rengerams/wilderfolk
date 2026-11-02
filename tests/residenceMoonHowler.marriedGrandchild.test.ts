@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Entity } from '../src/game/gameTypes';
 import { EntityType } from '../src/game/gameTypes';
-import { collectLeaderDescendants } from '../src/game/householdComposition';
-import { buildResidenceOccupancy, countResidentsInBuilding, isResidenceOccupantEntity } from '../src/game/residencyOccupancy';
+import { collectLeaderDescendants } from '../src/game/housingModel';
+import { buildResidenceOccupancy, countResidentsInBuilding, isResidenceOccupantEntity } from '../src/game/housingModel';
 
 const human = (id: number, extra: Partial<Entity> = {}): Entity => ({
   id, type: EntityType.Human, alive: true, name: `P${id}`, age: 30,

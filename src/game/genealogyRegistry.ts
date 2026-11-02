@@ -3,6 +3,7 @@ import { EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 
 import type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
+import { bumpHistoryRevision } from './historyRevisions';
 export type { GenealogyRegistry, GenealogyPerson } from './genealogyTypes';
 
 function recordedHuman(entity: Entity): boolean {
@@ -58,6 +59,7 @@ export function syncGenealogyRegistry(state: WorldState): GenealogyRegistry {
       if (parent && !parent.childrenIds.includes(child.id)) parent.childrenIds.push(child.id);
     }
   }
+  bumpHistoryRevision(state, 'genealogyRegistry');
   return registry;
 }
 
@@ -113,6 +115,7 @@ export function recordGenealogyBirth(state: WorldState, child: Entity): void {
     const parent = parentId == null ? undefined : registry.people[String(parentId)];
     if (parent && !parent.childrenIds.includes(child.id)) parent.childrenIds.push(child.id);
   }
+  bumpHistoryRevision(state, 'genealogyRegistry');
 }
 
 /** Capture a death while the entity still has its identity and family links. */
@@ -134,6 +137,7 @@ export function recordGenealogyDeath(state: WorldState, entity: Entity): void {
   person.alive = false;
   person.diedYear ??= state.year;
   person.diedDay ??= state.dayInYear;
+  bumpHistoryRevision(state, 'genealogyRegistry');
 }
 
 /** Connected family network: parentage (biological and adoptive) plus known partners.

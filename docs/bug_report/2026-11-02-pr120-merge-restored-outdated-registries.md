@@ -1,7 +1,7 @@
 # PR #120 merge restored outdated simulation registries
 
 - Bug: The manual PR #120 merge silently restored obsolete decision and ownership documentation over newer main changes.
-- Status: investigating
+- Status: fix implemented; CI validation pending
 - Severity: high
 - Date discovered: 2026-11-02
 - Version/build: PR #120 head 2361e14c650924a531af3c25c7b0a96412758798, merged into main as f8be454d2a5924e3164f7552d3e74c8b09e69a9e
@@ -11,6 +11,7 @@
 - Related PR/commit: #120; corrective follow-up PR
 
 ## Status history
+- 2026-11-02 — resolved the three overlapping-file conflicts against updated main while retaining 101 intervening commits, and restored the relevant ownership descriptions. CI pending.
 - 2026-11-02 — investigating: reproduced from CI log and main versus merged PR diff; restoring current decision and ownership records while retaining the intended fixes.
 
 ## Observed behavior

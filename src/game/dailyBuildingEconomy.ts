@@ -97,7 +97,7 @@ import {
   WORK_SKILL_PER_SHIFT,
 } from './skills';
 import { assignMissingWorkers, getSmithBonus } from './workforce';
-import { isImprisoned } from './residencyOccupancy';
+import { isImprisoned } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';

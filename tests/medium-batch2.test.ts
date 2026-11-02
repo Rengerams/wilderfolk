@@ -23,7 +23,7 @@ import {
 } from '../src/game/simFocus';
 import { resolveCombatLogKind } from '../src/game/eventLog';
 import { needsMedicalCare } from '../src/game/hospitalCare';
-import { pickResidenceForFamily } from '../src/game/residencySelection';
+import { pickResidenceForFamily } from '../src/game/housingPipeline';
 import { applyStormDamageToBuildings } from '../src/game/worldEvents';
 import { tickAnimalCare } from '../src/game/animalCare';
 import { getColonyDay, TICKS_PER_DAY } from '../src/game/dayCycle';

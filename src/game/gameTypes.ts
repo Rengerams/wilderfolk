@@ -79,6 +79,11 @@ export function getRenderEntityLayer(type: EntityType): RenderEntityLayer {
   return 'animal';
 }
 
+/** Static decor: the display receives these once and keeps them between roster changes. */
+export function isStaticPropEntity(entity: Pick<Entity, 'type'>): boolean {
+  return entity.type === EntityType.Tree || entity.type === EntityType.Grass;
+}
+
 // Seasons as const object
 export const Season = {
   Spring: 'spring',
@@ -182,7 +187,7 @@ export const BUILDING_JOB_TYPES: Partial<Record<BuildingType, JobType>> = {
 };
 
 export const LEVEL_BENEFIT_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
-  // Residences: +2 occupants per level above 1 (`residencyOccupancy.getResidenceCapacity`).
+  // Residences: +2 occupants per level above 1 (`housingModel.getResidenceCapacity`).
   // The unique Leader's House is out: its 20 beds are fixed and it can never gain a level.
   BuildingType.House,
   BuildingType.Mansion,
@@ -368,6 +373,8 @@ export interface Entity {
   chatPartnerId?: number;
   chatDialogueSessionKey?: string;
   dialogueRecentScenes?: Record<string, { id: string; tick: number }>;
+  /** Line hash → last tick this settler said it; keeps one person from repeating a line. */
+  dialogueRecentLines?: Record<string, number>;
   moonHowlerCursed?: boolean;
   moonHowlerSaved?: MoonHowlerSavedState;
   tamedBy?: number;
@@ -660,6 +667,7 @@ export interface RaidEvent {
   defenseChoice?: 'defend' | 'barricade';
   defenseStrength?: number;
   battleStartedAtTick?: number;
+  battleMilestones?: number[];
   battleCasualtiesApplied?: boolean;
   battlePlayerCasualties?: string[];
   soldierIds?: number[];
@@ -685,6 +693,8 @@ export interface RaidEvent {
 
 export interface OutgoingRaidEvent {
   phase?: 'marching' | 'engaging' | 'fighting' | 'returning';
+  /** The march began by attacking a settlement at peace or friendly terms. */
+  brokeTreaty?: boolean;
   leaderIdAtBattleStart?: number | null;
   battleStartedAtTick?: number;
   battleChronicle?: string[];
@@ -879,7 +889,7 @@ export interface WorldState {
     damagedBuildings: number;
     suppliesLost: { food: number; gold: number; wood: number; stone: number };
   }>;
-  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[]; credibleThreat?: boolean }>;
+  pendingRaidVictories?: Array<{ raidId: string; rivalId: string; rivalName: string; playerDead: number; enemyDead: number; enemySurvivors: number; playerCasualties: string[]; enemyCasualties: string[]; credibleThreat?: boolean; brokeTreaty?: boolean }>;
 
   renffrOmen?: RenffrOmen | null;
   renffrChatterUntilTick?: number;
@@ -1168,6 +1178,8 @@ export interface WorldMap {
   size: MapSize;
   /** Sparse per-tile overrides (camp/forest clearing) — key = y*width+x. */
   overrides?: Map<number, TerrainTile>;
+  /** Tile changes since the last delta extraction; runtime only, never saved. */
+  pendingTerrainPatches?: Array<{ tx: number; ty: number; tile: TerrainTile }>;
   /** World-pixel camp clearing location, on buildable land nearest the map centre. */
   campSite?: { x: number; y: number };
   /** Teraforge continuous fields (L2). */

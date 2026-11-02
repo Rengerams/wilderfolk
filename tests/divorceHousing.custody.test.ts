@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import { human, building } from '../src/test/factories';
-import { getChildCustodian } from '../src/game/householdComposition';
-import { reassignDivorcedResidences } from '../src/game/residencyReconciliation';
+import { getChildCustodian } from '../src/game/housingModel';
+import { reassignDivorcedResidences } from '../src/game/housingPipeline';
 
 describe('divorce custody and housing', () => {
   it('makes one stable custody selection for siblings regardless of lookup order', () => {

@@ -11,7 +11,7 @@ import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import { preloadDialogueBank } from '../src/game/dialogueTrees';
 import { createBuilding, createEntity } from '../src/game/worldGen';
 
-const POP = Number(process.env.SIM_POP ?? 1200);
+const POP = Number(process.env.SIM_POP ?? 2500);
 const TICKS = Number(process.env.PERF_TICKS ?? 120);
 const WARMUP = Number(process.env.PERF_WARMUP ?? 30);
 const FULL_SIM = process.env.SIM_FULL_SIM === '1';

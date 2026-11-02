@@ -1,5 +1,5 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
-import { isWorkHour, shouldBeAtHome } from '../dayCycle';
+import { isWorkHourFor, shouldBeAtHomeFor } from '../humanSchedule';
 import { isChildAtSchool, isSchoolTime } from '../education';
 import {
   buildHumanCombatStatusFlags,
@@ -23,7 +23,6 @@ import {
 } from '../humanSprites';
 import { getChatBubbleText, wrapChatLines } from '../humanChat';
 import { isAsleepAtHome } from '../humanSchedule';
-import { getPlayerCampCenter } from '../villageAnchor';
 import type { RenderSnapshot } from '../renderSnapshot';
 import { terrainRiseAt } from '../terrainAtlas';
 import { getRenderSoABuckets } from '../simBuffers/renderSoAEntities';
@@ -41,6 +40,7 @@ import {
   resolveSpeechBubbleRect,
   resolveStatusBadgeKind,
   shouldDrawHumanNameLabel,
+  shouldDrawSpotlightHuman,
   type HumanStatusFacts,
   type HumanStatusKind,
   type OverheadRect,
@@ -48,7 +48,9 @@ import {
 } from './overheadLayout';
 
 import { _cachedHumans, _cachedPartnerById, _renderSoABuckets, _tickAnimals, _tickHumans } from './entityCache';
-import { getSpotlightPresentationMotion, presentationPosition } from './motionInterpolation';
+import {
+  getSpotlightPresentationMotion, getSpotlightPresentationSpeech, presentationPosition,
+} from './motionInterpolation';
 import { drawContactShadow, drawSpriteFrame, getHumanWalkMotion, walkFrameOnClock } from './spriteDrawing';
 
 function drawTalkingMouth(
@@ -170,6 +172,7 @@ function buildConstructionWorkerIds(buildings: RenderSnapshot['buildings']): Set
 
 interface HumanStatusIconContext {
   hourOfDay: number;
+  workSchedule: RenderSnapshot['workSchedule'];
   classHours: boolean;
   villageLeaderId: number | null;
   constructionWorkerIds: Set<number>;
@@ -191,6 +194,7 @@ function buildHumanStatusIconContext(
   }
   return {
     hourOfDay: state.hourOfDay,
+    workSchedule: state.workSchedule,
     classHours: isSchoolTime(state.tick, state.hourOfDay),
     villageLeaderId: state.villageLeaderId,
     constructionWorkerIds: buildConstructionWorkerIds(state.buildings),
@@ -215,9 +219,9 @@ function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatus
     isJuvenile: !!human.isJuvenile,
     schoolStatus: schoolHours ? (isChildAtSchool(human, school) ? 'atSchool' : 'toSchool') : null,
     isPregnant: !!human.pregnant,
-    isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHome(ctx.hourOfDay),
-    isAtHome: shouldBeAtHome(ctx.hourOfDay),
-    isWorking: isWorkHour(ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
+    isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
+    isAtHome: shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
+    isWorking: isWorkHourFor(ctx.workSchedule, ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
     isMarried: human.relationshipStatus === 'married' && !!human.partnerId,
   };
 }
@@ -474,69 +478,6 @@ export function drawTradeRouteLines(ctx: CanvasRenderingContext2D, state: Render
   }
 }
 
-export function drawRaidMarchLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
-  const hasIncoming = (state.pendingRaidEvents?.length ?? 0) > 0;
-  const hasOutgoing = (state.pendingOutgoingRaidEvents?.length ?? 0) > 0;
-  if ((!hasIncoming && !hasOutgoing) || state.camera.zoom < 0.35) return;
-  const cam = state.camera;
-  // The anchor is the simulation's own rule (`getPlayerCampCenter`): hall, then house, then the
-  // living settlers' mean, then the map centre. A private copy of the building half used to live
-  // here and returned the first completed player building when there was no hall or house, so a
-  // drawn march line could point somewhere the simulated raid never went
-  // (`tests/villageAnchor.singleOwner.test.ts`). `RenderSnapshot` carries the three fields the rule
-  // reads, so the snapshot itself is what it is asked for — no cast.
-  const village = getPlayerCampCenter(state, state.buildings);
-  const vx = (village.x - cam.x) * cam.zoom + cw / 2;
-  const vy = (village.y - cam.y) * cam.zoom + ch / 2;
-
-  // Incoming: solid rose (threat toward village)
-  for (const raid of state.pendingRaidEvents ?? []) {
-    const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
-    if (!rival) continue;
-    const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
-    const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    ctx.strokeStyle = 'rgba(244,63,94,0.55)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(rx, ry);
-    ctx.lineTo(vx, vy);
-    ctx.stroke();
-    ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fb7185';
-    ctx.fillText('⚔️', (rx + vx) / 2, (ry + vy) / 2 - 6);
-  }
-
-  // Outgoing: dashed amber/orange, heavier stroke; counter-raid uses gold + short dash
-  for (const raid of state.pendingOutgoingRaidEvents ?? []) {
-    const rival = state.rivalSettlements.find((r) => r.id === raid.rivalId);
-    if (!rival) continue;
-    const rx = (rival.campX - cam.x) * cam.zoom + cw / 2;
-    const ry = (rival.campY - cam.y) * cam.zoom + ch / 2;
-    const counter = !!raid.isCounterRaid;
-    ctx.strokeStyle = counter ? 'rgba(251,191,36,0.7)' : 'rgba(249,115,22,0.7)';
-    ctx.lineWidth = counter ? 3 : 2.75;
-    ctx.setLineDash(counter ? [4, 4] : [12, 6]);
-    ctx.beginPath();
-    ctx.moveTo(vx, vy);
-    ctx.lineTo(rx, ry);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // Endpoint marker toward rival camp
-    const mx = vx + (rx - vx) * 0.92;
-    const my = vy + (ry - vy) * 0.92;
-    ctx.beginPath();
-    ctx.arc(mx, my, Math.max(2.5, 3.5 * Math.min(1, cam.zoom)), 0, Math.PI * 2);
-    ctx.fillStyle = counter ? 'rgba(251,191,36,0.85)' : 'rgba(251,146,60,0.85)';
-    ctx.fill();
-    ctx.font = `${Math.max(9, 11 * cam.zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = counter ? '#fbbf24' : '#fb923c';
-    ctx.fillText(counter ? '🛡️' : '🥾', (vx + rx) / 2, (vy + ry) / 2 - 6);
-  }
-}
-
 export function drawHuntChaseLines(ctx: CanvasRenderingContext2D, state: RenderSnapshot, cw: number, ch: number) {
   if (state.camera.zoom < 0.4) return;
   const cam = state.camera;
@@ -682,7 +623,7 @@ function drawHumanMarker(
   const variant = human.spriteVariant ?? pickHumanVariant(human.id, gender);
   const { fill, outline } = getHumanMarkerColors(gender, variant);
   const radius = getHumanMarkerRadius(zoom, human.isJuvenile, isLeader);
-  const fillColor = human.faction === 'visitor' ? '#22d3ee' : human.faction === 'rival' ? '#fb923c' : fill;
+  const fillColor = human.faction === 'visitor' ? '#22d3ee' : fill;
   ctx.beginPath();
   ctx.arc(sx, sy, radius + 1.5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
@@ -725,7 +666,8 @@ export function drawLeaderAuraOverlay(
   const cam = state.camera;
   if (cam.zoom <= 0.22 || state.villageLeaderId == null) return;
   const leader = _cachedHumans.find((h) => h.id === state.villageLeaderId && !h.faction);
-  if (!leader || leader.indoorBuildingId != null) return;
+  if (!leader || leader.indoorBuildingId != null
+      || !shouldDrawSpotlightHuman(state.spotlightLore, leader.id)) return;
 
   const isSel = state.selectedEntityIds.includes(leader.id) || state.selectedEntity?.id === leader.id;
   if (!isSel) {
@@ -800,6 +742,8 @@ export function drawHumans(
     sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
   }[] = [];
   for (const human of _cachedHumans) {
+    // Rivals live on the strategic map; the village layer never draws their parties.
+    if (human.faction === 'rival' || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
     if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
@@ -891,7 +835,12 @@ export function drawHumans(
       drawCombatBurst(ctx, sx, footY - spriteH * 0.45, drawSize, human.id);
     }
 
-    const isTalking = (human.chatTicks ?? 0) > 0;
+    // The scene's read-only line uses the same chat bubble, without setting chatPhrase or
+    // allowing earlier simulated conversations to overlap with the presentation.
+    const spotlightSpeech = state.spotlightLore?.phase === 'ready'
+      ? getSpotlightPresentationSpeech(human.id) : null;
+    const isTalking = spotlightSpeech !== null
+      || (state.spotlightLore?.phase !== 'ready' && (human.chatTicks ?? 0) > 0);
 
     // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
     // name plate and a neighbour's whatever order the settlers are drawn in.
@@ -917,7 +866,7 @@ export function drawHumans(
         sx,
         headY,
         size: drawSize,
-        text: getChatBubbleText(human, tick),
+        text: spotlightSpeech ?? getChatBubbleText(human, tick),
         entityId: human.id,
         isLeader,
       });
@@ -961,7 +910,7 @@ export function drawHumans(
       } else {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-        ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.faction === 'rival' ? '#fdba74' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
+        ctx.fillStyle = human.faction === 'visitor' ? '#67e8f9' : human.gender === 'male' ? '#fbbf24' : '#fda4af';
       }
       ctx.font = `bold ${namePlate.fontSize}px sans-serif`;
       ctx.textAlign = 'center';

@@ -16,6 +16,7 @@ import {
 } from './gameTypes';
 import { recordYearlyStats, updateLifetimeStats } from './stats';
 import { logEvent } from './eventLog';
+import { bumpHistoryRevision } from './historyRevisions';
 import { ensureEntityByIdMap } from './entityIndex';
 import { getGrassGrowthMultiplier, getWinterEnergyPenalty } from './grassEcology';
 import {
@@ -100,6 +101,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
     const yearlyStat = recordYearlyStats(state, state.year);
     state.yearlyStats.push(yearlyStat);
     if (state.yearlyStats.length > 50) state.yearlyStats.shift();
+    bumpHistoryRevision(state, 'yearlyStats');
     state.lifetimeStats = updateLifetimeStats(state, state.lifetimeStats);
     // One line a year for the colony's social state, instead of a line per bond. That
     // pattern made 60 % of a real exported 2 000-event chronicle friendship noise, and
@@ -405,7 +407,7 @@ export function gameTick(state: WorldState, focus?: SimulationFocus): WorldState
   // `residenceBuildingId ↔ occupants` for SIMULATION_AUTHORITY §5. The decision of *who* lives
   // where stays with the assignment layer; this only makes the mirror agree with it.
   // No pre-filter: `syncResidenceOccupants` skips non-occupants itself
-  // (`residencyReconciliation.ts` — `if (!isResidenceOccupantEntity(human)) continue;`), and
+  // (`housingPipeline.ts` — `if (!isResidenceOccupantEntity(human)) continue;`), and
   // `isResidenceOccupantEntity` already tests `entity.alive`, so
   // `allAlive.filter((e) => e.alive && isResidenceOccupantEntity(e))` discarded every element the
   // callee discards again and produced identical buckets. Measured at 1.79 % of tick time

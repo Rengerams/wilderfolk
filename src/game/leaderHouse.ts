@@ -5,9 +5,9 @@ import {
   standaloneMoveContext,
   relocateHousehold,
   syncResidenceOccupants,
-} from './residencyReconciliation';
-import type { HousingLedger, HousingMoveContext } from './residencyReconciliation';
-import { buildHousingUnits, listPlayerResidences } from './residencySelection';
+} from './housingPipeline';
+import type { HousingLedger, HousingMoveContext } from './housingPipeline';
+import { buildHousingUnits, listPlayerResidences } from './housingPipeline';
 import {
   EntityType,
   JobType,
@@ -16,9 +16,9 @@ import {
 } from './gameTypes';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { logEvent } from './eventLog';
-import { collectLeaderDescendants, getChildCustodian, isMinorChild } from './householdComposition';
+import { collectLeaderDescendants, getChildCustodian, isMinorChild } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
-import { getResidenceCapacity, isImprisoned, isResidenceOccupantEntity } from './residencyOccupancy';
+import { getResidenceCapacity, isImprisoned, isResidenceOccupantEntity } from './housingModel';
 import { clearWorkerAssignment } from './workforce';
 import { leaderHouseBuildings } from './leaderHouseExpansion';
 

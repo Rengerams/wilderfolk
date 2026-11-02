@@ -11,7 +11,8 @@ import { drawAnimals } from './animals';
 import { drawBuildings } from './buildings';
 import { drawBuildZoneOverlay, drawGrid } from './grid';
 import { drawGrass } from './grass';
-import { drawHumans, drawHuntChaseLines, drawRaidMarchLines, drawTradeRouteLines } from './humans';
+import { drawHumans, drawHuntChaseLines, drawTradeRouteLines } from './humans';
+import { shouldDrawSpotlightHuman } from './overheadLayout';
 import { drawCampMarkers, drawEcoConnections, drawFloatingTexts } from './markers';
 import { drawParticles } from './particles';
 import { drawScentOverlay } from './scent';
@@ -55,7 +56,6 @@ export function paintMovingEntities(
   // Hunt arrows stay in the overlay pass (`overlay.ts`) — they advance on a millisecond clock.
   drawAnimals(drawCtx, state, cw, ch, true);
   drawTradeRouteLines(drawCtx, state, cw, ch);
-  drawRaidMarchLines(drawCtx, state, cw, ch);
   drawHuntChaseLines(drawCtx, state, cw, ch);
   drawFloatingTexts(drawCtx, state, cw, ch);
   drawHumans(drawCtx, state, cw, ch, true);
@@ -81,7 +81,7 @@ function drawEntityFlashOverlay(ctx: CanvasRenderingContext2D, state: RenderSnap
     ctx.restore();
   }
   for (const human of _cachedHumans) {
-    if (human.flash <= 0) continue;
+    if (human.flash <= 0 || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const pos = presentationPosition(human);
     const sx = worldToScreenX(pos.x, cam, cw);
     const sy = worldToScreenY(pos.y, cam, ch)

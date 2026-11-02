@@ -1,5 +1,7 @@
 # Wilderfolk — Dialogue single-pipeline architecture (0.6.5.2)
 
+**Centralized final state (2 November 2026):** The split-file inventory below is historical. All 353 ambient scenes now live in `src/game/data/dialogue/ambient.json` under the single `dialogue` category; `spotlight-lore.json` remains the separate group presentation. The legacy Elections source is archived at `tests/fixtures/dialogue-legacy-elections.json`; all ten authored versions are accounted for in the live source. `requestDialogue` now filters a scene when a participant would repeat one of their own lines within three days, and `scripts/check-dialogue-circumstances.mjs` audits event-key/caller/phrase fit.
+
 **Status:** IMPLEMENTED AND MERGED in PR [#93](https://github.com/Rengerams/wilderfolk/pull/93) (phases A–D, 28 October 2026, `a97704e1`). Final PR-head CI/120-day simulation passed; browser/Spotlight UI follow-up is separate. **Baseline reviewed:** main, 28 October 2026. **Target:** 0.6.5.2.  
 **Companion execution plan:** [Dialogue codebot tasks](dialogue-codebot-tasks-0.6.5.2.md).  
 **Template:** [CODEBOT_FEATURE_TEMPLATE](CODEBOT_FEATURE_TEMPLATE.md). **Comparable precedent:** [DNA/personality/career architecture](personality-career-single-pipeline-0.6.5.2.md) and its coding-agent tasks.  

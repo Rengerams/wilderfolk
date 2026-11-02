@@ -45,8 +45,8 @@ export class RenderBufferPool {
     if (index < 0 || index >= this.size) return;
     if (!this.outbound[index]) return;
 
-    // Guard against null/undefined or undersized buffers; always alloc fresh if unusable.
-    if (!buffer || buffer.byteLength < this.expectedByteLength) {
+    // Recreate any returned buffer whose length differs from the pool's fixed schema.
+    if (!buffer || buffer.byteLength !== this.expectedByteLength) {
       this.slots[index] = new ArrayBuffer(this.expectedByteLength);
     } else {
       this.slots[index] = buffer;

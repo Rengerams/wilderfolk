@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { entityLayerAnchorMoved, paintEntityLayerTo, type EntityLayerCache } from '../src/game/entityLayer';
-import { buildHousingUnits } from '../src/game/residencySelection';
-import { collectLeaderDescendants, isAdultChildAtHome } from '../src/game/householdComposition';
+import { buildHousingUnits } from '../src/game/housingPipeline';
+import { collectLeaderDescendants, isAdultChildAtHome } from '../src/game/housingModel';
 import type { Camera, Entity } from '../src/game/gameTypes';
 
 const person = (id: number, overrides: Partial<Entity> = {}): Entity => ({

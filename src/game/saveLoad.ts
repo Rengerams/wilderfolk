@@ -2,7 +2,7 @@ import { normalizeHumanNeeds } from './simulation/humanPhysiology';
 import { normalizeCareerHistory } from './careers/careerHistory';
 import { normalizeCareerMilestones } from './careers/careerProgression';
 import { applyLeaderHousePhase } from './leaderHouse';
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import type { WorldState, Entity, TerrainTile } from './gameTypes';
 import { EntityType, BuildingType, JobType, TerrainType, WeatherType, DEFAULT_WORKSHOP_RECIPE_ID, MAP_SIZE_DIMENSIONS, MapSize, PATH_CELL, createInitialResearchNodes } from './gameTypes';
 import { isWalkableTerrainType, setTileOverride, tileAt, Walkability } from './terrain/terrainGrid';
@@ -31,6 +31,7 @@ import { pickHumanVariant } from './humanSprites';
 import { migrateLegacyMoonHowler, syncMoonHowlerForms } from './moonHowler';
 import { reconcileFamilyReferencesAfterRemoval } from './humanLifecycleCleanup';
 import { isPlayerHuman } from './playerHuman';
+import { clampCloseFriendships } from './relationships';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { TICKED_SPECIES } from './entityFactory';
@@ -1691,6 +1692,8 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
     rebuildChildrenIds(world.entities);
+    // Legacy saves can exceed the close-friend cap; trim before the first social day.
+    clampCloseFriendships(world.entities.filter(isPlayerHuman));
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(world, ledger));

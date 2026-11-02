@@ -8,9 +8,9 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
 import { getHourOfDay } from './dayCycleClock';
-import { EVENING_START, prefersHomeTonight } from './dayCycle';
-import { isAsleepAtHome, isFestivalGatherer } from './humanSchedule';
-import { isNearResidence } from './residencyOccupancy';
+import { EVENING_START } from './dayCycle';
+import { isAsleepAtHome, isFestivalGatherer, prefersHomeTonightFor } from './humanSchedule';
+import { isNearResidence } from './housingModel';
 import { getWorkSchedule, getWorkScheduleLabel, isOnWorkScheduleShift } from './workSchedule';
 import { findHumanWorkplace } from './workforce';
 import { humanBuildingTarget } from './simulation/humanMovement';
@@ -103,7 +103,7 @@ export function getHumanActivityStatus(state: WorldState, entity: Entity): strin
   // explains why a resident is away from home.
   const isEveningOuting = hourOfDay >= EVENING_START
     && hourOfDay < 23
-    && !prefersHomeTonight(entity.id, state.tick, hourOfDay)
+    && !prefersHomeTonightFor(getWorkSchedule(state), entity.id, state.tick, hourOfDay)
     && !onWorkSchedule;
   if (isEveningOuting) return 'Socialising — evening outing';
 
@@ -155,7 +155,7 @@ export function getHumanActivityProjection(
     }
     const eveningOuting = hour >= EVENING_START
       && hour < 23
-      && !prefersHomeTonight(entity.id, state.tick, hour)
+      && !prefersHomeTonightFor(getWorkSchedule(state), entity.id, state.tick, hour)
       && !(workplace && isOnWorkScheduleShift(state, hour));
     if (eveningOuting) {
       return { kind: 'nearby-building', label: 'Evening outing', x: entity.x, y: entity.y };

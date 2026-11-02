@@ -41,7 +41,7 @@ describe('worker profiling stop handshake', () => {
   installWorkerMessageHandlers();
     if (!shim.onmessage) throw new Error('Simulation worker did not attach its message handler');
 
-    shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: true } });
+    await shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: true } });
     expect(isPathfindingMetricsEnabled()).toBe(true);
     profileSimulationTick(4320, 1800, 'rain');
     const start = profileStart();
@@ -50,7 +50,7 @@ describe('worker profiling stop handshake', () => {
     recordFindPathCall();
     flushPathfinderTickToSession();
 
-    shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId: 17 } });
+    await shim.onmessage({ data: { type: 'setProfiling', proto: WORKER_PROTO, enabled: false, requestId: 17 } });
     const final = posted.find((message) => message.type === 'profilingStopped');
     expect(final).toBeDefined();
     if (!final || final.type !== 'profilingStopped') throw new Error('No final worker snapshot');

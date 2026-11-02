@@ -35,7 +35,6 @@ for (let day = 0; day < 6; day += 1) {
     gameTick(state);
     // Replicate the worker delta path.
     const delta = extractSimTickDelta(state, state.entities.filter((e) => e.alive), {
-      headless: true,
       cloneMode: 'isolated',
     });
     applySimTickDelta(display, delta);

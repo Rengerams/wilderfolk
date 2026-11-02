@@ -61,7 +61,8 @@ describe('human movement helpers', () => {
     for (const residentId of [346, 8144]) {
       const porch = homeStandPosition(leaderHouse, residentId);
       const gathering = venueGatherPosition(leaderHouse, residentId);
-      expect(gathering.y).toBeGreaterThan(porch.y + leaderHouse.height / 2);
+      expect(porch.y).toBeGreaterThan(leaderHouse.y + leaderHouse.height);
+      expect(gathering.y).toBeGreaterThan(porch.y);
       expect(Math.abs(porch.x - leaderHouse.x)).toBeLessThan(leaderHouse.width / 2);
     }
   });

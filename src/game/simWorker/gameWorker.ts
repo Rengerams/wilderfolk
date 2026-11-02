@@ -7,6 +7,7 @@ import {
   invalidateWorldRuntimeCaches,
 } from '../worldRuntimeCaches';
 import { adoptSimSeedFromWorld, restoreSimRng, stampWorldSimRng } from '../simRng';
+import { snapshotHistoryRevisions, type HistoryRevisions } from '../historyRevisions';
 import { areNamesLoaded, loadNames } from '../nameLoader';
 import { repairJuvenileAssignmentsOnLoad } from '../dayCycle';
 
@@ -18,7 +19,8 @@ import type { Entity, WorldState } from '../gameTypes';
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
 import { RenderBufferPool } from '../simBuffers/renderBufferPool';
-import { extractSimTickDelta } from '../simBuffers/simDelta';
+import { extractSimTickDelta, splitStaticProps, stripUnchangedProfile, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
+import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
 import { getPathfinderReport, resetPathfinderSession, setPathfindingMetricsEnabled } from '../pathfindingMetrics';
 import { ensureScentGrid, USE_SCENT_GRID } from '../scentGrid';
@@ -50,10 +52,20 @@ let world: WorldState | null = null;
 let bufferPool: RenderBufferPool | null = null;
 let headlessMode = false;
 let lastFocus: import('../simFocus').SimulationFocus | undefined;
+/** Relationship revisions the display world already received; reset with the session. */
+let relationshipRevisionsSent = new Map<number, number>();
+/** Static decor the display already holds; only roster changes ship after the first delta. */
+let staticPropsSent = new Set<number>();
+/** Profile-field revisions the display already holds; refreshed on change or every few minutes. */
+let profileFieldsSent = new Map<number, { revision: number; tick: number }>();
 
 /** Buildings snapshot for diff-mode deltas (only changed buildings are shipped). */
 let prevBuildingsSnapshot: Map<number, string> | null = null;
-let prevHistoriesSnapshot: Map<string, string | undefined> | null = null;
+/** Geometry signature of the last acknowledged building delta; drives host cache retention. */
+let prevBuildingGeometry: Map<number, string> | null = null;
+/** History revisions at the last acknowledged tick; unchanged families are not re-shipped. */
+let prevHistoryRevisions: HistoryRevisions | null = null;
+let previousEventHeadId: WorldState['eventLog'][number]['id'] | undefined;
 
 /** Profiler snapshots carry the A* shape behind the pathfinding stages; no A* ran here otherwise. */
 function withPathfinderReport(snapshot: PerformanceSnapshot | undefined): PerformanceSnapshot | undefined {
@@ -108,20 +120,23 @@ function packAndPostTickResult(
   }
   try {
     const packStart = profileStart();
-    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus);
+    const pack = packRenderSoA(world, acquired.buffer, undefined, lastFocus, aliveNow);
     profileEnd('worker.packRenderSoA', packStart);
     const deltaStart = profileStart();
     const nextBuildings = new Map<number, string>();
-    const nextHistories = new Map<string, string | undefined>();
+    const nextBuildingGeometry = new Map<number, string>();
     const delta = extractSimTickDelta(world, aliveNow, {
-      renderPacked: pack.packedEntities,
-      focus: lastFocus,
       cloneMode: 'transfer',
       prevBuildings: prevBuildingsSnapshot,
       nextBuildings,
-      prevHistories: prevHistoriesSnapshot,
-      nextHistories,
+      prevBuildingGeometry,
+      nextBuildingGeometry,
+      prevHistoryRevisions,
+      previousEventHeadId,
     });
+    attachStaticProps(delta);
+    attachRelationshipRevisions(delta);
+    attachProfileFields(delta);
     profileEnd('worker.extractDelta', deltaStart);
     world.screenShakeImpulse = 0; // one-shot impulse – clear each tick
 
@@ -145,7 +160,9 @@ function packAndPostTickResult(
     };
     self.postMessage(response, transferables);
     prevBuildingsSnapshot = nextBuildings;
-    prevHistoriesSnapshot = nextHistories;
+    prevBuildingGeometry = nextBuildingGeometry;
+    prevHistoryRevisions = snapshotHistoryRevisions(world);
+    previousEventHeadId = world.eventLog[0]?.id;
   } catch (err) {
     releaseAcquiredBuffer(acquired);
     throw err;
@@ -165,7 +182,32 @@ function resetWorkerSession(nextWorld: WorldState): void {
   world = nextWorld;
   lastFocus = undefined;
   prevBuildingsSnapshot = null;
-  prevHistoriesSnapshot = null;
+  prevBuildingGeometry = null;
+  prevHistoryRevisions = null;
+  previousEventHeadId = undefined;
+  relationshipRevisionsSent = new Map();
+  staticPropsSent = new Set();
+  profileFieldsSent = new Map();
+}
+
+/** Split trees/grass out of the per-tick roster; the replica keeps the props it already has. */
+function attachStaticProps(delta: SimTickDelta): void {
+  splitStaticProps(delta, staticPropsSent);
+}
+
+/** Attach profile revisions: skill/trait/career maps cross the port only when they change. */
+function attachProfileFields(delta: SimTickDelta): void {
+  if (!world) return;
+  const revisions = new Map<number, number>();
+  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, PROFILE_REVISION));
+  stripUnchangedProfile(delta, revisions, profileFieldsSent, world.tick);
+}
+
+/** Attach the relationship revisions the display already has, so only changed records ship. */function attachRelationshipRevisions(delta: SimTickDelta): void {
+  if (!world) return;
+  const revisions = new Map<number, number>();
+  for (const entity of world.entities) revisions.set(entity.id, revisionOf(entity, RELATIONSHIP_REVISION));
+  stripUnchangedRelationships(delta, revisions, relationshipRevisionsSent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -184,22 +226,15 @@ self.onerror = (event: unknown) => {
   );
 };
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
   if (!isWorkerProto(msg.proto)) {
     postError(workerProtoMismatch((msg as { proto?: unknown }).proto));
     return;
   }
 
-  void (async () => {
-    try {
-      await ensureNamePoolSettled();
-    } catch (err) {
-      postError(`Name pool load failed: ${err instanceof Error ? err.message : String(err)}`, 'general');
-    }
-  })();
-
   try {
+    await ensureNamePoolSettled();
     switch (msg.type) {
       case 'init': {
         headlessMode = msg.headless ?? false;
@@ -254,11 +289,15 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           break;
         }
         if (!isWorkerCommand(msg.cmd)) {
+          const delta = safeExtractCommandDelta(world);
+          attachStaticProps(delta);
+          attachRelationshipRevisions(delta);
+          attachProfileFields(delta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: safeExtractCommandDelta(world),
+            delta,
             reason: 'Invalid worker command',
           };
           self.postMessage(response);
@@ -270,15 +309,24 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         try {
           world = applyWorkerCommand(world, msg.cmd, 'owned');
           prevBuildingsSnapshot = null;
-          prevHistoriesSnapshot = null;
+          prevBuildingGeometry = null;
+          prevHistoryRevisions = null;
+          previousEventHeadId = undefined;
           delta = safeExtractCommandDelta(world);
+          attachStaticProps(delta);
+          attachRelationshipRevisions(delta);
+          attachProfileFields(delta);
         } catch (err) {
           applySimPrep(world, prepBackup);
+          const failedDelta = safeExtractCommandDelta(world);
+          attachStaticProps(failedDelta);
+          attachRelationshipRevisions(failedDelta);
+          attachProfileFields(failedDelta);
           const response: WorkerResponse = {
             type: 'commandResult',
             proto: WORKER_PROTO,
             ok: false,
-            delta: safeExtractCommandDelta(world),
+            delta: failedDelta,
             reason: err instanceof Error ? err.message : String(err),
           };
           self.postMessage(response);
@@ -328,7 +376,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
 
       case 'returnBuffer': {
-        if (!bufferPool || !msg.buffer || msg.buffer.byteLength === 0) break;
+        if (!bufferPool) break;
         bufferPool.release(msg.bufferIndex, msg.buffer);
         break;
       }
@@ -380,10 +428,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
           if (headlessMode) {
             const delta = extractSimTickDelta(world, aliveNow, {
-              focus: lastFocus,
-              headless: true,
               cloneMode: 'transfer',
             });
+            attachStaticProps(delta);
+            attachRelationshipRevisions(delta);
+            attachProfileFields(delta);
             world.screenShakeImpulse = 0;
             const response: WorkerResponse = {
               type: 'tickResult',

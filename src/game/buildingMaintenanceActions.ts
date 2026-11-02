@@ -1,5 +1,5 @@
 import { departWarPrisoner } from './warPrisonerCustody';
-import { moveResident } from './residencyReconciliation';
+import { moveResident } from './housingPipeline';
 import { isStripBuildType, MAX_STRIP_SEGMENTS } from './stripBuild';
 import type { Building, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BuildingType, LEVEL_BENEFIT_BUILDING_TYPES } from './gameTypes';
@@ -8,9 +8,9 @@ import { addFloatingText, addNotification, createDeathParticles, impulseScreenSh
 import { assignMissingWorkers, removeWorkerTransition } from './workforce';
 import { unindexAdjacency } from './adjacencyIndex';
 import { allPlayerHumans } from './playerHuman';
-import { getResidenceCapacity, isResidenceBuildingType } from './residencyOccupancy';
-import { assignMissingResidences } from './residencyReconciliation';
-import { buildHousingUnits } from './residencySelection';
+import { getResidenceCapacity, isResidenceBuildingType } from './housingModel';
+import { assignMissingResidences } from './housingPipeline';
+import { buildHousingUnits } from './housingPipeline';
 import { invalidatePopulationSnapshotCache } from './populationGrowth';
 
 /** The repair owner's materials. Exported so a spender can leave the price of one repair behind. */

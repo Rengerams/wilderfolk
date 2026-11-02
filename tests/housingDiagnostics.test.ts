@@ -46,7 +46,7 @@ describe('housing diagnostics', () => {
     human!.residenceBuildingId = undefined;
     state.buildings = [house(1)];
     const snapshot = collectHousingDiagnostics(state);
-    // The owner is `residencyOccupancy.isHomelessSettler`, which excludes prisoners — the count this
+    // The owner is `housingModel.isHomelessSettler`, which excludes prisoners — the count this
     // field replaced (`unassignedPlayerHumans`) reported jailed settlers as unhoused.
     expect(snapshot.homelessPlayerHumans).toBeGreaterThan(0);
     expect(snapshot.orphanedResidenceReferences).toBe(0);

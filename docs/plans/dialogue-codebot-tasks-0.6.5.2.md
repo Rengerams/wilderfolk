@@ -1,5 +1,7 @@
 # Coding-agent execution — dialogue trees single pipeline 0.6.5.2
 
+**Centralized final state (2 November 2026):** The per-file inventory below is historical. Ambient dialogue is now one canonical source (`src/game/data/dialogue/ambient.json`, 353 scenes, one `dialogue` category), the Spotlight group scene stays separate, the legacy Elections source is a test fixture with all ten authorings accounted for, and per-settler line cooldown plus the circumstance audit script are active.
+
 **Task class:** REFACTOR + CONTENT MIGRATION. **Status:** IMPLEMENTED AND MERGED — PR [#93](https://github.com/Rengerams/wilderfolk/pull/93), 28 October 2026 (`a97704e1`). PR-head CI passed; separate browser/Spotlight checks are not implied.  
 **Design authority:** [Dialogue AS-IS / TO-BE architecture](dialogue-single-pipeline-0.6.5.2.md).  
 **Required style:** [Wilderfolk feature codebot template](CODEBOT_FEATURE_TEMPLATE.md); follow the DNA [architecture](personality-career-single-pipeline-0.6.5.2.md) + [execution tasks](personality-career-codebot-tasks-0.6.5.2.md) separation.  

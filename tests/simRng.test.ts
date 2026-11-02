@@ -419,7 +419,7 @@ describe('simRng.snapshot.test.ts', () => {
     it('carries the positions in the tick delta, so the receiving realm tracks the authority', () => {
       const world = initGame({ seed: 5150 });
       getSimRng(PROBE)();
-      const delta = extractSimTickDelta(world, undefined, { headless: true, cloneMode: 'isolated' });
+      const delta = extractSimTickDelta(world, undefined, { cloneMode: 'isolated' });
       const expected = [getSimRng(PROBE)(), getSimRng(PROBE)()];
 
       // The receiving realm is on a different run entirely.
