@@ -288,6 +288,20 @@ a:hover { color: var(--primair-donker); }
   padding: 1.7rem 2rem 4rem;
 }
 
+/* Subtiel versielabel rechtsonder in beeld. */
+.versie-label {
+  position: fixed;
+  right: 0.9rem;
+  bottom: 0.55rem;
+  z-index: 5;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  color: var(--inkt-zacht);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ---------------------------------------------------------------- koppen */
 
 .pagina-kop {
@@ -1529,7 +1543,7 @@ a:hover { color: var(--primair-donker); }
 
 @media print {
   body { background: #ffffff; font-size: 11pt; }
-  .zijbalk, .topbalk, .pagina-kop__acties, .knop, .filters, .melding, .modal-achtergrond { display: none !important; }
+  .zijbalk, .topbalk, .pagina-kop__acties, .knop, .filters, .melding, .modal-achtergrond, .versie-label { display: none !important; }
   .app-shell { display: block; }
   .inhoud { max-width: none; padding: 0; }
   .kaart { box-shadow: none; border: none; padding: 0; margin-bottom: 1rem; break-inside: avoid; }
