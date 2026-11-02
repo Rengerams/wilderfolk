@@ -42,11 +42,11 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-28 — [Spotlight edge slots can be unreachable](../bug_report/2026-10-28-spotlight-gathering-off-map-slots.md):** Corrected in PR #91 source by bounding stage candidates and rejecting any out-of-map fallback before the cooldown. Edge regression added; CI and browser verification pending.
 
-**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** grassland overrides and continuous shader fields disagree on the camp's surface. A derived render-only clearing mask now blends the ground to grassland; focused test and browser visual QA pending.
+**2026-10-29 — [Camp clearing retains snowy ground material](../bug_report/2026-10-29-camp-clearing-retains-snowy-ground-material.md):** shader now respects grassland clearing masks; two stale CI assertions were aligned on 2 November. Browser visual verification pending.
 
 **2026-10-29 — [Founding settlers vanish at overview zoom](../bug_report/2026-10-29-founding-settlers-vanish-at-overview-zoom.md):** the 1.15× marker cutoff hid the original two people among larger wildlife art. Founders now remain full sprites at overview zoom and larger crowds use high-contrast markers; focused test and browser QA pending.
 
-**2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` adds path-limited untracked cleanup before checkout; new CI verification pending.
+**2026-10-28 — [Population benchmark checkout blocked by an untracked temporary harness](../bug_report/2026-10-28-population-perf-checkout-blocked-by-temporary-harness.md):** PR #99's 250/750/1,800-resident comparisons completed their baseline but Git rejected the head checkout because the PR-only harness was left untracked under the baseline. Commit `d007fee8` cleans untracked copies; PR #118 commit `547333d` also restores tracked baseline modifications. Small and medium head comparisons passed; large validation pending.
 
 **2026-10-29 — [Auto-fill worker command redundantly clones the authoritative world](../bug_report/2026-10-29-auto-fill-worker-clones-authoritative-world.md):** owner reports the colony-wide button appears unresponsive at ~2,000 residents; source confirms an unnecessary entire-world clone on the worker-owned command path. In-place owned execution and isolated/owned parity regression committed; CI and live large-save latency verification pending.
 
@@ -55,9 +55,24 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-10-29 — [Worker timeout replays unconfirmed command on recovery](../bug_report/2026-10-29-worker-timeout-replays-unconfirmed-command.md):** confirmed transport recovery defect: a timed-out command is replayed after the worker is restarted and may stall it again. Patch avoids replaying the unconfirmed operation, retains later commands and logs the operation. Browser verification and full CI pending; command runtime bottleneck remains under investigation.
 
-**2026-11-02 — [Changelog guard flags slash-separated prose](../bug_report/2026-11-02-changelog-check-slash-prose-false-positive.md):** The changelog check interpreted `Skip/restore.` as a filename. PR #120 narrows file detection to known source/document extensions; CI verification pending.
+**2026-10-29 — [Worker-owned building upgrade deep-clones large colony](../bug_report/2026-10-29-worker-upgrade-deep-clones-large-colony.md):** owned upgrade path now skips the full-world clone; isolated parity regression added. Cause of all 30-second timeouts and live 2,000+ resident verification still pending.
 
-**2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** Removed uncalled `isMealCheckHour`, its unused import, and stale ownership/decision registry references; CI verification pending.
+**2026-10-29 — [Work-hours preview repeatedly searches the full population](../bug_report/2026-10-29-schedule-preview-repeated-roster-search.md):** eligible worker IDs indexed once and work/venue/policy previews avoid full-world cloning; browser INP verification pending.
+
+**2026-11-01 — [Deferred worker tick leaves stale entity catalog](../bug_report/2026-11-01-deferred-worker-tick-leaves-stale-entity-catalog.md):** PR #118 now rebuilds and prunes after a tick arrives during a pending lightweight command, while retaining the no-tick fast path. Focused tests added; execution and CI pending.
+**2026-11-01 — [Virtual Player food production lags population](../bug_report/2026-11-01-virtual-player-food-production-lags-population.md):** Both 29 October and 1 November 100-day producer-colony gates starved at day 90 with identical economics. PR #118 updates food capacity planning, deficit staffing, and focused tests; fresh 100-day CI pending.
+
+**2026-11-02 — [Reinforced-soil filename case mismatch](../bug_report/2026-11-02-ground-soil-filename-case-mismatch.md):** Case-sensitive CI found a preloaded sprite URL with the wrong filename suffix. Loader and renderer now reference the normalized lowercase `.png` asset; CI and browser verification pending.
+
+**2026-11-02 — [Colony bot world replacement keeps stale entity caches](../bug_report/2026-11-02-colony-bot-replacement-keeps-stale-entity-caches.md):** 1,800-resident benchmark lost all observed career credits despite 1,441 active attendance records. Headless command adapter reused the same world shell after `structuredClone` while weak caches still referenced superseded humans. Explicit cache hydration added after world adoption; CI pending.
+
+**2026-11-02 — [Career credit delayed until the following noon](../bug_report/2026-11-02-career-credit-lags-midnight-attendance.md):** PR #118's 1,800-resident benchmark exposed a genuine timing defect: midnight settled 1,441 witnessed worker shifts but noon's separate economy pass did not credit them until 12 in-game hours later. Career credit now runs in the existing midnight fatigue settlement with indexed site/job validation; no extension to the two-day benchmark. CI verification pending.
+
+**2026-11-02 — [Changelog guard flags slash-separated prose](../bug_report/2026-11-02-changelog-check-slash-prose-false-positive.md):** PR #120 narrows changelog file detection to known extensions; CI verification pending.
+
+**2026-11-02 — [Unused human meal-check export fails Knip](../bug_report/2026-11-02-unused-human-meal-check-export.md):** PR #120 removes the unused helper and its ownership references; CI verification pending.
+
+**2026-11-02 — [PR #120 merge restored outdated registries](../bug_report/2026-11-02-pr120-merge-restored-outdated-registries.md):** A stale merge discarded the read-only Virtual Player decision and current workday ownership descriptions, producing four TS7053 build errors. Follow-up restores the exact main records and reapplies only the intended PR changes; fresh CI pending.
 
 ## At a glance
 
