@@ -107,10 +107,6 @@ async function main(): Promise<void> {
   const commandPending = () => pendingCommand != null;
   const isIdle = () => ticksInFlight === 0 && !commandPending();
 
-  const whenIdle = async (): Promise<void> => {
-    while (!isIdle()) await new Promise((r) => setTimeout(r, 5));
-  };
-
   const send = (msg: WorkerRequest): void => {
     worker.postMessage(msg);
   };
@@ -192,6 +188,7 @@ async function main(): Promise<void> {
         lastError = msg.message;
         console.error(`[worker error] source=${msg.source} ${msg.message}`);
         if (msg.source === 'tick') ticksInFlight = Math.max(0, ticksInFlight - 1);
+        if (msg.source === 'command') pendingCommand = null;
         break;
       }
       case 'exportSaveResult':
@@ -248,15 +245,16 @@ async function main(): Promise<void> {
   const finalTick = ticksDone;
 
   // export check — full-world transfer path
-  await whenIdle();
-  send({ type: 'exportSave', proto: WORKER_PROTO });
-  const exportDeadline = performance.now() + 20000;
-  while (!exported && performance.now() < exportDeadline) {
-    await new Promise((r) => setTimeout(r, 10));
+  if (isIdle()) {
+    send({ type: 'exportSave', proto: WORKER_PROTO });
+    const exportDeadline = performance.now() + 20000;
+    while (!exported && performance.now() < exportDeadline) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
   }
   if (!exported) {
     errors++;
-    lastError = 'Save export timed out';
+    lastError = isIdle() ? 'Save export timed out' : 'Worker did not drain before export';
   }
   await worker.terminate();
 
@@ -272,7 +270,7 @@ async function main(): Promise<void> {
     console.error('[RESULT] Render buffers remained outstanding after drain');
     process.exitCode = 1;
   }
-  if (errors > 0) process.exitCode = 1;
+  if (errors > 0 || finalTick < TICKS || maxResultGap > STALL_MS) process.exitCode = 1;
   console.log(`wallMs=${Math.round(elapsedMs)} ticksPerSec=${(results / (elapsedMs / 1000)).toFixed(1)}`);
   console.log(
     `interResultGap: mean=${mean.toFixed(1)}ms p50=${pct(0.5).toFixed(1)}ms p95=${pct(0.95).toFixed(1)}ms `
