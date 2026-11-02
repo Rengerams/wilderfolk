@@ -59,11 +59,13 @@ before(async () => {
   const rol = await db.een<{ id: number }>(
     `insert into rollen (naam, beschrijving, rechten)
      values ('Testbeheerder', 'Alleen voor de tests', '{"deelnemers":{"zien":true,"aanmaken":true,"wijzigen":true,"verwijderen":true}}'::jsonb)
+     on conflict (naam) do update set beschrijving = excluded.beschrijving
      returning id`,
   )
   const gebruiker = await db.een<{ id: number }>(
     `insert into gebruikers (naam, email, wachtwoord_hash, rol_id)
      values ('Test Medewerker', 'test@diligence.nl', 'niet-gebruikt', $1)
+     on conflict (email) do update set rol_id = excluded.rol_id
      returning id`,
     [rol!.id],
   )

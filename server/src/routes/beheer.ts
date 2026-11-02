@@ -322,6 +322,13 @@ beheerRouter.post(
       stuurFout(res, 400, "Geef de rol een naam.")
       return
     }
+    const bestaat = await een<{ id: number }>("select id from rollen where lower(naam) = lower($1)", [
+      rolNaam,
+    ])
+    if (bestaat) {
+      stuurFout(res, 409, "Er bestaat al een rol met deze naam.")
+      return
+    }
     const rij = await een(
       `insert into rollen (naam, beschrijving, rechten, standaard)
        values ($1,$2,$3,false) returning *`,
@@ -351,10 +358,19 @@ beheerRouter.patch(
     }
     const nieuweRechten =
       req.body?.rechten !== undefined ? normaliseerRechten(req.body.rechten) : rij.rechten
+    const nieuweNaam = veiligeTekst(req.body?.naam) || rij.naam
+    const dubbel = await een<{ id: number }>(
+      "select id from rollen where lower(naam) = lower($1) and id <> $2",
+      [nieuweNaam, rij.id],
+    )
+    if (dubbel) {
+      stuurFout(res, 409, "Er bestaat al een rol met deze naam.")
+      return
+    }
     const bijgewerkt = await een(
       `update rollen set naam = $1, beschrijving = $2, rechten = $3 where id = $4 returning *`,
       [
-        veiligeTekst(req.body?.naam) || rij.naam,
+        nieuweNaam,
         veiligeTekst(req.body?.beschrijving) || null,
         JSON.stringify(nieuweRechten),
         rij.id,

@@ -52,7 +52,8 @@ async function beheerVerbinding(): Promise<pg.Client> {
 async function maakGebruiker(naam: string, rolId: number, rolNaam: string): Promise<Gebruiker> {
   const rij = await db.een<{ id: number }>(
     `insert into gebruikers (naam, email, wachtwoord_hash, rol_id)
-     values ($1,$2,'niet-gebruikt',$3) returning id`,
+     values ($1,$2,'niet-gebruikt',$3)
+     on conflict (email) do update set naam = excluded.naam, rol_id = excluded.rol_id returning id`,
     [naam, `${naam.toLowerCase().replace(/\s+/g, ".")}@test.nl`, rolId],
   )
   return {
@@ -83,6 +84,7 @@ before(async () => {
   const { programmaRouter } = await import("../src/routes/programma")
   const { geldRouter } = await import("../src/routes/geld")
   const { authRouter } = await import("../src/routes/auth")
+  const { beheerRouter } = await import("../src/routes/beheer")
 
   await db.q(SCHEMA_SQL)
   await db.q(
@@ -92,21 +94,21 @@ before(async () => {
      on conflict do nothing`,
   )
 
-  const rolBeheerder = await db.een<{ id: number }>(
-    `insert into rollen (naam, beschrijving, rechten) values ('Beheerder','test','{}'::jsonb) returning id`,
-  )
-  const rolPenningmeester = await db.een<{ id: number }>(
-    `insert into rollen (naam, beschrijving, rechten) values ('Penningmeester','test','{}'::jsonb) returning id`,
-  )
-  const rolChauffeur = await db.een<{ id: number }>(
-    `insert into rollen (naam, beschrijving, rechten) values ('Chauffeur','test','{}'::jsonb) returning id`,
-  )
-  const rolCoordinator = await db.een<{ id: number }>(
-    `insert into rollen (naam, beschrijving, rechten) values ('Coördinator','test','{}'::jsonb) returning id`,
-  )
-  const rolVrijwilliger = await db.een<{ id: number }>(
-    `insert into rollen (naam, beschrijving, rechten) values ('Vrijwilliger','test','{}'::jsonb) returning id`,
-  )
+  // Twee gelijktijdige testruns delen dezelfde testdatabase; een bestaande rol
+  // mag daarom geen dubbele-sleutelfout opleveren.
+  async function maakRol(naam: string): Promise<{ id: number }> {
+    return (await db.een<{ id: number }>(
+      `insert into rollen (naam, beschrijving, rechten) values ($1,'test','{}'::jsonb)
+       on conflict (naam) do update set beschrijving = excluded.beschrijving returning id`,
+      [naam],
+    ))!
+  }
+
+  const rolBeheerder = await maakRol("Beheerder")
+  const rolPenningmeester = await maakRol("Penningmeester")
+  const rolChauffeur = await maakRol("Chauffeur")
+  const rolCoordinator = await maakRol("Coördinator")
+  const rolVrijwilliger = await maakRol("Vrijwilliger")
 
   beheerder = await maakGebruiker("Beheerder Test", rolBeheerder!.id, "Beheerder")
   penningmeester = await maakGebruiker("Penning Test", rolPenningmeester!.id, "Penningmeester")
@@ -123,6 +125,7 @@ before(async () => {
   for (const gebruiker of [beheerder, penningmeester, chauffeur, planner]) {
     gebruikers.set(gebruiker.id, gebruiker)
   }
+  beheerder.rechten = { rollen: { aanmaken: true, wijzigen: true } }
 
   const app = express()
   app.use(express.json())
@@ -135,6 +138,7 @@ before(async () => {
   app.use("/api/periodes", programmaRouter)
   app.use("/api/declaraties", geldRouter)
   app.use("/api/auth", authRouter)
+  app.use("/api/beheer", beheerRouter)
 
   server = app.listen(0, "127.0.0.1")
   await once(server, "listening")
@@ -477,5 +481,27 @@ describe("inlog- en herstelcodes", () => {
       body: JSON.stringify({ email: "herstel@test.nl", wachtwoord: "nieuw-wachtwoord-456" }),
     })
     assert.equal(login.status, 200, JSON.stringify(login.data))
+  })
+})
+
+describe("rollen", () => {
+  it("weigert een tweede rol met dezelfde naam zonder databankfout", async () => {
+    const eerste = await verzoek("/api/beheer/rollen", {
+      method: "POST",
+      body: JSON.stringify({ naam: "Dubbele rol" }),
+    })
+    assert.equal(eerste.status, 201, JSON.stringify(eerste.data))
+
+    const tweede = await verzoek("/api/beheer/rollen", {
+      method: "POST",
+      body: JSON.stringify({ naam: "dubbele rol" }),
+    })
+    assert.equal(tweede.status, 409, JSON.stringify(tweede.data))
+    assert.equal(tweede.data.fout, "Er bestaat al een rol met deze naam.")
+
+    const aantal = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from rollen where lower(naam) = 'dubbele rol'",
+    )
+    assert.equal(aantal!.aantal, "1")
   })
 })
