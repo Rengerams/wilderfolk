@@ -1,3 +1,26 @@
+/* Inter, lokaal meegeleverd (public/fonts): strakke, neutrale letters zonder
+   externe verzoeken. Variabele weights 400–800. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   --achtergrond: #f7f8fa;
   --oppervlak: #ffffff;
@@ -68,15 +91,17 @@ body {
   margin: 0;
   background: var(--achtergrond);
   color: var(--inkt);
-  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.55;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  font-feature-settings: "cv05" 1;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4 {
   margin: 0 0 0.4rem;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
+  line-height: 1.14;
+  letter-spacing: -0.028em;
 }
 
 h1 { font-size: 2.05rem; font-weight: 800; }
@@ -803,7 +828,7 @@ a:hover { color: var(--primair-donker); }
 .tabel tbody tr:last-child td { border-bottom: none; }
 .tabel tbody tr:hover { background: #f7f9fd; }
 .tabel--compact td, .tabel--compact th { padding: 0.45rem 0.6rem; }
-.tabel th.getal, .tabel td.getal { text-align: right; }
+.tabel th.getal, .tabel td.getal { text-align: right; font-variant-numeric: tabular-nums; }
 
 .tabel__naam { font-weight: 650; }
 .tabel__naam a { color: var(--inkt); text-decoration: none; }
