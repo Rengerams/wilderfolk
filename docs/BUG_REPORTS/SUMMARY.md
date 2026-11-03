@@ -2164,3 +2164,7 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-03 — Building entry
 
 - **Building entry was measured from the footprint centre — resolved:** a large hospital could not be entered (patients hovered at the wall), every pupil snapped to one cell in front of the school, and venue/well crowds stacked on a point; entry now accepts the nearest entrance and crowds use spread slots. [Report](../bug_report/2026-11-03-building-approach-from-centre.md).
+
+## 2026-11-03 — Hospital care
+
+- **Hospital care gates let near-term doctors serve and hid grief care — resolved:** a doctor past 80% of a pregnancy is now off ward duty, and `needsMedicalCare` alone decides whether a settler seeks care, so grief at 50–70% stamina is no longer blocked; the treatment roll uses named constants. [Report](../bug_report/2026-11-03-hospital-care-gates.md).

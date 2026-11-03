@@ -14,17 +14,26 @@ import {
   pickHospitalWalkTarget,
   treatPatientAtHospital,
 } from './hospitalCare';
-import { getHumanStaminaRatio } from './simulation/humanPhysiology';
 
-const PATIENT_ARRIVAL_RADIUS_PX = 36;
+const PATIENT_CENTRE_RADIUS_PX = 36;
+const PATIENT_ENTRY_RADIUS_PX = 16;
+/** A doctor past this share of a pregnancy is a patient, not a carer. */
+const DOCTOR_PREGNANCY_OFF_DUTY_RATIO = 0.8;
+const HOSPITAL_TREATMENT_ROLL_SALT = 840;
+const HOSPITAL_TREATMENT_DAILY_CHANCE = 0.2;
 
 /** A patient is at the ward inside its centre radius or at its nearest entrance; walls block the rest. */
 function isAtHospital(entity: Entity, hospital: Building): boolean {
   const centreX = hospital.x + hospital.width / 2;
   const centreY = hospital.y + hospital.height / 2;
-  if (Math.hypot(entity.x - centreX, entity.y - centreY) < PATIENT_ARRIVAL_RADIUS_PX) return true;
+  if (Math.hypot(entity.x - centreX, entity.y - centreY) < PATIENT_CENTRE_RADIUS_PX) return true;
   const entrance = homeEntryPosition(hospital, entity.x, entity.y);
-  return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ARRIVAL_RADIUS_PX;
+  return Math.hypot(entity.x - entrance.x, entity.y - entrance.y) < PATIENT_ENTRY_RADIUS_PX;
+}
+
+/** Near-term doctors give birth, they do not run a ward round. */
+export function doctorMayServe(entity: Entity): boolean {
+  return (entity.pregnancyProgress ?? 0) <= PREGNANCY_TICKS * DOCTOR_PREGNANCY_OFF_DUTY_RATIO;
 }
 
 export type HospitalRuntimeContext = {
@@ -51,14 +60,12 @@ export function shouldRoutePregnantSettlerToHospital(
 
 export function shouldAttemptHospitalTreatment(
   entity: Entity,
-  onJobShift: boolean,
   hasStaffedHospital: boolean,
   tick: number,
 ): boolean {
-  return !!(needsMedicalCare(entity, tick) || entity.pregnant || !onJobShift)
-    && isPlayerHuman(entity)
-    && !!(getHumanStaminaRatio(entity) < 0.5 || entity.pregnant)
-    && hasStaffedHospital;
+  // needsMedicalCare already covers pregnancy, low stamina and grief; a working settler is not
+  // excluded, and a second stamina gate must not hide a need it already detected.
+  return isPlayerHuman(entity) && hasStaffedHospital && needsMedicalCare(entity, tick);
 }
 
 /** Runs the existing on-duty doctor treatment behavior. */
@@ -70,6 +77,7 @@ export function tickHumanDoctorHospitalService({
   onHospitalShift,
 }: Pick<HospitalRuntimeContext, 'state' | 'entity' | 'allHumans' | 'updatedBuildings' | 'onHospitalShift'>): void {
   if (!onHospitalShift || !isPlayerHuman(entity) || entity.job !== JobType.Doctor) return;
+  if (!doctorMayServe(entity)) return;
   const ward = isDoctorAtHospital(entity, updatedBuildings);
   const shift = ward ? doctorHospitalShift(ward, state.tick, entity.id) : undefined;
   if (!ward || !shift) return;
@@ -117,13 +125,13 @@ export function tickHumanHospitalPatientCare({
     }
   }
 
-  if (shouldAttemptHospitalTreatment(entity, onJobShift, staffedHospitals.length > 0, state.tick)) {
+  if (shouldAttemptHospitalTreatment(entity, staffedHospitals.length > 0, state.tick)) {
     const hospital = staffedHospitals.find((building) => isAtHospital(entity, building));
     if (hospital) enterHumanBuilding(entity, hospital);
     if (
       hospital
       && isHospitalTreatmentTick(entity.id, state.tick)
-      && personDayRoll(entity.id, state.tick, 840) < 0.2
+      && personDayRoll(entity.id, state.tick, HOSPITAL_TREATMENT_ROLL_SALT) < HOSPITAL_TREATMENT_DAILY_CHANCE
     ) {
       treatPatientAtHospital(state, entity, hospital);
     }

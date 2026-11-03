@@ -12,7 +12,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { pickHospitalWalkTarget } from '../src/game/hospitalCare';
-import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
+import { doctorMayServe, shouldAttemptHospitalTreatment, tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
+import { PREGNANCY_TICKS } from '../src/game/dayCycle';
 import { BuildingType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 
@@ -92,5 +93,41 @@ describe('pickHospitalWalkTarget', () => {
     });
 
     expect(patient.indoorBuildingId).toBe(ward.id);
+  });
+});
+
+describe('hospital duty and care gates', () => {
+  it('takes a near-term doctor off the ward round', () => {
+    expect(doctorMayServe(entity(0, 0, { pregnancyProgress: PREGNANCY_TICKS * 0.79 }))).toBe(true);
+    expect(doctorMayServe(entity(0, 0, { pregnancyProgress: PREGNANCY_TICKS * 0.81 }))).toBe(false);
+  });
+
+  it('seeks care for a detected need even with stamina above half, working or not', () => {
+    const grieving = entity(0, 0, {
+      griefUntilTick: 500,
+      needs: { nutrition: 80, rest: 80, stamina: 60, severeHungerTicks: 0 },
+    });
+    const healthy = entity(0, 0, {
+      needs: { nutrition: 80, rest: 80, stamina: 90, severeHungerTicks: 0 },
+    });
+
+    expect(shouldAttemptHospitalTreatment(grieving, true, 10)).toBe(true);
+    expect(shouldAttemptHospitalTreatment(healthy, true, 10)).toBe(false);
+  });
+
+  it('does not mark a patient indoors while they are still more than a door away', () => {
+    const ward = { ...hospital(1, 100, 100), width: 120, height: 120, occupants: [7] };
+    const door = { x: ward.x + ward.width / 2, y: ward.y + ward.height + 12 };
+    const patient = entity(door.x, door.y - 20, { energy: 10 });
+
+    tickHumanHospitalPatientCare({
+      state: { tick: 0 } as WorldState,
+      entity: patient,
+      staffedHospitals: [ward],
+      onJobShift: false,
+      speed: 2,
+    });
+
+    expect(patient.indoorBuildingId).toBeUndefined();
   });
 });
