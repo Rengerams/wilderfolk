@@ -103,7 +103,8 @@ export function updateRenderSoABuckets(
       if (!reader.isKnownType(slot)) return;
 
       const shim = buildRenderEntityShim(reader, slot, metaBySlot?.[slot]);
-      if (!shim || shim.hiddenFromPlayer) return;
+      // A deployed soldier is away with the war-band: never drawn standing in the village.
+      if (!shim || shim.hiddenFromPlayer || shim.raidDeploymentId) return;
 
       const type = reader.type(slot);
       if (!type) return;

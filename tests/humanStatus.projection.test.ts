@@ -4,7 +4,7 @@ import { BuildingType, MapSize, EntityType } from '../src/game/gameTypes';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { prefersHomeTonightFor } from '../src/game/humanSchedule';
 import { DEFAULT_WORK_SCHEDULE } from '../src/game/workSchedule';
-import { getHumanActivityProjection } from '../src/game/humanStatus';
+import { getHumanActivityProjection, getHumanActivityStatus } from '../src/game/humanStatus';
 
 describe('selected human activity projection', () => {
   it('returns stable read-only fields from the authoritative world', () => {
@@ -23,6 +23,15 @@ describe('selected human activity projection', () => {
     expect(world.tick).toBe(before.tick);
     expect(human.x).toBe(before.x);
     expect(human.y).toBe(before.y);
+  });
+
+  it('reports a deployed soldier as away with the war-band, not walking home', () => {
+    const world = initGame({ villageName: 'Deployed', size: MapSize.Medium, seed: 103 });
+    const human = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+    if (!human) throw new Error('Expected an initial human');
+    human.raidDeploymentId = 'raid-1';
+
+    expect(getHumanActivityStatus(world, human)).toBe('Away with the war-band');
   });
 
   it('does not describe a child near a Hunting Spot as a working hunter', () => {

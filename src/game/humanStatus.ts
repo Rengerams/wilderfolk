@@ -67,6 +67,7 @@ export function isAtActivityTarget(entity: Entity, target: HumanActivityTarget |
 
 export function getHumanActivityStatus(state: WorldState, entity: Entity): string {
   if (!entity.alive) return 'Dead';
+  if (entity.raidDeploymentId) return 'Away with the war-band';
 
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;

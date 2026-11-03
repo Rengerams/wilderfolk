@@ -30,6 +30,7 @@ export interface EntityRenderMeta {
   indoorBuildingId?: number;
   hiddenFromPlayer?: boolean;
   detectedByPatrol?: boolean;
+  raidDeploymentId?: Entity['raidDeploymentId'];
 
   needs?: Entity['needs'];
   job?: Entity['job'];
@@ -66,6 +67,7 @@ export function packEntityRenderMeta(entity: Entity): EntityRenderMeta {
     indoorBuildingId: entity.indoorBuildingId,
     hiddenFromPlayer: entity.hiddenFromPlayer,
     detectedByPatrol: entity.detectedByPatrol,
+    raidDeploymentId: entity.raidDeploymentId,
 
     needs: entity.needs ? { ...entity.needs } : undefined,
     job: entity.job,
@@ -152,6 +154,7 @@ export function buildRenderEntityShim(
     indoorBuildingId: meta?.indoorBuildingId,
     hiddenFromPlayer: meta?.hiddenFromPlayer,
     detectedByPatrol: meta?.detectedByPatrol,
+    raidDeploymentId: meta?.raidDeploymentId,
 
     needs: meta?.needs ? { ...meta.needs } : undefined,
     job: meta?.job,

@@ -1,6 +1,6 @@
 # Bug report summary — one line per report
 
-**2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates covered every performer and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides both and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
+**2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
 
 **2026-11-03 — [Spotlight chorus slots stacked the men on each other](../bug_report/2026-11-03-spotlight-chorus-slots-stacked.md):** The stage builder put every chorus slot on a 27–36 px arc south of the girl, 12.92 px apart, so the men overlapped and hid her. Slots now form one spaced ring around her; targeted tests, TypeScript, lint, build and a browser capture pass.
 
@@ -2168,3 +2168,7 @@ Nine defects found around the phase-B integration. All are now fixed: the promis
 ## 2026-11-03 — Hospital care
 
 - **Hospital care gates let near-term doctors serve and hid grief care — resolved:** a doctor past 80% of a pregnancy is now off ward duty, and `needsMedicalCare` alone decides whether a settler seeks care, so grief at 50–70% stamina is no longer blocked; the treatment roll uses named constants. [Report](../bug_report/2026-11-03-hospital-care-gates.md).
+
+## 2026-11-03 — War-band
+
+- **Deployed soldiers were drawn standing in the village — resolved:** the tick froze them but the village layer kept drawing their last position and the inspector said "Walking home to sleep"; both render paths now skip deployed settlers and the projection reports "Away with the war-band". [Report](../bug_report/2026-11-03-deployed-soldiers-drawn-in-village.md).

@@ -743,8 +743,9 @@ export function drawHumans(
     sx: number; headY: number; size: number; text: string; entityId: number; isLeader: boolean;
   }[] = [];
   for (const human of _cachedHumans) {
-    // Rivals live on the strategic map; the village layer never draws their parties.
-    if (human.faction === 'rival' || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
+    // Rivals live on the strategic map; deployed soldiers are away with the war-band.
+    if (human.faction === 'rival' || human.raidDeploymentId
+      || !shouldDrawSpotlightHuman(state.spotlightLore, human.id)) continue;
     const isSel = state.selectedEntityIds.includes(human.id) || state.selectedEntity?.id === human.id;
     // Indoor occupants stay selectable in inspectors but never draw a body or overhead UI.
     if (human.indoorBuildingId != null || (!isSel && isAsleepAtHome(human, state.buildings, state.hourOfDay))) continue;
@@ -845,12 +846,12 @@ export function drawHumans(
 
     // Every plate is laid out before any bubble is placed, so a bubble dodges its own speaker's
     // name plate and a neighbour's whatever order the settlers are drawn in.
-    // A running performance shows no plates at all: ten labels buried the girl in the middle.
-    const stageHidesPlates = state.spotlightLore?.phase === 'ready';
+    // A running performance shows no overhead markers: plates and status badges buried the cast.
+    const stageHidesOverhead = state.spotlightLore?.phase === 'ready';
     const nameZoomMin = isLeader ? 0.28 : (human.isJuvenile ? 0.38 : 0.45);
     const labelY = headY - 4 - (isLeader && cam.zoom > 0.22 ? Math.max(10, 12 * cam.zoom) : 0);
     let namePlate: { text: string; fontSize: number; labelY: number; rect: OverheadRect } | null = null;
-    if (!stageHidesPlates
+    if (!stageHidesOverhead
       && shouldDrawHumanNameLabel(cam.zoom, nameZoomMin) && (human.name || human.surname || isLeader)) {
       const text = formatHumanNameLabel(human, {
         isLeader,
@@ -881,7 +882,7 @@ export function drawHumans(
     // it, in the per-frame overlay pass.
 
     // Status badge
-    if (cam.zoom > 0.6) {
+    if (cam.zoom > 0.6 && !stageHidesOverhead) {
       const badge = getStatusBadgeLayout(cam.zoom);
       drawStatusBadge(
         ctx,
