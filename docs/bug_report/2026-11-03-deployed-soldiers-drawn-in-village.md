@@ -1,6 +1,6 @@
 # Deployed soldiers were drawn standing in the village
 
-- Bug: a settler with `raidDeploymentId` was frozen in the simulation but still rendered at their last village position, and the inspector described them as "Walking home to sleep" while the badge said "Away with the war-band" — the same settler shown in two places at once.
+- Bug: a settler with `raidDeploymentId` was frozen in the simulation but still rendered at their last village position and plotted as a village dot on the minimap, and the inspector described them as "Walking home to sleep" while the badge said "Away with the war-band" — the same settler shown in two places at once.
 - Status: resolved
 - Severity: medium — the village showed soldiers who were away at war
 - Date discovered: 2026-11-03
@@ -36,6 +36,7 @@ Deployment was a simulation-only fact: the tick and `workAbsence` knew it, but n
 ## Fix (applied)
 
 - `drawHumans` skips `human.raidDeploymentId` with the rival/spotlight filters.
+- The minimap skips deployed settlers, so no village dot remains where the army left.
 - The worker render path carries `raidDeploymentId` in `EntityRenderMeta` and the shim, and `updateRenderSoABuckets` skips deployed entities.
 - `getHumanActivityStatus` returns "Away with the war-band" first.
 

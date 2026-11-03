@@ -108,6 +108,8 @@ export default function MiniMap({
             let leaderSy = -1;
             for (const e of world.entities) {
               if (!e.alive || e.type === EntityType.Grass) continue;
+              // Away with the war-band: no village dot while deployed.
+              if (e.raidDeploymentId) continue;
               const sx = e.x * scaleX;
               const sy = e.y * scaleY;
               if (e.type === EntityType.Tree) {

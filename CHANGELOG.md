@@ -10,7 +10,7 @@
 
 - **Changed (3 November 2026):** The Spotlight performance now frames its stage much closer, and the camera returns to the exact view the player had when the scene ends.
 
-- **Fixed (3 November 2026):** Soldiers away with the war-band are no longer drawn standing in the village, and their status reads "Away with the war-band" instead of walking home to sleep.
+- **Fixed (3 November 2026):** Soldiers away with the war-band are no longer drawn standing in the village or as dots on the minimap, and their status reads "Away with the war-band" instead of walking home to sleep.
 
 - **Fixed (3 November 2026):** A doctor past 80% of a pregnancy no longer runs ward rounds; near term she is a patient like anyone else.
 
