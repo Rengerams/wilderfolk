@@ -3,7 +3,7 @@ import { type BuildingRotation, getBuildingFootprintForType } from './buildingRo
 import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
-import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
+import { tileAt } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
 import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
@@ -91,18 +91,17 @@ export function isFootprintOnBuildableTerrain(
         if (tile.type === TerrainType.DeepWater || tile.type === TerrainType.River) return false;
         if (isUnbuildableTerrainType(tile.type)) unstableCells++;
       } else if (bridge) {
-        if (!RIVER_PLACE_TERRAIN.has(tile.type)) return false;
+        // A bridge needs water to span, but may land on the banks/approach like a real deck.
+        if (isUnbuildableTerrainType(tile.type) && !RIVER_PLACE_TERRAIN.has(tile.type)) return false;
         if (tile.type === TerrainType.River) riverCells++;
       } else if (fishing) {
         // A fishing dock may straddle land and water — but never mountains/snow.
         if (isUnbuildableTerrainType(tile.type) && !isWaterTerrainType(tile.type)) return false;
         if (isWaterTerrainType(tile.type)) waterCells++;
       } else if (road) {
-        const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
-        if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
-          || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
-      } else if (isUnbuildableTerrainType(tile.type)
-        || snapshot.worldMap.pathGrid?.[ty * tileW + tx] === Walkability.Reserved) {
+        // A road crew can clear hard decor; it cannot pave water, mountain or snow.
+        if (isUnbuildableTerrainType(tile.type)) return false;
+      } else if (isUnbuildableTerrainType(tile.type)) {
         return false;
       }
     }

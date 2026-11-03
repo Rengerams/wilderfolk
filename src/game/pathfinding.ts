@@ -173,13 +173,12 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   let road: Uint8Array | null = null;
   const roadSurfaces = new Map<number, Building[]>();
   if (buildings) {
-    // Bridges open water first. Walls always win at overlapping footprints,
-    // regardless of building array order. A gate remains an intentional gap.
+    // Roads and bridges clear their own footprint, including reserved rock decor.
     for (const b of buildings) {
       if (!isWalkableRoad(b)) continue;
       road ??= new Uint8Array(cols * rows);
       stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
-      if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
+      stampBuildingFootprint(blocked, cols, rows, b, 0);
     }
     for (const b of buildings) {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);

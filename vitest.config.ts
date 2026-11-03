@@ -12,6 +12,7 @@ if (!existsSync(storageFile)) {
 
 export default defineConfig({
   test: {
+    globals:true,
     environment: 'node',
     isolate: true, // <-- Dit zorgt ervoor dat workers hergebruikt worden
     include: ['tests/**/*.test.ts'],

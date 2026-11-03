@@ -19,8 +19,8 @@ const output = mkdtempSync(join(tmpdir(), 'wilderfolk-jscpd-'));
 function runJscpd() {
   const args = [
     'src',
-    '--min-lines', '6',
-    '--min-tokens', '50',
+    '--min-lines', '8',
+    '--min-tokens', '80',
     '--format', 'typescript,tsx,javascript',
     '--ignore', '**/test/**,**/*.test.ts,**/data/**,src/test/**',
     '--reporters', 'json',

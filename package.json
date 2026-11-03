@@ -76,6 +76,8 @@
     "sharp": true,
     "zopflipng-bin": true,
     "@swc/core": true,
-    "deno": true
+    "deno": true,
+    "esbuild@0.28.2": true,
+    "skia-canvas@3.0.8": true
   }
 }
