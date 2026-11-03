@@ -11,23 +11,35 @@ export class ApiFout extends Error {
 
 async function verwerk<T>(antwoord: Response): Promise<T> {
   const tekst = await antwoord.text()
-  const data = tekst ? (JSON.parse(tekst) as Record<string, unknown>) : {}
+  let data: Record<string, unknown> = {}
+  try {
+    data = tekst ? (JSON.parse(tekst) as Record<string, unknown>) : {}
+  } catch {
+    data = {}
+  }
   if (!antwoord.ok) {
-    throw new ApiFout(
-      String(data.fout ?? data.bericht ?? "Er ging iets mis. Probeer het nog eens."),
-      antwoord.status,
-      data,
-    )
+    // Een 5xx komt vaak van een proxy of een gestopte server: geen technische
+    // details tonen, wel tekst waar de medewerker iets aan heeft.
+    const standaard =
+      antwoord.status >= 500
+        ? "De server is tijdelijk niet bereikbaar. Probeer het over een minuut opnieuw."
+        : "Er ging iets mis. Probeer het nog eens."
+    throw new ApiFout(String(data.fout ?? data.bericht ?? standaard), antwoord.status, data)
   }
   return data as T
 }
 
 export async function api<T>(pad: string, opties: RequestInit = {}): Promise<T> {
-  const antwoord = await fetch(`/api${pad}`, {
-    credentials: "same-origin",
-    headers: opties.body ? { "Content-Type": "application/json" } : undefined,
-    ...opties,
-  })
+  let antwoord: Response
+  try {
+    antwoord = await fetch(`/api${pad}`, {
+      credentials: "same-origin",
+      headers: opties.body ? { "Content-Type": "application/json" } : undefined,
+      ...opties,
+    })
+  } catch {
+    throw new ApiFout("De server is tijdelijk niet bereikbaar. Probeer het over een minuut opnieuw.", 0, {})
+  }
   return verwerk<T>(antwoord)
 }
 

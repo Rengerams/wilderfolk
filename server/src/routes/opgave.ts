@@ -28,11 +28,15 @@ type Deelnemer = {
   contactvoorkeur: string
 }
 
-async function haalPeriodeVanUitjes(uitjeIds: number[]): Promise<Periode | undefined> {
-  if (uitjeIds.length === 0) return undefined
-  return een<Periode>(
+/**
+ * Alle periodes waar de gekozen uitjes bij horen. Eén opgave hoort bij precies
+ * één periode; de aanroeper weigert een mix.
+ */
+async function haalPeriodesVanUitjes(uitjeIds: number[]): Promise<Periode[]> {
+  if (uitjeIds.length === 0) return []
+  return q<Periode>(
     `select distinct p.* from periodes p join uitjes u on u.periode_id = p.id
-      where u.id = any($1::int[]) limit 1`,
+      where u.id = any($1::int[]) order by p.id`,
     [uitjeIds],
   )
 }
@@ -179,11 +183,37 @@ opgaveRouter.post(
       "select * from uitjes where id = any($1::int[]) or (reeks_id = any($2::int[])) order by datum",
       [uitjeIds.length ? uitjeIds : [-1], reeksIds.length ? reeksIds : [-1]],
     )
-    const periode = await haalPeriodeVanUitjes(alleUitjes.map((u) => u.id))
-    if (!periode) {
+    // Aangeleverde ID's die niet (meer) bestaan niet stilzwijgend negeren: de
+    // gebruiker zou anders een bevestiging krijgen voor minder uitjes dan gekozen.
+    const gevondenUitjes = new Set(alleUitjes.map((uitje) => uitje.id))
+    const ontbrekendeUitjes = uitjeIds.filter((id) => !gevondenUitjes.has(id))
+    if (ontbrekendeUitjes.length > 0) {
+      stuurFout(res, 400, `Deze uitjes bestaan niet (meer): ${ontbrekendeUitjes.join(", ")}. Ververs het scherm en probeer opnieuw.`)
+      return
+    }
+    const gevondenReeksen = new Set(
+      alleUitjes.map((uitje) => uitje.reeks_id).filter((id): id is number => Boolean(id)),
+    )
+    const ontbrekendeReeksen = reeksIds.filter((id) => !gevondenReeksen.has(id))
+    if (ontbrekendeReeksen.length > 0) {
+      stuurFout(res, 400, `Deze reeksen bestaan niet (meer): ${ontbrekendeReeksen.join(", ")}. Ververs het scherm en probeer opnieuw.`)
+      return
+    }
+
+    const periodes = await haalPeriodesVanUitjes(alleUitjes.map((u) => u.id))
+    if (periodes.length === 0) {
       stuurFout(res, 400, "Deze uitjes horen niet bij een periode.")
       return
     }
+    if (periodes.length > 1) {
+      stuurFout(
+        res,
+        400,
+        "De gekozen uitjes horen bij verschillende periodes. Kies uitjes uit één periode.",
+      )
+      return
+    }
+    const periode = periodes[0]
     const magOverschrijven = mag(req.gebruiker, "indeling", "wijzigen")
     if (!periodeIsOpen(periode)) {
       if (!magOverschrijven || !reden) {
@@ -218,11 +248,12 @@ opgaveRouter.post(
         if (opgeslagen) opgaveIds.push(opgeslagen.id)
         toegevoegd.push(uitje.id)
       }
-      if (groep) {
-        await q("update deelnemers set eerste_opgave = coalesce(eerste_opgave, now()) where id = $1", [
-          deelnemer.id,
-        ])
-      }
+    }
+    // Geldt voor iedere opgave, met of zonder groepje.
+    if (toegevoegd.length > 0) {
+      await q("update deelnemers set eerste_opgave = coalesce(eerste_opgave, now()) where id = $1", [
+        deelnemer.id,
+      ])
     }
 
     const waarschuwingen: string[] = []

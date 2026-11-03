@@ -60,6 +60,16 @@ docker compose -f docker-compose.base44.yml up -d --build
   - Importbevestigingen worden opnieuw gevalideerd (datum binnen periode, tijden,
     prijs 0–5000, capaciteit 1–200, labels); de foutmarkeringen van de browser gelden
     niet meer.
+  - Handmatige periode- en uitje-invoer gebruikt dezelfde domeinvalidatie als de
+    import (`valideerPeriode` / `valideerUitjeInvoer` in `server/src/routes/programma.ts`):
+    echte kalenderdatum, datum binnen de periode, begin- en eindtijd samen en
+    begin niet na eind. De aanmelddeadline mag vóór de periode liggen, maar niet
+    na de einddatum.
+  - Een programma-import (batch, reeksen, uitjes, voertuigkoppelingen) loopt in één
+    transactie; een fout halverwege laat niets achter.
+  - Een telefonische opgave hoort bij precies één periode: een mix van uitjes uit
+    twee periodes en onbekende uitje-/reeks-ID's geven 400. `deelnemers.eerste_opgave`
+    wordt bij elke opgave gezet, ook zonder groepje.
   - Declaraties: `ingediend → goedgekeurd/afgekeurd → uitbetaald`, conditionele
     updates; alleen Penningmeester/Admin/Beheerder beoordelen of betalen en nooit de
     eigen declaratie.

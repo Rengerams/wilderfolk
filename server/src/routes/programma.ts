@@ -1,4 +1,5 @@
 import { Router } from "express"
+import type pg from "pg"
 import * as XLSX from "xlsx"
 import { een, metTransactie, q } from "../db"
 import { logWijziging } from "../audit"
@@ -61,6 +62,50 @@ function datumValtInPeriode(datum: string, periode: Periode): boolean {
   return datum >= periode.start_op.slice(0, 10) && datum <= periode.eind_op.slice(0, 10)
 }
 
+/** Echte kalenderdatum in YYYY-MM-DD; 2026-02-31 telt niet. */
+function isKalenderdatum(datum: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return false
+  const d = new Date(`${datum}T12:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === datum
+}
+
+const TIJD = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
+
+function tijdGeldig(waarde: unknown): boolean {
+  return waarde === null || waarde === undefined || waarde === "" || TIJD.test(String(waarde))
+}
+
+/** Periodegrenzen: echte datums, eind na begin, deadline niet na de periode. */
+function valideerPeriode(start: string, eind: string, deadline: string): string | null {
+  if (!isKalenderdatum(start) || !isKalenderdatum(eind) || !isKalenderdatum(deadline)) {
+    return "Gebruik een echte datum als 2026-11-02."
+  }
+  if (eind < start) return "De einddatum ligt voor de begindatum."
+  // De aanmelddeadline mag vóór de periode liggen: de opgave sluit dan voordat de uitjes beginnen.
+  if (deadline > eind) return "De aanmelddeadline kan niet na de einddatum liggen."
+  return null
+}
+
+/**
+ * Controle die voor handmatige invoer en import gelijk is: bestaande datum,
+ * binnen de periode, tijden geldig en de eindtijd niet voor de begintijd.
+ */
+function valideerUitjeInvoer(
+  datum: string,
+  begin: string | null,
+  eind: string | null,
+  periode: Periode,
+): string | null {
+  if (!isKalenderdatum(datum)) return `"${datum}" is geen geldige datum. Gebruik bijvoorbeeld 2026-11-02.`
+  if (!datumValtInPeriode(datum, periode)) {
+    return `${datumLang(datum)} valt buiten de periode (${datumLang(periode.start_op)} tot ${datumLang(periode.eind_op)}).`
+  }
+  if (!tijdGeldig(begin) || !tijdGeldig(eind)) return "Gebruik een geldige tijd als 10:30."
+  if (Boolean(begin) !== Boolean(eind)) return "Vul zowel de begin- als de eindtijd in, of laat ze allebei leeg."
+  if (begin && eind && begin.slice(0, 5) > eind.slice(0, 5)) return "De eindtijd ligt voor de begintijd."
+  return null
+}
+
 async function haalPeriode(id: number): Promise<Periode | undefined> {
   return een<Periode>("select * from periodes where id = $1", [id])
 }
@@ -88,8 +133,16 @@ function duurTekst(begin: string | null, eind: string | null): string {
  * Eerst zo groot mogelijk zonder te ruim te nemen, zodat 14 twee busjes wordt en
  * niet één touringcar. Wat daarna overblijft, vult het kleinste vrije voertuig aan.
  */
-async function koppelVoertuigenAutomatisch(uitjeId: number, capaciteit: number) {
-  const voertuigen = await q<{ id: number; capaciteit: number }>(
+async function koppelVoertuigenAutomatisch(
+  uitjeId: number,
+  capaciteit: number,
+  client?: pg.PoolClient,
+) {
+  // Binnen een transactie (import) moet dit via dezelfde client lopen, anders
+  // blijven de voertuigkoppelingen buiten de transactie staan.
+  const lees = async <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
+    client ? ((await client.query(sql, params as never[])).rows as T[]) : q<T>(sql, params)
+  const voertuigen = await lees<{ id: number; capaciteit: number }>(
     "select id, capaciteit from voertuigen where actief order by capaciteit desc, id",
   )
   const gekozen: number[] = []
@@ -108,7 +161,7 @@ async function koppelVoertuigenAutomatisch(uitjeId: number, capaciteit: number) 
     if (aanvulling) gekozen.push(aanvulling.id)
   }
   for (const voertuigId of gekozen) {
-    await q(
+    await lees(
       "insert into uitje_voertuigen (uitje_id, voertuig_id) values ($1,$2) on conflict do nothing",
       [uitjeId, voertuigId],
     )
@@ -139,8 +192,9 @@ programmaRouter.post(
       stuurFout(res, 400, "Vul de begin- en einddatum en de aanmelddeadline in.")
       return
     }
-    if (eind < start) {
-      stuurFout(res, 400, "De einddatum ligt voor de begindatum.")
+    const periodeFout = valideerPeriode(start, eind, deadline)
+    if (periodeFout) {
+      stuurFout(res, 400, periodeFout)
       return
     }
     const standaard = await instelling("standaard_capaciteit", "14")
@@ -209,6 +263,11 @@ programmaRouter.patch(
       status: status || periode.status,
       standaard_capaciteit: alsGetal(req.body?.standaard_capaciteit, periode.standaard_capaciteit),
     }
+    const periodeFout = valideerPeriode(nieuwe.start_op, nieuwe.eind_op, nieuwe.aanmelddeadline)
+    if (periodeFout) {
+      stuurFout(res, 400, periodeFout)
+      return
+    }
     const rij = await een<Periode>(
       `update periodes set naam=$1, start_op=$2, eind_op=$3, aanmelddeadline=$4, status=$5,
          standaard_capaciteit=$6 where id=$7 returning *`,
@@ -252,6 +311,13 @@ programmaRouter.post(
     const prijs = Math.max(0, alsGetal(req.body?.prijs, 0))
     const begin = veiligeTekst(req.body?.begin_tijd) || null
     const eind = veiligeTekst(req.body?.eind_tijd) || null
+    for (const datum of datums) {
+      const fout = valideerUitjeInvoer(datum, begin, eind, periode)
+      if (fout) {
+        stuurFout(res, 400, fout)
+        return
+      }
+    }
     const labels = Array.isArray(req.body?.labels)
       ? req.body.labels.map((l: unknown) => String(l)).filter((l: string) => LABELS.includes(l))
       : []
@@ -519,7 +585,9 @@ function parseProgramma(rijen: unknown[][], periode: Periode, standaardCapacitei
     let jaarVanRij = jaar
     if (maandVanRij < beginMaand - 6) jaarVanRij += 1
     const datum = datumNaarIso(jaarVanRij, maandVanRij, dag)
-    if (!datumValtInPeriode(datum, periode)) {
+    if (!isKalenderdatum(datum)) {
+      fouten.push(`De datum ${datum} bestaat niet.`)
+    } else if (!datumValtInPeriode(datum, periode)) {
       fouten.push(`De datum ${datumLang(datum)} valt buiten de periode.`)
     }
 
@@ -564,13 +632,15 @@ function valideerImportRij(rij: ImportRij, periode: Periode): string | null {
   if (!omschrijving) return "Een regel mist een omschrijving."
   if (omschrijving.length > 200) return "Een omschrijving is te lang (maximaal 200 tekens)."
   const datum = String(rij.datum ?? "").slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || !datumValtInPeriode(datum, periode)) {
-    return "Een datum valt buiten deze periode."
+  if (!isKalenderdatum(datum)) return `"${datum}" is geen bestaande datum.`
+  if (!datumValtInPeriode(datum, periode)) return "Een datum valt buiten deze periode."
+  if (!tijdGeldig(rij.begin_tijd) || !tijdGeldig(rij.eind_tijd)) return "Een regel heeft een ongeldige tijd."
+  if (
+    rij.begin_tijd && rij.eind_tijd &&
+    String(rij.begin_tijd).slice(0, 5) > String(rij.eind_tijd).slice(0, 5)
+  ) {
+    return "Een regel heeft een eindtijd vóór de begintijd."
   }
-  const tijdOk = (waarde: unknown) =>
-    waarde === null || waarde === undefined || waarde === "" ||
-    /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(String(waarde))
-  if (!tijdOk(rij.begin_tijd) || !tijdOk(rij.eind_tijd)) return "Een regel heeft een ongeldige tijd."
   const prijs = Number(rij.prijs ?? 0)
   if (!Number.isFinite(prijs) || prijs < 0 || prijs > 5000) {
     return "Een prijs ligt buiten het toegestane bereik (0–5000)."
@@ -660,46 +730,52 @@ programmaRouter.post(
       stuurFout(res, 400, gecontroleerd.find((regel) => regel.fout)?.fout ?? "Er zijn geen geldige regels om op te slaan.")
       return
     }
-    const batch = await een<{ id: number }>(
-      "insert into import_batches (periode_id, soort, aantal, details, door) values ($1,'programma',$2,$3,$4) returning id",
-      [periode.id, geldig.length, JSON.stringify({ rijen: geldig }), req.gebruiker!.id],
-    )
-    const reeksMap = new Map<string, number>()
-    for (const rij of geldig) {
-      let reeksId: number | null = null
-      if (rij.reeks_sleutel) {
-        if (!reeksMap.has(rij.reeks_sleutel)) {
-          const reeks = await een<{ id: number }>(
-            "insert into reeksen (periode_id, omschrijving) values ($1,$2) returning id",
-            [periode.id, rij.omschrijving],
-          )
-          reeksMap.set(rij.reeks_sleutel, reeks!.id)
-        }
-        reeksId = reeksMap.get(rij.reeks_sleutel)!
-      }
-      const uitje = await een<{ id: number }>(
-        `insert into uitjes
-          (periode_id, reeks_id, datum, begin_tijd, eind_tijd, omschrijving, prijs, extra_kosten,
-           labels, capaciteit, bron)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'import') returning id`,
-        [
-          periode.id, reeksId, rij.datum, rij.begin_tijd, rij.eind_tijd, rij.omschrijving,
-          rij.prijs, rij.extra_kosten, rij.labels ?? [], rij.capaciteit,
-        ],
+    // Batch, reeksen, uitjes en voertuigkoppelingen horen bij elkaar: faalt er
+    // één insert, dan blijft er niets van de import achter.
+    const { batchId, aantal } = await metTransactie(async (client) => {
+      const batch = await client.query<{ id: number }>(
+        "insert into import_batches (periode_id, soort, aantal, details, door) values ($1,'programma',$2,$3,$4) returning id",
+        [periode.id, geldig.length, JSON.stringify({ rijen: geldig }), req.gebruiker!.id],
       )
-      await koppelVoertuigenAutomatisch(uitje!.id, rij.capaciteit)
-      await q("insert into import_batch_uitjes (batch_id, uitje_id) values ($1,$2)", [
-        batch!.id,
-        uitje!.id,
-      ])
-    }
+      const nieuweBatchId = batch.rows[0].id
+      const reeksMap = new Map<string, number>()
+      for (const rij of geldig) {
+        let reeksId: number | null = null
+        if (rij.reeks_sleutel) {
+          if (!reeksMap.has(rij.reeks_sleutel)) {
+            const reeks = await client.query<{ id: number }>(
+              "insert into reeksen (periode_id, omschrijving) values ($1,$2) returning id",
+              [periode.id, rij.omschrijving],
+            )
+            reeksMap.set(rij.reeks_sleutel, reeks.rows[0].id)
+          }
+          reeksId = reeksMap.get(rij.reeks_sleutel)!
+        }
+        const uitje = await client.query<{ id: number }>(
+          `insert into uitjes
+            (periode_id, reeks_id, datum, begin_tijd, eind_tijd, omschrijving, prijs, extra_kosten,
+             labels, capaciteit, bron)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'import') returning id`,
+          [
+            periode.id, reeksId, rij.datum, rij.begin_tijd, rij.eind_tijd, rij.omschrijving,
+            rij.prijs, rij.extra_kosten, rij.labels ?? [], rij.capaciteit,
+          ],
+        )
+        await koppelVoertuigenAutomatisch(uitje.rows[0].id, rij.capaciteit, client)
+        await client.query("insert into import_batch_uitjes (batch_id, uitje_id) values ($1,$2)", [
+          nieuweBatchId,
+          uitje.rows[0].id,
+        ])
+      }
+      return { batchId: nieuweBatchId, aantal: geldig.length }
+    })
     await logWijziging(req, {
       actie: "importeren",
       entiteit: "periode",
       entiteitId: periode.id,
-      omschrijving: `${req.gebruiker!.naam} heeft ${geldig.length} uitjes uit Excel/CSV ingeladen in "${periode.naam}". De import is in één keer ongedaan te maken.`,
+      omschrijving: `${req.gebruiker!.naam} heeft ${aantal} uitjes uit Excel/CSV ingeladen in "${periode.naam}". De import is in één keer ongedaan te maken.`,
     })
-    res.status(201).json({ batch_id: batch!.id, aantal: geldig.length, uitjes: await haalUitjes(periode.id) })
+    res.status(201).json({ batch_id: batchId, aantal, uitjes: await haalUitjes(periode.id) })
   }),
 )
 
@@ -870,6 +946,16 @@ programmaRouter.patch(
       status: ["actief", "geannuleerd"].includes(String(req.body?.status))
         ? String(req.body.status)
         : uitje.status,
+    }
+    const periode = await haalPeriode(uitje.periode_id)
+    if (!periode) {
+      stuurFout(res, 404, "Deze periode bestaat niet.")
+      return
+    }
+    const invoerFout = valideerUitjeInvoer(nieuw.datum, nieuw.begin_tijd, nieuw.eind_tijd, periode)
+    if (invoerFout) {
+      stuurFout(res, 400, invoerFout)
+      return
     }
     const rij = await een<Uitje>(
       `update uitjes set datum=$1, begin_tijd=$2, eind_tijd=$3, omschrijving=$4, prijs=$5,

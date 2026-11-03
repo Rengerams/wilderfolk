@@ -82,6 +82,7 @@ before(async () => {
   hashWachtwoord = (await import("../src/auth")).hashWachtwoord
   const { SCHEMA_SQL } = await import("../src/schema")
   const { programmaRouter } = await import("../src/routes/programma")
+  const { opgaveRouter } = await import("../src/routes/opgave")
   const { geldRouter } = await import("../src/routes/geld")
   const { authRouter } = await import("../src/routes/auth")
   const { beheerRouter } = await import("../src/routes/beheer")
@@ -136,6 +137,7 @@ before(async () => {
     next()
   })
   app.use("/api/periodes", programmaRouter)
+  app.use("/api/opgave", opgaveRouter)
   app.use("/api/declaraties", geldRouter)
   app.use("/api/auth", authRouter)
   app.use("/api/beheer", beheerRouter)
@@ -503,5 +505,146 @@ describe("rollen", () => {
       "select count(*)::text as aantal from rollen where lower(naam) = 'dubbele rol'",
     )
     assert.equal(aantal!.aantal, "1")
+  })
+})
+
+describe("invoervalidatie programma en opgave", () => {
+  it("weigert een handmatig uitje buiten de periode, met een onbestaande datum of met omgekeerde tijden", async () => {
+    const periode = await maakPeriode()
+
+    const buiten = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Buiten de periode", datums: ["2026-10-15"] }),
+    })
+    assert.equal(buiten.status, 400, JSON.stringify(buiten.data))
+
+    const onbestaand = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Geen echte datum", datums: ["2026-11-31"] }),
+    })
+    assert.equal(onbestaand.status, 400, JSON.stringify(onbestaand.data))
+
+    const omgekeerdeTijd = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({
+        omschrijving: "Omgekeerde tijd",
+        datums: ["2026-11-12"],
+        begin_tijd: "14:00",
+        eind_tijd: "10:00",
+      }),
+    })
+    assert.equal(omgekeerdeTijd.status, 400, JSON.stringify(omgekeerdeTijd.data))
+
+    const aantal = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from uitjes where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(aantal!.aantal, "0")
+  })
+
+  it("weigert een periode met een deadline na de einddatum", async () => {
+    const antwoord = await verzoek("/api/periodes", {
+      method: "POST",
+      body: JSON.stringify({
+        start_op: "2027-01-01",
+        eind_op: "2027-01-31",
+        aanmelddeadline: "2027-02-15",
+      }),
+    })
+    assert.equal(antwoord.status, 400, JSON.stringify(antwoord.data))
+  })
+
+  it("weigert een opgave die uitjes uit twee periodes mengt", async () => {
+    const eerste = await maakPeriode()
+    const tweede = await maakPeriode()
+    const uitjeEen = await maakUitje(eerste.id, "2026-11-10")
+    const uitjeTwee = await maakUitje(tweede.id, "2026-12-10")
+    const deelnemer = await maakDeelnemer("Mengelaar")
+
+    const antwoord = await verzoek("/api/opgave", {
+      method: "POST",
+      body: JSON.stringify({ deelnemer_id: deelnemer.id, uitje_ids: [uitjeEen.id, uitjeTwee.id] }),
+    })
+    assert.equal(antwoord.status, 400, JSON.stringify(antwoord.data))
+    const opgaven = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from opgaven where deelnemer_id = $1",
+      [deelnemer.id],
+    )
+    assert.equal(opgaven!.aantal, "0")
+  })
+
+  it("weigert een opgave voor een uitje dat niet bestaat", async () => {
+    const deelnemer = await maakDeelnemer("Onbekend uitje")
+    const antwoord = await verzoek("/api/opgave", {
+      method: "POST",
+      body: JSON.stringify({ deelnemer_id: deelnemer.id, uitje_ids: [999_999] }),
+    })
+    assert.equal(antwoord.status, 400, JSON.stringify(antwoord.data))
+  })
+
+  it("zet eerste_opgave ook bij een deelnemer zonder groepje", async () => {
+    const periode = (await db.een<{ id: number }>(
+      `insert into periodes (naam, start_op, eind_op, aanmelddeadline, status)
+       values ('Open periode','2026-11-01','2027-12-31','2027-06-30','gepubliceerd') returning id`,
+    ))!
+    const uitje = await maakUitje(periode.id, "2026-11-20")
+    const deelnemer = await maakDeelnemer("Zonder groep")
+
+    const antwoord = await verzoek("/api/opgave", {
+      method: "POST",
+      body: JSON.stringify({ deelnemer_id: deelnemer.id, uitje_ids: [uitje.id], met_groepje: false }),
+    })
+    assert.equal(antwoord.status, 201, JSON.stringify(antwoord.data))
+
+    const rij = await db.een<{ eerste_opgave: string | null }>(
+      "select eerste_opgave from deelnemers where id = $1",
+      [deelnemer.id],
+    )
+    assert.ok(rij?.eerste_opgave, "eerste_opgave moet gevuld zijn")
+  })
+
+  it("draait een import terug als er halverwege een fout optreedt", async () => {
+    const periode = await maakPeriode()
+    const tel = async (sql: string) =>
+      (await db.een<{ aantal: string }>(sql, [periode.id]))!.aantal
+    const voor = await tel("select count(*)::text as aantal from uitjes where periode_id = $1")
+
+    await db.q(
+      `create unique index test_import_uniek on uitjes (datum, omschrijving)
+        where periode_id = ${periode.id}`,
+    )
+    try {
+      const regel = {
+        rij: 1,
+        datum: "2026-11-12",
+        begin_tijd: "10:00",
+        eind_tijd: "12:00",
+        omschrijving: "Dubbele regel",
+        prijs: 0,
+        capaciteit: 10,
+        labels: [],
+        reeks_sleutel: "dubbele regel",
+      }
+      const antwoord = await verzoek(`/api/periodes/${periode.id}/import/bevestig`, {
+        method: "POST",
+        body: JSON.stringify({ regels: [regel, { ...regel, rij: 2 }] }),
+      })
+      assert.ok(antwoord.status >= 400, JSON.stringify(antwoord.data))
+    } finally {
+      await db.q("drop index if exists test_import_uniek")
+    }
+
+    assert.equal(await tel("select count(*)::text as aantal from uitjes where periode_id = $1"), voor)
+    assert.equal(
+      await tel("select count(*)::text as aantal from import_batches where periode_id = $1"),
+      "0",
+    )
+    assert.equal(
+      await tel(
+        `select count(*)::text as aantal from reeksen where periode_id = $1
+          and omschrijving = 'Dubbele regel'`,
+      ),
+      "0",
+    )
   })
 })
