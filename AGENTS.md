@@ -63,8 +63,12 @@ docker compose -f docker-compose.base44.yml up -d --build
   - Handmatige periode- en uitje-invoer gebruikt dezelfde domeinvalidatie als de
     import (`valideerPeriode` / `valideerUitjeInvoer` in `server/src/routes/programma.ts`):
     echte kalenderdatum, datum binnen de periode, begin- en eindtijd samen en
-    begin niet na eind. De aanmelddeadline mag vóór de periode liggen, maar niet
-    na de einddatum.
+    begin niet na eind. Prijs (0–5000) en capaciteit (heel getal 1–200) hebben
+    dezelfde grenzen als de import. De aanmelddeadline mag vóór de periode liggen,
+    maar niet na de einddatum.
+  - Dezelfde datum twee keer in één handmatige reeks geeft 400. Reeks, uitjes en
+    voertuigkoppelingen worden in één transactie aangemaakt; een fout halverwege
+    laat geen lege reeks of losse uitjes achter.
   - Een programma-import (batch, reeksen, uitjes, voertuigkoppelingen) loopt in één
     transactie; een fout halverwege laat niets achter.
   - Een telefonische opgave hoort bij precies één periode: een mix van uitjes uit

@@ -542,6 +542,125 @@ describe("invoervalidatie programma en opgave", () => {
     assert.equal(aantal!.aantal, "0")
   })
 
+  it("weigert handmatige prijs en capaciteit buiten dezelfde grenzen als de import", async () => {
+    const periode = await maakPeriode()
+
+    const teDuur = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Te duur", datums: ["2026-11-12"], prijs: 5001 }),
+    })
+    assert.equal(teDuur.status, 400, JSON.stringify(teDuur.data))
+
+    const negatievePrijs = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Negatieve prijs", datums: ["2026-11-12"], prijs: -1 }),
+    })
+    assert.equal(negatievePrijs.status, 400, JSON.stringify(negatievePrijs.data))
+
+    const teGroteCapaciteit = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Te veel plekken", datums: ["2026-11-12"], capaciteit: 201 }),
+    })
+    assert.equal(teGroteCapaciteit.status, 400, JSON.stringify(teGroteCapaciteit.data))
+
+    const geenCapaciteit = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Geen plekken", datums: ["2026-11-12"], capaciteit: 0 }),
+    })
+    assert.equal(geenCapaciteit.status, 400, JSON.stringify(geenCapaciteit.data))
+
+    const halveCapaciteit = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({ omschrijving: "Halve plek", datums: ["2026-11-12"], capaciteit: 10.5 }),
+    })
+    assert.equal(halveCapaciteit.status, 400, JSON.stringify(halveCapaciteit.data))
+
+    const aantal = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from uitjes where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(aantal!.aantal, "0")
+
+    const andere = await maakPeriode()
+    const bestaand = await maakUitje(andere.id, "2026-11-20")
+    const teDuurBewerken = await verzoek(`/api/periodes/uitje/${bestaand.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ prijs: 6000 }),
+    })
+    assert.equal(teDuurBewerken.status, 400, JSON.stringify(teDuurBewerken.data))
+    const teGrootBewerken = await verzoek(`/api/periodes/uitje/${bestaand.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ capaciteit: 201 }),
+    })
+    assert.equal(teGrootBewerken.status, 400, JSON.stringify(teGrootBewerken.data))
+    const ongewijzigd = await db.een<{ prijs: number; capaciteit: number }>(
+      "select prijs, capaciteit from uitjes where id = $1",
+      [bestaand.id],
+    )
+    assert.equal(ongewijzigd!.prijs, 0)
+    assert.equal(ongewijzigd!.capaciteit, 10)
+  })
+
+  it("weigert dezelfde datum twee keer in één reeks", async () => {
+    const periode = await maakPeriode()
+
+    const antwoord = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+      method: "POST",
+      body: JSON.stringify({
+        omschrijving: "Dubbele datum",
+        datums: ["2026-11-12", "2026-11-12"],
+      }),
+    })
+    assert.equal(antwoord.status, 400, JSON.stringify(antwoord.data))
+
+    const aantal = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from uitjes where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(aantal!.aantal, "0")
+    const reeksen = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from reeksen where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(reeksen!.aantal, "0")
+  })
+
+  it("draait een handmatige reeks terug als er halverwege een fout optreedt", async () => {
+    const periode = await maakPeriode()
+    await db.q(
+      `insert into uitjes (periode_id, datum, omschrijving, capaciteit)
+       values ($1,'2026-11-15','Reeks met fout',10)`,
+      [periode.id],
+    )
+    await db.q(
+      `create unique index test_reeks_uniek on uitjes (datum, omschrijving)
+        where periode_id = ${periode.id}`,
+    )
+    try {
+      const antwoord = await verzoek(`/api/periodes/${periode.id}/uitjes`, {
+        method: "POST",
+        body: JSON.stringify({
+          omschrijving: "Reeks met fout",
+          datums: ["2026-11-14", "2026-11-15"],
+        }),
+      })
+      assert.ok(antwoord.status >= 400, JSON.stringify(antwoord.data))
+    } finally {
+      await db.q("drop index if exists test_reeks_uniek")
+    }
+
+    const uitjes = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from uitjes where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(uitjes!.aantal, "1", "alleen het bestaande uitje hoort over te blijven")
+    const reeksen = await db.een<{ aantal: string }>(
+      "select count(*)::text as aantal from reeksen where periode_id = $1",
+      [periode.id],
+    )
+    assert.equal(reeksen!.aantal, "0")
+  })
+
   it("weigert een periode met een deadline na de einddatum", async () => {
     const antwoord = await verzoek("/api/periodes", {
       method: "POST",

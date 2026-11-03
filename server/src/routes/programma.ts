@@ -106,6 +106,17 @@ function valideerUitjeInvoer(
   return null
 }
 
+/** Zelfde grenzen als de import: prijs 0–5000, capaciteit een heel getal 1–200. */
+function valideerPrijsEnCapaciteit(prijs: number, capaciteit: number): string | null {
+  if (!Number.isFinite(prijs) || prijs < 0 || prijs > 5000) {
+    return "De prijs moet tussen € 0 en € 5000 liggen."
+  }
+  if (!Number.isInteger(capaciteit) || capaciteit < 1 || capaciteit > 200) {
+    return "De capaciteit moet een heel getal tussen 1 en 200 zijn."
+  }
+  return null
+}
+
 async function haalPeriode(id: number): Promise<Periode | undefined> {
   return een<Periode>("select * from periodes where id = $1", [id])
 }
@@ -307,8 +318,18 @@ programmaRouter.post(
       stuurFout(res, 400, "Vul een omschrijving en minstens één datum in.")
       return
     }
-    const capaciteit = Math.max(1, alsGetal(req.body?.capaciteit, periode.standaard_capaciteit))
-    const prijs = Math.max(0, alsGetal(req.body?.prijs, 0))
+    const dubbel = datums.find((datum, index) => datums.indexOf(datum) !== index)
+    if (dubbel) {
+      stuurFout(res, 400, `${datumLang(dubbel)} staat meer dan één keer in deze reeks.`)
+      return
+    }
+    const capaciteit = alsGetal(req.body?.capaciteit, periode.standaard_capaciteit)
+    const prijs = alsGetal(req.body?.prijs, 0)
+    const bedragFout = valideerPrijsEnCapaciteit(prijs, capaciteit)
+    if (bedragFout) {
+      stuurFout(res, 400, bedragFout)
+      return
+    }
     const begin = veiligeTekst(req.body?.begin_tijd) || null
     const eind = veiligeTekst(req.body?.eind_tijd) || null
     for (const datum of datums) {
@@ -321,30 +342,36 @@ programmaRouter.post(
     const labels = Array.isArray(req.body?.labels)
       ? req.body.labels.map((l: unknown) => String(l)).filter((l: string) => LABELS.includes(l))
       : []
-    let reeksId: number | null = null
-    if (datums.length > 1) {
-      const reeks = await een<{ id: number }>(
-        "insert into reeksen (periode_id, omschrijving) values ($1,$2) returning id",
-        [periode.id, omschrijving],
-      )
-      reeksId = reeks!.id
-    }
-    const gemaakt: Uitje[] = []
-    for (const datum of datums.sort()) {
-      const rij = await een<Uitje>(
-        `insert into uitjes
-          (periode_id, reeks_id, datum, begin_tijd, eind_tijd, omschrijving, prijs, extra_kosten,
-           labels, capaciteit, geschiktheid, bron)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'handmatig') returning *`,
-        [
-          periode.id, reeksId, datum, begin, eind, omschrijving, prijs,
-          veiligeTekst(req.body?.extra_kosten) || null, labels, capaciteit,
-          veiligeTekst(req.body?.geschiktheid) || null,
-        ],
-      )
-      await koppelVoertuigenAutomatisch(rij!.id, capaciteit)
-      gemaakt.push(rij!)
-    }
+    // Reeks, uitjes en voertuigkoppelingen horen bij elkaar: faalt er één insert,
+    // dan blijft er niets van de reeks achter.
+    const gemaakt = await metTransactie(async (client) => {
+      let reeksId: number | null = null
+      if (datums.length > 1) {
+        const reeks = await client.query<{ id: number }>(
+          "insert into reeksen (periode_id, omschrijving) values ($1,$2) returning id",
+          [periode.id, omschrijving],
+        )
+        reeksId = reeks.rows[0].id
+      }
+      const nieuw: Uitje[] = []
+      for (const datum of [...datums].sort()) {
+        const resultaat = await client.query<Uitje>(
+          `insert into uitjes
+            (periode_id, reeks_id, datum, begin_tijd, eind_tijd, omschrijving, prijs, extra_kosten,
+             labels, capaciteit, geschiktheid, bron)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'handmatig') returning *`,
+          [
+            periode.id, reeksId, datum, begin, eind, omschrijving, prijs,
+            veiligeTekst(req.body?.extra_kosten) || null, labels, capaciteit,
+            veiligeTekst(req.body?.geschiktheid) || null,
+          ],
+        )
+        const rij = resultaat.rows[0]
+        await koppelVoertuigenAutomatisch(rij.id, capaciteit, client)
+        nieuw.push(rij)
+      }
+      return nieuw
+    })
     await logWijziging(req, {
       actie: "aanmaken",
       entiteit: "uitje",
@@ -941,7 +968,7 @@ programmaRouter.patch(
       labels: Array.isArray(req.body?.labels)
         ? req.body.labels.map((l: unknown) => String(l)).filter((l: string) => LABELS.includes(l))
         : uitje.labels,
-      capaciteit: Math.max(1, alsGetal(req.body?.capaciteit, uitje.capaciteit)),
+      capaciteit: alsGetal(req.body?.capaciteit, uitje.capaciteit),
       geschiktheid: veiligeTekst(req.body?.geschiktheid) || null,
       status: ["actief", "geannuleerd"].includes(String(req.body?.status))
         ? String(req.body.status)
@@ -955,6 +982,11 @@ programmaRouter.patch(
     const invoerFout = valideerUitjeInvoer(nieuw.datum, nieuw.begin_tijd, nieuw.eind_tijd, periode)
     if (invoerFout) {
       stuurFout(res, 400, invoerFout)
+      return
+    }
+    const bedragFout = valideerPrijsEnCapaciteit(nieuw.prijs, nieuw.capaciteit)
+    if (bedragFout) {
+      stuurFout(res, 400, bedragFout)
       return
     }
     const rij = await een<Uitje>(
