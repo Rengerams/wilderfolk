@@ -1,0 +1,28 @@
+{
+  "mode": "strict",
+  "format": ["typescript", "tsx"],
+  "pattern": "**/*.{ts,tsx}",
+  "minLines": 5,
+  "minTokens": 40,
+  "threshold": 0,
+  "ignoreIdentifiers": "consistent",
+  "ignoreLiterals": true,
+  "ignoreAnnotations": true,
+  "crossFormats": "js-ts",
+  "threshold":"2",
+  "failOnEmpty": true,
+  "reporters": ["full", "threshold"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/coverage/**",
+    "**/*.d.ts",
+    "**/*.test.{ts,tsx}",
+    "**/*.spec.{ts,tsx}",
+    "**/tests/**",
+    "**/__tests__/**"
+  ],
+  "path": ["./src"]
+}
