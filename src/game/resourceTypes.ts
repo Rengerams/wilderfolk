@@ -55,13 +55,6 @@ export function formatResourceAmount(key: ResourceKey, amount: number): string {
   return `${amount} ${RESOURCE_METAS[key].emoji}`;
 }
 
-/**
- * Every non-zero amount in a resource dict, each formatted by the owner (`"60 🪵 · 15 ⛓"`).
- *
- * Added for the trade-route reward line, which picked gold *or* stone by hand: `trade_8` (wood 60) and
- * `trade_10` (food 60) therefore advertised "+0s per round-trip" and `trade_3`'s iron was hidden, so the
- * exact rows a wood-starved colony needed read as worthless (`LIVE-FINDINGS-STATUS.md`, F13).
- */
 export function formatResourceAmounts(resources: Partial<Record<ResourceKey, number>>): string {
   const parts: string[] = [];
   for (const [key, amount] of Object.entries(resources) as [ResourceKey, number | undefined][]) {

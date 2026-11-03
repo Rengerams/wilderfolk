@@ -11,6 +11,7 @@
 
 ## Status history
 - 2026-11-02 — investigating: replaced the separate HTML caption with the existing canvas chat bubble painter; CI/browser validation pending
+- 2026-11-03 — owner reversed the caption half: a speaker-attached bubble still lands on the girl at the closer stage zoom, so the overlay now pins one fixed caption bubble under the title banner (text still from the validated JSON script). Name plates and building level markers are hidden for the ready phase. Verified in a browser capture.
 
 ## Observed behavior
 The user's screenshot shows a roughly 320-pixel wide central HTML caption covering the village scene, with nonparticipants and overhead name plates drawn during the performance. The spotlight gradient darkens much of the visible area. The normal event chose the girl's location rather than an existing Village Square.

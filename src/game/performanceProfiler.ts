@@ -1,5 +1,9 @@
 import type { PathfinderReport } from './pathfindingMetrics';
-import { getHousingRelocationSnapshot, setHousingRelocationMonitorEnabled, type HousingRelocationSnapshot } from './housingRelocationMonitor';
+import {
+  getHousingRelocationSnapshot,
+  setHousingRelocationMonitorEnabled,
+  type HousingRelocationSnapshot,
+} from './housingRelocationMonitor';
 
 /** Opt-in per-realm CPU-time sampling with bounded call-site names. */
 export interface PerformanceSection {
@@ -65,11 +69,13 @@ export function setPerformanceProfilingEnabled(next: boolean): void {
     lastTick = 0;
     population = 0;
     weather = '';
-    sections = new Map();
+    sections.clear();
     lastPublished = startedAt;
+  } else if (!next && enabled) {
+    // Ruim direct op om heap-geheugen vrij te geven in de worker
+    sections.clear();
   }
   enabled = next;
-  // One dev switch: CPU sampling and the relocation monitor start and stop together.
   setHousingRelocationMonitorEnabled(next);
 }
 
@@ -84,8 +90,13 @@ export function profileEnd(name: string, start: number): void {
   let row = sections.get(name);
   if (!row) {
     row = {
-      calls: 0, totalMs: 0, maxMs: 0, peakTick: 0,
-      samples: new Float64Array(PERFORMANCE_SAMPLE_LIMIT), sampleCount: 0, overBudgetCalls: 0,
+      calls: 0,
+      totalMs: 0,
+      maxMs: 0,
+      peakTick: 0,
+      samples: new Float64Array(PERFORMANCE_SAMPLE_LIMIT),
+      sampleCount: 0,
+      overBudgetCalls: 0,
     };
     sections.set(name, row);
   }
@@ -118,6 +129,7 @@ export function profileRenderedFrame(tick: number, currentWeather: string): void
 export function getPerformanceSnapshot(): PerformanceSnapshot {
   const now = performance.now();
   const housingRelocations = getHousingRelocationSnapshot();
+
   return {
     enabled,
     elapsedMs: startedAt ? now - startedAt : 0,
@@ -127,22 +139,27 @@ export function getPerformanceSnapshot(): PerformanceSnapshot {
     population,
     weather,
     ...(housingRelocations.enabled || housingRelocations.totalMoves > 0 ? { housingRelocations } : {}),
-    sections: [...sections].map(([name, s]) => {
-      const sorted = s.samples.slice(0, s.sampleCount).sort();
-      const percentile = (fraction: number): number => sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
-      return {
-        name,
-        calls: s.calls,
-        totalMs: s.totalMs,
-        averageMs: s.totalMs / s.calls,
-        maxMs: s.maxMs,
-        peakTick: s.peakTick,
-        p50Ms: percentile(0.5),
-        p95Ms: percentile(0.95),
-        p99Ms: percentile(0.99),
-        overBudgetCalls: s.overBudgetCalls,
-      };
-    }).sort((a, b) => b.totalMs - a.totalMs),
+    sections: [...sections]
+      .map(([name, s]) => {
+        // Expliciete numerieke comparator (a - b) voorkomt lexicografische sort-fouten
+        const sorted = s.samples.slice(0, s.sampleCount).sort((a, b) => a - b);
+        const percentile = (fraction: number): number =>
+          sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
+
+        return {
+          name,
+          calls: s.calls,
+          totalMs: s.totalMs,
+          averageMs: s.calls > 0 ? s.totalMs / s.calls : 0, // Beveiligd tegen divide-by-zero
+          maxMs: s.maxMs,
+          peakTick: s.peakTick,
+          p50Ms: percentile(0.5),
+          p95Ms: percentile(0.95),
+          p99Ms: percentile(0.99),
+          overBudgetCalls: s.overBudgetCalls,
+        };
+      })
+      .sort((a, b) => b.totalMs - a.totalMs),
   };
 }
 

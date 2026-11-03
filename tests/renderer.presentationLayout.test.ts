@@ -91,16 +91,17 @@ describe('human overhead presentation layout', () => {
     expect(shouldDrawSpotlightHuman(null, 99)).toBe(true);
   });
 
-  it('uses the existing chat bubble painter for Spotlight Lore instead of drawing another HTML bubble', () => {
+  it('pins the Spotlight caption under the title banner instead of a bubble over the stage', () => {
     const humans = readFileSync(resolve(process.cwd(), 'src/game/renderer/humans.ts'), 'utf8');
     const spotlight = readFileSync(resolve(process.cwd(), 'src/components/SpotlightLoreOverlay.tsx'), 'utf8');
-    expect(humans).toContain('const spotlightSpeech =');
+    // The ordinary chat painter still owns normal speech, and a future canvas line would use it.
     expect(humans).toContain('getSpotlightPresentationSpeech(human.id)');
-    expect(humans).toContain('text: spotlightSpeech ?? getChatBubbleText(human, tick)');
     expect(humans).toContain('drawSpeechBubble(');
-    expect(spotlight).toContain('speech });');
+    // The performance's line is a fixed caption in the title column, never a sprite-attached bubble.
+    expect(spotlight).toContain('formatChatLine(line.text, speaker)');
+    expect(spotlight).toContain('aria-live="polite"');
+    expect(spotlight).not.toContain('speech });');
     expect(spotlight).not.toContain('bubbleRef');
-    expect(spotlight).not.toContain('bg-amber-50');
   });
 
   it('draws the name plate at readable zoom, whether or not the settler is talking', () => {

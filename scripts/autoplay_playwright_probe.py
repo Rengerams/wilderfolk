@@ -398,7 +398,7 @@ SPOTLIGHT_SCENE_JS = """
   const banner = [...document.querySelectorAll('p')]
     .map((p) => (p.textContent || '').trim())
     .find((text) => text.endsWith('has the look!'));
-  const progress = [...document.querySelectorAll('div')]
+  const progress = [...document.querySelectorAll('div, span, p')]
     .map((d) => (d.textContent || '').trim())
     .find((text) => /^\\d+ \\/ \\d+( · .*)?$/.test(text));
   return {
@@ -409,6 +409,20 @@ SPOTLIGHT_SCENE_JS = """
   };
 }
 """
+
+
+def live_zoom(page) -> float | None:
+    """The camera zoom the header reports, as a percentage."""
+    text = page.evaluate(
+        """() => {
+          const label = document.querySelector('[title="Live zoom"]');
+          return label ? (label.textContent || '').trim() : '';
+        }"""
+    )
+    try:
+        return float(str(text).replace('%', ''))
+    except ValueError:
+        return None
 
 
 def dismiss_tutorial(page) -> bool:
@@ -461,17 +475,38 @@ def run_spotlight_stage(args) -> int:
         if not observed["progress"]:
             # Captions start the moment the blackout clears; the stage is only "live" from there.
             page.wait_for_function(
-                """() => [...document.querySelectorAll('div')]
+                """() => [...document.querySelectorAll('div, span, p')]
                   .some((d) => /^\\d+ \\/ \\d+( · .*)?$/.test((d.textContent || '').trim()))""",
                 timeout=15000,
             )
             observed = page.evaluate(SPOTLIGHT_SCENE_JS)
         if args.spotlight_screenshot:
             page.screenshot(path=args.spotlight_screenshot)
+        # The stage zoom is not readable from the HUD while the world is paused, so the restore is
+        # checked against the camera the colony was saved with: skip, then compare the live label.
+        saved_zoom = round(float(json.loads(payload).get("camera", {}).get("zoom", 0)) * 100)
+        observed["saved_zoom"] = saved_zoom
+        if click_text(page, "skip scene"):
+            page.wait_for_function(
+                "() => !document.querySelector('[aria-label=\\'Village spotlight scene\\']')",
+                timeout=30000,
+            )
+            page.wait_for_function(
+                """(saved) => {
+                  const label = document.querySelector('[title="Live zoom"]');
+                  return !!label && Math.abs(parseFloat(label.textContent) - saved) <= 2;
+                }""",
+                arg=saved_zoom,
+                timeout=30000,
+            )
+            observed["restored_zoom"] = live_zoom(page)
         observed["page_errors"] = errors
         print(json.dumps(observed))
         browser.close()
-        return 0 if observed["overlay"] and observed["progress"] and not errors else 1
+        restored = observed.get("restored_zoom")
+        ok = (observed["overlay"] and observed["progress"] and not errors
+            and restored is not None and abs(restored - saved_zoom) <= 2)
+        return 0 if ok else 1
 
 
 def main() -> int:

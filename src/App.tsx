@@ -137,6 +137,9 @@ import { currentCampaignStep, TUTORIAL_CAMPAIGN } from './game/tutorialCampaign'
 
 const SPEED_OPTIONS = [0.5, 1, 2, 3, 5, 10];
 
+/** The Spotlight stage fills the frame: close enough to read the girl and her ring, never clipped. */
+const SPOTLIGHT_STAGE_ZOOM = 2.5;
+
 /**
  * The save/load feedback banner, rendered by both session states.
  *
@@ -494,8 +497,8 @@ export default function App() {
     if (!loop || loop.getWorld().spotlightLore?.phase !== 'ready') return;
     const current = loop.getView();
     if (Math.hypot(current.camera.targetX - x, current.camera.targetY - y) < 0.2
-        && Math.abs(current.camera.targetZoom - 1.75) < 0.005) return;
-    const aimed = focusCameraOn(current, x, y, 1.75);
+        && Math.abs(current.camera.targetZoom - SPOTLIGHT_STAGE_ZOOM) < 0.005) return;
+    const aimed = focusCameraOn(current, x, y, SPOTLIGHT_STAGE_ZOOM);
     const canvas = canvasRef.current;
     loop.setView({
       ...current,

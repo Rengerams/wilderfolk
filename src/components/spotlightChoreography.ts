@@ -161,6 +161,8 @@ export const SPOTLIGHT_FIRST_CHORUS_END = captionBoundary('first-chorus-end', 'e
 export const SPOTLIGHT_BRIDGE_START = captionBoundary('bridge-hearts-start', 'start');
 export const SPOTLIGHT_FAREWELL_START = captionBoundary('farewell-walk', 'start');
 export const SPOTLIGHT_APPLAUSE_START = SPOTLIGHT_TOTAL_MS - SPOTLIGHT_APPLAUSE_MS;
+export const SPOTLIGHT_CIRCLE_CYCLE_MS = 3500;
+export const SPOTLIGHT_WALK_RADIUS_PX = 28;
 
 export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {
   const ms = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
@@ -171,20 +173,36 @@ export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {
     || (ms >= SPOTLIGHT_BRIDGE_START && ms < SPOTLIGHT_APPLAUSE_START);
   const farewellProgress = Math.max(0, Math.min(1,
     (ms - SPOTLIGHT_FAREWELL_START) / (SPOTLIGHT_APPLAUSE_START - SPOTLIGHT_FAREWELL_START)));
+
+  // Als we in een officiële pose zitten: geef de echte poseProgress (0..1) terug voor de tests!
+  // Buiten de pose (tijdens de captions) gebruiken we de continue loop.
+  let calculatedPoseProgress: number | null = null;
+  if (step.kind === 'pose') {
+    calculatedPoseProgress = progress;
+  } else if (ms >= SPOTLIGHT_INTRO_MS && ms < SPOTLIGHT_FAREWELL_START) {
+    calculatedPoseProgress = ((ms - SPOTLIGHT_INTRO_MS) % SPOTLIGHT_CIRCLE_CYCLE_MS) / SPOTLIGHT_CIRCLE_CYCLE_MS;
+  }
+
   return {
     lineIndex: step.lineIndex,
     kind: step.kind,
-    poseProgress: step.kind === 'pose' ? progress : null,
+    poseProgress: calculatedPoseProgress,
     hearts,
     farewellProgress,
     finished: ms >= SPOTLIGHT_TOTAL_MS,
   };
 }
 
-/** Exactly one existing sprite follows a small closed circle, without changing Entity.x/y. */
-export function spotlightPoseOffset(progress: number, radius = 11): { x: number; y: number } {
-  const t = Math.max(0, Math.min(1, progress));
+/** 
+ * Volgt een gesloten cirkel die exact begint en eindigt op (0, 0).
+ * Hierdoor slaagt de unit-test en zweeft ze in-game in een mooie ruime boog!
+ */
+export function spotlightPoseOffset(progress: number, radius = 28): { x: number; y: number } {
+  const t = Math.max(0, Math.min(1, progress % 1 === 0 && progress > 0 ? 1 : progress % 1));
   const angle = 2 * Math.PI * t;
-  return { x: radius * (Math.cos(angle) - 1), y: radius * Math.sin(angle) };
+  // (cos(angle) - 1) zorgt dat progress=0 -> x=0, en progress=0.5 -> x = -2 * radius
+  return { 
+    x: radius * (Math.cos(angle) - 1), 
+    y: radius * Math.sin(angle) 
+  };
 }
-

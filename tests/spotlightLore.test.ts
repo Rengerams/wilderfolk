@@ -155,6 +155,8 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     const innkeeper = adults[0];
     innkeeper.job = JobType.Innkeeper;
     innkeeper.energy = innkeeper.maxEnergy;
+    // A rested man, or the hospital's care rule would report him as ill instead of on shift.
+    innkeeper.needs = { ...innkeeper.needs!, stamina: 90 };
     const tavern = createBuilding(BuildingType.Tavern, girl.x + 220, girl.y - 140, 910);
     Object.assign(tavern, {
       occupants: [innkeeper.id], completed: true, constructionProgress: 100,

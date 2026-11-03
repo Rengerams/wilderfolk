@@ -1,6 +1,7 @@
 /**
- * A running Spotlight performance owns the frame: name plates and the gold building level
- * frames, pennants and level text are gameplay markers, and they were burying the cast.
+ * A running Spotlight performance owns the frame: name plates, status badges and the gold
+ * building level frames, pennants and level text are gameplay markers, and they were burying
+ * the cast.
  */
 import { describe, expect, it } from 'vitest';
 import { createBuilding } from '../src/game/worldGen';
@@ -10,6 +11,7 @@ import { buildEntityByType } from '../src/game/simFocus';
 import { resetEntityCaches, updateCachedEntities } from '../src/game/renderer/entityCache';
 import { drawHumans } from '../src/game/renderer/humans';
 import { drawBuildings } from '../src/game/renderer/buildings';
+import { getStatusBadgeLayout } from '../src/game/renderer/overheadLayout';
 import { buildEntityLayerKey } from '../src/game/entityLayer';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
 
@@ -18,13 +20,15 @@ interface Recorder {
   fillStyles: string[];
   strokeStyles: string[];
   texts: string[];
+  arcs: number[];
 }
 
-/** One no-op context that remembers the colours and strings a painter chose. */
+/** One no-op context that remembers the colours, strings and arc radii a painter chose. */
 function recorder(): Recorder {
   const fillStyles: string[] = [];
   const strokeStyles: string[] = [];
   const texts: string[] = [];
+  const arcs: number[] = [];
   const gradient = { addColorStop: () => {} };
   const ctx = {
     globalAlpha: 1,
@@ -58,7 +62,9 @@ function recorder(): Recorder {
     moveTo: () => {},
     lineTo: () => {},
     quadraticCurveTo: () => {},
-    arc: () => {},
+    arc: (_x: number, _y: number, radius: number) => {
+      arcs.push(radius);
+    },
     ellipse: () => {},
     rect: () => {},
     fill: () => {},
@@ -76,7 +82,7 @@ function recorder(): Recorder {
     createRadialGradient: () => gradient,
     createPattern: () => null,
   } as unknown as CanvasRenderingContext2D;
-  return { ctx, fillStyles, strokeStyles, texts };
+  return { ctx, fillStyles, strokeStyles, texts, arcs };
 }
 
 const CAMERA = { x: 100, y: 100, zoom: 1, targetX: 100, targetY: 100, targetZoom: 1 };
@@ -127,19 +133,26 @@ function readyScene(heroineId: number): SpotlightLoreState {
 }
 
 describe('Spotlight performance hides gameplay markers for its duration', () => {
-  it('draws no settler name plate while the scene is ready, and restores it afterwards', () => {
+  it('draws no settler name plate or status badge while the scene is ready, and restores them', () => {
     const person = createEntity(EntityType.Human, 100, 100, 7, undefined, true, {
       name: 'Ada', surname: 'Hale', gender: 'female', ageYears: 30, colonyDay: 3,
     });
-    const paint = (spotlightLore: SpotlightLoreState | null, tick: number): string[] => {
+    const badgeRadius = getStatusBadgeLayout(CAMERA.zoom).radius;
+    const paint = (spotlightLore: SpotlightLoreState | null, tick: number) => {
       resetEntityCaches();
       updateCachedEntities(buildEntityByType([person]), null, tick, CAMERA, 960, 720, 800, 600);
-      const { ctx, texts } = recorder();
+      const { ctx, texts, arcs } = recorder();
       drawHumans(ctx, snapshot({ tick, spotlightLore }), 800, 600);
-      return texts;
+      return { texts, arcs };
     };
-    expect(paint(null, 1).join('|')).toContain('Ada');
-    expect(paint(readyScene(person.id), 2).join('|')).not.toContain('Ada');
+    const shown = paint(null, 1);
+    expect(shown.texts.join('|')).toContain('Ada');
+    expect(shown.arcs).toContain(badgeRadius);
+
+    const hidden = paint(readyScene(person.id), 2);
+    expect(hidden.texts.join('|')).not.toContain('Ada');
+    // The purple status disc over the head is the last overhead marker; the performance hides it.
+    expect(hidden.arcs).not.toContain(badgeRadius);
   });
 
   it('draws no gold level frame, pennant or level text while the scene is ready', () => {

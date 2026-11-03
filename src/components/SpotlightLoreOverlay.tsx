@@ -75,14 +75,13 @@ export default function SpotlightLoreOverlay({
   /** One layout snapshot the wall-clock animation reads, so it never restarts on a world tick. */
   const stageViewRef = useRef<{
     world: WorldState; scene: SpotlightLoreState; girl: Entity | undefined;
-    captions: ReturnType<typeof bindNumberedPresentationSpeakers>;
     origin: { x: number; y: number };
     exit: ReturnType<typeof spotlightFarewellDestination>;
     radius: number;
   } | null>(null);
   useLayoutEffect(() => {
     stageViewRef.current = {
-      world, scene, girl, captions: boundCaptions, origin: stageOrigin,
+      world, scene, girl, origin: stageOrigin,
       exit: departure, radius: poseRadius,
     };
   });
@@ -110,8 +109,7 @@ export default function SpotlightLoreOverlay({
     const view = stageViewRef.current;
     if (!view) return;
     const {
-      world: stageWorld, scene: stage, girl: stageGirl,
-      captions, origin: from, exit, radius,
+      world: stageWorld, scene: stage, origin: from, exit, radius,
     } = view;
     let frameHandle = 0;
     let previousIndex = -1;
@@ -121,14 +119,6 @@ export default function SpotlightLoreOverlay({
     let soundtrackStarted = false;
     let soundtrackFaded = false;
     let soundtrackStopped = false;
-    // Resolve and wrap the script once, rather than repeating chat layout on every animation frame.
-    const scriptedSpeech = captions.map((caption) => {
-      const speakerId = caption.speakerId;
-      const actor = speakerId === stage.heroineId
-        ? stageGirl : resolveEntity(stageWorld, speakerId ?? -1);
-      return speakerId != null && actor
-        ? { speakerId, text: formatChatLine(caption.text, actor) } : null;
-    });
     const men = stage.slots.filter((slot) => resolveEntity(stageWorld, slot.humanId)?.gender === 'male');
     const effectTargets = men.length > 0 ? men : stage.slots;
     const chorusMean = effectTargets.reduce(
@@ -191,11 +181,9 @@ export default function SpotlightLoreOverlay({
         ? Math.sin(step.poseProgress * Math.PI * 2) < 0
         : exit.x < from.x;
 
-      // One frame-scoped projection drives the sprite and the ordinary chat bubble painter.
-      // Neither the scripted caption nor the heroine pose touches the simulation's chat fields.
-      const speech = (step.kind === 'caption' || step.kind === 'pose') && step.lineIndex !== null
-        ? scriptedSpeech[step.lineIndex] ?? null : null;
-      callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft, speech });
+      // One frame-scoped projection drives the sprite. The spoken line is a fixed overlay caption
+      // under the title banner, so no chat bubble covers the stage; the sim chat fields stay untouched.
+      callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft });
       if (step.farewellProgress > 0) callbacks.current.onCameraTarget(x, y);
 
       const camera = callbacks.current.getCamera();
@@ -280,6 +268,11 @@ export default function SpotlightLoreOverlay({
   }, [scene.id, scene.phase, canvasRef]);
 
   const line = lineIndex >= 0 ? boundCaptions[lineIndex] : null;
+  // The caption sits under the title banner, never over the stage: the girl and her ring stay clear.
+  const speaker = line?.speakerId === scene.heroineId
+    ? girl : resolveEntity(world, line?.speakerId ?? -1);
+  const captionText = line && speaker && (stageKind === 'caption' || stageKind === 'pose')
+    ? formatChatLine(line.text, speaker) : null;
   const skip = () => {
     if (completed.current) return;
     completed.current = true;
@@ -315,21 +308,27 @@ export default function SpotlightLoreOverlay({
             style={{ opacity: 0, willChange: 'left, top, opacity' }}>👏</span>
         ))}
       </div>
-      <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-lg border border-amber-500/70 bg-stone-950/90 px-5 py-2 text-center shadow-xl">
-        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">A very strange village tradition</p>
-        <p className="text-sm font-semibold text-stone-100">{girl?.name ?? 'Someone'} has the look!</p>
+      <div className="absolute left-1/2 top-5 z-[32] flex w-[min(46rem,calc(100vw-3rem))] -translate-x-1/2 flex-col items-center gap-2 text-center">
+        <div className="rounded-lg border border-amber-500/70 bg-stone-950/90 px-5 py-2 shadow-xl">
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">A very strange village tradition</p>
+          <p className="text-sm font-semibold text-stone-100">{girl?.name ?? 'Someone'} has the look!</p>
+        </div>
+        {captionText && (
+          <p className="rounded-xl border border-amber-400/60 bg-stone-950/90 px-4 py-2 text-sm font-medium leading-snug text-stone-100 shadow-xl"
+            role="status" aria-live="polite">
+            {captionText}
+          </p>
+        )}
+        {line && (stageKind === 'caption' || stageKind === 'pose') && (
+          <span className="rounded bg-stone-950/75 px-2 py-0.5 text-[10px] font-medium text-amber-100/90">
+            {lineIndex + 1} / {SPOTLIGHT_CAPTIONS.length}{stageKind === 'pose' ? ' · Show-off walk (7 sec)' : ''}
+          </span>
+        )}
       </div>
       {scene.phase === 'gathering' ? (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/85 px-4 py-2 text-sm text-amber-100">
           The neighbours are gathering. Nobody knows why.
         </div>
-      ) : line && (stageKind === 'caption' || stageKind === 'pose') ? (
-        <>
-          <span className="sr-only" role="status" aria-live="polite">{line.text}</span>
-          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md bg-stone-950/80 px-3 py-1 text-xs text-amber-100">
-            {lineIndex + 1} / {SPOTLIGHT_CAPTIONS.length}{stageKind === 'pose' ? ' · Show-off walk (7 sec)' : ''}
-          </div>
-        </>
       ) : stageKind === 'applause' ? (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 rounded-md border border-amber-400/70 bg-stone-950/90 px-4 py-2 text-sm font-bold text-amber-100" role="status">
           A confused round of applause. The star takes a bow.

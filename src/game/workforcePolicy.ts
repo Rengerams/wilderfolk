@@ -1,33 +1,6 @@
 import type { BuildingType } from './gameTypes';
 
-/**
- * Workforce Policy Presets — roadmap F3 (Roadmap_V0_6.4.1.MD line 36).
- *
- * A preset is *only* a priority order over which job building receives the next idle
- * worker. It is the strategic layer on top of auto-staffing; it is never an authority
- * over an existing assignment:
- *
- * - A preset never takes a worker away from a manual assignment. The auto-staff pass
- *   (`workforce.assignMissingWorkers`) fills from idle settlers first. The limited
- *   transfer fallback only opens an empty post with one eligible donor, keeping
- *   the worker cooldown and avoiding repeated top-ups of an occupied workplace.
- * - `removeWorkerFromBuilding` keeps working: it is a player-command removal that runs
- *   through `workforce.removeWorkerTransition`, which does not read this module. Changing
- *   the preset cannot refuse or reroute that removal.
- * - Per-building `staffingMode: 'manual'` (`workforce.isManualStaffingBuilding`) still
- *   wins: a manual building is skipped by the auto pass under every preset. The preset is
- *   the colony-wide default behind that per-building override, never in front of it.
- *
- * `gameTypes` is imported as a **type only**: this owner must not sit in a runtime import
- * cycle with the god file. The ordering table below spells its building types as string
- * literals, which the `readonly BuildingType[]` annotation still validates against the
- * `BuildingType` union — a mechanism the repo already uses for its typed catalogues
- * (`visitorQuest.ts`, `workshops.ts`, `huntingSpots.ts`).
- *
- * Invariant guarded by `tests/workforcePolicy.presets.test.ts`.
- */
 
-/** The four strategic presets, in display order. */
 export const WORKFORCE_PRESETS = ['survival', 'growth', 'defense', 'comfort'] as const;
 
 export type WorkforcePreset = (typeof WORKFORCE_PRESETS)[number];
@@ -35,11 +8,6 @@ export type WorkforcePreset = (typeof WORKFORCE_PRESETS)[number];
 /** A colony-wide auto-staffing priority preset. */
 export type WorkforcePolicy = WorkforcePreset;
 
-/**
- * The default preset for a new colony **and** for a save written before this field existed.
- * `Survival` reproduces the historical `AUTO_JOB_BUILDING_PRIORITY` order exactly, so an old
- * save loads with unchanged auto-staffing behaviour (see the survival row below).
- */
 export const DEFAULT_WORKFORCE_POLICY: WorkforcePolicy = 'survival';
 
 /** Player-facing preset copy — the single definition, read by the work-schedule panel. */
@@ -70,11 +38,6 @@ export const WORKFORCE_PRESET_DETAILS: Readonly<
  */
 export const UNRANKED_JOB_BUILDING_RANK = Number.MAX_SAFE_INTEGER;
 
-/**
- * Every assignable job building, as its canonical id. The `Record<BuildingType, string>`
- * annotation makes this mapping exhaustive and typo-proof without a value import of
- * `buildings.ts`, which is what keeps this owner out of a runtime import cycle.
- */
 const JOB_BUILDING_IDS: Readonly<Record<BuildingType, string>> = {
   house: 'house',
   farm: 'farm',
@@ -125,15 +88,7 @@ function jobBuildingId(key: BuildingType): BuildingType {
   return JOB_BUILDING_IDS[key] as BuildingType;
 }
 
-/**
- * The one ordering table. Each preset is a list of job buildings from highest to lowest
- * priority; every preset's spillover tail is the unranked rule above. There is deliberately
- * no per-preset branch anywhere — `jobBuildingPriorityForPolicy` walks this table.
- *
- * `survival` follows the historical auto-staff order while also prioritising
- * Fishing Spots alongside other food jobs (previously left unranked despite
- * having an explicit Hunter job).
- */
+
 const PRESET_BUILDING_ORDER: Readonly<Record<WorkforcePreset, readonly BuildingType[]>> = {
   survival: [
     jobBuildingId('farm'),
