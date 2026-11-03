@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-03 — [Spotlight stage lands half a footprint off the Village Square centre](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** The stage point added half the square's footprint to a value that already was the centre, so the girl performed on the south-east rim by the silos. Both staging paths now read the centre from its canonical owner; targeted tests, TypeScript, lint and build pass.
+
 **2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
 
 **2026-11-03 — [Spotlight chorus slots stacked the men on each other](../bug_report/2026-11-03-spotlight-chorus-slots-stacked.md):** The stage builder put every chorus slot on a 27–36 px arc south of the girl, 12.92 px apart, so the men overlapped and hid her. Slots now form one spaced ring around her; targeted tests, TypeScript, lint, build and a browser capture pass.

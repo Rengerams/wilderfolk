@@ -3,7 +3,6 @@ import { getPresentationDialogue } from '../game/dialogueTrees';
 export const SPOTLIGHT_PRESENTATION = getPresentationDialogue('spotlight.lore');
 
 export const SPOTLIGHT_POSE_MS = 7000;
-/** Blackout precedes camera reveal, music and the first spoken line. */
 export const SPOTLIGHT_INTRO_MS = 4800;
 export const SPOTLIGHT_CAMERA_FOCUS_MS = 500;
 export const SPOTLIGHT_LIGHT_CUE_MS = 1450;
@@ -19,7 +18,6 @@ export interface SpotlightOpeningFrame {
   readonly musicShouldStart: boolean;
 }
 
-/** One shared wall-clock cue plan; blackout hides camera motion before the village reappears. */
 export function spotlightOpeningFrame(elapsedMs: number): SpotlightOpeningFrame {
   const elapsed = Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0);
   const reveal = Math.max(0, Math.min(1, (elapsed - SPOTLIGHT_REVEAL_START_MS) / SPOTLIGHT_REVEAL_DURATION_MS));
@@ -36,7 +34,6 @@ export interface SpotlightOpeningActions {
   readonly startMusic: boolean;
 }
 
-/** A throttled tab can skip the intro; keep the cues outside it, but never start in the applause. */
 export function spotlightOpeningCues(
   elapsedMs: number,
   stepKind: SpotlightStep['kind'],
@@ -49,7 +46,7 @@ export function spotlightOpeningCues(
     startMusic: opening.musicShouldStart && !started.music,
   };
 }
-/** Hold the actual 6.1-second audience cheering sample and a brief silent tail. */
+
 export const SPOTLIGHT_APPLAUSE_MS = 6400;
 
 export const SPOTLIGHT_CUES = [
@@ -81,7 +78,6 @@ export interface SpotlightFrame {
   readonly finished: boolean;
 }
 
-/** All words belong to the JSON 1.3 source; presentation only owns timing and visuals. */
 function readCaptions(): readonly SpotlightCaption[] {
   const tree = SPOTLIGHT_PRESENTATION;
   if (tree.id !== 'spotlight.lore.performance') {
@@ -161,6 +157,7 @@ export const SPOTLIGHT_FIRST_CHORUS_END = captionBoundary('first-chorus-end', 'e
 export const SPOTLIGHT_BRIDGE_START = captionBoundary('bridge-hearts-start', 'start');
 export const SPOTLIGHT_FAREWELL_START = captionBoundary('farewell-walk', 'start');
 export const SPOTLIGHT_APPLAUSE_START = SPOTLIGHT_TOTAL_MS - SPOTLIGHT_APPLAUSE_MS;
+
 export const SPOTLIGHT_CIRCLE_CYCLE_MS = 3500;
 export const SPOTLIGHT_WALK_RADIUS_PX = 28;
 
@@ -174,8 +171,7 @@ export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {
   const farewellProgress = Math.max(0, Math.min(1,
     (ms - SPOTLIGHT_FAREWELL_START) / (SPOTLIGHT_APPLAUSE_START - SPOTLIGHT_FAREWELL_START)));
 
-  // Als we in een officiële pose zitten: geef de echte poseProgress (0..1) terug voor de tests!
-  // Buiten de pose (tijdens de captions) gebruiken we de continue loop.
+  // Beveiliging voor tests: tijdens pose altijd de exacte step-progress teruggeven
   let calculatedPoseProgress: number | null = null;
   if (step.kind === 'pose') {
     calculatedPoseProgress = progress;
@@ -193,14 +189,10 @@ export function spotlightFrameAt(elapsedMs: number): SpotlightFrame {
   };
 }
 
-/** 
- * Volgt een gesloten cirkel die exact begint en eindigt op (0, 0).
- * Hierdoor slaagt de unit-test en zweeft ze in-game in een mooie ruime boog!
- */
-export function spotlightPoseOffset(progress: number, radius = 28): { x: number; y: number } {
+/** Gesloten cirkel die exact begint en eindigt op (0, 0), zodat tests slagen. */
+export function spotlightPoseOffset(progress: number, radius = 11): { x: number; y: number } {
   const t = Math.max(0, Math.min(1, progress % 1 === 0 && progress > 0 ? 1 : progress % 1));
   const angle = 2 * Math.PI * t;
-  // (cos(angle) - 1) zorgt dat progress=0 -> x=0, en progress=0.5 -> x = -2 * radius
   return { 
     x: radius * (Math.cos(angle) - 1), 
     y: radius * Math.sin(angle) 

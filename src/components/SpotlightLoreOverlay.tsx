@@ -10,7 +10,7 @@ import { preloadSpotlightMusic, playSpotlightMusic, type SpotlightMusicPlayback 
 import {
   SPOTLIGHT_CAPTIONS, SPOTLIGHT_TOTAL_MS, SPOTLIGHT_FIRST_CHORUS_START,
   SPOTLIGHT_BRIDGE_START, SPOTLIGHT_APPLAUSE_START, SPOTLIGHT_PRESENTATION, spotlightFrameAt, spotlightPoseOffset,
-  spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS, spotlightOpeningCues,
+  spotlightOpeningFrame, SPOTLIGHT_MUSIC_FADE_MS, spotlightOpeningCues, SPOTLIGHT_WALK_RADIUS_PX,
 } from './spotlightChoreography';
 import { spotlightFarewellDestination, spotlightFarewellPosition, spotlightSafePoseRadius } from './spotlightFarewell';
 import { useOverlayKeyboard } from '../hooks/useOverlayKeyboard';
@@ -22,9 +22,7 @@ interface Props {
   world: WorldState;
   getCamera: () => Camera;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  /** App remains the only camera owner; this is the visual target, never a new camera. */
   onCameraTarget: (x: number, y: number) => void;
-  /** The existing canvas draws this same sprite once, at a temporary visual location. */
   onPresentation: (presentation: {
     id: number; x: number; y: number; moving: boolean; facingLeft: boolean;
     speech?: { speakerId: number; text: string } | null;
@@ -33,10 +31,9 @@ interface Props {
 }
 
 const PARTICLE_LIMIT = 24;
-const PARTICLE_PERIOD_MS = 180; // <= 6 new particles per second
+const PARTICLE_PERIOD_MS = 180;
 const PARTICLE_LIFETIME_MS = 1800;
 
-/** One map-mounted wall-clock scene. Never sends dialogue, movement or particle state to the worker. */
 export default function SpotlightLoreOverlay({
   scene, world, getCamera, canvasRef, onCameraTarget, onPresentation, onFinish,
 }: Props) {
@@ -56,23 +53,21 @@ export default function SpotlightLoreOverlay({
     callbacks.current = { getCamera, onCameraTarget, onPresentation, onFinish };
   });
 
-  // Look up the real actors through the world's id index; never rescan the population per frame.
   const girl = resolveEntity(world, scene.heroineId) ?? undefined;
   const boundCaptions = useMemo(
     () => bindNumberedPresentationSpeakers(SPOTLIGHT_PRESENTATION, scene.performerIds, scene.heroineId),
     [scene.performerIds, scene.heroineId],
   );
-  // Ready actors may stand within 11 units of their slots: start where the real sprite is drawn.
-  const stageOrigin = useMemo(() => ({
-    x: girl?.x ?? scene.gatherX,
-    y: girl?.y ?? scene.gatherY,
-  }), [girl, scene.gatherX, scene.gatherY]);
+   const stageOrigin = useMemo(() => ({
+    x: scene.gatherX,
+    y: scene.gatherY,
+  }), [scene.gatherX, scene.gatherY]);
   const departure = useMemo(() => spotlightFarewellDestination(world, {
     ...scene, gatherX: stageOrigin.x, gatherY: stageOrigin.y,
   }), [world, scene, stageOrigin]);
   const poseRadius = useMemo(() => spotlightSafePoseRadius(world, stageOrigin),
     [world, stageOrigin]);
-  /** One layout snapshot the wall-clock animation reads, so it never restarts on a world tick. */
+
   const stageViewRef = useRef<{
     world: WorldState; scene: SpotlightLoreState; girl: Entity | undefined;
     origin: { x: number; y: number };
@@ -93,7 +88,6 @@ export default function SpotlightLoreOverlay({
     if (scene.phase === 'ready') void preloadSpotlightApplause().catch(() => undefined);
   }, [scene.id, scene.phase]);
 
-  // The real sample starts once at applause and is stopped on skip, unmount or colony replacement.
   useEffect(() => {
     if (scene.phase !== 'ready' || stageKind !== 'applause') return;
     const playback = playSpotlightApplause();
@@ -169,20 +163,24 @@ export default function SpotlightLoreOverlay({
         setStageKind(step.kind);
       }
 
-      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, radius);
+      // Gebruik de ruime 28px catwalk straal
+      const circleRadius = Math.max(SPOTLIGHT_WALK_RADIUS_PX, radius);
+      const pose = step.poseProgress === null ? { x: 0, y: 0 } : spotlightPoseOffset(step.poseProgress, circleRadius);
       const walked = spotlightFarewellPosition(from, exit, step.farewellProgress);
       const x = walked.x + pose.x;
       const bowProgress = step.kind === 'applause'
         ? Math.max(0, Math.min(1, (elapsed - SPOTLIGHT_APPLAUSE_START) / 1500)) : 0;
       const bowOffset = step.kind === 'applause' ? 3 * Math.sin(Math.PI * bowProgress) : 0;
       const y = walked.y + pose.y + bowOffset;
-      const moving = step.poseProgress !== null || (step.farewellProgress > 0 && step.farewellProgress < 1);
-      const facingLeft = step.poseProgress !== null
-        ? Math.sin(step.poseProgress * Math.PI * 2) < 0
+      
+      const isWalkingCircle = step.poseProgress !== null;
+      const moving = isWalkingCircle || (step.farewellProgress > 0 && step.farewellProgress < 1);
+
+      // Kijkt vooruit in plaats van achteruit te moonwalken:
+      const facingLeft = isWalkingCircle
+        ? Math.sin(step.poseProgress! * Math.PI * 2) > 0
         : exit.x < from.x;
 
-      // One frame-scoped projection drives the sprite. The spoken line is a fixed overlay caption
-      // under the title banner, so no chat bubble covers the stage; the sim chat fields stay untouched.
       callbacks.current.onPresentation({ id: stage.heroineId, x, y, moving, facingLeft });
       if (step.farewellProgress > 0) callbacks.current.onCameraTarget(x, y);
 
@@ -230,7 +228,7 @@ export default function SpotlightLoreOverlay({
         ringRef.current.style.left = onScreen.x + 'px';
         ringRef.current.style.top = (onScreen.y - 18) + 'px';
       }
-      // Deterministic, bounded comic stage confetti; never generates gameplay relationships.
+
       const nodes = particleRef.current?.children;
       if (nodes) {
         const epoch = elapsed >= SPOTLIGHT_BRIDGE_START ? elapsed - SPOTLIGHT_BRIDGE_START
@@ -268,7 +266,6 @@ export default function SpotlightLoreOverlay({
   }, [scene.id, scene.phase, canvasRef]);
 
   const line = lineIndex >= 0 ? boundCaptions[lineIndex] : null;
-  // The caption sits under the title banner, never over the stage: the girl and her ring stay clear.
   const speaker = line?.speakerId === scene.heroineId
     ? girl : resolveEntity(world, line?.speakerId ?? -1);
   const captionText = line && speaker && (stageKind === 'caption' || stageKind === 'pose')
@@ -283,7 +280,6 @@ export default function SpotlightLoreOverlay({
     callbacks.current.onFinish(scene.id, 'skipped');
   };
 
-  // Preserve the map keyboard contract for the full scene, including Escape-to-skip.
   useOverlayKeyboard('spotlight-lore', skip);
 
   return (
@@ -308,6 +304,7 @@ export default function SpotlightLoreOverlay({
             style={{ opacity: 0, willChange: 'left, top, opacity' }}>👏</span>
         ))}
       </div>
+      {/* Vaste dialoog-strip netjes onder de titelbanner gepind */}
       <div className="absolute left-1/2 top-5 z-[32] flex w-[min(46rem,calc(100vw-3rem))] -translate-x-1/2 flex-col items-center gap-2 text-center">
         <div className="rounded-lg border border-amber-500/70 bg-stone-950/90 px-5 py-2 shadow-xl">
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">A very strange village tradition</p>

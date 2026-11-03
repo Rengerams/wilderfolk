@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (3 November 2026):** Monday food production now uses the last worked day's attendance instead of Sunday's zero, removing the third consecutive zero-output day each week.
+
+- **Fixed (3 November 2026):** The Spotlight performance now stages the girl in the true middle of the Village Square instead of half a building south-east, where she could stand behind a silo.
+
 - **Changed (3 November 2026):** Each Spotlight line now plays in a fixed caption bubble centred under the title banner, so the girl and her ring stay fully visible instead of sharing the stage with a speech bubble.
 
 - **Changed (3 November 2026):** The Spotlight performance now frames its stage much closer, and the camera returns to the exact view the player had when the scene ends.

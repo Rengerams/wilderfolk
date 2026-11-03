@@ -4,6 +4,7 @@ import { getAbsoluteCalendarDay, getHourOfDay, isStartOfClockHour, isWeekend } f
 import { personDayRoll } from './simRng';
 import { isPlayerHuman } from './playerHuman';
 import { nearestWalkableWorldPoint } from './pathfinding';
+import { getBuildingCenter } from './buildingGeometry';
 import { logEvent } from './eventLog';
 import { getSettlerWorkReason } from './workAbsence';
 
@@ -13,31 +14,26 @@ const SPOTLIGHT_READY_TIMEOUT_TICKS = 150;
 const SPOTLIGHT_ARRIVAL_DISTANCE = 11;
 const SPOTLIGHT_MIN_CHORUS = 6;
 const SPOTLIGHT_MAX_CHORUS = 10;
-/** A settler sprite is ~14 px wide and ~20 px tall; this ring keeps her clear and the men apart. */
-const SPOTLIGHT_RING_RADIUS_PX = 40;
-/** Two staged men closer than one sprite width would overlap, so that ground is refused. */
-const SPOTLIGHT_MIN_SLOT_GAP_PX = 16;
+/** A settler sprite is ~14 px wide and ~20 px tall; 55 px keeps the ring on the plaza stones and clear of silos. */
+const SPOTLIGHT_RING_RADIUS_PX = 55;
+const SPOTLIGHT_MIN_SLOT_GAP_PX = 18;
 
-/** A settler physically free to reach the stage; each caller owns its own role and age rule. */
 function availableSpotlightActor(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
     !entity.prisonBuildingId && !entity.raidDeploymentId && !entity.indoorBuildingId &&
     !entity.departedAlive && !entity.warCaptive && !entity.huntTargetId;
 }
 
-/** A non-romantic village performance, never a source of gameplay rewards. */
 function eligibleGirl(entity: Entity): boolean {
   return availableSpotlightActor(entity) && entity.gender === 'female' && entity.isJuvenile &&
     entity.age >= 12 && entity.age < 18;
 }
 
-/** Identity only; duty is decided by the live work-reason owner at selection. */
 function eligibleChorus(entity: Entity): boolean {
   return availableSpotlightActor(entity) && entity.gender === 'male' && !entity.isJuvenile &&
     entity.age >= 18;
 }
 
-/** Build the shared stage record; null when any slot is off-map, blocked or crowded. */
 function buildSpotlightLoreScene(
   state: WorldState,
   girl: Entity,
@@ -47,17 +43,17 @@ function buildSpotlightLoreScene(
 ): SpotlightLoreState | null {
   if (!state.worldMap) return null;
   const slots: SpotlightLoreState['slots'] = [];
-  // A full ring at one radius: every man gets his own ground facing her, none stands on another.
+
   const step = (Math.PI * 2) / Math.max(1, chorus.length);
-  // Half a step past south keeps the camera side open, so nobody stands in front of the heroine.
   const startAngle = Math.PI / 2 + step / 2;
-  // The ring must fit on the map: move the stage inward, never squeeze the formation.
+
   const ringX = Math.min(
     Math.max(origin.x, SPOTLIGHT_RING_RADIUS_PX), state.width - SPOTLIGHT_RING_RADIUS_PX,
   );
   const ringY = Math.min(
     Math.max(origin.y, SPOTLIGHT_RING_RADIUS_PX), state.height - SPOTLIGHT_RING_RADIUS_PX,
   );
+
   for (let i = 0; i < chorus.length; i++) {
     const angle = startAngle + i * step;
     const candidateX = ringX + Math.cos(angle) * SPOTLIGHT_RING_RADIUS_PX;
@@ -71,6 +67,7 @@ function buildSpotlightLoreScene(
     }
     slots.push({ humanId: chorus[i].id, x: point.x, y: point.y });
   }
+
   return {
     id,
     heroineId: girl.id,
@@ -83,7 +80,6 @@ function buildSpotlightLoreScene(
   };
 }
 
-/** Place the chosen cast on their validated marks without copying actors or movement rules. */
 function stageSpotlightLoreCast(
   state: WorldState, scene: SpotlightLoreState, girl: Entity, chorus: readonly Entity[],
 ): void {
@@ -95,18 +91,20 @@ function stageSpotlightLoreCast(
   }
   girl.x = scene.gatherX;
   girl.y = scene.gatherY;
+
   for (const slot of scene.slots) {
     const actor = chorus.find((man) => man.id === slot.humanId);
     if (actor) {
       actor.x = slot.x;
       actor.y = slot.y;
+      // Laat de zangers naar het centrum (het meisje) kijken:
+
     }
   }
   scene.phase = 'ready';
   scene.readyAtTick = state.tick;
 }
 
-/** Called from the existing realtime pulse; the inactive path is O(1). */
 export function maybeStartSpotlightLore(state: WorldState): boolean {
   if (state.spotlightLore || state.paused || !state.worldMap ||
       state.electionCeremony || state.festival?.active ||
@@ -125,7 +123,6 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   const chorus = state.entities.filter((human) => {
     if (!eligibleChorus(human)) return false;
     if (Math.hypot(human.x - girl.x, human.y - girl.y) > 100) return false;
-    // Any profession may join as long as its own duty owner says he is not working now.
     const work = getSettlerWorkReason(state, human).code;
     return work !== 'working' && work !== 'walking-to-work';
   }).sort((a, b) => {
@@ -137,9 +134,12 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
 
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
-  const squareOrigin = square
-    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, square.x, square.y)
+  const squareCenter = square ? getBuildingCenter(square) : null;
+
+  const squareOrigin = squareCenter
+    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, squareCenter.x, squareCenter.y)
     : null;
+
   const scene = square
     ? squareOrigin && buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`, squareOrigin)
     : buildSpotlightLoreScene(state, girl, chorus, `${day}:${girl.id}`);
@@ -153,7 +153,6 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
   return true;
 }
 
-/** Dev-only `?debug=1` action: stage a ready cast from the loaded colony and skip the rare-event gate. */
 export function startSpotlightLoreDebug(state: WorldState): boolean {
   const map = state.worldMap;
   if (state.spotlightLore || !map) return false;
@@ -175,19 +174,16 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
     return false;
   }
 
-  // Stage on a walkable open point, not wherever the heroine happens to be standing.
   const camp = map.campSite ?? { x: state.width / 2, y: state.height / 2 };
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
+  const squareCenter = square ? getBuildingCenter(square) : null;
+
   const candidates = [
-    ...(square ? [{ x: square.x, y: square.y }] : []),
+    ...(squareCenter ? [squareCenter] : []),
     { x: girl.x, y: girl.y },
     { x: camp.x, y: camp.y },
     { x: state.width / 2, y: state.height / 2 },
-    { x: camp.x + 90, y: camp.y + 60 },
-    { x: camp.x - 90, y: camp.y - 60 },
-    { x: state.width * 0.35, y: state.height * 0.55 },
-    { x: state.width * 0.65, y: state.height * 0.45 },
   ];
   for (let gx = 1; gx <= 4; gx++) {
     for (let gy = 1; gy <= 4; gy++) {
@@ -223,13 +219,11 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
   return false;
 }
 
-/** Bounded lookup, not another human/AI movement implementation. */
 export function getSpotlightGatherTarget(scene: SpotlightLoreState, humanId: number): { x: number; y: number } | null {
   if (scene.heroineId === humanId) return { x: scene.gatherX, y: scene.gatherY };
   return scene.slots.find((slot) => slot.humanId === humanId) ?? null;
 }
 
-/** Resolve <=10 real actors after the normal human movement tick. */
 export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMap<number, Entity>): void {
   const scene = state.spotlightLore;
   if (!scene) return;
@@ -250,8 +244,6 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
   }
   const heroineArrived = Math.hypot(heroine.x - scene.gatherX, heroine.y - scene.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE;
   if (scene.phase === 'ready') {
-    // Emergency steering may move an actor off stage during worker/React pause handoff.
-    // Never freeze a half-empty performance: danger keeps priority, but the scene aborts.
     if (arrived !== scene.slots.length || !heroineArrived ||
         state.tick - (scene.readyAtTick ?? state.tick) > SPOTLIGHT_READY_TIMEOUT_TICKS) {
       finishSpotlightLore(state, scene.id, 'aborted');
@@ -266,7 +258,6 @@ export function tickSpotlightGathering(state: WorldState, entityById: ReadonlyMa
   }
 }
 
-/** Idempotent scene completion, shared by UI command and headless timeout. */
 export function finishSpotlightLore(
   state: WorldState,
   sceneId: string,
@@ -282,7 +273,6 @@ export function finishSpotlightLore(
   return true;
 }
 
-/** Save-load validation never consumes RNG or invents earlier events. */
 export function normalizeSpotlightLoreOnLoad(state: WorldState): void {
   const day = state.spotlightLoreLastDay;
   if (day != null && (!Number.isSafeInteger(day) || day < 0 ||
@@ -323,7 +313,6 @@ export function normalizeSpotlightLoreOnLoad(state: WorldState): void {
     const actor = actors.get(id);
     return !actor || !eligibleChorus(actor);
   }) || (s.phase === 'ready' && (
-    // A save must not resume a ready performance with a dispersed cast.
     !(Math.hypot(heroine.x - s.gatherX, heroine.y - s.gatherY) <= SPOTLIGHT_ARRIVAL_DISTANCE) ||
     s.slots.some((slot) => {
       const actor = actors.get(slot.humanId);

@@ -109,7 +109,8 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     for (const slot of scene.slots) {
       const fromHer = Math.hypot(slot.x - scene.gatherX, slot.y - scene.gatherY);
       expect(fromHer).toBeGreaterThanOrEqual(30);
-      expect(fromHer).toBeLessThanOrEqual(50);
+      // Ring radius is 55; snapping to walkable ground may pull a slot a few pixels inward.
+      expect(fromHer).toBeLessThanOrEqual(60);
     }
     for (let i = 0; i < scene.slots.length; i++) {
       for (let j = i + 1; j < scene.slots.length; j++) {

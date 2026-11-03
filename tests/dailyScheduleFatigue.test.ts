@@ -73,4 +73,15 @@ describe('daily village schedule fatigue', () => {
     expect(settler.scheduleFatigue).toBe(49);
     expect(world.eventLog).toHaveLength(0);
   });
+
+  it('keeps the last worked day’s hours across a non-work day', () => {
+    const world = state();
+    // Tick starts Monday; the settled day is Sunday, so production must not read a zero Sunday.
+    world.tick = 7 * TICKS_PER_DAY;
+    const settler = human(1, { scheduleLastWorkedHours: 9 });
+
+    resolveDailyVillageScheduleFatigue(world, [settler], new Map());
+
+    expect(settler.scheduleLastWorkedHours).toBe(9);
+  });
 });

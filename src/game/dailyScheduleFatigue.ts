@@ -2,7 +2,7 @@ import type { Building, Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import { logEvent } from './eventLog';
 import { isPlayerHuman, isPlayerHumanShiftOwner } from './playerHuman';
-import { getAbsoluteCalendarDay } from './dayCycleClock';
+import { getAbsoluteCalendarDay, isWorkDay, TICKS_PER_DAY } from './dayCycleClock';
 import { recordCareerWork } from './careers/careerHistory';
 import { advanceCareerProgression } from './careers/careerProgression';
 import { getScheduleProductivityMultiplier, getScheduleTargetHours, resolveDailyScheduleFatigue } from './scheduleFatigue';
@@ -71,6 +71,7 @@ export function resolveDailyVillageScheduleFatigue(
   // so it is derived once instead of twice per settler.
   const targetHours = getScheduleTargetHours(state);
   const completedDay = getAbsoluteCalendarDay(state.tick) - 1;
+  const completedDayWasWorkday = isWorkDay(completedDay * TICKS_PER_DAY);
 
   // Settle a transformed settler's previous human shift at midnight.
   for (let i = 0; i < humans.length + moonHowlers.length; i++) {
@@ -78,7 +79,13 @@ export function resolveDailyVillageScheduleFatigue(
     const human = inMoonForm ? moonHowlers[i - humans.length] : humans[i];
     if (!human.alive || human.isJuvenile) continue;
     if (inMoonForm && (human.type !== EntityType.Werewolf || !isPlayerHumanShiftOwner(human))) continue;
+    const priorLastWorkedHours = human.scheduleLastWorkedHours ?? 0;
     const result = resolveDailyScheduleFatigue(human, state, targetHours);
+    // Do not erase the last worked day when the completed day was a non-workday:
+    // Monday production must read Friday's attendance, not Sunday's zero.
+    if (!completedDayWasWorkday && result.workedHours <= 0 && priorLastWorkedHours > 0) {
+      human.scheduleLastWorkedHours = priorLastWorkedHours;
+    }
     // Credit the just-completed day's witnessed shift now, not at tomorrow's noon
     // production pass. Reuse this settlement loop and the tick context's building index.
     const site = human.scheduleLastWorkedSiteId == null
