@@ -10,6 +10,8 @@
 
 - **Fixed (3 November 2026):** A stopped performance report stays readable until the next profiling start instead of being wiped immediately.
 
+- **Fixed (3 November 2026):** Settlers and patients now walk to a building's actual footprint-relative entrance instead of a point half a footprint away, so they no longer stall against the wall.
+
 - **Fixed (3 November 2026):** A due work commute now outranks the home preference, so settlers leave before 07:00 instead of only at shift start.
 
 - **Fixed (3 November 2026):** Secret affairs no longer open before the colony shift starts; off-duty time after the shift remains available.
