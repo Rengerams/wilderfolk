@@ -30,6 +30,7 @@ src-tauri/icons/*
 dependency-graph.dot
 dependency-graph.svg
 references.md
+src/game/original.ts
 deno/
 .git
 dist/
