@@ -11,6 +11,7 @@ import { homeStandPosition } from '../src/game/simulation/humanMovement';
 import { getHourOfDay } from '../src/game/dayCycleClock';
 import { getVenueSchedule, getVenueScheduleHours, isFestivalOverrideActive, isVenueServiceHour } from '../src/game/venueSchedule';
 import { getHumanActivityStatus } from '../src/game/humanStatus';
+import { isChildAtSchool } from '../src/game/education';
 
 const PRISON_ID = 10;
 const PRISON_X = 600;
@@ -366,7 +367,7 @@ describe('school arrival before class', () => {
     const state = worldState([pupil, teacher], [home, school], null);
     state.tick = 7 * TICKS_PER_HOUR;
     while (state.tick < 9 * TICKS_PER_HOUR - 1) gameTick(state);
-    expect(Math.hypot(pupil.x - school.x, pupil.y - school.y)).toBeLessThanOrEqual(28);
+    expect(isChildAtSchool(pupil, school)).toBe(true);
     expect(pupil.schoolTicksToday ?? 0).toBe(0);
     gameTick(state);
     expect(pupil.schoolTicksToday).toBe(1);

@@ -33,7 +33,7 @@ import { canAffordWorkshopRecipe } from './workshops';
 import { logEvent } from './eventLog';
 import { getForgeQuarryMultiplier, tickVillageForge } from './forge';
 import { getHuntFoodMultiplier } from './combat';
-import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY, killHuman } from './dayCycle';
+import { isProductionTick, PRODUCTION_INTERVAL, TICKS_PER_DAY, TICKS_PER_HOUR, killHuman } from './dayCycle';
 import { formatDeathLog } from './citizenId';
 import { logDeath } from './eventLog';
 import { ensureEntityByIdMap } from './entityIndex';
@@ -102,7 +102,6 @@ import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy, getHumanNeedsWorkMultiplier } from './simulation/humanPhysiology';
 import { grantHospitalIntervalReputation } from './hospitalCare';
 import {
-  getScheduleLastWorkedHours,
   getScheduleProductivityMultiplier,
   getWorkplacePresenceShare,
 } from './scheduleFatigue';
@@ -391,7 +390,7 @@ function tickBuildingProduction(
   allAlive: Entity[],
 ): void {
   const { updatedBuildings, entityById, byType, roadBuildings } = ctx;
-  // Production runs at noon, but isProductionTick is anchored to midnight.
+  // Production runs after the work window, but isProductionTick is anchored to midnight.
   // Align to the same calendar day's start to preserve weekdays and interval cadence.
   const productionDayTick = state.tick - (state.tick % TICKS_PER_DAY);
 
@@ -416,13 +415,9 @@ function tickBuildingProduction(
 
   // Single-pass building worker count, schedule fatigue, and attendance aggregation.
   //
-  // `workedHoursSum` / `workedCount` are the attendance half: the hours each assigned settler was
-  // actually on shift over the last settled day (`scheduleLastWorkedHours`, snapshotted by the
-  // fatigue pass because it runs before this one and zeroes the tick accumulator). A settler parked
-  // at home, asleep, or walking the map contributes 0 — the owner's "the person who is working there
-  // should be measured, not a random someone". Before this, output scaled with the *configured
-  // window* alone (`getWorkScheduleHours`), so a 23-hour day paid 2.56x while nobody had to be at
-  // the building at all.
+  // `workedHoursSum` / `workedCount` are the attendance half: today's verified work
+  // (`scheduleWorkedTicksToday`), read after the work window so the day pays for itself.
+  // A settler parked at home, asleep, or walking the map contributes 0.
   const buildingWorkerStats = new Map<
     number,
     { count: number; fatigueSum: number; workedHoursSum: number; workedCount: number }
@@ -435,9 +430,28 @@ function tickBuildingProduction(
     if (!h.alive) continue;
     // A jailed settler keeps the reserved post but feeds no crew: they neither work nor attend.
     if (isImprisoned(h)) continue;
-    const lastWorkedHours = getScheduleLastWorkedHours(h);
-    const siteId = h.workerBuildingId;
-    if (siteId == null) continue;
+    const siteBuilding = h.workerBuildingId == null ? undefined : ctx.buildingById.get(h.workerBuildingId);
+    // Hunters are mobile: their shift is the work, not a fixed post.
+    const huntingSpot = siteBuilding?.type === BuildingType.HuntingSpot;
+    const presentTicks = huntingSpot
+      ? (h.scheduleWorkedTicksToday ?? h.schedulePresentTicksToday)
+      : (h.schedulePresentTicksToday != null && h.schedulePresentTicksToday > 0
+        ? h.schedulePresentTicksToday
+        : undefined);
+    const workedTicks = presentTicks
+      ?? h.scheduleWorkedTicksToday
+      ?? ((h.scheduleLastWorkedHours ?? 0) * TICKS_PER_HOUR);
+    const lastWorkedHours = workedTicks / TICKS_PER_HOUR;
+    if (lastWorkedHours <= 0) continue;
+    // Attribute the verified hours to the site they were worked at. `-1` means the
+    // settler changed sites; crediting that to the current building would be a guess.
+    const workedSiteId = huntingSpot
+      ? h.scheduleWorkedSiteIdToday
+      : (presentTicks != null
+        ? h.schedulePresentSiteIdToday
+        : (h.scheduleWorkedSiteIdToday ?? h.scheduleLastWorkedSiteId));
+    const siteId = workedSiteId == null ? h.workerBuildingId : workedSiteId;
+    if (siteId == null || siteId < 0) continue;
 
     const current = buildingWorkerStats.get(siteId)
       ?? { count: 0, fatigueSum: 0, workedHoursSum: 0, workedCount: 0 };
@@ -1046,16 +1060,7 @@ function tickBuildingProduction(
       tickTownHallAudiences(state, building, livingPlayerWorkers);
     }
 
-    // --- Silo ---
-    if (
-      building.completed &&
-      staffed &&
-      building.type === BuildingType.Silo &&
-      isProductionTick(productionDayTick, PRODUCTION_INTERVAL.silo)
-    ) {
-      const amount = Math.floor(8 * totalMult * millBonus * globalEff);
-      recordFoodProduced(state, 'silos', addProductionOutput(state, building, 'food', amount));
-    }
+    // Silos are storage, not food producers; their food branch multiplied by zero workers.
   }
 
   tickVillageForge(state, updatedBuildings);

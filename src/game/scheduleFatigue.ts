@@ -42,6 +42,18 @@ export function recordScheduleWorkTick(entity: Entity, step = 1): void {
   entity.scheduleWorkedTicksToday = priorTicks + step;
 }
 
+/** Credit only a tick the settler actually spent at the post. */
+export function recordPresentWorkTick(entity: Entity, step = 1): void {
+  if (!entity.alive || entity.isJuvenile || !isPlayerHuman(entity)) return;
+  if (entity.prisonBuildingId != null) return;
+  if (!Number.isFinite(step) || step <= 0) return;
+  const priorTicks = entity.schedulePresentTicksToday ?? 0;
+  const siteId = entity.workerBuildingId ?? -1;
+  if (priorTicks === 0) entity.schedulePresentSiteIdToday = siteId;
+  else if (entity.schedulePresentSiteIdToday !== siteId) entity.schedulePresentSiteIdToday = -1;
+  entity.schedulePresentTicksToday = priorTicks + step;
+}
+
 /**
  * Resolve a settler's fatigue for the day.
  *
@@ -65,7 +77,8 @@ export function getScheduleTargetHours(state: Pick<WorldState, 'workSchedule'>):
 }
 
 export function resolveDailyScheduleFatigue(
-  entity: Pick<Entity, 'scheduleFatigue' | 'scheduleWorkedTicksToday' | 'scheduleLastWorkedHours'
+  entity: Pick<Entity, 'scheduleFatigue' | 'scheduleWorkedTicksToday' | 'schedulePresentTicksToday'
+    | 'schedulePresentSiteIdToday' | 'scheduleLastWorkedHours'
     | 'scheduleWorkedSiteIdToday' | 'scheduleLastWorkedSiteId'
     | 'scheduleWorkedJobToday' | 'scheduleLastWorkedJob'>,
   state: Pick<WorldState, 'workSchedule'>,
@@ -80,26 +93,24 @@ export function resolveDailyScheduleFatigue(
   const recovery = BASE_DAILY_RECOVERY + rest * RECOVERY_PER_SHORT_HOUR;
   const fatigueAfter = Math.max(0, Math.min(MAX_SCHEDULE_FATIGUE, fatigueBefore + excess * FATIGUE_PER_EXCESS_HOUR - recovery));
   entity.scheduleFatigue = fatigueAfter;
-  // Keep the day's attendance before zeroing the accumulator. The daily economy runs *after*
-  // this pass and must pay for work a settler actually turned up for, so it reads this snapshot
-  // (see `getScheduleLastWorkedHours`). Without it the only record of attendance was destroyed
-  // here, and production fell back to counting assigned bodies parked at home or asleep.
+  // Keep the schedule-only shift record for career history. Production reads the
+  // independently verified present ticks above, so this snapshot cannot pay an absent worker.
   entity.scheduleLastWorkedHours = workedHours;
   entity.scheduleLastWorkedSiteId = workedHours > 0 ? (entity.scheduleWorkedSiteIdToday ?? -1) : undefined;
   entity.scheduleLastWorkedJob = workedHours > 0 ? (entity.scheduleWorkedJobToday ?? null) : undefined;
   entity.scheduleWorkedSiteIdToday = undefined;
   entity.scheduleWorkedJobToday = undefined;
   entity.scheduleWorkedTicksToday = 0;
+  entity.schedulePresentSiteIdToday = undefined;
+  entity.schedulePresentTicksToday = 0;
   return { workedHours, fatigueBefore, fatigueAfter };
 }
 
 /**
- * The hours a settler actually spent on shift across the last settled day.
+ * The schedule-only hours a settler spent on shift across the last settled day.
  *
- * This is the attendance half of the daily production calculation: `buildingWorkerStats` in
- * `dailyBuildingEconomy` sums it per workplace so a settler who never showed up contributes
- * nothing, which is what the owner asked for ("the person who is working there should be
- * measured"). Kept as one reader so the field is not read directly from the economy.
+ * Used by career history and workshop estimates. Production uses
+ * `schedulePresentTicksToday`, which requires the settler to be at the post.
  */
 export function getScheduleLastWorkedHours(entity: Pick<Entity, 'scheduleLastWorkedHours'>): number {
   const hours = entity.scheduleLastWorkedHours ?? 0;

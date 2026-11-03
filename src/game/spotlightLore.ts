@@ -1,4 +1,4 @@
-import type { Entity, SpotlightLoreState, WorldState } from './gameTypes';
+import type { Building, Entity, SpotlightLoreState, WorldState } from './gameTypes';
 import { BuildingType, EntityType } from './gameTypes';
 import { getAbsoluteCalendarDay, getHourOfDay, isStartOfClockHour, isWeekend } from './dayCycleClock';
 import { personDayRoll } from './simRng';
@@ -17,6 +17,14 @@ const SPOTLIGHT_MAX_CHORUS = 10;
 /** A settler sprite is ~14 px wide and ~20 px tall; 55 px keeps the ring on the plaza stones and clear of silos. */
 const SPOTLIGHT_RING_RADIUS_PX = 55;
 const SPOTLIGHT_MIN_SLOT_GAP_PX = 18;
+/** The square sprite is drawn bottom-anchored (0.92), so its painted middle sits 0.42 x 70 x 1.15 px above x/y. */
+export const SPOTLIGHT_SQUARE_ART_LIFT_PX = 34;
+
+/** The square's painted middle, not its footprint centre: a flat plaza stands lower than a house. */
+function squareStagePoint(square: Building): { x: number; y: number } {
+  const center = getBuildingCenter(square);
+  return { x: center.x, y: center.y - SPOTLIGHT_SQUARE_ART_LIFT_PX };
+}
 
 function availableSpotlightActor(entity: Entity): boolean {
   return entity.alive && entity.type === EntityType.Human && isPlayerHuman(entity) &&
@@ -134,10 +142,10 @@ export function maybeStartSpotlightLore(state: WorldState): boolean {
 
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
-  const squareCenter = square ? getBuildingCenter(square) : null;
+  const squareStage = square ? squareStagePoint(square) : null;
 
-  const squareOrigin = squareCenter
-    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, squareCenter.x, squareCenter.y)
+  const squareOrigin = squareStage
+    ? nearestWalkableWorldPoint(state.worldMap, state.buildings, squareStage.x, squareStage.y)
     : null;
 
   const scene = square
@@ -177,10 +185,10 @@ export function startSpotlightLoreDebug(state: WorldState): boolean {
   const camp = map.campSite ?? { x: state.width / 2, y: state.height / 2 };
   const square = state.buildings.find((b) =>
     b.type === BuildingType.Square && b.completed && b.faction !== 'rival');
-  const squareCenter = square ? getBuildingCenter(square) : null;
+  const squareStage = square ? squareStagePoint(square) : null;
 
   const candidates = [
-    ...(squareCenter ? [squareCenter] : []),
+    ...(squareStage ? [squareStage] : []),
     { x: girl.x, y: girl.y },
     { x: camp.x, y: camp.y },
     { x: state.width / 2, y: state.height / 2 },

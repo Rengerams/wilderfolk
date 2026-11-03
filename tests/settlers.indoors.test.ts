@@ -142,7 +142,7 @@ describe('settlers inside buildings', () => {
     });
     const porch = humanBuildingTarget(home, residentId!, true);
     const person = human(residentId!, {
-      x: porch.x - 22, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
+      x: porch.x - 40, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
       needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },
     });
     world.entities = [person];

@@ -1,6 +1,6 @@
 # Bug report summary — one line per report
 
-**2026-11-03 — [Spotlight stage lands half a footprint off the Village Square centre](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** The stage point added half the square's footprint to a value that already was the centre, so the girl performed on the south-east rim by the silos. Both staging paths now read the centre from its canonical owner; targeted tests, TypeScript, lint and build pass.
+**2026-11-03 — [Spotlight stage lands off the middle of the Village Square](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** The stage point added half a footprint to a value that already was the centre, and the bottom-anchored plaza sprite puts its painted middle 34 px above that point, so the girl performed by the silos and then in front of the fountain. Staging now reads the centre from its canonical owner and lifts it to the painted middle; targeted tests, TypeScript, lint and build pass.
 
 **2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
 

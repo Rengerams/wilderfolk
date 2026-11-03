@@ -1429,11 +1429,13 @@ export function reassignDivorcedResidences(
     return rightDistance - leftDistance || left.id - right.id;
   });
 
+  // The release pass needs the ex id because a jailed cheater keeps no bed and would
+  // otherwise be seated in the shared home again by generic homeless placement.
+  leaver.formerSpouseId = keeper.id;
   if (!isImprisoned(leaver)) {
     for (const home of candidates) {
       if (relocateHousehold(leavingUnit, home.id, 'homeless', 'divorce', context)) break;
     }
-
   }
   for (const child of keeperChildren) {
     if (child.residenceBuildingId !== keeper.residenceBuildingId) {

@@ -36,6 +36,7 @@ vi.mock('../src/game/simulation/simulationEntities', async (importOriginal) => {
 });
 
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { DAILY_PHASE_HOURS, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 /**
  * These fixtures are ticked by the real `gameTick`, so `maxAge` and `reproductionCooldown` are
@@ -212,7 +213,7 @@ describe('Hunting Spot wildlife cleanup', () => {
       for (let seed = 1; seed <= 16 && !success; seed++) {
         setWorkerSimSeed(seed);
         const state = makeState();
-        state.tick = day * TICKS_PER_DAY + TICKS_PER_DAY / 2 - 1;
+        state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.production * TICKS_PER_HOUR - 1;
         const after = gameTick(state);
         if (!after.entities.some((entity) => entity.id === 2)) {
           success = { state, after, huntTick: state.tick };

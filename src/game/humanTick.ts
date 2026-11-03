@@ -27,11 +27,13 @@ import {
   getWorkSchedule,
   isOnWorkCommuteHours,
   isOnWorkScheduleShift,
+  isWithinWorkCommuteLead,
   isWorkScheduleHour,
 } from './workSchedule';
 import { isWorkDay } from './dayCycleClock';
 import { HUMAN_MAX_LIFESPAN_YEARS, tryGraduateHumanChild, syncHumanAgeFromCalendar, PER_TICK_RATE_SCALE, TICKS_PER_HOUR, isOnMoonHowlerNightShift, isWeekend, getAbsoluteCalendarDay, isNightHour, isNewCalendarDayTick, EVENING_START, isStartOfClockHour } from './dayCycle';
 import { hasResidenceAssignment, isAdult, isNearResidence, isResidenceBuilding, shareResidence } from './housingModel';
+import { WORK_ARRIVE_DISTANCE } from './workAbsence';
 import {
   chatHintsFromWorld,
   endAmbientHumanChat,
@@ -95,7 +97,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -156,10 +158,9 @@ import {
 import { flushRelationshipDiagnostics } from './relationshipDiagnostics';
 import { isVenueServiceHour, isVenueWorkerServiceHour } from './venueSchedule';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
-import { recordScheduleWorkTick } from './scheduleFatigue';
+import { recordPresentWorkTick, recordScheduleWorkTick } from './scheduleFatigue';
 
 import { syncEntityGrids } from './simulation/simulationEntities';
-import { LAYER_SYSTEMS_INTERVAL } from './tickLayerSystems';
 
 /** Live on-screen intimate tryst distance. */
 const AFFAIR_INTIMATE_RADIUS = 22;
@@ -631,12 +632,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const prisonShiftStartHour = prisonShift?.startHour ?? workSchedule.startHour;
     const prisonCommuteLeadHours = isPrisonGuardAtPost && prisonShift != null && workplace
       ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed)
-        * LAYER_SYSTEMS_INTERVAL
       : 0;
     // Prison watches run every day, including weekends. Start walking before the shift even when the
     // ordinary evening routine would otherwise keep a guard at home.
     const prisonCommuteDue = isPrisonGuardAtPost && prisonShift != null && (
-      onPrisonShift || ((prisonShiftStartHour - hourOfDay + 24) % 24) <= prisonCommuteLeadHours
+      onPrisonShift || isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, prisonCommuteLeadHours)
     );
 
     // Attendance is a schedule fact, not a viewport one: crediting it above the off-screen throttle
@@ -650,7 +650,16 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       onJobShift || onOfficialShift || hospitalCommuteDue || prisonCommuteDue || schoolCommuteDue,
       isInnkeeper,
     );
-    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) recordScheduleWorkTick(entity);
+    const attendanceTarget = workplace ? humanBuildingTarget(workplace, entity.id, false) : null;
+    const atPost = attendanceTarget != null
+      && Math.hypot(entity.x - attendanceTarget.x, entity.y - attendanceTarget.y) <= WORK_ARRIVE_DISTANCE;
+    const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
+    // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
+    const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
+    if (isPlayerHuman(entity) && (onJobShift || onOfficialShift || onPriestShift)) {
+      recordScheduleWorkTick(entity);
+      if (atPost || wasInsideWorkplace || hunterInField) recordPresentWorkTick(entity);
+    }
 
     const recoveringSleep = (entity.needs?.sleepRecoveryUntilTick ?? 0) > state.tick;
     const inFocus = !focus || isInFocus(entity, focus);
@@ -691,7 +700,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         hasWell: hasNearbyWell(entity, nearbyWells),
         hasHospital: sleep.hasHospital,
       });
-      if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'eat') {
+      if (resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds && !sleep.hasHospital) === 'eat') {
         ateMeal = tryEatColonyMeal(entity, state, hourOfDay);
       }
       if (hasFatalStarvation(entity)) {
@@ -848,11 +857,21 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !onOfficialShift && !onPriestShift && !schoolCommuteDue &&
       resolveHumanNeedsIntent(entity, state.tick, sleepingForNeeds) === 'takeBreak';
 
+    const commuteStartHour = isPrisonGuardAtPost ? prisonShiftStartHour : workSchedule.startHour;
+    const commuteLeadHours = workplace
+      ? commuteLeadHoursFor(commuteDistanceToBuilding(entity, workplace, false), config.speed)
+      : 0;
+    const workCommuteDue = workplace != null
+      && (isPrisonGuardAtPost || isWorkDay(state.tick))
+      && (goWorkTime || onWorkCommuteHours
+        || isWithinWorkCommuteLead(state.tick, commuteStartHour, commuteLeadHours));
+
     const stayIn =
       !inSpotlightGathering &&
       !festivalGathering &&
       !onTavernShift &&
       !onMoonPriestShift &&
+      !workCommuteDue &&
       (prefersHomeTonightFor(workSchedule, entity.id, state.tick, hourOfDay)
         || (recoveringSleep && !onJobShift));
 
@@ -1144,7 +1163,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       );
       const needsToLeaveForWork = isPrisonGuardAtPost
         ? prisonCommuteDue
-        : isWorkDay(state.tick) && hourOfDay >= prisonShiftStartHour - commuteLeadHours;
+        : isWorkDay(state.tick) && isWithinWorkCommuteLead(state.tick, prisonShiftStartHour, commuteLeadHours);
       // A prison guard works his roster shift and nothing else: the colony window is not his day, so
       // `goWorkTime` must not put a resting guard back on the post he is taking the day off from.
       const wantsToWork = isPrisonGuardAtPost

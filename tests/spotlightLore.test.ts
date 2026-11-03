@@ -15,7 +15,7 @@ import { createBuilding, initGame } from '../src/game/worldGen';
 import { testWorldMap } from '../src/test/worldMapFixtures';
 import {
   finishSpotlightLore, getSpotlightGatherTarget, maybeStartSpotlightLore,
-  normalizeSpotlightLoreOnLoad, startSpotlightLoreDebug, tickSpotlightGathering,
+  normalizeSpotlightLoreOnLoad, SPOTLIGHT_SQUARE_ART_LIFT_PX, startSpotlightLoreDebug, tickSpotlightGathering,
 } from '../src/game/spotlightLore';
 import { applyWorkerCommand } from '../src/game/simWorker/commands';
 import { extractSimPrep, applySimPrep } from '../src/game/simWorker/simPrep';
@@ -212,9 +212,9 @@ describe('rare spotlight lore — deterministic rule and participant boundaries'
     const scene = world.spotlightLore!;
     expect(scene.phase).toBe('ready');
     expect(scene.gatherX).toBe(square.x);
-    expect(scene.gatherY).toBe(square.y);
+    expect(scene.gatherY).toBe(square.y - SPOTLIGHT_SQUARE_ART_LIFT_PX);
     expect(girl.x).toBe(square.x);
-    expect(girl.y).toBe(square.y);
+    expect(girl.y).toBe(square.y - SPOTLIGHT_SQUARE_ART_LIFT_PX);
     expect(scene.readyAtTick).toBe(world.tick);
     expect(scene.performerIds).toHaveLength(adults.length);
     for (const slot of scene.slots) {

@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { gameTick, initGame } from '../src/game/gameEngine';
 import { BuildingType, EntityType, JobType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 
 const SPOT_ID = 9001;
 const HUNTER_ID = 90001;
@@ -47,8 +47,11 @@ function hunter(id: number, workplaceId: number): Entity {
     childrenIds: [],
     generation: 0,
     isJuvenile: false,
-    job: JobType.Settler,
+    job: JobType.Hunter,
     workerBuildingId: workplaceId,
+    huntTargetId: PREY_ID,
+    schedulePresentTicksToday: 8 * TICKS_PER_HOUR,
+    schedulePresentSiteIdToday: workplaceId,
     name: `Hunter${id}`,
     gender: 'male',
   } as unknown as Entity;

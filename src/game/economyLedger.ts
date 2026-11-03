@@ -47,12 +47,6 @@ export const FOOD_HISTORY_MAX_DAYS = 30;
 
 /** Archive a finished day's ledger into the rolling (transient) food history. */
 function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger): void {
-  if (
-    Object.keys(prev.produced).length === 0 &&
-    Object.keys(prev.consumed).length === 0
-  ) {
-    return;
-  }
   const history = state.foodHistory ?? [];
   history.push({
     day: prev.day,

@@ -12,7 +12,7 @@ import { SPECIES_CONFIG } from './speciesConfig';
 import { isWithinAssignableCommute } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
-import { assignMissingResidences, restoreCustodyAfterRelease } from './housingPipeline';
+import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
@@ -958,6 +958,17 @@ export function releasePrisoners(state: WorldState): void {
     const homecoming = releasedSettlers.flatMap((parent) =>
       restoreCustodyAfterRelease(parent, state.entities));
     assignMissingResidences([...releasedSettlers, ...homecoming], state.buildings, state.entities, state.tick);
+    // A released divorcee must not be seated back with the ex by generic homeless placement.
+    const villagers = state.entities.filter(isPlayerHuman);
+    for (const released of releasedSettlers) {
+      const ex = released.formerSpouseId == null
+        ? undefined
+        : state.entities.find((person) => person.id === released.formerSpouseId && person.alive);
+      if (ex && ex.residenceBuildingId != null
+        && ex.residenceBuildingId === released.residenceBuildingId) {
+        reassignDivorcedResidences(ex, released, state.buildings, villagers, ex);
+      }
+    }
     // Normal workforce pulses will fill newly available staff slots.
   }
 }

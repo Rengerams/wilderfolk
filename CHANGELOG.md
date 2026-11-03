@@ -2,7 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Fixed (3 November 2026):** Monday food production now uses the last worked day's attendance instead of Sunday's zero, removing the third consecutive zero-output day each week.
+- **Fixed (3 November 2026):** Food production now runs after the workday and uses verified on-post hours where recorded, falling back to scheduled hours for unobserved or legacy attendance.
+
+- **Fixed (3 November 2026):** Work left for a different site is no longer credited to the current building, empty ledger days are kept, and the dead silo food branch is removed.
+
+- **Fixed (3 November 2026):** Commuters use their full fractional travel lead, divorced cheaters are rehoused away from their ex before release, and houses reject reserved rock like roads do.
+
+- **Fixed (3 November 2026):** A stopped performance report stays readable until the next profiling start instead of being wiped immediately.
+
+- **Fixed (3 November 2026):** A due work commute now outranks the home preference, so settlers leave before 07:00 instead of only at shift start.
+
+- **Fixed (3 November 2026):** Secret affairs no longer open before the colony shift starts; off-duty time after the shift remains available.
 
 - **Fixed (3 November 2026):** The Spotlight performance now stages the girl in the true middle of the Village Square instead of half a building south-east, where she could stand behind a silo.
 

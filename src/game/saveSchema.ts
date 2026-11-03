@@ -92,6 +92,8 @@ export const WORLD_STATE_SAVE_KEYS = [
  */
 export const ENTITY_PERSISTED_FIELDS = [
   'skills', 'needs', 'careerHistory', 'careerMilestones', 'dialogueRecentScenes', 'dialogueRecentLines',
+  'formerSpouseId',
+  'scheduleWorkedTicksToday', 'schedulePresentTicksToday', 'schedulePresentSiteIdToday', 'scheduleLastWorkedHours',
   'scheduleWorkedSiteIdToday', 'scheduleLastWorkedSiteId',
   'scheduleWorkedJobToday', 'scheduleLastWorkedJob',
   'battleLeadershipMerit',

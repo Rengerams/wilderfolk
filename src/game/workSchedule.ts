@@ -1,5 +1,5 @@
 import type { WorldState } from './gameTypes';
-import { getHourOfDay, isWorkDay } from './dayCycleClock';
+import { getHourOfDay, isWorkDay, TICKS_PER_DAY, TICKS_PER_HOUR } from './dayCycleClock';
 
 export const DEFAULT_WORK_START_HOUR = 7;
 export const DEFAULT_WORK_END_HOUR = 16;
@@ -134,6 +134,14 @@ export const WORK_COMMUTE_LEAD_HOURS = 1;
 export function isOnWorkCommuteHours(schedule: WorkSchedule, hour: number): boolean {
   const from = Math.max(0, schedule.startHour - WORK_COMMUTE_LEAD_HOURS);
   return hour >= from && hour < schedule.startHour;
+}
+
+/** Tick-precise departure check: a fractional lead must not wait for the next whole hour. */
+export function isWithinWorkCommuteLead(tick: number, startHour: number, leadHours: number): boolean {
+  if (!Number.isFinite(tick) || !Number.isFinite(startHour) || !Number.isFinite(leadHours)) return false;
+  const tickOfDay = ((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY;
+  const hourOfDay = tickOfDay / TICKS_PER_HOUR;
+  return hourOfDay >= startHour - leadHours && hourOfDay < startHour;
 }
 
 /**

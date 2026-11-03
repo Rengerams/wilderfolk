@@ -1487,6 +1487,8 @@ export function canPursueSecretAffair(
 ): boolean {
   if (onScandalCooldown(entity, tick)) return false;
   if (isSpouseNearby(entity, entityById, AFFAIR_SPOUSE_BLOCK_RADIUS)) return false;
+  // Before the shift starts the day belongs to work; after it, off-duty time is fair game.
+  if (hourOfDay < workSchedule.startHour) return false;
   // Off-duty evenings are prime social time, including the hours after the
   // generic night flag starts; actual sleep is checked by the caller.
   if (hourOfDay >= 18 && hourOfDay < 23 && !isWorkScheduleHour(workSchedule, hourOfDay)) return true;

@@ -101,7 +101,8 @@ export function isFootprintOnBuildableTerrain(
         const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
         if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
           || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
-      } else if (isUnbuildableTerrainType(tile.type)) {
+      } else if (isUnbuildableTerrainType(tile.type)
+        || snapshot.worldMap.pathGrid?.[ty * tileW + tx] === Walkability.Reserved) {
         return false;
       }
     }

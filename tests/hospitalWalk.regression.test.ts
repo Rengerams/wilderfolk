@@ -81,8 +81,8 @@ describe('pickHospitalWalkTarget', () => {
 
   it('admits an exhausted patient at a large hospital by its entrance, not its footprint centre', () => {
     const ward = { ...hospital(1, 100, 100), width: 120, height: 80, occupants: [7] };
-    // Standing at the south wall: 60 px from the centre, but 8 px from the door.
-    const patient = entity(ward.x + ward.width / 2, ward.y + ward.height + 20, { energy: 10, pregnant: false });
+    // Standing at the south door: 60 px from the centre, 8 px from the entrance.
+    const patient = entity(ward.x, ward.y + ward.height / 2 + 20, { energy: 10, pregnant: false });
 
     tickHumanHospitalPatientCare({
       state: { tick: 0 } as WorldState,

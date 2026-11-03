@@ -8,7 +8,8 @@ export const LEGACY_TICKS_PER_DAY = 24;
 export const DAILY_PHASE_HOURS = {
   fatigue: 0,
   relationships: 6,
-  production: 12,
+  // The last daily slot, after the ordinary work window, so production reads today's work.
+  production: 18,
   worldEvents: 18,
 } as const;
 

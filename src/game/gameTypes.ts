@@ -244,6 +244,8 @@ export interface MoonHowlerSavedState {
   prisonSentenceCrime?: 'scandal';
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
+  /** Last spouse this settler divorced; release housing must not put them back together. */
+  formerSpouseId?: number;
   affairPartnerId?: number;
   affairProgress?: number;
   courtshipPartnerId?: number;
@@ -287,6 +289,9 @@ export interface Entity {
   schoolTicksToday?: number;
   schoolBuildingId?: number;
   scheduleWorkedTicksToday?: number;
+  /** Verified on-post ticks today, separate from schedule attendance. */
+  schedulePresentTicksToday?: number;
+  schedulePresentSiteIdToday?: number;
  
   scheduleLastWorkedHours?: number;
   /** Sole attendance owner's verified site for current/last settled shift (-1 = mixed/unknown). */
@@ -322,6 +327,8 @@ export interface Entity {
   promiseLeadershipMerit?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   partnerId?: number;
+  /** Last spouse this settler divorced; release housing must not put them back together. */
+  formerSpouseId?: number;
   affairPartnerId?: number;
   affairProgress?: number;
   lastAffairSiteDay?: number;

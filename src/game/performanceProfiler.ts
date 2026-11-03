@@ -72,8 +72,7 @@ export function setPerformanceProfilingEnabled(next: boolean): void {
     sections.clear();
     lastPublished = startedAt;
   } else if (!next && enabled) {
-    // Ruim direct op om heap-geheugen vrij te geven in de worker
-    sections.clear();
+    // Keep the stopped report readable; the next start clears it.
   }
   enabled = next;
   setHousingRelocationMonitorEnabled(next);
