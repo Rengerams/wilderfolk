@@ -195,4 +195,20 @@ describe('assignMissingResidences — the daily commute move', () => {
     expect(father.residenceBuildingId).toBe(nearHome.id);
     expect(mother.residenceBuildingId).toBe(nearHome.id);
   });
+
+  it('swaps two occupied homes when both workers end up closer to their jobs', () => {
+    const westHome = house(1, FAR_X);
+    const eastHome = house(2, NEAR_X);
+    const eastJob = workplace(3, NEAR_X);
+    const westJob = workplace(4, FAR_X);
+    const westWorker = worker(20, westHome.id, eastJob.id);
+    const eastWorker = worker(21, eastHome.id, westJob.id);
+    const humans = [westWorker, eastWorker];
+    const buildings = [westHome, eastHome, eastJob, westJob];
+
+    assignMissingResidences(humans, buildings, humans, FINAL_DAILY_ASSIGN_PULSE);
+
+    expect(westWorker.residenceBuildingId).toBe(eastHome.id);
+    expect(eastWorker.residenceBuildingId).toBe(westHome.id);
+  });
 });

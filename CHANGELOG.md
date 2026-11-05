@@ -6,7 +6,13 @@
 
 - **Fixed (3 November 2026):** Work left for a different site is no longer credited to the current building, empty ledger days are kept, and the dead silo food branch is removed.
 
-- **Fixed (3 November 2026):** Commuters use their full fractional travel lead, divorced cheaters are rehoused away from their ex before release, and houses reject reserved rock like roads do.
+- **Fixed (3 November 2026):** A blocked commute no longer freezes the settler; it keeps a wall-sliding step so the stuck recovery can reroute.
+
+- **Fixed (3 November 2026):** Commuters use their full fractional travel lead, and divorced cheaters are rehoused away from their ex before release.
+
+- **Fixed (3 November 2026):** Bridges may use the land approach beside the river they span instead of requiring the whole footprint to be river or bank.
+
+- **Changed (3 November 2026):** Households can swap two occupied homes when both commutes improve; a straight-line floor skips impossible route searches.
 
 - **Fixed (3 November 2026):** A stopped performance report stays readable until the next profiling start instead of being wiped immediately.
 

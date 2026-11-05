@@ -430,7 +430,14 @@ export function commuteHumanToBuilding(
     enterHumanBuilding(entity, building);
     return true;
   }
-  if (handled === 'blocked') return false;
+  if (handled === 'blocked') {
+    // Keep a wall-sliding velocity so the stuck detector can recover instead of freezing here.
+    const escapeSpeed = moveSpeed * 0.5;
+    entity.vx = (dx / dist) * escapeSpeed;
+    entity.vy = (dy / dist) * escapeSpeed;
+    faceVelocity(entity);
+    return false;
+  }
 
   if (dist > COMMUTE_CONFIG.LONG_RANGE_DIST
     || (building.type === BuildingType.School && !building.occupants.includes(entity.id))) {

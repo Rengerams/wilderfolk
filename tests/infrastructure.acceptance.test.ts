@@ -43,6 +43,16 @@ describe('infrastructure acceptance boundaries', () => {
     setCurrentPathMap(null);
   });
 
+  it('lets a bridge use the land approach beside the river it spans', () => {
+    const map = testWorldMap({
+      tilesX: 20,
+      tilesY: 20,
+      tileType: (tx) => (tx >= 9 && tx <= 13 ? TerrainType.River : TerrainType.Grassland),
+    });
+    expect(isFootprintOnBuildableTerrain({ worldMap: map }, 64, 22, 100, 100, BuildingType.Bridge)).toBe(true);
+    expect(isFootprintOnBuildableTerrain({ worldMap: map }, 64, 22, 100, 100, BuildingType.House)).toBe(false);
+  });
+
   it('never lets a legacy road open impassable water', () => {
     const map = testWorldMap({ tilesX: 20, tilesY: 20, tileType: (x) => x === 10 ? TerrainType.River : undefined });
     const road = building(1, BuildingType.Road, { x: 105, y: 105, width: 30, height: 10 });

@@ -150,6 +150,23 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
 }
 
 /**
+ * Cheapest possible travel time between two points: straight line at the maximum rush/road pace.
+ * Safe as a lower bound for skipping route searches, never as a replacement for the route.
+ */
+export function straightLineCommuteLowerBoundHours(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  walkSpeed: number,
+): number {
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const perTick = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH)
+    * ROAD_SPEED_MULT
+    * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  if (!Number.isFinite(distance) || !Number.isFinite(perTick) || perTick <= 0) return 0;
+  return distance / perTick / TICKS_PER_HOUR;
+}
+
+/**
  * Hours from a home over the walkable route: the straight line when no route is priced, and
  * `Infinity` when a finished search proves the destination unreachable.
  */

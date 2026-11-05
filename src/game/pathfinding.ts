@@ -173,12 +173,12 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   let road: Uint8Array | null = null;
   const roadSurfaces = new Map<number, Building[]>();
   if (buildings) {
-    // Roads and bridges clear their own footprint, including reserved rock decor.
+    // Only a bridge opens water; a road never makes impassable ground walkable.
     for (const b of buildings) {
       if (!isWalkableRoad(b)) continue;
       road ??= new Uint8Array(cols * rows);
       stampBuildingFootprint(road, cols, rows, b, 1, roadSurfaces);
-      stampBuildingFootprint(blocked, cols, rows, b, 0);
+      if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
     }
     for (const b of buildings) {
       if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);

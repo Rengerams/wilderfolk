@@ -4,7 +4,7 @@ import type { GenealogyRegistry } from './genealogyTypes';
 import type { ResidenceOccupancy } from './housingModel';
 import { findLivingHuman, collectFamilyMembers, collectMinorHousehold, collectOwnHousehold, indexFamilyRelations, isAdult, isMinorChild, isAdultChildAtHome, getChildCustodian, unitIsKinOf, unitKinIndex, type UnitKinIndex } from './housingModel';
 import { isResidenceBuilding, isLeaderHouseResidence, getResidenceCapacity, hasResidenceAssignment, buildResidenceOccupancy, buildPlayerResidenceOccupancy, occupancyMove, isImprisoned, isResidenceOccupantEntity, residenceRoomFor, countResidentsInBuilding, isAssignableHome } from './housingModel';
-import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
+import { beginCommuteRoutePass, estimatedCommuteHours, MAX_ASSIGNABLE_COMMUTE_HOURS, straightLineCommuteLowerBoundHours } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { TICKS_PER_DAY } from './dayCycleClock';
@@ -1058,7 +1058,6 @@ export function relocateHouseholdsForCommute(
   const eligibleUnits = units.filter((unit) => !isHousingUnitProtected(decisions, unit, 'commute'));
   if (eligibleUnits.length === 0) return;
   const index = buildCommuteRelocationIndex(residences, buildings, occupancy);
-  if (index.vacant.length === 0) return;
   const cache = new Map<string, number>();
   beginCommuteRoutePass();
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
@@ -1068,7 +1067,7 @@ export function relocateHouseholdsForCommute(
   };
   let relocated = 0;
   for (const unit of eligibleUnits) {
-    if (relocated >= MAX_RELOCATIONS_PER_DAY) return;
+    if (relocated >= MAX_RELOCATIONS_PER_DAY) break;
     const plan = planRelocation(unit, 'commute', context);
     if (!plan.move || plan.to === undefined) continue;
     const previousId = unit[0]?.residenceBuildingId;
@@ -1080,6 +1079,11 @@ export function relocateHouseholdsForCommute(
       index.vacant.push(previous);
       index.vacant.sort((a, b) => index.order.get(a.id)! - index.order.get(b.id)!);
     }
+  }
+  if (relocated < MAX_RELOCATIONS_PER_DAY) {
+    relocateCommuteSwaps(
+      eligibleUnits, alive, occupancy, cache, walkSpeed, index, context, relocated,
+    );
   }
 }
 
@@ -1874,6 +1878,26 @@ function householdCommuteHours(
   return total;
 }
 
+/** Cheap floor used before any route search: never higher than the real home→work/school time. */
+function householdCommuteLowerBound(
+  unit: Entity[],
+  home: Building,
+  walkSpeed: number,
+  buildingsById?: ReadonlyMap<number, Building>,
+): number {
+  if (!buildingsById) return 0;
+  let total = 0;
+  for (const member of unit) {
+    for (const destinationId of [member.workerBuildingId, member.schoolBuildingId]) {
+      if (destinationId == null) continue;
+      const destination = buildingsById.get(destinationId);
+      if (!destination) return 0;
+      total += straightLineCommuteLowerBoundHours(home, destination, walkSpeed);
+    }
+  }
+  return total;
+}
+
 /** Per-pass travel time for one home→destination leg, keyed so a sweep prices each leg once. */
 function cachedCommuteHours(
   home: Building,
@@ -1941,6 +1965,7 @@ export function pickCommuteRelocation(
     if (residence.id === homeId || !isAssignableHome(residence) || isLeaderHouseResidence(residence)) continue;
     if (countResidentsInBuilding(alive, residence.id, occupancy) !== 0) continue;
     if (!familyFitsInResidence(unit, residence, alive, occupancy)) continue;
+    if (householdCommuteLowerBound(unit, residence, walkSpeed, buildingsById) >= bestHours) continue;
     if (!pupilsKeepSchoolReach(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById)) continue;
     const hours = householdCommuteHours(unit, residence, commuteBuildings, walkSpeed, cache, buildingsById);
     if (hours > bestHours || (hours === bestHours && (best === undefined || residence.id >= best.id))) continue;
@@ -1953,6 +1978,125 @@ export function pickCommuteRelocation(
   if (current - bestHours < RELOCATION_MIN_SAVED_HOURS) return undefined;
   if (bestHours > current * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO)) return undefined;
   return best.id;
+}
+
+/** A mutual home swap: both households must already be the sole occupants of their homes. */
+function commuteSwapIsWorthwhile(
+  a: Entity[],
+  b: Entity[],
+  homeA: Building,
+  homeB: Building,
+  alive: Entity[],
+  occupancy: ResidenceOccupancy,
+  cache: Map<string, number>,
+  walkSpeed: number,
+  index: CommuteRelocationIndex,
+): boolean {
+  if (getResidenceCapacity(homeA) < b.length || getResidenceCapacity(homeB) < a.length) return false;
+  if (countResidentsInBuilding(alive, homeA.id, occupancy) !== a.length) return false;
+  if (countResidentsInBuilding(alive, homeB.id, occupancy) !== b.length) return false;
+
+  const commuteBuildings = index.roads;
+  const beforeA = householdCommuteHours(a, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById);
+  const beforeB = householdCommuteHours(b, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById);
+  if (beforeA <= 0 || beforeB <= 0) return false;
+  if (householdCommuteLowerBound(a, homeB, walkSpeed, index.buildingsById) >= beforeA) return false;
+  if (householdCommuteLowerBound(b, homeA, walkSpeed, index.buildingsById) >= beforeB) return false;
+  if (!pupilsKeepSchoolReach(a, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)) return false;
+  if (!pupilsKeepSchoolReach(b, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById)) return false;
+
+  const afterA = householdCommuteHours(a, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById);
+  const afterB = householdCommuteHours(b, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById);
+  if (afterA >= beforeA || afterB >= beforeB) return false;
+  const totalBefore = beforeA + beforeB;
+  const totalSaved = totalBefore - afterA - afterB;
+  if (totalSaved < RELOCATION_MIN_SAVED_HOURS) return false;
+  if (totalBefore - totalSaved > totalBefore * (1 - RELOCATION_MIN_IMPROVEMENT_RATIO)) return false;
+
+  const beforeMembers = [
+    ...a.map((member) => memberCommuteHours(member, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById)),
+    ...b.map((member) => memberCommuteHours(member, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)),
+  ];
+  const afterMembers = [
+    ...a.map((member) => memberCommuteHours(member, homeB, commuteBuildings, walkSpeed, cache, index.buildingsById)),
+    ...b.map((member) => memberCommuteHours(member, homeA, commuteBuildings, walkSpeed, cache, index.buildingsById)),
+  ];
+  return afterMembers.every((hours, i) => hours - beforeMembers[i] <= RELOCATION_MAX_MEMBER_REGRESSION_HOURS);
+}
+
+/** Writes both halves of a validated swap and logs each household where it landed. */
+function applyCommuteSwap(
+  a: Entity[],
+  b: Entity[],
+  homeA: Building,
+  homeB: Building,
+  context: HousingMoveContext,
+): void {
+  const moves: Array<{ unit: Entity[]; from: Building; to: Building }> = [
+    { unit: a, from: homeA, to: homeB },
+    { unit: b, from: homeB, to: homeA },
+  ];
+  for (const move of moves) {
+    applyHouseholdMove(move.unit, move.to.id, context);
+    context.ledger.report.stats.considered += 1;
+    context.ledger.report.stats.moved += 1;
+    const relocation: HousingRelocation = {
+      phase: 'commute', reason: 'commute',
+      members: move.unit.map((member) => member.id),
+      from: move.from.id, to: move.to.id,
+    };
+    context.ledger.report.relocations.push(relocation);
+    recordHousingRelocation({ phase: 'commute', reason: 'commute', members: move.unit, from: move.from.id, to: move.to.id });
+    for (const member of move.unit) {
+      const visited = context.ledger.visited.get(member.id) ?? new Set<number>();
+      visited.add(move.from.id);
+      visited.add(move.to.id);
+      context.ledger.visited.set(member.id, visited);
+      context.ledger.settled.set(member.id, 'commute');
+      context.ledger.reported.set(member.id, move.to.id);
+    }
+  }
+}
+
+/** The full-village half of the commute phase: exchange two occupied homes when both improve. */
+function relocateCommuteSwaps(
+  units: Entity[][],
+  alive: Entity[],
+  occupancy: ResidenceOccupancy,
+  cache: Map<string, number>,
+  walkSpeed: number,
+  index: CommuteRelocationIndex,
+  context: HousingMoveContext,
+  alreadyMoved: number,
+): number {
+  const candidates: Array<{ unit: Entity[]; home: Building }> = [];
+  for (const unit of units) {
+    if (isHousingUnitProtected(context.ledger, unit, 'commute')) continue;
+    const homeId = unitResidenceId(unit);
+    const home = homeId == null ? undefined : index.residencesById.get(homeId);
+    if (!home || !isAssignableHome(home) || isLeaderHouseResidence(home)) continue;
+    if (countResidentsInBuilding(alive, home.id, occupancy) !== unit.length) continue;
+    candidates.push({ unit, home });
+  }
+
+  const used = new Set<number>();
+  let moved = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    if (alreadyMoved + moved + 2 > MAX_RELOCATIONS_PER_DAY) break;
+    const a = candidates[i];
+    if (used.has(a.unit[0].id)) continue;
+    for (let j = i + 1; j < candidates.length; j++) {
+      const b = candidates[j];
+      if (used.has(b.unit[0].id)) continue;
+      if (!commuteSwapIsWorthwhile(a.unit, b.unit, a.home, b.home, alive, occupancy, cache, walkSpeed, index)) continue;
+      applyCommuteSwap(a.unit, b.unit, a.home, b.home, context);
+      used.add(a.unit[0].id);
+      used.add(b.unit[0].id);
+      moved += 2;
+      break;
+    }
+  }
+  return moved;
 }
 
 /**

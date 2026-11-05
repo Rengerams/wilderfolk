@@ -3,7 +3,7 @@ import { type BuildingRotation, getBuildingFootprintForType } from './buildingRo
 import { BUILDING_CONFIGS, BuildingType, PATH_CELL, TerrainType, type Building } from './gameTypes';
 import type { ResearchNode } from './gameTypes';
 import type { RenderSnapshot } from './renderSnapshot';
-import { tileAt } from './terrain/terrainGrid';
+import { isWalkableTerrainType, tileAt, Walkability } from './terrain/terrainGrid';
 // The "what a terrain type is" pair moved to a leaf so `terrainGrid` can read it without importing
 // this module back — that edge was a runtime cycle.
 import { isUnbuildableTerrainType, isWaterTerrainType } from './terrain/terrainTraits';
@@ -99,8 +99,9 @@ export function isFootprintOnBuildableTerrain(
         if (isUnbuildableTerrainType(tile.type) && !isWaterTerrainType(tile.type)) return false;
         if (isWaterTerrainType(tile.type)) waterCells++;
       } else if (road) {
-        // A road crew can clear hard decor; it cannot pave water, mountain or snow.
-        if (isUnbuildableTerrainType(tile.type)) return false;
+        const occupancy = snapshot.worldMap.pathGrid?.[ty * tileW + tx];
+        if (isWaterTerrainType(tile.type) || !isWalkableTerrainType(tile.type)
+          || (occupancy !== undefined && occupancy !== Walkability.Open)) return false;
       } else if (isUnbuildableTerrainType(tile.type)) {
         return false;
       }

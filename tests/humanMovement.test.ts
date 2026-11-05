@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyHumanWalkStep, commuteHumanToBuilding, commutePathCacheKey, crowdGatherPosition, homeStandPosition, nearestActiveMoonHowler, venueGatherPosition } from '../src/game/simulation/humanMovement';
 import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { testWorldMap } from '../src/test/worldMapFixtures';
 import { isActiveMoonHowler } from '../src/game/moonHowler';
 import { setCurrentPathMap } from '../src/game/pathfinding';
 import type { Building, Entity } from '../src/game/gameTypes';
@@ -35,6 +36,19 @@ describe('human movement helpers', () => {
     expect(nextStartTile).not.toBe(first);
     expect(nextTargetTile).not.toBe(first);
     expect(commutePathCacheKey(building.id, true, 101, 81, 200, 120)).not.toBe(first);
+  });
+
+  it('keeps a blocked commuter moving so the stuck detector can recover', () => {
+    const map = testWorldMap({ tilesX: 40, tilesY: 30 });
+    const wall = { ...building, id: 8, type: BuildingType.Wall, x: 100, y: 150, width: 10, height: 300 } as Building;
+    const target = { ...building, id: 9, type: BuildingType.House, x: 200, y: 150, width: 20, height: 20 } as Building;
+    const person = { id: 1, type: EntityType.Human, x: 50, y: 150, alive: true, vx: 0, vy: 0 } as Entity;
+    setCurrentPathMap(map, [wall]);
+
+    expect(commuteHumanToBuilding(person, target, 2, false)).toBe(false);
+    expect(Math.hypot(person.vx, person.vy)).toBeGreaterThan(0);
+
+    setCurrentPathMap(null);
   });
 
   it('keeps home stand positions deterministic per resident and building', () => {

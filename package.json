@@ -45,7 +45,7 @@
     "build:ci": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.4",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/cli": "^2.12.4",
     "react": "^19.3.1",
@@ -62,7 +62,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "jscpd": "^5.4.2",
     "knip": "^6.44.1",
-    "oxlint": "^1.90.0",
+    "oxlint": "^1.91.0",
     "oxlint-tsgolint": "^7.0.2005",
     "playwright-core": "^1.64.1",
     "tsx": "^4.23.15",
