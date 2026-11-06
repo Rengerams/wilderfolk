@@ -50,7 +50,7 @@ import { MILL_FOOD_PRODUCTION_MULT } from '../game/dailyBuildingEconomy';
 import { PRESERVE_HEALTH_BONUS } from '../game/dailyEcology';
 import { BARN_ADJACENCY_BONUS } from '../game/adjacencyIndex';
 import { siloFoodStorageForLevel, storehouseStorageForLevel } from '../game/economy';
-import type { Building, WorldState, Entity } from '../game/gameEngine';
+import type { Building, WorldState } from '../game/gameEngine';
 import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
