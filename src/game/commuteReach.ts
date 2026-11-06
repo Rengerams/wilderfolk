@@ -114,6 +114,8 @@ let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
 let advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
 /** Unpriced routes due to this pass's search/node budget are still pending. */
 let commuteRouteChecksDeferred = false;
+/** Each unresolved leg is attempted at most once per assignment pulse. */
+let attemptedRoutesThisPass = new WeakMap<PathGrid, Set<string>>();
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
 /** Next A* node limit per unresolved leg; scoped to its grid generation and bounded in size. */
 const pendingNodeBudgets = new WeakMap<PathGrid, Map<string, number>>();
@@ -123,6 +125,7 @@ export function beginCommuteRoutePass(): void {
   routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
   advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
   commuteRouteChecksDeferred = false;
+  attemptedRoutesThisPass = new WeakMap<PathGrid, Set<string>>();
 }
 
 /** Report whether this pass left any candidate unpriced (not a proven blocked route). */
@@ -158,6 +161,14 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
     cache.set(key, hours);
     return hours;
   }
+  // A food-priority prepass and the ordinary job pass may request the same
+  // unresolved commute. Escalate its A* node limit only on the NEXT staffing
+  // pulse, never by retrying it multiple times within one pulse.
+  const attempted = attemptedRoutesThisPass.get(grid);
+  if (attempted?.has(key)) {
+    commuteRouteChecksDeferred = true;
+    return null;
+  }
   const retries = pendingNodeBudgets.get(grid);
   const nextBudget = retries?.get(key) ?? MAX_COMMUTE_ROUTE_SEARCH_NODES;
   if (routeSearchesLeft <= 0 || (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES && advancedRouteSearchesLeft <= 0)) {
@@ -166,6 +177,9 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   }
   routeSearchesLeft--;
   if (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES) advancedRouteSearchesLeft--;
+  const routes = attempted ?? new Set<string>();
+  routes.add(key);
+  attemptedRoutesThisPass.set(grid, routes);
   const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, nextBudget);
   if (search.cost === null) {
     if (search.budgetExhausted) {
