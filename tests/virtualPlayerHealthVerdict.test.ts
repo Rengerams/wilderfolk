@@ -278,6 +278,50 @@ describe('the health verdict at the owner numbers', () => {
     expect(applied.entities.find((entity) => entity.id === 5)?.workerBuildingId).toBe(79);
   });
 
+  it('reserves an idle adult for a vacant Farm before a housing construction crew during a measured deficit', () => {
+    const world = ownerColony(3, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 200, wood: 500, stone: 200, gold: 300, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 4 }, consumed: { meals: 10 },
+      })),
+    }, {
+      mills: 0,
+      farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 380, y: 360 }),
+        building(78, BuildingType.House, { x: 500, y: 460, completed: false, constructionProgress: 20 }),
+      ],
+    });
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBeUndefined();
+
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBe(77);
+    expect(world.buildings.find((site) => site.id === 78)?.occupants).not.toContain(3);
+  });
+
+  it('preserves ordinary construction-first staffing when there is no measured deficit', () => {
+    const world = ownerColony(3, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 200, gold: 300, iron: 150 },
+    }, {
+      mills: 0,
+      farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 380, y: 360 }),
+        building(78, BuildingType.House, { x: 500, y: 460, completed: false, constructionProgress: 20 }),
+      ],
+    });
+
+    assignMissingWorkers(world.entities, world.buildings, world, true);
+
+    expect(world.buildings.find((site) => site.id === 78)?.occupants).toContain(3);
+    expect(world.entities.find((person) => person.id === 3)?.workerBuildingId).toBeUndefined();
+  });
+
   it('bypasses only the cooldown for an acute, measured food staffing emergency', () => {
     const world = ownerColony(4, {
       tick: 4 * TICKS_PER_DAY,
