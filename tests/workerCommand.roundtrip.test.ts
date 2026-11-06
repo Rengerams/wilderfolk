@@ -141,51 +141,35 @@ type WorkerCommandBody = DistributiveOmit<WorkerCommand, 'proto'>;
 const cmd = (body: WorkerCommandBody): WorkerCommand => ({ proto: WORKER_CMD_PROTO, ...body });
 
 describe('worker command round trips (shared worker + fallback implementation)', () => {
-  it('assignWorker — manual priest selection into the Church', () => {
+  it('legacy assignWorker refuses completed individual job assignment', () => {
     const priest = human(1);
     const church = building(4, BuildingType.Church);
     const world = makeWorld([priest], [church]);
-
     const next = applyWorkerCommand(world, cmd({ op: 'assignWorker', buildingId: 4, humanId: 1 }));
-    const assigned = next.entities.find((e) => e.id === 1)!;
-
-    expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
-    expect(assigned.workerBuildingId).toBe(4);
-    expect(assigned.job).toBe(JobType.Priest);
-    expect(assigned.occupation).toBe(JOB_LABELS[JobType.Priest]);
-    expect(collectSimulationInvariantErrors(next)).toEqual([]);
+    expect(next).toBe(world);
+    expect(priest.workerBuildingId).toBeUndefined();
+    expect(church.occupants).toEqual([]);
   });
 
-  it('removeWorker — clears the assignment', () => {
+  it('a removed worker is eligible for automatic vacancy refilling', () => {
     const priest = human(1, { workerBuildingId: 4, job: JobType.Priest });
     const church = building(4, BuildingType.Church, { occupants: [1], staffingMode: 'manual' });
     const world = makeWorld([priest], [church]);
-
     const next = applyWorkerCommand(world, cmd({ op: 'removeWorker', buildingId: 4, humanId: 1 }));
-    const removed = next.entities.find((e) => e.id === 1)!;
-
-    expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
-    expect(removed.workerBuildingId).toBeUndefined();
-    expect(removed.occupation).toBe('settler');
-    expect(removed.job).toBe(JobType.Settler);
+    expect(next.buildings.find((site) => site.id === 4)?.staffingMode).toBe('auto');
+    expect(next.entities[0]?.workerBuildingId).toBe(4);
   });
 
-  it('reassignment transfers a worker from an overstaffed building via the command', () => {
+  it('legacy assignWorker cannot transfer employees between job sites', () => {
     const workerA = human(1, { workerBuildingId: 2, job: JobType.Farmer });
     const workerB = human(2, { workerBuildingId: 2, job: JobType.Farmer });
     const farmA = building(2, BuildingType.Farm, { occupants: [1, 2] });
     const lumber = building(3, BuildingType.LumberMill);
     const world = makeWorld([workerA, workerB], [farmA, lumber]);
-
-    const assigned = applyWorkerCommand(world, cmd({ op: 'assignWorker', buildingId: 3 }));
-
-    const lumberWorkers = assigned.buildings.find((b) => b.id === 3)!.occupants;
-    expect(lumberWorkers.length).toBe(1);
-    const transferred = assigned.entities.find((e) => e.id === lumberWorkers[0])!;
-    expect(transferred.workerBuildingId).toBe(3);
-    expect(transferred.job).toBe(JobType.Lumberjack);
-    expect(assigned.buildings.find((b) => b.id === 2)!.occupants.length).toBe(1);
-    expect(collectSimulationInvariantErrors(assigned)).toEqual([]);
+    const next = applyWorkerCommand(world, cmd({ op: 'assignWorker', buildingId: 3 }));
+    expect(next).toBe(world);
+    expect(workerA.workerBuildingId).toBe(2);
+    expect(workerB.workerBuildingId).toBe(2);
   });
 
   it('demolishBuilding removes the building once and cleans assignments', () => {
