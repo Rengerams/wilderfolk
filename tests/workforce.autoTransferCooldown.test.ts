@@ -62,8 +62,10 @@ describe('two-month automatic job stability', () => {
     ];
 
     rebalanceJobWorkers(workers, [quarry, barracks, farm], undefined, 100);
-    expect(quarry.occupants).toHaveLength(2);
-    expect(barracks.occupants).toHaveLength(2);
+    // The entire reachable minimum-coverage transfer completes before the
+    // cached workforce fingerprint can suppress later pulses.
+    expect(quarry.occupants).toHaveLength(1);
+    expect(barracks.occupants).toHaveLength(3);
     expect(farm.occupants).toHaveLength(2);
     const newWorker = workers.find((worker) => worker.workerBuildingId === 11 && worker.id !== 4);
     expect(newWorker?.lastAutoJobTransferTick).toBe(100);
@@ -82,14 +84,39 @@ describe('two-month automatic job stability', () => {
     const workers = [1, 2, 3].map((id) => human(id, { workerBuildingId: quarry.id }));
     expect(findOverstaffedDonorBuilding([quarry, farm], workers, farm.id, 100, true)?.id).toBe(quarry.id);
     rebalanceJobWorkers(workers, [quarry, farm], undefined, 100);
-    expect(quarry.occupants).toHaveLength(2);
-    expect(farm.occupants).toHaveLength(1);
+    expect(quarry.occupants).toHaveLength(1);
+    expect(farm.occupants).toHaveLength(2);
     rebalanceJobWorkers(workers, [quarry, farm], undefined, 101);
     expect(quarry.occupants).toHaveLength(1);
     expect(farm.occupants).toHaveLength(2);
     const assignments = workers.map((worker) => worker.workerBuildingId);
     rebalanceJobWorkers(workers, [quarry, farm], undefined, 102);
     expect(workers.map((worker) => worker.workerBuildingId)).toEqual(assignments);
+  });
+
+  it('tries another donor when the smallest crew cannot commute to a vacant Farm', () => {
+    const distantLumber = building(20, BuildingType.LumberMill, {
+      x: 100_000, y: 100_000, occupants: [1, 2],
+    });
+    const nearbyQuarry = building(21, BuildingType.Quarry, {
+      x: 0, y: 0, occupants: [3, 4, 5],
+    });
+    const farm = building(22, BuildingType.Farm, { x: 0, y: 0 });
+    const workers = [
+      human(1, { x: 100_000, y: 100_000, workerBuildingId: 20 }),
+      human(2, { x: 100_000, y: 100_000, workerBuildingId: 20 }),
+      human(3, { x: 0, y: 0, workerBuildingId: 21 }),
+      human(4, { x: 0, y: 0, workerBuildingId: 21 }),
+      human(5, { x: 0, y: 0, workerBuildingId: 21 }),
+    ];
+    rebalanceJobWorkers(workers, [distantLumber, nearbyQuarry, farm], undefined, 100);
+    expect(distantLumber.occupants).toEqual([1, 2]);
+    expect(nearbyQuarry.occupants).toHaveLength(1);
+    expect(farm.occupants).toHaveLength(2);
+    expect(workers.filter((worker) => worker.workerBuildingId === 22)).toHaveLength(2);
+    // No further reshuffle once all safe donors are down to their minimum.
+    rebalanceJobWorkers(workers, [distantLumber, nearbyQuarry, farm], undefined, 101);
+    expect(farm.occupants).toHaveLength(2);
   });
 
   it('does not claim a protected food crew is a transferable donor for autoplay', () => {
