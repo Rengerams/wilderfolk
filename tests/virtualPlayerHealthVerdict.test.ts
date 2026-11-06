@@ -415,14 +415,13 @@ describe('the health verdict at the owner numbers', () => {
 
   it('does not let an old nominal producer ceiling conceal a sustained measured food deficit', () => {
     // Four mouths once planned one site, but actual 3-day food losses take precedence.
-    const world = ownerColony(4, {
+    const world = ownerColony(7, {
       tick: 4 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 500, gold: 0, iron: 150 },
       foodHistory: [1, 2, 3].map((day) => ({
         day, produced: { farms: 8 }, consumed: { meals: 18 },
       })),
     }, { mills: 0, farms: 3 });
-    world.entities.push(human(7, { residenceBuildingId: 101 }));
 
     expect(decideVirtualPlayerAction(world)?.command)
       .toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
