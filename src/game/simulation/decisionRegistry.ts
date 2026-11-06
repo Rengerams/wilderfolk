@@ -198,9 +198,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
   },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command entry: buildingActionRouting.assignIdleWorkerToBuilding',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
     cadence: 'assignment',
-    cadenceNote: 'The idle-only assignWorkerInPlace choice preserves commute eligibility, squared distance, existing skill and first-encountered stability; optional career/DNA fit breaks only exact ties and never changes transfer/rebalance/cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
+    cadenceNote: 'The idle-only assignWorkerInPlace choice fills vacancies while valid workerBuildingId jobs persist across daily pulses. Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.occupants',
       'human.workerBuildingId',
@@ -209,7 +209,7 @@ export const SIMULATION_DECISIONS = {
       'human.skills',
       'workforcePolicy',
     ],
-    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "assignWorker" and "autoStaffWorkers" (owned world in place, isolated calls copied); buildingStaffingActions on place/recruit/death',
+    scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "autoStaffWorkers" (owned world in place, isolated calls copied); "assignWorker" retained for construction/residency only; buildingStaffingActions on place/recruit/death',
     testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
@@ -436,7 +436,7 @@ export const SIMULATION_DECISIONS = {
   commands: {
     owner: 'commands.ts (simWorker) → domain owners: buildingActionRouting, buildingStaffingActions, buildingResidencyActions, buildingMaintenanceActions and buildingConfigurationActions',
     cadence: 'player-command',
-    cadenceNote: 'Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
+    cadenceNote: 'Manual individual job assignment is retired; legacy setBuildingStaffingMode accepts auto only. Worker-owned building upgrades mutate the authoritative world without cloning it; isolated calls retain copy semantics. main-thread fallback must use the same domain implementation (gameLoop); demolition cleans references immediately, reconciles displaced households only, and triggers full workforce staffing only when staff or crews are displaced; gameLoop does not replay an unconfirmed command after its worker reports a command fault, but preserves later queued requests',
     writes: [
       'building.occupants',
       'building.level',
