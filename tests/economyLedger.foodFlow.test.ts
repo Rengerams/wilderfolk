@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { getRecentFoodFlow, rollEconomyLedgerForDay } from '../src/game/economyLedger';
+import { getRecentFoodFlow, getProjectedFoodSupply, isProjectedFoodShortfall, rollEconomyLedgerForDay } from '../src/game/economyLedger';
 
 const sample = (day: number, produced: number, consumed: number) => ({
   day, produced: { farms: produced }, consumed: { meals: consumed },
@@ -33,6 +33,20 @@ describe('measured food flow for colony planning', () => {
     expect(getRecentFoodFlow(state)).not.toBeNull();
     state.foodHistory = undefined;
     expect(getRecentFoodFlow(state)).toBeNull();
+  });
+
+  it('anticipates a growing population while recorded production still exceeds consumption', () => {
+    const state = {
+      tick: 8 * TICKS_PER_DAY,
+      foodHistory: Array.from({ length: 7 }, (_, index) =>
+        sample(index + 1, 80, 40 + index * 5)),
+    } as Pick<WorldState, 'tick' | 'foodHistory'>;
+    expect(getRecentFoodFlow(state)?.netPerDay).toBeGreaterThan(0);
+    expect(getProjectedFoodSupply(state, 60)).toEqual({
+      days: 7, producedPerDay: 80, projectedNeedPerDay: 95,
+    });
+    expect(isProjectedFoodShortfall(state, 60, 0.05)).toBe(true);
+    expect(isProjectedFoodShortfall(state, 15, 0.05)).toBe(true);
   });
 
   it('archives an empty day instead of dropping it from the rolling history', () => {
