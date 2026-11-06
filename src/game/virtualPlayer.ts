@@ -494,7 +494,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     && BUILDING_JOB_TYPES[building.type],
   );
   const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
-  const availableWorker = donor && pickWorkerToTransfer(humans, donor, producer, state.tick);
+  const availableWorker = donor && pickWorkerToTransfer(humans, donor, producer, state.tick, state.buildings);
   if (donor && availableWorker) {
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
@@ -522,7 +522,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
       .map((human) => human.workerBuildingId));
     for (const building of nonessential) {
       if (!occupied.has(building.id)) continue;
-      const worker = pickWorkerToTransfer(humans, building, producer, state.tick);
+      const worker = pickWorkerToTransfer(humans, building, producer, state.tick, state.buildings);
       if (!worker) continue;
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: building.id, humanId: worker.id },
@@ -783,7 +783,7 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
     );
     if (!producer) continue;
     const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
-    if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick)) continue;
+    if (!donor || !pickWorkerToTransfer(humans, donor, producer, state.tick, state.buildings)) continue;
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: `staff the ${BUILDING_CONFIGS[entry.type].label} — only ${Math.floor(state.resources[entry.stock] ?? 0)} ${entry.stock} left`,
