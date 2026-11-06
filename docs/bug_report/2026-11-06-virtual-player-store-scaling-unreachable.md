@@ -1,7 +1,7 @@
 # Virtual Player Store scaling is unreachable after the first copy
 
 - Bug: The documented policy to scale Stores with population is unreachable in the `decideIndustry` branch.
-- Status: open
+- Status: investigating — source fix committed on PR #126; runtime unverified
 - Severity: medium
 - Date discovered: 2026-11-06
 - Version/build: main at 6e9dd6bfcd525cb1df3d8960a636069f5aa240c7
@@ -11,6 +11,7 @@
 - Related implementation: `docs/plans/persistent-automatic-workforce-2026-11-06.md`
 
 ## Status history
+- 2026-11-06 — investigating: PR #126 replaces population/gold-based Store planning with completed-building material capacity pressure (wood, stone, iron at 85%); pending industrial construction and reserve checks remain; runtime unverified.
 - 2026-11-06 — open: contradictory source comment and branch condition identified; gameplay observation not performed.
 
 ## Observed behavior
@@ -31,6 +32,8 @@ The Store policy must be explicit and consistent. If intended to scale, derive d
 Verified contradiction between the declared Store-scaling policy and its exclusion in the scaling predicate.
 
 ## Fix / proposed fix
+**Implemented on PR #126 (unverified):** `needsAdditionalStore` reads `economy.computeStorageMax` rather than stale `state.storageMax`, builds when wood, stone or iron exceeds 85% of its capacity, and does not use gold (a Store does not increase gold capacity). The waiting reason uses the same predicate. Existing construction/resource gating prevents immediate duplicate construction; as each Store completes, capacity is recalculated before the next proposal.
+
 Confirm the intended storage policy; replace the contradictory branch with one storage-pressure decision delegated to the relevant owner. Prevent runaway construction, consider pending construction and resource reserves, and reuse actual storage-capacity information. Do not add a second independent Store chooser.
 
 ## Save/migration impact
