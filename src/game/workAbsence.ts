@@ -113,14 +113,13 @@ function resolveShift(
 
   const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
   const venueCount = workplace?.occupants.length ?? 0;
-  const autoVenueShifts = true;
   const venueKind = workplace ? VENUE_BY_BUILDING[workplace.type] : undefined;
   const isVenueWorker = venueKind != null && (venueKind === 'tavern' ? isInnkeeper : isHotelier);
   if (venueKind != null && isVenueWorker) {
-    const onVenueShift = venueIndex >= 0 && autoVenueShifts
+    const onVenueShift = venueIndex >= 0
       ? isVenueWorkerServiceHour(state, venueKind, hour, venueIndex, venueCount)
       : isVenueServiceHour(state, venueKind, hour);
-    const startHour = venueIndex >= 0 && autoVenueShifts
+    const startHour = venueIndex >= 0
       ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount).startHour
       : getVenueSchedule(state, venueKind).startHour;
     return { onShift: onVenueShift, next: { hour: startHour, kind: 'venue' } };
