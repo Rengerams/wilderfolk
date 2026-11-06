@@ -11,6 +11,7 @@
 - Related plan: `docs/plans/persistent-automatic-workforce-2026-11-06.md`
 
 ## Status history
+- 2026-11-06 — Codex cache follow-up: signature now tracks current transfer cooldown eligibility and the path cells of applicants without valid residences; changes trigger the next workforce pulse without disturbing established jobs. The commute owner query was already registered in `OWNERSHIP_OVERVIEW.md`. Source tests added, not executed.
 - 2026-11-06 — Codex review follow-up: unpriced route or node-budget searches now set a per-pass deferral signal; workforce does not cache an incomplete staffing pass. The next scheduled pulse retries with a fresh budget; no tests executed.
 - 2026-11-06 — investigating: PR #126 adds a hard canonical two-hour eligibility gate to new hires and transfers; home-based transfer distances and conservative deferral on exhausted route search; no runtime checks executed.
 - 2026-11-06 — open: direct source inspection identified reachable-preference fallback and missing transfer eligibility; runtime not executed.
