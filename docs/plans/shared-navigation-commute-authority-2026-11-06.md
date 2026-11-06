@@ -1,7 +1,7 @@
 # Wilderfolk — Shared Navigation and Authoritative Commute Decisions
 
 **Document type:** Wilderfolk feature/function architecture and executable Codebot plan (completed from `CODEBOT_FEATURE_TEMPLATE.md`)  
-**Status:** PLANNED — NOT IMPLEMENTED; this document does not approve a merge  
+**Status:** IN PROGRESS — checkpoint A foundation committed; B/C not implemented and merge not approved  
 **Proposed repository path:** `docs/plans/shared-navigation-commute-authority-2026-11-06.md`  
 **Repository evidence:** `Rengerams/wilderfolk`, `main` at `2547a4d4165f81993113b095f67f27b710dcd405`, inspected 2026-11-06. PR #126 was **merged** when this plan was prepared. Re-check HEAD before any coding.  
 **Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` take precedence.  
@@ -10,6 +10,8 @@
 > **Execution gate:** Re-read `AGENTS.md` and `docs/command.md` in full, verify PowerShell with `$PSVersionTable.PSVersion.ToString()` in the actual developer shell, re-check `main` and all relevant files immediately before editing, then implement against the latest code. Source facts below are verified at the cited snapshot; proposed signatures and changes are intentionally labelled **TO-BE**. No generated APIs are asserted to exist today.
 
 ---
+
+**Implementation note (2026-11-06):** Checkpoint A now includes strict endpoint-validated immutable route quotes, a generation-scoped cache bounded by entry and tile count, and a typed commute projection. Legacy policy callers and steering remain on their compatibility paths until B/C. The new quote requires actual walkable endpoints (not blocked building centres); call-site selection of legitimate approach points remains part of B. Typecheck, lint, build and runtime verification are not available in the connector-only environment at this checkpoint.
 
 ## 0. Feature contract — fill before code
 
