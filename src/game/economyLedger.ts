@@ -182,6 +182,17 @@ export function getProjectedFoodSupply(
   };
 }
 
+/** Whether staffed production is forecast to fall below near-future demand. */
+export function isProjectedFoodShortfall(
+  state: Pick<WorldState, 'foodHistory' | 'tick'>,
+  currentDailyNeed: number,
+  toleranceRatio: number,
+): boolean {
+  const outlook = getProjectedFoodSupply(state, currentDailyNeed);
+  return outlook != null && outlook.producedPerDay
+    < outlook.projectedNeedPerDay * (1 + toleranceRatio);
+}
+
 /** The current day's ledger, or null when nothing has happened yet today. */
 export function getEconomyLedger(state: WorldState): DailyEconomyLedger | null {
   const ledger = state.economyLedger;
