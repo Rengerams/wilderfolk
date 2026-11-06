@@ -802,18 +802,15 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
   return null;
 }
 
-/** Stores expand material capacity, not gold. A once-daily storage snapshot can
- * temporarily exceed the newly computed caps (notably in old saves and imports).
- * Do not launch speculative construction against that smaller provisional cap;
- * the next economy update will reconcile the snapshots.
+/** Stores expand wood/stone/iron capacity, never gold. Derive capacities only
+ * from completed buildings: the once-daily storageMax snapshot can be stale
+ * after placing, demolishing or importing a building.
  */
 function needsAdditionalStore(state: WorldState): boolean {
   const limits = computeStorageMax(state.buildings);
-  return (['wood', 'stone', 'iron'] as const).some((resource) => {
-    const recorded = state.storageMax?.[resource];
-    const capacity = Math.max(limits[resource], typeof recorded === 'number' && Number.isFinite(recorded) ? recorded : 0);
-    return capacity > 0 && (state.resources[resource] ?? 0) >= capacity * 0.85;
-  });
+  return (['wood', 'stone', 'iron'] as const).some((resource) =>
+    limits[resource] > 0 && (state.resources[resource] ?? 0) >= limits[resource] * 0.85,
+  );
 }
 
 /** One industry owner, evaluated separately for actual producers and late storage expansion. */
