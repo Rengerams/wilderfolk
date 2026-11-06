@@ -1,7 +1,7 @@
-import type { Building, Entity } from './gameTypes';
+import type { Building, Entity, WorldMap } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { findRouteCostOutcome, getCurrentPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
@@ -131,8 +131,8 @@ export function wereCommuteRouteChecksDeferred(): boolean {
 }
 
 /** Route hours home → destination over the sim's current grid, or null when no route is priced. */
-function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number): number | null {
-  const grid = getCurrentPathGrid();
+function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: number, toWorldY: number, walkSpeed: number, gridOverride?: PathGrid): number | null {
+  const grid = gridOverride ?? getCurrentPathGrid();
   if (!grid) return null;
   const fromX = Math.floor(fromWorldX / PATH_CELL);
   const fromY = Math.floor(fromWorldY / PATH_CELL);
@@ -231,10 +231,11 @@ export function estimatedCommuteHours(
  */
 export function isWithinAssignableCommute(
   entity: Entity,
-  building: Building,
+  building: Pick<Building, 'x' | 'y'>,
   buildings: readonly Building[],
   walkSpeed: number,
   buildingById?: ReadonlyMap<number, Building>,
+  worldMap?: WorldMap | null,
 ): boolean {
   // The residence, not a worker's present position or previous workplace, owns
   // the commute origin. For an unhoused settler, use their current position.
@@ -246,14 +247,16 @@ export function isWithinAssignableCommute(
   // Same path cell is handled locally by the route owner: it needs no A* search.
   if (Math.floor(from.x / PATH_CELL) === Math.floor(building.x / PATH_CELL)
     && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
-  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed);
+  // Bot placement can pass its own read-only world map. This reuses the same
+  // A* cost and two-hour rule without mutating the simulation's current grid.
+  const grid = worldMap ? getReadOnlyPathGrid(worldMap, buildings as Building[]) : getCurrentPathGrid();
+  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed, grid ?? undefined);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 
   // A failed/budget-exhausted route search is UNKNOWN, not a passable road.
-  // Defer new jobs rather than assigning a settler across unproven terrain.
-  // Without any navigation grid (e.g. world bootstrap), retain the existing
-  // direct-road estimate; the actual grid is authoritative once available.
-  if (getCurrentPathGrid()) return false;
+  // Defer new jobs rather than assigning across unproven terrain. Only a
+  // bootstrap with no map retains the legacy straight-road estimate.
+  if (grid) return false;
   return commuteLeadHoursFor(
     straightRouteCost(from.x, from.y, building.x, building.y, buildings),
     walkSpeed,
