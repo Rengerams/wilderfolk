@@ -22,6 +22,8 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { Human, VirtualPlayer } from './gameConstants';
+import { isMeasuredFoodDeficit } from './economyLedger';
 import { evaluateWorkerFit } from './careers/workerFit';
 import { profileStart, profileEnd } from './performanceProfiler';
 import {
@@ -169,11 +171,20 @@ export function completedJobBuildings(
 /** Two 30-day in-game months. Existing saves with no timestamp stay eligible. */
 export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
 
-export function canAutoChangeWorkplace(human: Entity, currentTick?: number): boolean {
+export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
   if (isImprisoned(human)) return false;
+  if (foodEmergency) return true;
   if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
+}
+
+/** A verified falling food supply with fewer than six days in store warrants urgent staffing. */
+export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
+  const settlers = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
+  return settlers > 0
+    && state.resources.food < settlers * Human.DAILY_FOOD_CONSUMPTION * VirtualPlayer.FOOD_BUFFER_DAYS * 3
+    && isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
 }
 
 interface WorkforceAssignmentIndex {
@@ -181,7 +192,7 @@ interface WorkforceAssignmentIndex {
   movable: Map<number, number>;
 }
 
-function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): WorkforceAssignmentIndex {
+function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
   const counts = new Map<number, number>();
   const movable = new Map<number, number>();
   for (const human of humans) {
@@ -189,7 +200,7 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): 
     const id = human.workerBuildingId;
     if (id == null) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
-    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick)) {
+    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick, foodEmergency)) {
       movable.set(id, (movable.get(id) ?? 0) + 1);
     }
   }
@@ -235,9 +246,10 @@ export function findOverstaffedDonorBuilding(
   excludeBuildingId: number,
   currentTick?: number,
   preserveEssentialCoverage = false,
+  foodEmergency = false,
 ): Building | undefined {
   return pickOverstaffedDonor(
-    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick),
+    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency),
     excludeBuildingId, preserveEssentialCoverage,
   );
 }
@@ -249,6 +261,7 @@ export function pickWorkerToTransfer(
   currentTick?: number,
   buildings: readonly Building[] = [fromBuilding, toBuilding],
   excludedWorkers?: ReadonlySet<number>,
+  foodEmergency = false,
 ): Entity | undefined {
   const toJob = BUILDING_JOB_TYPES[toBuilding.type];
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
@@ -261,7 +274,7 @@ export function pickWorkerToTransfer(
       !h.isJuvenile &&
       h.workerBuildingId === fromBuilding.id &&
       !excludedWorkers?.has(h.id) &&
-      canAutoChangeWorkplace(h, currentTick) &&
+      canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
       isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
   if (workers.length === 0) return undefined;
@@ -410,9 +423,10 @@ export function rebalanceJobWorkers(
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
+  foodEmergency = false,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
-  const index = buildWorkforceAssignmentIndex(humans, currentTick);
+  const index = buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency);
   const movedThisPass = new Set<number>();
 
   // Finish the bounded minimum-coverage rebalance in this invocation, BEFORE
@@ -432,7 +446,10 @@ export function rebalanceJobWorkers(
     while (staffed < target) {
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
       if (!donor) break;
-      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings, movedThisPass);
+      const priorityFood = needy.type === BuildingType.Farm || needy.type === BuildingType.Greenhouse
+        || needy.type === BuildingType.FishingSpot || needy.type === BuildingType.HuntingSpot;
+      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
+        movedThisPass, foodEmergency && priorityFood);
       if (!worker) {
         // A donor whose eligible roster has already moved cannot supply this
         // vacancy again in the same reconciliation pass.
@@ -813,7 +830,9 @@ export function staffJobBuildings(
   profileEnd('workforce.staff', staffStart);
 
   const rebalanceStart = profileStart();
-  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
+  const world = worldSlices as WorldState | undefined;
+  const urgentFood = world?.entities && world.resources && isAcuteFoodStaffingEmergency(world);
+  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick, !!urgentFood);
   profileEnd('workforce.rebalance', rebalanceStart);
   const syncStart = profileStart();
   syncJobBuildingOccupants(alive, buildings);
