@@ -8,7 +8,7 @@
  * `getEconomyLedger`.
  */
 import type { WorldState, DailyEconomyLedger } from './gameTypes';
-import { getAbsoluteCalendarDay } from './dayCycle';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import { deductResource } from './resourceUtils';
 
 export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
