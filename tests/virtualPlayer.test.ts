@@ -1061,6 +1061,7 @@ describe('virtual player remaining action surface', () => {
       [
         building(1, BuildingType.House, { occupants: [1], health: 30 }),
         building(2, BuildingType.Farm, { occupants: [1], health: 70 }),
+        building(3, BuildingType.Mansion, { level: 3 }),
       ],
     );
 
@@ -1073,7 +1074,7 @@ describe('virtual player remaining action surface', () => {
     expect(applied.buildings.find((b) => b.id === 1)?.health).toBe(100);
     expect(applied.buildings.find((b) => b.id === 2)?.health).toBe(100);
     expect(applied.resources.wood).toBe(480);
-    expect(applied.resources.stone).toBe(490);
+    expect(applied.resources.stone).toBe(190);
     expect(world.buildings.find((b) => b.id === 1)?.health).toBe(30);
   });
 
