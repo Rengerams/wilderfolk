@@ -278,14 +278,11 @@ describe('the health verdict at the owner numbers', () => {
     expect(applied.entities.find((entity) => entity.id === 5)?.workerBuildingId).toBe(79);
   });
 
-  it('reserves an idle adult for a vacant Farm before a housing construction crew during a measured deficit', () => {
+  it('prevents a food shortage: a well-stocked survival colony staffs the Farm before new housing', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
       workforcePolicy: 'survival',
-      resources: { food: 200, wood: 500, stone: 200, gold: 300, iron: 150 },
-      foodHistory: [1, 2, 3].map((day) => ({
-        day, produced: { farms: 4 }, consumed: { meals: 10 },
-      })),
+      resources: { food: 500, wood: 500, stone: 200, gold: 300, iron: 150 },
     }, {
       mills: 0,
       farms: 1,
@@ -302,10 +299,10 @@ describe('the health verdict at the owner numbers', () => {
     expect(world.buildings.find((site) => site.id === 78)?.occupants).not.toContain(3);
   });
 
-  it('preserves ordinary construction-first staffing when there is no measured deficit', () => {
+  it('preserves construction-first staffing for the growth workforce preset', () => {
     const world = ownerColony(3, {
       tick: 4 * TICKS_PER_DAY,
-      workforcePolicy: 'survival',
+      workforcePolicy: 'growth',
       resources: { food: 500, wood: 500, stone: 200, gold: 300, iron: 150 },
     }, {
       mills: 0,
