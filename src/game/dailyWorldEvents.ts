@@ -1,5 +1,6 @@
 import type { WorldState, Entity } from './gameTypes';
 import type { PopulationCounts } from './entityCounts';
+import { countLivingPopulation } from './entityCounts';
 import type { TickContext } from './simulation/simulationTypes';
 import { TICKS_PER_DAY, FESTIVAL_CHECK_TICKS, getAbsoluteCalendarDay, DAYS_PER_YEAR, getCalendarDay, isNewCalendarDayTick } from './dayCycle';
 import { displayYear } from './dayCycleClock';
@@ -28,7 +29,7 @@ import { tickGuidedCampaign } from './guidedCampaign';
 import { detectRaidersFromWatchtowers } from './watchtowerDetection';
 import { trackYearEvent } from './stats';
 import { replenishDepletedWildlife } from './worldGen';
-import { pushNewEntity } from './simulation/simulationEntities';
+import { mergeNewEntitiesIntoAlive, pushNewEntity } from './simulation/simulationEntities';
 import { tickMigration } from './migration';
 import { tickBeauty } from './beautyGrid';
 import { tickEcosystemMetrics } from './dailyEcology';
@@ -196,9 +197,11 @@ export function tickDailyWorldEvents(state: WorldState, ctx: TickContext, allAli
   if (state.tick > 0 && getAbsoluteCalendarDay(state.tick) % 3 === 0) {
     replenishDepletedWildlife(state, (entity) => pushNewEntity(state, ctx, entity));
   }
+  // Replenished wildlife reaches the working list and the eco indexes at this point of use.
+  mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
 
   // Eco indexes refresh once per day (before the valley stage consumes them)
-  tickEcosystemMetrics(state, counts, ctx.updatedBuildings);
+  tickEcosystemMetrics(state, countLivingPopulation(allAlive, ctx.newEntities), ctx.updatedBuildings);
 
   // Valley ecology stage, reading the eco indexes refreshed just above. It runs after this day's
   // building production, so its farm/hunt multipliers land one day late — always behind the warning.

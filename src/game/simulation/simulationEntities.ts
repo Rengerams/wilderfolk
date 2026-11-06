@@ -43,6 +43,20 @@ export function pushNewEntity(state: WorldState, ctx: TickContext, entity: Entit
   syncSpatialGridEntity(entity, ctx.grassGrid, ctx.mobileGrid, ctx.treeGrid);
 }
 
+/** Append spawns still queued in `ctx.newEntities` to a phase's working alive list. */
+export function mergeNewEntitiesIntoAlive(allAlive: Entity[], newEntities: readonly Entity[]): void {
+  if (newEntities.length === 0) return;
+  let known: Set<number> | null = null;
+  for (let i = 0; i < newEntities.length; i++) {
+    const entity = newEntities[i];
+    if (!entity.alive) continue;
+    if (!known) known = new Set(allAlive.map((e) => e.id));
+    if (known.has(entity.id)) continue;
+    known.add(entity.id);
+    allAlive.push(entity);
+  }
+}
+
 /** Wildlife tick death — cursed settlers in werewolf form use human widow/building cleanup. */
 export function markGrassDead(ctx: TickContext, grass: Entity): void {
   if (grass.type !== EntityType.Grass || !grass.alive) return;

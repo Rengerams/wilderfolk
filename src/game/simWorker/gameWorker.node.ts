@@ -58,8 +58,11 @@ if (!isMainThread && parentPort) {
     try {
       parentPort.postMessage(message, validTransfer as never);
     } catch (err) {
-      console.warn('[gameWorker.node] postMessage transfer failed, falling back to clone', err);
-      parentPort.postMessage(message);
+      // Never retry the same graph without transfer: a partial detachment would ship a detached
+      // buffer as a valid reply. Report a fatal fault and let the host recover instead.
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error('[gameWorker.node] postMessage failed:', reason);
+      postStartupError(`Worker postMessage failed: ${reason}`);
     }
   };
 

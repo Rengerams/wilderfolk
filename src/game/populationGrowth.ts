@@ -1,4 +1,4 @@
-import { BuildingType, BUILDING_CONFIGS, type WorldState } from './gameTypes';
+import { BuildingType, BUILDING_CONFIGS, type Building, type WorldState } from './gameTypes';
 import { buildResidenceOccupancy, getResidenceCapacity, isLeaderHouseResidence, isAssignableHome } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 
@@ -13,6 +13,7 @@ interface PopulationSnapshotCacheEntry {
   tick: number;
   entityCount: number;
   buildingCount: number;
+  buildingSignature: string;
   humanPopulation: number;
   totalBuildingsCompleted: number;
   snapshot: PopulationSnapshot;
@@ -52,10 +53,21 @@ function computePopulationSnapshot(state: WorldState): PopulationSnapshot {
   return { pop, beds, houseCount, mansionCount };
 }
 
+/** Everything a bed projection depends on — level, type, ownership and completion. */
+function buildingStateSignature(buildings: readonly Building[]): string {
+  let signature = String(buildings.length);
+  for (let i = 0; i < buildings.length; i++) {
+    const building = buildings[i];
+    signature += `|${building.id}:${building.type}:${building.level ?? 1}:${building.completed ? 1 : 0}:${building.faction ?? ''}`;
+  }
+  return signature;
+}
+
 /** Single-pass population/beds snapshot; cached per tick until population or building states change. */
 export function snapshotPopulation(state: WorldState): PopulationSnapshot {
   const entityCount = state.entities?.length ?? 0;
-  const buildingCount = state.buildings?.length ?? 0;
+  const buildings = state.buildings ?? [];
+  const buildingCount = buildings.length;
   const humanPopulation = state.humanPopulation ?? 0;
   const totalBuildingsCompleted = state.totalBuildingsCompleted ?? 0;
 
@@ -67,6 +79,7 @@ export function snapshotPopulation(state: WorldState): PopulationSnapshot {
     && cached.buildingCount === buildingCount
     && cached.humanPopulation === humanPopulation
     && cached.totalBuildingsCompleted === totalBuildingsCompleted
+    && cached.buildingSignature === buildingStateSignature(buildings)
   ) {
     return cached.snapshot;
   }
@@ -76,6 +89,7 @@ export function snapshotPopulation(state: WorldState): PopulationSnapshot {
     tick: state.tick,
     entityCount,
     buildingCount,
+    buildingSignature: buildingStateSignature(buildings),
     humanPopulation,
     totalBuildingsCompleted,
     snapshot,

@@ -1,5 +1,23 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Raid gold spoils bypass the configured storage cap](../bug_report/2026-11-06-raid-gold-bypasses-storage-cap.md):** Gold was added directly after the raid soft cap, so it could pass `storageMax.gold` and skipped shared resource accounting. Awarded gold now goes through the capped-resource owner; targeted tests, TypeScript, lint and build pass.
+
+**2026-11-06 — [Malformed worker deltas leave the replica stale](../bug_report/2026-11-06-worker-delta-application-unvalidated.md):** Tick and command replies were applied without a protocol guard or error handling, after counters and request state had already changed. The host now validates first, catches application failures and faults the worker for recovery; types, lint and worker tests pass.
+
+**2026-11-06 — [Daily ecology/event ordering claim does not reproduce](../bug_report/2026-11-06-daily-phase-order-not-reproduced.md):** Closed as not a defect. Source order in the current tree runs building production before the world-event tail that evaluates ecology; the audit appears to have mistaken the earlier 18:00 election/chronicle block for the ecology pass. No production change made.
+
+**2026-11-06 — [Same-phase daily spawns are invisible to later daily systems](../bug_report/2026-11-06-daily-spawns-invisible-to-same-phase.md):** Spawns queued in `ctx.newEntities` were not merged into the daily working list, so population, events, ecology and challenges read a pre-spawn snapshot. A phase-boundary merge now runs before each later reader; regression, types, lint and build pass.
+
+**2026-11-06 — [Free-roaming hunting food is missing from the food-flow ledger](../bug_report/2026-11-06-free-hunt-missing-food-ledger.md):** A successful free hunt called `addResource` without `recordFoodProduced`, so the ledger under-reported hunting. The accepted amount is now recorded against `hunting`; regression, types, lint and build pass.
+
+**2026-11-06 — [Population/beds cache can ignore building-state changes](../bug_report/2026-11-06-population-cache-stale-building-state.md):** The per-tick cache key omitted level, type, completion and ownership, so a same-tick housing upgrade could return stale beds unless every writer invalidated. A building-state signature now guards the hit; regression, types, lint and build pass.
+
+**2026-11-06 — [Render-buffer returns are not lease-safe](../bug_report/2026-11-06-render-buffer-return-no-lease.md):** A delayed duplicate return could free a slot the worker had already reacquired. Each acquisition now carries a lease that the return must match; regression, types, lint and worker tests pass.
+
+**2026-11-06 — [Node worker transfer fallback can reuse detached buffers](../bug_report/2026-11-06-node-worker-detached-buffer-retry.md):** A failed transfer retried the same message by clone, which could ship detached buffers. The retry is gone; failure now reports a worker fault; types, lint and build pass.
+
+**2026-11-06 — [Worker feature and render-schema headers were carried but not checked](../bug_report/2026-11-06-worker-feature-schema-guards.md):** The worker ignored requested feature flags and the host ignored the response schema version. Both are now enforced, with rejected buffers returned to the pool; transport and worker suites pass.
+
 **2026-11-03 — [Spotlight stage lands off the middle of the Village Square](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** The stage point added half a footprint to a value that already was the centre, and the bottom-anchored plaza sprite puts its painted middle 34 px above that point, so the girl performed by the silos and then in front of the fountain. Staging now reads the centre from its canonical owner and lifts it to the painted middle; targeted tests, TypeScript, lint and build pass.
 
 **2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
