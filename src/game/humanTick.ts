@@ -11,7 +11,6 @@ import { beautyAt, pickBeautySpot } from './beautyGrid';
 import { getChurchStrength, findHumanWorkplace, buildConstructionCrewIndex } from './workforce';
 
 import { isPlayerHuman } from './playerHuman';
-import { getBuildingCenter } from './placementUtils';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { buildCeremonySeatIndex, getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
 import { getSpotlightGatherTarget } from './spotlightLore';
@@ -97,7 +96,7 @@ import {
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
 import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, homeEntryPosition, affairTrystEntry, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -172,8 +171,34 @@ function getAffairTrystTarget(
   buildingById: Map<number, Building>,
 ): { x: number; y: number } {
   const trystBuilding = getAffairTrystBuilding(cheater, paramour, entityById, buildingById);
-  if (trystBuilding) return getBuildingCenter(trystBuilding);
+  // Both lovers walk to the same doorstep. The footprint centre is blocked, so steering at it
+  // pressed them against opposite walls and the tryst never became reachable.
+  if (trystBuilding) return affairTrystEntry(trystBuilding);
   return { x: paramour.x, y: paramour.y };
+}
+
+/** Route a lover to the tryst door; returns nothing because the human loop applies the walk step. */
+function steerAffairApproach(
+  entity: Entity,
+  partner: Entity,
+  target: { x: number; y: number },
+  speed: number,
+): void {
+  const dx = target.x - entity.x;
+  const dy = target.y - entity.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const route = steerWithPath(
+    entity,
+    target.x,
+    target.y,
+    speed,
+    `affair_${entity.id}_${partner.id}`,
+  );
+  if (route === 'direct') {
+    entity.vx = (dx / dist) * speed;
+    entity.vy = (dy / dist) * speed;
+    faceVelocity(entity);
+  }
 }
 
 /** Sole tick-level sleep observation; physiology alone owns rest and stamina recovery. */
@@ -720,11 +745,15 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.vy = 0;
       const prison = buildingById.get(entity.prisonBuildingId!);
       if (prison) {
-        const dx = prison.x - entity.x;
-        const dy = prison.y - entity.y;
+        const door = homeEntryPosition(prison, entity.x, entity.y);
+        const dx = door.x - entity.x;
+        const dy = door.y - entity.y;
         const dist = Math.hypot(dx, dy) || 1;
-        if (dist <= 14) enterHumanBuilding(entity, prison);
-        if (dist > 14) {
+        if (entity.indoorBuildingId === prison.id || dist <= 14) {
+          enterHumanBuilding(entity, prison);
+          entity.x = prison.x;
+          entity.y = prison.y;
+        } else {
           entity.vx = (dx / dist) * Math.min(dist, 1.2);
           entity.vy = (dy / dist) * Math.min(dist, 1.2);
           applyHumanWalkStep(entity, 1);
@@ -1385,16 +1414,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
       if (paramour) {
         const trystTarget = getAffairTrystTarget(entity, paramour, entityById, buildingById);
-        const dx = trystTarget.x - entity.x;
-        const dy = trystTarget.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
         const intimate = isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
 
         if (!intimate) {
           entity.indoorBuildingId = undefined;
-          entity.vx = (dx / dist) * config.speed * 0.38;
-          entity.vy = (dy / dist) * config.speed * 0.38;
-          faceVelocity(entity);
+          steerAffairApproach(entity, paramour, trystTarget, config.speed * 0.38);
           suppressIdle = true;
         } else {
           entity.vx *= 0.55;
@@ -1460,15 +1484,11 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const lover = livingHumanAt(entity.affairPartnerId);
       if (lover?.alive) {
         const trystTarget = getAffairTrystTarget(entity, lover, entityById, buildingById);
-        const dx = trystTarget.x - entity.x;
-        const dy = trystTarget.y - entity.y;
-        const dist = Math.hypot(dx, dy) || 1;
+        const dist = Math.hypot(trystTarget.x - entity.x, trystTarget.y - entity.y) || 1;
         const tryst = isValidAffairTrystSite(entity, lover, entityById, buildingById, AFFAIR_INTIMATE_RADIUS);
         if (!tryst && dist > 14) {
           entity.indoorBuildingId = undefined;
-          entity.vx = (dx / dist) * config.speed * 0.32;
-          entity.vy = (dy / dist) * config.speed * 0.32;
-          faceVelocity(entity);
+          steerAffairApproach(entity, lover, trystTarget, config.speed * 0.32);
           suppressIdle = true;
         } else if (tryst) {
           // Genuine overnight tryst: enter the existing tryst building rather than

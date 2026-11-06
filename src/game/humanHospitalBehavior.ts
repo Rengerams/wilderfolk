@@ -5,8 +5,7 @@ import { isPlayerHuman } from './playerHuman';
 import { PREGNANCY_TICKS, TICKS_PER_DAY, getTickOfDay } from './dayCycle';
 import { doctorHospitalShift, HOSPITAL_SHIFT_HOURS } from './hospitalShifts';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { enterHumanBuilding, homeEntryPosition } from './simulation/humanMovement';
-import { steerEntityToward } from './simulation/movementSteering';
+import { enterHumanBuilding, homeEntryPosition, steerHumanToward } from './simulation/humanMovement';
 import {
   doctorTreatNearby,
   isDoctorAtHospital,
@@ -120,7 +119,7 @@ export function tickHumanHospitalPatientCare({
       else {
         entity.indoorBuildingId = undefined;
         const entrance = homeEntryPosition(best, entity.x, entity.y);
-        steerEntityToward(entity, entrance.x, entrance.y, speed, 0.55);
+        steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}`);
       }
     }
   }

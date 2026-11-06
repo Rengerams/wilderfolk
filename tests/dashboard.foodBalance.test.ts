@@ -19,7 +19,8 @@ import { Season } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { applyFoodSpoilage } from '../src/game/economy';
 import { collectDashboard } from '../src/game/dashboardData';
-import { ECONOMY_SOURCE_LABELS } from '../src/game/economyLedger';
+import { dailyFoodNeedForSettlers, ECONOMY_SOURCE_LABELS } from '../src/game/economyLedger';
+import { Human } from '../src/game/gameConstants';
 
 const FIXTURE_SEED = 20_260_917;
 
@@ -45,6 +46,34 @@ describe('the dashboard food balance accounts for spoilage (F2)', () => {
       expect(ECONOMY_SOURCE_LABELS[key], `${key} has no owner label`).toBeTruthy();
       expect(ECONOMY_SOURCE_LABELS[key]).not.toBe(key);
     }
+  });
+
+  it('projects each finished day’s consumed food beside its production', () => {
+    const state = initGame({ villageName: 'Dash', size: 'medium', seed: FIXTURE_SEED });
+    state.foodHistory = [
+      { day: 10, produced: { farms: 30, hunting: 5 }, consumed: { meals: 20, spoilage: 3 } },
+      { day: 11, produced: { farms: 35 }, consumed: { meals: 22 } },
+    ];
+
+    const days = collectDashboard(state).foodDays;
+
+    expect(days[0]).toMatchObject({ day: 10, total: 35, consumed: 23, net: 12 });
+    expect(days[1]).toMatchObject({ day: 11, total: 35, consumed: 22, net: 13 });
+  });
+
+  it('states the daily settler need and how long the store covers it', () => {
+    const state = initGame({ villageName: 'Dash', size: 'medium', seed: FIXTURE_SEED });
+    const headcount = collectDashboard(state).settlers.length;
+    state.resources.food = 120;
+
+    const dashboard = collectDashboard(state);
+    const expectedNeed = headcount * Human.DAILY_FOOD_CONSUMPTION;
+
+    expect(dailyFoodNeedForSettlers(headcount)).toBe(expectedNeed);
+    expect(dashboard.foodNeedPerDay).toBe(expectedNeed);
+    expect(dashboard.foodStoreDays).toBe(
+      expectedNeed > 0 ? Math.round((120 / expectedNeed) * 10) / 10 : null,
+    );
   });
 
   it('keeps the dashboard from growing a second label map', () => {

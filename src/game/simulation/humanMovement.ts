@@ -5,7 +5,7 @@ import type { Building, Entity } from '../gameTypes';
 import { PRISON_GUARDS_MAX } from '../prisonShifts';
 import { isActiveMoonHowler } from '../moonHowler';
 import { invalidateCommutePathsForWalker, isGroundWalkableAt, isWalkStepAllowed, steerWithPath } from '../pathfinding';
-import { faceVelocity } from './movementSteering';
+import { faceVelocity, steerEntityToward } from './movementSteering';
 
 /** Outdoor sites have no interior; construction crews stay visible until completion. */
 const OUTDOOR_BUILDINGS = new Set<Building['type']>([
@@ -23,6 +23,25 @@ export function enterHumanBuilding(entity: Entity, building: Building): void {
   entity.indoorBuildingId = building.id;
   entity.vx = 0;
   entity.vy = 0;
+}
+
+/**
+ * Steer toward a fixed place, taking the path owner's route when the direct line is blocked.
+ * Short chases and follow-the-neighbour walks stay on `movementSteering`; this is for doorways,
+ * work rows and venue spots a settler must reach rather than press against.
+ */
+export function steerHumanToward(
+  entity: Entity,
+  targetX: number,
+  targetY: number,
+  speed: number,
+  approachFactor = 1,
+  cacheKey = `local_${entity.id}`,
+): void {
+  const route = steerWithPath(entity, targetX, targetY, speed * approachFactor, cacheKey);
+  if (route === 'direct') {
+    steerEntityToward(entity, targetX, targetY, speed, approachFactor);
+  }
 }
 
 /** A settler already at any wall counts as home, whatever direction they approached from. */
@@ -63,6 +82,11 @@ export function homeEntryPosition(
     }
   }
   return best;
+}
+
+/** Both lovers approach the same outdoor doorstep; the footprint centre itself is unwalkable. */
+export function affairTrystEntry(building: Building): { x: number; y: number } {
+  return homeEntryPosition(building, building.x, building.y);
 }
 
 // ============ COMMUTE HELPERS ============

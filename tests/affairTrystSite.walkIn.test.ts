@@ -10,6 +10,7 @@ import {
   recordAffairTrystSite,
   wouldWalkInOnAffair,
 } from '../src/game/simulation/humanRelationships';
+import { affairTrystEntry } from '../src/game/simulation/humanMovement';
 
 const MARITAL_HOME_ID = 10;
 const PARAMOUR_HOME_ID = 20;
@@ -115,6 +116,19 @@ describe('affair rendezvous belongs to the lovers, not random houses', () => {
     expect(getAffairTrystBuilding(cheater, paramour, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
     expect(getAffairTrystBuilding(paramour, cheater, entityById, buildingById)?.id).toBe(MARITAL_HOME_ID);
     expect(isValidAffairTrystSite(cheater, paramour, entityById, buildingById, 22)).toBe(true);
+  });
+
+  it('sends both lovers to a doorstep outside the chosen home, never its blocked centre', () => {
+    const home = house(MARITAL_HOME_ID);
+    const door = affairTrystEntry(home);
+    const halfW = home.width / 2;
+    const halfH = home.height / 2;
+
+    expect(door.x === home.x && door.y === home.y, 'the footprint centre is unwalkable').toBe(false);
+    expect(
+      Math.abs(door.x - home.x) > halfW || Math.abs(door.y - home.y) > halfH,
+      'the entry point is outside the footprint',
+    ).toBe(true);
   });
 
   it('uses the other lover’s home when the married lover’s spouse is at home', () => {

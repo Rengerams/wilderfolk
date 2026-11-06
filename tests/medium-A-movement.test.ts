@@ -22,7 +22,7 @@ import { steerVisitorToHotel } from '../src/game/hotelStay';
 import { tickHumanHospitalPatientCare } from '../src/game/humanHospitalBehavior';
 import { getPathGrid, invalidateCommutePathsForWalker, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { getCurrentPathfinderTickCounters, resetPathfinderSession, setPathfindingMetricsEnabled } from '../src/game/pathfindingMetrics';
-import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget } from '../src/game/simulation/humanMovement';
+import { applyHumanWalkStep, commuteHumanToBuilding, humanBuildingTarget, steerHumanToward } from '../src/game/simulation/humanMovement';
 import { ROAD_SPEED_MULT } from '../src/game/simulation/movementSteering';
 import { COMMUTE_CONFIG } from '../src/game/commuteReach';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -577,6 +577,40 @@ describe('water and walls are solid under every walk', () => {
     // And it really crossed, through the gap: a walker merely stopped at the bank never arrives.
     expect(arrived, 'the settler never reached the far bank').toBe(true);
     expect(walker.x).toBeGreaterThan(pixel(20, 10));
+  });
+
+  it('routes a fixed-place approach around a solid building instead of pressing into it', () => {
+    const map = makeMap(40, 40, 947, () => false);
+    const blocker = {
+      id: 12,
+      type: BuildingType.Farm,
+      x: pixel(20, 15),
+      y: pixel(15, 15),
+      width: 120,
+      height: 120,
+      completed: true,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    } as Building;
+    setCurrentPathMap(map, [blocker]);
+    const walker = human(8, pixel(2, 10), pixel(10, 10));
+    const targetX = pixel(37, 10);
+    const targetY = pixel(10, 10);
+    let insideFootprint = false;
+
+    for (let tick = 0; tick < 500 && Math.hypot(targetX - walker.x, targetY - walker.y) > 8; tick++) {
+      steerHumanToward(walker, targetX, targetY, 8, 1, 'fixed-place-test');
+      applyHumanWalkStep(walker, 1);
+      if (blockedAt(map, [blocker], walker.x, walker.y)) insideFootprint = true;
+    }
+
+    expect(insideFootprint, 'the walker entered the building footprint').toBe(false);
+    expect(walker.x, 'the walker never reached the far side').toBeGreaterThan(pixel(30, 10));
   });
 });
 

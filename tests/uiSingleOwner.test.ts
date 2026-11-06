@@ -204,7 +204,8 @@ describe('C2 — building output copy is built from the owners, not typed as pro
 describe('C1 — mechanical clones de-duplicated in components and hooks', () => {
   it('clone 6: one chart axis block for both dashboard charts', () => {
     const dashboard = read('src/components/dashboard/GameDashboard.tsx');
-    expect(count(dashboard, '<ChartGrid max={max} innerH={innerH} />')).toBe(2);
+    expect(count(dashboard, '<ChartGrid max={max} />')).toBe(2);
+    expect(count(dashboard, '<ChartXAxis days={')).toBe(2);
     expect(count(dashboard, 'Array.from({ length: 5 }')).toBe(1);
   });
 

@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Settlers walk through completed buildings instead of around them](../bug_report/2026-11-06-settlers-walk-through-buildings.md):** Only walls blocked the path grid, so farms, houses and other completed structures were walkable and settlers cut across their footprints. Completed structures are now solid, with roads, bridges, the square and reinforced ground kept open; targeted pathfinding and movement suites pass.
+
+**2026-11-06 — [Lovers walk into the tryst house wall instead of using its doorstep](../bug_report/2026-11-06-affair-tryst-centre-target.md):** The tryst target was the blocked footprint centre and the approach used a straight-line velocity, so partners could stall on opposite walls. Both now route to one walkable doorstep; targeted affair, indoor and type checks pass.
+
 **2026-11-06 — [Raid gold spoils bypass the configured storage cap](../bug_report/2026-11-06-raid-gold-bypasses-storage-cap.md):** Gold was added directly after the raid soft cap, so it could pass `storageMax.gold` and skipped shared resource accounting. Awarded gold now goes through the capped-resource owner; targeted tests, TypeScript, lint and build pass.
 
 **2026-11-06 — [Malformed worker deltas leave the replica stale](../bug_report/2026-11-06-worker-delta-application-unvalidated.md):** Tick and command replies were applied without a protocol guard or error handling, after counters and request state had already changed. The host now validates first, catches application failures and faults the worker for recovery; types, lint and worker tests pass.

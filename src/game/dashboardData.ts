@@ -15,7 +15,7 @@ import { isPlayerHuman } from './playerHuman';
 import { TICKS_PER_DAY } from './dayCycle';
 import { getHourOfDay } from './dayCycleClock';
 import { isOnWorkScheduleShift } from './workSchedule';
-import { foodSharePct, summarizeFoodLedger } from './economyLedger';
+import { dailyFoodNeedForSettlers, foodSharePct, summarizeFoodLedger } from './economyLedger';
 import { isFoodCritical } from './resourceUtils';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeVillageStats } from './uiSimSummary';
@@ -145,8 +145,18 @@ export interface DashboardData {
   foodConsumedToday: number;
   /** Produced − consumed today (negative means the colony ate into stores). */
   netFoodToday: number;
-  /** Finished calendar days of food produced by source (rolling, transient). */
-  foodDays: Array<{ day: number; total: number; bySource: Record<string, number> }>;
+  /** Total food the living settlers need per day at the standard ration. */
+  foodNeedPerDay: number;
+  /** Days the current store covers at {@link foodNeedPerDay}; null without settlers. */
+  foodStoreDays: number | null;
+  /** Finished calendar days of food produced and consumed, with production by source (rolling). */
+  foodDays: Array<{
+    day: number;
+    total: number;
+    consumed: number;
+    net: number;
+    bySource: Record<string, number>;
+  }>;
   /** Read-only concern list for the operations overview. */
   concerns: VillageConcern[];
   /** Read-only "daily council" summary lines for the last finished/current day. */
@@ -583,6 +593,9 @@ export function collectDashboard(state: WorldState): DashboardData {
     food: p.food,
   }));
 
+  const foodNeedPerDay = dailyFoodNeedForSettlers(settlers.length);
+  const foodStore = state.resources?.food ?? 0;
+
   return {
     year: state.year,
     dayInYear: state.dayInYear,
@@ -593,6 +606,8 @@ export function collectDashboard(state: WorldState): DashboardData {
     foodBySourceConsumedToday,
     foodConsumedToday,
     netFoodToday: foodLedger.net,
+    foodNeedPerDay,
+    foodStoreDays: foodNeedPerDay > 0 ? Math.round((foodStore / foodNeedPerDay) * 10) / 10 : null,
     population: {
       humans: state.humanPopulation ?? 0,
       ecoHealth: getEcosystemHealth(state),
@@ -600,11 +615,17 @@ export function collectDashboard(state: WorldState): DashboardData {
       biodiversity: state.biodiversityIndex ?? 0,
     },
     valleyStage: state.valleyStage ?? 'stable',
-    foodDays: (state.foodHistory ?? []).map((sample) => ({
-      day: sample.day,
-      total: Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0),
-      bySource: { ...sample.produced },
-    })),
+    foodDays: (state.foodHistory ?? []).map((sample) => {
+      const total = Object.values(sample.produced).reduce((sum, amount) => sum + amount, 0);
+      const consumed = Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+      return {
+        day: sample.day,
+        total,
+        consumed,
+        net: total - consumed,
+        bySource: { ...sample.produced },
+      };
+    }),
     concerns: deriveConcerns(state, postAbsences),
     council: deriveCouncil(state, postAbsences),
     settlers,

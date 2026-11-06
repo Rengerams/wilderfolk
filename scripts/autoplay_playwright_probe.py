@@ -509,6 +509,70 @@ def run_spotlight_stage(args) -> int:
         return 0 if ok else 1
 
 
+def run_dashboard_capture(args) -> int:
+    """Run a colony briefly, open the Daily council, and capture its food chart for UI review."""
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            headless=not args.headful,
+            executable_path=args.browser_executable or None,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
+        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        errors: list[str] = []
+        page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
+        page.on("pageerror", lambda exc: errors.append(str(exc)))
+        page.goto(args.url, wait_until="load")
+        wait_for(page, "() => !!document.querySelector('canvas')", "canvas")
+        if not click_text(page, "skip intro"):
+            click_text(page, "choose your land")
+        wait_for(page, "() => document.body.textContent.includes('Settle the valley')", "map setup")
+        click_text(page, "settle the valley")
+        wait_for(
+            page,
+            "() => /\\d{1,2}:\\d{2}/.test((document.querySelector('header')||{}).textContent||'')",
+            "gameplay HUD",
+        )
+        dismiss_tutorial(page)
+        page.evaluate(
+            """() => {
+              const resume = [...document.querySelectorAll('button')]
+                .find((b) => b.getAttribute('aria-label') === 'Resume simulation');
+              if (resume) resume.click();
+            }"""
+        )
+        click_text(page, args.speed)
+        page.wait_for_timeout(int(args.seconds * 1000))
+        page.get_by_role("button", name="Open daily council", exact=True).click()
+        wait_for(page, "() => document.body.textContent.includes('Food balance per day')", "food chart")
+        chart = page.evaluate(
+            """() => {
+              const heading = [...document.querySelectorAll('h3')]
+                .find((h) => (h.textContent || '').includes('Food balance per day'));
+              const section = heading ? heading.closest('section') : null;
+              if (!section) return null;
+              section.scrollIntoView({ block: 'center' });
+              const svg = section.querySelector('svg');
+              return {
+                text: (section.textContent || '').replace(/\\s+/g, ' ').trim(),
+                days: svg ? [...svg.querySelectorAll('text')]
+                  .map((t) => (t.textContent || '').trim())
+                  .filter((t) => t.startsWith('Day ')) : [],
+                lines: svg ? svg.querySelectorAll('polyline').length : 0,
+              };
+            }"""
+        )
+        page.wait_for_timeout(300)
+        page.screenshot(path=args.dashboard_screenshot)
+        print("--- observed dashboard food chart ---")
+        print(json.dumps(chart, indent=2))
+        if errors:
+            print("--- console/page errors ---")
+            for error in errors[:10]:
+                print(f"  ! {error}")
+        browser.close()
+    return 0 if chart and len(chart["days"]) >= 2 and chart["lines"] >= 2 else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:5173/")
@@ -540,7 +604,11 @@ def main() -> int:
     parser.add_argument("--spotlight-save", default="",
         help="Load a save with a staged Spotlight cast and capture the live stage")
     parser.add_argument("--spotlight-screenshot", default="")
+    parser.add_argument("--dashboard-screenshot", default="",
+        help="Open the Daily council after a short run and capture its food chart")
     args = parser.parse_args()
+    if args.dashboard_screenshot:
+        return run_dashboard_capture(args)
     if args.spotlight_save:
         return run_spotlight_stage(args)
     if args.infrastructure_save:

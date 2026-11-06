@@ -9,6 +9,7 @@
  */
 import type { WorldState, DailyEconomyLedger } from './gameTypes';
 import { getAbsoluteCalendarDay } from './dayCycle';
+import { Human } from './gameConstants';
 import { deductResource } from './resourceUtils';
 
 export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
@@ -44,6 +45,11 @@ export const ECONOMY_SOURCE_LABELS: Record<string, string> = {
 
 /** How many finished days of food history the insight UI keeps. */
 export const FOOD_HISTORY_MAX_DAYS = 30;
+
+/** Food a colony of `settlers` needs per day at the standard ration. */
+export function dailyFoodNeedForSettlers(settlers: number): number {
+  return Math.max(0, settlers) * Human.DAILY_FOOD_CONSUMPTION;
+}
 
 /** Archive a finished day's ledger into the rolling (transient) food history. */
 function pushCompletedDayToHistory(state: WorldState, prev: DailyEconomyLedger): void {

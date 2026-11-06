@@ -145,6 +145,63 @@ describe('pathfinding', () => {
     expect(lineCrossesBlocked(grid, sx, sy, 8 * PATH_CELL, sy)).toBe(false);
   });
 
+  it('makes a completed farm footprint solid so walkers go around it', () => {
+    const map = makeMap(14, 8, 432, () => false);
+    const farm: Building = {
+      id: 901,
+      type: BuildingType.Farm,
+      x: 6.5 * PATH_CELL,
+      y: 4 * PATH_CELL,
+      width: 5 * PATH_CELL,
+      height: 3 * PATH_CELL,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    };
+    const grid = getPathGrid(map, [farm]);
+    const path = findPath(grid, 1, 4, 12, 4);
+
+    expect(grid.blocked[4 * grid.cols + 6], 'the farm centre is still walkable').toBe(1);
+    expect(path, 'there is still a route around the farm').not.toBeNull();
+    expect(path!.some((tile) => tile.x >= 4 && tile.x <= 9 && tile.y >= 3 && tile.y <= 5)).toBe(false);
+  });
+
+  it('keeps roads, squares and unfinished buildings walkable', () => {
+    const map = makeMap(12, 8, 433, () => false);
+    const square: Building = {
+      id: 902,
+      type: BuildingType.Square,
+      x: 4.5 * PATH_CELL,
+      y: 3.5 * PATH_CELL,
+      width: 3 * PATH_CELL,
+      height: 3 * PATH_CELL,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+    };
+    const unfinished: Building = {
+      ...square,
+      id: 903,
+      type: BuildingType.Farm,
+      x: 8.5 * PATH_CELL,
+      completed: false,
+    };
+    const grid = getPathGrid(map, [square, unfinished]);
+
+    expect(grid.blocked[3 * grid.cols + 4]).toBe(0);
+    expect(grid.blocked[3 * grid.cols + 8]).toBe(0);
+  });
+
   it('treats completed rival or legacy walls as impassable terrain', () => {
     const map = makeMap(8, 8, 431, () => false);
     const wall: Building = {

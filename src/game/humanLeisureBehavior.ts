@@ -1,5 +1,5 @@
 import type { Building, Entity, WorldState } from './gameTypes';
-import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition } from './simulation/humanMovement';
+import { enterHumanBuilding, commuteHumanToBuilding, venueGatherPosition, crowdGatherPosition, homeStandPosition, steerHumanToward } from './simulation/humanMovement';
 import { faceVelocity, setVelocityToward, steerEntityToward } from './simulation/movementSteering';
 import { PER_TICK_RATE_SCALE, TICKS_PER_HOUR } from './dayCycle';
 import { getChildCustodian, hasResidenceAssignment } from './housingModel';
@@ -214,7 +214,16 @@ export function tickAdultLeisureMotive(args: {
     } else if (impulse.company?.alive && impulse.building) {
       const b = impulse.building; const cx = b.x + b.width / 2; const cy = b.y + b.height * 0.92;
       const dist = Math.hypot((impulse.company.x + cx) / 2 - entity.x, (impulse.company.y + cy) / 2 - entity.y) || 1;
-      if (dist > 16) { steerEntityToward(entity, (impulse.company.x + cx) / 2, (impulse.company.y + cy) / 2, speed, 0.48); } else settlerPairChat(entity, impulse.company, 'home', 0.1);
+      if (dist > 16) {
+        steerHumanToward(
+          entity,
+          (impulse.company.x + cx) / 2,
+          (impulse.company.y + cy) / 2,
+          speed,
+          0.48,
+          `leisure_company_${b.id}`,
+        );
+      } else settlerPairChat(entity, impulse.company, 'home', 0.1);
       suppressIdle = true;
     } else if (impulse.company?.alive) {
       const c = impulse.company; const dist = Math.hypot(c.x - entity.x, c.y - entity.y) || 1;
@@ -228,7 +237,7 @@ export function tickAdultLeisureMotive(args: {
       const spot = venueGatherPosition(b, entity.id);
       const arrived = Math.hypot(entity.x - spot.x, entity.y - spot.y) < 20;
       if (arrived) enterHumanBuilding(entity, b);
-      if (!arrived) steerEntityToward(entity, spot.x, spot.y, speed * 0.5);
+      if (!arrived) steerHumanToward(entity, spot.x, spot.y, speed * 0.5, 1, `leisure_venue_${b.id}`);
       else if (impulse.motive === 'sunday_service' || impulse.motive === 'grief' || impulse.motive === 'day_off') { entity.vx *= 0.2; entity.vy *= 0.2; if (seededRandomForRun(`chat-social:${entity.id}:${state.tick}`) < 0.05 * PER_TICK_RATE_SCALE) settlerChat(entity, 'social', 0.1); }
       else if (impulse.motive === 'market_errand' || impulse.motive === 'birthday') { adjustHumanStaminaFromEnergy(entity, 0.2 * PER_TICK_RATE_SCALE); settlerChat(entity, 'social', 0.1); }
       suppressIdle = true;

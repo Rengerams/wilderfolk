@@ -108,25 +108,88 @@ const SERIES: SeriesDef[] = [
 ];
 
 const W = 720;
-const H = 220;
-const PAD = { top: 12, right: 12, bottom: 26, left: 34 };
+const H = 236;
+const PAD = { top: 12, right: 14, bottom: 42, left: 46 };
+const INNER_W = W - PAD.left - PAD.right;
+const INNER_H = H - PAD.top - PAD.bottom;
+const X_TICK_COUNT = 5;
+const X_LABEL_Y = H - 14;
 
-/**
- * Five labelled horizontal gridlines — one shared axis block for both charts, which had drifted
- * apart: `LineChart` drew it with no accessible name while `FoodTrendChart` carried an
- * `aria-label`, and any axis change had to be made twice.
- */
-function ChartGrid({ max, innerH }: { max: number; innerH: number }) {
+/** Horizontal position of one sample in a chart's data. */
+function chartX(index: number, count: number): number {
+  return PAD.left + (count <= 1 ? 0 : (index / (count - 1)) * INNER_W);
+}
+
+/** Vertical position of a value inside the shared plot area. */
+function chartY(value: number, max: number): number {
+  return PAD.top + INNER_H - (value / max) * INNER_H;
+}
+
+/** Round the top of the scale to four equal steps so the gridline labels stay readable. */
+function chartMax(value: number): number {
+  return Math.max(4, Math.ceil(value / 4) * 4);
+}
+
+/** Up to five evenly spread sample indexes, always including the first and last day. */
+function xTickIndices(count: number): number[] {
+  if (count <= 1) return [0];
+  const tickCount = Math.min(X_TICK_COUNT, count);
+  const indexes = new Set<number>();
+  for (let tick = 0; tick < tickCount; tick++) {
+    indexes.add(Math.round((tick / (tickCount - 1)) * (count - 1)));
+  }
+  return [...indexes];
+}
+
+/** Five labelled horizontal gridlines shared by both charts; {@link ChartXAxis} adds the day axis. */
+function ChartGrid({ max }: { max: number }) {
   return (
     <>
       {Array.from({ length: 5 }, (_, g) => {
-        const gy = PAD.top + (g / 4) * innerH;
+        const gy = PAD.top + (g / 4) * INNER_H;
         const label = Math.round(max - (g / 4) * max);
         return (
           <g key={g}>
             <line x1={PAD.left} y1={gy} x2={W - PAD.right} y2={gy} stroke="#44403c" strokeWidth={1} />
             <text x={PAD.left - 6} y={gy + 3} textAnchor="end" fontSize={10} fill="#a8a29e">
               {label}
+            </text>
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+/** Day labels along the x-axis, so a point can be read as a calendar day rather than a mystery column. */
+function ChartXAxis({ days }: { days: ReadonlyArray<{ day: number }> }) {
+  if (days.length === 0) return null;
+  const indices = xTickIndices(days.length);
+  return (
+    <>
+      <line
+        x1={PAD.left}
+        y1={PAD.top + INNER_H}
+        x2={W - PAD.right}
+        y2={PAD.top + INNER_H}
+        stroke="#57534e"
+        strokeWidth={1}
+      />
+      {indices.map((index) => {
+        const cx = chartX(index, days.length);
+        const anchor = index === 0 ? 'start' : index === days.length - 1 ? 'end' : 'middle';
+        return (
+          <g key={`day-${index}-${days[index]!.day}`}>
+            <line
+              x1={cx}
+              y1={PAD.top + INNER_H}
+              x2={cx}
+              y2={PAD.top + INNER_H + 4}
+              stroke="#78716c"
+              strokeWidth={1}
+            />
+            <text x={cx} y={X_LABEL_Y} textAnchor={anchor} fontSize={10} fill="#a8a29e">
+              Day {days[index]!.day}
             </text>
           </g>
         );
@@ -143,30 +206,33 @@ function LineChart({ data }: { data: DashboardData['history'] }) {
       </p>
     );
   }
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-  const max = Math.max(1, ...data.flatMap((d) => SERIES.map((s) => d[s.key])));
-  const x = (i: number) => PAD.left + (data.length === 1 ? 0 : (i / (data.length - 1)) * innerW);
-  const y = (v: number) => PAD.top + innerH - (v / max) * innerH;
+  const max = chartMax(Math.max(1, ...data.flatMap((d) => SERIES.map((s) => d[s.key]))));
 
   return (
     <div>
       <svg
         width="100%"
         viewBox={`0 0 ${W} ${H}`}
-        className="block h-52 w-full"
+        className="block h-56 w-full"
         role="img"
-        aria-label="Population and wildlife trend"
+        aria-label="Population and wildlife trend by day"
       >
-        <ChartGrid max={max} innerH={innerH} />
+        <ChartGrid max={max} />
+        <ChartXAxis days={data} />
         {SERIES.map((s) => {
           const pts = data
-            .map((d, i) => `${x(i).toFixed(1)},${y(d[s.key]).toFixed(1)}`)
+            .map((d, i) => `${chartX(i, data.length).toFixed(1)},${chartY(d[s.key], max).toFixed(1)}`)
             .join(' ');
           return <polyline key={s.key} points={pts} fill="none" stroke={s.color} strokeWidth={2} />;
         })}
         {SERIES.map((s) => (
-          <circle key={`dot_${s.key}`} cx={x(data.length - 1)} cy={y(data[data.length - 1][s.key])} r={3} fill={s.color} />
+          <circle
+            key={`dot_${s.key}`}
+            cx={chartX(data.length - 1, data.length)}
+            cy={chartY(data[data.length - 1][s.key], max)}
+            r={3}
+            fill={s.color}
+          />
         ))}
       </svg>
       {/* Colour was the only meaning of these five lines: with no legend, Deer / Rabbits / Wolves
@@ -348,13 +414,15 @@ function FoodTrendChart({ days }: { days: DashboardData['foodDays'] }) {
       </p>
     );
   }
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-  const max = Math.max(1, ...days.map((d) => d.total));
-  const x = (i: number) => PAD.left + (i / (days.length - 1)) * innerW;
-  const y = (v: number) => PAD.top + innerH - (v / max) * innerH;
-  const pts = days.map((d, i) => `${x(i).toFixed(1)},${y(d.total).toFixed(1)}`).join(' ');
-  const latestSources = Object.entries(days[days.length - 1].bySource)
+  const max = chartMax(Math.max(1, ...days.flatMap((d) => [d.total, d.consumed])));
+  const producedPts = days
+    .map((d, i) => `${chartX(i, days.length).toFixed(1)},${chartY(d.total, max).toFixed(1)}`)
+    .join(' ');
+  const consumedPts = days
+    .map((d, i) => `${chartX(i, days.length).toFixed(1)},${chartY(d.consumed, max).toFixed(1)}`)
+    .join(' ');
+  const latest = days[days.length - 1]!;
+  const latestSources = Object.entries(latest.bySource)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   return (
@@ -362,18 +430,45 @@ function FoodTrendChart({ days }: { days: DashboardData['foodDays'] }) {
       <svg
         width="100%"
         viewBox={`0 0 ${W} ${H}`}
-        className="block h-44 w-full"
+        className="block h-48 w-full"
         role="img"
-        aria-label="Food produced per day"
+        aria-label="Food produced and consumed per day"
       >
-        <ChartGrid max={max} innerH={innerH} />
-        <polyline points={pts} fill="none" stroke="#fbbf24" strokeWidth={2} />
+        <ChartGrid max={max} />
+        <ChartXAxis days={days} />
+        <polyline points={producedPts} fill="none" stroke="#fbbf24" strokeWidth={2} />
+        <polyline
+          points={consumedPts}
+          fill="none"
+          stroke="#fb7185"
+          strokeWidth={2}
+          strokeDasharray="5 4"
+        />
         {days.map((d, i) => (
-          <circle key={d.day} cx={x(i)} cy={y(d.total)} r={2.5} fill="#fbbf24" />
+          <circle
+            key={`produced-${d.day}`}
+            cx={chartX(i, days.length)}
+            cy={chartY(d.total, max)}
+            r={2.5}
+            fill="#fbbf24"
+          />
+        ))}
+        {days.map((d, i) => (
+          <circle
+            key={`consumed-${d.day}`}
+            cx={chartX(i, days.length)}
+            cy={chartY(d.consumed, max)}
+            r={2.5}
+            fill="#fb7185"
+          />
         ))}
       </svg>
       <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-stone-400">
-        <span className="text-amber-300">● Food produced / day</span>
+        <span className="text-amber-300">● Produced</span>
+        <span className="text-rose-300">● Consumed / lost</span>
+        <span className="text-stone-500">
+          Latest day {latest.day}: +{latest.total} produced · −{latest.consumed} used
+        </span>
         {latestSources.map(([src, amt]) => (
           <span key={src}>
             {sourceLabel(src)}: {amt}
@@ -511,11 +606,14 @@ export default function GameDashboard({
 
           <ResourceBars data={data} />
 
-          {/* Food produced per day (rolling history) */}
+          {/* Food produced and consumed per finished day (rolling history) */}
           <section className="rounded-xl border border-stone-800 bg-stone-900/50 p-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-300">
-              Food produced per day
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-300">
+              Food balance per day
             </h3>
+            <p className="mb-2 text-[10px] text-stone-500">
+              Finished days · produced (amber) vs consumed or lost (rose).
+            </p>
             <FoodTrendChart days={data.foodDays} />
           </section>
 
@@ -526,7 +624,7 @@ export default function GameDashboard({
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-300">
               Net food flow today
             </h3>
-            <div className="grid grid-cols-3 gap-3 text-center text-[11px]">
+            <div className="grid grid-cols-2 gap-3 text-center text-[11px] md:grid-cols-4">
               <div className="rounded-lg border border-emerald-900/60 bg-emerald-950/30 p-2">
                 <div className="text-stone-400">Produced</div>
                 <div className="text-lg font-bold text-emerald-300">+{data.foodProducedToday}</div>
@@ -551,7 +649,17 @@ export default function GameDashboard({
                   {data.netFoodToday >= 0 ? `+${data.netFoodToday}` : data.netFoodToday}
                 </div>
               </div>
+              <div className="rounded-lg border border-stone-700 bg-stone-950/40 p-2">
+                <div className="text-stone-400">Settler need / day</div>
+                <div className="text-lg font-bold text-stone-100">{data.foodNeedPerDay}</div>
+                <div className="text-[9px] text-stone-500">for {data.settlers.length} settlers</div>
+              </div>
             </div>
+            <p className="mt-2 text-center text-[10px] text-stone-500">
+              {data.foodStoreDays == null
+                ? 'No settlers to feed.'
+                : `The current food store covers ${data.foodStoreDays} ${data.foodStoreDays === 1 ? 'day' : 'days'} at this need.`}
+            </p>
             {data.foodBySourceToday.length === 0 ? (
               <p className="mt-2 text-[11px] text-stone-500">
                 No food produced yet this day — production is recorded as it happens.

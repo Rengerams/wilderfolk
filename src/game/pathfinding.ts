@@ -46,11 +46,24 @@ const ROAD_DETOUR_RECHECK_TILES = 20;
 const BUILDING_SIGNATURE_WIDTH_FACTOR = 19;
 const BUILDING_SIGNATURE_HEIGHT_FACTOR = 23;
 const BUILDING_SIGNATURE_BRIDGE_FACTOR = 29;
+const BUILDING_SIGNATURE_GATE_FACTOR = 31;
 
-/** Closed gates share the wall collision footprint; legacy gates remain open. */
-function isBlockingWall(b: Building): boolean {
-  return b.completed && (b.type === BuildingType.Wall
-    || (b.type === BuildingType.WallGate && b.gateClosed === true));
+/** Footprints that stay walkable even when the structure is complete. */
+const WALKABLE_BUILDING_TYPES = new Set<Building['type']>([
+  BuildingType.Road,
+  BuildingType.Bridge,
+  BuildingType.Square,
+  BuildingType.GroundReinforcement,
+]);
+
+/**
+ * Completed structures are solid to walkers; a closed gate and a legacy wall block as before.
+ * An open gate, roads, bridges, the square and reinforced ground remain walkable.
+ */
+function isWalkingObstacle(b: Building): boolean {
+  if (!b.completed) return false;
+  if (b.type === BuildingType.WallGate) return b.gateClosed === true;
+  return !WALKABLE_BUILDING_TYPES.has(b.type);
 }
 
 /** Completed player roads and bridges: walkable, and cheaper than open ground. */
@@ -109,7 +122,8 @@ function buildingSignature(
     if (!matches(b)) continue;
     hash = (hash + b.id * 31 + b.x * 17 + b.y * 13 + (b.rotation ?? 0) * 7
       + b.width * BUILDING_SIGNATURE_WIDTH_FACTOR + b.height * BUILDING_SIGNATURE_HEIGHT_FACTOR
-      + (b.type === BuildingType.Bridge ? BUILDING_SIGNATURE_BRIDGE_FACTOR : 0)) >>> 0;
+      + (b.type === BuildingType.Bridge ? BUILDING_SIGNATURE_BRIDGE_FACTOR : 0)
+      + (b.gateClosed === true ? BUILDING_SIGNATURE_GATE_FACTOR : 0)) >>> 0;
     count++;
   }
   return `${count}:${hash}`;
@@ -139,9 +153,9 @@ let gridCacheSeed = '';
  */
 function pathGridCacheKey(map: WorldMap, buildings?: Building[]): string {
   const seed = typeof map.seed === 'number' ? map.seed : 1;
-  const walls = buildingSignature(buildings, isBlockingWall);
+  const obstacles = buildingSignature(buildings, isWalkingObstacle);
   const roads = buildingSignature(buildings, isWalkableRoad);
-  return `${seed}|${map.preset}|${walls}|${roads}|${map.width}x${map.height}`;
+  return `${seed}|${map.preset}|${obstacles}|${roads}|${map.width}x${map.height}`;
 }
 
 /**
@@ -181,7 +195,7 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
       if (b.type === BuildingType.Bridge) stampBuildingFootprint(blocked, cols, rows, b, 0);
     }
     for (const b of buildings) {
-      if (isBlockingWall(b)) stampBuildingFootprint(blocked, cols, rows, b);
+      if (isWalkingObstacle(b)) stampBuildingFootprint(blocked, cols, rows, b);
     }
   }
   // A* prices only paved tile centres; the footprint index still supports

@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (6 November 2026):** The Daily council's food chart now labels calendar days, plots consumed food against production, and states the colony's daily settler need and how many days its store covers.
+
+- **Fixed (6 November 2026):** Lovers now route around obstacles to a shared outdoor doorstep for a rendezvous instead of walking into the chosen house's walls.
+
+- **Fixed (6 November 2026):** Settlers now walk around completed farms, houses and other structures instead of cutting through their footprints; roads, bridges, the square and reinforced ground remain walkable.
+
 - **Fixed (6 November 2026):** Raid gold spoils now enter through the shared capped-resource path, so the configured gold storage maximum applies and the gain is recorded like every other resource.
 
 - **Fixed (6 November 2026):** A malformed or incompatible worker reply is now rejected before host bookkeeping and triggers worker recovery instead of leaving the displayed colony stale.

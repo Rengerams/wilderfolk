@@ -35,8 +35,8 @@ import { findPlayerTownHall } from './playerTownHall';
 import { canStartResearch } from './research';
 import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
-import { Human, VirtualPlayer } from './gameConstants';
-import { getRecentFoodFlow } from './economyLedger';
+import { VirtualPlayer } from './gameConstants';
+import { dailyFoodNeedForSettlers, getRecentFoodFlow } from './economyLedger';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';
 import {
@@ -155,11 +155,6 @@ function pickEligibleStoryChoice(state: WorldState, event: StoryEvent): CardChoi
 }
 
 
-/** Days of settler need currently in the larder. */
-function foodNeedPerDay(settlers: number): number {
-  return settlers * Human.DAILY_FOOD_CONSUMPTION;
-}
-
 /**
  * True when the larder covers at least `days` of the colony's daily food need.
  * One definition of the bot's "there is food to spare" policy, used by every
@@ -168,7 +163,7 @@ function foodNeedPerDay(settlers: number): number {
 function hasFoodMargin(state: WorldState, days: number): boolean {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return false;
-  return (state.resources.food ?? 0) >= foodNeedPerDay(settlers) * days;
+  return (state.resources.food ?? 0) >= dailyFoodNeedForSettlers(settlers) * days;
 }
 
 /** Persist the measured monthly deficit across a briefly positive food-supply week. */
@@ -546,7 +541,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
 
-  const needPerDay = foodNeedPerDay(settlers);
+  const needPerDay = dailyFoodNeedForSettlers(settlers);
   const food = state.resources.food ?? 0;
   const shortOnFood = food < needPerDay * VirtualPlayer.FOOD_BUFFER_DAYS;
   const built = FOOD_PRODUCER_TYPES.reduce(
@@ -1084,7 +1079,7 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
     const have = state.resources[quest.goalResource] ?? 0;
     // Food is the colony's survival store: keep the same buffer the food step uses.
     const reserve = quest.goalResource === 'food'
-      ? foodNeedPerDay(playerHumanCount(state.entities)) * VirtualPlayer.FOOD_BUFFER_DAYS
+      ? dailyFoodNeedForSettlers(playerHumanCount(state.entities)) * VirtualPlayer.FOOD_BUFFER_DAYS
       : 0;
     if (have >= quest.goalAmount + reserve) {
       return {
@@ -1422,7 +1417,7 @@ function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
         const price = getTameFoodCost(entity.type);
         if (price == null ||
           (state.resources.food ?? 0) - price <
-          foodNeedPerDay(playerHumanCount(state.entities)) * VirtualPlayer.TAME_FOOD_RESERVE_DAYS) continue;
+          dailyFoodNeedForSettlers(playerHumanCount(state.entities)) * VirtualPlayer.TAME_FOOD_RESERVE_DAYS) continue;
         return {
           command: { proto: WORKER_CMD_PROTO, op: 'tameEntity', entityId: entity.id, humanId: tamer.id },
           reason: `tame the ${entity.type} — a Taming Post is in reach and the larder is deep`,
@@ -1958,7 +1953,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers > 0) {
     const food = Math.floor(state.resources.food ?? 0);
-    if (food < foodNeedPerDay(settlers) * VirtualPlayer.FOOD_BUFFER_DAYS) {
+    if (food < dailyFoodNeedForSettlers(settlers) * VirtualPlayer.FOOD_BUFFER_DAYS) {
       const goingUp = FOOD_PRODUCER_TYPES.find((type) => isUnderConstruction(state, type));
       if (goingUp) {
         return `the larder is short — ${food} food left and the ${BUILDING_CONFIGS[goingUp].label} is still going up`;
