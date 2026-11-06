@@ -77,13 +77,11 @@ function building(
 function makeState(festivalActive: boolean): { state: WorldState; worker: Entity; idler: Entity } {
   const worker = human(1, { job: JobType.Farmer, workerBuildingId: 10 });
   const official = human(2, { x: 330, y: 210, job: JobType.Official, workerBuildingId: 20 });
-  const idler = human(3);
+  // A child is genuinely ineligible for automatic employment and can join
+  // festival gathering without relying on removed manual staffing flags.
+  const idler = human(3, { age: 12, isJuvenile: true });
   const farm = building(10, BuildingType.Farm, 30, 40, [worker.id]);
   const hall = building(20, BuildingType.TownHall, 320, 190, [official.id]);
-  // Keep the festival participant deliberately unassigned during the 15:00 auto-fill pulse.
-  // Automatic staffing is tested separately; this test isolates festival behavior.
-  farm.staffingMode = 'manual';
-  hall.staffingMode = 'manual';
   const state: WorldState = {
     entities: [worker, official, idler],
     buildings: [farm, hall],
@@ -166,7 +164,8 @@ describe('festival participant behavior', () => {
     expect(festivalAfter.vx).toBeLessThan(0);
     expect(festivalAfter.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
     expect(festivalAfter.workerBuildingId).toBe(10);
-    expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toEqual([1]);
+    expect(festival.state.buildings.find((entry) => entry.id === 10)?.occupants).toContain(1);
+    expect(idlerAfter.workerBuildingId).toBeUndefined();
 
     // The festival still gathers the settler with no shift: the staffed Town Hall is right/down.
     expect(idlerAfter.vx).toBeGreaterThan(0);
