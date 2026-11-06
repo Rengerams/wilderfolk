@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (6 November 2026, PR #126; runtime unverified):** Virtual Player food expansion uses completed-day ledger output where available instead of treating Farms, Greenhouses, Fishing Spots and Hunting Spots as interchangeable units. Before sufficient history, the bootstrap crop footprint excludes hunting/fishing. A measured deficit can exceed a nominal crop count; emergency larder response remains.
+
+- **Docs (6 November 2026, PR #126):** Clarified that housing sweep buckets are determined from current household members, not a persistent household identifier. Daily four-bucket coverage and the final all-unit sweep already handle membership churn; no new housing state or movement policy was added.
+
 - **Fixed (6 November 2026, PR #126; runtime unverified):** New job placements and automatic transfers now require a reachable home-to-work commute within two hours; unknown path searches defer assignment, and existing jobs are never dismissed for a temporary route issue. Same-cell and mapless startup commutes remain supported.
 
 - **Changed (6 November 2026, PR #126; runtime unverified):** Expensive workforce reconciliation runs on a player-worker/building/policy change signature, plus a weekly safety pass, rather than repeating full matching on unchanged six-hour/daily pulses. This is a fingerprint gate, not a new assignment owner.
