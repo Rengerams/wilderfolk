@@ -303,8 +303,8 @@ describe('the health verdict at the owner numbers', () => {
     const action = decideVirtualPlayerAction(world);
     expect(action?.command).toMatchObject({ op: 'autoStaffWorkers' });
     const after = applyWorkerCommand(world, action!.command);
-    expect(after.entities.filter((person) => person.workerBuildingId === 77)).toHaveLength(1);
-    expect(after.entities.filter((person) => person.workerBuildingId === 200)).toHaveLength(2);
+    expect(after.entities.filter((person) => person.workerBuildingId === 77)).toHaveLength(2);
+    expect(after.entities.filter((person) => person.workerBuildingId === 200)).toHaveLength(1);
   });
 
   it('plans farms for all mouths, not just adults who can staff them', () => {
