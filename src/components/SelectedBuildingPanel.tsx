@@ -169,7 +169,6 @@ export interface SelectedBuildingPanelProps {
   building: Building;
   state: WorldState;
   onAssign: () => void;
-  onAutoStaffAll: () => void;
   onRepair: () => void;
   onUpgrade: () => void;
   onDemolish: () => void;
@@ -185,7 +184,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
