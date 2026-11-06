@@ -107,11 +107,19 @@ function straightRouteCost(
 
 /** Searches left in the housing sweep's budget; a cached leg costs nothing. */
 let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+/** Unpriced routes due to this pass's search/node budget are still pending. */
+let commuteRouteChecksDeferred = false;
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
 
 /** Opens a housing sweep's route-search budget. */
 export function beginCommuteRoutePass(): void {
   routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+  commuteRouteChecksDeferred = false;
+}
+
+/** Report whether this pass left any candidate unpriced (not a proven blocked route). */
+export function wereCommuteRouteChecksDeferred(): boolean {
+  return commuteRouteChecksDeferred;
 }
 
 /** Route hours home → destination over the sim's current grid, or null when no route is priced. */
@@ -132,12 +140,18 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   }
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  if (routeSearchesLeft <= 0) return null;
+  if (routeSearchesLeft <= 0) {
+    commuteRouteChecksDeferred = true;
+    return null;
+  }
   routeSearchesLeft--;
   const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
   if (search.cost === null) {
     // A spent budget leaves the leg unpriced; a finished search with no route proves the walk away.
-    if (search.budgetExhausted) return null;
+    if (search.budgetExhausted) {
+      commuteRouteChecksDeferred = true;
+      return null;
+    }
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
     cache.set(key, Infinity);
     return Infinity;
