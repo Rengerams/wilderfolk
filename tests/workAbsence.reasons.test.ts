@@ -339,7 +339,7 @@ describe('the reason reaches every surface the player reads', () => {
 
   it('explains an empty hand-staffed post, and stays quiet about an auto-staffed one', () => {
     expect(getUnstaffedPostNote(building(1, BuildingType.Farm, { staffingMode: 'manual' })))
-      .toBe('Workplace staffed manually — assign workers here yourself.');
+      .toBe('No workers assigned yet — workforce staffing will fill available posts.');
     expect(getUnstaffedPostNote(building(1, BuildingType.Farm))).toBeNull();
     expect(getUnstaffedPostNote(building(1, BuildingType.Farm, { staffingMode: 'manual', occupants: [1] })))
       .toBeNull();
