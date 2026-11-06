@@ -5,14 +5,11 @@ import { addFloatingText, addNotification } from './simEffects';
 import {
   addToConstructionCrew,
   assignMissingWorkers,
-  assignWorkerTransition,
   completedJobBuildings,
   findOverstaffedDonorBuilding,
   isOnConstructionCrew,
-  pickWorkerToTransfer,
   removeWorkerTransition,
   staffingCapFor,
-  transferWorkerBetweenBuildings,
 } from './workforce';
 import { hasWorkAssignment, isImprisoned, isResidenceBuildingType } from './housingModel';
 import { allPlayerHumans, isPlayerHuman } from './playerHuman';
@@ -125,7 +122,7 @@ function findPlayerBuilding(state: WorldState, buildingId: number): Building | u
 
 /** 
  * Mutates state — assign a settler to help build an unfinished structure. 
- * Internal mutating version to avoid redundant structuredClone in loops.
+ * Internal mutating version for assigning construction crews.
  */
 function _applyBuilderAssignmentMut(
   state: WorldState,
@@ -190,69 +187,7 @@ function _assignIdleWorkerToBuildingMut(
     return _applyBuilderAssignmentMut(state, buildingId, preferredHumanId, quiet);
   }
 
-  if (isResidenceBuildingType(building.type)) return state;
-
-  // A Prison's cap is its guard posts, not its cells — `staffingCapFor` counts the posts already filled.
-  const { cap: staffCap, staffed } = staffingCapFor(building, state.entities);
-  if (staffed >= staffCap) return state;
-
-  const job = BUILDING_JOB_TYPES[building.type];
-  if (!job) return state;
-
-  // `pickAdultSettler` already returns the first eligible settler when no explicit
-  // `preferredHumanId` matches, so manual assignment takes the first eligible settler in
-  // entity order. A second "best skill" scan used to sit here, but the guard that reached it
-  // (`!idleHuman && preferredHumanId === undefined`) could never be true — the audit's L6 —
-  // so the intended highest-skill preference was never applied. Restoring that preference is a
-  // player-visible change (manual picks would no longer be first-come); the dead scan and its
-  // misleading "O(N) scan for best skill" comment are removed instead.
-  let idleHuman = pickAdultSettler(
-    state,
-    preferredHumanId,
-    (entity) => isEligibleIdleWorker(entity, state),
-  );
-
-  let reassignedFrom: Building | undefined;
-  if (!idleHuman) {
-    const humans = allPlayerHumans(state.entities);
-    const jobBuildings = completedJobBuildings(state.buildings);
-    const donor = findOverstaffedDonorBuilding(jobBuildings, humans, building.id);
-    const transfer = donor ? pickWorkerToTransfer(humans, donor, building) : undefined;
-    if (transfer && donor) {
-      transferWorkerBetweenBuildings(transfer, donor, building);
-      idleHuman = transfer;
-      reassignedFrom = donor;
-    }
-  } else {
-    // Manual assignment command — the leader may take a workplace here.
-    assignWorkerTransition(idleHuman, building);
-  }
-
-  if (!idleHuman) {
-    if (!quiet) addFloatingText(state, building.x, building.y, 'No idle workers!', '#eab308');
-    return state;
-  }
-
-  if (!quiet) {
-  const fromLabel = reassignedFrom ? BUILDING_CONFIGS[reassignedFrom.type].label : undefined;
-  addFloatingText(
-    state,
-    building.x,
-    building.y - 10,
-    reassignedFrom ? '✓ Reassigned' : '✓ Worker',
-    '#22c55e',
-    'brief',
-  );
-  addNotification(
-    state,
-    reassignedFrom ? 'Worker Reassigned' : 'Worker Assigned',
-    reassignedFrom
-      ? `${idleHuman.name || 'Settler'}: ${fromLabel} → ${BUILDING_CONFIGS[building.type].label}`
-      : `${idleHuman.name || 'Settler'} → ${BUILDING_CONFIGS[building.type].label}`,
-    'info',
-  );
-  }
-
+  // Completed jobs belong to automatic workforce reconciliation, not player selection.
   return state;
 }
 
@@ -277,7 +212,7 @@ export function fillBuildingWorkers(
 
   const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
   
-  // 🚀 OPTIMIZED: Clone ONCE to avoid O(N) deep clones in the while loop
+  // Keep one clone for the entire construction-crew operation.
   let state = structuredClone(originalState);
   let guard = 0;
   let assigned = 0;
