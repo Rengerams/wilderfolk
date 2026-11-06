@@ -1,11 +1,11 @@
 # Wilderfolk — Shared Navigation and Authoritative Commute Decisions
 
 **Document type:** Wilderfolk feature/function architecture and executable Codebot plan (completed from `CODEBOT_FEATURE_TEMPLATE.md`)  
-**Status:** IN PROGRESS — checkpoint A foundation committed; B/C not implemented and merge not approved  
+**Status:** IN PROGRESS — Part A foundation source committed but **NOT ACCEPTED / NOT VERIFIED**; Parts B/C not implemented and **NOT ACCEPTED**; PR #127 remains Draft  
 **Proposed repository path:** `docs/plans/shared-navigation-commute-authority-2026-11-06.md`  
 **Repository evidence:** `Rengerams/wilderfolk`, `main` at `2547a4d4165f81993113b095f67f27b710dcd405`, inspected 2026-11-06. PR #126 was **merged** when this plan was prepared. Re-check HEAD before any coding.  
 **Authority:** `AGENTS.md`, `docs/command.md`, `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` take precedence.  
-**Delivery:** **ONE NEW, SEPARATE PR**, not an extension of #126. The three implementation stages below are review checkpoints/commits **within that one PR**, not three PRs to open automatically. No existing gameplay code was edited while preparing this plan.
+**Delivery:** Existing draft PR #127 on `docs/shared-navigation-commute-authority-20261106`, separate from merged #126; A/B/C are independent user-acceptance checkpoints within this one PR. Part A source has since been committed by another agent; this documentation-only update changes no gameplay code.
 
 > **Execution gate:** Re-read `AGENTS.md` and `docs/command.md` in full, verify PowerShell with `$PSVersionTable.PSVersion.ToString()` in the actual developer shell, re-check `main` and all relevant files immediately before editing, then implement against the latest code. Source facts below are verified at the cited snapshot; proposed signatures and changes are intentionally labelled **TO-BE**. No generated APIs are asserted to exist today.
 
@@ -355,9 +355,67 @@ No reverse import from pathfinding to school/work/housing, and no second writer.
 | **B — Decision cutover** | A verified | Canonical route result available, existing domain writers | Update `commuteReach`, `workforce`, `education`, `housingPipeline`, `virtualPlayer`; remove policy-grade numeric/boolean fallback and Euclidean acceptance; keep existing transitions | **Only** route evidence authorizes new work/school/relocation choices; incumbents retained on pending | Existing workforce/school/housing/bot tests + new mixed-household/pending tests | Pending → defer or keep state; no guessed move or job cancellation |
 | **C — Motion + completion** | B verified | Domain decisions use route authority; movement may still calculate its per-walker path | Make `steerWithPath` consume valid cached geometry and preserve own progress; align departure estimate at trip start; finalize invalidation/metrics, registries/docs and benchmarks | **Final single pipeline** from pathfinder to domain choices and walking; no second A* quote or duplicate saved writer | Actual movement + 100/500/1,000/2,000 seeded benchmark + save/worker parity, types/lint/build/cycles | Abort PR merge if performance/movement/parity fails; do not hide by skipping CI |
 
-**Merge policy:** Only the final **single** PR contains the complete three-stage cutover. Do not publish stale intermediate gameplay logic as merged functionality. If the one PR becomes too large to review, stop and re-plan an independently useful, complete first slice; never leave two active owners just to split the PR.
+**Merge policy:** §§4.1–4.4 require explicit evidence and **separate user acceptance** for A, B and C. Only the final **single** PR contains the complete three-stage cutover. Do not publish stale intermediate gameplay logic as merged functionality. If the one PR becomes too large to review, stop and re-plan an independently useful, complete first slice; never leave two active owners just to split the PR.
 
-### PR A — One new standalone navigation/commute authority PR (internal stages A–C)
+### 4.1 Hard acceptance criteria — Part A: authoritative route foundation
+
+**Status at this plan update:** source for A has been committed on PR #127, but **A IS NOT ACCEPTED**. Its actual implementation must be rechecked against **all** criteria below, not presumed correct. This stage must not change job, school, housing or final movement behavior.
+
+| Gate | Mandatory behavior | Required proof / rejection rule |
+| --- | --- | --- |
+| **A1 — Typed outcome** | Exactly one authoritative `priced / unreachable / pending` route outcome from the existing `pathfinding.ts` A* owner. `priced` has finite nonnegative weighted cost and the path actually traversed. `unreachable` means demonstrably invalid endpoint or a **completed** disconnected search. `pending` means absent grid, search/node budget exhaustion or terminal safety cap. | Test all statuses, actual route/cost agreement, and node-budget vs complete-no-route distinction. `pending` must NEVER be converted into `Infinity`, a positive reachability verdict or a permanently cached disconnected result. |
+| **A2 — Strict endpoint legality** | An authoritative quote must reach the **actual valid destination**, not a snapped neighbor. The current `findNearestWalkable` up-to-three-tile fallback may remain for **explicit movement recovery only**. Policy-grade queries use strict walkable endpoints or an explicitly validated building entrance/stand point. | Cases: blocked source, blocked target, building centre inside a wall, legitimate free entrance outside its footprint, sealed building with no entrance, river island with a nearby but unconnected free tile, off-map target. **Any route to a neighbor accepted as proof of an inaccessible building = BLOCKED.** |
+| **A3 — Same-cell / final legs** | Two distinct world-coordinate points inside the same `PATH_CELL` require legal local travel and nonzero distance where applicable; identical legal start/goal may have zero distance. Source/target approach legs and any entry-point adjustment must be validated and priced. | Direct same-cell walk, obstacle/collision case, zero-distance co-location, entry point outside footprint, and a false-snap case assert actual terminal coordinates and correct cost. No blanket same-cell `true`. |
+| **A4 — Geometry and cost unity** | Reuse `searchRoute` / `walkRoute`, not a second A* implementation. Returned geometry is walkable by the existing grid, including water/bridge, cliff, slope and diagonal blocking. Cost incorporates road discounts, directional elevation and the actual returned (possibly bounded-recovery) route. | Fixtures for detour vs straight line, uphill vs downhill, road shortcut, blocked diagonal and budget-capped search; compare route geometry with quoted cost, not with a hypothetical optimal route never returned. |
+| **A5 — Shared but immutable** | Identical directed endpoints and compatible endpoint mode/revision reuse one immutable cached route. TypeScript `readonly` alone is insufficient if callers can mutate shared arrays. Never cache an actor's waypoint index, velocity, arrival or interruption progress. | First query runs A*, second equivalent query **zero additional A***. Mutation attempts must not alter another consumer's geometry. Different start, goal, entrance, reverse slope direction or grid must not yield an invalid hit. |
+| **A6 — Dual hard cache cap** | Enforce **≤1,024 entries AND ≤131,072 stored path tiles total** (or stricter measured caps); evict until both limits are satisfied, and reject oversize entries. Bound negative entries; never retain `pending` as a permanent route. | Deterministic tests separately hit entry bound, tile bound and both together, including oversize geometry and evictions. Report actual entry/point counts, hits, misses and A* expansions. |
+| **A7 — Grid/isolation/reset** | Cache identity follows actual walkability/roads/walls/bridge/elevation and directed endpoints, not seed alone. Read-only Virtual Player previews use their supplied map without swapping or poisoning `currentGrid`. World load, map replacement, reset or geometry revisions invalidate old results. | Tests with same seed/different terrain, bridge built/removed, road or wall changed, readonly preview vs active world and load/reset; no stale path or retained obsolete grid. |
+| **A8 — Ownership and compatibility** | One pathfinding owner, one cost/quote result, no new scheduler, world-state field, save schema, shadow route manager or import cycle. Old B/C callers keep working until their own cutover. | Existing `tests/commuteRouteEstimate.test.ts`, `tests/saveLoad.commuteGrid.test.ts` and new `tests/navigation.sharedRoutes.test.ts` (actual names to be verified) PASS; `npm run test:types`, `npm run lint`, `npm run build`, `npm run audit:deps:cycles` PASS; required registers, changelog and any confirmed bug reports current. |
+
+**Required Part A handover:** final API signatures, exact strict-vs-recovery endpoint contract, tested entry point, live source links, test commands and results, cache counters (including aggregate tiles), touched function ownership, regressions and status for **each A1–A8: PASS / FAIL / BLOCKED / NOT RUN**. A partially coded or untested foundation is **BLOCKED**, not accepted. **Do not begin Part B solely because A source exists or because a bot says it is done.**
+
+### 4.2 Hard acceptance criteria — Part B: consistent work, school and housing decisions
+
+**Prerequisite:** All Part A mandatory tests and behavior proved; user review/acceptance required before B is treated as authorized. **Scope:** `commuteReach.ts` is the sole travel-hours/eligibility translator of Part A route evidence. Existing `workforce.ts`, `education.ts`, `housingPipeline.ts` and `virtualPlayer.ts` remain decision owners and the only writers of their own state. Motion stays for C.
+
+| Gate | Mandatory behavior | Required proof / rejection rule |
+| --- | --- | --- |
+| **B1 — One priced travel-time verdict** | Real validated home→job/school-entry route cost gives **uncapped** travel hours for ranking; existing separately rounded/clamped departure lead remains. Existing **2-hour** eligibility limit is unchanged. Euclidean lower bound may **exclude**, never authorize. | Price a valid 1.99-hour and 2.01-hour route; correct approval/rejection. River shortcut must not be accepted. Same origin/destination across domains gets same cost/status. |
+| **B2 — Unknown is not success or failure** | `pending` defers optional assignments, school transfers and relocations. `unreachable` rejects a **new** candidate. Neither result silently fires established workers, clears existing valid school seats or moves residents. A missing destination must not become an artificial zero-hour journey. | Exhaust route budget, hit terminal cap, block candidate, remove grid in live world; assert **no speculative saved-state mutation** and bounded retry through existing event/pulse. |
+| **B3 — Workforce continuity** | New jobs/transfers use home or lawful unhoused origin to validated workplace entrance. Retain existing jobs, skills, career progress, donor protection, emergency food rules, 60-day transfer cooldown, unemployed-first behavior and zero unnecessary day-rollover restaffing. No manual assignment controls return. | `tests/workforce.persistentCommute.test.ts`, `tests/workforce.deferredCommuteRetry.test.ts` plus real blocked/unknown/valid route cases. Assert actual `workerBuildingId`, rosters and history before/after repeated days. |
+| **B4 — School reach and seat stability** | Schools must be staffed, have capacity, have a **priced** reachable entrance within eligibility limit and be ranked by real route time, with existing school-transfer hysteresis. Preserve 09:00–15:00 school, teacher/attendance rules and graduation. | `tests/school.test.ts` cases: near school across river vs farther accessible school, capacity full, inaccessible entry, pending alternative, multiple daily reviews **without seat churn**. `schoolBuildingId` not cleared just because one route is unknown. |
+| **B5 — Whole-household relocation and swaps** | Consider **every member's** work and school journeys; all relevant old/new legs must be priced for optional move/swap. If any leg is pending or invalid, **no optional move**. Preserve existing saved-hours/percentage thresholds, no member above allowed regression, no oscillation, bed/custody/leader limits, relocation cap and existing `HOUSING_PHASE_ORDER`. Mandatory safety/homeless/guardian repairs retain priority. | `tests/residenceCommuteRelocation.test.ts`, `tests/residency.dayBoundary.budget.test.ts`: valid improvement, worse member, unreachable child school, pending leg, no-op, swap, rejected swap, repeated pulses. **One false optional move = BLOCKED.** |
+| **B6 — Virtual Player and budget** | Proposed placement checks **its own readonly proposed map** and valid building entry without mutating live grid or consuming staffing budget; `pending` cannot yield a positive construction decision or poison future quotes. Existing assignment times 03:00/09:00/15:00/21:00 and bounded retries survive. | `tests/virtualPlayer.test.ts` and `tests/commuteRouteEstimate.test.ts`; seeded assignment-pass measurements show no newly added full population × all buildings/houses A* scan. |
+| **B7 — Atomic policy cutover** | Replace all relevant `estimatedCommuteHours`, `routeCommuteHours`, `isWithinAssignableCommute`, school Euclidean and housing fallback acceptance at actual direct callers; remove obsolete branches/caches when new authoritative logic takes over. No alias, duplicate owner or second policy path. | Inspect imports/call graph and run `tests/navigation.decisionIntegration.test.ts` if needed: **same seeded map**, same leg, same verdict across work/school/housing. Regressions PASS; owner overview and registry exact; types/lint/build/cycles PASS. |
+
+**Required Part B handover:** actual caller/function migration matrix with legacy paths removed, seeded end-state evidence (not mock choreography), job and seat retention, school/household invariants, route-budget/CPU counters, exact tests and **each B1–B7 PASS / FAIL / BLOCKED / NOT RUN**. An old policy-grade straight-line acceptance path means **B is not complete**. Part C is not automatically authorized.
+
+### 4.3 Hard acceptance criteria — Part C: shared walking and full integration
+
+**Prerequisite:** A and B demonstrated and user-accepted. **Scope:** integrate shared immutable route into the existing `steerWithPath` → `commuteHumanToBuilding` → `tickHumans` movement path, then verify performance, saves, workers, gameplay and architecture. No independent movement writer, flow-field engine or extra tick.
+
+| Gate | Mandatory behavior | Required proof / rejection rule |
+| --- | --- | --- |
+| **C1 — Independent walkers** | Two or 2,000 settlers may reuse route geometry, but each has own waypoint index, velocity, interruption, deviation, progress and arrival. One walker cannot move another's cursor or invalidate legitimate shared geometry. | Multiple walkers same directed leg, pausing, deviating, arriving in different ticks; first route may A*, later compatible walkers reuse without added A*. |
+| **C2 — Legal movement and arrival** | Walking uses the same validated real building entry/stand-point as quoted for commute. Preserve roads/rush, no wall/water/cliff traversal or illegal diagonal, corner pacing, existing **8 px** arrival behavior. Unrelated `LONG_RANGE_DIST: 150` is **not** retuned without separate approval. | Real seeded walk to workplace and school, blocked building centre with accessible entrance, sealed entrance rejected, river detour, cliff/bridge/corner. No acceptance based only on reaching a snapped tile. |
+| **C3 — Safe invalidation/replanning** | Bridge/wall/terrain/building changes, off-route displacement, interruptions, load/new game invalidate or safely recover relevant cached geometry. Budget `pending` cannot trigger direct illegal shortcuts, infinite same-tick retries or unbounded actor scans. | Remove bridge during walk, change road, deviate walker, destroy building, reload from save. Test route safety, bounded calls and unaffected other actors. |
+| **C4 — Commute departure consistency** | Work/school travel lead uses same priced path/endpoints where available, not a fresh Euclidean or full A* per settler per realtime tick. Preserve lead-hour clamps, actual work/school schedules and physical attendance; account for normal discrete walking variance. | Compare quoted cost/lead against measured representative travel; verify no late/silent path switch, absent extra daily/each-tick route storms and school attendance remains correct. |
+| **C5 — Save/worker/determinism** | No new saved nav cache, migration gap, worker delta or RNG draw. Supported old saves preserve identity, jobs, schools and homes. New game and load discard prior world's cache; worker and fallback produce equivalent seeded outcomes. | `tests/saveLoad.commuteGrid.test.ts`, `tests/gameLoop.test.ts`, real worker/fallback integration, deterministic replay and reset/new-game fixtures PASS. |
+| **C6 — Large-colony measurement** | Benchmark equivalent fixed seeds at **100, 500, 1,000 and 2,000** settlers **before and after**, including a shared-destination commuting day. Same map/settings/buildings/duration/machine; target three comparable runs. Capture A* calls, expanded nodes, hit/miss/eviction, total entries/tiles/bytes, grid rebuild, median/p95/worst tick time and peak memory. | Both cache caps demonstrably hold at 2,000. **BLOCK** unexplained timeouts/search storms/unbounded memory/missing baseline; reproducible **>10% median or p95 tick regression** or **>10% peak memory increase excluding separately documented bounded cache allocation** requires user-reviewed exception, not a silent pass. Never invent an FPS improvement. |
+| **C7 — Final quality and ownership** | One complete production pipeline; zero obsolete policy/movement calculation left in use; no changed gameplay balance, new timers, re-exports or import cycles. Every modified/new function registered; changelog/active plan and required bug-report index current; historical files untouched. | Relevant movement and full integration tests, `npm run test:types`, `npm run lint`, `npm run build`, `npm run audit:deps:cycles`, supported runtime probe PASS. Attach full diff, actual command outputs, benchmark table, remaining risks, and exact new/updated bug report counts. |
+
+**Required Part C handover:** seeded end-to-end movement/school/work/housing outcomes, old-save/worker/fallback evidence, raw 100/500/1,000/2,000 performance comparisons, final ownership/call graph and **each C1–C7 PASS / FAIL / BLOCKED / NOT RUN**. Even if all green, **only the user can accept C and authorize making PR #127 ready to merge**.
+
+### 4.4 User decision and stop rule — applies to ALL parts
+
+1. **No acceptance has been given.** Part A code may exist, but **A, B and C are all NOT USER-ACCEPTED**. Green CI, a commit or a coding-agent “done” statement never constitutes acceptance.
+2. **One checkpoint at a time:** after each Part, present the individual gate statuses and evidence above for user review. Do not move to B/C, approve, mark ready to merge or merge merely because the prior implementation exists. An independent new instruction to continue coding is not proof that prior tests passed.
+3. **Any failed, missing or unrun mandatory check leaves that Part BLOCKED** until fixed and verified. No weakened/skipped tests, silent behavior fallback, implicit snapped entrance, duplicate route owner or postponed save/worker proof.
+4. **One PR (#127).** A/B/C are stages **inside** it. The PR remains **Draft** until all stage gates are proven and the user explicitly authorizes the final transition.
+
+### 4.5 One PR — implementation steps and total completion contract
+
+
 
 **Starting architecture:** `main` after merged #126: `tickHumans → steerWithPath` for movement, `tickLayerAssign → workforce/housing` for assignments, daily `education.syncSchoolAssignments` for schools, bot `decideFood` read-only preview. Independent `commuteReach` cost and pathfinding geometry cache.
 
@@ -442,7 +500,7 @@ Every implementation change within the new PR must keep its own scope documents 
 
 **Known static review findings to triage and deduplicate (not yet filed as new reports):** (1) `commuteReach.ts` bot preview stores node-budget exhaustion as `Infinity`; (2) `housingPipeline` may treat a pending `estimatedCommuteHours` result as straight-line travel; (3) `education.findSchoolForChild` uses a straight-line school choice while other systems use walkable routes. Reproduce or document precise source proof, search existing current/historical reports, then file/update according to protocol during implementation. Do not claim these have been independently reproduced at runtime.
 
-**Documentation diff checklist:** mandatory owner overview **planned**; decision registry **planned**; changelog **planned**; plan **CREATED AS FILE (not committed)**; roadmap **not changed**; bug report **not changed**; historical narratives **not changed**.
+**Documentation diff checklist:** ownership overview/decision registry/changelog were touched for Part A source on this draft PR; Part B/C registration pending; plan **committed, now expanded with per-part hard acceptance gates**; roadmap only on actual completion; bug reports per confirmed findings; historical narratives unchanged.
 
 ## 8. End-of-PR handover (mandatory)
 
@@ -451,7 +509,7 @@ PLANNED / NOT IMPLEMENTED: Complete codebot plan for shared routes and
 route-authoritative work, school and household commute decisions.
 
 PR / commit:
-- NOT CREATED; this is a standalone plan for ONE new PR.
+- Draft PR #127: https://github.com/Rengerams/wilderfolk/pull/127 — Part A source committed, not verified or user-accepted.
 - Evidence baseline: main @ 2547a4d4165f81993113b095f67f27b710dcd405.
 
 Scope delivered:
@@ -460,7 +518,7 @@ Scope delivered:
 - NO gameplay code changed; shared cache and quote are NOT IMPLEMENTED.
 
 Files and ownership:
-- Proposed docs/plans/shared-navigation-commute-authority-2026-11-06.md — plan.
+- docs/plans/shared-navigation-commute-authority-2026-11-06.md — committed plan with A/B/C gates; no user acceptance implied.
 - OWNERSHIP_OVERVIEW.md — NOT CHANGED; rows specified in section 7.
 - decisionRegistry.ts — NOT CHANGED; keys/cadences/writes specified above.
 
@@ -482,11 +540,11 @@ Risk / open issues:
 - Runtime performance impact unknown until baseline and after measurements.
 
 Cleanup:
-- No repository source changes or temporary branch. Only plan output file created.
+- This update edits only the plan file on existing draft PR #127; the other Part A source changes are not touched.
 
 Next smallest step:
-- Open a fresh feature branch from up-to-date main; verify shell/owners/tests,
-  then implement §4 internal stage A in the new PR.
+- First verify the existing Part A source **against every §4.1 gate**, report evidence to user.
+- No further stage automatically authorized; B/C require their own review gates.
 ```
 
 ## 9. Final review gate — planning vs implementation
@@ -503,6 +561,9 @@ Next smallest step:
 - [ ] **Implementation checkpoint:** inspect refreshed source and verify **actual local PowerShell** as required by `AGENTS.md`.
 - [ ] **Implementation checkpoint:** write/review code, register every actual touched function and decision, document defects after deduplication.
 - [ ] **Implementation checkpoint:** all targeted gameplay/save/worker tests, dependency audit, types, lint, build and benchmark **PASS**.
-- [ ] **Merge gate:** code review, measured results and no hidden regressions; do not mark the feature IMPLEMENTED before merge.
+- [ ] **Part A acceptance:** §4.1 A1–A8 demonstrated PASS, then explicit user decision.
+- [ ] **Part B acceptance:** §4.2 B1–B7 demonstrated PASS, then explicit user decision.
+- [ ] **Part C acceptance:** §4.3 C1–C7 demonstrated PASS, then explicit user decision.
+- [ ] **Merge gate:** explicit user approval, measured results and no hidden regressions; do not mark IMPLEMENTED before merge.
 
-**Stop rule:** This file is a **ready-to-use plan**, **not** proof of a working feature. A PR without accurate owners, a required migration if scope changes, reproducible route evidence, relevant defect reports and performance verification is **not** ready to merge.
+**Stop rule:** This file is a **ready-to-use plan**, **not** proof of working behavior or user acceptance. A PR without accurate owners, a required migration if scope changes, reproducible route evidence, relevant defect reports and performance verification is **not** ready to merge.
