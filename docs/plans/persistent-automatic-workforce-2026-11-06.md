@@ -1,6 +1,6 @@
 # Persistent automatic workforce and static-audit follow-ups — 2026-11-06
 
-**Status:** work instructions 1–5, 7 and 9 implemented in source on draft PR #126 (runtime unverified); food-production and housing-bucket investigations remain open. **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this implementation.**
+**Status:** work instructions 1–5, 7 and 9 implemented in source on draft PR #126 (runtime unverified); food-production planning improved and housing-bucket contract resolved in source (unverified at runtime). **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this implementation.**
 
 ## Mini-RFC
 **Problem:** Manual and automated staffing paths overlap, risking inconsistent commands and unnecessary churn. The Virtual Player also contains a Store-scaling contradiction; food producer planning currently uses equal building counts despite differing production; housing bucket stability is overstated in a comment.
@@ -32,16 +32,16 @@
 - Implemented: demand uses `computeStorageMax` for actual completed-building material caps (wood/stone/iron, 85% threshold), respects construction and reserves, and does not incorrectly use gold stock or per-adult Store targets.
 - Verify that the command owner validates funds, placement and capacity.
 
-### C. Food-production capacity review (improvement, not a second starvation bug)
-- Link the existing resolved report `docs/bug_report/2026-11-01-virtual-player-food-production-lags-population.md`; do not reopen or duplicate it without fresh evidence.
-- `wantedFoodProducerCount` and `decideFood` treat Farm, Greenhouse, Fishing Spot and Hunting Spot as equal producer counts; actual achievable food output varies with staffing, attendance, ecology and upgrades.
-- Decide whether a cost-bounded, deterministic expected-output estimator improves the **existing** `getRecentFoodFlow` feedback loop. Avoid inventing yields or duplicating `dailyBuildingEconomy.ts`. Preserve the documented fast deficit response.
+### C. Food-production capacity review (source improvement committed; runtime unverified)
+- Uses the **existing** `getRecentFoodFlow` ledger when there are at least three consecutive complete food days; actual stored yield reflects staffing/attendance, weather, ecology, prey, upgrades and spoilage. Sustainable recorded output stops unnecessary capacity construction even when crop counts are below the old target.
+- Before a reliable food history exists, `wantedBootstrapCropSiteCount` is only a conservative **crop footprint** heuristic: Farms and Greenhouses count; Fishing and Hunting Spots do **not** pretend to have identical crop output. No new nominal-yield model, duplicate production formula or extra simulation pass was added.
+- A verified measured deficit is not hidden by a nominal site-count cap; existing Farm upgrade, Mill, site-placement, build concurrency, affordability and biodiversity safeguards remain. Critical low larder levels still trigger the existing emergency response.
+- Regression source: `tests/virtualPlayerHealthVerdict.test.ts` covers adequate measured fish/hunting yields without unnecessary new crop sites. Not executed.
 
-### D. Housing sweep bucket risk review (not a confirmed runtime bug)
-- `housingUnitBucket` hashes `lowestMemberId(unit)`, which changes if that member leaves; assess whether stable-across-membership bucket identity is a real contract requirement.
-- If only deterministic current-pass scheduling is needed, clarify the comment and retain the function. If household continuity across roster changes matters, find the canonical persistent household identity first; no invented IDs or save migrations.
-- Reuse `housingPipeline.ts`; do not add another housing decision owner or rewrite the completed housing architecture.
-
+### D. Housing sweep bucket review (false persistence claim corrected; no new runtime state)
+- `housingUnitBucket` takes the lowest **current** household member ID. That is deterministic for the present unit, but can shift after a member dies/leaves; it was incorrect to claim a persistent household identity.
+- This is **not a confirmed relocation bug**: the four daily sweep pulses cover every current bucket, and the final pulse already revisits **all** units; urgent homelessness/capacity repairs are independently global. The scheduler does not assume that a household's bucket stays fixed between pulses.
+- Corrected the source contract comment without introducing duplicate identity bookkeeping, save migrations, or a second housing owner. A source regression in `tests/residency.dayBoundary.budget.test.ts` explicitly captures member departure and the daily bucket coverage. Not executed.
 
 ### E. Pathfinding contract for persistent jobs (source fix committed; unverified)
 - See `docs/bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md`.
@@ -63,9 +63,9 @@
 - Owners/decision registry/changelog are updated in the implementation PR, with precisely scoped regression tests chosen by the local maintainer.
 
 ## Verification policy for this documentation task
-**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Code changes are unverified. The event-fingerprint gate, new-job/transfers pathfinding, and Store capacity-pressure fixes are committed. Food yield and housing bucket remain to investigate.
+**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Code changes are unverified. The event-fingerprint gate, new-job/transfers pathfinding, and Store capacity-pressure fixes are committed. Food-yield planning and the housing-bucket invariant review are now committed, but none of the regressions or simulations was run.
 
 ## Report tracking
 - New: `2026-11-06-autoplay-staffing-policy-inconsistent.md`, `2026-11-06-virtual-player-store-scaling-unreachable.md`.
 - Existing linked without duplicate: `2026-11-01-virtual-player-food-production-lags-population.md`.
-- Housing bucket risk: recorded here as *unverified*, not a fabricated bug report.
+- Housing bucket: resolved as a misleading comment, not a demonstrated runtime defect. The four-pulse/final sweep remains unchanged.
