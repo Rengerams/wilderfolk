@@ -26,6 +26,8 @@ import {
   findOverstaffedDonorBuilding,
   pickWorkerToTransfer,
   isAcuteFoodStaffingEmergency,
+  hasFoodStaffingPressure,
+  prospectiveFoodTransferDonors,
 } from './workforce';
 import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
@@ -509,7 +511,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     building.completed && building.faction !== 'rival'
     && BUILDING_JOB_TYPES[building.type],
   );
-  const emergency = isAcuteFoodStaffingEmergency(state);
+  const emergency = isAcuteFoodStaffingEmergency(state) || hasFoodStaffingPressure(state);
   const rejectedDonors = new Set<number>();
   while (true) {
     const donor = findOverstaffedDonorBuilding(
@@ -640,14 +642,20 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
   if (unstaffedFoodProducer && !measuredDeficit && !forecastRisk) return null;
-  // A new producer needs an actually available, reachable farmhand. Counting
-  // unemployed people alone let the bot place sites across a river, leave them
-  // empty forever and deplete the larder while 20+ adults remained idle.
+  // A new producer needs a verifiably reachable farmhand. That can be an
+  // unemployed adult or a transferable surplus worker from a noncritical post;
+  // neither merely having food stock nor nominal site capacity is enough.
   const constructionCrew = new Set(state.buildings.filter((b) => !b.completed)
     .flatMap((b) => b.occupants));
   const idleAdults = state.entities.filter((person) => person.alive && isPlayerHuman(person)
     && !person.isJuvenile && person.workerBuildingId == null && person.prisonBuildingId == null
     && !constructionCrew.has(person.id));
+  // Each listed donor remains above its protected minimum after ONE transfer.
+  // It is a real staffing resource even when all adults currently have jobs.
+  const donorGroups = (measuredDeficit || forecastRisk)
+    ? prospectiveFoodTransferDonors(state.entities, state.buildings, state.tick)
+    : [];
+  const spareDonorSlots = donorGroups.reduce((sum, donor) => sum + donor.spareSlots, 0);
   // The first producer remains buildable so an all-industrial bootstrap can recover.
   if (built > 0 || goingUp > 0) {
     const assignedFoodWorkers = new Map<number, number>();
@@ -663,7 +671,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
           - (assignedFoodWorkers.get(building.id) ?? 0))
         : BUILDING_CONFIGS[building.type].maxOccupants);
     }, 0);
-    if (idleAdults.length <= openFoodPosts) return null;
+    if (idleAdults.length + spareDonorSlots <= openFoodPosts) return null;
   }
 
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
@@ -687,6 +695,14 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   for (const person of idleAdults) {
     const key = person.residenceBuildingId ?? -(person.id + 1);
     if (!recruitableOrigins.has(key)) recruitableOrigins.set(key, person);
+  }
+  // Donor supply is chosen by the workforce owner with its actual minimum
+  // coverage and transfer rules; the candidate route is verified here.
+  for (const donor of donorGroups) {
+    for (const person of donor.workers) {
+      const key = person.residenceBuildingId ?? -(person.id + 1);
+      if (!recruitableOrigins.has(key)) recruitableOrigins.set(key, person);
+    }
   }
   const walkSpeed = SPECIES_CONFIG[EntityType.Human].speed;
   const canCrewNewFoodSite = (spot: { x: number; y: number }): boolean => {
