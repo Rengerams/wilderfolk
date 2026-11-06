@@ -200,6 +200,9 @@ export function isWithinAssignableCommute(
     : buildingById?.get(entity.residenceBuildingId)
       ?? buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
+  // Same path cell is handled locally by the route owner: it needs no A* search.
+  if (Math.floor(from.x / PATH_CELL) === Math.floor(building.x / PATH_CELL)
+    && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
   const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 
