@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Moon Howler can transform before full-moon nightfall](../bug_report/2026-11-06-moon-howler-pre-nightfall-transformation.md):** The full-moon predicate treated 00:00–05:59 on the full-moon date as active, before 22:00. Source corrected in PR #126; runtime verification not run.
+
+**2026-11-06 — [Dormant Moon Howler curse mislabeled active](../bug_report/2026-11-06-moon-howler-dormant-curse-mislabeled-active.md):** Dashboard and Population UI confused curse persistence with active werewolf form and listed 20:00 instead of 22:00. Corrected in PR #126; runtime verification not run.
+
 **2026-11-06 — [Automatic staffing can select unreachable jobs](../bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md):** Assignment treats the two-hour pathfinding rule as a preference and transfers lack the reachability check. Open; source confirmed, runtime untested.
 
 **2026-11-06 — [Auto-play staffing policy inconsistency](../bug_report/2026-11-06-autoplay-staffing-policy-inconsistent.md):** Food and non-food proposals differ in manual-staffing handling; runtime effect unverified. Investigating; manual staffing is proposed for removal in favor of persistent automatic jobs.
