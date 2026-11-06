@@ -20,6 +20,20 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
     expect(canSupportImmigration(world, 50, 10)).toBe(false);
   });
 
+  it('permits a few founding families only when existing food covers a sixty-day shortfall and a reserve', () => {
+    const founders = stateFor(80, () => 50);
+    expect(getRecentFoodFlow(founders)?.netPerDay).toBeGreaterThan(0);
+    const stocked = {
+      ...founders,
+      resources: { food: 3000, wood: 0, stone: 0, gold: 0, iron: 0 },
+    };
+    expect(canSupportImmigration(stocked, 20, 5)).toBe(true);
+    expect(canSupportImmigration({ ...stocked, resources: { ...stocked.resources, food: 800 } },
+      20, 5)).toBe(false);
+    expect(canSupportImmigration({ ...stocked, resources: { ...stocked.resources, food: 3000 } },
+      60, 5)).toBe(false);
+  });
+
   it('welcomes newcomers while sustainable production covers growth and its buffer', () => {
     expect(canSupportImmigration(stateFor(300, () => 90), 50, 10)).toBe(true);
   });
