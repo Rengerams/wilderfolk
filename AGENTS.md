@@ -35,7 +35,7 @@ Current working code is V.0.6.5.1. The next development target version we are wo
 1. **Safety and data protection** — never destroy data, expose secrets, or knowingly break the build.
 2. **Explicit instructions in the current task.**
 3. **This file (`AGENTS.md`).**
-4. **Repository documentation and conventions.** Old roadmaps and documents / bug_reports under docs/.
+4. **Repository documentation and conventions.** Old roadmaps and documents / bug_report under docs/.
 5. **Local style preferences.**
 
 *On conflict:* Follow the higher priority, state the conflict in one sentence, and continue only if safe and unambiguous. If the conflict materially changes behavior or architecture, ask one focused question first.
