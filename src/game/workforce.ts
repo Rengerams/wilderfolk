@@ -242,6 +242,7 @@ export function pickWorkerToTransfer(
   fromBuilding: Building,
   toBuilding: Building,
   currentTick?: number,
+  buildings: readonly Building[] = [fromBuilding, toBuilding],
 ): Entity | undefined {
   const toJob = BUILDING_JOB_TYPES[toBuilding.type];
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
@@ -253,7 +254,8 @@ export function pickWorkerToTransfer(
       h.alive &&
       !h.isJuvenile &&
       h.workerBuildingId === fromBuilding.id &&
-      canAutoChangeWorkplace(h, currentTick),
+      canAutoChangeWorkplace(h, currentTick) &&
+      isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
   if (workers.length === 0) return undefined;
 
@@ -265,11 +267,13 @@ export function pickWorkerToTransfer(
     const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
     if (bFit !== aFit) return bFit - aFit;
 
-    const dxa = a.x - toX;
-    const dya = a.y - toY;
-    const dxb = b.x - toX;
-    const dyb = b.y - toY;
-    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb);
+    const aHome = buildings.find((site) => site.id === a.residenceBuildingId) ?? a;
+    const bHome = buildings.find((site) => site.id === b.residenceBuildingId) ?? b;
+    const dxa = aHome.x - toX;
+    const dya = aHome.y - toY;
+    const dxb = bHome.x - toX;
+    const dyb = bHome.y - toY;
+    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb) || a.id - b.id;
   });
 
   return workers[0];
@@ -416,7 +420,7 @@ export function rebalanceJobWorkers(
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
       if (!donor) continue;
 
-      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);
+      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings);
       if (!worker) continue;
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
@@ -524,6 +528,7 @@ export function assignWorkerInPlace(
       SPECIES_CONFIG[EntityType.Human].speed,
       buildingById,
     );
+    if (!near) continue;
     const skill = readSkill(candidate, job);
     if (worker && (
       (bestNear && !near)
