@@ -202,6 +202,7 @@ export const SIMULATION_DECISIONS = {
     cadence: 'assignment',
     cadenceNote: 'The idle-only assignWorkerInPlace choice fills vacancies only after the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing checks an O(player humans+buildings) fingerprint and skips unchanged pulses, plus a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
+      'building.staffingMode',
       'building.occupants',
       'human.workerBuildingId',
       'human.occupation',
