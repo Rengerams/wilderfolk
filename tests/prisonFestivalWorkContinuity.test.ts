@@ -175,13 +175,13 @@ function festivalWorkWorld(): { state: WorldState; farmer: Entity; innkeeper: En
   const house = building(20, BuildingType.House, 400, 200, [1, 2]);
   const farm = building(10, BuildingType.Farm, 30, 40, [1]);
   const tavern = building(30, BuildingType.Tavern, 250, 40, [2]);
-  // Keep the unassigned settler free: the background auto-fill pulse at 15:00
-  // must not turn this festival participant into another farm commuter.
-  farm.staffingMode = 'manual';
-  tavern.staffingMode = 'manual';
+  // Auto staffing is authoritative: the 15:00 assignment pulse may give any
+  // eligible unemployed adult a job. Use a minor as the genuinely off-duty
+  // festival participant rather than relying on the removed manual mode.
   const farmer = human(1, { job: JobType.Farmer, workerBuildingId: 10, residenceBuildingId: 20, x: 54, y: 61 });
   const innkeeper = human(2, { job: JobType.Innkeeper, workerBuildingId: 30, residenceBuildingId: 20, x: 274, y: 61 });
-  const idler = human(3);
+  const idler = human(3, { age: 12, isJuvenile: true });
+  setHumanBirthFromAge(idler, 12, 0);
   const state = worldState(
     [farmer, innkeeper, idler],
     [house, farm, tavern],
@@ -261,7 +261,10 @@ describe('settlers keep working during a festival', () => {
     state.tick = 15 * TICKS_PER_HOUR - 1;
     gameTick(state);
 
-    // One verdict, read by the tick and by the label: the two cannot disagree about who gathers.
+    // A rostered adult works through the festival; a minor with no job can
+    // gather. The automatic workforce must not assign the minor at 15:00.
+    expect(farmer.workerBuildingId).toBe(10);
+    expect(idler.workerBuildingId).toBeUndefined();
     expect(getHumanActivityStatus(state, farmer)).not.toBe('Gathering at festival');
     expect(getHumanActivityStatus(state, idler)).toBe('Gathering at festival');
   });
