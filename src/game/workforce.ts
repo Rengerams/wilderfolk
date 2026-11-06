@@ -181,6 +181,7 @@ export function canAutoChangeWorkplace(human: Entity, currentTick?: number, food
 
 /** A verified falling food supply with fewer than six days in store warrants urgent staffing. */
 export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
+  if (!state.resources || !state.entities) return false;
   const settlers = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
   return settlers > 0
     && state.resources.food < settlers * Human.DAILY_FOOD_CONSUMPTION * VirtualPlayer.FOOD_BUFFER_DAYS * 3
