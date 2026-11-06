@@ -61,7 +61,7 @@ import { normalizeSpotlightLoreOnLoad } from './spotlightLore';
 import { syncGenealogyRegistry } from './genealogyRegistry';
 import { ensureValleyEcologyOnLoad } from './ecologyStage';
 import { migrateVillageForgeOnLoad } from './forge';
-import { nearestWalkableWorldPoint } from './pathfinding';
+import { nearestWalkableWorldPoint, setCurrentPathMap } from './pathfinding';
 import { pruneOrphanRivalEntities, retireLegacyCampStructures } from './rivalEvents';
 
 const SAVE_KEY = 'ecosim_save';
@@ -1672,8 +1672,6 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     migrateLegacySecurityRoles(world);
     assignMissingResidences(world.entities.filter(isPlayerHuman), world.buildings, world.entities, undefined, world.genealogyRegistry,
       (ledger) => applyLeaderHousePhase(world, ledger));
-    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
-
     // Older or partial saves may not contain research nodes. Restore the
     // canonical starting tree before applying combat-research migrations.
     world.researchNodes = mergeCombatResearchNodes(
@@ -1744,6 +1742,9 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // not yet earned — `rebuildBeautyGridFromWorld` exists for exactly this split.
     rebuildBeautyGridFromWorld(world);
     const view = createViewFromSave(parsed, world);
+    // The restored map, not the previous session's navigation grid, decides new job reachability.
+    setCurrentPathMap(world.worldMap, world.buildings);
+    assignMissingWorkers(world.entities.filter(isPlayerHuman), world.buildings, world);
     return { ok: true, world, view };
   } catch (e) {
     console.error('Save load failed:', e);
