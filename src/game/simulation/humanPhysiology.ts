@@ -1,8 +1,7 @@
 import { BuildingType, type Building, type Entity, type HumanNeedsState } from '../gameTypes';
 import { TICKS_PER_HOUR } from '../dayCycleClock';
 import { NIGHT_END, NIGHT_START } from '../daycycleconstants';
-import { evaluateTraitInfluence } from '../personality/traitEvaluation';
-import type { TraitContext } from '../personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 export const HUMAN_NEEDS = {
   NUTRITION_BASE_LOSS_PER_SIM_HOUR: 1.2,
@@ -28,9 +27,6 @@ export const HUMAN_NEEDS = {
   NUTRITION_FAMINE_BITE_THRESHOLD: 30,
   STARVATION_FATAL_SIM_HOURS: 48,
 } as const;
-
-/** The catalog's labor context prices work drain: endurance traits divide it, heavy labor raises it. */
-const LABOR_CONTEXT = { kind: 'physiology', activity: 'labor' } as const satisfies TraitContext;
 
 /** Single (nonstacking) well access check using squared world-pixel distance. */
 export function hasNearbyWell(entity: Pick<Entity, 'x' | 'y'>, wells: readonly Building[]): boolean {
@@ -105,8 +101,8 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     staminaRate *= HUMAN_NEEDS.HOSPITAL_STAMINA_RECOVERY_MULTIPLIER;
   }
   if (staminaRate < 0) {
-    // The labor context prices work only; walking keeps its base drain.
-    if (obs.working) staminaRate /= evaluateTraitInfluence(entity, LABOR_CONTEXT).factor;
+    // The labor activity prices work only; walking keeps its base drain.
+    if (obs.working) staminaRate /= evaluateAptitudeInfluence(entity, 'labor').factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
   }
   needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);

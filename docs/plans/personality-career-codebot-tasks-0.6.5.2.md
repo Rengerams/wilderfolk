@@ -1,5 +1,7 @@
 # Coding-agent execution — Wilderfolk DNA + Career 0.6.5.2
 
+> **Superseded (6 November 2026):** the fourteen-dimension genome in [Genetic aptitudes and personality overhaul](genetic-aptitudes-personality-overhaul-2026-11-02.md) replaces this three-of-fourteen task set. Keep this sheet as design history; do not implement its trait tickets as written.
+
 **Task class:** implement features. **Implementation status (28 October 2026):** PR A and PR B merged; **PR C IMPLEMENTED AND MERGED via PR [#97](https://github.com/Rengerams/wilderfolk/pull/97)** (merge commit `110c6430`); PR D and PR E **NOT IMPLEMENTED**. This task sheet is an instruction document, not an implementation artifact.
 **Authoritative design:** [DNA, personality and career architecture](personality-career-single-pipeline-0.6.5.2.md).
 **Feature targets:** roadmap §11 and §16 (the old §17 was renumbered).

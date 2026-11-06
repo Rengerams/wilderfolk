@@ -7,10 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
 const GAME_SRC = join(ROOT, 'src', 'game');
-/** The DNA pipeline itself: allocation owner, catalog data and evaluator are its only legitimate readers. */
+/** The genetics pipeline itself: genome owner, activity data and evaluator are its only legitimate readers. */
 const DNA_PIPELINE: ReadonlySet<string> = new Set([
   'src/game/settlerTraits.ts',
-  'src/game/personality/traitEffectCatalog.ts',
+  'src/game/personality/activityAptitudes.ts',
   'src/game/personality/traitEvaluation.ts',
 ]);
 const inPipeline = (path: string): boolean => DNA_PIPELINE.has(path);

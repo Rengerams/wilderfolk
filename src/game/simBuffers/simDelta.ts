@@ -538,7 +538,7 @@ export function splitStaticProps(delta: SimTickDelta, sent: Set<number>): void {
 
 /** Profile fields the replica reads but the simulation writes rarely (bounded by a refresh). */
 const PROFILE_FIELDS = [
-  'skills', 'traits', 'careerHistory', 'careerMilestones', 'childhoodFriendsIds', 'battleLeadershipAwards',
+  'skills', 'genomeV2', 'marks', 'careerHistory', 'careerMilestones', 'childhoodFriendsIds', 'battleLeadershipAwards',
 ] as const;
 
 /** Re-ship profile fields at least this often, so a missed writer can only be briefly stale. */

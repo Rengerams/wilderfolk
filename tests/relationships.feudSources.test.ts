@@ -1,12 +1,14 @@
 /**
- * The daily social pulse's own feud source: two settlers whose traits clash and who share a home,
- * workplace or job drift into a feud, mirroring how the same grouping grows a friendship.
+ * The daily social pulse's own feud source: two settlers whose conflicting aptitudes raise the
+ * pair's friction and who share a home, workplace or job drift into a feud, mirroring how the same
+ * grouping grows a friendship.
  */
 import { describe, expect, it } from 'vitest';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 import { advanceSocialRelationships, feudScore } from '../src/game/relationships';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { genomeFrom } from './helpers/genome';
 
 function settler(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -42,10 +44,11 @@ function state(): WorldState {
 /** A roll that always passes, so the assertions below are about the rule, not about luck. */
 const alwaysPasses = () => 0;
 
-describe('feuds from incompatible pairs', () => {
-  it('drifts two housemates with clashing traits into a mutual feud', () => {
-    const a = settler(1, { residenceBuildingId: 10, traits: ['fierce'] });
-    const b = settler(2, { residenceBuildingId: 10, traits: ['stoic'] });
+describe('feuds from incompatible aptitudes', () => {
+  it('drifts two housemates with clashing aptitudes into a mutual feud', () => {
+    const genomeV2 = genomeFrom({ riskTaking: 95 });
+    const a = settler(1, { residenceBuildingId: 10, genomeV2 });
+    const b = settler(2, { residenceBuildingId: 10, genomeV2 });
     const world = state();
 
     advanceSocialRelationships(world, [a, b], undefined, alwaysPasses);
@@ -55,12 +58,13 @@ describe('feuds from incompatible pairs', () => {
     expect(world.eventLog.some((event) => event.message.includes('feud is brewing'))).toBe(true);
   });
 
-  it('never feuds housemates whose traits do not clash', () => {
-    const a = settler(1, { residenceBuildingId: 10, traits: ['hardy'] });
-    const b = settler(2, { residenceBuildingId: 10, traits: ['lucky'] });
+  it('never feuds housemates whose aptitudes keep the pair below average friction', () => {
+    const genomeV2 = genomeFrom({ cooperation: 95, flexibility: 90, patience: 90 });
+    const a = settler(1, { residenceBuildingId: 10, genomeV2 });
+    const b = settler(2, { residenceBuildingId: 10, genomeV2 });
     const world = state();
 
-    // The forced roll passes every day, so only the missing clash can keep the pair apart.
+    // The forced roll passes every day, so only the missing friction can keep the pair apart.
     for (let day = 0; day < 400; day++) {
       advanceSocialRelationships(world, [a, b], undefined, alwaysPasses);
     }

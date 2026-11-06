@@ -95,8 +95,8 @@ import {
 } from './hotelStay';
 import { prisonGuardIds } from './prisonGuardDuty';
 import { prisonShiftForGuard, shiftCoversHour } from './prisonShifts';
-import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
-import { crowdGatherPosition, venueGatherPosition, homeStandPosition, homeEntryPosition, affairTrystEntry, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler } from './simulation/humanMovement';
+import { getCurrentPathGrid, lineCrossesBlocked, getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, setCurrentPathMap, steerWithPath } from './pathfinding';
+import { crowdGatherPosition, venueGatherPosition, homeStandPosition, homeEntryPosition, affairTrystEntry, enterHumanBuilding, applyHumanWalkStep, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, humanBuildingTarget, nearestActiveMoonHowler, steerHumanToward } from './simulation/humanMovement';
 import { fract, tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
 import { advanceHumanNeeds, adjustHumanStaminaFromEnergy, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { isRestingHospitalPatient } from './hospitalCare';
@@ -108,15 +108,8 @@ import { buildRoadAvoidanceIndex } from './spatialGrid';
 import { buildResidenceOccupantIndex, findClosestEntityInRadius } from './simQueries';
 
 
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { ExactTraitContext, TraitContext } from './personality/traitEffectCatalog';
+import { combinePairFactors, evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import type { TickContext } from './simulation/simulationTypes';
-
-/** The catalog context behind how fast a settler breaks off from a threat and runs. */
-const ESCAPE_CONTEXT = { kind: 'danger', activity: 'escape' } as const satisfies TraitContext;
-
-/** The catalog context behind how fast a courting pair makes progress. */
-const COURTSHIP_PROGRESS_CONTEXT = { kind: 'social', activity: 'courtshipProgress' } as const satisfies ExactTraitContext;
 
 
 import {
@@ -813,7 +806,9 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     if (entity.faction === 'trade_caravan') {
       const target = getCaravanMoveTarget(state, entity);
       if (target) {
-        steerEntityToward(entity, target.x, target.y, config.speed, target.speedMult);
+        steerHumanToward(
+          entity, target.x, target.y, config.speed, target.speedMult, `caravan_${entity.id}`,
+        );
         applyHumanWalkStep(entity, 1);
         tryAdvanceCaravanLeg(state, entity);
       }
@@ -964,7 +959,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const fdx = entity.x - huntingWere.x;
       const fdy = entity.y - huntingWere.y;
       const fdist = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
-      const fleeMult = humanFleeMult * evaluateTraitInfluence(entity, ESCAPE_CONTEXT).factor;
+      const fleeMult = humanFleeMult * evaluateAptitudeInfluence(entity, 'escape').factor;
       entity.vx = (fdx / fdist) * config.speed * 1.6 * fleeMult;
       entity.vy = (fdy / fdist) * config.speed * 1.6 * fleeMult;
       faceVelocity(entity);
@@ -1313,15 +1308,17 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
           if (entity.id < closest.id) {
             const hasPerformers = state.visitorGroups.some((g) => g.kind === 'performers' && g.daysLeft > 0);
-            const courtshipFactors = evaluateTraitInfluence(entity, COURTSHIP_PROGRESS_CONTEXT).exact.orderedFactors;
+            // Symmetric pair rule: both people's courtship aptitudes average into one rate.
+            const courtshipFactor = combinePairFactors(
+              evaluateAptitudeInfluence(entity, 'courtship').factor,
+              evaluateAptitudeInfluence(closest, 'courtship').factor,
+            );
             const courtRate =
               courtshipRatePerHour(socialTime) *
               (state.festival?.active ? 2 : 1) *
               (hasPerformers ? 1.35 : 1) *
               (livingTogether ? 1.5 : 1) *
-              courtshipFactors[0] *
-              courtshipFactors[1] *
-              courtshipFactors[2] *
+              courtshipFactor *
               PER_TICK_RATE_SCALE;
 
             entity.courtshipProgress = Math.min(100, (entity.courtshipProgress || 0) + courtRate);
@@ -1829,8 +1826,13 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
             const sdy = friend.y - entity.y;
             const sdist = Math.hypot(sdx, sdy) || 1;
             if (sdist > 22) {
-              idleVx = (sdx / sdist) * config.speed * 0.42;
-              idleVy = (sdy / sdist) * config.speed * 0.42;
+              const grid = getCurrentPathGrid();
+              if (grid && lineCrossesBlocked(grid, entity.x, entity.y, friend.x, friend.y)) {
+                steerHumanToward(entity, friend.x, friend.y, config.speed, 0.42, `idle_friend_${entity.id}_${friend.id}`);
+              } else {
+                idleVx = (sdx / sdist) * config.speed * 0.42;
+                idleVy = (sdy / sdist) * config.speed * 0.42;
+              }
             } else if (sdist < 9) {
               idleVx = -(sdx / sdist) * config.speed * 0.12;
               idleVy = -(sdy / sdist) * config.speed * 0.12;

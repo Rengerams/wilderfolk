@@ -25,6 +25,11 @@ import { tryDailyHumanMortality } from '../src/game/simulation/humanRelationship
 import { killHuman } from '../src/game/humanLifecycleCleanup';
 import { ensureEntityByIdMap } from '../src/game/entityIndex';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { genomeFrom } from './helpers/genome';
+
+/** Civic voices: a strongly empathetic profile versus a severity-leaning one. */
+const RESTRAINT_GENOME = genomeFrom({ cooperation: 95, sensitivity: 95, flexibility: 90, discipline: 90, riskTaking: 5 });
+const SEVERITY_GENOME = genomeFrom({ cooperation: 5, sensitivity: 5, flexibility: 5, discipline: 5, riskTaking: 95 });
 
 function colony(): WorldState {
   // Warfare never reads the map; the 6144×4608 default world made every save/load in this file pay
@@ -286,7 +291,7 @@ describe('real raid captives', () => {
     world.villageLeaderId = world.entities[0].id;
     const initialReputation = world.villageReputation;
     world.entities.slice(0, 12).forEach((person, index) => {
-      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+      person.genomeV2 = index < fierce ? SEVERITY_GENOME : index < fierce + empathetic ? RESTRAINT_GENOME : genomeFrom();
     });
     const executed = resolveWarPrisoner(world, 910000, 'execute_confirmed');
     expect(executed.entities[0].battleLeadershipMerit ?? 0).toBe(expected);
@@ -324,7 +329,7 @@ describe('real raid captives', () => {
     const world = captiveColony();
     world.villageLeaderId = world.entities[0].id;
     world.entities.slice(0, 12).forEach((person, index) => {
-      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+      person.genomeV2 = index < fierce ? SEVERITY_GENOME : index < fierce + empathetic ? RESTRAINT_GENOME : genomeFrom();
     });
     const resolved = resolveWarPrisoner(world, 910000, 'release');
     expect(resolved.entities[0].battleLeadershipMerit ?? 0).toBe(expected);

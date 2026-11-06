@@ -1,6 +1,7 @@
 import { initialHumanNeeds } from './simulation/humanPhysiology';
 import type { Entity, WorldState } from './gameTypes';
-import type { SettlerTrait } from './settlerTraits';
+import { rollFounderGenome, type GenomeV2 } from './settlerTraits';
+import { rollBornMarks } from './personalMarks';
 import { EntityType, JobType } from './gameTypes';
 import {
   getColonyDay,
@@ -12,7 +13,6 @@ import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { getRandomName, getRandomSurname } from './nameLoader';
 import { pickHumanVariant } from './humanSprites';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { rollSettlerTraits } from './settlerTraits';
 import { getSimRng } from './simRng';
 
 /** Deterministic simulation RNG stream for entity factory creation. */
@@ -38,8 +38,8 @@ export interface CreateEntityOptions {
   partnerId?: number;
   relationshipStatus?: 'single' | 'married' | 'expecting' | 'widowed';
   name?: string;
-  /** Traits inherited from parents — remaining slots are rolled. */
-  inheritedTraits?: SettlerTrait[];
+  /** Genome inherited from both biological parents at birth. */
+  inheritedGenome?: GenomeV2;
 }
 
 /** The species `tickLayerSystems` ticks — wildlife plus settlers — so the only ones whose animation
@@ -87,8 +87,11 @@ export function createEntity(
     name = opts?.name ?? getRandomName(entGender === 'male' ? 'male' : 'female');
   }
 
-  // Personality traits — only settlers receive traits
-  const traits = isHuman ? rollSettlerTraits(opts?.inheritedTraits, entGender) : undefined;
+  // One genome for every human; founders draw it, newborns receive the inherited one.
+  const genomeV2 = isHuman ? (opts?.inheritedGenome ?? rollFounderGenome()) : undefined;
+  // Appearance and constitution are personal marks, drawn once and never inherited.
+  const bornMarks = isHuman ? rollBornMarks() : undefined;
+  const marks = bornMarks && bornMarks.length > 0 ? bornMarks : undefined;
 
   // Derive surnames and maiden surnames safely
   const surname = isHuman ? (opts?.surname?.trim() || getRandomSurname()) : undefined;
@@ -141,7 +144,8 @@ export function createEntity(
     occupation: isHuman ? 'settler' : undefined,
     job: isHuman ? JobType.Settler : undefined,
     skills: {},
-    traits,
+    genomeV2,
+    marks,
     relationshipStatus,
     childrenIds: [],
     fatherId: opts?.fatherId,

@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import type { SettlerTrait } from '../src/game/settlerTraits';
+import type { GenomeV2 } from '../src/game/settlerTraits';
+import { APTITUDE_IDS } from '../src/game/settlerTraits';
 import { EntityType, JobType, Season } from '../src/game/gameTypes';
-import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
+import { combinePairFactors, evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { initGame } from '../src/game/worldGen';
 import { tickHumans } from '../src/game/humanTick';
 import { tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
@@ -13,6 +14,7 @@ import { courtshipRatePerHour, tryDailyConception } from '../src/game/simulation
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { PER_TICK_RATE_SCALE } from '../src/game/dayCycleClock';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
+import { genomeFrom } from './helpers/genome';
 
 import {
   HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE,
@@ -20,135 +22,8 @@ import {
   getYouthConceptionMultiplier,
 } from '../src/game/dayCycle';
 
-const COURTSHIP_PROGRESS = { kind: 'social', activity: 'courtshipProgress' } as const;
-const CONCEPTION = { kind: 'family', activity: 'conception' } as const;
-
-type Traits = readonly SettlerTrait[];
-
-/** AS-IS reference: the retired settlerTraits.traitMultiplier helper. */
-const legacyTraitMultiplier = (traits: Traits | null | undefined, trait: SettlerTrait, whenPresent: number): number =>
-  traits?.includes(trait) ? whenPresent : 1.0;
-
-/** AS-IS reference: the historical courtship progress expression. */
-const legacyCourtshipRate = (base: number, traits: Traits): number =>
-  base *
-  legacyTraitMultiplier(traits, 'gregarious', 1.4) *
-  legacyTraitMultiplier(traits, 'timid', 0.7) *
-  legacyTraitMultiplier(traits, 'graceful', 1.2);
-
-/** The migrated courtship progress expression, same multiplication positions and order. */
-const catalogCourtshipRate = (base: number, traits: Traits): number => {
-  const orderedFactors = evaluateTraitInfluence({ traits }, COURTSHIP_PROGRESS).exact.orderedFactors;
-  return base * orderedFactors[0] * orderedFactors[1] * orderedFactors[2];
-};
-
-const courtshipCombinations: Traits[] = [
-  [],
-  ['gregarious'],
-  ['timid'],
-  ['graceful'],
-  ['graceful', 'timid'],
-  ['timid', 'gregarious'],
-  ['graceful', 'gregarious'],
-  ['graceful', 'gregarious', 'timid'],
-  ['timid', 'graceful', 'gregarious'],
-  ['brave', 'gregarious', 'timid'],
-];
-
-describe('courtship trait parity', () => {
-  it('keeps the historical 1.4 / 0.7 / 1.2 multipliers in the fixed slot order', () => {
-    expect(evaluateTraitInfluence({ traits: ['gregarious'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
-      .toEqual([1.4, 1, 1]);
-    expect(evaluateTraitInfluence({ traits: ['timid'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
-      .toEqual([1, 0.7, 1]);
-    expect(evaluateTraitInfluence({ traits: ['graceful'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
-      .toEqual([1, 1, 1.2]);
-    expect(evaluateTraitInfluence({ traits: ['brave'] }, COURTSHIP_PROGRESS).exact.orderedFactors)
-      .toEqual([1, 1, 1]);
-    expect(evaluateTraitInfluence({}, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual([1, 1, 1]);
-    expect(evaluateTraitInfluence({ traits: null }, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual([1, 1, 1]);
-  });
-
-  it('keeps the slots DNA-order independent for combined traits', () => {
-    const expected = [1.4, 0.7, 1.2];
-    for (const traits of [
-      ['gregarious', 'timid', 'graceful'],
-      ['timid', 'graceful', 'gregarious'],
-      ['graceful', 'gregarious', 'timid'],
-    ] as Traits[]) {
-      expect(evaluateTraitInfluence({ traits }, COURTSHIP_PROGRESS).exact.orderedFactors).toEqual(expected);
-    }
-  });
-
-  it('reproduces the old progress rate bit for bit across trait orders and bases', () => {
-    for (const traits of courtshipCombinations) {
-      for (const base of [0.0001, 0.0023, 0.0175, 0.25, 1]) {
-        expect(catalogCourtshipRate(base, traits)).toBe(legacyCourtshipRate(base, traits));
-      }
-    }
-  });
-
-  it('leaves the bounded projection free of the parity multipliers', () => {
-    const courtship = { kind: 'social', activity: 'courtship' } as const;
-    const timid = evaluateTraitInfluence({ traits: ['timid'] }, courtship);
-    const graceful = evaluateTraitInfluence({ traits: ['graceful'] }, courtship);
-    expect(timid.factor).toBeGreaterThan(0.85);
-    expect(timid.factor).toBeLessThan(1);
-    expect(graceful.factor).toBeGreaterThan(1);
-    expect(graceful.factor).toBeLessThanOrEqual(1.15);
-    expect(evaluateTraitInfluence({ traits: ['gregarious'] }, COURTSHIP_PROGRESS).factor).toBe(1);
-  });
-});
-
-describe('conception trait parity', () => {
-  const married = (chance: number, fertility: number, traits: Traits): number =>
-    chance * fertility * legacyTraitMultiplier(traits, 'lucky', 1.15);
-  const marriedNow = (chance: number, fertility: number, traits: Traits): number =>
-    chance * fertility * evaluateTraitInfluence({ traits }, CONCEPTION).exact.multiplier;
-  const youth = (youthMultiplier: number, fertility: number, traits: Traits): number =>
-    0.0012 * youthMultiplier * fertility * legacyTraitMultiplier(traits, 'lucky', 1.15);
-  const youthNow = (youthMultiplier: number, fertility: number, traits: Traits): number =>
-    0.0012 * youthMultiplier * fertility * evaluateTraitInfluence({ traits }, CONCEPTION).exact.multiplier;
-
-  it('keeps the married and youth Lucky factor at exactly 1.15', () => {
-    expect(evaluateTraitInfluence({ traits: ['lucky'] }, CONCEPTION).exact.multiplier).toBe(1.15);
-    for (const chance of [0.0004, 0.0011, 0.02]) {
-      for (const fertility of [0.25, 0.6, 1]) {
-        expect(marriedNow(chance, fertility, ['lucky'])).toBe(married(chance, fertility, ['lucky']));
-        expect(marriedNow(chance, fertility, ['brave', 'lucky'])).toBe(married(chance, fertility, ['brave', 'lucky']));
-      }
-    }
-    for (const youthMultiplier of [0.5, 0.75, 1]) {
-      for (const fertility of [0.3, 1]) {
-        expect(youthNow(youthMultiplier, fertility, ['lucky']))
-          .toBe(youth(youthMultiplier, fertility, ['lucky']));
-      }
-    }
-  });
-
-  it('leaves an eligible non-Lucky mother on her original chance, never zero', () => {
-    expect(evaluateTraitInfluence({ traits: ['nurturing'] }, CONCEPTION).exact.multiplier).toBe(1);
-    expect(evaluateTraitInfluence({ traits: [] }, CONCEPTION).exact.multiplier).toBe(1);
-    expect(evaluateTraitInfluence({}, CONCEPTION).exact.multiplier).toBe(1);
-    for (const chance of [0.0004, 0.0011]) {
-      for (const fertility of [0.4, 0.9]) {
-        expect(marriedNow(chance, fertility, ['nurturing'])).toBe(chance * fertility);
-      }
-    }
-  });
-
-  it('evaluates only at the two original conception sites and keeps the affair branch clean', () => {
-    // Owner-boundary coverage of the same claim lives in the seeded block below.
-    const source = readFileSync(join(process.cwd(), 'src/game/simulation/humanRelationships.ts'), 'utf8');
-    const conceptionSites = source.split('\n').filter((line) => line.includes('evaluateTraitInfluence(entity, CONCEPTION_CONTEXT)'));
-    expect(conceptionSites).toHaveLength(2);
-    const affairLine = source.split('\n').find((line) => line.includes('HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE *'));
-    expect(affairLine).toBeDefined();
-    expect(affairLine).not.toContain('evaluateTraitInfluence');
-    expect(source).toContain('personDayRoll(entity.id, state.tick, 603)');
-    expect(source).toContain('personDayRoll(entity.id, state.tick, 604)');
-  });
-});
+const COURTSHIP_GENOME = genomeFrom({ initiative: 95, sociability: 90, perception: 85, patience: 80, sensitivity: 75 });
+const COURTSHIP_RESISTANT_GENOME = genomeFrom({ initiative: 5, sociability: 5, perception: 5, patience: 5, sensitivity: 5 });
 
 const FIXTURE_SEED = 20_261_028;
 const MOTHER_ID = 1;
@@ -158,7 +33,7 @@ const LOVER_ID = 3;
 function settler(
   id: number,
   gender: 'female' | 'male',
-  traits: Traits,
+  genomeV2: GenomeV2,
   overrides: Partial<Entity> = {},
 ): Entity {
   return {
@@ -188,7 +63,7 @@ function settler(
     childrenIds: [],
     reproductionCooldown: 0,
     relationshipStatus: 'single',
-    traits: [...traits],
+    genomeV2,
     ...overrides,
   } as Entity;
 }
@@ -201,7 +76,7 @@ interface CourtFrame {
 
 /** One settled midday frame of the real owner; the pair stands together unless moved apart. */
 function courtFrame(
-  traits: Traits,
+  genomeV2: GenomeV2,
   options: {
     festival?: boolean;
     performers?: boolean;
@@ -212,11 +87,11 @@ function courtFrame(
   } = {},
 ): CourtFrame {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
-  const a = settler(1, 'female', traits, {
+  const a = settler(1, 'female', genomeV2, {
     energy: options.energy ?? 200,
     ...(options.spouse ? { partnerId: PARTNER_ID, relationshipStatus: 'married' as const } : {}),
   });
-  const b = settler(PARTNER_ID, options.partnerGender ?? 'male', [], { x: 300 + (options.distance ?? 0) });
+  const b = settler(PARTNER_ID, options.partnerGender ?? 'male', genomeFrom(), { x: 300 + (options.distance ?? 0) });
   state.entities = [a, b];
   state.tick = 12;
   if (options.festival) state.festival = { active: true, name: 'Harvest feast', daysLeft: 1 };
@@ -265,42 +140,44 @@ function courtFrame(
 }
 
 describe('courtship progress at the real owner boundary', () => {
-  it('advances the pair once, from the catalog slot that owns each trait', () => {
-    const neutral = courtFrame([]);
+  it('advances the pair once by the symmetric average of both courtship factors', () => {
+    const neutral = courtFrame(genomeFrom());
     expect(neutral.progressA).toBeCloseTo(courtshipRatePerHour(true) * PER_TICK_RATE_SCALE, 12);
     expect(neutral.progressB, 'one shared advance per pair, not one per settler')
       .toBe(neutral.progressA);
 
-    const cases: Array<[Traits, number]> = [
-      [['gregarious'], 1.4],
-      [['timid'], 0.7],
-      [['graceful'], 1.2],
-      [['gregarious', 'timid', 'graceful'], 1.4 * 0.7 * 1.2],
-      [['graceful', 'timid', 'gregarious'], 1.4 * 0.7 * 1.2],
-      [['brave'], 1],
-    ];
-    for (const [traits, ratio] of cases) {
-      const frame = courtFrame(traits);
-      expect(frame.progressA / neutral.progressA, JSON.stringify(traits)).toBeCloseTo(ratio, 10);
-      expect(frame.progressB, JSON.stringify(traits)).toBe(frame.progressA);
-    }
+    const pairFactor = combinePairFactors(
+      evaluateAptitudeInfluence({ genomeV2: COURTSHIP_GENOME }, 'courtship').factor,
+      1,
+    );
+    expect(pairFactor).toBeGreaterThan(1);
+    const apt = courtFrame(COURTSHIP_GENOME);
+    expect(apt.progressA / neutral.progressA).toBeCloseTo(pairFactor, 10);
+    expect(apt.progressB).toBe(apt.progressA);
+
+    const resistantFactor = combinePairFactors(
+      evaluateAptitudeInfluence({ genomeV2: COURTSHIP_RESISTANT_GENOME }, 'courtship').factor,
+      1,
+    );
+    expect(resistantFactor).toBeLessThan(1);
+    expect(courtFrame(COURTSHIP_RESISTANT_GENOME).progressA / neutral.progressA).toBeCloseTo(resistantFactor, 10);
   });
 
-  it('keeps the feast and performer multipliers around the same trait product', () => {
-    const neutral = courtFrame([]);
-    expect(courtFrame([], { festival: true }).progressA / neutral.progressA).toBeCloseTo(2, 10);
-    expect(courtFrame([], { performers: true }).progressA / neutral.progressA).toBeCloseTo(1.35, 10);
+  it('keeps the feast and performer multipliers around the same aptitude product', () => {
+    const neutral = courtFrame(genomeFrom());
+    expect(courtFrame(genomeFrom(), { festival: true }).progressA / neutral.progressA).toBeCloseTo(2, 10);
+    expect(courtFrame(genomeFrom(), { performers: true }).progressA / neutral.progressA).toBeCloseTo(1.35, 10);
     expect(
-      courtFrame(['gregarious'], { festival: true }).progressA / courtFrame(['gregarious']).progressA,
+      courtFrame(COURTSHIP_GENOME, { festival: true }).progressA / courtFrame(COURTSHIP_GENOME).progressA,
     ).toBeCloseTo(2, 10);
   });
 
   it('keeps the courtship gates: ineligible, absent or distant partners make no progress', () => {
-    expect(courtFrame([], { spouse: true }).progressA, 'a married settler does not court').toBe(0);
-    expect(courtFrame([], { energy: 1 }).progressA, 'the energy gate still holds').toBe(0);
-    expect(courtFrame([], { partnerGender: 'female' }).progressA, 'no same-gender pair').toBe(0);
+    expect(courtFrame(genomeFrom(), { spouse: true }).progressA, 'a married settler does not court').toBe(0);
+    expect(courtFrame(genomeFrom(), { energy: 1 }).progressA, 'the energy gate still holds').toBe(0);
+    expect(courtFrame(genomeFrom(), { partnerGender: 'female' }).progressA, 'no same-gender pair').toBe(0);
 
-    const distant = courtFrame([], { distance: 50 });
+    const distant = courtFrame(genomeFrom(), { distance: 50 });
     expect(distant.progressA, 'out of talking range: no shared progress').toBe(0);
     expect(distant.speedA, 'the settler closes the distance instead').toBeGreaterThan(0);
   });
@@ -358,27 +235,31 @@ function dayBelow(salt: number, bound: number): number {
   throw new Error(`no day with a salt-${salt} roll below the bound`);
 }
 
-const marriedPair = (traits: Traits): Entity[] => [
-  settler(MOTHER_ID, 'female', traits, { relationshipStatus: 'married', partnerId: PARTNER_ID }),
-  settler(PARTNER_ID, 'male', [], { relationshipStatus: 'married', partnerId: MOTHER_ID, x: 310 }),
+const marriedPair = (genomeV2: GenomeV2): Entity[] => [
+  settler(MOTHER_ID, 'female', genomeV2, { relationshipStatus: 'married', partnerId: PARTNER_ID }),
+  settler(PARTNER_ID, 'male', genomeFrom(), { relationshipStatus: 'married', partnerId: MOTHER_ID, x: 310 }),
 ];
 
-const youthPair = (traits: Traits): Entity[] => [
-  settler(MOTHER_ID, 'female', traits, { age: 14, isJuvenile: true, youthLovePartnerId: PARTNER_ID }),
-  settler(PARTNER_ID, 'male', [], { age: 14, isJuvenile: true, youthLovePartnerId: MOTHER_ID, x: 310 }),
+const youthPair = (genomeV2: GenomeV2): Entity[] => [
+  settler(MOTHER_ID, 'female', genomeV2, { age: 14, isJuvenile: true, youthLovePartnerId: PARTNER_ID }),
+  settler(PARTNER_ID, 'male', genomeFrom(), { age: 14, isJuvenile: true, youthLovePartnerId: MOTHER_ID, x: 310 }),
 ];
 
-const affairPair = (traits: Traits): Entity[] => [
-  settler(MOTHER_ID, 'female', traits, { affairPartnerId: LOVER_ID }),
-  settler(LOVER_ID, 'male', [], { affairPartnerId: MOTHER_ID, x: 310 }),
+const affairPair = (genomeV2: GenomeV2): Entity[] => [
+  settler(MOTHER_ID, 'female', genomeV2, { affairPartnerId: LOVER_ID }),
+  settler(LOVER_ID, 'male', genomeFrom(), { affairPartnerId: MOTHER_ID, x: 310 }),
 ];
 
-/** Real deliveries at the birth owner; the conception multiplier never writes DNA, so traits stay a draw. */
-function newbornTraits(traits: Traits, fatherTraits: Traits, births: number): Traits[] {
+/** Real deliveries at the birth owner; returns the inherited genomes, never the parents' labels. */
+function newbornGenomes(motherGenome: GenomeV2, fatherGenome: GenomeV2, births: number): GenomeV2[] {
   const state: WorldState = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   state.villageLeaderId = null;
-  const mother = settler(MOTHER_ID, 'female', traits, { relationshipStatus: 'expecting', partnerId: PARTNER_ID });
-  const father = settler(PARTNER_ID, 'male', fatherTraits, { relationshipStatus: 'expecting', partnerId: MOTHER_ID, x: 310 });
+  const mother = settler(MOTHER_ID, 'female', motherGenome, {
+    relationshipStatus: 'expecting', partnerId: PARTNER_ID,
+  });
+  const father = settler(PARTNER_ID, 'male', fatherGenome, {
+    relationshipStatus: 'expecting', partnerId: MOTHER_ID, x: 310,
+  });
   state.entities = [mother, father];
   const entityById = new Map<number, Entity>([[mother.id, mother], [father.id, father]]);
   const ctx: TickContext = {
@@ -401,7 +282,7 @@ function newbornTraits(traits: Traits, fatherTraits: Traits, births: number): Tr
     predators: [],
   };
 
-  const children: Traits[] = [];
+  const children: GenomeV2[] = [];
   for (let delivery = 0; delivery < births; delivery += 1) {
     state.tick += 1;
     ctx.newEntities.length = 0;
@@ -415,54 +296,74 @@ function newbornTraits(traits: Traits, fatherTraits: Traits, births: number): Tr
       livingHumanAt: (id) => (id == null ? undefined : entityById.get(id)),
     });
     const child = ctx.newEntities.find((entity) => entity.type === EntityType.Human);
-    if (child) children.push(child.traits ?? []);
+    if (child?.genomeV2) children.push(child.genomeV2);
   }
   return children;
 }
 
-describe('newborn DNA at the real birth owner', () => {
-  it('never turns two Lucky parents into an automatically Lucky child', () => {
-    const children = newbornTraits(['lucky'], ['lucky'], 24);
-    expect(children.length).toBeGreaterThan(20);
-    for (const traits of children) {
-      expect(traits.length).toBeLessThanOrEqual(3);
-      expect(new Set(traits).size).toBe(traits.length);
+describe('newborn genetics at the real birth owner', () => {
+  it('inherits one allele from each parent per dimension, with no special lucky locus', () => {
+    const mother = genomeFrom({ sociability: 10, composure: 90 });
+    const father = genomeFrom({ sociability: 90, composure: 10 });
+    const children = newbornGenomes(mother, father, 12);
+    expect(children.length).toBeGreaterThan(8);
+    for (const child of children) {
+      expect(child.aptitudeAlleles).toHaveLength(APTITUDE_IDS.length);
+      for (let axis = 0; axis < APTITUDE_IDS.length; axis++) {
+        const maternal = mother.aptitudeAlleles[axis];
+        const paternal = father.aptitudeAlleles[axis];
+        for (const allele of child.aptitudeAlleles[axis]) {
+          // Mutation is bounded to ±4 and the birth-time spread correction can move an allele further.
+          const distance = Math.min(
+            Math.abs(allele - maternal[0]), Math.abs(allele - maternal[1]),
+            Math.abs(allele - paternal[0]), Math.abs(allele - paternal[1]),
+          );
+          expect(distance, `axis ${axis} allele ${allele}`).toBeLessThanOrEqual(14);
+        }
+      }
     }
-    expect(
-      children.some((traits) => !traits.includes('lucky')),
-      'inheritance stays a 50% draw, so a Lucky pair can raise a non-Lucky child',
-    ).toBe(true);
   });
 });
 
-describe('conception rolls at the real owner boundary', () => {
-  it('moves the married 603 roll by exactly the Lucky 1.15, and not the affair 605 roll', () => {
-    const marriedDay = dayInBand(603, HUMAN_DAILY_PREGNANCY_CHANCE_NEAR, HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * 1.15);
-    expect(conceptionFrame(marriedPair([]), marriedDay).conceived, 'the plain mother misses the band').toBe(false);
-    const lucky = conceptionFrame(marriedPair(['lucky']), marriedDay);
-    expect(lucky.conceived, 'the Lucky mother clears it').toBe(true);
-    expect(lucky.mother.pregnant).toBe(true);
-
-    const affairChance = HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE;
-    const luckyAffairDay = dayInBand(605, affairChance, affairChance * 1.15);
-    expect(conceptionFrame(affairPair([]), luckyAffairDay).conceived).toBe(false);
-    expect(
-      conceptionFrame(affairPair(['lucky']), luckyAffairDay).conceived,
-      'Lucky must not widen the affair branch',
-    ).toBe(false);
-    expect(conceptionFrame(affairPair(['lucky']), dayBelow(605, affairChance)).conceived).toBe(true);
+describe('conception is deliberately non-genetic', () => {
+  it('has no genetic conception context in the owner source', () => {
+    const source = readFileSync(join(process.cwd(), 'src/game/simulation/humanRelationships.ts'), 'utf8');
+    expect(source).not.toContain('CONCEPTION_CONTEXT');
+    expect(source).not.toContain('evaluateTraitInfluence');
+    // The only evaluator read is the mark-only conception activity; no allele is consulted.
+    expect(source).toContain("evaluateAptitudeInfluence(entity, 'conception')");
+    expect(source).not.toContain('genomeV2');
+    expect(source).toContain('personDayRoll(entity.id, state.tick, 603)');
+    expect(source).toContain('personDayRoll(entity.id, state.tick, 604)');
   });
 
-  it('moves the youth 604 roll by exactly the Lucky 1.15 and leaves a non-Lucky mother her chance', () => {
+  it('leaves the married 603 roll at the owner baseline, with the retired Lucky 1.15 gone', () => {
+    const chance = HUMAN_DAILY_PREGNANCY_CHANCE_NEAR;
+    const formerLuckyBand = dayInBand(603, chance, chance * 1.15);
+    expect(conceptionFrame(marriedPair(genomeFrom()), formerLuckyBand).conceived,
+      'no genome widens the married roll').toBe(false);
+    expect(conceptionFrame(marriedPair(genomeFrom({ initiative: 95 })), formerLuckyBand).conceived).toBe(false);
+
+    const plainDay = dayBelow(603, chance);
+    const plain = conceptionFrame(marriedPair(genomeFrom()), plainDay);
+    expect(plain.conceived, 'an eligible mother still conceives below the baseline').toBe(true);
+    expect(plain.mother.pregnant).toBe(true);
+  });
+
+  it('leaves the youth 604 roll at the owner baseline', () => {
     const chance = HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * getYouthConceptionMultiplier(14);
-    const youthDay = dayInBand(604, chance, chance * 1.15);
-    expect(conceptionFrame(youthPair([]), youthDay).conceived).toBe(false);
-    const lucky = conceptionFrame(youthPair(['lucky']), youthDay);
-    expect(lucky.conceived).toBe(true);
-    expect(lucky.mother.pregnant).toBe(true);
+    const formerLuckyBand = dayInBand(604, chance, chance * 1.15);
+    expect(conceptionFrame(youthPair(genomeFrom()), formerLuckyBand).conceived).toBe(false);
 
     const plainDay = dayBelow(604, chance);
-    const plain = conceptionFrame(youthPair(['nurturing']), plainDay);
-    expect(plain.conceived, 'an ordinary trait never zeroes an eligible mother').toBe(true);
+    const plain = conceptionFrame(youthPair(genomeFrom({ sensitivity: 95 })), plainDay);
+    expect(plain.conceived, 'an ordinary profile never zeroes an eligible mother').toBe(true);
+  });
+
+  it('leaves the affair 605 branch untouched by genetics', () => {
+    const chance = HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE;
+    const formerLuckyBand = dayInBand(605, chance, chance * 1.15);
+    expect(conceptionFrame(affairPair(genomeFrom({ initiative: 95 })), formerLuckyBand).conceived).toBe(false);
+    expect(conceptionFrame(affairPair(genomeFrom()), dayBelow(605, chance)).conceived).toBe(true);
   });
 });

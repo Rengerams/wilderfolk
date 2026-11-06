@@ -119,7 +119,7 @@ export function tickHumanHospitalPatientCare({
       else {
         entity.indoorBuildingId = undefined;
         const entrance = homeEntryPosition(best, entity.x, entity.y);
-        steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}`);
+        steerHumanToward(entity, entrance.x, entrance.y, speed, 0.55, `hospital_${best.id}_${entity.id}`);
       }
     }
   }

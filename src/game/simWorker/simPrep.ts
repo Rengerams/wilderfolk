@@ -170,7 +170,8 @@ export function extractSimPrep(state: WorldState): SimPrepPayload {
       careerMilestones: e.careerMilestones
         ? Object.fromEntries(Object.entries(e.careerMilestones).map(([job, row]) => [job, { ...row }]))
         : undefined,
-      traits: e.traits ? [...e.traits] : e.traits,
+      genomeV2: e.genomeV2,
+      marks: e.marks ? e.marks.map((mark) => ({ ...mark })) : e.marks,
       childrenIds: e.childrenIds ? [...e.childrenIds] : e.childrenIds,
       childhoodFriendsIds: e.childhoodFriendsIds ? [...e.childhoodFriendsIds] : e.childhoodFriendsIds,
       friendships: e.friendships,

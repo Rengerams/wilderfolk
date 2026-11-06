@@ -20,6 +20,7 @@ import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tickTradeCaravans } from '../src/game/tradeCaravans';
 import { initTradeRoutes } from '../src/game/economy';
 import { LAYER_SYSTEMS_INTERVAL } from '../src/game/tickLayerSystems';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { byType } from '../src/test/factories';
 
 const FIXTURE_SEED = 20240913;
@@ -73,6 +74,8 @@ describe('a caravan carrier leaves through the tick spawn path', () => {
     expect(spawned).toHaveLength(1);
     expect(state.tradeRoutes[0].caravanCarrierId).toBe(spawned[0].id);
     expect(spawned[0].job).toBe('merchant');
+    expect(spawned[0].isJuvenile).toBe(false);
+    expect(spawned[0].age).toBeGreaterThanOrEqual(HUMAN_ADULT_MIN_AGE);
     expect(ctx.entityById.get(spawned[0].id)).toBe(spawned[0]);
   });
 

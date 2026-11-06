@@ -25,6 +25,7 @@ const REQUIRED_DECISIONS = [
   'chronicleProseNames',
   'dailyPersonRoll',
   'traitInfluence',
+  'personalMarks',
   'careerHistory',
   'careerProgression',
   'workerFit',

@@ -1,9 +1,8 @@
 import type { Entity, WorldState, Building } from './gameTypes';
 import { BuildingType, BUILDING_JOB_TYPES, EntityType, JOB_LABELS, JobType } from './gameTypes';
 import { TICKS_PER_DAY } from './dayCycleClock';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { PROFILE_REVISION, bumpRevision } from './entityRevision';
-import type { TraitContext } from './personality/traitEffectCatalog';
 
 export function getOccupationForBuilding(type: BuildingType): string {
   const job = BUILDING_JOB_TYPES[type];
@@ -115,8 +114,8 @@ export type WorkAction = 'production' | 'construction';
 /**
  * The crew's skill and the catalog's DNA factor for the work it is doing, as one multiplier.
  *
- * The context is the site's own trade for production and `work`/builder/construction for a build
- * crew, so a trait irrelevant to the work is neutral and each trait is priced exactly once.
+ * The activity is the build crew's construction activity or the site's routine production, so an
+ * aptitude irrelevant to the work is neutral and each dimension is priced exactly once.
  */
 export function getWorkerSkillMultiplier(
   state: WorldState,
@@ -130,9 +129,7 @@ export function getWorkerSkillMultiplier(
   // no production job, yet the crew raising it still earns — and is priced by — Building.
   const skillJob = action === 'construction' ? siteJob ?? JobType.Builder : siteJob;
   if (!skillJob) return 1;
-  const workContext: TraitContext = action === 'construction'
-    ? { kind: 'work', job: JobType.Builder, action: 'construction' }
-    : { kind: 'work', job: skillJob, action: 'production' };
+  const workActivity = action === 'construction' ? 'construction' as const : 'routineWork' as const;
   let total = 0;
   let traitFactorSum = 0;
   for (const id of building.occupants) {
@@ -144,7 +141,7 @@ export function getWorkerSkillMultiplier(
       continue;
     }
     total += readSkill(h, skillJob);
-    traitFactorSum += evaluateTraitInfluence(h, workContext).factor;
+    traitFactorSum += evaluateAptitudeInfluence(h, workActivity).factor;
   }
   const avg = total / building.occupants.length;
   const traitMult = traitFactorSum / building.occupants.length;

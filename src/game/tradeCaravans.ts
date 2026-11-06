@@ -2,17 +2,18 @@ import { moveResident } from './housingPipeline';
 import type { Entity, Resources, TradeRoute, WorldState } from './gameTypes';
 import { BuildingType, EntityType, JobType } from './gameTypes';
 import { EVENT_INTERVAL, ticksForDays } from './dayCycle';
-import { getPlayerCampCenter } from './frontierCombat';
+import { getPlayerSettlerCenter } from './villageAnchor';
 import { addFloatingText, addNotification } from './simEffects';
 import { getMultiplier } from './simHelpers';
 import { addResource } from './resourceUtils';
 import { spendFood } from './economyLedger';
 import { getTownHallTradeMultiplier } from './townHall';
 import { logEvent } from './eventLog';
-import { createEntity } from './entityFactory';
+import { createEntity, finalizeSettlerAge } from './entityFactory';
 import { ensureEntityByIdMap, unindexEntityFromState } from './entityIndex';
 import { clearWorkerAssignment } from './workforce';
 import { pushNewEntity } from './simulation/simulationEntities';
+import { homeEntryPosition } from './simulation/humanMovement';
 import type { TickContext } from './simulation/simulationTypes';
 
 /** Long-range trade routes require a completed player Market (EC-4). */
@@ -55,10 +56,14 @@ export function getTradeHubCenter(state: WorldState): { x: number; y: number } {
   for (const type of hubTypes) {
     const building = state.buildings.find((b) => b.completed && b.faction !== 'rival' && b.type === type);
     if (building) {
-      return { x: building.x + building.width / 2, y: building.y + building.height / 2 };
+      // The building centre is inside a solid footprint; the caravan uses its door.
+      return homeEntryPosition(building, building.x, building.y);
     }
   }
-  return getPlayerCampCenter(state, state.buildings);
+  const fallback = state.buildings.find((b) => b.completed && b.faction !== 'rival');
+  return fallback
+    ? homeEntryPosition(fallback, fallback.x, fallback.y)
+    : getPlayerSettlerCenter(state);
 }
 
 export function enrichTradeRoute(route: TradeRoute, state: WorldState, index: number): void {
@@ -276,6 +281,7 @@ function spawnCaravan(state: WorldState, route: TradeRoute, ctx: TickContext): b
     name: `${route.targetName} trader`,
     gender: 'male',
   });
+  finalizeSettlerAge(carrier, state);
   carrier.job = JobType.Merchant;
   carrier.faction = 'trade_caravan';
   carrier.groupId = route.id;

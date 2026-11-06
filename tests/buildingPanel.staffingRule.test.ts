@@ -76,8 +76,10 @@ describe("the inspector measures a Prison by the owner's guard posts", () => {
     const { cap, staffed } = staffingCapFor(prison, state.entities);
     expect(cap).toBeLessThan(prison.occupants.length);
     const html = renderPanel(prison, state);
-    expect(html).toContain(`Assigned workers: ${staffed} / ${cap}`);
-    expect(html).not.toContain(`Assigned workers: ${prison.occupants.length} / `);
+    expect(html).toContain(`Guard capacity: ${staffed} of ${cap} filled`);
+    expect(html).toContain(`${cap - staffed} open`);
+    expect(html).toContain('Prison cells: 4 of 4 occupied · 0 free');
+    expect(html).not.toContain(`Guard capacity: ${prison.occupants.length} of `);
   });
 
   it('does not offer the empty-picker notice once every post is filled', () => {
@@ -175,7 +177,8 @@ describe('assigned workers vs actual presence', () => {
       human(2, { workerBuildingId: 10, residenceBuildingId: 11, x: 0, y: 0 }),
     ];
     const html = renderPanel(barracks, makeWorld(soldiers, [home, barracks]));
-    expect(html).toContain('Assigned workers: 2 / 4');
+    expect(html).toContain('Worker capacity: 2 of 4 filled');
+    expect(html).toContain('2 open');
     expect(html).toContain('not necessarily here right now');
     expect(html).toContain('Off duty');
   });

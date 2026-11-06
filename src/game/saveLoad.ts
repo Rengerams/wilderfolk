@@ -20,7 +20,7 @@ import { legacyTerrainSeed } from './terrain/terragen';
 import {
   getCalendarDay, getHourOfDay, getAbsoluteCalendarDay, migrateHumanAges,
   TICKS_PER_DAY, LEGACY_TICKS_PER_DAY, DAYS_PER_YEAR,
-  repairJuvenileAssignmentsOnLoad,
+  repairJuvenileAssignmentsOnLoad, getColonyDay, setHumanBirthFromAge,
 } from './dayCycle';
 import { displayYear } from './dayCycleClock';
 import { mergeCombatResearchNodes } from './combat';
@@ -34,6 +34,7 @@ import { clampCloseFriendships } from './relationships';
 import { GAME_VERSION } from './version';
 import { ensureEntitySkills } from './skills';
 import { TICKED_SPECIES } from './entityFactory';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { normalizeWorkSchedule } from './workSchedule';
 import { normalizeWorkforcePolicy } from './workforcePolicy';
 import { normalizeVenueSchedule } from './venueSchedule';
@@ -41,7 +42,8 @@ import { normalizeFestivalState, repairStaleFestivalOnLoad } from './dailyWorldE
 
 import { seedTutorialSeenForExistingState } from './contextualTutorial';
 import { adoptSimSeedFromWorld, getSimSeed, restoreSimRng, snapshotSimRng, worldSimRngSnapshot } from './simRng';
-import { rollLegacySettlerTraits, validSettlerTraits } from './settlerTraits';
+import { genomeFromSeed, normalizeGenome } from './settlerTraits';
+import { normalizeMarks } from './personalMarks';
 import { syncResearchUnlocks } from './research';
 import { assignMissingWorkers } from './workforce';
 import { syncBigNewsIdFromState } from './simEffects';
@@ -110,26 +112,23 @@ function repairLoadedHumanGround(world: WorldState): number {
 const COMPATIBLE_SAVE_VERSIONS = new Set([GAME_VERSION, '0.6.5.0']);
 
 /**
- * Legacy DNA — a settler saved before traits existed carries none, and the trait effects have to
- * apply to them from the first tick, so the missing baseline is filled on load.
- *
- * The fill is derived from the colony seed and each citizen's own id (`rollLegacySettlerTraits`), so
- * it is stable for a save file and does not draw from the live `settlerTraits` stream. Saved DNA is
- * never rerolled: a valid 1–3 trait set (including a shorter one) is left exactly as written, and
- * only unknown/duplicate entries are dropped.
+ * The one genotype load boundary: keep a valid saved genome, backfill an old settler
+ * deterministically, and drop the retired categorical traits field.
  */
 function backfillLegacySettlerDNA(entities: Entity[], colonySeed: number): number {
   let filled = 0;
   for (const entity of entities) {
-    // A cursed settler may be saved in moon form, which is still the same person and their DNA.
-    if (!entity.alive) continue;
     if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
-    const saved = entity.traits;
-    const kept = validSettlerTraits(saved);
-    if (kept.length > 0 && kept.length === (Array.isArray(saved) ? saved.length : 0)) continue;
-    entity.traits = kept.length > 0
-      ? kept
-      : rollLegacySettlerTraits(colonySeed, entity.id, entity.gender);
+    // The retired categorical labels are never kept as a second genetics source, even for the dead.
+    delete (entity as unknown as Record<string, unknown>).traits;
+    // A cursed settler may be saved in moon form, which is still the same person and their genome.
+    if (!entity.alive) continue;
+    const saved = normalizeGenome(entity.genomeV2);
+    if (saved !== undefined) {
+      entity.genomeV2 = saved;
+      continue;
+    }
+    entity.genomeV2 = genomeFromSeed(colonySeed, entity.id);
     filled++;
   }
   return filled;
@@ -1586,6 +1585,13 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     // Runs here because the seed it derives from is now the loaded colony's own (`worldMap.seed`,
     // with a valid saved `simRng.seed` winning), and it never draws from a live stream.
     backfillLegacySettlerDNA(world.entities, getSimSeed());
+    // Personal marks are not genetics: validate or drop them without ever drawing a new one.
+    for (const entity of world.entities) {
+      if (entity.type !== EntityType.Human && entity.type !== EntityType.Werewolf) continue;
+      const marks = normalizeMarks(entity.marks);
+      if (marks === undefined) delete entity.marks;
+      else entity.marks = marks;
+    }
     for (const entity of world.entities) {
       migrateLegacyMoonHowler(entity, colonyDayOnLoad, hourOnLoad);
     }
@@ -1666,6 +1672,15 @@ export function loadGameFromParsedOutcome(parsed: Record<string, unknown>): Save
     reconcileDanglingReferencesOnLoad(world);
 
     migrateHumanAges(world.entities, { year: world.year, dayInYear: world.dayInYear });
+    // Trade-route carriers used to spawn at age 0 and age into children; keep them adult.
+    const colonyDay = getColonyDay(world);
+    for (const carrier of world.entities) {
+      if (carrier.faction === 'trade_caravan' && carrier.age < HUMAN_ADULT_MIN_AGE) {
+        carrier.age = HUMAN_ADULT_MIN_AGE;
+        carrier.isJuvenile = false;
+        setHumanBirthFromAge(carrier, HUMAN_ADULT_MIN_AGE, colonyDay);
+      }
+    }
     rebuildChildrenIds(world.entities);
     // Legacy saves can exceed the close-friend cap; trim before the first social day.
     clampCloseFriendships(world.entities.filter(isPlayerHuman));

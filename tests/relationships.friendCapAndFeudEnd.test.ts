@@ -14,6 +14,7 @@ import {
 } from '../src/game/relationships';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { human } from '../src/test/factories';
+import { genomeFrom } from './helpers/genome';
 
 function state(): WorldState {
   return {
@@ -109,8 +110,9 @@ describe('legacy friendship reconciliation', () => {
 
 describe('a feud that starts is announced as settled', () => {
   it('opens a mutual feud from the daily pulse, then logs its end', () => {
-    const a = human(1, { name: 'Asha', residenceBuildingId: 10, traits: ['fierce'] });
-    const b = human(2, { name: 'Bo', residenceBuildingId: 10, traits: ['stoic'] });
+    const genomeV2 = genomeFrom({ riskTaking: 95 });
+    const a = human(1, { name: 'Asha', residenceBuildingId: 10, genomeV2 });
+    const b = human(2, { name: 'Bo', residenceBuildingId: 10, genomeV2 });
     const world = state();
 
     advanceSocialRelationships(world, [a, b], undefined, () => 0);
@@ -129,7 +131,7 @@ describe('a feud that starts is announced as settled', () => {
 
   it('settles every feud its own drift opened over a year apart from new ones', () => {
     const people = Array.from({ length: 30 }, (_, i) =>
-      human(i + 1, { residenceBuildingId: 10, traits: [i % 2 === 0 ? 'fierce' : 'stoic'] }),
+      human(i + 1, { residenceBuildingId: 10, genomeV2: genomeFrom({ riskTaking: 95 }) }),
     );
     const world = state();
     world.entities = people;

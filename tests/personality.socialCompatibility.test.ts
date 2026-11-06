@@ -1,158 +1,35 @@
+/**
+ * The social owners read the one aptitude evaluator: friendship growth, feud drift, reconciliation
+ * and workplace banter. The retired categorical incompatibility table is gone; friction is now a
+ * signed, continuous activity factor.
+ */
 import { personDayRoll } from '../src/game/simRng';
 import { describe, expect, it } from 'vitest';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import type { SettlerTrait } from '../src/game/settlerTraits';
+import type { GenomeV2 } from '../src/game/settlerTraits';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
-
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { tryWorkplaceBanter } from '../src/game/socialLife';
-import { advanceSocialRelationships, feudScore } from '../src/game/relationships';
-import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
-import { TRAIT_OPPOSITIONS } from '../src/game/personality/traitEffectCatalog';
+import {
+  advanceSocialRelationships,
+  feudScore,
+  friendshipScore,
+} from '../src/game/relationships';
+import { combinePairFactors, evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
+import { genomeFrom } from './helpers/genome';
 
-type Traits = readonly SettlerTrait[];
-interface Person {
-  readonly id: number;
-  readonly traits?: Traits | null;
-}
+const SOCIAL_GENOME = genomeFrom({ sociability: 95, sensitivity: 90, cooperation: 90, composure: 10 });
+const UNSOCIAL_GENOME = genomeFrom({ sociability: 5, sensitivity: 5, cooperation: 5, composure: 95 });
+const CONFLICT_GENOME = genomeFrom({ riskTaking: 95 });
+const COOPERATIVE_GENOME = genomeFrom({ cooperation: 95, flexibility: 90, patience: 90 });
+const COMPANY_GENOME = genomeFrom({ sociability: 95, flexibility: 90, sensitivity: 80, perception: 10, composure: 10 });
 
-/** AS-IS reference: the five retired cross-person incompatibility pairs. */
-const LEGACY_CLASHES: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = [
-  ['brave', 'timid'],
-  ['gregarious', 'timid'],
-  ['gregarious', 'stoic'],
-  ['fierce', 'stoic'],
-  ['chivalrous', 'fierce'],
-];
+const FRIENDSHIP_GROUP_BUMP = 0.6;
+const BANTER_BASE_CHANCE = 0.08;
 
-const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
-
-function legacyClashCount(a: Person, b: Person): number {
-  const aTraits = a.traits;
-  const bTraits = b.traits;
-  if (!aTraits?.length || !bTraits?.length) return 0;
-  let clashes = 0;
-  for (const [x, y] of LEGACY_CLASHES) {
-    if ((aTraits.includes(x) && bTraits.includes(y)) || (aTraits.includes(y) && bTraits.includes(x))) clashes++;
-  }
-  return clashes;
-}
-
-const clashCount = (a: Person, b: Person): number =>
-  evaluateTraitInfluence(a, { kind: 'social', activity: 'feudClash', other: b }).exact.clashCount;
-
-/** Mulberry32: deterministic draw stream so old and new paths see the same numbers. */
-function seededRng(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** AS-IS reference: `driftIntoFeud` rolls only after a non-zero clash count. */
-function feudDecision(clashes: number, rng: () => number): { started: boolean; draws: number } {
-  if (clashes === 0) return { started: false, draws: 0 };
-  const draw = rng();
-  return { started: draw < clashes * INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY, draws: 1 };
-}
-
-const couples: Array<readonly [Person, Person]> = [
-  [{ id: 1, traits: ['brave'] }, { id: 2, traits: ['timid'] }],
-  [{ id: 3, traits: ['gregarious'] }, { id: 4, traits: ['stoic'] }],
-  [{ id: 5, traits: ['chivalrous', 'nurturing'] }, { id: 6, traits: ['fierce'] }],
-  [{ id: 7, traits: ['brave', 'gregarious', 'fierce'] }, { id: 8, traits: ['timid', 'stoic', 'chivalrous'] }],
-  [{ id: 9, traits: ['nurturing'] }, { id: 10, traits: ['insightful'] }],
-  [{ id: 11, traits: [] }, { id: 12, traits: ['brave'] }],
-  [{ id: 13, traits: null }, { id: 14, traits: ['timid'] }],
-  [{ id: 15 }, { id: 16, traits: ['fierce'] }],
-];
-
-const singleEdgePairs: ReadonlyArray<readonly [SettlerTrait, SettlerTrait]> = LEGACY_CLASHES;
-
-describe('social incompatibility parity', () => {
-  it('keeps exactly the five historical cross-person pairs, stored once in the catalog', () => {
-    expect(TRAIT_OPPOSITIONS).toHaveLength(5);
-    expect([...TRAIT_OPPOSITIONS].map(([a, b]) => `${a}/${b}`).sort())
-      .toEqual(LEGACY_CLASHES.map(([a, b]) => `${a}/${b}`).sort());
-  });
-
-  it('finds each edge in both settler orders and nothing else', () => {
-    for (const [x, y] of singleEdgePairs) {
-      expect(clashCount({ id: 1, traits: [x] }, { id: 2, traits: [y] }), `${x}/${y}`).toBe(1);
-      expect(clashCount({ id: 2, traits: [y] }, { id: 1, traits: [x] }), `${y}/${x}`).toBe(1);
-      expect(clashCount({ id: 1, traits: [x] }, { id: 2, traits: [x] })).toBe(0);
-    }
-    expect(clashCount({ id: 1, traits: ['brave', 'gregarious'] }, { id: 2, traits: ['nurturing'] })).toBe(0);
-  });
-
-  it('counts 0..5 clashes identically and symmetrically', () => {
-    for (const [a, b] of couples) {
-      expect(clashCount(a, b)).toBe(legacyClashCount(a, b));
-      expect(clashCount(b, a)).toBe(legacyClashCount(a, b));
-    }
-    const allPairs = { id: 21, traits: ['brave', 'gregarious', 'fierce'] as const };
-    const opposite = { id: 22, traits: ['timid', 'stoic', 'chivalrous'] as const };
-    expect(clashCount(allPairs, opposite)).toBe(5);
-  });
-
-  it('returns zero for absent, empty or unknown DNA without touching the bounded factor', () => {
-    const unknown = { id: 41, traits: ['not_a_trait'] as unknown as SettlerTrait[] };
-    for (const [a, b] of [
-      [{ id: 31 }, { id: 32, traits: ['brave'] }],
-      [{ id: 33, traits: [] }, { id: 34, traits: ['timid'] }],
-      [{ id: 35, traits: null }, { id: 36, traits: ['fierce'] }],
-      [unknown, { id: 42, traits: ['fierce'] }],
-    ] as Array<readonly [Person, Person]>) {
-      expect(clashCount(a, b)).toBe(0);
-    }
-    const exact = evaluateTraitInfluence(
-      { traits: ['brave', 'gregarious'] },
-      { kind: 'social', activity: 'feudClash', other: { traits: ['timid'] } },
-    );
-    expect(exact.factor).toBe(1);
-    expect(exact.tendency).toBe(0);
-  });
-
-  it('keeps the same seeded feud decisions and the zero-clash no-draw guard', () => {
-    for (const [a, b] of couples) {
-      for (const seed of [1, 7, 99, 12345, 987654321]) {
-        const legacy = feudDecision(legacyClashCount(a, b), seededRng(seed));
-        const migrated = feudDecision(clashCount(a, b), seededRng(seed));
-        expect(migrated).toEqual(legacy);
-        if (legacyClashCount(a, b) === 0) expect(migrated.draws).toBe(0);
-      }
-    }
-  });
-
-  it('never lets a clashless pair consume a draw even at extreme seeds', () => {
-    const a = { id: 31, traits: ['nurturing'] as const };
-    const b = { id: 32, traits: ['insightful'] as const };
-    let draws = 0;
-    const counting = () => {
-      draws += 1;
-      return 0;
-    };
-    expect(feudDecision(clashCount(a, b), counting).started).toBe(false);
-    expect(draws).toBe(0);
-  });
-
-  it('keeps the unchanged 0.00005 feuds-per-day scale', () => {
-    const oneClash = () => 0.000049;
-    const atThreshold = () => INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY;
-    const a = { id: 51, traits: ['brave'] as const };
-    const b = { id: 52, traits: ['timid'] as const };
-    expect(feudDecision(clashCount(a, b), oneClash)).toEqual({ started: true, draws: 1 });
-    expect(feudDecision(clashCount(a, b), atThreshold).started).toBe(false);
-  });
-});
-
-/** The real owner needs a world for its event log and feud writers. */
-function feudWorld(): WorldState {
+/** A world for the real owner's event log and feud writers. */
+function socialWorld(): WorldState {
   return {
     entities: [],
     buildings: [],
@@ -172,7 +49,7 @@ function feudWorld(): WorldState {
 }
 
 /** Two housemates in one residence group: too small to spend a group-sampling draw. */
-function housemate(id: number, traits: Traits): Entity {
+function housemate(id: number, genomeV2: GenomeV2): Entity {
   return {
     id,
     type: EntityType.Human,
@@ -181,100 +58,110 @@ function housemate(id: number, traits: Traits): Entity {
     energy: 100,
     maxEnergy: 100,
     residenceBuildingId: 10,
-    traits: [...traits],
+    genomeV2,
   } as Entity;
 }
 
-function feudAtOwner(traitsA: Traits, traitsB: Traits, roll: () => number) {
-  const a = housemate(1, traitsA);
-  const b = housemate(2, traitsB);
-  let draws = 0;
-  const counted = () => {
-    draws += 1;
-    return roll();
-  };
-  advanceSocialRelationships(feudWorld(), [a, b], undefined, counted);
-  return { draws, a, b };
+function pairFactor(genomeA: GenomeV2, genomeB: GenomeV2, activity: 'friendship' | 'reconciliation' | 'conflict'): number {
+  return combinePairFactors(
+    evaluateAptitudeInfluence({ genomeV2: genomeA }, activity).factor,
+    evaluateAptitudeInfluence({ genomeV2: genomeB }, activity).factor,
+  );
 }
 
+describe('friendship growth follows the friendship activity', () => {
+  it('grows a social pair faster and an unsocial pair slower than neutral', () => {
+    const neutral = pairFactor(genomeFrom(), genomeFrom(), 'friendship');
+    const social = pairFactor(SOCIAL_GENOME, SOCIAL_GENOME, 'friendship');
+    const unsocial = pairFactor(UNSOCIAL_GENOME, UNSOCIAL_GENOME, 'friendship');
+    expect(neutral).toBe(1);
+    expect(social).toBeGreaterThan(1);
+    expect(unsocial).toBeLessThan(1);
+
+    const grow = (genomeV2: GenomeV2): number => {
+      const a = housemate(1, genomeV2);
+      const b = housemate(2, genomeV2);
+      advanceSocialRelationships(socialWorld(), [a, b], undefined, () => 0.99);
+      return friendshipScore(a, b.id);
+    };
+    // Housemates share a context, so the same-day decay leaves their new bond in place.
+    expect(grow(genomeFrom())).toBeCloseTo(FRIENDSHIP_GROUP_BUMP * neutral, 10);
+    expect(grow(SOCIAL_GENOME)).toBeCloseTo(FRIENDSHIP_GROUP_BUMP * social, 10);
+    expect(grow(UNSOCIAL_GENOME)).toBeCloseTo(FRIENDSHIP_GROUP_BUMP * unsocial, 10);
+  });
+});
+
 describe('feud decisions at the real owner boundary', () => {
-  it('spends exactly one draw on a clashing pair and none on a clashless one', () => {
-    const clash = feudAtOwner(['fierce'], ['stoic'], () => 0);
+  it('spends exactly one draw on a high-friction pair and none on a cooperative one', () => {
+    const run = (genomeA: GenomeV2, genomeB: GenomeV2, roll: () => number) => {
+      const a = housemate(1, genomeA);
+      const b = housemate(2, genomeB);
+      let draws = 0;
+      const counted = () => { draws += 1; return roll(); };
+      advanceSocialRelationships(socialWorld(), [a, b], undefined, counted);
+      return { draws, a, b };
+    };
+
+    const clash = run(CONFLICT_GENOME, genomeFrom(), () => 0);
     expect(clash.draws).toBe(1);
     expect(feudScore(clash.a, clash.b.id)).toBeGreaterThan(0);
     expect(feudScore(clash.b, clash.a.id)).toBe(feudScore(clash.a, clash.b.id));
 
-    const calm = feudAtOwner(['hardy'], ['lucky'], () => 0);
+    const calm = run(COOPERATIVE_GENOME, COOPERATIVE_GENOME, () => 0);
     expect(calm.draws).toBe(0);
     expect(feudScore(calm.a, calm.b.id)).toBe(0);
     expect(feudScore(calm.b, calm.a.id)).toBe(0);
   });
 
-  it('scales the one threshold compare by the clash count it read', () => {
-    const triple = feudAtOwner(
-      ['brave', 'gregarious', 'fierce'],
-      ['timid', 'stoic', 'chivalrous'],
-      () => 0.0001,
-    );
-    expect(triple.draws).toBe(1);
-    expect(feudScore(triple.a, triple.b.id)).toBeGreaterThan(0);
+  it('scales the one threshold compare by the pair conflict factor', () => {
+    const factor = pairFactor(CONFLICT_GENOME, genomeFrom(), 'conflict');
+    expect(factor).toBeGreaterThan(1);
+    const base = 0.000005;
+    const justBelow = factor * base * 0.98;
+    const above = factor * base * 1.02;
 
-    const single = feudAtOwner(['brave'], ['timid'], () => 0.0001);
-    expect(single.draws, 'the draw still happens; only the compare fails').toBe(1);
-    expect(feudScore(single.a, single.b.id)).toBe(0);
+    const run = (roll: number) => {
+      const a = housemate(1, CONFLICT_GENOME);
+      const b = housemate(2, genomeFrom());
+      advanceSocialRelationships(socialWorld(), [a, b], undefined, () => roll);
+      return feudScore(a, b.id);
+    };
+    expect(run(justBelow)).toBeGreaterThan(0);
+    expect(run(above)).toBe(0);
   });
 });
 
-describe('workplace banter parity', () => {
-  const BANTER = { kind: 'social', activity: 'workplaceBanter' } as const;
-  const BANTER_BASE_CHANCE = 0.08;
-  const legacyChance = (traits: Traits | null | undefined): number =>
-    (traits?.includes('intuitive') ? 0.11 : BANTER_BASE_CHANCE);
-  const banterChance = (traits: Traits | null | undefined): number =>
-    evaluateTraitInfluence({ traits }, BANTER).exact.chanceOverride ?? BANTER_BASE_CHANCE;
-
-  const traitSets: Array<Traits | null | undefined> = [
-    undefined, null, [], ['intuitive'], ['brave'], ['intuitive', 'brave'], ['nurturing', 'fierce'],
-  ];
-
-  it('takes the Intuitive 0.11 from the catalog and otherwise keeps the 0.08 baseline', () => {
-    expect(evaluateTraitInfluence({ traits: ['intuitive'] }, BANTER).exact.chanceOverride).toBe(0.11);
-    expect(evaluateTraitInfluence({ traits: ['nurturing'] }, BANTER).exact.chanceOverride).toBeUndefined();
-    for (const traits of traitSets) {
-      expect(banterChance(traits)).toBe(legacyChance(traits));
-    }
+describe('workplace banter follows the company activity', () => {
+  it('raises the chance for a sociable pair and leaves the baseline for neutral', () => {
+    const neutral = evaluateAptitudeInfluence({ genomeV2: genomeFrom() }, 'company').factor;
+    const sociable = evaluateAptitudeInfluence({ genomeV2: COMPANY_GENOME }, 'company').factor;
+    expect(neutral).toBe(1);
+    expect(sociable).toBeGreaterThan(1);
+    expect(BANTER_BASE_CHANCE * sociable).toBeGreaterThan(BANTER_BASE_CHANCE);
+    expect(BANTER_BASE_CHANCE * sociable).toBeLessThan(1);
   });
 
-  it('keeps the same pass/fail boundary and stays a chance, never a bounded factor', () => {
-    const roll = 0.095;
-    expect(roll > banterChance(['brave'])).toBe(roll > legacyChance(['brave']));
-    expect(roll > banterChance(['intuitive'])).toBe(roll > legacyChance(['intuitive']));
-    expect(roll > legacyChance(['brave'])).toBe(true);
-    expect(roll > legacyChance(['intuitive'])).toBe(false);
-    const influence = evaluateTraitInfluence({ traits: ['intuitive'] }, BANTER);
-    expect(influence.factor).toBe(1);
-    expect(influence.tendency).toBe(0);
-  });
+  it('keeps the owner decision on the same day roll', () => {
+    const chance = BANTER_BASE_CHANCE * evaluateAptitudeInfluence({ genomeV2: COMPANY_GENOME }, 'company').factor;
+    const tick = findTickBetween(ENTITY_ID, 720, BANTER_BASE_CHANCE, chance);
 
-  it('keeps the owner decision identical on the same day roll', () => {
-    const tick = findTickBetween(ENTITY_ID, 720, 0.08, 0.11);
-    const speaker = (traits: Traits) => {
+    const speaker = (genomeV2: GenomeV2) => {
       const entity = createEntity(EntityType.Human, 300, 300, ENTITY_ID, 80, false, { name: 'Bram' });
       entity.alive = true;
-      entity.traits = [...traits];
+      entity.genomeV2 = genomeV2;
       return entity;
     };
-    const plain = speaker(['brave']);
+    const plain = speaker(genomeFrom());
     tryWorkplaceBanter(plain, [], tick, 12, true);
     expect(plain.chatTicks ?? 0).toBe(0);
 
-    const intuitive = speaker(['intuitive']);
-    tryWorkplaceBanter(intuitive, [], tick, 12, true);
-    expect(intuitive.chatPhrase, 'Intuitive speaks inside the 0.11 band').toBeDefined();
-    expect(intuitive.chatTicks ?? 0).toBeGreaterThan(0);
+    const sociable = speaker(COMPANY_GENOME);
+    tryWorkplaceBanter(sociable, [], tick, 12, true);
+    expect(sociable.chatPhrase, 'a sociable settler speaks inside the elevated band').toBeDefined();
+    expect(sociable.chatTicks ?? 0).toBeGreaterThan(0);
 
     for (const [alive, hour, onDayShift] of [[false, 12, true], [true, 10, true], [true, 12, false]] as const) {
-      const gated = speaker(['intuitive']);
+      const gated = speaker(COMPANY_GENOME);
       gated.alive = alive;
       tryWorkplaceBanter(gated, [], tick, hour, onDayShift);
       expect(gated.chatTicks ?? 0).toBe(0);

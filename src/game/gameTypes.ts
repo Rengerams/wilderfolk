@@ -10,7 +10,8 @@ import { BuildingType } from './buildings';
 import type { Building } from './buildings';
 import type { Challenge } from './challenges';
 import type { SimRngSnapshot } from './simRng';
-import type { SettlerTrait } from './settlerTraits';
+import type { GenomeV2 } from './settlerTraits';
+import type { PersonalMark } from './personalMarks';
 import type { CareerHistory } from './careers/careerHistory';
 import type { CareerMilestones } from './careers/careerProgression';
 
@@ -301,7 +302,10 @@ export interface Entity {
   scheduleLastWorkedJob?: JobType | null;
   scheduleFatigue?: number;
   educated?: boolean;
-  traits?: SettlerTrait[];
+  /** The one inherited genotype; absent only in a pre-migration/dead/foreign subject. */
+  genomeV2?: GenomeV2;
+  /** Born or earned personal marks; never inherited and never part of the genome. */
+  marks?: PersonalMark[];
   pregnant?: boolean;
   pregnancyProgress?: number;
   pregnancyDueProgress?: number;

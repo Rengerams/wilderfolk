@@ -12,7 +12,7 @@ import {
   isImprisoned,
 } from '../game/housingModel';
 import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
-import { TRAIT_DEFS } from '../game/settlerTraits';
+import { APTITUDE_DEFS, APTITUDE_IDS, expressAptitudes } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/settlerInteractionActions';
 import { hasNearbyPlayerTamingPost, listTamingCandidates, getTameEntityEligibility } from '../game/settlerInteractionActions';
@@ -206,20 +206,26 @@ export default function SelectedEntityPanel({
           {isHuman && entity.moonHowlerCursed && (
             <p className="text-[11px] font-semibold text-violet-300">🌝 Moon Howler curse — transforms again every 14 days until cured</p>
           )}
-          {isHuman && entity.traits && entity.traits.length > 0 && (
+          {isHuman && entity.genomeV2 && (
             <div className="mt-0.5 flex flex-wrap gap-1">
-              {entity.traits.map((trait) => {
-                const def = TRAIT_DEFS[trait];
-                return def ? (
-                  <span
-                    key={trait}
-                    title={def.description}
-                    className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100/90"
-                  >
-                    {def.emoji} {def.label}
-                  </span>
-                ) : null;
-              })}
+              {expressAptitudes(entity.genomeV2).relative
+                .map((relative, index) => ({ relative, id: APTITUDE_IDS[index] }))
+                .filter((entry) => Math.abs(entry.relative) >= 1)
+                .sort((a, b) => Math.abs(b.relative) - Math.abs(a.relative))
+                .slice(0, 3)
+                .map((entry) => {
+                  const def = APTITUDE_DEFS[entry.id];
+                  const good = entry.relative > 0;
+                  return (
+                    <span
+                      key={entry.id}
+                      title={good ? def.high : def.low}
+                      className="rounded bg-stone-700/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100/90"
+                    >
+                      {good ? '＋' : '−'} {def.label}
+                    </span>
+                  );
+                })}
             </div>
           )}
           {isVisitor && visitorGroup && (

@@ -1,6 +1,6 @@
 import type { Entity, WorldState } from './gameTypes';
 import { JobType } from './gameTypes';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { combinePairFactors, evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { logEvent } from './eventLog';
 import { playerHumansFrom } from './playerHuman';
 import { getSimRng } from './simRng';
@@ -35,7 +35,8 @@ const FEUD_DECAY_PER_DAY = 0.4;
 const FEUD_ENERGY_DRAIN = 0.15;
 const FEUD_BREWING_THRESHOLD = 30;
 
-const INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY = 0.00005;
+/** Baseline daily feud chance for one pair before the two settler conflict modifiers. */
+const PAIR_CONFLICT_FEUD_CHANCE_PER_DAY = 0.000005;
 const INCOMPATIBLE_PAIR_FEUD_AMOUNT = 30;
 
 function tradeOf(e: Entity): Entity['job'] | null {
@@ -284,7 +285,11 @@ export function advanceSocialRelationships(
     if (feudScore(a, b.id) > 0) return;
 
     const before = friendshipScore(a, b.id);
-    const next = Math.min(100, before + amt);
+    const pairFactor = combinePairFactors(
+      evaluateAptitudeInfluence(a, 'friendship').factor,
+      evaluateAptitudeInfluence(b, 'friendship').factor,
+    );
+    const next = Math.min(100, before + amt * pairFactor);
     if (before < FRIEND_CLOSE_THRESHOLD && next >= FRIEND_CLOSE_THRESHOLD) {
       if ((closeFriendsById.get(a.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER) return;
       if ((closeFriendsById.get(b.id) ?? 0) >= MAX_CLOSE_FRIENDS_PER_SETTLER) return;
@@ -309,9 +314,13 @@ export function advanceSocialRelationships(
     if ((liveFeudsById.get(a.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
     if ((liveFeudsById.get(b.id) ?? 0) >= MAX_LIVE_FEUDS_PER_SETTLER) return;
 
-    const clashes = evaluateTraitInfluence(a, { kind: 'social', activity: 'feudClash', other: b }).exact.clashCount;
-    if (clashes === 0) return;
-    if (rng() >= clashes * INCOMPATIBLE_PAIR_FEUD_CHANCE_PER_DAY) return;
+    const pairFactor = combinePairFactors(
+      evaluateAptitudeInfluence(a, 'conflict').factor,
+      evaluateAptitudeInfluence(b, 'conflict').factor,
+    );
+    // Below average friction never drifts into a feud; above it, the same factor scales the roll.
+    if (pairFactor <= 1) return;
+    if (rng() >= PAIR_CONFLICT_FEUD_CHANCE_PER_DAY * pairFactor) return;
 
     startFeud(state, a, b, INCOMPATIBLE_PAIR_FEUD_AMOUNT);
     liveFeudsById.set(a.id, (liveFeudsById.get(a.id) ?? 0) + 1);
@@ -384,7 +393,11 @@ export function advanceSocialRelationships(
         continue;
       }
 
-      const next = Math.max(0, feuds[key] - FEUD_DECAY_PER_DAY);
+      const reconciliationFactor = combinePairFactors(
+        evaluateAptitudeInfluence(p, 'reconciliation').factor,
+        evaluateAptitudeInfluence(other, 'reconciliation').factor,
+      );
+      const next = Math.max(0, feuds[key] - FEUD_DECAY_PER_DAY * reconciliationFactor);
 
       if (next <= 0) {
         const peak = Math.max(p.feudPeaks?.[key] ?? 0, other.feudPeaks?.[otherKey] ?? 0);

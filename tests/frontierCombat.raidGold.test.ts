@@ -16,6 +16,7 @@ import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, RivalSettlement, WorldState } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
+import { genomeFrom } from './helpers/genome';
 
 afterEach(() => {
   resetSimRng();
@@ -53,10 +54,10 @@ function raidFixture(adults: number): { state: WorldState; rival: RivalSettlemen
   const state = initGame({ skipTerrain: true });
   const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
   if (!template) throw new Error('the fixture world has no settler to clone');
-  // `initGame` rolls traits without the sim seed, so the fixture normalises them: only the count may
-  // differ between two sizes of the same village, or a chivalrous settler would decide the ratio.
+  // `initGame` rolls genomes without the sim seed, so the fixture normalises them: only the count may
+  // differ between two sizes of the same village, or a defender's aptitude would decide the ratio.
   for (const entity of state.entities) {
-    if (entity.alive && entity.type === EntityType.Human) { entity.traits = []; entity.job = JobType.Soldier; }
+    if (entity.alive && entity.type === EntityType.Human) { entity.genomeV2 = genomeFrom(); entity.job = JobType.Soldier; }
   }
   let id = 500_000;
   while (state.entities.filter((e) => e.alive && e.type === EntityType.Human).length < adults) {

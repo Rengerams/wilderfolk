@@ -3,43 +3,27 @@ import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import type { SettlerTrait } from '../src/game/settlerTraits';
+import type { GenomeV2 } from '../src/game/settlerTraits';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
+import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { applyWarCommunityReaction } from '../src/game/warPrisoners';
+import { genomeFrom } from './helpers/genome';
 
-type Traits = readonly SettlerTrait[];
-
-const COMMUNITY_REACTION = { kind: 'civic', activity: 'communityReaction' } as const;
 const FIXTURE_SEED = 20_261_028;
 
-/** AS-IS reference: one restraint voice for Nurturing OR Chivalrous, one severity voice for Fierce. */
-const legacyRestraint = (traits: Traits | null | undefined): 0 | 1 =>
-  (traits?.some((trait) => trait === 'nurturing' || trait === 'chivalrous') ? 1 : 0);
-const legacySeverity = (traits: Traits | null | undefined): 0 | 1 => (traits?.includes('fierce') ? 1 : 0);
+/** Above the civic-voice band: a restraint (mercy/empathy) voice. */
+const RESTRAINT_GENOME = genomeFrom({ cooperation: 95, sensitivity: 95, flexibility: 90, discipline: 90, riskTaking: 5 });
+/** Below the civic-voice band: a severity voice. */
+const SEVERITY_GENOME = genomeFrom({ cooperation: 5, sensitivity: 5, flexibility: 5, discipline: 5, riskTaking: 95 });
 
-const voices = (traits: Traits | null | undefined) =>
-  evaluateTraitInfluence({ traits }, COMMUNITY_REACTION).exact;
+const civicFactor = (genomeV2: GenomeV2): number =>
+  evaluateAptitudeInfluence({ genomeV2 }, 'communityReaction').factor;
 
-const traitSets: Array<Traits | null | undefined> = [
-  undefined,
-  null,
-  [],
-  ['nurturing'],
-  ['chivalrous'],
-  ['fierce'],
-  ['brave'],
-  ['nurturing', 'chivalrous'],
-  ['nurturing', 'fierce'],
-  ['chivalrous', 'fierce'],
-  ['stoic', 'lucky'],
-];
-
-function villager(id: number, traits: Traits): Entity {
+function villager(id: number, genomeV2: GenomeV2): Entity {
   const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `V${id}` });
   entity.alive = true;
   entity.isJuvenile = false;
-  entity.traits = [...traits];
+  entity.genomeV2 = genomeV2;
   return entity;
 }
 
@@ -53,35 +37,19 @@ function world(people: Entity[]): WorldState {
 
 const lastMessage = (state: WorldState): string => state.eventLog[0]?.message ?? '';
 
-describe('civic community reaction parity', () => {
-  it('returns the two 0/1 voices exactly as the old direct checks did', () => {
-    for (const traits of traitSets) {
-      expect(voices(traits), JSON.stringify(traits)).toEqual({
-        activity: 'communityReaction',
-        restraintVoice: legacyRestraint(traits),
-        severityVoice: legacySeverity(traits),
-      });
-    }
+describe('civic community reaction reads the communityReaction activity', () => {
+  it('turns a profile above the band into a restraint voice and below it into severity', () => {
+    expect(civicFactor(RESTRAINT_GENOME)).toBeGreaterThan(1.04);
+    expect(civicFactor(SEVERITY_GENOME)).toBeLessThan(0.96);
+    expect(civicFactor(genomeFrom())).toBe(1);
   });
 
-  it('deduplicates Nurturing plus Chivalrous to one restraint voice and lets Fierce coexist', () => {
-    expect(voices(['nurturing', 'chivalrous']).restraintVoice).toBe(1);
-    expect(voices(['nurturing', 'chivalrous']).severityVoice).toBe(0);
-    expect(voices(['fierce', 'nurturing'])).toEqual({
-      activity: 'communityReaction',
-      restraintVoice: 1,
-      severityVoice: 1,
-    });
-  });
-
-  it('keeps the exact result away from the bounded factor', () => {
-    const influence = evaluateTraitInfluence({ traits: ['fierce'] }, COMMUNITY_REACTION);
-    expect(influence.factor).toBe(1);
-    expect(influence.tendency).toBe(0);
-  });
-
-  it('sums the same per-villager voices into the unchanged opinion and message', () => {
-    const people = [villager(1, ['nurturing']), villager(2, ['chivalrous']), villager(3, ['fierce'])];
+  it('sums the per-villager voices into the opinion and message', () => {
+    const people = [
+      villager(1, RESTRAINT_GENOME),
+      villager(2, RESTRAINT_GENOME),
+      villager(3, SEVERITY_GENOME),
+    ];
     const state = world(people);
     applyWarCommunityReaction(state, 'execution', 'rival-1');
     expect(lastMessage(state)).toContain('Community reaction to execution: 2 favor restraint, 1 favor severity');
@@ -91,16 +59,21 @@ describe('civic community reaction parity', () => {
     expect(state.villageReputation).toBe(48);
   });
 
-  it('lets a Fierce Nurturing villager speak in both categories', () => {
-    const state = world([villager(1, ['nurturing', 'fierce'])]);
+  it('leaves a neutral villager without a voice', () => {
+    const state = world([villager(1, genomeFrom())]);
     applyWarCommunityReaction(state, 'tribute', 'rival-1');
-    expect(lastMessage(state)).toContain('1 favor restraint, 1 favor severity');
+    expect(lastMessage(state)).toContain('0 favor restraint, 0 favor severity');
     expect(lastMessage(state)).toContain('leadership standing 0');
     expect(state.villageReputation).toBe(50);
   });
 
   it('keeps the threat voices, choice polarity and half-intensity tribute', () => {
-    const people = [villager(1, ['nurturing']), villager(2, ['brave']), villager(3, ['brave']), villager(4, ['brave'])];
+    const people = [
+      villager(1, RESTRAINT_GENOME),
+      villager(2, genomeFrom()),
+      villager(3, genomeFrom()),
+      villager(4, genomeFrom()),
+    ];
     const state = world(people);
     state.rivalSettlements = [{ id: 'rival-1', atWarWithPlayer: true } as WorldState['rivalSettlements'][number]];
     applyWarCommunityReaction(state, 'tribute', 'rival-1');
@@ -112,19 +85,18 @@ describe('civic community reaction parity', () => {
   });
 
   it('excludes the dead and foreign villagers from the voice count', () => {
-    const dead = villager(2, ['nurturing']);
+    const dead = villager(2, RESTRAINT_GENOME);
     dead.alive = false;
-    const rival = villager(3, ['nurturing']);
+    const rival = villager(3, RESTRAINT_GENOME);
     rival.faction = 'rival';
-    const state = world([villager(1, ['fierce']), dead, rival]);
+    const state = world([villager(1, SEVERITY_GENOME), dead, rival]);
     applyWarCommunityReaction(state, 'execution', 'rival-1');
     expect(lastMessage(state)).toContain('0 favor restraint, 1 favor severity');
   });
 
   it('keeps the leader merit cap and the five outcome polarities', () => {
     for (const choice of ['release', 'execution', 'mercy', 'tribute', 'raze'] as const) {
-      const people = [villager(1, ['fierce']), villager(2, ['brave'])];
-      const state = world(people);
+      const state = world([villager(1, SEVERITY_GENOME), villager(2, genomeFrom())]);
       applyWarCommunityReaction(state, choice, 'rival-1');
       const coercive = choice === 'execution' || choice === 'tribute' || choice === 'raze';
       const expectedSign = coercive ? '+' : '-';
@@ -140,7 +112,7 @@ describe('civic community reaction parity', () => {
   });
 
   it('keeps the repeat-attack window at 30 days', () => {
-    const state = world([villager(1, ['fierce'])]);
+    const state = world([villager(1, SEVERITY_GENOME)]);
     state.raidBattleReports = [{
       raidId: 'raid-1',
       rivalId: 'rival-1',

@@ -6,7 +6,7 @@ import { playerHumansFrom } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { isAdult, isMinor } from './housingModel';
 import { SCHOOL_GRADUATION_DAYS, getEducationTier } from './education';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { advanceCareerProgression } from './careers/careerProgression';
 import { getAbsoluteCalendarDay } from './dayCycleClock';
 
@@ -126,8 +126,8 @@ function teach(ap: Entity, master: Entity, job: JobType, state: WorldState): voi
   const masterSkill = readSkill(master, job);
   const skills = writableEntitySkills(ap);
   const before = skills[job] ?? 0;
-  // The apprentice's DNA nudges how fast this trade is learned (catalog `work`/training context).
-  const trainingFactor = evaluateTraitInfluence(ap, { kind: 'work', job, action: 'training' }).factor;
+  // The apprentice's own aptitudes nudge how fast this trade is learned.
+  const trainingFactor = evaluateAptitudeInfluence(ap, 'apprenticeshipTraining').factor;
   skills[job] = Math.min(100, before + (0.4 + (masterSkill / 100) * 0.5) * trainingFactor);
   // A teacher keeps their own hand in.
   writableEntitySkills(master)[job] = Math.min(100, masterSkill + 0.05);

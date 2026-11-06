@@ -19,18 +19,18 @@ import { EntityType, JobType } from '../src/game/gameTypes';
 import { canBeMustered, computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import { getRaidParticipants } from '../src/game/frontierCombat';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import type { SettlerTrait } from '../src/game/settlerTraits';
+import { genomeFrom } from './helpers/genome';
 
 const FIXTURE_SEED = 20_260_917;
 const SETTLER_COUNT = 20;
 
-/** One adult settler; `traits` is written directly so rolled traits cannot skew a fixture. */
-function adult(id: number, traits: SettlerTrait[] = [], overrides: Partial<Entity> = {}): Entity {
+/** One adult settler; the genome is written directly so a roll cannot skew a fixture. */
+function adult(id: number, overrides: Partial<Entity> = {}): Entity {
   const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
   entity.alive = true;
   entity.isJuvenile = false;
   entity.job = JobType.Soldier;
-  entity.traits = traits;
+  entity.genomeV2 = genomeFrom();
   Object.assign(entity, overrides);
   return entity;
 }
@@ -61,7 +61,7 @@ describe('a prisoner is never mustered', () => {
   it('excludes civilians from combat strength and casualties even when armed', () => {
     const state = world();
     const soldier = adult(1);
-    const farmer = adult(2, [], { job: JobType.Farmer });
+    const farmer = adult(2, { job: JobType.Farmer });
     expect(canBeMustered(soldier)).toBe(true);
     expect(canBeMustered(farmer)).toBe(false);
     const breakdown = computeMilitiaBreakdown(state, [soldier, farmer], { includeStructures: false });
@@ -107,7 +107,7 @@ describe('a prisoner is never mustered', () => {
     const own = settlers();
     const base = computeMilitiaBreakdown(state, own, { includeStructures: false }).militiaStrength;
 
-    const chivalrous = adult(98, ['chivalrous']);
+    const chivalrous = adult(98, { genomeV2: genomeFrom({ composure: 95, riskTaking: 90 }) });
     expect(computeMilitiaBreakdown(state, [...own, chivalrous], { includeStructures: false }).militiaStrength)
       .toBeGreaterThan(base);
 

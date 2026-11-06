@@ -24,11 +24,9 @@ import {
 import { BuildingType, JobType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
 import { isImprisoned } from './housingModel';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
-/** Each already-mustered soldier's own defensive DNA, applied to that soldier's base only. */
-const DEFENSE_CONTEXT: TraitContext = { kind: 'danger', activity: 'defense' };
+/** Each already-mustered soldier's own defensive aptitude, applied to that soldier's base only. */
 
 /** Weapon tier used for militia multiplier (legacy name kept for call sites). */
 export type MilitiaSpearTier = 'none' | 'stone' | 'iron' | 'sword';
@@ -162,11 +160,11 @@ export function computeMilitiaBreakdown(
   const plainBase = adultCount * MILITIA_BALANCE.basePerAdult;
   let base = 0;
   for (const soldier of mustered) {
-    base += MILITIA_BALANCE.basePerAdult * evaluateTraitInfluence(soldier, DEFENSE_CONTEXT).factor;
+    base += MILITIA_BALANCE.basePerAdult * evaluateAptitudeInfluence(soldier, 'defense').factor;
   }
   lines.push(`${adultCount} adults × ${MILITIA_BALANCE.basePerAdult} = ${Math.round(base)}`);
   if (base !== plainBase) {
-    lines.push(`defender traits (per-soldier DNA) → ${Math.round(base)}`);
+    lines.push(`defender aptitudes (per-soldier) → ${Math.round(base)}`);
   }
 
   let rawTotal = base * spearMultiplier;

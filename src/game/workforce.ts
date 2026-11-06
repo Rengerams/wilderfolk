@@ -623,7 +623,7 @@ export function assignWorkerInPlace(
       const candidateFit = evaluateWorkerFit(candidate, job);
       if (candidateFit.creditedDays < bestFit.creditedDays
         || (candidateFit.creditedDays === bestFit.creditedDays
-          && candidateFit.traitFactor <= bestFit.traitFactor)) continue;
+          && candidateFit.aptitudeFactor <= bestFit.aptitudeFactor)) continue;
     }
     worker = candidate;
     bestDistance = distance;

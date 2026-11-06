@@ -18,6 +18,11 @@ import { initGame } from '../src/game/worldGen';
 import { human } from '../src/test/factories';
 import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import type { RaidEvent } from '../src/game/gameTypes';
+import { genomeFrom } from './helpers/genome';
+
+/** Civic voices: a strongly empathetic profile versus a severity-leaning one. */
+const RESTRAINT_GENOME = genomeFrom({ cooperation: 95, sensitivity: 95, flexibility: 90, discipline: 90, riskTaking: 5 });
+const SEVERITY_GENOME = genomeFrom({ cooperation: 5, sensitivity: 5, flexibility: 5, discipline: 5, riskTaking: 95 });
 
 function readSrc(relative: string): string {
   return readFileSync(resolve(process.cwd(), relative), 'utf8');
@@ -100,7 +105,7 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
     world.villageLeaderId = world.entities[0].id;
     world.rivalSettlements[0].atWarWithPlayer = true;
     world.entities.forEach((person, index) => {
-      person.traits = index < fierce ? ['fierce'] : index < fierce + empathetic ? ['nurturing'] : [];
+      person.genomeV2 = index < fierce ? SEVERITY_GENOME : index < fierce + empathetic ? RESTRAINT_GENOME : genomeFrom();
     });
     const startingReputation = world.villageReputation;
     const settled = resolveRaidVictory(world, 'unique-raid', choice);
@@ -111,7 +116,7 @@ describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
 
   it('disallows repeat or trivial-camp election farming for all settlement dispositions', () => {
     const world = victoriousWorld();
-    world.entities = [human(940000, { traits: ['fierce'] })];
+    world.entities = [human(940000, { genomeV2: SEVERITY_GENOME })];
     world.humanPopulation = 1;
     world.villageLeaderId = 940000;
     world.rivalSettlements[0].atWarWithPlayer = true;

@@ -17,8 +17,7 @@ import { isAdult } from './housingModel';
 import { rememberRivalDisposition } from './raidAftermath';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { initialHumanNeeds } from './simulation/humanPhysiology';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { ExactTraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
 const RECRUIT_COOLDOWN_DAYS = 7;
 const RECRUIT_BASE_CHANCE = 0.2;
@@ -28,8 +27,8 @@ const TRUST_RECRUIT_SCALE = 200;
 const MAX_CUSTODY_OPINION_MERIT = 5;
 const CUSTODY_LEADERSHIP_LIMIT = 100;
 
-/** The catalog context behind a villager's voice on a prisoner fate decision. */
-const COMMUNITY_REACTION_CONTEXT = { kind: 'civic', activity: 'communityReaction' } as const satisfies ExactTraitContext;
+/** A villager whose civic score clears this band adds a real restraint or severity voice. */
+const CIVIC_VOICE_THRESHOLD = 0.04;
 
 /** Only surviving, identifiable adult combatants can occupy a real prison cell. */
 export function captureRaidPrisoners(state: WorldState, rival: RivalSettlement, raidId: string, escorts: number): void {
@@ -68,9 +67,9 @@ export function applyWarCommunityReaction(state: WorldState,
   let empathetic = 0;
   let fierce = 0;
   for (const villager of villagers) {
-    const voices = evaluateTraitInfluence(villager, COMMUNITY_REACTION_CONTEXT).exact;
-    empathetic += voices.restraintVoice;
-    fierce += voices.severityVoice;
+    const civic = evaluateAptitudeInfluence(villager, 'communityReaction').factor;
+    if (civic >= 1 + CIVIC_VOICE_THRESHOLD) empathetic++;
+    else if (civic <= 1 - CIVIC_VOICE_THRESHOLD) fierce++;
   }
   const activeWar = state.rivalSettlements.some((rival) => rival.id === rivalId && rival.atWarWithPlayer);
   const recentAttack = state.raidBattleReports?.some((report) => report.rivalId === rivalId && report.side === 'defense'

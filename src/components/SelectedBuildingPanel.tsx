@@ -26,7 +26,7 @@ import { citizenFullName, formatCitizenName, SETTLER_NAME_FALLBACK } from '../ga
 import { isProductionBuildingType } from '../game/buildCatalog';
 import { BUILDING_TYPE_CODES, MINE_ORES, mineOreForMode, type MineMode } from '../game/buildings';
 import { canHostTownFestival, describeTownHallPerks, TOWN_HALL_FESTIVAL_COST, TOWN_HALL_FESTIVAL_DAYS } from '../game/townHall';
-import { offDutyPrisonGuards, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
+import { offDutyPrisonGuards, prisonPrisonerCapacity, prisonRoster, prisonShiftsAtHour, vacantPrisonShifts } from '../game/prisonShifts';
 import { prisonGuardIds } from '../game/prisonGuardDuty';
 import { describeHotelRoster, getHotelRoster, isSettlerLodgingAtHotel } from '../game/hotelStay';
 
@@ -405,6 +405,10 @@ export default function SelectedBuildingPanel({
   const { cap: staffingCap, staffed: staffedWorkers } = building.completed
     ? staffingCapFor(building, state.entities)
     : { cap: config.maxOccupants, staffed: building.occupants.length };
+  const staffingNoun = !building.completed
+    ? 'Builder'
+    : building.type === BuildingType.Prison ? 'Guard' : 'Worker';
+  const openStaffingPositions = Math.max(0, staffingCap - staffedWorkers);
   /** The upgrade owner's verdict for this building — its price, its ceiling, its exceptions. */
   const upgradeEligibility = getBuildingUpgradeEligibility(state, building.id);
   /**
@@ -491,7 +495,18 @@ export default function SelectedBuildingPanel({
         {isHousing && building.completed ? (
           <p>Residents: {residents.length} / {residenceCap}</p>
         ) : (
-          <p>{!building.completed ? 'Builders' : BUILDING_JOB_TYPES[building.type] ? 'Assigned workers' : 'Workers'}: {staffedWorkers} / {staffingCap}</p>
+          <>
+            <p>
+              {staffingCap === 0
+                ? `${staffingNoun} capacity: none — this building has no worker positions`
+                : `${staffingNoun} capacity: ${staffedWorkers} of ${staffingCap} filled${openStaffingPositions > 0 ? ` · ${openStaffingPositions} open` : ' · full'}`}
+            </p>
+            {building.completed && building.type === BuildingType.Prison && (() => {
+              const cells = prisonPrisonerCapacity(config.maxOccupants);
+              const used = Math.min(cells, prisoners.length);
+              return <p>Prison cells: {used} of {cells} occupied · {cells - used} free</p>;
+            })()}
+          </>
         )}
         {!building.completed && (
           <p>Progress: {Math.floor(displayedConstructionProgress(building, state.tick))}% · ~{config.buildTime} work-day{config.buildTime === 1 ? '' : 's'}</p>
@@ -962,7 +977,12 @@ export default function SelectedBuildingPanel({
       </CollapsibleSection>
 
       {((!building.completed && config.maxOccupants > 0) || (building.completed && BUILDING_JOB_TYPES[building.type])) && (
-        <CollapsibleSection title={!building.completed ? 'Construction' : 'Staff assignments'} defaultOpen storageKey={`building-workers-${building.id}`}>
+        <CollapsibleSection
+          title={!building.completed ? 'Construction' : 'Staff assignments'}
+          badge={staffingCap > 0 ? `${staffedWorkers}/${staffingCap}` : undefined}
+          defaultOpen
+          storageKey={`building-workers-${building.id}`}
+        >
           {getUnstaffedPostNote(building) && (
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}

@@ -1,6 +1,7 @@
 import type { Building, Entity, RivalSettlement, WorldState, RaidChoice, RaidEvent, RaidLootBundle, OutgoingRaidEvent, OutgoingRaidRivalResponse } from './gameTypes';
 import { EntityType, JobType, PATH_CELL } from './gameTypes';
-import { TICKS_PER_DAY, TICKS_PER_HOUR, killHuman } from './dayCycle';
+import { TICKS_PER_DAY, TICKS_PER_HOUR, getAbsoluteCalendarDay, killHuman } from './dayCycle';
+import { awardRaidSurvivalMark } from './personalMarks';
 import { ensureEntityByIdMap } from './entityIndex';
 import { hasIronSpears, hasIronSwords, hasStoneSpears } from './combat';
 import { formatCitizenName, formatDeathLog } from './citizenId';
@@ -1260,6 +1261,11 @@ function resolveIncomingRaidCasualties(state: WorldState, event: RaidEvent, enti
   applyRaidCasualties(state, entities, tier, event.rivalName, 'defending', selected);
   event.battleCasualtiesApplied = true;
   event.battlePlayerCasualties = before.filter((person) => !person.alive).map(formatCitizenName);
+  // Surviving is the achievement: a clean win leaves luck, a mauling that was survived leaves a scar.
+  const survivalDay = getAbsoluteCalendarDay(state.tick);
+  for (const person of before) {
+    if (person.alive) awardRaidSurvivalMark(person, tier, survivalDay);
+  }
 }
 
 export function respondToRaidEvent(originalState: WorldState, eventId: string, choiceId: string): WorldState {

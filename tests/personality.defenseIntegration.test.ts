@@ -1,14 +1,13 @@
 /**
- * PR B — the danger consumers: passive militia, hunting and flight.
+ * The danger consumers: passive militia, hunting and flight.
  *
  * Three claims are pinned:
- * 1. The militia prices each already-mustered soldier with that soldier's own bounded DNA factor, so
- *    one protector cannot raise the whole army and the retired flat +8 % global bonus is gone. The
- *    muster guards are unchanged.
- * 2. The free-roam hunt range is the catalog's hunting factor — a brave settler reaches game beyond
- *    an otherwise identical plain one, driven through the real `tickHumanHunting`.
- * 3. The flight speed reads the catalog's escape context: in a driven `tickHumans` frame the catalog
- *    factor is the whole difference between two otherwise identical settlers.
+ * 1. The militia prices each already-mustered soldier with that soldier's own bounded aptitude
+ *    factor, so one protector cannot raise the whole army; the muster guards are unchanged.
+ * 2. The free-roam hunt range is the `hunting` factor — a patient, perceptive settler reaches game
+ *    beyond an otherwise identical neutral one, driven through the real `tickHumanHunting`.
+ * 3. Flight speed reads the `escape` activity: in a driven `tickHumans` frame the factor is the whole
+ *    difference between two otherwise identical settlers.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -17,7 +16,7 @@ import { initGame } from '../src/game/worldGen';
 import { createEntity } from '../src/game/entityFactory';
 import { EntityType, JobType, Season } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import type { SettlerTrait } from '../src/game/settlerTraits';
+import type { GenomeV2 } from '../src/game/settlerTraits';
 import { tickHumans } from '../src/game/humanTick';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { getHumanHuntRange } from '../src/game/combat';
@@ -25,25 +24,26 @@ import { isPlayerHuman } from '../src/game/playerHuman';
 import { tickHumanHunting } from '../src/game/humanHuntingBehavior';
 import { computeMilitiaBreakdown } from '../src/game/militiaBalance';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
-import { evaluateTraitInfluence } from '../src/game/personality/traitEvaluation';
+import { evaluateAptitudeInfluence } from '../src/game/personality/traitEvaluation';
 import { byType } from '../src/test/factories';
+import { genomeFrom } from './helpers/genome';
 
 const FIXTURE_SEED = 20_260_928;
-const HUNTING = { kind: 'danger', activity: 'hunting' } as const;
-const PURSUIT = { kind: 'danger', activity: 'pursuit' } as const;
-const ESCAPE = { kind: 'danger', activity: 'escape' } as const;
-const DEFENSE = { kind: 'danger', activity: 'defense' } as const;
-
-/** Enough adult soldiers that a single soldier's share clears the integer rounding. */
+/** Enough adult soldiers that a single soldier's share clears integer rounding. */
 const SOLDIER_COUNT = 25;
 
-function soldier(id: number, traits: SettlerTrait[], overrides: Partial<Entity> = {}): Entity {
+const DEFENSIVE_GENOME = genomeFrom({ composure: 95, riskTaking: 90, patience: 85, discipline: 80, cooperation: 10 });
+const HUNTING_GENOME = genomeFrom({ patience: 95, perception: 90, riskTaking: 85, reasoning: 10 });
+const ESCAPE_GENOME = genomeFrom({ composure: 95, perception: 90, riskTaking: 5, patience: 5, persistence: 5, reasoning: 5 });
+const RECKLESS_GENOME = genomeFrom({ composure: 5, perception: 5, riskTaking: 95, patience: 95, persistence: 95, reasoning: 95 });
+
+function soldier(id: number, genomeV2: GenomeV2, overrides: Partial<Entity> = {}): Entity {
   const entity = createEntity(EntityType.Human, 300, 300, id, 80, false, { name: `S${id}` });
   entity.alive = true;
   entity.isJuvenile = false;
   entity.job = JobType.Soldier;
-  // Written directly so the rolled traits cannot make the fixture non-deterministic.
-  entity.traits = traits;
+  // Written directly so a rolled genome cannot make the fixture non-deterministic.
+  entity.genomeV2 = genomeV2;
   return Object.assign(entity, overrides);
 }
 
@@ -53,27 +53,26 @@ function militia(state: WorldState, entities: Entity[]): number {
 
 function militiaWorld(): { state: WorldState; own: Entity[]; base: number } {
   const state = initGame({ skipTerrain: true, villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
-  const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, []));
+  const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, genomeFrom()));
   return { state, own, base: militia(state, own) };
 }
 
-describe('the militia prices each defender\'s own DNA', () => {
+describe('the militia prices each defender\'s own aptitudes', () => {
   it('adds one soldier\'s bounded share, not a fraction of the whole army', () => {
     const { state, own, base } = militiaWorld();
-    // Same roster size: one of the existing soldiers carries the trait, so only its own share moves.
-    const roster = own.map((entity, index) => soldier(entity.id, index === 0 ? ['chivalrous'] : []));
+    const roster = own.map((entity, index) => soldier(entity.id, index === 0 ? DEFENSIVE_GENOME : genomeFrom()));
     const withProtector = militia(state, roster);
     const delta = withProtector - base;
 
-    expect(delta, 'the trait must work at all, or the assertions below pass for free').toBeGreaterThan(0);
+    expect(delta, 'the aptitude must work at all, or the assertions below pass for free').toBeGreaterThan(0);
     // The retired rule added 8 % of the entire militia; one soldier's own share stays far below it.
     expect(delta).toBeLessThan(base * 0.06);
   });
 
   it('scales with the number of protectors, one share each', () => {
     const { state, own, base } = militiaWorld();
-    const one = militia(state, [...own, soldier(90, ['chivalrous'])]);
-    const two = militia(state, [...own, soldier(90, ['chivalrous']), soldier(91, ['chivalrous'])]);
+    const one = militia(state, [...own, soldier(90, DEFENSIVE_GENOME)]);
+    const two = militia(state, [...own, soldier(90, DEFENSIVE_GENOME), soldier(91, DEFENSIVE_GENOME)]);
     const firstShare = one - base;
 
     expect(two).toBeGreaterThan(one);
@@ -81,61 +80,65 @@ describe('the militia prices each defender\'s own DNA', () => {
       .toBeLessThanOrEqual(1);
   });
 
-  it('prices Fierce as its own defender factor instead of a second Chivalrous branch', () => {
+  it('prices another positive defence dimension without a second branch', () => {
     const { state, own, base } = militiaWorld();
-    const chivalrous = evaluateTraitInfluence({ traits: ['chivalrous'] }, DEFENSE).factor;
-    const mixed = evaluateTraitInfluence({ traits: ['chivalrous', 'fierce'] }, DEFENSE).factor;
-    expect(mixed, 'fixture premise: Fierce adds its own defense resolve').toBeGreaterThan(chivalrous);
+    const composureOnly = evaluateAptitudeInfluence({ genomeV2: genomeFrom({ composure: 95 }) }, 'defense').factor;
+    const mixed = evaluateAptitudeInfluence({
+      genomeV2: genomeFrom({ composure: 95, riskTaking: 95 }),
+    }, 'defense').factor;
+    expect(mixed, 'fixture premise: risk-taking adds its own defence resolve').toBeGreaterThan(composureOnly);
 
-    const crew = (startId: number, traits: SettlerTrait[]): Entity[] =>
-      [...own, ...Array.from({ length: 5 }, (_, i) => soldier(startId + i, traits))];
+    const crew = (startId: number, genomeV2: GenomeV2): Entity[] =>
+      [...own, ...Array.from({ length: 5 }, (_, i) => soldier(startId + i, genomeV2))];
 
-    expect(militia(state, crew(95, ['fierce']))).toBeGreaterThan(base);
-    expect(militia(state, crew(96, ['chivalrous', 'fierce'])))
-      .toBeGreaterThan(militia(state, crew(96, ['chivalrous'])));
+    expect(militia(state, crew(95, DEFENSIVE_GENOME))).toBeGreaterThan(base);
+    expect(militia(state, crew(96, genomeFrom({ composure: 95, riskTaking: 95 }))))
+      .toBeGreaterThan(militia(state, crew(96, genomeFrom({ composure: 95 }))));
   });
 
-  it('keeps every soldier factor bounded inside the new-effect cap', () => {
-    for (const traits of [['chivalrous'], ['fierce'], ['chivalrous', 'fierce']] as SettlerTrait[][]) {
-      const factor = evaluateTraitInfluence({ traits }, DEFENSE).factor;
-      expect(factor, JSON.stringify(traits)).toBeGreaterThan(1);
-      expect(factor, JSON.stringify(traits)).toBeLessThanOrEqual(1.15);
+  it('keeps every soldier factor bounded inside the activity cap', () => {
+    for (const genomeV2 of [DEFENSIVE_GENOME, genomeFrom({ composure: 95 }), genomeFrom({ composure: 95, riskTaking: 95 })]) {
+      const factor = evaluateAptitudeInfluence({ genomeV2 }, 'defense').factor;
+      expect(factor).toBeGreaterThan(1);
+      expect(factor).toBeLessThanOrEqual(1.15);
     }
   });
 
   it('still refuses a protector who cannot be mustered', () => {
     const { state, own, base } = militiaWorld();
 
-    expect(militia(state, [...own, soldier(92, ['chivalrous'], { faction: 'rival' })])).toBe(base);
-    expect(militia(state, [...own, soldier(93, ['chivalrous'], { faction: 'visitor' })])).toBe(base);
-    expect(militia(state, [...own, soldier(94, ['chivalrous'], { isJuvenile: true })])).toBe(base);
-    expect(militia(state, [...own, soldier(95, ['chivalrous'], { job: JobType.Settler })])).toBe(base);
-    expect(militia(state, [...own, soldier(96, ['chivalrous'], { prisonBuildingId: 9 })])).toBe(base);
+    expect(militia(state, [...own, soldier(92, DEFENSIVE_GENOME, { faction: 'rival' })])).toBe(base);
+    expect(militia(state, [...own, soldier(93, DEFENSIVE_GENOME, { faction: 'visitor' })])).toBe(base);
+    expect(militia(state, [...own, soldier(94, DEFENSIVE_GENOME, { isJuvenile: true })])).toBe(base);
+    expect(militia(state, [...own, soldier(95, DEFENSIVE_GENOME, { job: JobType.Settler })])).toBe(base);
+    expect(militia(state, [...own, soldier(96, DEFENSIVE_GENOME, { prisonBuildingId: 9 })])).toBe(base);
   });
 
-  it('states the per-soldier DNA term and no retired global percentage', () => {
+  it('states the per-soldier aptitude term and no retired global percentage', () => {
     const { state, own } = militiaWorld();
-    const lines = computeMilitiaBreakdown(state, [...own, soldier(99, ['chivalrous'])], {
+    const lines = computeMilitiaBreakdown(state, [...own, soldier(99, DEFENSIVE_GENOME)], {
       includeStructures: false,
     }).lines;
-    const line = lines.find((entry) => entry.includes('defender traits'));
+    const line = lines.find((entry) => entry.includes('defender aptitudes'));
     expect(line).toBeDefined();
     expect(line).not.toMatch(/8%/);
-    expect(line).toMatch(/per-soldier DNA/);
+    expect(line).toMatch(/per-soldier/);
 
-    const plainLines = computeMilitiaBreakdown(state, own, { includeStructures: false }).lines;
-    expect(plainLines.some((entry) => entry.includes('defender traits'))).toBe(false);
+    // Marks are personal, so a neutral comparison has to strip them as well as the genome.
+    const markless = own.map((person) => ({ ...person, marks: undefined }));
+    const plainLines = computeMilitiaBreakdown(state, markless, { includeStructures: false }).lines;
+    expect(plainLines.some((entry) => entry.includes('defender aptitudes'))).toBe(false);
   });
 });
 
 /** One settler out on a famine hunt, with the colony's small game parked far out of reach. */
-function huntWorld(traits: SettlerTrait[], preyDistance: number): { state: WorldState; hunter: Entity; prey: Entity } {
+function huntWorld(genomeV2: GenomeV2, preyDistance: number): { state: WorldState; hunter: Entity; prey: Entity } {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const hunter = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(hunter, 'fixture premise: the colony starts with a settler').toBeTruthy();
   hunter!.job = JobType.Settler;
   hunter!.isJuvenile = false;
-  hunter!.traits = traits;
+  hunter!.genomeV2 = genomeV2;
   hunter!.x = 200;
   hunter!.y = 200;
   if (hunter!.needs) hunter!.needs.nutrition = 40;
@@ -160,7 +163,7 @@ function huntWorld(traits: SettlerTrait[], preyDistance: number): { state: World
 function huntRangeFor(state: WorldState, hunter: Entity): number {
   const config = SPECIES_CONFIG[EntityType.Human];
   const jobMult = hunter.job === JobType.Hunter ? 1.2 : 0.75;
-  return getHumanHuntRange(state, config.huntRange * jobMult * evaluateTraitInfluence(hunter, HUNTING).factor);
+  return getHumanHuntRange(state, config.huntRange * jobMult * evaluateAptitudeInfluence(hunter, 'hunting').factor);
 }
 
 function standAndHunt(state: WorldState, hunter: Entity, prey: Entity): Entity {
@@ -181,57 +184,57 @@ function standAndHunt(state: WorldState, hunter: Entity, prey: Entity): Entity {
   return prey;
 }
 
-describe('the free-roam hunt range is the catalog hunting factor', () => {
-  it('lets a brave settler target game the plain settler never sees', () => {
-    const plain = huntWorld([], 0);
-    const brave = huntWorld(['brave'], 0);
+describe('the free-roam hunt range is the hunting activity factor', () => {
+  it('lets an apt hunter target game the neutral settler never sees', () => {
+    const plain = huntWorld(genomeFrom(), 0);
+    const apt = huntWorld(HUNTING_GENOME, 0);
     const plainRange = huntRangeFor(plain.state, plain.hunter);
-    const braveRange = huntRangeFor(brave.state, brave.hunter);
-    expect(braveRange).toBeGreaterThan(plainRange);
+    const aptRange = huntRangeFor(apt.state, apt.hunter);
+    expect(aptRange).toBeGreaterThan(plainRange);
 
-    // Just beyond the plain settler's reach, and well inside the brave one's.
-    const distance = (plainRange + braveRange) / 2;
-    const plainHunt = huntWorld([], distance);
-    const braveHunt = huntWorld(['brave'], distance);
+    // Just beyond the neutral settler's reach, and well inside the apt one's.
+    const distance = (plainRange + aptRange) / 2;
+    const plainHunt = huntWorld(genomeFrom(), distance);
+    const aptHunt = huntWorld(HUNTING_GENOME, distance);
 
     standAndHunt(plainHunt.state, plainHunt.hunter, plainHunt.prey);
-    standAndHunt(braveHunt.state, braveHunt.hunter, braveHunt.prey);
+    standAndHunt(aptHunt.state, aptHunt.hunter, aptHunt.prey);
 
     // Both settlers stand the same distance from the same deer: only the reach differs.
     expect(plainHunt.hunter.huntTargetId).toBeUndefined();
-    expect(braveHunt.hunter.huntTargetId).toBe(braveHunt.prey.id);
-    expect(braveHunt.prey.alive, 'the deer is pursued, not shot — the distance is the point').toBe(true);
+    expect(aptHunt.hunter.huntTargetId).toBe(aptHunt.prey.id);
+    expect(aptHunt.prey.alive, 'the deer is pursued, not shot — the distance is the point').toBe(true);
   });
 
-  it('applies the catalog factor once at each danger site, with no raw legacy literal', () => {
+  it('applies the activity factor once at each danger site, with no raw legacy literal', () => {
     const huntingSource = readFileSync(resolve(process.cwd(), 'src/game/humanHuntingBehavior.ts'), 'utf8');
     for (const factor of [
-      evaluateTraitInfluence({ traits: ['brave'] }, HUNTING).factor,
-      evaluateTraitInfluence({ traits: ['brave'] }, PURSUIT).factor,
+      evaluateAptitudeInfluence({ genomeV2: HUNTING_GENOME }, 'hunting').factor,
+      evaluateAptitudeInfluence({ genomeV2: HUNTING_GENOME }, 'pursuit').factor,
     ]) {
       expect(factor).toBeGreaterThan(1);
       expect(factor).toBeLessThanOrEqual(1.15);
     }
-    expect(huntingSource).toMatch(/evaluateTraitInfluence\(entity, HUNT_CONTEXT\)\.factor/);
-    expect(huntingSource).toMatch(/evaluateTraitInfluence\(entity, PURSUIT_CONTEXT\)\.factor/);
+    expect(huntingSource).toMatch(/evaluateAptitudeInfluence\(entity, 'hunting'\)\.factor/);
+    expect(huntingSource).toMatch(/evaluateAptitudeInfluence\(entity, 'pursuit'\)\.factor/);
     expect(huntingSource).not.toMatch(/traitMultiplier\(entity, 'brave'/);
   });
 
-  it('leaves a settler whose traits say nothing about hunting at the neutral range', () => {
-    const plain = huntWorld([], 0);
-    const stoic = huntWorld(['stoic'], 0);
-    expect(huntRangeFor(stoic.state, stoic.hunter)).toBe(huntRangeFor(plain.state, plain.hunter));
+  it('leaves a settler with a neutral genome at the neutral range', () => {
+    const plain = huntWorld(genomeFrom(), 0);
+    const neutral = huntWorld(genomeFrom(), 0);
+    expect(huntRangeFor(neutral.state, neutral.hunter)).toBe(huntRangeFor(plain.state, plain.hunter));
   });
 });
 
 /** One settler facing an active Moon Howler 40 px away, ticked once through the real `tickHumans`. */
-function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
+function fleeFromHowler(genomeV2: GenomeV2): { speed: number } {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const found = state.entities.find((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
   expect(found, 'fixture premise: the colony starts with a settler').toBeTruthy();
   const runner = found!;
   runner.job = JobType.Settler;
-  runner.traits = traits;
+  runner.genomeV2 = genomeV2;
   runner.workerBuildingId = undefined;
   runner.residenceBuildingId = undefined;
   runner.vx = 0;
@@ -243,7 +246,7 @@ function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
   state.entities.push(howler);
 
   const humans = [runner];
-  const byType = {
+  const byTypeMap = {
     [EntityType.Human]: humans,
     [EntityType.Werewolf]: [howler],
   } as unknown as TickContext['byType'];
@@ -256,7 +259,7 @@ function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
     reproMult: 1,
     winterPenalty: 0,
     canHeat: true,
-    byType,
+    byType: byTypeMap,
     aliveEntities: [runner, howler],
     newEntities: [],
     updatedBuildings: state.buildings,
@@ -270,29 +273,29 @@ function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
   return { speed: Math.hypot(runner.vx, runner.vy) };
 }
 
-describe('flight reads the catalog escape context', () => {
-  it('makes the catalog factor the whole speed difference in a driven frame', () => {
-    const plain = fleeFromHowler([]);
+describe('flight reads the escape activity', () => {
+  it('makes the activity factor the whole speed difference in a driven frame', () => {
+    const plain = fleeFromHowler(genomeFrom());
     expect(plain.speed, 'fixture premise: the settler actually fled the howler').toBeGreaterThan(0);
 
-    for (const traits of [['timid'], ['brave'], ['lucky']] as SettlerTrait[][]) {
-      const factor = evaluateTraitInfluence({ traits }, ESCAPE).factor;
-      expect(factor, JSON.stringify(traits)).not.toBe(1);
-      const fled = fleeFromHowler(traits);
-      expect(fled.speed / plain.speed, JSON.stringify(traits)).toBeCloseTo(factor, 6);
+    for (const genomeV2 of [ESCAPE_GENOME, RECKLESS_GENOME]) {
+      const factor = evaluateAptitudeInfluence({ genomeV2 }, 'escape').factor;
+      expect(factor).not.toBe(1);
+      const fled = fleeFromHowler(genomeV2);
+      expect(fled.speed / plain.speed).toBeCloseTo(factor, 6);
     }
   });
 
-  it('keeps a risk-aware settler faster and a reckless one slower, as the catalog states', () => {
-    const timid = fleeFromHowler(['timid']);
-    const plain = fleeFromHowler([]);
-    const brave = fleeFromHowler(['brave']);
+  it('keeps a composed settler faster and a reckless one slower, as the registry states', () => {
+    const calm = fleeFromHowler(ESCAPE_GENOME);
+    const plain = fleeFromHowler(genomeFrom());
+    const reckless = fleeFromHowler(RECKLESS_GENOME);
 
-    expect(timid.speed).toBeGreaterThan(plain.speed);
-    expect(brave.speed).toBeLessThan(plain.speed);
+    expect(calm.speed).toBeGreaterThan(plain.speed);
+    expect(reckless.speed).toBeLessThan(plain.speed);
   });
 
-  it('leaves a settler whose traits say nothing about flight at the plain speed', () => {
-    expect(fleeFromHowler(['stoic']).speed).toBeCloseTo(fleeFromHowler([]).speed, 6);
+  it('leaves a settler whose genome is neutral at the plain speed', () => {
+    expect(fleeFromHowler(genomeFrom()).speed).toBeCloseTo(fleeFromHowler(genomeFrom()).speed, 6);
   });
 });

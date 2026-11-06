@@ -9,7 +9,7 @@ import {
   getColonyDay,
 } from '../dayCycle';
 import { resolveChildSurname, getRandomName } from '../nameLoader';
-import { inheritSettlerTraits } from '../settlerTraits';
+import { genomeOf, inheritGenome } from '../settlerTraits';
 import { createEntity } from '../entityFactory';
 import { pushNewEntity, allLivingHumans } from './simulationEntities';
 import { recordGenealogyBirth } from '../genealogyRegistry';
@@ -174,7 +174,7 @@ export function tickPregnancyAndBirth(
 
   const babyGen = (entity.generation ?? 0) + 1;
   const childGender: 'male' | 'female' = seededRandomForRun(`${birthKey}:gender`) > 0.5 ? 'male' : 'female';
-  const inheritedTraits = inheritSettlerTraits(entity, biologicalFather);
+  const inheritedGenome = inheritGenome(genomeOf(entity), genomeOf(biologicalFather));
 
   const child = createEntity(EntityType.Human, nx, ny, state.nextEntityId++, 80, true, {
     gender: childGender,
@@ -186,7 +186,7 @@ export function tickPregnancyAndBirth(
     surname: babySurname,
     isBastard,
     spriteVariant: entity.spriteVariant ?? pickHumanVariant(entity.id, childGender),
-    inheritedTraits,
+    inheritedGenome,
   });
 
   child.name = getRandomName(childGender);

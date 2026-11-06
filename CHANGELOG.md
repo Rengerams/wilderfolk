@@ -2,6 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (6 November 2026):** Every settler now carries fourteen inherited aptitudes; one signed activity evaluator gives each person real strengths and real weaknesses, and no genome is universally best.
+- **Added (6 November 2026):** Settlers now carry personal marks — lucky, pretty, scarred and sickly — born once or earned by surviving a raid or a rare find. They are never inherited and are priced through the same activity factors as aptitudes, including a small lucky conception nudge.
+- **Removed (6 November 2026):** The three-label trait system and the Lucky conception bonus are retired; old saves receive a deterministic fourteen-dimension genome on load.
+- **Changed (6 November 2026):** The settler inspector shows all fourteen aptitudes, derived highlights and the same activity effects the simulation uses.
+
+- **Fixed (6 November 2026):** Trade caravans now spawn at a walkable hub door and route around rivers and buildings instead of walking into them, and caravan merchants are adults rather than children.
+
+- **Fixed (6 November 2026):** Settlers meeting friends at a building now gather at its walkable frontage, and a friend across an obstacle is approached around it instead of into the wall.
+
+- **Changed (6 November 2026):** The building inspector now spells out worker capacity and open positions, badges the staff section with the count, and shows a Prison's guard posts separately from its prisoner cells.
+
 - **Changed (6 November 2026):** The Daily council's food chart now labels calendar days, plots consumed food against production, and states the colony's daily settler need and how many days its store covers.
 
 - **Fixed (6 November 2026):** Lovers now route around obstacles to a shared outdoor doorstep for a rendezvous instead of walking into the chosen house's walls.

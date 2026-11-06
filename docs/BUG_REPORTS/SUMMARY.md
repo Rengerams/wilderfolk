@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Trade caravan merchants can stand stuck at a river and appear as children](../bug_report/2026-11-06-trade-caravan-stuck-and-child.md):** The carrier used direct steering, spawned at a solid hub centre and started at age zero. It now uses the path owner from a walkable hub door, is created adult, and is promoted to adult on load. Source fixed; runtime unverified.
+
+**2026-11-06 — [Settlers meeting friends at a building press into its wall](../bug_report/2026-11-06-settlers-bump-into-building-frontage.md):** A corner-form meeting point could sit inside the now-solid footprint, and route cache keys were shared by every settler at that building. It now uses the walkable venue frontage and per-settler route keys. Source fixed; runtime unverified.
+
 **2026-11-06 — [Settlers walk through completed buildings instead of around them](../bug_report/2026-11-06-settlers-walk-through-buildings.md):** Only walls blocked the path grid, so farms, houses and other completed structures were walkable and settlers cut across their footprints. Completed structures are now solid, with roads, bridges, the square and reinforced ground kept open; targeted pathfinding and movement suites pass.
 
 **2026-11-06 — [Lovers walk into the tryst house wall instead of using its doorstep](../bug_report/2026-11-06-affair-tryst-centre-target.md):** The tryst target was the blocked footprint centre and the approach used a straight-line velocity, so partners could stall on opposite walls. Both now route to one walkable doorstep; targeted affair, indoor and type checks pass.

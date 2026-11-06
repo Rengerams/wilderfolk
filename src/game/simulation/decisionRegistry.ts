@@ -53,6 +53,7 @@ export type DecisionKey =
   | 'chronicleProseNames'
   | 'dailyPersonRoll'
   | 'traitInfluence'
+  | 'personalMarks'
   | 'careerHistory'
   | 'careerProgression'
   | 'workerFit'
@@ -118,12 +119,20 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/personDayRoll.simRng.test.ts, tests/humanLeisureBehavior.test.ts, tests/civicPetition.cadence.test.ts',
   },
   traitInfluence: {
-    owner: 'personality/traitEvaluation.ts — evaluateTraitInfluence, the single pure entry point: bounded factor/tendency for ordinary contexts and a typed exact result for the six discrete contexts; personality/traitEffectCatalog.ts owns TRAIT_EFFECTS (including the legacyExact entries) and the derived TRAIT_OPPOSITIONS',
+    owner: 'personality/traitEvaluation.ts — evaluateAptitudeInfluence, combinePairFactors and evaluateAllAptitudeActivities: the single pure entry point that reads the signed weights in personality/activityAptitudes.ts against the one GenomeV2 owned by settlerTraits.ts',
     cadence: 'on-demand',
-    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. The fourteen DNA ids are typed only in settlerTraits.ts; gameTypes.ts imports that type without a reciprocal dependency, and the effect catalog consumes that canonical identity. Phase B consumes the bounded factor directly at existing owners: the crew multiplier (skills.ts, production and builder/construction contexts), the school-day credit and research multiplier (education.ts), the apprenticeship training credit (apprenticeships.ts), the per-soldier militia defence factor (militiaBalance.ts), the danger sites — hunt reach and closing speed (humanHuntingBehavior.ts) and flight speed (humanTick.ts) — and the player work drain (humanPhysiology.ts, physiology/labor); each site applies the returned factor alone inside the new-effect cap. Phase C calls the same function once per decision on a discrete context and reads only the catalog value it returns: social/courtshipProgress ordered factors (humanTick.ts), family/conception multiplier (humanRelationships.ts), social/workplaceBanter chance override (socialLife.ts), family/spousalBereavement duration (humanLifecycleCleanup.ts), civic/communityReaction voices (warPrisoners.ts) and social/feudClash count (relationships.ts). No legacy DNA multiplier survives beside either mode.',
+    cadenceNote: 'Pure data projection with no tick, no scheduler, no RNG and no mutation authority. One validated GenomeV2 per living settler holds fourteen allele pairs; expression is each pair\'s mean and the activity score is relative to that settler\'s own fourteen-dimension mean. The evaluator returns one bounded factor per activity (`1 + cap*score`, cap 5–20%) plus stable reasons on request, and never a second genetics source, cached modifier or extra roll. Signed weights give every one of the fourteen dimensions at least one upward and one downward live activity, so no genome is universally best and every settler has both strengths and weaknesses. Costs: the crew multiplier (skills.ts routineWork/construction), school credit and research (education.ts learning/research), apprenticeship training (apprenticeships.ts), per-soldier militia defence (militiaBalance.ts), hunting reach and pursuit (humanHuntingBehavior.ts), flight speed (humanTick.ts escape), labour drain (humanPhysiology.ts), friendship gain, reconciliation decay and pair feud drift (relationships.ts), courtship rate (humanTick.ts), workplace banter (socialLife.ts), grief recovery (humanLifecycleCleanup.ts), civic voices (warPrisoners.ts) and the advisory worker-fit tie-break (careers/workerFit.ts). A carried personal mark adds that activity\'s signed mark weight to the same score before the one clamp and one cap; the `conception` activity has no aptitude weights, so only the acquired lucky mark can move it.',
     writes: [],
-    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (danger/defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunt reach and pursuit contexts), humanTick.tickHumans (flee and courtship branches), humanPhysiology.advanceHumanNeeds (labor drain), humanRelationships.tryDailyConception, socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure on-demand projection in workforce exact ties and in the selected-settler inspector job fit)',
-    testFile: 'tests/personality.legacyConsumerAudit.test.ts, tests/personality.traitCatalog.test.ts, tests/personality.traitEvaluation.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.captiveEnergyIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts',
+    scheduledFrom: 'On-demand direct caller: skills.getWorkerSkillMultiplier (called by dailyBuildingEconomy production and construction and by workshopEconomy), education.creditChildSchoolDay / getEducationResearchMultiplier, apprenticeships.teach, militiaBalance.computeMilitiaBreakdown (defense per mustered soldier), humanHuntingBehavior.tickHumanHunting (hunting and pursuit), humanTick.tickHumans (escape and courtship), humanPhysiology.advanceHumanNeeds (labor drain), socialLife.tryWorkplaceBanter, humanLifecycleCleanup.finalizeHumanDeath, warPrisoners.applyWarCommunityReaction, relationships.advanceSocialRelationships, careers.workerFit.evaluateWorkerFit (pure projection in workforce exact ties and the selected-settler inspector)',
+    testFile: 'tests/personality.activityAptitudes.test.ts, tests/personality.traitEvaluation.test.ts, tests/settlerTraits.test.ts, tests/personality.workIntegration.test.ts, tests/personality.educationIntegration.test.ts, tests/personality.defenseIntegration.test.ts, tests/personality.physiologyIntegration.test.ts, tests/personality.legacyDNA.test.ts, tests/personality.romanceContext.test.ts, tests/personality.socialCompatibility.test.ts, tests/personality.familyContext.test.ts, tests/personality.civicContext.test.ts, tests/personalityCareer.inspector.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
+  },
+  personalMarks: {
+    owner: 'personalMarks.ts — grantMark (the only mark writer), rollBornMarks, normalizeMarks, marksOf, hasMark, awardRaidSurvivalMark, awardRareWindfallMark',
+    cadence: 'on-demand',
+    cadenceNote: 'No clock of its own: marks are written on demand at the one owner where a real event resolves. Appearance and constitution are drawn once at creation on the `settlerMarks` stream, an earned mark is written only when a raid survivor or an emptied rare bush resolves, and a repeated or replayed event cannot duplicate or stack one because `grantMark` is idempotent per mark id. The evaluator prices a carried mark through the same activity record with no tick, scheduler or extra roll.',
+    writes: ['human.marks'],
+    scheduledFrom: 'entityFactory.createEntity (born marks) → personalMarks.rollBornMarks; frontierCombat.resolveIncomingRaidCasualties (living survivors) → awardRaidSurvivalMark; blueberryForaging.tryTickBlueberryForaging (emptied rare bush) → awardRareWindfallMark',
+    testFile: 'tests/personalMarks.test.ts, tests/personality.activityAptitudes.test.ts',
   },
   careerHistory: {
     owner: 'careers/careerHistory.ts — recordCareerWork; single writer of compact observed work days per job',
@@ -142,7 +151,7 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/careers.progression.test.ts, tests/personalityCareer.oldSaveMigration.test.ts',
   },
   workerFit: {
-    owner: 'careers/workerFit.ts — evaluateWorkerFit pure optional experienced-worker and DNA projection',
+    owner: 'careers/workerFit.ts — evaluateWorkerFit (plus its private activityForJob mapping) pure optional experienced-worker and aptitude projection',
     cadence: 'on-demand',
     cadenceNote: 'No state writes, no extra assignment pass; only compared for precisely tied eligibility, squared commute and skill in workforce.assignWorkerInPlace.',
     writes: [],
@@ -340,7 +349,7 @@ export const SIMULATION_DECISIONS = {
   conception: {
     owner: 'humanRelationships.ts — tryDailyConception (ONLY conception owner)',
     cadence: 'new-calendar-day',
-    cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
+    cadenceNote: 'One roll per settler per colony day through salted personDayRoll; married-near, youth-pair and affair trysts use separate salts. Conception is deliberately non-genetic: the `conception` activity carries no aptitude weights and reads no allele, so only the acquired lucky mark can move the married/youth chance; the retired inherited Lucky ×1.15 is gone and no replacement roll exists. The youth route follows the retained youth link: while one partner is 18 and the other is still a minor it may conceive in either direction; once both are 18 (or the older is beyond 18) the route closes and the handoff/adult path applies.',
     writes: [
       'human.pregnant',
       'human.pregnantById',
@@ -353,17 +362,18 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts',
   },
   pregnancyBirth: {
-    owner: 'humanLifecycle.ts — tickPregnancyAndBirth (ONLY birth owner; never starts a second pregnancy path)',
+    owner: 'humanLifecycle.ts — tickPregnancyAndBirth (ONLY birth owner; never starts a second pregnancy path); settlerTraits.ts — inheritGenome is the only birth genetics rule',
     cadence: 'pregnancy-progress',
     writes: [
       'human.pregnancyProgress',
       'human.pregnant/pregnantById/pregnancyDueProgress/pregnancyFromYouthLove (cleared at birth)',
       'human.childrenIds',
       'new child entity',
+      'new child human.genomeV2 (one allele per biological parent per dimension; parents are read-only)',
       'eventLog/bigNews/floatingTexts',
     ],
-    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle',
-    testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts',
+    scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → settlerTraits.inheritGenome',
+    testFile: 'tests/humanLifecycle.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts',
   },
   moonHowler: {
     owner: 'moonHowler.ts + moonHowlerForm.ts — tickMoonHowlerCycle, curseMoonHowler, transformToWerewolfForm, revertToHumanForm, cureMoonHowler, finalizeMoonHowlerDeath, isSettlerRelationshipEntity; night window owned by daycycleconstants.ts',
@@ -467,9 +477,9 @@ export const SIMULATION_DECISIONS = {
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 
-/** Selected-settler inspector: read-only render of saved DNA and career records, no tick or writer. */
+/** Selected-settler inspector: read-only render of the saved genome and career records, no tick or writer. */
 export const PERSONALITY_CAREER_INSPECTOR_PRESENTATION = {
-  owner: 'PersonalityCareerDetails.tsx — PersonalityCareerDetails; renders TRAIT_DEFS/TRAIT_EFFECTS wording, evaluateWorkerFit advisory reasons and saved careerHistory/careerMilestones',
+  owner: 'PersonalityCareerDetails.tsx — PersonalityCareerDetails; renders the fourteen inherited aptitudes, derived highlights, the same evaluateAllAptitudeActivities factors, evaluateWorkerFit reasons and saved careerHistory/careerMilestones',
   cadence: 'Read-only React render of the selected-entity panel',
   scheduledFrom: 'SelectedEntityPanel.tsx → PersonalityCareerDetails.tsx; gated by playerHuman.isPlayerHuman and human.alive',
   writes: [] as readonly string[],

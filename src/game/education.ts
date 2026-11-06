@@ -11,8 +11,7 @@ import { citizenFullName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
-import { evaluateTraitInfluence } from './personality/traitEvaluation';
-import type { TraitContext } from './personality/traitEffectCatalog';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { commuteDistanceFromResidence, humanBuildingTarget } from './simulation/humanMovement';
 import { commuteLeadHoursFor, MAX_ASSIGNABLE_COMMUTE_HOURS } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
@@ -38,10 +37,6 @@ export const SCHOOL_MAX_CHILDREN = 20;
 export const SCHOOL_START_HOUR = 9;
 export const SCHOOL_END_HOUR = 15;
 export const SCHOOL_HOURS_PER_DAY = SCHOOL_END_HOUR - SCHOOL_START_HOUR;
-
-/** The catalog contexts this owner reads — one shared object each, never rebuilt per pupil. */
-const LEARNING_CONTEXT = { kind: 'school', activity: 'learning' } as const satisfies TraitContext;
-const RESEARCH_CONTEXT = { kind: 'school', activity: 'research' } as const satisfies TraitContext;
 
 export function isSchoolTime(tick: number, hourOfDay: number): boolean {
   return isWorkDay(tick) && hourOfDay >= SCHOOL_START_HOUR && hourOfDay < SCHOOL_END_HOUR;
@@ -383,8 +378,8 @@ export function describeSchoolingSummary(
 
 export function creditChildSchoolDay(child: Entity): void {
   const ticks = child.schoolTicksToday ?? 0;
-  // The catalog's learning context sets how much class time this pupil needs for one school day.
-  const requiredTicks = SCHOOL_DAY_MIN_TICKS / evaluateTraitInfluence(child, LEARNING_CONTEXT).factor;
+  // The catalog's learning activity sets how much class time this pupil needs for one school day.
+  const requiredTicks = SCHOOL_DAY_MIN_TICKS / evaluateAptitudeInfluence(child, 'learning').factor;
   if (ticks >= requiredTicks) {
     child.schoolDays = (child.schoolDays ?? 0) + 1;
   }
@@ -467,6 +462,6 @@ export function getEducationResearchMultiplier(humans: Entity[]): number {
   if (adults.length === 0) return 1;
   const educated = adults.filter((h) => h.educated).length;
   let dnaFactorSum = 0;
-  for (const adult of adults) dnaFactorSum += evaluateTraitInfluence(adult, RESEARCH_CONTEXT).factor;
+  for (const adult of adults) dnaFactorSum += evaluateAptitudeInfluence(adult, 'research').factor;
   return (1 + (educated / adults.length) * 0.15) * (dnaFactorSum / adults.length);
 }
