@@ -767,8 +767,8 @@ export interface StaffingRefusal {
 
 /** Read-only staffing answer for the selected building (`Roadmap_V0_6.4.1.MD` line 25). */
 export interface BuildingStaffingExplanation {
-  /** 'auto' when the daily staffing pass fills this building, 'manual' when only the player does. */
-  mode: 'auto' | 'manual';
+  /** Every workplace is automatically staffed; the field is retained for UI consumers. */
+  mode: 'auto';
   /** Worker/resident slots the cap applies to — the same number the staffing command checks. */
   capacity: number;
   workerCount: number;
@@ -799,7 +799,7 @@ function settlerName(state: WorldState, id: number): string {
 }
 
 /**
- * Read-only staffing explanation for one building: auto/manual mode, capacity, the current workers,
+ * Read-only staffing explanation for one building: automatic mode, capacity, the current workers,
  * and — for any settler the caller names — the staffing owner's own reason for refusing them.
  *
  * Every rule comes from its owner: the cap from
@@ -826,7 +826,6 @@ export function explainBuildingStaffing(
 
   const isResidence = building.completed && isResidenceBuildingType(building.type);
   const takesStaff = !building.completed || BUILDING_JOB_TYPES[building.type] !== undefined;
-  const mode = 'auto' as const;
   /**
    * A finished workplace's cap and count come from the staffing owner: a Prison's occupant list is
    * guards ∪ prisoners, so that list against the config cap counts cells as guard posts.
@@ -856,9 +855,7 @@ export function explainBuildingStaffing(
     label: 'Mode',
     value: isResidence
       ? 'Auto — residents move in on their own.'
-      : mode === 'manual'
-        ? 'Manual — only you assign workers here.'
-        : 'Auto — the daily staffing pass fills this building.',
+      : 'Auto — jobs persist and vacant posts are filled automatically.',
     tone: 'neutral',
   });
   lines.push({
