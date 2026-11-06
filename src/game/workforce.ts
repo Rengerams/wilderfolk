@@ -247,10 +247,11 @@ export function findOverstaffedDonorBuilding(
   currentTick?: number,
   preserveEssentialCoverage = false,
   foodEmergency = false,
+  rejectedDonors?: ReadonlySet<number>,
 ): Building | undefined {
   return pickOverstaffedDonor(
     jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency),
-    excludeBuildingId, preserveEssentialCoverage,
+    excludeBuildingId, preserveEssentialCoverage, rejectedDonors,
   );
 }
 
