@@ -29,8 +29,8 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
   });
 
   it('preserves bootstrap immigration without enough completed-day evidence, and respects a full cap', () => {
-    const world = { tick: 2 * TICKS_PER_DAY, foodHistory: [] }
-      as Pick<WorldState, 'tick' | 'foodHistory'>;
+    const world = { tick: 2 * TICKS_PER_DAY, foodHistory: [] } as
+      Pick<WorldState, 'tick' | 'foodHistory'>;
     expect(canSupportImmigration(world, 5, 3)).toBe(true);
     expect(canSupportImmigration(world, 5, 0)).toBe(false);
   });
