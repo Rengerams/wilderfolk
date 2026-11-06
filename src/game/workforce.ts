@@ -410,6 +410,7 @@ export function rebalanceJobWorkers(
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
   const index = buildWorkforceAssignmentIndex(humans, currentTick);
+  const movedThisPass = new Set<number>();
 
   // Finish the bounded minimum-coverage rebalance in this invocation, BEFORE
   // assignMissingWorkers caches the post-pass fingerprint. A newly transferred
@@ -429,20 +430,21 @@ export function rebalanceJobWorkers(
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
       if (!donor) break;
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings);
-      if (!worker) {
+      if (!worker || movedThisPass.has(worker.id)) {
+        // A donor whose eligible roster has already moved cannot supply this
+        // vacancy again in the same reconciliation pass.
         rejectedDonors.add(donor.id);
         continue;
       }
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
+      movedThisPass.add(worker.id);
       index.counts.set(donor.id, (index.counts.get(donor.id) ?? 0) - 1);
       index.counts.set(needy.id, ++staffed);
       index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
-      // The cooldown normally makes a transferred worker ineligible as a new
-      // donor. Match the predicate for direct callers without a tick as well.
-      if (canAutoChangeWorkplace(worker, currentTick)) {
-        index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
-      }
+      // The new employee is not available as a donor during this pass,
+      // even when a unit-level caller has no tick to enforce the cooldown.
+      // Their existing coworkers remain eligible according to index.movable.
     }
   }
 }
