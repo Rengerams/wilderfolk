@@ -49,6 +49,7 @@ export interface DecisionOwner {
  */
 export type DecisionKey =
   | 'workerMotionPresentation'
+  | 'navigation'
   | 'virtualPlayer'
   | 'chronicleProseNames'
   | 'dailyPersonRoll'
@@ -85,6 +86,14 @@ export type DecisionKey =
   | 'commands';
 
 export const SIMULATION_DECISIONS = {
+  navigation: {
+    owner: 'pathfinding.ts — getNavigationQuote, searchRoute, sharedRouteCaches, getPathGrid, getReadOnlyPathGrid, resetPathGridCaches; commuteReach.ts — quoteCommute converts weighted route cost to travel hours',
+    cadence: 'on-demand',
+    cadenceNote: 'No independent scheduler or saved writes. Strict shared quotes validate walkable endpoint tiles, cache only complete directed results and preserve node exhaustion as pending. Existing assignment policy and walker steering remain unchanged pending checkpoints B and C.',
+    writes: [],
+    scheduledFrom: 'pathfinding.findRouteCostOutcome for valid tile endpoints; commuteReach.quoteCommute on demand',
+    testFile: 'tests/navigation.sharedRoutes.test.ts, tests/commuteRouteEstimate.test.ts',
+  },
   virtualPlayer: {
     owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedBootstrapCropSiteCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice (read-only policy proposals); economyLedger.isMeasuredFoodDeficit owns measured trend, getProjectedFoodSupply/isProjectedFoodShortfall own proactive demand risk',
     cadence: 'on-demand',

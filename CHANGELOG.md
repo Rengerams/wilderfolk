@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Added (6 November 2026, PR #127, checkpoint A):** Shared immutable, bounded walk-route quotes distinguish priced, unreachable and pending journeys; typed commute pricing prepares the later decision cutover.
+
 - **Changed (6 November 2026):** The Daily council's food chart now labels calendar days, plots consumed food against production, and states the colony's daily settler need and how many days its store covers.
 
 - **Fixed (6 November 2026):** Lovers now route around obstacles to a shared outdoor doorstep for a rendezvous instead of walking into the chosen house's walls.

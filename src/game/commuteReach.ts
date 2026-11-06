@@ -1,7 +1,7 @@
 import type { Building, Entity, WorldMap } from './gameTypes';
 import { PATH_CELL } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { findRouteCostOutcome, getCurrentPathGrid, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
+import { findRouteCostOutcome, getCurrentPathGrid, getNavigationQuote, getReadOnlyPathGrid, isWalkableRoad, type PathGrid } from './pathfinding';
 import { ROAD_SPEED_MULT } from './simulation/movementSteering';
 
 /** Commute reach, lead hours and walk pacing, shared by the movement loop and work assignment. */
@@ -23,6 +23,42 @@ export const WORK_COMMUTE_RUSH = 3.5;
 
 /** Owner rule: a settler who cannot reach a post inside two hours is not a candidate for it. */
 export const MAX_ASSIGNABLE_COMMUTE_HOURS = 2;
+
+
+export type CommuteVerdict =
+  | { readonly status: 'priced'; readonly travelHours: number;
+      readonly leadHours: number; readonly costTiles: number }
+  | { readonly status: 'unreachable' }
+  | { readonly status: 'pending'; readonly reason: 'search-budget' | 'node-budget' | 'complexity-cap' | 'no-grid' };
+
+/** Price a real walkable-point leg without accepting an unresolved route as a commute. */
+export function quoteCommute(
+  origin: Readonly<{ x: number; y: number }>,
+  destination: Readonly<{ x: number; y: number }>,
+  walkSpeed: number,
+  grid: PathGrid | null,
+): CommuteVerdict {
+  if (![origin.x, origin.y, destination.x, destination.y].every(Number.isFinite)) {
+    return { status: 'unreachable' };
+  }
+  const start = { x: Math.floor(origin.x / PATH_CELL), y: Math.floor(origin.y / PATH_CELL) };
+  const goal = { x: Math.floor(destination.x / PATH_CELL), y: Math.floor(destination.y / PATH_CELL) };
+  const route = getNavigationQuote(grid, start, goal, { maxNodes: MAX_COMMUTE_ROUTE_SEARCH_NODES });
+  if (route.status !== 'priced') return route;
+  const distance = start.x === goal.x && start.y === goal.y
+    ? Math.hypot(destination.x - origin.x, destination.y - origin.y)
+    : route.costTiles * PATH_CELL
+      + Math.hypot((start.x + 0.5) * PATH_CELL - origin.x,
+        (start.y + 0.5) * PATH_CELL - origin.y)
+      + Math.hypot((goal.x + 0.5) * PATH_CELL - destination.x,
+        (goal.y + 0.5) * PATH_CELL - destination.y);
+  const speed = commuteWalkSpeed(walkSpeed, WORK_COMMUTE_RUSH)
+    * COMMUTE_CONFIG.PATH_STEER_SPEED_RATIO;
+  return { status: 'priced',
+    travelHours: distance / speed / TICKS_PER_HOUR,
+    leadHours: commuteLeadHoursFor(distance, walkSpeed),
+    costTiles: distance / PATH_CELL };
+}
 
 /** Route searches one housing sweep may run before legs fall back to the straight line. */
 export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;

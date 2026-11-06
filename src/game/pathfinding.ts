@@ -305,6 +305,9 @@ export function resetPathGridCaches(): void {
   readOnlyGridCacheSeed = '';
   readOnlyGridCacheMap = null;
   searchWorkspace = undefined;
+  sharedRouteCaches = new WeakMap<PathGrid, SharedNavigationCache>();
+  pathCache.clear();
+  currentGrid = null;
 }
 
 interface PathSearchWorkspace {
@@ -519,6 +522,7 @@ function searchRoute(
   ty: number,
   maxNodes: number,
   scaleHeuristicForRoadCost: boolean,
+  keepFullPath = false,
 ): RouteSearchResult {
   const pathProfileStart = profileStart();
   try {
@@ -598,7 +602,7 @@ function searchRoute(
       path.reverse();
 
       // Preserve road tiles: line-of-sight smoothing can erase the faster road detour.
-      if (pricedRoad) {
+      if (pricedRoad || keepFullPath) {
         recordPathNodes(nodes);
         recordPathFound();
         return { path, cost: scores[goal], hitNodeCap: false };
@@ -688,6 +692,88 @@ export function findPath(
   return walkRoute(grid, sx, sy, tx, ty, maxNodes).path;
 }
 
+
+export type NavigationQuote =
+  | { readonly status: 'priced'; readonly costTiles: number;
+      readonly tiles: readonly Readonly<{ x: number; y: number }>[] }
+  | { readonly status: 'unreachable' }
+  | { readonly status: 'pending'; readonly reason: 'search-budget' | 'node-budget' | 'complexity-cap' | 'no-grid' };
+
+interface SharedNavigationCache {
+  entries: Map<string, Extract<NavigationQuote, { status: 'priced' | 'unreachable' }>>;
+  tileCount: number;
+}
+
+const SHARED_ROUTE_CACHE_LIMIT = 1024;
+const SHARED_ROUTE_TILE_LIMIT = 131072;
+const SHARED_ROUTE_NODE_LIMIT = 131072;
+let sharedRouteCaches = new WeakMap<PathGrid, SharedNavigationCache>();
+
+/** One directed, immutable and generation-scoped route quote from the existing A*. */
+export function getNavigationQuote(
+  grid: PathGrid | null,
+  start: Readonly<{ x: number; y: number }>,
+  goal: Readonly<{ x: number; y: number }>,
+  limits: Readonly<{ maxNodes: number }>,
+): NavigationQuote {
+  if (!grid) return { status: 'pending', reason: 'no-grid' };
+  const { cols, rows, blocked } = grid;
+  if (![start.x, start.y, goal.x, goal.y].every(Number.isInteger)
+    || start.x < 0 || start.y < 0 || goal.x < 0 || goal.y < 0
+    || start.x >= cols || goal.x >= cols || start.y >= rows || goal.y >= rows
+    || blocked[start.y * cols + start.x] !== 0
+    || blocked[goal.y * cols + goal.x] !== 0) {
+    return { status: 'unreachable' };
+  }
+  let cache = sharedRouteCaches.get(grid);
+  if (!cache) {
+    cache = { entries: new Map(), tileCount: 0 };
+    sharedRouteCaches.set(grid, cache);
+  }
+  const key = `${start.x},${start.y}>${goal.x},${goal.y}`;
+  const existing = cache.entries.get(key);
+  if (existing) {
+    cache.entries.delete(key);
+    cache.entries.set(key, existing);
+    return existing;
+  }
+  if ((start.x !== goal.x || start.y !== goal.y)
+    && (!Number.isFinite(limits.maxNodes) || limits.maxNodes <= 0)) {
+    return { status: 'pending', reason: 'search-budget' };
+  }
+
+  let quote: Extract<NavigationQuote, { status: 'priced' | 'unreachable' }>;
+  if (start.x === goal.x && start.y === goal.y) {
+    quote = Object.freeze({ status: 'priced' as const, costTiles: 0,
+      tiles: Object.freeze([Object.freeze({ x: start.x, y: start.y })]) });
+  } else {
+    const maxNodes = Math.min(SHARED_ROUTE_NODE_LIMIT, Math.floor(limits.maxNodes));
+    const found = searchRoute(grid, start.x, start.y, goal.x, goal.y, maxNodes, true, true);
+    if (found.hitNodeCap) {
+      return { status: 'pending',
+        reason: maxNodes === SHARED_ROUTE_NODE_LIMIT ? 'complexity-cap' : 'node-budget' };
+    }
+    quote = found.path && found.cost !== null
+      ? Object.freeze({ status: 'priced' as const, costTiles: found.cost,
+          tiles: Object.freeze(found.path.map((p) => Object.freeze({ x: p.x, y: p.y }))) })
+      : Object.freeze({ status: 'unreachable' as const });
+  }
+  const tiles = quote.status === 'priced' ? quote.tiles.length : 0;
+  if (tiles <= SHARED_ROUTE_TILE_LIMIT) {
+    while (cache.entries.size >= SHARED_ROUTE_CACHE_LIMIT
+      || cache.tileCount + tiles > SHARED_ROUTE_TILE_LIMIT) {
+      const oldest = cache.entries.keys().next().value;
+      if (oldest === undefined) break;
+      const removed = cache.entries.get(oldest)!;
+      cache.tileCount -= removed.status === 'priced' ? removed.tiles.length : 0;
+      cache.entries.delete(oldest);
+    }
+    cache.entries.set(key, quote);
+    cache.tileCount += tiles;
+  }
+  return quote;
+}
+
 /** The cheapest route's step cost in tile units (roads cheaper, slopes taxed), or null if none. */
 export function findRouteCost(
   grid: PathGrid,
@@ -709,6 +795,16 @@ export function findRouteCostOutcome(
   ty: number,
   maxNodes = PATH_MAX_SEARCH_NODES,
 ): { cost: number | null; budgetExhausted: boolean } {
+  if (sx !== tx || sy !== ty) {
+    const valid = sx >= 0 && sy >= 0 && tx >= 0 && ty >= 0
+      && sx < grid.cols && tx < grid.cols && sy < grid.rows && ty < grid.rows
+      && grid.blocked[sy * grid.cols + sx] === 0 && grid.blocked[ty * grid.cols + tx] === 0;
+    if (valid) {
+      const quote = getNavigationQuote(grid, { x: sx, y: sy }, { x: tx, y: ty }, { maxNodes });
+      return { cost: quote.status === 'priced' ? quote.costTiles : null,
+        budgetExhausted: quote.status === 'pending' };
+    }
+  }
   const result = searchRoute(grid, sx, sy, tx, ty, maxNodes, true);
   return { cost: result.cost, budgetExhausted: result.hitNodeCap };
 }
