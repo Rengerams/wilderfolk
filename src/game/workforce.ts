@@ -247,6 +247,7 @@ export function pickWorkerToTransfer(
   toBuilding: Building,
   currentTick?: number,
   buildings: readonly Building[] = [fromBuilding, toBuilding],
+  excludedWorkers?: ReadonlySet<number>,
 ): Entity | undefined {
   const toJob = BUILDING_JOB_TYPES[toBuilding.type];
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
@@ -258,6 +259,7 @@ export function pickWorkerToTransfer(
       h.alive &&
       !h.isJuvenile &&
       h.workerBuildingId === fromBuilding.id &&
+      !excludedWorkers?.has(h.id) &&
       canAutoChangeWorkplace(h, currentTick) &&
       isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
@@ -429,8 +431,8 @@ export function rebalanceJobWorkers(
     while (staffed < target) {
       const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
       if (!donor) break;
-      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings);
-      if (!worker || movedThisPass.has(worker.id)) {
+      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings, movedThisPass);
+      if (!worker) {
         // A donor whose eligible roster has already moved cannot supply this
         // vacancy again in the same reconciliation pass.
         rejectedDonors.add(donor.id);
