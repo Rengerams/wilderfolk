@@ -4,7 +4,7 @@
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Save-load reconciles vacancies using its restored navigation grid, with path-grid caches also keyed to the actual map identity; incumbent jobs remain unchanged.
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Auto-play no longer builds food sites without an available adult after pending food vacancies, while urgent verified food shortages bypass only the transfer cooldown and retain protected donor staffing.
-- **Changed (6 November 2026, PR #126; runtime unverified):** Unasserted 90-day mirror probe moved out of Vitest to `npx tsx scripts/probe-mirror.mts` with scoped cleanup of diagnostic globals.
+- **Changed (6 November 2026, PR #126; runtime unverified):** Unasserted 90-day diagnostic moved from Vitest into [probe-mirror.mts](scripts/probe-mirror.mts), with restored diagnostic globals.
 - **Tests (6 November 2026, PR #126; runtime unverified):** Added blocked-save-commute and seven-day no-free-worker regressions; retained checks for safe famine staffing and housing-dead-end action priority.
 
 - **CI (6 November 2026, PR #126):** Restored full PR quality gates; semantic-duplicate checks now compare against a baseline generated from the actual previous main revision instead of failing on a missing baseline file.
