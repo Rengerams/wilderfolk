@@ -806,7 +806,7 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
  * from completed buildings: the once-daily storageMax snapshot can be stale
  * after placing, demolishing or importing a building.
  */
-function needsAdditionalStore(state: WorldState): boolean {
+export function needsAdditionalStore(state: WorldState): boolean {
   const limits = computeStorageMax(state.buildings);
   return (['wood', 'stone', 'iron'] as const).some((resource) =>
     limits[resource] > 0 && (state.resources[resource] ?? 0) >= limits[resource] * 0.85,
