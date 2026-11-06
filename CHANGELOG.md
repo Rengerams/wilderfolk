@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126; runtime unverified):** New job placements and automatic transfers now require a reachable home-to-work commute within two hours; unknown path searches defer assignment, and existing jobs are never dismissed for a temporary route issue. Same-cell and mapless startup commutes remain supported.
+
+- **Changed (6 November 2026, PR #126; runtime unverified):** Expensive workforce reconciliation runs on a player-worker/building/policy change signature, plus a weekly safety pass, rather than repeating full matching on unchanged six-hour/daily pulses. This is a fingerprint gate, not a new assignment owner.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Virtual Player Store expansion uses actual completed-building wood/stone/iron storage pressure, not the gold-stock or population producer-count condition; pending construction and resource reserve rules remain.
+
 - **Changed (6 November 2026, PR #126; runtime unverified):** Removed manual individual workplace assignment and Auto/Manual controls, preserving automatic jobs across normal schedule pulses. Legacy saved manual mode switches to auto on the workforce pass without discarding existing employment; builder and housing assignment commands remain separate. Updated related test sources without running them.
 
 - **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler transformation uses 22:00 on a full-moon day through 06:00 the next morning, not also the preceding 00:00–06:00 interval.
