@@ -171,11 +171,12 @@ describe('school.capacity.test.ts', () => {
       expect(school.occupants.length).toBeGreaterThan(0);
     });
 
-    it('a School set to manual is never auto-filled', () => {
+    it('normalizes an old manual School flag and auto-fills it', () => {
       const idle = [human(1), human(2)];
       const school = building(5, BuildingType.School, { staffingMode: 'manual' });
       assignMissingWorkers(idle, [school]);
-      expect(school.occupants).toHaveLength(0);
+      expect(school.staffingMode).toBe('auto');
+      expect(school.occupants.length).toBeGreaterThan(0);
     });
 
     it('a child finds the school while seats remain', () => {
