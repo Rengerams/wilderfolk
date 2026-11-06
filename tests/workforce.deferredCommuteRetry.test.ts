@@ -10,7 +10,8 @@ import { building, human } from '../src/test/factories';
 const route = vi.hoisted(() => ({
   deferred: true,
   searches: 0,
-  grid: {},
+  budgets: [] as number[],
+  grid: { cols: 128, rows: 128 },
 }));
 
 vi.mock('../src/game/pathfinding', async (importOriginal) => {
@@ -18,8 +19,9 @@ vi.mock('../src/game/pathfinding', async (importOriginal) => {
   return {
     ...actual,
     getCurrentPathGrid: () => route.grid,
-    findRouteCostOutcome: () => {
+    findRouteCostOutcome: (_grid: unknown, _sx: number, _sy: number, _tx: number, _ty: number, maxNodes: number) => {
       route.searches++;
+      route.budgets.push(maxNodes);
       return route.deferred
         ? { cost: null, budgetExhausted: true }
         : { cost: 1, budgetExhausted: false };
@@ -31,6 +33,7 @@ describe('budget-deferred workforce commute', () => {
   it('retries an unchanged colony at the next staffing pulse instead of waiting a week', () => {
     route.deferred = true;
     route.searches = 0;
+    route.budgets = [];
     const worker = human(1, { x: 0, y: 0 });
     const farm = building(2, BuildingType.Farm, { x: 120, y: 0 });
     const world = {
@@ -50,6 +53,7 @@ describe('budget-deferred workforce commute', () => {
     route.deferred = false;
     assignMissingWorkers(world.entities, world.buildings, world);
     expect(route.searches).toBeGreaterThan(firstSearches);
+    expect(route.budgets).toEqual([4000, 8000]);
     expect(worker.workerBuildingId).toBe(farm.id);
     expect(farm.occupants).toContain(worker.id);
 
@@ -58,4 +62,29 @@ describe('budget-deferred workforce commute', () => {
     assignMissingWorkers(world.entities, world.buildings, world);
     expect(route.searches).toBe(completedSearches);
   });
+  it('increases the node limit across pulses, then stops after the bounded terminal verdict', () => {
+    route.deferred = true;
+    route.searches = 0;
+    route.budgets = [];
+    route.grid = { cols: 32, rows: 32 };
+    const worker = human(90, { x: 0, y: 0 });
+    const farm = building(92, BuildingType.Farm, { x: 120, y: 0 });
+    const world = {
+      entities: [worker], buildings: [farm], tick: 123,
+      resources: { food: 100, wood: 100, stone: 100, iron: 100, gold: 100 },
+      workforcePolicy: 'balanced',
+    } as unknown as WorldState;
+
+    // Every request exhausts its node allowance. A 32×32 grid has a
+    // conservative terminal cap of 4,096 nodes, so the second search ends
+    // the retry sequence instead of deferring indefinitely.
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(route.budgets).toEqual([4000]);
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(route.budgets).toEqual([4000, 4096]);
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(route.budgets).toEqual([4000, 4096]);
+    expect(worker.workerBuildingId).toBeUndefined();
+  });
+
 });
