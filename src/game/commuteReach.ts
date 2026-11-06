@@ -148,6 +148,16 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   }
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
+  if (gridOverride) {
+    // Read-only planner: never consume or reset the assignment sweep's global
+    // search budget, and never treat a speculative placement as a real job.
+    const preview = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+    const hours = preview.cost == null ? Infinity
+      : commuteLeadHoursFor(preview.cost * PATH_CELL, walkSpeed);
+    if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
+    cache.set(key, hours);
+    return hours;
+  }
   const retries = pendingNodeBudgets.get(grid);
   const nextBudget = retries?.get(key) ?? MAX_COMMUTE_ROUTE_SEARCH_NODES;
   if (routeSearchesLeft <= 0 || (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES && advancedRouteSearchesLeft <= 0)) {
