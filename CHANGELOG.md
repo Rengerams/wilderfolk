@@ -3,7 +3,7 @@
 ## 0.6.5.2 [Unreleased]
 
 - **Fixed (6 November 2026, PR #126; CI verification pending):** Seeded colony starts with legal, reachable homes and food producers instead of impassable river sites; the unaltered 90-day food-survival gate remains authoritative.
-- **Changed (6 November 2026, PR #126; CI pending):** Food expansion may use safe surplus transfers when everyone is employed. Forecast shortages also pause optional housing and immigration; direct staffing keeps bounded A* retries.
+- **Changed (6 November 2026, PR #126; CI pending):** Food expansion uses safe surplus transfers; normal immigration now checks future food demand before accepting families. Commute A* retries occur once per staffing pulse.
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Save-load reconciles vacancies using its restored navigation grid, with path-grid caches also keyed to the actual map identity; incumbent jobs remain unchanged.
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Auto-play no longer builds food sites without an available adult after pending food vacancies, while urgent verified food shortages bypass only the transfer cooldown and retain protected donor staffing.
