@@ -1,12 +1,9 @@
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES } from './gameTypes';
-import { readSkill } from './skills';
 import { addFloatingText, addNotification } from './simEffects';
 import {
   addToConstructionCrew,
   assignMissingWorkers,
-  completedJobBuildings,
-  findOverstaffedDonorBuilding,
   isOnConstructionCrew,
   removeWorkerTransition,
   staffingCapFor,
@@ -58,6 +55,7 @@ export type WorkerAssignmentRefusal =
   | 'residence-building'
   | 'building-full'
   | 'building-has-no-job'
+  | 'automatic-job'
   | 'not-a-settler'
   | 'settler-dead'
   | 'juvenile'
@@ -67,8 +65,7 @@ export type WorkerAssignmentRefusal =
 
 /**
  * The shared candidate gates, each carrying its reason. `isEligibleStaffCandidate` and
- * `isEligibleIdleWorker` are the same statements without the reason, so the manual picker, the daily
- * pass and the inspector all read one rule.
+ * `isEligibleIdleWorker` are the same statements without the reason, so the construction command and its diagnostics read one rule.
  */
 function staffCandidateRefusal(entity: Entity): WorkerAssignmentRefusal | null {
   if (!isPlayerHuman(entity)) return 'not-a-settler';
@@ -81,19 +78,6 @@ function staffCandidateRefusal(entity: Entity): WorkerAssignmentRefusal | null {
 
 function isEligibleStaffCandidate(entity: Entity): boolean {
   return staffCandidateRefusal(entity) === null;
-}
-
-/** The idle-worker gates: the shared core plus "not already on another structure's crew". */
-function idleWorkerRefusal(state: WorldState, entity: Entity): WorkerAssignmentRefusal | null {
-  const core = staffCandidateRefusal(entity);
-  if (core) return core;
-  if (isOnConstructionCrew(state.buildings, entity.id)) return 'on-another-crew';
-  return null;
-}
-
-/** An idle settler who is not already on another structure's crew. */
-function isEligibleIdleWorker(entity: Entity, state: WorldState): boolean {
-  return idleWorkerRefusal(state, entity) === null;
 }
 
 /**
@@ -294,27 +278,6 @@ export function removeStaffWorkerFromBuilding(
   return state;
 }
 
-/** Idle settlers who can be picked for a job building (sorted by job skill). */
-export function listAssignableWorkersForBuilding(
-  state: WorldState,
-  buildingId: number,
-  limit = 12,
-): Entity[] {
-  const building = state.buildings.find((candidate) => candidate.id === buildingId);
-  if (!building || !building.completed || building.faction === 'rival') return [];
-
-  const job = BUILDING_JOB_TYPES[building.type];
-  if (!job) return [];
-
-  const { cap, staffed } = staffingCapFor(building, state.entities);
-  if (staffed >= cap) return [];
-
-  return state.entities
-    .filter((entity) => isEligibleIdleWorker(entity, state))
-    .sort((a, b) => readSkill(b, job) - readSkill(a, job))
-    .slice(0, limit);
-}
-
 export function canAssignWorkerToBuilding(state: WorldState, buildingId: number): boolean {
   const building = state.buildings.find((candidate) => candidate.id === buildingId);
   if (!building || building.faction === 'rival') return false;
@@ -326,26 +289,14 @@ export function canAssignWorkerToBuilding(state: WorldState, buildingId: number)
     );
   }
 
-  if (isResidenceBuildingType(building.type)) return false;
-
-  const job = BUILDING_JOB_TYPES[building.type];
-  if (!job) return false;
-
-  const { cap, staffed } = staffingCapFor(building, state.entities);
-  if (staffed >= cap) return false;
-
-  const humans = allPlayerHumans(state.entities);
-  if (humans.some((human) => isEligibleIdleWorker(human, state))) return true;
-
-  return findOverstaffedDonorBuilding(completedJobBuildings(state.buildings), humans, building.id) !== undefined;
+  // Completed jobs are staffed only by the workforce owner.
+  return false;
 }
 
 /**
- * The owner's answer to "why can this settler not work here?" — `null` when the assignment command
- * would take them. Read-only: nothing here mutates state, so the inspectors can ask it every frame.
+ * The owner's answer to player assignment requests. Job posts are automatic; builders may be assigned. Read-only: nothing here mutates state, so the inspectors can ask it every frame.
  *
- * Gate order follows the command (`_applyBuilderAssignmentMut` for a site still under construction,
- * `_assignIdleWorkerToBuildingMut`/`assignWorkerTransition` for a finished workplace), with one
+ * Gate order follows the construction command; completed workplaces are automatic. One
  * exception noted on {@link WorkerAssignmentRefusal}. A settler already on this building's roster or
  * crew is *accepted* (the command is idempotent), so they are reported as `null`, not refused.
  */
@@ -362,6 +313,7 @@ export function getWorkerAssignmentRefusal(
   if (!entity) return 'unknown-settler';
 
   if (building.completed && isResidenceBuildingType(building.type)) return 'residence-building';
+  if (building.completed && BUILDING_JOB_TYPES[building.type]) return 'automatic-job';
   if (building.occupants.includes(entity.id)) return null;
 
   if (!building.completed) {
@@ -372,8 +324,5 @@ export function getWorkerAssignmentRefusal(
     return null;
   }
 
-  if (!BUILDING_JOB_TYPES[building.type]) return 'building-has-no-job';
-  const { cap: staffCap, staffed } = staffingCapFor(building, state.entities);
-  if (staffed >= staffCap) return 'building-full';
-  return idleWorkerRefusal(state, entity);
+  return 'building-has-no-job';
 }
