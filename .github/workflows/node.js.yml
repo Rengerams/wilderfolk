@@ -37,8 +37,10 @@ jobs:
             cd "$base_dir"
             node scripts/build-call-graph.mjs --json-only
             node scripts/check-semantic-duplicates.mjs --update-baseline
+            node scripts/check-duplicate-code.mjs --update-baseline
           )
           cp "$base_dir/docs/tools/semantic-duplicates-baseline.json" docs/tools/semantic-duplicates-baseline.json
+          cp "$base_dir/docs/tools/duplicate-code-baseline.json" docs/tools/duplicate-code-baseline.json
       - name: Run PR checks and affected tests
         if: github.event_name == 'pull_request'
         env:
