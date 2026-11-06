@@ -65,7 +65,7 @@ export type WorkerAssignmentRefusal =
 
 /**
  * The shared candidate gates, each carrying its reason. `isEligibleStaffCandidate` and
- * `isEligibleIdleWorker` are the same statements without the reason, so the construction command and its diagnostics read one rule.
+ * The construction assignment command and its diagnostics share this eligibility rule.
  */
 function staffCandidateRefusal(entity: Entity): WorkerAssignmentRefusal | null {
   if (!isPlayerHuman(entity)) return 'not-a-settler';
