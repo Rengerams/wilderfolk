@@ -8,7 +8,7 @@
 
 - **Fixed (6 November 2026, PR #126):** Loading an older save no longer runs the retired manual-Church migration and removes existing Priest jobs. Legacy manual flags normalize to automatic staffing without clearing valid assignments.
 
-- **Fixed (6 November 2026, PR #126):** Store construction is a late auto-play choice, so material-storage pressure no longer blocks research, repairs and recruitment. Capacity is derived only from completed player buildings; a new regression test covers stale snapshots, thresholds and rival or unfinished Stores.
+- **Fixed (6 November 2026, PR #126):** Store expansion runs late in auto-play, after research, repairs and recruitment. Capacity uses completed player buildings; regression tests cover stale snapshots, thresholds, rivals and unfinished Stores.
 
 - **Tests (6 November 2026, PR #126):** Replaced retired manual-job command assumptions with construction-command transport and automatic staffing cases; repaired the diagnostic probe's missing log directory.
 
