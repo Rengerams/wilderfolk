@@ -37,6 +37,7 @@ import { canLaunchRaidOnRival, getRaidChoiceEligibility } from '../src/game/fron
 import { getOpenBeds, getOpenPlayerBeds } from '../src/game/populationGrowth';
 import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
 import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
+import { assignMissingWorkers } from '../src/game/workforce';
 import { getRepairBuildingEligibility, buildingTypeHasLevelBenefit } from '../src/game/buildingMaintenanceActions';
 import { getForgeBlockReason, isForgeOrderComplete } from '../src/game/forge';
 import { getRecruitSettlerEligibility } from '../src/game/settlerInteractionActions';
@@ -820,7 +821,7 @@ describe('virtual player decision engine', () => {
     expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
 
-  it('leaves a deliberately manual Church alone, but allows the player to staff it', () => {
+  it('rejects individual Church assignment while the workforce handles legacy manual saves', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -829,18 +830,12 @@ describe('virtual player decision engine', () => {
       ],
       [building(1, BuildingType.House, { occupants: [1, 2, 3] }), building(2, BuildingType.Church, { staffingMode: 'manual' })],
     );
-
-    const decision = decideVirtualPlayerAction(world);
-    expect(decision?.command?.op).not.toBe('assignWorker');
-    expect(decision?.command?.op).not.toBe('setBuildingStaffingMode');
-    expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
-    expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
-
-    // The human player still has the explicit manual-assign command available.
-    expect(canAssignWorkerToBuilding(world, 2)).toBe(true);
     const manuallyAssigned = applyWorkerCommand(world, { proto: WORKER_CMD_PROTO, op: 'assignWorker', buildingId: 2 });
-    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.occupants.length).toBeGreaterThan(0);
-    expect(manuallyAssigned.buildings.find((b) => b.id === 2)?.staffingMode).toBe('manual');
+    expect(manuallyAssigned).toBe(world);
+    expect(world.buildings.find((b) => b.id === 2)?.occupants).toEqual([]);
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(world.buildings.find((b) => b.id === 2)?.staffingMode).toBe('auto');
+    expect(world.buildings.find((b) => b.id === 2)?.occupants.length).toBeGreaterThan(0);
   });
 
   it('proposes nothing the colony cannot afford', () => {
@@ -1378,7 +1373,7 @@ describe('virtual player remaining action surface', () => {
     expect(applied.resources.gold).toBe(475);
   });
 
-  it('does not auto-assign manual vacancies across repeated virtual-player decisions', () => {
+  it('does not mutate job rosters during repeated pure virtual-player decisions', () => {
     const world = makeWorld(
       [
         human(1, { residenceBuildingId: 1 }),
@@ -1594,7 +1589,7 @@ describe('virtual player remaining action surface', () => {
       rivalId: 'rival_ravenhold',
     });
   });
-  it('never resets empty or staffed manual workplaces to automatic', () => {
+  it('does not mutate legacy staffing flags in a pure planning decision', () => {
     const empty = makeWorld(
       [human(1, { residenceBuildingId: 1, workerBuildingId: 3 })],
       [
