@@ -801,6 +801,39 @@ export function staffConstructionCrews(
   }
 }
 
+/** During a verified food deficit, reserve idle adults for reachable food vacancies
+ * before the construction pass claims them as builders. Assignment eligibility stays
+ * entirely inside assignWorkerInPlace; no existing job or crew is forcibly removed.
+ */
+function staffFoodJobsBeforeConstruction(
+  alive: Entity[],
+  buildings: Building[],
+  world: WorldState | undefined,
+  buildingById: ReadonlyMap<number, Building>,
+): void {
+  if (!world || getWorkforcePolicy(world) !== 'survival'
+    || !isMeasuredFoodDeficit(world, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return;
+  const foodJobs = completedJobBuildings(buildings, 'survival').filter((site) =>
+    site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse
+    || site.type === BuildingType.FishingSpot || site.type === BuildingType.HuntingSpot);
+  if (foodJobs.length === 0) return;
+  const constructionIds = new Set<number>();
+  for (const site of buildings) {
+    if (!site.completed) for (const id of site.occupants) constructionIds.add(id);
+  }
+  const workerCounts = new Map<number, number>();
+  for (const human of alive) {
+    if (human.workerBuildingId != null) {
+      workerCounts.set(human.workerBuildingId, (workerCounts.get(human.workerBuildingId) ?? 0) + 1);
+    }
+  }
+  for (const site of foodJobs) {
+    while (assignWorkerInPlace(site, alive, buildings, world, constructionIds, buildingById, workerCounts)) {
+      // Only unassigned, reachable adults; leave incumbent jobs untouched.
+    }
+  }
+}
+
 export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
@@ -929,6 +962,9 @@ export function assignMissingWorkers(
       if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
     }
   }
+  // Reserve newly available workers for real food output before construction
+  // consumes the same idle pool; other jobs retain the ordinary assignment order.
+  staffFoodJobsBeforeConstruction(alive, buildings, world, buildingById);
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   profileEnd('workforce.construction', constructionStart);
