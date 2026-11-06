@@ -453,9 +453,25 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
   }
 
   const type = BuildingType.House;
-  if (!canAfford(state, BUILDING_CONFIGS[type].cost)) return null;
   const spot = findPlacementSpot(state, type, 0);
-  if (!spot) return null;
+  if (!spot) {
+    if (homeless > 0) {
+      // At a housing dead end, clear a redundant outbuilding before expanding an existing home.
+      const clearance = decideDemolish(state);
+      if (clearance) return clearance;
+      for (const building of state.buildings) {
+        if (building.faction === 'rival' || building.type === BuildingType.LeaderHouse) continue;
+        if (!isResidenceBuilding(building)) continue;
+        if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
+        return {
+          command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: building.id },
+          reason: `expand the ${BUILDING_CONFIGS[building.type].label} — ${homeless} homeless and no room left to build`,
+        };
+      }
+    }
+    return null;
+  }
+  if (!canAfford(state, BUILDING_CONFIGS[type].cost)) return null;
 
   return {
     command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type, x: spot.x, y: spot.y, rotation: 0 },
@@ -1402,25 +1418,6 @@ function decideRoads(state: WorldState): VirtualPlayerDecision | null {
  * house is free, so the bot proposes nothing here.
  */
 function decideUpkeep(state: WorldState): VirtualPlayerDecision | null {
-  const homeless = countHomelessSettlers(state);
-  if (
-    homeless > 0
-    && getOpenPlayerBeds(state) === 0
-    && !findPlacementSpot(state, BuildingType.House, 0)
-    && !isUnderConstruction(state, BuildingType.House)
-    && !isUnderConstruction(state, BuildingType.Mansion)
-  ) {
-    for (const building of state.buildings) {
-      if (building.faction === 'rival' || building.type === BuildingType.LeaderHouse) continue;
-      if (!isResidenceBuilding(building)) continue;
-      if (!getBuildingUpgradeEligibility(state, building.id).ok) continue;
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: building.id },
-        reason: `expand the ${BUILDING_CONFIGS[building.type].label} — ${homeless} homeless and no room left to build`,
-      };
-    }
-  }
-
   // Taming is discretionary: a stocked larder alone is not a food surplus.
   // A sustained production deficit forbids spending down the initial reserve,
   // even when the village still has several days of food in storage.
