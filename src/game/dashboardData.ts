@@ -29,7 +29,7 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './housingModel';
-import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew, staffingCapFor } from './workforce';
+import { findHumanWorkplace, isOnConstructionCrew, staffingCapFor } from './workforce';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
@@ -802,7 +802,7 @@ function settlerName(state: WorldState, id: number): string {
  * Read-only staffing explanation for one building: auto/manual mode, capacity, the current workers,
  * and — for any settler the caller names — the staffing owner's own reason for refusing them.
  *
- * Every rule comes from its owner: the mode from `workforce.isManualStaffingBuilding`, the cap from
+ * Every rule comes from its owner: the cap from
  * `BUILDING_CONFIGS` / `housingModel.getResidenceCapacity`, the roster from
  * `housingModel` / the building's occupant list, and the refusals from
  * `buildingStaffingActions.getWorkerAssignmentRefusal`. The panel only renders {@link lines}.
@@ -826,7 +826,7 @@ export function explainBuildingStaffing(
 
   const isResidence = building.completed && isResidenceBuildingType(building.type);
   const takesStaff = !building.completed || BUILDING_JOB_TYPES[building.type] !== undefined;
-  const mode: 'auto' | 'manual' = isManualStaffingBuilding(building) ? 'manual' : 'auto';
+  const mode = 'auto' as const;
   /**
    * A finished workplace's cap and count come from the staffing owner: a Prison's occupant list is
    * guards ∪ prisoners, so that list against the config cap counts cells as guard posts.
