@@ -259,8 +259,12 @@ export function isWithinAssignableCommute(
     && Math.floor(from.y / PATH_CELL) === Math.floor(building.y / PATH_CELL)) return true;
   // Bot placement can pass its own read-only world map. This reuses the same
   // A* cost and two-hour rule without mutating the simulation's current grid.
-  const grid = worldMap ? getReadOnlyPathGrid(worldMap, buildings as Building[]) : getCurrentPathGrid();
-  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed, grid ?? undefined);
+  const previewGrid = worldMap ? getReadOnlyPathGrid(worldMap, buildings as Building[]) : null;
+  const grid = previewGrid ?? getCurrentPathGrid();
+  // Only bot previews pass a grid override. Actual staffing MUST use the
+  // live bounded/retryable route budget, not the preview-only fast path.
+  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed,
+    previewGrid ?? undefined);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 
   // A failed/budget-exhausted route search is UNKNOWN, not a passable road.
