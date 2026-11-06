@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126):** Auto-play resolves blocked homeless housing by clearing eligible redundant outbuildings or expanding existing residences before optional food construction; the existing housing and demolition tests remain strict.
+
 - **Tests (6 November 2026, PR #126; runtime unverified):** The batch-repair fixture now supplies spare housing and checks the correct stone remainder against its 200-unit baseline; existing forge fixtures already avoid incidental Store-expansion decisions.
 
 - **Fixed (6 November 2026, PR #126):** Loading an older save no longer runs the retired manual-Church migration and removes existing Priest jobs. Legacy manual flags normalize to automatic staffing without clearing valid assignments.
