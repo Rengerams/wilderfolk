@@ -24,7 +24,6 @@ import { HUNTING_SPOT_SEARCH_RADIUS_PX, huntingSpotPreyTypes } from './huntingSp
 import {
   countWorkersAtBuilding,
   findOverstaffedDonorBuilding,
-  isManualStaffingBuilding,
   pickWorkerToTransfer,
 } from './workforce';
 import { getWorkforcePolicy, jobBuildingPriorityForPolicy } from './workforcePolicy';
@@ -471,7 +470,6 @@ function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
   return state.buildings.find((building) =>
     building.completed && building.faction !== 'rival'
     && FOOD_PRODUCER_TYPES.includes(building.type)
-    && !isManualStaffingBuilding(building)
     && countWorkersAtBuilding(state.entities, building.id) < BUILDING_CONFIGS[building.type].maxOccupants,
   );
 }
@@ -493,18 +491,11 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
-    && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
+    && BUILDING_JOB_TYPES[building.type],
   );
   const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true);
   const availableWorker = donor && pickWorkerToTransfer(humans, donor, producer, state.tick);
   if (donor && availableWorker) {
-    // Colony-wide auto-staff resets manual posts; use the targeted removal door instead.
-    if (state.buildings.some((building) => isManualStaffingBuilding(building))) {
-      return {
-        command: { proto: WORKER_CMD_PROTO, op: 'removeWorker', buildingId: donor.id, humanId: availableWorker.id },
-        reason: `release an auto worker for the ${BUILDING_CONFIGS[producer.type].label} without changing manual staffing`,
-      };
-    }
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
@@ -781,13 +772,13 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
-    && BUILDING_JOB_TYPES[building.type] && !isManualStaffingBuilding(building),
+    && BUILDING_JOB_TYPES[building.type],
   );
   for (const entry of INDUSTRY_BUILD_ORDER) {
     if (entry.type === BuildingType.Store || (state.resources[entry.stock] ?? 0) >= entry.minimumStock) continue;
     const producer = state.buildings.find((building) =>
       building.completed && building.type === entry.type
-      && building.faction !== 'rival' && !isManualStaffingBuilding(building)
+      && building.faction !== 'rival'
       && countWorkersAtBuilding(state.entities, building.id) === 0,
     );
     if (!producer) continue;
@@ -1214,7 +1205,7 @@ function decideSurplusWorkers(state: WorldState): VirtualPlayerDecision | null {
   }
 
   for (const building of state.buildings) {
-    if (!building.completed || building.faction === 'rival' || isManualStaffingBuilding(building)) continue;
+    if (!building.completed || building.faction === 'rival') continue;
     const job = BUILDING_JOB_TYPES[building.type];
     if (!job) continue;
     const cap = BUILDING_CONFIGS[building.type].maxOccupants;
