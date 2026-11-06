@@ -11,6 +11,7 @@
 - Related implementation: `docs/plans/persistent-automatic-workforce-2026-11-06.md`
 
 ## Status history
+- 2026-11-06 — investigating: PR #126 removes manual staffing filters and player job selectors, normalizes legacy mode to auto, and retains persistent job IDs. Runtime not tested; event-driven optimization remains planned.
 - 2026-11-06 — investigating: source paths differ; runtime impact not verified. Player requests removing manual assignment altogether.
 
 ## Observed behavior
@@ -31,6 +32,8 @@ One authoritative workforce policy and action path. Under the newly requested de
 Confirmed duplicated policy branching in the proposal layer. Whether the differing commands result in different actual assignments is not yet established.
 
 ## Fix / proposed fix
+Implementation committed on PR #126: the workforce owner keeps existing jobs, manual-only policy branches are gone, and the legacy manual mode is migrated on the workforce pass. Completed job posts cannot be individually assigned through the old player command. Validation was not run.
+
 Replace both special-case proposals with a single workforce reconciliation policy as part of removing manual assignment. Keep `workerBuildingId` persistent. Prefer vacant and unassigned workers first; transfer occupied workers only for validated urgent needs or worthwhile opportunities. Assign through the existing workforce owner and typed command boundary; remove obsolete manual-only checks and UI after tracing references. Avoid per-day complete rebalance.
 
 ## Save/migration impact
