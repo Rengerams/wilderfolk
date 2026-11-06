@@ -518,7 +518,7 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: emergency
-        ? `urgently staff the ${BUILDING_CONFIGS[producer.type].label} — real food output is falling behind`
+        ? `urgently staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers; real output is falling behind`
         : `staff the ${BUILDING_CONFIGS[producer.type].label} — food production needs workers before more buildings`,
     };
   }
