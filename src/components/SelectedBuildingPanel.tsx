@@ -975,7 +975,7 @@ export default function SelectedBuildingPanel({
           {building.completed && BUILDING_JOB_TYPES[building.type] && (
             <p className="col-span-2 text-[11px] text-sky-300">Employment is automatic; existing jobs are retained.</p>
           )}
-          {!canAssignWorker && staffedWorkers < staffingCap && (
+          {!building.completed && !canAssignWorker && staffedWorkers < staffingCap && (
             <div className="col-span-2 space-y-0.5">
               <p className="text-[11px] text-stone-300">
                 No idle settlers — recruit or free up workers.
