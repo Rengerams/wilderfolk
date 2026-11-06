@@ -10,7 +10,7 @@ import {
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
 import {
-  beginCommuteRoutePass, isWithinAssignableCommute,
+  beginCommuteRoutePass, isWithinAssignableCommute, wereCommuteRouteChecksDeferred,
   straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS,
 } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
@@ -898,9 +898,16 @@ export function assignMissingWorkers(
   staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
   if (world && cacheable) {
-    // Record POST-reconciliation state so new assignments don't force another
-    // heavy pass on the next unchanged six-hour or daily economy pulse.
-    lastWorkforceSignature.set(world, workforceSignature(world, humans));
+    if (wereCommuteRouteChecksDeferred()) {
+      // No route was proved unreachable: we simply ran out of search budget.
+      // Discard even a previously cached signature so the next scheduled
+      // assignment pulse gets a fresh budget and retries these vacancies.
+      lastWorkforceSignature.delete(world);
+    } else {
+      // Only a fully priced pass may be cached. Unchanged future pulses can
+      // skip expensive matching without starving deferred applicants.
+      lastWorkforceSignature.set(world, workforceSignature(world, humans));
+    }
   }
 }
 
