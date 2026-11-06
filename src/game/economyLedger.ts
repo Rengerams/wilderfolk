@@ -140,6 +140,16 @@ export function getRecentFoodFlow(
   };
 }
 
+/** A verified negative production trend, with monthly persistence across a brief good week. */
+export function isMeasuredFoodDeficit(state: Pick<WorldState, 'foodHistory' | 'tick'>, toleranceRatio: number): boolean {
+  const recent = getRecentFoodFlow(state);
+  if (!recent) return false;
+  if (recent.consumedPerDay > 0 && recent.netPerDay < -recent.consumedPerDay * toleranceRatio) return true;
+  const month = getRecentFoodFlow(state, 30);
+  return month != null && month.days >= 14 && month.consumedPerDay > 0
+    && month.netPerDay < -month.consumedPerDay * toleranceRatio;
+}
+
 /** The current day's ledger, or null when nothing has happened yet today. */
 export function getEconomyLedger(state: WorldState): DailyEconomyLedger | null {
   const ledger = state.economyLedger;
