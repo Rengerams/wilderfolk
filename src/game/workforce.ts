@@ -836,6 +836,7 @@ export function assignMissingWorkers(
     WorldState,
     'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
   > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
+  forceReconcile = false,
 ): void {
   // A full WorldState is used by all production callers; the optional slices form
   // keeps unit-level API callers backwards compatible without shared cache state.
@@ -844,7 +845,7 @@ export function assignMissingWorkers(
     && world.buildings === buildings && world.tick != null;
   if (world && cacheable) {
     const signature = workforceSignature(world, humans);
-    if (lastWorkforceSignature.get(world) === signature) return;
+    if (!forceReconcile && lastWorkforceSignature.get(world) === signature) return;
   }
 
   // Each actual staffing event has a bounded route-search budget, shared with
