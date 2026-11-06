@@ -71,12 +71,12 @@ describe('B2 worker assignment panel truth', () => {
     expect(far.workerBuildingId).toBeUndefined();
   });
 
-  it('setBuildingStaffingMode persists auto/manual mode', () => {
+  it('setBuildingStaffingMode rejects manual mode', () => {
     const state = initGame({ size: MapSize.Medium, seed: 1 });
     const farm = makeFarm(100);
     state.buildings.push(farm);
     const next = setBuildingStaffingMode(state, 100, 'manual');
-    expect(next.buildings.find((b) => b.id === 100)?.staffingMode).toBe('manual');
+    expect(next).toBe(state);
     const next2 = setBuildingStaffingMode(state, 100, 'auto');
     expect(next2.buildings.find((b) => b.id === 100)?.staffingMode).toBe('auto');
   });
