@@ -811,7 +811,8 @@ export function assignMissingWorkers(
   const prepStart = profileStart();
   // Old manual flags never displace established employees.
   for (const building of buildings) {
-    if (building.staffingMode === 'manual') building.staffingMode = 'auto';
+    if (building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type]
+      && building.staffingMode === 'manual') building.staffingMode = 'auto';
   }
   const alive = prepareWorkforce(humans, buildings);
   profileEnd('workforce.prepare', prepStart);
