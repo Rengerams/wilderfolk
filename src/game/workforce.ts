@@ -211,11 +211,12 @@ function pickOverstaffedDonor(
   index: WorkforceAssignmentIndex,
   excludeBuildingId: number,
   preserveEssentialCoverage = false,
+  rejectedDonors?: ReadonlySet<number>,
 ): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
-    if (building.id === excludeBuildingId) continue;
+    if (building.id === excludeBuildingId || rejectedDonors?.has(building.id)) continue;
     const count = index.counts.get(building.id) ?? 0;
     const keep = preserveEssentialCoverage ? minimumAutoCoverage(building) : 1;
     if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
@@ -410,29 +411,39 @@ export function rebalanceJobWorkers(
   const jobBuildings = completedJobBuildings(buildings, policy);
   const index = buildWorkforceAssignmentIndex(humans, currentTick);
 
-  // Fill empty posts once; established workers keep their job when it already has coverage.
-  for (let i = 0; i < jobBuildings.length; i++) {
-      const needy = jobBuildings[i];
-      if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
-      const staffed = index.counts.get(needy.id) ?? 0;
-      const capacity = staffingCapFor(needy, humans, staffed).cap;
-      if (staffed >= capacity) continue;
-      // Food production and guard coverage grow to three posts; other workplaces only start.
-      if (staffed >= minimumAutoCoverage(needy)) continue;
+  // Finish the bounded minimum-coverage rebalance in this invocation, BEFORE
+  // assignMissingWorkers caches the post-pass fingerprint. A newly transferred
+  // employee remains at their new post; we never rebuild the rest of the roster.
+  for (const needy of jobBuildings) {
+    if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
+    let staffed = index.counts.get(needy.id) ?? 0;
+    const capacity = staffingCapFor(needy, humans, staffed).cap;
+    const target = Math.min(capacity, minimumAutoCoverage(needy));
+    if (staffed >= target) continue;
 
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
-      if (!donor) continue;
-
+    // The cheapest donor may have no worker who can actually commute to this
+    // workplace. Try each other eligible donor before leaving the vacancy.
+    // A donor is skipped for THIS destination only; it can still serve others.
+    const rejectedDonors = new Set<number>();
+    while (staffed < target) {
+      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
+      if (!donor) break;
       const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings);
-      if (!worker) continue;
+      if (!worker) {
+        rejectedDonors.add(donor.id);
+        continue;
+      }
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
       index.counts.set(donor.id, (index.counts.get(donor.id) ?? 0) - 1);
-      index.counts.set(needy.id, staffed + 1);
+      index.counts.set(needy.id, ++staffed);
       index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
+      // The cooldown normally makes a transferred worker ineligible as a new
+      // donor. Match the predicate for direct callers without a tick as well.
       if (canAutoChangeWorkplace(worker, currentTick)) {
         index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
       }
+    }
   }
 }
 
