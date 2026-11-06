@@ -502,11 +502,19 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
     && BUILDING_JOB_TYPES[building.type],
   );
   const emergency = isAcuteFoodStaffingEmergency(state);
-  const donor = findOverstaffedDonorBuilding(workplaces, humans, producer.id, state.tick, true, emergency);
-  const availableWorker = donor && pickWorkerToTransfer(
-    humans, donor, producer, state.tick, state.buildings, undefined, emergency,
-  );
-  if (donor && availableWorker) {
+  const rejectedDonors = new Set<number>();
+  while (true) {
+    const donor = findOverstaffedDonorBuilding(
+      workplaces, humans, producer.id, state.tick, true, emergency, rejectedDonors,
+    );
+    if (!donor) break;
+    const availableWorker = pickWorkerToTransfer(
+      humans, donor, producer, state.tick, state.buildings, undefined, emergency,
+    );
+    if (!availableWorker) {
+      rejectedDonors.add(donor.id);
+      continue;
+    }
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'autoStaffWorkers' },
       reason: emergency
