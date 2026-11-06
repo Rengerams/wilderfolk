@@ -16,7 +16,6 @@ import { describe, expect, it } from 'vitest';
 import {
   BuildingType,
   EntityType,
-  JOB_LABELS,
   JobType,
   Season,
   WeatherType,
