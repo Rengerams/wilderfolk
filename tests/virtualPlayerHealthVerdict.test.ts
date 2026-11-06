@@ -237,6 +237,23 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision!.reason).toContain('food');
   });
 
+  it('builds food capacity before a deficit when observed demand growth will overtake output', () => {
+    const colony = ownerColony(20, {
+      tick: 8 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 },
+        consumed: { meals: 40 + index * 5 },
+      })),
+    }, { mills: 0, farms: 4 });
+
+    expect(colony.resources.food).toBeGreaterThan(20 * 3 * 2);
+    const decision = decideVirtualPlayerAction(colony);
+    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decision?.reason).toContain('projected');
+  });
+
   it('plans farms for all mouths, not just adults who can staff them', () => {
     // Eighteen working-age people and twelve children consume food, even though
     // only adults can take a Farm assignment. Three farms satisfy the old
