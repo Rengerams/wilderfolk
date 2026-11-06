@@ -13,10 +13,9 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   assignStaffWorkerToBuilding,
   canAssignWorkerToBuilding,
-  listAssignableWorkersForBuilding,
 } from '../src/game/buildingStaffingActions';
 import { getBuildingConfig } from '../src/game/buildingConfig';
-import { isManualStaffingBuilding, staffingCapFor } from '../src/game/workforce';
+import { staffingCapFor } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
@@ -40,10 +39,6 @@ function renderPanel(target: Building, state: WorldState): string {
       building: target,
       state,
       onAssign: () => {},
-      onAutoStaffAll: () => {},
-      onAssignWorker: () => {},
-      assignableWorkers: listAssignableWorkersForBuilding(state, target.id),
-      onRemove: () => {},
       onRepair: () => {},
       onUpgrade: () => {},
       onDemolish: () => {},
@@ -54,17 +49,17 @@ function renderPanel(target: Building, state: WorldState): string {
 
 const AUTO_STAFFING_CLAIM = 'Workers are assigned here automatically';
 
-describe('the inspector claims automatic staffing only where the workforce owner auto-staffs', () => {
-  it('drops the claim for a completed School', () => {
+describe('automatic employment in the building inspector', () => {
+  it('ignores a legacy manual mode and shows automatic staffing', () => {
     const school = building(5, BuildingType.School, { staffingMode: 'manual' });
-    expect(isManualStaffingBuilding(school)).toBe(true);
-    expect(renderPanel(school, makeWorld([], [school]))).toContain('Enable Auto-fill for all workplaces');
-    expect(renderPanel(school, makeWorld([], [school]))).not.toContain(AUTO_STAFFING_CLAIM);
+    const html = renderPanel(school, makeWorld([], [school]));
+    expect(html).toContain(AUTO_STAFFING_CLAIM);
+    expect(html).not.toContain('Choose worker:');
+    expect(html).not.toContain('Manual</button>');
   });
 
-  it('keeps the claim for a completed Farm', () => {
+  it('keeps the automatic staffing explanation for a completed Farm', () => {
     const farm = building(6, BuildingType.Farm);
-    expect(isManualStaffingBuilding(farm)).toBe(false);
     expect(renderPanel(farm, makeWorld([], [farm]))).toContain(AUTO_STAFFING_CLAIM);
   });
 });
@@ -125,17 +120,13 @@ describe('reserved posts remain occupied during imprisonment', () => {
   });
 });
 
-describe('the manual worker picker reports the settlers it leaves out', () => {
-  it("counts the rest of the owner's list beside the sliced picker", () => {
-    const idle: Entity[] = [];
-    for (let id = 1; id <= 13; id++) idle.push(human(id));
+describe('individual job selection is unavailable', () => {
+  it('retains the staffing roster but does not offer manual selection', () => {
     const school = building(5, BuildingType.School, { staffingMode: 'manual' });
-    const state = makeWorld(idle, [school]);
-
-    const picker = listAssignableWorkersForBuilding(state, school.id);
-    expect(picker.length).toBeGreaterThan(0);
-    expect(picker.length).toBeLessThan(idle.length);
-    expect(renderPanel(school, state)).toContain(`+${idle.length - picker.length} more settler`);
+    const state = makeWorld([human(1)], [school]);
+    const html = renderPanel(school, state);
+    expect(html).toContain('Employment is automatic');
+    expect(html).not.toContain('Choose worker:');
   });
 });
 
