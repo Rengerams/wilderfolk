@@ -2026,7 +2026,9 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
       (building) => building.type === entry.type && building.faction !== 'rival',
     );
     if (owned.some((building) => !building.completed)) {
-      return `${label} is still going up — ${stock} ${entry.stock} left`;
+      return store
+        ? `${label} is still going up — material storage is nearing capacity`
+        : `${label} is still going up — ${stock} ${entry.stock} left`;
     }
     const standing = owned.find((building) => building.completed);
     if (standing) {
@@ -2038,7 +2040,9 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     if (buildingNow) {
       return `${BUILDING_CONFIGS[buildingNow].label} is still going up — a ${label} waits its turn`;
     }
-    return `${short ? `${stock} ${entry.stock} left` : `${built} for ${adultSettlerCount(state)} settlers`} — ${buildingBlockReason(state, entry.type, scaling)}`;
+    return store
+      ? `Material storage is nearing capacity — ${buildingBlockReason(state, entry.type, true)}`
+      : `${short ? `${stock} ${entry.stock} left` : `${built} for ${adultSettlerCount(state)} settlers`} — ${buildingBlockReason(state, entry.type, scaling)}`;
   }
 
   return null;
