@@ -277,7 +277,7 @@ describe('workforce named transitions', () => {
     const site = building(10, BuildingType.House, { completed: false, occupants: [builder.id] });
     const farm = building(20, BuildingType.Farm);
 
-    staffJobBuildings([builder, freeWorker], [site, farm], true);
+    staffJobBuildings([builder, freeWorker], [site, farm]);
 
     expect(site.occupants).toEqual([builder.id]);
     expect(farm.occupants).toEqual([freeWorker.id]);
