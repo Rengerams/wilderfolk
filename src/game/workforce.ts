@@ -42,10 +42,6 @@ export function isOnConstructionCrew(
   return false;
 }
 
-/** Only an explicit `manual` keeps the player's own crew out of the auto pass. */
-export function isManualStaffingBuilding(building: Pick<Building, 'staffingMode'>): boolean {
-  return building.staffingMode === 'manual';
-}
 
 /**
  * Auto-staff rank of a job building. The ordering table itself lives in the policy owner
@@ -216,7 +212,7 @@ function pickOverstaffedDonor(
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
-    if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
+    if (building.id === excludeBuildingId) continue;
     const count = index.counts.get(building.id) ?? 0;
     const keep = preserveEssentialCoverage ? minimumAutoCoverage(building) : 1;
     if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
@@ -410,7 +406,6 @@ export function rebalanceJobWorkers(
   // Fill empty posts once; established workers keep their job when it already has coverage.
   for (let i = 0; i < jobBuildings.length; i++) {
       const needy = jobBuildings[i];
-      if (isManualStaffingBuilding(needy)) continue;
       if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
       const staffed = index.counts.get(needy.id) ?? 0;
       const capacity = staffingCapFor(needy, humans, staffed).cap;
@@ -620,7 +615,7 @@ export function assignBuilderInPlace(
     })
     .find((h) => {
       const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
-      if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
+      if (!site || !site.completed) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       // Construction must not strip the last ordinary producer or protected food/guard crew.
       // This is the same donor-coverage invariant that job rebalancing applies.
@@ -766,7 +761,6 @@ export function staffConstructionCrews(
 export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
-  includeManualStaff: boolean,
   worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   buildingIndex?: ReadonlyMap<number, Building>,
@@ -788,18 +782,15 @@ export function staffJobBuildings(
   const staffStart = profileStart();
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
-    if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
     while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds, buildingById, workerCounts)) {
       // Fill job slots
     }
   }
   profileEnd('workforce.staff', staffStart);
 
-  if (!includeManualStaff) {
-    const rebalanceStart = profileStart();
-    rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
-    profileEnd('workforce.rebalance', rebalanceStart);
-  }
+  const rebalanceStart = profileStart();
+  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
+  profileEnd('workforce.rebalance', rebalanceStart);
   const syncStart = profileStart();
   syncJobBuildingOccupants(alive, buildings);
   profileEnd('workforce.syncOccupants', syncStart);
@@ -818,12 +809,16 @@ export function assignMissingWorkers(
   > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
 ): void {
   const prepStart = profileStart();
+  // Old manual flags never displace established employees.
+  for (const building of buildings) {
+    if (building.staffingMode === 'manual') building.staffingMode = 'auto';
+  }
   const alive = prepareWorkforce(humans, buildings);
   profileEnd('workforce.prepare', prepStart);
   const buildingById = new Map(buildings.map((building) => [building.id, building]));
   const policy = getWorkforcePolicy(worldSlices ?? {});
   // Reserve one idle producer when a core material is exhausted, before builders
-  // consume every free hand. Existing jobs and manual staffing are untouched.
+  // consume every free hand. Existing jobs remain assigned.
   if (worldSlices?.resources) {
     for (const [resource, type] of [
       ['wood', BuildingType.LumberMill],
@@ -832,7 +827,7 @@ export function assignMissingWorkers(
       if (worldSlices.resources[resource] > 0) continue;
       const producer = buildings.find((site) =>
         site.completed && site.faction !== 'rival' && site.type === type
-        && !isManualStaffingBuilding(site) && countWorkersAtBuilding(alive, site.id) === 0,
+        && countWorkersAtBuilding(alive, site.id) === 0,
       );
       if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
     }
@@ -841,7 +836,7 @@ export function assignMissingWorkers(
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   profileEnd('workforce.construction', constructionStart);
   const jobsStart = profileStart();
-  staffJobBuildings(alive, buildings, false, worldSlices, policy, buildingById);
+  staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
 }
 
