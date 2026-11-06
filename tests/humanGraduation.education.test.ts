@@ -86,7 +86,7 @@ describe('education tiers', () => {
 
 describe('a child graduates once, with the education payoff', () => {
   it('awards Tier 3 twenty points across skills once', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     child.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     child.isJuvenile = false;
@@ -99,7 +99,7 @@ describe('a child graduates once, with the education payoff', () => {
   });
 
   it('keeps the transition reachable on the age-sync tick', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
     const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     state.entities = [child];
@@ -122,7 +122,7 @@ describe('a child graduates once, with the education payoff', () => {
   });
 
   it('graduates only once, so later ticks do not re-apply the bonus', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
     const child = makeChild(HUMAN_CHILDHOOD_YEARS, state);
     state.entities = [child];
@@ -136,7 +136,7 @@ describe('a child graduates once, with the education payoff', () => {
   });
 
   it('does not graduate a child who is still below the childhood threshold', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.tick = TICKS_PER_DAY * 10;
     const child = makeChild(HUMAN_CHILDHOOD_YEARS - 1, state);
     state.entities = [child];
@@ -149,7 +149,7 @@ describe('a child graduates once, with the education payoff', () => {
 });
 describe('rare natural talent at birth', () => {
   it('grants one exceptional trade to roughly one percent of newborns without stacking skills', () => {
-    initGame({ seed: FIXTURE_SEED });
+    initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     let talented = 0;
     let extraordinarilyTalented = 0;
     for (let index = 0; index < 10000; index++) {

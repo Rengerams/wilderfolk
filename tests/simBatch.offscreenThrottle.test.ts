@@ -3,7 +3,7 @@
  * the tick the throttle opens, and the same settler in focus acts every tick.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, MapSize, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import type { SimulationFocus } from '../src/game/simFocus';
@@ -29,7 +29,7 @@ let settlerPrototype: Entity | undefined;
 
 function baseSettler(): Entity {
   if (!settlerPrototype) {
-    const probe = initGame({ seed: 4242 });
+    const probe = initGame({ size: MapSize.Medium, seed: 4242 });
     const found = probe.entities.find((e) => isPlayerHuman(e) && !e.isJuvenile && e.alive);
     if (!found) throw new Error('worldGen produced no settler to use as a test prototype');
     settlerPrototype = found;
@@ -81,7 +81,7 @@ function house(): Building {
 
 /** A night world whose only settler starts far from their house. */
 function nightWorld(id: number): WorldState {
-  const state = initGame({ seed: TEST_SEED });
+  const state = initGame({ size: MapSize.Medium, seed: TEST_SEED });
   state.buildings = [house()];
   const position = state.worldMap
     ? nearestWalkableWorldPoint(state.worldMap, state.buildings, 100, 100)

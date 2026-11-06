@@ -13,7 +13,7 @@ import { revertToHumanForm } from '../src/game/moonHowlerForm';
 import type { WorldState } from '../src/game/gameTypes';
 
 function oldPayload(): Record<string, unknown> {
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242 });
   const encoded = parseSaveJson(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
   if (!encoded.valid || !encoded.parsed) throw Error('invalid fixture');
   for (const e of encoded.parsed.entities as Record<string, unknown>[]) {
@@ -76,7 +76,7 @@ describe('PR D compact old-save migration', () => {
   });
 
   it('preserves valid work across worker prep rollback and actual delta transport', () => {
-    const authority = initGame({ seed: 42 });
+    const authority = initGame({ skipTerrain: true, seed: 42 });
     const person = authority.entities.find((e) => e.type === EntityType.Human)!;
     person.careerHistory = { farmer: { days: 21, lastDay: 20 } };
     person.careerMilestones = { farmer: { tier: 'practiced', tierAtDay: 15 } };

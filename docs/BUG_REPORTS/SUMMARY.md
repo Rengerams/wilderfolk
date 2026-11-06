@@ -112,7 +112,7 @@ One more landed 2026-10-09 (**84 total**, **74 resolved**, **8 open** — the sa
 
 **2026-11-01 — [Deferred worker tick leaves stale entity catalog](../bug_report/2026-11-01-deferred-worker-tick-leaves-stale-entity-catalog.md):** PR #118 now rebuilds and prunes after a tick arrives during a pending lightweight command, while retaining the no-tick fast path. Focused tests added; execution and CI pending.
 
-**2026-11-01 — [Virtual Player food production lags population](../bug_report/2026-11-01-virtual-player-food-production-lags-population.md):** Both 29 October and 1 November 100-day producer-colony gates starved at day 90 with identical economics. PR #118 updates food capacity planning, deficit staffing, and focused tests; fresh 100-day CI pending.
+**2026-11-01 — [Virtual Player food production lags population](../bug_report/2026-11-01-virtual-player-food-production-lags-population.md):** Both 29 October and 1 November 100-day producer-colony gates starved at day 90 with identical economics. PR #118 updates food capacity planning, deficit staffing, and focused tests; fresh 100-day CI pending. Reproduced again locally on 6 November through the 90-day colony gate.
 
 **2026-11-02 — [Reinforced-soil filename case mismatch](../bug_report/2026-11-02-ground-soil-filename-case-mismatch.md):** Case-sensitive CI found a preloaded sprite URL with the wrong filename suffix. Loader and renderer now reference the normalized lowercase `.png` asset; CI and browser verification pending.
 

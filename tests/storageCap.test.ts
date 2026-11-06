@@ -53,7 +53,7 @@ function addCompleted(state: WorldState, type: BuildingType): void {
  */
 describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
   it('world-gen gives a fresh colony the caps of the owner rule, from tick 0', () => {
-    const fresh = initGame({ seed: BOOTSTRAP_FIXTURE_SEED });
+    const fresh = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
 
     // The premise that made the old literal matter: a fresh colony has no buildings, and the first
     // daily pass is still 48 ticks away (tick 24 → the tick-72 day boundary).
@@ -65,13 +65,13 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
     expect(fresh.storageMax).toEqual(computeStorageMax(fresh.buildings));
 
     // The daily owner agrees with world-gen instead of moving it: one rule, two callers.
-    const atFirstDayBoundary = initGame({ seed: BOOTSTRAP_FIXTURE_SEED });
+    const atFirstDayBoundary = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
     updateStorageCaps(atFirstDayBoundary);
     expect(atFirstDayBoundary.storageMax).toEqual(fresh.storageMax);
   });
 
   it('the load fallback derives the caps of the buildings the save carries', () => {
-    const world = initGame({ seed: BOOTSTRAP_FIXTURE_SEED });
+    const world = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
     addCompleted(world, BuildingType.Barn);
     const saved = buildSaveData(world, createInitialView(world.width, world.height));
     const payload = JSON.parse(JSON.stringify(saved)) as Record<string, unknown>;
@@ -95,7 +95,7 @@ describe('F10 — the bootstrap writers of `storageMax` call the owner', () => {
   });
 
   it('no opening store starts at or above its own cap, so day 1 can still bank a gain', () => {
-    const world = initGame({ seed: BOOTSTRAP_FIXTURE_SEED });
+    const world = initGame({ skipTerrain: true, seed: BOOTSTRAP_FIXTURE_SEED });
 
     // Measured against `computeStorageMax([])` = `800 / 300 / 800 / 20000 / 300`:
     // wood 220/800, stone 70/300, food 530/800, gold 80/20000, iron 30/300. Every starter stock sits
@@ -137,7 +137,7 @@ const GAIN_CLAMP_FIXTURE_SEED = 20_260_917;
  */
 describe('a gain never lowers an over-cap store', () => {
   it('a completed visitor quest leaves an over-cap purse alone and keeps the surplus', () => {
-    const state = initGame({ villageName: 'Caps', size: 'medium', seed: GAIN_CLAMP_FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, villageName: 'Caps', size: 'medium', seed: GAIN_CLAMP_FIXTURE_SEED });
     state.storageMax.gold = 100;
     state.resources.gold = 250; // over cap, e.g. after a demolition refund
     state.resources.wood = 50;

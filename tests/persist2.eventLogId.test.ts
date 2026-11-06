@@ -16,11 +16,18 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { logEvent, syncEventLogIdFromState } from '../src/game/eventLog';
 import { resetSimRng } from '../src/game/simRng';
-import type { GameEventLog } from '../src/game/gameTypes';
+import { MapSize, type GameEventLog } from '../src/game/gameTypes';
+
+let cachedPayload: Record<string, unknown> | null = null;
 
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
 
@@ -49,14 +56,14 @@ describe('a saved event-log id must be a usable number', () => {
 
     // The mechanism, on the owner itself: only a loaded payload can put a string where
     // `GameEventLog.id` promises a number, which is why the guard lives at the boundary.
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242 });
     world.eventLog = [{ ...world.eventLog[0], id: 'later' } as unknown as GameEventLog];
     syncEventLogIdFromState(world);
     logEvent(world, 'event', 'logged after the bad id');
     expect(Number.isNaN(world.eventLog[0].id)).toBe(true);
 
     // Leave the module allocator at a number, so this case cannot poison a later one.
-    syncEventLogIdFromState(initGame({ seed: 1 }));
+    syncEventLogIdFromState(initGame({ skipTerrain: true, seed: 1 }));
   });
 
   it('refuses a numeric string too, which the engine would key on by a different type', () => {

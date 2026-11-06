@@ -63,7 +63,7 @@ import { createInitialView } from '../src/game/viewState';
 import { getWorkSchedule } from '../src/game/workSchedule';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { getVenueSchedule } from '../src/game/venueSchedule';
-import { EntityType, BuildingType, type WorldState } from '../src/game/gameTypes';
+import { EntityType, BuildingType, MapSize, type WorldState } from '../src/game/gameTypes';
 
 
 const SEED = 4242;
@@ -180,7 +180,7 @@ function entitiesWithoutBirthDates(world: WorldState): unknown[] {
 /** Runs `ticks` simulation ticks through the real delta transport. */
 function tickThroughDelta(ticks: number): { authority: WorldState; display: WorldState } {
   resetSimRng();
-  const authority = initGame({ seed: SEED });
+  const authority = initGame({ seed: SEED, size: MapSize.Medium });
   adoptSimSeedFromWorld(authority);
   const display = hydrateWorldRuntimeCaches(structuredClone(authority));
 
@@ -319,7 +319,7 @@ describe('worker boundary closure', () => {
 
   it('keeps the leader couple and independent adult descendants across worker and save/load boundaries', () => {
     resetSimRng();
-    const authority = initGame({ seed: SEED });
+    const authority = initGame({ seed: SEED, size: MapSize.Medium });
     const leader = authority.entities.find((e) => e.type === EntityType.Human && e.alive);
     expect(leader).toBeDefined();
     if (!leader) throw new Error('No leader fixture');
@@ -369,7 +369,7 @@ describe('worker boundary closure', () => {
 
   it('carries the whole world into the worker and rebuilds the worker-side indices', () => {
     resetSimRng();
-    const host = initGame({ seed: SEED });
+    const host = initGame({ seed: SEED, size: MapSize.Medium });
     adoptSimSeedFromWorld(host);
     for (let i = 0; i < 720; i++) gameTick(host); // a mature world: the real caches exist
 
@@ -402,7 +402,7 @@ describe('worker boundary closure', () => {
 
   it('applies a worker command delta without losing command-authored state', () => {
     resetSimRng();
-    let world = initGame({ seed: SEED });
+    let world = initGame({ seed: SEED, size: MapSize.Medium });
     adoptSimSeedFromWorld(world);
     const display = hydrateWorldRuntimeCaches(structuredClone(world));
 
@@ -431,7 +431,7 @@ describe('worker boundary closure', () => {
 
   it('rolls a failed tick back to the exact pre-tick world', () => {
     resetSimRng();
-    const world = initGame({ seed: SEED });
+    const world = initGame({ seed: SEED, size: MapSize.Medium });
     adoptSimSeedFromWorld(world);
     const before = structuredClone(world) as WorldState;
     const entitiesBefore = entitiesWithoutBirthDates(world);
@@ -454,7 +454,7 @@ describe('worker boundary closure', () => {
     // `groupEvents` …) mutating the same fields. A command owner that returns a world the payload
     // cannot undo would break the worker's failure path without touching any assertion.
     resetSimRng();
-    let world = initGame({ seed: SEED });
+    let world = initGame({ seed: SEED, size: MapSize.Medium });
     adoptSimSeedFromWorld(world);
     // Pre-increment, matching every production allocator (`buildingPlacementActions`, `groupEvents`):
     // post-increment allocated the building id 0 and then left `nextBuildingId` at 0, so the *next*

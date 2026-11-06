@@ -59,7 +59,7 @@ function adult(id: number): Entity {
 
 describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
   it('does not roll again on the later ticks of the nightfall hour', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     // Full moon, nightfall, first tick of the hour, six cursable settlers, no active curse.
     state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     const humans = [1, 2, 3, 4, 5, 6].map(adult);
@@ -81,7 +81,7 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
   });
 
   it('still rolls on the first tick of the hour', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.tick = DAYS_PER_MOON_CYCLE * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
     const humans = [1, 2, 3, 4, 5, 6].map(adult);
     state.entities = humans;
@@ -95,7 +95,7 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
 
 describe('M26 — Big News ids never collide with ids the world already used', () => {
   it('continues above a trimmed log and a dismissed id', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.bigNews = [
       { id: 'bn_12', title: 'a', message: 'a', type: 'neutral', createdAt: 0, dismissed: false },
     ] as unknown as WorldState['bigNews'];
@@ -115,7 +115,7 @@ describe('M20/M25/M34 — simulation state round-trips', () => {
   });
 
   it('survives a save/load round-trip', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     state.lastMoonHowlerExorcismTick = 1234;
     state.moonHowlerPriestsFleeUntil = 4321;
     state.villageHappiness = 73;
@@ -135,13 +135,13 @@ describe('M20/M25/M34 — simulation state round-trips', () => {
   });
 
   it('is carried by the worker prep payload in both directions', () => {
-    const source = initGame({ seed: FIXTURE_SEED });
+    const source = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     source.lastMoonHowlerExorcismTick = 555;
     source.moonHowlerPriestsFleeUntil = 666;
     source.chronicleChapters = ['a', 'b'];
 
     const prep = extractSimPrep(source);
-    const target = initGame({ seed: FIXTURE_SEED });
+    const target = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     applySimPrep(target, prep);
 
     expect(target.lastMoonHowlerExorcismTick).toBe(555);
@@ -152,7 +152,7 @@ describe('M20/M25/M34 — simulation state round-trips', () => {
 
 describe('M24 — a legacy day length scales every absolute threshold', () => {
   it('scales pregnancyDueProgress and pending story-card deadlines with the timeline', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const mother = state.entities.find((e) => e.type === EntityType.Human)!;
     mother.pregnant = true;
     mother.pregnancyDueProgress = 1200;

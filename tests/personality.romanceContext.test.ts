@@ -211,7 +211,7 @@ function courtFrame(
     energy?: number;
   } = {},
 ): CourtFrame {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const a = settler(1, 'female', traits, {
     energy: options.energy ?? 200,
     ...(options.spouse ? { partnerId: PARTNER_ID, relationshipStatus: 'married' as const } : {}),
@@ -314,7 +314,7 @@ function byTypeBuckets(entities: Entity[]): Record<EntityType, Entity[]> {
 }
 
 function conceptionFrame(entities: Entity[], day: number): { conceived: boolean; mother: Entity } {
-  const state: WorldState = initGame({ seed: FIXTURE_SEED });
+  const state: WorldState = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   state.entities = entities;
   state.villageLeaderId = null;
   state.tick = day * TICKS_PER_DAY;
@@ -375,7 +375,7 @@ const affairPair = (traits: Traits): Entity[] => [
 
 /** Real deliveries at the birth owner; the conception multiplier never writes DNA, so traits stay a draw. */
 function newbornTraits(traits: Traits, fatherTraits: Traits, births: number): Traits[] {
-  const state: WorldState = initGame({ seed: FIXTURE_SEED });
+  const state: WorldState = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   state.villageLeaderId = null;
   const mother = settler(MOTHER_ID, 'female', traits, { relationshipStatus: 'expecting', partnerId: PARTNER_ID });
   const father = settler(PARTNER_ID, 'male', fatherTraits, { relationshipStatus: 'expecting', partnerId: MOTHER_ID, x: 310 });

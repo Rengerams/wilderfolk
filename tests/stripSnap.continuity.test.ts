@@ -23,7 +23,7 @@ let world: WorldState;
 
 beforeEach(() => {
   resetSimRng();
-  world = initGame({ seed: 20261006 });
+  world = initGame({ skipTerrain: true, seed: 20261006 });
 });
 
 afterEach(() => {

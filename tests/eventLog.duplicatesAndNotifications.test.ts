@@ -41,7 +41,7 @@ function affairFixture(tick: number) {
   const paramour = settler(3, 12, 10, { gender: 'male', relationshipStatus: 'single' });
   wife.affairProgress = 100;
   paramour.affairProgress = 100;
-  const state = initGame();
+  const state = initGame({ skipTerrain: true });
   state.entities = [wife, husband, paramour];
   state.tick = tick;
   const entityById = new Map([[1, wife], [2, husband], [3, paramour]]);
@@ -128,7 +128,7 @@ function checkInReadyIds(count: number, tick: number): number[] {
 describe('a night of hotel lodging is announced once', () => {
   it('a second staffed hotel filling on the same night adds no card and no chronicle line', () => {
     const tick = TICKS_PER_DAY + 19 * TICKS_PER_HOUR;
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const ids = checkInReadyIds(HOTEL_GUEST_CAPACITY * 2, tick);
     expect(ids).toHaveLength(HOTEL_GUEST_CAPACITY * 2);
 
@@ -159,7 +159,7 @@ describe('a night of hotel lodging is announced once', () => {
 
 describe('citywide hotel occupancy reporting', () => {
   it('reports occupied beds across hotels even when no visitors are waiting to check in', () => {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const first = hotel(100, 300, 300);
     const second = hotel(101, 700, 300);
     const guests = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) =>
@@ -184,7 +184,7 @@ describe('citywide hotel occupancy reporting', () => {
 
 describe('the auto-staff card reports the pass that ran', () => {
   it('an automatic staffing pulse announces nothing', () => {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const before = state.notifications.length;
 
     assignMissingWorkers(state.entities.filter((entity) => entity.alive), state.buildings, state);
@@ -193,7 +193,7 @@ describe('the auto-staff card reports the pass that ran', () => {
   });
 
   it('explicit Auto-staff all enables auto-fill even on an empty manual workplace', () => {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const church = createBuilding(BuildingType.Church, 400, 400, 700);
     church.completed = true;
     church.staffingMode = 'manual';
@@ -216,7 +216,7 @@ describe('the auto-staff card reports the pass that ran', () => {
 
 describe('the lifecycle death counter counts death lines exactly once', () => {
   it('counts one per death entry, ignores other types, and never re-counts on re-observation', () => {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     state.eventLog = [
       { id: 4, tick: 10, year: 0, day: 0, type: 'birth', message: 'A child was born' },
       { id: 3, tick: 9, year: 0, day: 0, type: 'death', message: 'A settler died of a sudden illness' },

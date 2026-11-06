@@ -101,7 +101,7 @@ describe('Moon Howler restored physiology clock', () => {
 describe('moonHowler.byTypeReuse.test.ts', () => {
   describe('tickMoonHowlerCycle byType reuse', () => {
     it('returns the same byType object when no form changes occur', () => {
-      const state = initGame();
+      const state = initGame({ skipTerrain: true });
       const alive = state.entities.filter((e) => e.alive);
       const byType = buildEntityByType(alive);
 
@@ -122,7 +122,7 @@ describe('moonHowler.byTypeReuse.test.ts', () => {
     });
 
     it('rebuilds and reports change when a form actually transforms', () => {
-      const state = initGame();
+      const state = initGame({ skipTerrain: true });
       const alive = state.entities.filter((e) => e.alive);
       const byType = buildEntityByType(alive);
       const humans = byType[EntityType.Human];
@@ -210,7 +210,7 @@ describe('moonHowler.cureWindow.test.ts', () => {
     });
 
     it('skips the church exorcism at 7am even when a cursed howler is abroad', () => {
-      const state = initGame();
+      const state = initGame({ skipTerrain: true });
       const human = state.entities.find((e) => e.type === EntityType.Human && e.alive);
       expect(human).toBeDefined();
 
@@ -242,7 +242,7 @@ describe('moonHowler.cureWindow.test.ts', () => {
 describe('moonHowler.exorcism.test.ts', () => {
   /** Staffed church + priest + cursed howler fixture. Returns a fresh setup each call. */
   function exorcismFixture(howlerX: number) {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const human = state.entities.find((e) => e.type === EntityType.Human && e.alive)!;
 
     const priest: Entity = {
@@ -469,7 +469,7 @@ describe('moonHowler.indoorsPad.test.ts', () => {
   }
 
   function howlerWorld(): { state: WorldState; howler: Entity; building: Building } {
-    const state = initGame({ villageName: 'Indoors', size: 'medium', seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, villageName: 'Indoors', size: 'medium', seed: FIXTURE_SEED });
     const building = house();
     state.buildings = [building];
     state.pendingStoryEvents = [];
@@ -811,7 +811,7 @@ describe('moonHowler.rngThreading.test.ts', () => {
     });
 
     it('reproduces its own scatter on load, whatever the realm the load starts in', () => {
-      const state: WorldState = initGame({ villageName: 'Moon', size: 'medium', seed: FIXTURE_SEED });
+      const state: WorldState = initGame({ skipTerrain: true, villageName: 'Moon', size: 'medium', seed: FIXTURE_SEED });
       const victim = werewolf(7);
       state.entities = [victim];
       state.buildings = [];
@@ -1061,7 +1061,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
    */
   function buildSettlementWorld(opts: { cursedSettlerAlreadyTransformed?: boolean } = {}): WorldState {
     setSimSeed(FIXTURE_SEED);
-    const state = initGame({ villageName: 'N6', size: 'medium', seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, villageName: 'N6', size: 'medium', seed: FIXTURE_SEED });
 
     const mansion = finishedBuilding(MANSION_ID, BuildingType.Mansion);
     const farm = finishedBuilding(FARM_ID, BuildingType.Farm);
@@ -1163,7 +1163,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
   /** A quiet settlement: no cursed settler in either form, so a plain tick must do nothing at all. */
   function buildQuietWorld(): WorldState {
     setSimSeed(FIXTURE_SEED);
-    const state = initGame({ villageName: 'N6-quiet', size: 'medium', seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, villageName: 'N6-quiet', size: 'medium', seed: FIXTURE_SEED });
     state.buildings = [
       finishedBuilding(HOUSE_ID, BuildingType.House),
       finishedBuilding(FARM_ID, BuildingType.Farm),
@@ -1384,7 +1384,7 @@ describe('moonHowler.syncFormsEquivalence.test.ts', () => {
 
 describe('moon-form construction ownership', () => {
   it('retires a builder from an unfinished site before changing their species', () => {
-    const state = initGame({ seed: 20261027 });
+    const state = initGame({ skipTerrain: true, seed: 20261027 });
     const settler = state.entities.find((entity) => entity.alive && entity.type === EntityType.Human)!;
     const construction = createBuilding(BuildingType.Farm, 300, 300, 9901);
     construction.completed = false;

@@ -18,7 +18,7 @@ import {
   isWithinRemarriageBar,
   REMARRIAGE_BAR_TICKS,
 } from '../src/game/simulation/humanRelationships';
-import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
+import { EntityType, MapSize, type Entity, type WorldState } from '../src/game/gameTypes';
 
 /** The two founders `initGame` seats, which is all this case needs. */
 function founders(world: WorldState): [Entity, Entity] {
@@ -42,7 +42,7 @@ afterEach(() => {
 describe('a divorced pair stays apart across a save and a load', () => {
   it('carries the divorce stamp through the round trip, so the bar still bites', () => {
     resetSimRng();
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ seed: 4242, size: MapSize.Medium });
     const [a, b] = founders(world);
     const divorcedAtTick = 500;
 
@@ -64,7 +64,7 @@ describe('a divorced pair stays apart across a save and a load', () => {
 
   it('still loads a pair that never divorced, so the rule above is not vacuous', () => {
     resetSimRng();
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ seed: 4242, size: MapSize.Medium });
     const loaded = roundTrip(world);
     const humans = loaded.entities.filter((e) => e.type === EntityType.Human);
     const [a, b] = humans;

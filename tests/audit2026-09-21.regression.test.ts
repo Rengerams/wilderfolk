@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import {
   BuildingType,
   JobType,
+  MapSize,
   Season,
   WeatherType,
   type Entity,
@@ -61,7 +62,7 @@ function srcFiles(dir = resolve(process.cwd(), 'src')): string[] {
  * owners read exists. The trader is the shared fixture for the two stone-trade cases.
  */
 function traderWorld(resources: Partial<WorldState['resources']> = {}): WorldState {
-  const world = initGame({ villageName: 'Stone', seed: 20260921 });
+  const world = initGame({ villageName: 'Stone', seed: 20260921, size: MapSize.Medium });
   world.visitorGroups = [
     {
       id: 'trader-1',
@@ -158,7 +159,7 @@ describe('a multi-resource trade float names every resource, not only the last',
 describe('the leader-honored announcement survives a maxed reputation', () => {
   /** A decisive player victory, so `rewardRaidParticipants` runs its victory branch. */
   function defendableWorld(reputation: number): { world: WorldState; eventId: string } {
-    const world = initGame({ villageName: 'Raid', seed: 20260922 });
+    const world = initGame({ villageName: 'Raid', seed: 20260922, size: MapSize.Medium });
     world.resources = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
     world.storageMax = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
     world.villageReputation = reputation;
@@ -395,7 +396,7 @@ describe('one definition of the village anchor', () => {
 
 describe('the tick rollback restores the pre-tick float and particle values', () => {
   it('copies the elements, not just the arrays', () => {
-    const world = initGame({ villageName: 'Rollback', seed: 20260923 });
+    const world = initGame({ villageName: 'Rollback', seed: 20260923, size: MapSize.Medium });
     world.floatingTexts = [
       { id: 1, x: 10, y: 10, text: 'hi', color: '#fff', life: 5, maxLife: 5, scale: 1 },
     ] as unknown as WorldState['floatingTexts'];
@@ -425,7 +426,7 @@ describe('a save that would load into a broken world is refused by name', () => 
   // Built by the real save writer, so the "accepts a well-formed payload" control cannot pass
   // vacuously on a hand-written stub that is missing half the world.
   function payload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    const world = initGame({ villageName: 'Broken', seed: 20260924 });
+    const world = initGame({ villageName: 'Broken', seed: 20260924, size: MapSize.Medium });
     return { ...buildSaveData(world, createInitialView(world.width, world.height)), ...overrides };
   }
 
@@ -525,7 +526,7 @@ describe('what the tick writes is durable', () => {
     // stopped being drawn toward decor. `villageHappiness` is deliberately *not* recomputed with it:
     // it is in the save allow-list, and recomputing would replace the stored value with the base
     // happiness of a world whose decor has not been re-stamped.
-    const world = initGame({ villageName: 'Pretty', seed: 20260927 });
+    const world = initGame({ villageName: 'Pretty', seed: 20260927, size: MapSize.Medium });
     world.buildings = [
       ...world.buildings,
       { ...world.buildings[0], id: 9001, type: BuildingType.Garden, completed: true, occupants: [] },
@@ -550,7 +551,7 @@ describe('runtime caches are stripped by their owner', () => {
   it('drops the beauty grid as well as the spatial indexes', () => {
     // A live `Int16Array` riding an export clone is the cost of leaving a non-serializable field out
     // of the drop list — and nothing then forces the load path to recompute it.
-    const world = initGame({ villageName: 'Caches', seed: 20260928 });
+    const world = initGame({ villageName: 'Caches', seed: 20260928, size: MapSize.Medium });
     world.beautyGrid = { cols: 1, rows: 1, values: new Int16Array(1) };
     invalidateWorldRuntimeCaches(world);
     expect(world.beautyGrid).toBeUndefined();
@@ -607,3 +608,4 @@ describe('one terrain-tile size', () => {
     expect(offenders, 'a module re-declared the terrain tile size').toEqual([]);
   });
 });
+

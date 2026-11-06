@@ -28,7 +28,7 @@ describe('worker prep rollback closure', () => {
    * start of absolute day 360 (tick 25920).
    */
   function worldAtYearBoundary(): WorldState {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     world.tick = TICKS_PER_DAY * DAYS_PER_YEAR - 1;
     world.dayInYear = TICKS_PER_DAY - 1;
     return world;
@@ -109,7 +109,7 @@ describe('worker prep rollback closure', () => {
   });
 
   it('round-trips every field the prep payload claims to own', () => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     const prep = extractSimPrep(world);
     gameTick(world);
 

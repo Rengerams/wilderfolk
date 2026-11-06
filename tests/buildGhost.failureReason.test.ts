@@ -31,6 +31,7 @@ import { rebakeTerrainGrids, setTileOverride, tileAt, worldToTile } from '../src
 import {
   BUILDING_CONFIGS,
   BuildingType,
+  MapSize,
   PATH_CELL,
   TerrainType,
   type WorldState,
@@ -92,7 +93,7 @@ function unlock(world: WorldState, type: BuildingType): void {
 
 describe('F5 — the ghost carries the owner reason', () => {
   it('stores the reason beside `valid`, including a blocker away from the cursor tile', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const spot = findSpot(world, BuildingType.Farm);
     expect(getPlaceBuildingFailureReason(world, BuildingType.Farm, spot.x, spot.y, 0)).toBeNull();
 
@@ -118,7 +119,7 @@ describe('F5 — the ghost carries the owner reason', () => {
   });
 
   it('reports overlapping ground and the map edge as the same `blocked` reason', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     world.resources.wood = 500;
     const spot = findSpot(world, BuildingType.Farm);
 
@@ -137,7 +138,7 @@ describe('F5 — the ghost carries the owner reason', () => {
   });
 
   it('survives the snapshot the canvas reads', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const view = {
       ...createInitialView(world.width, world.height),
       buildMode: BuildingType.Farm,
@@ -151,7 +152,7 @@ describe('F5 — the ghost carries the owner reason', () => {
 
 describe('F5 — the game layer words each reason', () => {
   it('maps every reason to a distinct, non-empty label', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const labels = REASONS.map((reason) =>
       getPlaceBuildingFailureLabel(BuildingType.Farm, reason, world.researchNodes),
     );
@@ -163,7 +164,7 @@ describe('F5 — the game layer words each reason', () => {
   });
 
   it('names the water rule inside the footprint for Bridge and Fishing Spot', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     // One flat spot refuses both water buildings, and for the same reason — the footprint holds no
     // water — which is precisely the refusal the old fixed string could not explain.
     const spot = findSpot(world, BuildingType.Farm);
@@ -187,7 +188,7 @@ describe('F5 — the game layer words each reason', () => {
   });
 
   it('names the tech a research refusal is waiting on', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const requirement = BUILDING_CONFIGS[BuildingType.Bridge].unlockRequirement!;
     // A fresh colony has not researched the bridge tech, so this is the reason the ghost carries.
     expect(world.unlockedTechs).not.toContain(requirement);

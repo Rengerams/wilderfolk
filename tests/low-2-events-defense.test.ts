@@ -116,25 +116,25 @@ function trader(overrides: Partial<VisitorGroup> = {}): VisitorGroup {
 }
 
 function worldWithTrader(): WorldState {
-  const state = initGame();
+  const state = initGame({ skipTerrain: true });
   state.visitorGroups = [trader()];
   return state;
 }
 
 describe('L31 — first-week visitor window matches the documented contract', () => {
   it('visits only on days 7-13 and only with a completed player House or Mansion', () => {
-    const early = initGame();
+    const early = initGame({ skipTerrain: true });
     early.tick = 6 * TICKS_PER_DAY;
     early.buildings = [building(101, BuildingType.House)];
     expect(tryFirstWeekVisitor(early, early.entities, early.buildings)).toBeNull();
     expect(early.firstWeekVisitorSpawned).toBe(false);
 
-    const noHouse = initGame();
+    const noHouse = initGame({ skipTerrain: true });
     noHouse.tick = 7 * TICKS_PER_DAY;
     expect(tryFirstWeekVisitor(noHouse, noHouse.entities, noHouse.buildings)).toBeNull();
     expect(noHouse.firstWeekVisitorSpawned).toBe(false);
 
-    const firstDay = initGame();
+    const firstDay = initGame({ skipTerrain: true });
     firstDay.tick = 7 * TICKS_PER_DAY;
     firstDay.buildings = [building(101, BuildingType.House)];
     const event = tryFirstWeekVisitor(firstDay, firstDay.entities, firstDay.buildings);
@@ -143,12 +143,12 @@ describe('L31 — first-week visitor window matches the documented contract', ()
     // One-shot: the same window never spawns a second group.
     expect(tryFirstWeekVisitor(firstDay, firstDay.entities, firstDay.buildings)).toBeNull();
 
-    const lastDay = initGame();
+    const lastDay = initGame({ skipTerrain: true });
     lastDay.tick = 13 * TICKS_PER_DAY;
     lastDay.buildings = [building(101, BuildingType.Mansion)];
     expect(tryFirstWeekVisitor(lastDay, lastDay.entities, lastDay.buildings)).not.toBeNull();
 
-    const tooLate = initGame();
+    const tooLate = initGame({ skipTerrain: true });
     tooLate.tick = 14 * TICKS_PER_DAY;
     tooLate.buildings = [building(101, BuildingType.House)];
     expect(tryFirstWeekVisitor(tooLate, tooLate.entities, tooLate.buildings)).toBeNull();
@@ -158,7 +158,7 @@ describe('L31 — first-week visitor window matches the documented contract', ()
 
 describe('L34 — recurring events carry instance-unique ids', () => {
   it('does not reuse one id for repeated visitor arrivals', () => {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     state.tick = 7 * TICKS_PER_DAY;
     const first = spawnVisitorGroup(state, state.entities, state.buildings, 'pilgrims');
     state.tick = 21 * TICKS_PER_DAY;
@@ -186,7 +186,7 @@ describe('L34 — recurring events carry instance-unique ids', () => {
 
 /** Same world, same seeded draw, different tick — the pick must be identical. */
 function yearlyEventAt(tick: number): GameEvent | null {
-  const state = initGame();
+  const state = initGame({ skipTerrain: true });
   state.tick = tick;
   setSimSeed(9);
   return rollYearlyWorldEvent(
@@ -344,7 +344,7 @@ describe('L15 — barracks occupancy is not pruned by a getter', () => {
 
 /** One unguarded prisoner (no guards = 24 unguarded hours) in a completed Prison. */
 function prisonWorld(): { world: WorldState; prisoner: Entity; prison: Building } {
-  const world = initGame();
+  const world = initGame({ skipTerrain: true });
   const prisoner = world.entities.find(
     (e) => e.type === EntityType.Human && e.id !== world.villageLeaderId,
   )!;
@@ -544,7 +544,7 @@ describe('prison coverage is presence, not the roster', () => {
  */
 describe('legacy frontier rival settlement spawning is retired', () => {
   function colonyFixture(humans: number, withHouse: boolean): { state: WorldState; allAlive: Entity[] } {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const template = state.entities.find((e) => e.alive && e.type === EntityType.Human);
     if (!template) throw new Error('the fixture world has no settler to clone');
     let id = 900_000;

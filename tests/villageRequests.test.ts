@@ -32,7 +32,7 @@ function trader(overrides: Partial<VisitorGroup> = {}): VisitorGroup {
 }
 
 function worldWithTrader(): WorldState {
-  const state = initGame();
+  const state = initGame({ skipTerrain: true });
   state.visitorGroups = [trader()];
   state.villageRequestCooldownUntilDay = 0;
   state.villageRequestHistory = [];
@@ -64,7 +64,7 @@ describe('Village Requests — Caravan Provisions Offer', () => {
   });
 
   it('does not generate a request without a live trader or while a cooldown remains', () => {
-    const noTrader = initGame();
+    const noTrader = initGame({ skipTerrain: true });
     tickVillageRequests(noTrader);
     expect(noTrader.activeVillageRequest).toBeUndefined();
 
@@ -150,12 +150,12 @@ describe('Village Requests — Caravan Provisions Offer', () => {
       choice: 'invent_reward',
     })).toBe(false);
 
-    const prepTarget = initGame();
+    const prepTarget = initGame({ skipTerrain: true });
     applySimPrep(prepTarget, extractSimPrep(state));
     expect(prepTarget.activeVillageRequest).toEqual(request);
     expect(prepTarget.villageRequestHistory).toEqual([]);
 
-    const deltaTarget = initGame();
+    const deltaTarget = initGame({ skipTerrain: true });
     applySimTickDelta(deltaTarget, simTickDeltaFromWorld(state));
     expect(deltaTarget.activeVillageRequest).toEqual(request);
     expect(deltaTarget.villageRequestCooldownUntilDay).toBe(state.villageRequestCooldownUntilDay);

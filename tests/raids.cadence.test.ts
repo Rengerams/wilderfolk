@@ -288,7 +288,7 @@ describe('world-map settlement founding and saved games', () => {
   });
 
   it.each([0, 3, 7])('preserves an older save with %i strategic settlements', (count) => {
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242 });
     world.rivalSettlements = Array.from({ length: count }, (_, index) => ({
       ...rivalCamp(), id: `saved-neighbor-${index}`, relationship: 'friendly' as const,
       entityIds: [], peaceTreatyDays: 45, giftsGiven: 4,

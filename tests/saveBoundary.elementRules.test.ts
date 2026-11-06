@@ -58,8 +58,15 @@ function raidEvent(): RaidEvent {
 }
 
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+let cachedPayload: Record<string, unknown> | null = null;
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   world.visitorGroups.push(visitorGroup());
   world.pendingRaidEvents.push(raidEvent());
   world.activeVillageRequest = {
@@ -215,7 +222,7 @@ describe('a provisions card the shell cannot render is refused by name', () => {
 describe('the save map dimensions are bounded per axis', () => {
   function roundTrip(size: MapSize): NonNullable<ReturnType<typeof loadGameFromParsed>> {
     resetSimRng();
-    const world = initGame({ seed: 55, size });
+    const world = initGame({ skipTerrain: true, seed: 55, size });
     const parsed = parseSaveJson(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
     expect(parsed.valid).toBe(true);
     if (!parsed.valid) throw new Error('save refused');

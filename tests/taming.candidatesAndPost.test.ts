@@ -30,7 +30,7 @@ const FIXTURE_SEED = 20_260_917;
 const POST = { x: 100, y: 100, width: 40, height: 40 };
 
 function world(): WorldState {
-  return initGame({ seed: FIXTURE_SEED });
+  return initGame({ skipTerrain: true, seed: FIXTURE_SEED });
 }
 
 function addPost(state: WorldState, faction: 'player' | 'rival' = 'player'): void {

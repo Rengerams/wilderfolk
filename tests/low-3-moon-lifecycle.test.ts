@@ -56,7 +56,7 @@ const human = (id: number, overrides: Partial<Entity> = {}): Entity =>
 
 /** Real world state (initGame) with the fixture entities/buildings and a chosen tick. */
 function moonState(entities: Entity[], buildings: Building[], tick: number): WorldState {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   state.entities = entities;
   state.buildings = buildings;
   state.villageLeaderId = null;
@@ -216,7 +216,7 @@ describe('birth vs the residence invariant', () => {
   }
 
   function birthFixture(): { state: WorldState; ctx: TickContext; mother: Entity; house: Building } {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const house = finishedBuilding(HOUSE_ID, BuildingType.House, {
       occupants: [MATERNAL_ID, FATHER_ID],
       width: 40,

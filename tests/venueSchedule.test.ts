@@ -22,7 +22,7 @@ const base = { tick: 0, tavernSchedule: undefined, hotelSchedule: undefined };
 /** A real payload from `buildSaveData`, so the load-boundary cases below corrupt what the game writes. */
 function realPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242 });
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
 

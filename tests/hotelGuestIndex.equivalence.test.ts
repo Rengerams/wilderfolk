@@ -114,7 +114,7 @@ function settlerEntity(id: number): Entity {
  * the comparison isolates the prune + repair under test.
  */
 function makeFixture(): WorldState {
-  const state = initGame();
+  const state = initGame({ skipTerrain: true });
   const entities: Entity[] = [
     visitorEntity(GUEST_LIVE, { hotelStayBuildingId: HOTEL_A }),
     visitorEntity(GUEST_DEAD, { alive: false, hotelStayBuildingId: HOTEL_A }),
@@ -280,7 +280,7 @@ describe('the indexed lookups answer what the entity scans answered', () => {
     // Full at the owner's own capacity, whatever it is: the point is where the count comes from,
     // not the number of beds.
     const guestIds = Array.from({ length: HOTEL_GUEST_CAPACITY }, (_, index) => 30 + index);
-    const full = initGame();
+    const full = initGame({ skipTerrain: true });
     const guests = guestIds.map((id) => visitorEntity(id, { hotelStayBuildingId: HOTEL_A }));
     full.entities = guests;
     full.buildings = [hotel(HOTEL_A, { occupants: [999], hotelGuestIds: [...guestIds] })];

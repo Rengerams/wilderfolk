@@ -43,7 +43,7 @@ let settlerPrototype: Entity | undefined;
 
 function baseSettler(): Entity {
   if (!settlerPrototype) {
-    const probe = initGame({ seed: 4242 });
+    const probe = initGame({ skipTerrain: true, seed: 4242 });
     const found = probe.entities.find((e) => isPlayerHuman(e) && !e.isJuvenile && e.alive);
     if (!found) throw new Error('worldGen produced no settler to use as a test prototype');
     settlerPrototype = found;
@@ -96,7 +96,7 @@ function building(id: number, type: BuildingType, overrides: Partial<Building> =
 
 /** Full valid world from worldGen, stripped of its own colony for the scenario. */
 function newWorld(): WorldState {
-  const state = initGame({ seed: TEST_SEED });
+  const state = initGame({ skipTerrain: true, seed: TEST_SEED });
   state.entities = [];
   state.buildings = [];
   state.visitorGroups = [];

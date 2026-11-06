@@ -95,7 +95,7 @@ function servableTick(): number {
 }
 
 function makeWorld(): { state: WorldState; hall: Building; official: Entity; petitioner: Entity } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const hall = makeHall();
   const official = human(OFFICIAL_ID, JobType.Official);
   const petitioner = human(PETITIONER_ID, JobType.Settler);

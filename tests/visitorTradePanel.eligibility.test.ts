@@ -29,7 +29,7 @@ const GROUP_ID = 'visitors-1';
 const GOLD_CAP = 100;
 
 function worldWithTrader(options: { gold?: number; daysLeft?: number; groupGold?: number } = {}): WorldState {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const { gold = 500, daysLeft = 3, groupGold = 500 } = options;
   state.storageMax.gold = GOLD_CAP;
   state.resources.gold = gold;
@@ -50,7 +50,7 @@ function worldWithTrader(options: { gold?: number; daysLeft?: number; groupGold?
 }
 
 function worldWithRefugees(options: { food?: number; maxPopulation?: number } = {}): WorldState {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const { food = 100, maxPopulation = 500 } = options;
   state.resources.food = food;
   state.maxHumanPopulation = maxPopulation;

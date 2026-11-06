@@ -21,11 +21,11 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
 import { tileAt } from '../src/game/terrain/terrainGrid';
-import { EntityType, TerrainType, type Entity, type WorldState } from '../src/game/gameTypes';
+import { EntityType, MapSize, TerrainType, type Entity, type WorldState } from '../src/game/gameTypes';
 
 function gameWithSettlers(): WorldState {
   resetSimRng();
-  const world = initGame({ seed: 987654 });
+  const world = initGame({ seed: 987654, size: MapSize.Medium });
   // Two settlers, so a relationship can be pointed at a third that does not exist.
   for (let index = 0; index < 2; index++) {
     const donor = world.entities.find((entity) => entity.alive && entity.type !== EntityType.Human);

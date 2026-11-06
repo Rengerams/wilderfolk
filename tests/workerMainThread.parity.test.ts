@@ -57,7 +57,7 @@ describe('seeded worker versus main-thread parity', () => {
     // ---- Main thread: the path `GameLoop.frame` takes with the worker unavailable. ----
     await loadNames().catch(() => {});
     resetSimRng();
-    const mainThread = initGame({ seed: SEED });
+    const mainThread = initGame({ skipTerrain: true, seed: SEED });
     // Both execution engines must begin with the very same generated world,
     // just as a real GameWorkerHost upload does. Generating a second map in a
     // fresh module realm tests world generation twice, not worker tick parity.

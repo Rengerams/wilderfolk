@@ -12,7 +12,7 @@
  * `docs/archive/SIMULATION_AUTHORITY.md` §5 ("At ages 12–17 it requires the documented
  * mutual youth-love, nearby, energy, and reduced-probability gate").
  *
- * SCOPE — writer-level tests: they build a synthetic `WorldState` around `initGame()`,
+ * SCOPE — writer-level tests: they build a synthetic `WorldState` around `initGame({ skipTerrain: true })`,
  * place the pair by hand, and call the conception owner directly. Conception rolls are
  * stateless per settler and *day* (`personDayRoll`), so a passing branch is forced by
  * choosing the day rather than by stubbing randomness.
@@ -75,9 +75,9 @@ function byType(entities: Entity[]): Record<EntityType, Entity[]> {
   return buckets;
 }
 
-/** A colony-day fixture: a complete valid world from `initGame()` plus the pair under test. */
+/** A colony-day fixture: a complete valid world from `initGame({ skipTerrain: true })` plus the pair under test. */
 function makeFixture(entities: Entity[]): { state: WorldState; ctx: TickContext; mother: Entity } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const mother = entities.find((entity) => entity.id === MOTHER_ID)!;
   state.entities = entities;
   state.villageLeaderId = null;

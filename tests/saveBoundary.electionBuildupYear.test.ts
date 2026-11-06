@@ -15,10 +15,18 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
 import { tickElectionBuildup } from '../src/game/villageLeadership';
+import { MapSize } from '../src/game/gameTypes';
+
+let cachedPayload: Record<string, unknown> | null = null;
 
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height))) as Record<string, unknown>;
 }
 

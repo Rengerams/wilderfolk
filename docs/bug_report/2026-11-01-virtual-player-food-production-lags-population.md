@@ -13,9 +13,12 @@
 ## Status history
 - 2026-11-01 — open: GitHub CI independently reproduced identical starvation on the prior and current PR heads.
 - 2026-11-01 — investigating: policy and focused regressions committed; complete run and CI verification not established.
+- 2026-11-06 — investigating: reproduced locally through the Vitest 90-day colony gate on seed 12345; day-90 food exhausted with the same checkpoint economics as CI.
 
 ## Observed behavior
 The producers scenario ran without refilling stores and failed at day 90. Population rose from 50 on day 30 to 91 on day 60 and 124 on day 90. In the final 30 days, food produced was 5,429 and food consumed was 8,835, leaving zero food. Ten Farms had 20 assigned workers; 86 people were working with no idle workers. CI on 2026-10-29 and 2026-11-01 shows the same day-90 food, population, worker totals and output, so the GameLoop catalog work did not introduce this failure.
+
+Local run on 2026-11-06 (`tests/longRunColony.integration.test.ts`, seed 12345, 90 days): day 30 stored 3538, day 60 stored 2638, day 90 stored 0, with the last 30 days producing 5432 against 8278 consumed and 108 settlers — the same exhaustion, reproduced twice.
 
 ## Expected behavior
 Auto-play should plan food capacity against achievable daily throughput, prioritize food work during a measured supply deficit, respect manual staffing, avoid no-op hourly actions, and not continue recruiting while food supply is shrinking. The 100-day seeded producer scenario should keep its no-restocking starvation assertion.
@@ -45,5 +48,6 @@ No save schema changes. Only Virtual Player decisions and tuning are changed; or
 ## Verification result
 - PASS (source trace): production formula, farm cap, staffing and decision priorities inspected.
 - PASS (prior reproduction): 2026-10-29 and 2026-11-01 GitHub Actions both failed on day 90 with identical food economics.
+- PASS (local reproduction, 2026-11-06): `npx vitest run tests/longRunColony.integration.test.ts` — FAIL, day-90 `stalled(food-exhausted)`.
 - NOT RUN: new focused Vitest tests or the updated full-year seed since code changes (connected GitHub environment, no local test checkout).
 - NOT RUN: new head TypeScript, lint and build at documentation time.

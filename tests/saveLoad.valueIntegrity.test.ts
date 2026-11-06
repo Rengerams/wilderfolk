@@ -16,14 +16,14 @@ import { initGame } from '../src/game/worldGen';
 import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { getSimSeed, resetSimRng, setSimSeed } from '../src/game/simRng';
-import type { WorldState } from '../src/game/gameTypes';
+import { MapSize, type WorldState } from '../src/game/gameTypes';
 
 let initialPayload: Record<string, unknown> | undefined;
 
 function realPayload(): Record<string, unknown> {
   resetSimRng();
   if (!initialPayload) {
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
     initialPayload = buildSaveData(world, createInitialView(world.width, world.height));
   }
   return structuredClone(initialPayload);

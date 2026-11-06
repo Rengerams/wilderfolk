@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { building, human } from '../src/test/factories';
 import { testWorldMap } from '../src/test/worldMapFixtures';
-import { BUILDING_CONFIGS, BuildingType, TerrainType } from '../src/game/gameTypes';
+import { BUILDING_CONFIGS, BuildingType, MapSize, TerrainType } from '../src/game/gameTypes';
 import { isFootprintOnBuildableTerrain } from '../src/game/placementUtils';
 import { findPath, findRouteCost, getPathGrid, isOnWalkableRoadAt, setCurrentPathMap, steerWithPath } from '../src/game/pathfinding';
 import { buildStripPreview, placeStripChain } from '../src/game/buildingPlacementActions';
@@ -137,7 +137,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('prices the full construction preview using real resources and does not draw unfunded segments as valid', () => {
-    const world = initGame({ seed: 102 });
+    const world = initGame({ size: MapSize.Medium, seed: 102 });
     world.worldMap = testWorldMap({ tilesX: 200, tilesY: 200 });
     world.buildings = [];
     const roadCost = BUILDING_CONFIGS[BuildingType.Road].cost;
@@ -162,7 +162,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('keeps looping wall previews consistent with sequential placement and material costs', () => {
-    const world = initGame({ seed: 20261027 });
+    const world = initGame({ size: MapSize.Medium, seed: 20261027 });
     world.worldMap = testWorldMap({ tilesX: 120, tilesY: 120 });
     world.buildings = [];
     const tech = BUILDING_CONFIGS[BuildingType.Wall].unlockRequirement;
@@ -206,7 +206,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('keeps snapped Villa entrance roads outside the foundation through preview and commit', () => {
-    const world = initGame({ seed: 20261028 });
+    const world = initGame({ size: MapSize.Medium, seed: 20261028 });
     world.worldMap = testWorldMap({ tilesX: 120, tilesY: 120 });
     world.buildings = [];
     const villa = createBuilding(BuildingType.Villa, 300, 300, world.nextBuildingId++);
@@ -240,7 +240,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('commits the gate preview with correct orientation and refunds, and preserves a refused replacement', () => {
-    const world = initGame({ seed: 49 });
+    const world = initGame({ size: MapSize.Medium, seed: 49 });
     world.worldMap = testWorldMap({ tilesX: 200, tilesY: 200 });
     world.buildings = [];
     for (const type of [BuildingType.Wall, BuildingType.WallGate]) {
@@ -288,7 +288,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('toggles a complete gate through worker commands, re-prices routes and persists closure', () => {
-    const world = initGame({ seed: 20261026 });
+    const world = initGame({ size: MapSize.Medium, seed: 20261026 });
     const map = testWorldMap({ tilesX: 20, tilesY: 20 });
     world.worldMap = map;
     const gate = building(9050, BuildingType.WallGate, {
@@ -317,7 +317,7 @@ describe('infrastructure acceptance boundaries', () => {
   });
 
   it('preserves mixed legacy infrastructure across three supported save round trips', () => {
-    let world = initGame({ seed: 20261026 });
+    let world = initGame({ size: MapSize.Medium, seed: 20261026 });
     const infrastructure = [BuildingType.Road, BuildingType.Road, BuildingType.Wall, BuildingType.WallGate, BuildingType.Bridge, BuildingType.Road]
       .map((type, index) => building(9000 + index, type, {
         x: 200 + index * 80, y: 200, width: index === 0 ? 300 : 72, height: 12,

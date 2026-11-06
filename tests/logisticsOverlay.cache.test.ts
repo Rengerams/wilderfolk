@@ -20,10 +20,10 @@ import {
   resetLogisticsOverlayCache,
 } from '../src/game/logisticsOverlayData';
 import { initGame } from '../src/game/worldGen';
-import { BuildingType, type Building, type WorldState } from '../src/game/gameTypes';
+import { BuildingType, MapSize, type Building, type WorldState } from '../src/game/gameTypes';
 
 function world(): WorldState {
-  return initGame({ villageName: 'Logistics', seed: 20260929 });
+  return initGame({ size: MapSize.Medium, villageName: 'Logistics', seed: 20260929 });
 }
 
 describe('the logistics projection is memoised per world revision', () => {

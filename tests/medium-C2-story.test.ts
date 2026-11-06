@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { BUILDING_CONFIGS, BuildingType } from '../src/game/buildings';
-import { EntityType } from '../src/game/gameTypes';
+import { EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { calculateEcosystemMetrics, tickEcosystemMetrics } from '../src/game/dailyEcology';
 import { getEcosystemBreakdown } from '../src/game/ecoBreakdown';
@@ -51,7 +51,7 @@ function building(id: number, type: BuildingType, x: number, y: number): Buildin
 
 describe('M6 — the Nature-tab breakdown shares the ecosystem-health owner', () => {
   it('explains the recorded Health with the owner formula, preserves and all six species', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ size: MapSize.Medium, seed: FIXTURE_SEED });
     state.buildings = [
       building(1, BuildingType.House, 100, 100),
       building(2, BuildingType.WildlifePreserve, 200, 200),
@@ -101,7 +101,7 @@ describe('M17 — the Demonstration card is offered once and pays out once', () 
   }
 
   function fundedInventionFair(): WorldState {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ size: MapSize.Medium, seed: FIXTURE_SEED });
     state.pendingStoryEvents = [];
     state.storyFlags = {};
     state.year = 0;
@@ -170,7 +170,7 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
   }
 
   it('a gate dropped on a wall replaces it and refunds half the wall', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ size: MapSize.Medium, seed: FIXTURE_SEED });
     state.buildings = [];
     unlockDefense1(state);
     const spot = findBuildableStripSpot(state);
@@ -196,7 +196,7 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
   });
 
   it('a wall run steps over an existing gate instead of refusing the whole run', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ size: MapSize.Medium, seed: FIXTURE_SEED });
     state.buildings = [building(1, BuildingType.WallGate, 300, 300)];
 
     const plan = resolveWallStripPlan(
@@ -217,7 +217,7 @@ describe('M29/M30 — wall strips replace gates, never stack on them', () => {
 
 describe('M33 — the first-spring guide finishes instead of regressing every year', () => {
   function guidedWorld(): WorldState {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ size: MapSize.Medium, seed: FIXTURE_SEED });
     state.buildings = [
       building(1, BuildingType.House, 100, 100),
       building(2, BuildingType.Farm, 200, 100),

@@ -42,6 +42,7 @@ import {
 import {
   BuildingType,
   GRID_SIZE,
+  MapSize,
   PATH_CELL,
   TerrainType,
   type Camera,
@@ -270,7 +271,7 @@ describe('the cursor says what is under it', () => {
   const unarmed: MapCursorView = { buildMode: null, buildRotation: 0 };
 
   it('names the armed type and the owner verdict for a legal spot', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const spot = findLegalSpot(world, BuildingType.Farm);
     const text = describeMapCursor(world, { buildMode: BuildingType.Farm, buildRotation: 0 }, spot);
 
@@ -282,7 +283,7 @@ describe('the cursor says what is under it', () => {
   it('names the reason a refusal is refused, in the owner\'s wording', () => {
     // The wording is `buildingPlacementLabels`' (the same label the canvas ghost draws), so a screen
     // reader and the ghost cannot disagree about why a spot is refused.
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const spot = findLegalSpot(world, BuildingType.Farm);
     world.resources.wood = 500;
     world.resources.stone = 500;
@@ -298,7 +299,7 @@ describe('the cursor says what is under it', () => {
   });
 
   it('names the building under the cursor when nothing is armed', () => {
-    const world = initGame();
+    const world = initGame({ size: MapSize.Medium });
     const spot = findLegalSpot(world, BuildingType.Farm);
     world.resources.wood = 500;
     world.resources.stone = 500;

@@ -57,7 +57,7 @@ function staffedWorld(
   job: JobType,
   options: { completed?: boolean; wood?: number } = {},
 ): { state: WorldState; worker: Entity } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   addBuilding(state, type, SITE_ID, options.completed ?? true);
 
   const worker = state.entities.find((e) => e.alive && isPlayerHuman(e));

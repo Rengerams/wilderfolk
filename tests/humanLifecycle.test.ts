@@ -83,7 +83,7 @@ function makeFixture(entities: Entity[], deer: Entity[] = []): {
   ctx: TickContext;
   mother: Entity;
 } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const mother = entities.find((entity) => entity.id === MATERNAL_ID)!;
   state.entities = entities;
   state.villageLeaderId = null;

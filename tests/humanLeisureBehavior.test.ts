@@ -22,7 +22,7 @@ function playerChild(prototype: Entity, id: number, overrides: Partial<Entity> =
 }
 
 function childFixture(): { state: ReturnType<typeof initGame>; child: Entity } {
-  const state = initGame({ seed: 4242 });
+  const state = initGame({ skipTerrain: true, seed: 4242 });
   const prototype = state.entities.find((entity) => isPlayerHuman(entity) && entity.alive);
   if (!prototype) throw new Error('worldGen produced no player settler for the child leisure test');
   state.entities = [];

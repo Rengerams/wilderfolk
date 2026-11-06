@@ -27,7 +27,7 @@ import {
 } from '../src/game/storyEvents';
 
 function worldWithWolvesAndFarm(): WorldState {
-  const state = initGame({ villageName: 'StoryVale', size: MapSize.Medium });
+  const state = initGame({ skipTerrain: true, villageName: 'StoryVale', size: MapSize.Medium });
   state.year = 0;
   state.resources.food = 50;
   // Ensure at least one living wolf (predators spawn, but pin it for determinism).
@@ -133,7 +133,7 @@ describe('first-session wolf choice', () => {
 
 describe('philosophical election debate', () => {
   it('offers once per election year when at least two candidates exist', () => {
-    const state = initGame({ villageName: 'StoryVale2', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale2', size: MapSize.Medium });
     maybeOfferValleyDebate(state, ['Alda', 'Bram']);
     expect(state.pendingStoryEvents?.length).toBe(1);
     expect(state.pendingStoryEvents![0].storyKey).toBe('valley_debate');
@@ -150,13 +150,13 @@ describe('philosophical election debate', () => {
   });
 
   it('does not offer with fewer than two candidates', () => {
-    const state = initGame({ villageName: 'StoryVale3', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale3', size: MapSize.Medium });
     maybeOfferValleyDebate(state, ['Solo']);
     expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
   });
 
   it('resolves growth: eco down, reputation up', () => {
-    const state = initGame({ villageName: 'StoryVale4', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale4', size: MapSize.Medium });
     maybeOfferValleyDebate(state, ['Alda', 'Bram']);
     const ecoBefore = state.ecosystemHealth ?? 80;
     const repBefore = state.villageReputation;
@@ -168,7 +168,7 @@ describe('philosophical election debate', () => {
   });
 
   it('resolves preservation: eco up', () => {
-    const state = initGame({ villageName: 'StoryVale5', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale5', size: MapSize.Medium });
     state.ecosystemHealth = 50;
     maybeOfferValleyDebate(state, ['Alda', 'Bram']);
     const ecoBefore = 50;
@@ -178,7 +178,7 @@ describe('philosophical election debate', () => {
   });
 
   it('resolves festivals: reputation up, eco unchanged', () => {
-    const state = initGame({ villageName: 'StoryVale6', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale6', size: MapSize.Medium });
     maybeOfferValleyDebate(state, ['Alda', 'Bram']);
     const ecoBefore = state.ecosystemHealth ?? 80;
     const repBefore = state.villageReputation;
@@ -191,7 +191,7 @@ describe('philosophical election debate', () => {
 
 describe('first-session arc', () => {
   it('welcome beat: offered once on day 0, listen-to-elders raises eco', () => {
-    const state = initGame({ villageName: 'ArcVale1', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale1', size: MapSize.Medium });
     state.dayInYear = 0;
     state.ecosystemHealth = 50;
     maybeOfferWelcome(state);
@@ -204,7 +204,7 @@ describe('first-session arc', () => {
   });
 
   it('welcome beat: set-to-work grants wood', () => {
-    const state = initGame({ villageName: 'ArcVale2', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale2', size: MapSize.Medium });
     state.dayInYear = 0;
     const woodBefore = state.resources.wood;
     maybeOfferWelcome(state);
@@ -213,7 +213,7 @@ describe('first-session arc', () => {
   });
 
   it('ranger: waits for the wolf choice to resolve, then visits once', () => {
-    const state = initGame({ villageName: 'ArcVale3', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale3', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 60; // the two-month guarantee — no build progress needed
     maybeOfferWolfChoice(state);
@@ -230,7 +230,7 @@ describe('first-session arc', () => {
   });
 
   it('ranger: acknowledges the spare-the-pack choice with reputation', () => {
-    const state = initGame({ villageName: 'ArcVale4', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale4', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 60; // the two-month guarantee — no build progress needed
     maybeOfferWolfChoice(state);
@@ -243,7 +243,7 @@ describe('first-session arc', () => {
   });
 
   it('winter prep: offered on day 210; freeze check rewards a met pact', () => {
-    const state = initGame({ villageName: 'ArcVale5', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale5', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 210;
     maybeOfferWinterPrep(state);
@@ -262,7 +262,7 @@ describe('first-session arc', () => {
   });
 
   it('winter prep: a failed pact costs reputation at the freeze', () => {
-    const state = initGame({ villageName: 'ArcVale6', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale6', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 210;
     maybeOfferWinterPrep(state);
@@ -276,7 +276,7 @@ describe('first-session arc', () => {
   });
 
   it('winter prep: declining the pact means no freeze penalty', () => {
-    const state = initGame({ villageName: 'ArcVale7', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ArcVale7', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 210;
     maybeOfferWinterPrep(state);
@@ -295,7 +295,7 @@ describe('first-session arc', () => {
 
 describe('systems introduced through consequences', () => {
   it('grief beat: offered once when a grieving settler with family exists', () => {
-    const state = initGame({ villageName: 'Emergence1', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence1', size: MapSize.Medium });
     state.year = 0;
     const human = state.entities.find((e) => e.type === EntityType.Human && !e.faction && !e.isJuvenile);
     expect(human).toBeTruthy();
@@ -309,14 +309,14 @@ describe('systems introduced through consequences', () => {
   });
 
   it('grief beat: not offered without a grieving settler', () => {
-    const state = initGame({ villageName: 'Emergence2', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence2', size: MapSize.Medium });
     state.year = 0;
     maybeOfferGriefBeat(state);
     expect(state.pendingStoryEvents?.length ?? 0).toBe(0);
   });
 
   it('grief beat: comfort raises reputation and eases the mourner', () => {
-    const state = initGame({ villageName: 'Emergence3', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence3', size: MapSize.Medium });
     state.year = 0;
     const human = state.entities.find((e) => e.type === EntityType.Human && !e.faction && !e.isJuvenile)!;
     human.griefUntilTick = state.tick + 10;
@@ -334,7 +334,7 @@ describe('systems introduced through consequences', () => {
   });
 
   it('howler rumor: only after the ranger visit, late in the first year', () => {
-    const state = initGame({ villageName: 'Emergence4', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence4', size: MapSize.Medium });
     state.year = 0;
     state.storyFlags = { ranger_visit: 10 };
     state.dayInYear = 100;
@@ -347,7 +347,7 @@ describe('systems introduced through consequences', () => {
   });
 
   it('howler rumor: not offered before the ranger visited', () => {
-    const state = initGame({ villageName: 'Emergence5', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence5', size: MapSize.Medium });
     state.year = 0;
     state.dayInYear = 200;
     maybeOfferHowlerRumor(state);
@@ -355,7 +355,7 @@ describe('systems introduced through consequences', () => {
   });
 
   it('howler rumor: heeding the warning raises reputation', () => {
-    const state = initGame({ villageName: 'Emergence6', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'Emergence6', size: MapSize.Medium });
     state.year = 0;
     state.storyFlags = { ranger_visit: 10 };
     state.dayInYear = 200;
@@ -368,7 +368,7 @@ describe('systems introduced through consequences', () => {
 
 describe('story event lifecycle', () => {
   it('expires unanswered stories', () => {
-    const state = initGame({ villageName: 'StoryVale7', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale7', size: MapSize.Medium });
     maybeOfferValleyDebate(state, ['Alda', 'Bram']);
     const evt = state.pendingStoryEvents![0];
     state.tick = evt.expiresAtTick;
@@ -377,7 +377,7 @@ describe('story event lifecycle', () => {
   });
 
   it('respondToStoryEvent with an unknown id is a no-op', () => {
-    const state = initGame({ villageName: 'StoryVale8', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'StoryVale8', size: MapSize.Medium });
     const next = respondToStoryEvent(state, 'does_not_exist', 'thin_pack');
     expect(next.pendingStoryEvents?.length ?? 0).toBe(0);
   });
@@ -402,7 +402,7 @@ describe('story event lifecycle', () => {
 
 describe('ten children shelter quest', () => {
   function shelterWorld() {
-    const state = initGame({ villageName: 'ShelterVale', size: MapSize.Medium });
+    const state = initGame({ skipTerrain: true, villageName: 'ShelterVale', size: MapSize.Medium });
     state.rivalSettlements.push({
       id: 'rival-shelter',
       name: 'Ashbrook Clan',

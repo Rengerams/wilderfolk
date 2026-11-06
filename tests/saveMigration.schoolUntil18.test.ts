@@ -13,7 +13,7 @@ function human(id: number, age: number, name = 'Settler') {
 
 describe('older saves: schooling and adulthood begin/end at the correct ages', () => {
   it('clears legacy child work counters and fatigue without erasing school progress', () => {
-    const state = initGame({ seed: 4242 });
+    const state = initGame({ seed: 4242, skipTerrain: true });
     const child = human(90009, 12);
     Object.assign(child, {
       isJuvenile: false, job: JobType.Settler,
@@ -33,7 +33,7 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
   });
 
   it('repairs Demetrius-like early graduation without touching family or skills', () => {
-    const state = initGame({ seed: 4242 });
+    const state = initGame({ seed: 4242, skipTerrain: true });
     const child = human(90001, 12, 'Demetrius');
     Object.assign(child, {
       surname: 'Wilke', isJuvenile: false, schoolDays: 24, educated: true,
@@ -56,7 +56,7 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
   });
 
   it('preserves normal school attendance for a child who has not prematurely graduated', () => {
-    const state = initGame({ seed: 4242 });
+    const state = initGame({ seed: 4242, skipTerrain: true });
     const child = human(90002, 10);
     Object.assign(child, { isJuvenile: true, schoolDays: 12, educated: false, job: JobType.Settler });
     state.entities.push(child);
@@ -66,7 +66,7 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
   });
 
   it('clears an underage apprenticeship at load without erasing learned skills', () => {
-    const state = initGame({ seed: 4242 });
+    const state = initGame({ seed: 4242, skipTerrain: true });
     const master = human(90003, 40);
     Object.assign(master, { apprenticeId: 90004, job: JobType.Farmer });
     const child = human(90004, 10);
@@ -79,7 +79,7 @@ describe('older saves: schooling and adulthood begin/end at the correct ages', (
   });
 
   it('cannot graduate at 17 even with enough days, but can at 18', () => {
-    const state = initGame({ seed: 4242 });
+    const state = initGame({ seed: 4242, skipTerrain: true });
     const pupil = human(90005, 17, 'Pupil');
     Object.assign(pupil, { schoolDays: SCHOOL_GRADUATION_DAYS, skills: {}, maxEnergy: 100, energy: 100, surname: 'Test' });
     state.entities.push(pupil);

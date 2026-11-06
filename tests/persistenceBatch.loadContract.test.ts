@@ -18,6 +18,8 @@ import { loadAutoSavePreference, saveAutoSavePreference } from '../src/game/pref
 import { resetSimRng } from '../src/game/simRng';
 import { GAME_VERSION } from '../src/game/version';
 
+import { MapSize } from '../src/game/gameTypes';
+
 interface MemoryStorage {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
@@ -45,9 +47,16 @@ function stubSlot(raw: string | null): void {
   });
 }
 
+let cachedPayload: Record<string, unknown> | null = null;
+
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
 
@@ -184,7 +193,7 @@ describe('the entity index exists before every load-time pass that resolves an e
 describe('the save-loadability probe validates the saved payload', () => {
   it('parses and validates the saved payload before reporting loadability', () => {
     resetSimRng();
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
     stubSlot(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
     const parse = vi.spyOn(JSON, 'parse');
 

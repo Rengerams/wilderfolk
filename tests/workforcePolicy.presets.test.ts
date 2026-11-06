@@ -225,7 +225,7 @@ describe('workforce policy — manual assignment stays authoritative', () => {
 
 describe('workforce policy — save, delta, prep and command contract', () => {
   it('round-trips through save/load', () => {
-    const world = initGame({ villageName: 'Presetville' });
+    const world = initGame({ skipTerrain: true, villageName: 'Presetville' });
     world.workforcePolicy = 'comfort';
 
     const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
@@ -241,7 +241,7 @@ describe('workforce policy — save, delta, prep and command contract', () => {
   });
 
   it('loads an old save without the field at the documented default', () => {
-    const world = initGame({ villageName: 'Oldsave' });
+    const world = initGame({ skipTerrain: true, villageName: 'Oldsave' });
     const save = buildSaveData(world, createInitialView(world.width, world.height));
     expect('workforcePolicy' in save).toBe(true);
     delete (save as Record<string, unknown>).workforcePolicy;
@@ -259,7 +259,7 @@ describe('workforce policy — save, delta, prep and command contract', () => {
   });
 
   it('travels the worker command path and the tick delta', () => {
-    let world = initGame({ seed: 7 });
+    let world = initGame({ skipTerrain: true, seed: 7 });
     const display = structuredClone(world);
 
     expect(getWorkforcePolicy(world)).toBe(DEFAULT_WORKFORCE_POLICY);
@@ -279,7 +279,7 @@ describe('workforce policy — save, delta, prep and command contract', () => {
   });
 
   it('rolls the policy back with the prep payload after a failed tick', () => {
-    const world = initGame({ seed: 11 });
+    const world = initGame({ skipTerrain: true, seed: 11 });
     world.workforcePolicy = 'growth';
     const prep = extractSimPrep(world);
 
@@ -300,7 +300,7 @@ describe('workforce policy — save, delta, prep and command contract', () => {
     }
 
     // An invalid preset leaves the world untouched (identity, so no delta is produced).
-    const world = initGame({ seed: 3 });
+    const world = initGame({ skipTerrain: true, seed: 3 });
     const unchanged = setWorkforcePolicy(world, 'bogus' as WorkforcePreset);
     expect(unchanged).toBe(world);
   });

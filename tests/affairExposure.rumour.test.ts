@@ -105,7 +105,7 @@ function makeWorld(seed = FIXTURE_SEED): {
   entityById: Map<number, Entity>;
   buildings: Building[];
 } {
-  const state = initGame({ seed });
+  const state = initGame({ skipTerrain: true, seed });
   const cheater = human(CHEATER_ID, {
     relationshipStatus: 'married',
     partnerId: SPOUSE_ID,

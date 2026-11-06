@@ -33,7 +33,7 @@ const newsMessages = (state: WorldState): string[] => state.bigNews.map((item) =
  * (status still reads `preparing`, which is the state the defect depended on).
  */
 function reachOpeningNight(support: 'support_improvise' | 'support_hospitality'): WorldState {
-  const state = initGame({ seed: 20240913 });
+  const state = initGame({ skipTerrain: true, seed: 20240913 });
   state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
   state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
   logEvent(state, 'season', 'A hard winter passed');
@@ -62,7 +62,7 @@ describe('traveling theatre stage routing', () => {
   });
 
   it('still honours an explicit stage-2 cancel', () => {
-    const state = initGame({ seed: 20240913 });
+    const state = initGame({ skipTerrain: true, seed: 20240913 });
     state.dayInYear = travelingTheatreEligibleDay(state.worldMap?.seed) + 1;
     state.visitorGroups.push({ kind: 'performers', daysLeft: 5 } as never);
     logEvent(state, 'season', 'A hard winter passed');

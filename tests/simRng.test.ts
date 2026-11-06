@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
-import { BuildingType, EntityType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { createRivalProfile, selectRivalDailyAction } from '../src/game/rivalProfiles';
 import { tryDailyAmicableDivorce } from '../src/game/simulation/humanRelationships';
@@ -367,7 +367,7 @@ describe('simRng.snapshot.test.ts', () => {
     });
 
     it('round-trips through a real save file', () => {
-      const state = initGame({ seed: 4242 });
+      const state = initGame({ size: MapSize.Medium, seed: 4242 });
       for (let i = 0; i < 3; i++) gameTick(state);
       getSimRng(PROBE)(); // the probe must exist (with a non-zero position) at save time
 
@@ -389,7 +389,7 @@ describe('simRng.snapshot.test.ts', () => {
     });
 
     it('still loads a save written before the snapshot existed', () => {
-      const state = initGame({ seed: 31337 });
+      const state = initGame({ size: MapSize.Medium, seed: 31337 });
       const save = buildSaveData(state, createInitialView(state.width, state.height));
       delete save.simRng;
       const parsed = parseSaveJson(JSON.stringify(save));
@@ -403,7 +403,7 @@ describe('simRng.snapshot.test.ts', () => {
     });
 
     it('rolls a failed tick back to the pre-tick stream positions', () => {
-      const state = initGame({ seed: 808 });
+      const state = initGame({ size: MapSize.Medium, seed: 808 });
       getSimRng(PROBE)();
       const prep = extractSimPrep(state);
 
@@ -417,14 +417,14 @@ describe('simRng.snapshot.test.ts', () => {
     });
 
     it('carries the positions in the tick delta, so the receiving realm tracks the authority', () => {
-      const world = initGame({ seed: 5150 });
+      const world = initGame({ size: MapSize.Medium, seed: 5150 });
       getSimRng(PROBE)();
       const delta = extractSimTickDelta(world, undefined, { cloneMode: 'isolated' });
       const expected = [getSimRng(PROBE)(), getSimRng(PROBE)()];
 
       // The receiving realm is on a different run entirely.
       setSimSeed(999);
-      const target = initGame({ seed: 123 });
+      const target = initGame({ size: MapSize.Medium, seed: 123 });
       applySimTickDelta(target, delta, { cloneMode: 'isolated' });
 
       expect([getSimRng(PROBE)(), getSimRng(PROBE)()]).toEqual(expected);

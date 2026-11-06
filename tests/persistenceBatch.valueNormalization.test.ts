@@ -10,11 +10,18 @@ import { createEmptyLifetimeStats } from '../src/game/stats';
 import { addBigNews } from '../src/game/simEffects';
 import { logEvent, EVENT_LOG_MAX_ENTRIES } from '../src/game/eventLog';
 import { resetSimRng } from '../src/game/simRng';
-import { WeatherType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
+import { MapSize, WeatherType, type GameEventLog, type WorldState } from '../src/game/gameTypes';
+
+let cachedPayload: Record<string, unknown> | null = null;
 
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
 
@@ -29,8 +36,7 @@ function logEntry(id: number, message: string): GameEventLog {
 
 /** A payload whose event log carries exactly the entries given, newest first. */
 function payloadWithEventLog(entries: GameEventLog[]): Record<string, unknown> {
-  resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
   world.eventLog = entries;
   return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
 }
@@ -136,7 +142,7 @@ describe('the weather fields are vetted at the load boundary', () => {
 describe('Big News cards survive a save', () => {
   it('writes the live cards and restores them instead of resetting the panel', () => {
     resetSimRng();
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242 });
     addBigNews(world, 'Raiders sighted', 'A raid is coming', 'negative');
     const payload = structuredClone(
       buildSaveData(world, createInitialView(world.width, world.height)),

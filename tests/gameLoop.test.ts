@@ -527,7 +527,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('keeps authoritative Tavern and Hotel hours after worker reconciliation', async () => {
-      const world = initGame({ villageName: 'WorkerVenueResult', size: 'medium' });
+      const world = initGame({ skipTerrain: true, villageName: 'WorkerVenueResult', size: 'medium' });
       const workerAfterTavern = applyWorkerCommand(structuredClone(world), {
         proto: WORKER_CMD_PROTO,
         op: 'setVenueSchedule',
@@ -616,7 +616,7 @@ describe('gameLoop.commandDispatch.test.ts', () => {
     });
 
     it('uses the venue schedule owner in the main-thread fallback', async () => {
-      const world = initGame({ villageName: 'FallbackVenueHours', size: 'medium' });
+      const world = initGame({ skipTerrain: true, villageName: 'FallbackVenueHours', size: 'medium' });
       const loop = new GameLoop(world, createInitialView(world.width, world.height), () => null);
       await settleLoop(loop);
       expect(loop.isUsingSimWorker()).toBe(false);
@@ -824,11 +824,11 @@ describe('gameLoop.exportAuthority.test.ts', () => {
 
   describe('the save export does not become the display world', () => {
     it('leaves the display world object untouched', async () => {
-      const display = initGame({ villageName: 'Display', seed: 20260925 });
+      const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
       // The display is paused and slowed; the export is a different object with different values.
       display.paused = true;
       display.speed = 5;
-      const exported = initGame({ villageName: 'Export', seed: 20260925 });
+      const exported = initGame({ skipTerrain: true, villageName: 'Export', seed: 20260925 });
       exported.paused = false;
       exported.speed = 1;
 
@@ -844,16 +844,16 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('keeps the display world after a subsequent tick result', async () => {
-      const display = initGame({ villageName: 'Display', seed: 20260925 });
+      const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
       display.paused = true;
-      const exported = initGame({ villageName: 'Export', seed: 20260925 });
+      const exported = initGame({ skipTerrain: true, villageName: 'Export', seed: 20260925 });
       exported.paused = false;
 
       const loop = loopWithWorker(display, exported);
       await loop.exportAuthoritativeWorld(1_000);
 
       // A tick result for a world that is *not* the display object lands next.
-      const next = initGame({ villageName: 'Next', seed: 20260926 });
+      const next = initGame({ skipTerrain: true, villageName: 'Next', seed: 20260926 });
       next.paused = false;
       (
         loop as unknown as {
@@ -866,8 +866,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('still reports the export as the authoritative read', async () => {
-      const display = initGame({ villageName: 'Display', seed: 20260925 });
-      const exported = initGame({ villageName: 'Export', seed: 20260925 });
+      const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
+      const exported = initGame({ skipTerrain: true, villageName: 'Export', seed: 20260925 });
       exported.villageName = 'Authoritative Name';
 
       const loop = loopWithWorker(display, exported);
@@ -877,7 +877,7 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('holds worker ticks until the authoritative save export completes', async () => {
-      const display = initGame({ villageName: 'Save barrier', seed: 20261029 });
+      const display = initGame({ skipTerrain: true, villageName: 'Save barrier', seed: 20261029 });
       display.speed = 10;
       display.paused = false;
       const loop = loopWithWorker(display, structuredClone(display));
@@ -924,7 +924,7 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('settles queued worker commands before taking a save snapshot', async () => {
-      const display = initGame({ villageName: 'Queued command', seed: 20261029 });
+      const display = initGame({ skipTerrain: true, villageName: 'Queued command', seed: 20261029 });
       const loop = loopWithWorker(display, structuredClone(display));
       const internals = loop as unknown as {
         commandChain: Promise<void>;
@@ -944,7 +944,7 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('keeps saves degraded if the worker enters recovery before it confirms the world', async () => {
-      const display = initGame({ villageName: 'Interrupted save', seed: 20261029 });
+      const display = initGame({ skipTerrain: true, villageName: 'Interrupted save', seed: 20261029 });
       const loop = loopWithWorker(display, structuredClone(display));
       const internals = loop as unknown as {
         workerHost: ReturnType<typeof fakeHostReturning> | null;
@@ -965,7 +965,7 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('rejects a display-shadow save while worker recovery is pending', async () => {
-      const display = initGame({ villageName: 'Recovery pending', seed: 20261029 });
+      const display = initGame({ skipTerrain: true, villageName: 'Recovery pending', seed: 20261029 });
       const loop = loopWithWorker(display, structuredClone(display));
       const internals = loop as unknown as {
         workerEnabled: boolean;
@@ -980,7 +980,7 @@ describe('gameLoop.exportAuthority.test.ts', () => {
     });
 
     it('falls back to the main shadow when the export fails', async () => {
-      const display = initGame({ villageName: 'Display', seed: 20260925 });
+      const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
       const loop = new GameLoop(display, createInitialView(display.width, display.height), () => null);
       const internals = loop as unknown as { workerEnabled: boolean; workerHost: unknown };
       internals.workerEnabled = true;
@@ -1017,8 +1017,8 @@ describe('gameLoop.exportAuthority.test.ts', () => {
      * replacement's `exportSave` (pre-fix) or ignores it (post-fix) — and that is observable.
      */
     it('ignores a host that was replaced while the save waited', async () => {
-      const display = initGame({ villageName: 'Display', seed: 20260925 });
-      const exported = initGame({ villageName: 'Export', seed: 20260925 });
+      const display = initGame({ skipTerrain: true, villageName: 'Display', seed: 20260925 });
+      const exported = initGame({ skipTerrain: true, villageName: 'Export', seed: 20260925 });
       const loop = loopWithWorker(display, exported);
       const internals = loop as unknown as {
         workerEnabled: boolean;

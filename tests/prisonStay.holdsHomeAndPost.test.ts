@@ -33,7 +33,7 @@ function completed(type: BuildingType, x: number, y: number, id: number) {
  * the arrest is then the only thing that could change a link.
  */
 function scandalWorld(): { state: WorldState; cheater: Entity; paramour: Entity; house: { occupants: number[] } } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
   const house = completed(BuildingType.House, 100, 100, HOUSE_ID);
   const farm = completed(BuildingType.Farm, 120, 100, FARM_ID);
@@ -111,7 +111,7 @@ describe('an arrest leaves both links alone', () => {
 
 describe('a workforce pulse during the sentence', () => {
   it('leaves the jailed settler holding the post and the job', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
     const house = completed(BuildingType.House, 100, 100, HOUSE_ID);
     const farm = completed(BuildingType.Farm, 120, 100, FARM_ID);
@@ -142,7 +142,7 @@ describe('a workforce pulse during the sentence', () => {
 
 describe('a release is uneventful', () => {
   it('walks out to the same home and post', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
     const house = completed(BuildingType.House, 100, 100, HOUSE_ID);
     const farm = completed(BuildingType.Farm, 120, 100, FARM_ID);
@@ -175,7 +175,7 @@ describe('a release is uneventful', () => {
 
 describe('release of a guard imprisoned at their own workplace', () => {
   it('keeps the staff roster entry while clearing the prisoner state', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
     const guard = human(7411, {
       job: JobType.PrisonGuard,
@@ -197,7 +197,7 @@ describe('release of a guard imprisoned at their own workplace', () => {
 
 describe('custody restoration when a prisoner is released', () => {
   it('does not move children already living with their available mother', () => {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const prison = completed(BuildingType.Prison, 400, 400, PRISON_ID);
     const motherHome = completed(BuildingType.House, 100, 100, HOUSE_ID);
     const fatherHome = completed(BuildingType.House, 200, 100, 903);

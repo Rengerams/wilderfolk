@@ -55,7 +55,7 @@ function lcg(seed: number): () => number {
 
 function largeColony(): WorldState {
   resetSimRng();
-  const state = initGame({ seed: 4242, size: MapSize.Large });
+  const state = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Large });
   const rand = lcg(20261002);
   let nextBuildingId = state.buildings.reduce((m, b) => Math.max(m, b.id), 0) + 1;
   let nextEntityId = state.entities.reduce((m, e) => Math.max(m, e.id), 0) + 1;

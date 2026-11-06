@@ -61,7 +61,7 @@ describe('settlers inside buildings', () => {
   });
 
   it('keeps a pregnant patient indoors across real simulation ticks and releases her when care ends', () => {
-    const world = initGame({ seed: 622 });
+    const world = initGame({ skipTerrain: true, seed: 622 });
     world.worldMap = null;
     world.entities = [human(1, { x: 110, y: 110, gender: 'female', pregnant: true, pregnancyProgress: 1 }),
       human(2, { x: 100, y: 120, job: 'doctor', workerBuildingId: 0 })];
@@ -95,7 +95,7 @@ describe('settlers inside buildings', () => {
 
 
   it('observes missing, outdoor and dead patients without claiming admission', () => {
-    const world = initGame({ seed: 623 });
+    const world = initGame({ skipTerrain: true, seed: 623 });
     world.buildings = [building(0, BuildingType.Hospital)];
     world.entities = [];
     expect(observeIndoorPatients(world).patients).toEqual([]);
@@ -107,7 +107,7 @@ describe('settlers inside buildings', () => {
   });
 
   it('lets an indoor worker leave for an established affair during work hours', () => {
-    const world = initGame({ seed: 624 });
+    const world = initGame({ skipTerrain: true, seed: 624 });
     world.worldMap = null;
     const workplace = building(0, BuildingType.Blacksmith, { x: 300, y: 300, occupants: [1], staffingMode: 'manual' });
     const person = human(1, { ...humanBuildingTarget(workplace, 1, false), gender: 'male',
@@ -130,7 +130,7 @@ describe('settlers inside buildings', () => {
   });
 
   it('lets a zero-stamina resident reach the house rather than freezing the home commute', () => {
-    const world = initGame({ seed: 625 });
+    const world = initGame({ skipTerrain: true, seed: 625 });
     world.worldMap = null;
     const nightTick = 23 * TICKS_PER_HOUR;
     const residentId = Array.from({ length: 50 }, (_, index) => 346 + index).find((id) =>
@@ -163,7 +163,7 @@ describe('settlers inside buildings', () => {
   });
 
   it('admits an established lover at the shared tryst house and credits sleep only after entry', () => {
-    const world = initGame({ seed: 626 });
+    const world = initGame({ skipTerrain: true, seed: 626 });
     world.worldMap = null;
     const home = building(7, BuildingType.House, { x: 220, y: 220, width: 40, height: 36, occupants: [1, 2] });
     const loverHome = building(15, BuildingType.House, { x: 600, y: 600, occupants: [3] });
@@ -196,7 +196,7 @@ describe('settlers inside buildings', () => {
   });
 
   it('transports indoor presence through the actual worker render buffer and hides selected leaders too', () => {
-    const world = initGame({ seed: 621 });
+    const world = initGame({ skipTerrain: true, seed: 621 });
     const person = human(1, { x: 100, y: 100, indoorBuildingId: 0 });
     world.entities = [person];
     world.buildings = [building(0, BuildingType.Hospital)];

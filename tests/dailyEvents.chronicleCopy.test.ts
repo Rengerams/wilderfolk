@@ -56,7 +56,7 @@ describe('a festival name is never doubled in the seasonal chronicle line', () =
   );
 
   it.each(festivalDays)('day $dayInYear names one festival start', ({ tick }) => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     world.tick = tick;
 
     tickDailyWorldEvents(world, tickContext(world, Season.Spring), [], { humans: 12 } as never);
@@ -77,7 +77,7 @@ describe('a festival name is never doubled in the seasonal chronicle line', () =
 describe('a day of building completions is one chronicle line per label', () => {
   /** Three Walls and one Leader's House a hair from finishing, so today's pass completes them all. */
   function worldWithSitesNearCompletion(): WorldState {
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242 });
     world.tick = dayTick(40);
     world.season = Season.Spring;
     const nearlyDone = (id: number, type: BuildingType, x: number) => {

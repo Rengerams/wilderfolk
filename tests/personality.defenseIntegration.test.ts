@@ -52,7 +52,7 @@ function militia(state: WorldState, entities: Entity[]): number {
 }
 
 function militiaWorld(): { state: WorldState; own: Entity[]; base: number } {
-  const state = initGame({ villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, villageName: 'Militia', size: 'medium', seed: FIXTURE_SEED });
   const own = Array.from({ length: SOLDIER_COUNT }, (_, i) => soldier(i + 1, []));
   return { state, own, base: militia(state, own) };
 }
@@ -130,7 +130,7 @@ describe('the militia prices each defender\'s own DNA', () => {
 
 /** One settler out on a famine hunt, with the colony's small game parked far out of reach. */
 function huntWorld(traits: SettlerTrait[], preyDistance: number): { state: WorldState; hunter: Entity; prey: Entity } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const hunter = state.entities.find((e) => e.alive && isPlayerHuman(e));
   expect(hunter, 'fixture premise: the colony starts with a settler').toBeTruthy();
   hunter!.job = JobType.Settler;
@@ -226,7 +226,7 @@ describe('the free-roam hunt range is the catalog hunting factor', () => {
 
 /** One settler facing an active Moon Howler 40 px away, ticked once through the real `tickHumans`. */
 function fleeFromHowler(traits: SettlerTrait[]): { speed: number } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const found = state.entities.find((e) => e.alive && isPlayerHuman(e) && !e.isJuvenile);
   expect(found, 'fixture premise: the colony starts with a settler').toBeTruthy();
   const runner = found!;

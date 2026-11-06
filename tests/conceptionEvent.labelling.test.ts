@@ -2,7 +2,7 @@
  * Conception vs birth event labelling — BUG_REPORTS/2026-09-10-conception-logged-as-birth.md.
  *
  * SCOPE — read this before trusting the result. These are **writer-level** tests:
- * they build a synthetic `WorldState` around `initGame()`, place two settlers by
+ * they build a synthetic `WorldState` around `initGame({ skipTerrain: true })`, place two settlers by
  * hand, and call the conception owner directly. That makes them fast and
  * deterministic, and it is enough to pin the event *type* each writer emits —
  * but it is not how the game behaves. The real-game check lives in
@@ -95,12 +95,12 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
 }
 
 /**
- * A colony-day fixture: `initGame()` for a complete valid world, then the two
+ * A colony-day fixture: `initGame({ skipTerrain: true })` for a complete valid world, then the two
  * settlers under test. Both stand on the same spot, so the conception gate sees
  * them "together" and only the probability roll decides.
  */
 function makeFixture(entities: Entity[]): { state: WorldState; ctx: TickContext; mother: Entity } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const mother = entities.find((entity) => entity.id === MOTHER_ID)!;
   state.entities = entities;
   state.villageLeaderId = null;

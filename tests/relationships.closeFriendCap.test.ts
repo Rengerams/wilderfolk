@@ -42,7 +42,7 @@ function allCloseFriends(people: Entity[], score: number): void {
 
 describe('close-friend cap', () => {
   it('clamps a settler carrying more than the cap to the six strongest mutual bonds', () => {
-    const world = initGame({ seed: 321 });
+    const world = initGame({ skipTerrain: true, seed: 321 });
     const people = settlers(world, 12);
     allCloseFriends(people, 80);
 
@@ -54,7 +54,7 @@ describe('close-friend cap', () => {
   });
 
   it('clamps an over-cap legacy save during load', () => {
-    const world = initGame({ seed: 322 });
+    const world = initGame({ skipTerrain: true, seed: 322 });
     const people = settlers(world, 10);
     allCloseFriends(people, 90);
     const json = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
@@ -71,7 +71,7 @@ describe('close-friend cap', () => {
 
   it('never grows past the cap over a long social run', () => {
     setSimSeed(7);
-    const world = initGame({ seed: 323 });
+    const world = initGame({ skipTerrain: true, seed: 323 });
     const people = settlers(world, 16);
     for (let day = 0; day < 400; day++) advanceSocialRelationships(world, world.entities);
 

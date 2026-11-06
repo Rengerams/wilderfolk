@@ -27,7 +27,9 @@ import { ensureEntityByIdMap } from '../src/game/entityIndex';
 import { resetSimRng, setSimSeed } from '../src/game/simRng';
 
 function colony(): WorldState {
-  const world = initGame({ seed: 4242 });
+  // Warfare never reads the map; the 6144×4608 default world made every save/load in this file pay
+  // for terrain it does not use.
+  const world = initGame({ seed: 4242, skipTerrain: true });
   world.entities = Array.from({ length: 12 }, (_, i) => human(900001 + i, { job: JobType.Soldier, name: `Fighter${i}` }));
   world.buildings = [building(900000, BuildingType.House), building(900100, BuildingType.Prison)];
   world.humanPopulation = 12;

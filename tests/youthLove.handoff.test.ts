@@ -61,7 +61,7 @@ function settler(id: number, age: number, gender: 'male' | 'female', overrides: 
 }
 
 /**
- * A mutual youth-love pair at the given ages, inside a real `initGame()` world so the calendar and
+ * A mutual youth-love pair at the given ages, inside a real `initGame({ skipTerrain: true })` world so the calendar and
  * tick are valid.
  */
 function pair(olderAge: number, youngerAge: number): {
@@ -70,7 +70,7 @@ function pair(olderAge: number, youngerAge: number): {
   younger: Entity;
   ctx: Parameters<typeof advanceYouthLove>[1];
 } {
-  const state = initGame({ seed: 20260916 });
+  const state = initGame({ skipTerrain: true, seed: 20260916 });
   const older = settler(OLDER_ID, olderAge, 'male', { youthLovePartnerId: YOUNGER_ID, youthLoveProgress: 40, youthLoveStartedDay: 1 });
   const younger = settler(YOUNGER_ID, youngerAge, 'female', { youthLovePartnerId: OLDER_ID, youthLoveProgress: 40, youthLoveStartedDay: 1 });
   state.entities = [older, younger];
@@ -159,7 +159,7 @@ describe('youth-love → courtship handoff (audit F3)', () => {
   });
 
   it('does not promote a pair while one partner is mid-transform, keeping the link mutual', () => {
-    const state = initGame({ seed: 20260916 });
+    const state = initGame({ skipTerrain: true, seed: 20260916 });
     const human = settler(1, 19, 'male', { youthLovePartnerId: 2, youthLoveProgress: 40, youthLoveStartedDay: 1 });
     const werewolf = settler(2, 19, 'female', {
       type: EntityType.Werewolf,

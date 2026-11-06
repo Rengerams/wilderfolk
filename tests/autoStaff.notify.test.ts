@@ -20,7 +20,7 @@ function playerHumans(state: ReturnType<typeof initGame>) {
 
 describe('autoStaffAllWorkers feedback', () => {
   it('staffs an idle job building and reports it in a notification', () => {
-    let world = initGame();
+    let world = initGame({ skipTerrain: true });
     // Run 5 days so settlers exist.
     for (let i = 0; i < TICKS_PER_DAY * 5; i++) world = gameTick(world);
     const humans = playerHumans(world);
@@ -55,7 +55,7 @@ describe('autoStaffAllWorkers feedback', () => {
   });
 
   it('stays quiet if a pass finds nothing to assign', () => {
-    let world = initGame();
+    let world = initGame({ skipTerrain: true });
     for (let i = 0; i < TICKS_PER_DAY * 5; i++) world = gameTick(world);
     const humans = playerHumans(world);
     if (humans.length < 2) return;
@@ -70,7 +70,7 @@ describe('autoStaffAllWorkers feedback', () => {
 
 describe('colony-wide Auto-fill override', () => {
   it('enables manual workplaces and assigns idle adults without changing the input or rivals', () => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     world.entities = [human(1)];
     world.buildings = [
       building(2, BuildingType.Farm, { staffingMode: 'manual' }),
@@ -85,7 +85,7 @@ describe('colony-wide Auto-fill override', () => {
   });
 
   it('confirms Auto-fill is enabled even when there are no idle adults', () => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     world.entities = [];
     world.buildings = [building(2, BuildingType.School, { staffingMode: 'manual' })];
     const next = autoStaffAllWorkers(world);

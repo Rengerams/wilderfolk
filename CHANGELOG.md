@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (6 November 2026):** Test fixtures build a smaller or terrain-free world and reuse it across cases, roughly halving the unit suite; the two year-long integration gates now run together.
+
 - **Fixed (3 November 2026):** Food production now runs after the workday and uses verified on-post hours where recorded, falling back to scheduled hours for unobserved or legacy attendance.
 
 - **Fixed (3 November 2026):** Work left for a different site is no longer credited to the current building, empty ledger days are kept, and the dead silo food branch is removed.

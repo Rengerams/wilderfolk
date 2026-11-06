@@ -47,7 +47,7 @@ function prisonBuilding(occupants: number[]): Building {
 
 /** One unguarded day: a completed Prison with two prisoners and no guard on any shift. */
 function unguardedDay(): { state: WorldState; prisoners: Entity[] } {
-  const state = initGame({ seed: 4242 });
+  const state = initGame({ skipTerrain: true, seed: 4242 });
   const prisoners = [prisoner(1), prisoner(2)];
   state.entities = [...prisoners];
   state.buildings = [prisonBuilding(prisoners.map((p) => p.id))];
@@ -77,7 +77,7 @@ describe('tickPrisonGuardDuty rolls per unguarded hour', () => {
   it('keeps an escaped guard on the prison workforce roster', () => {
     let escaped = false;
     for (let attempt = 0; attempt < 40 && !escaped; attempt++) {
-      const state = initGame({ seed: 4242 });
+      const state = initGame({ skipTerrain: true, seed: 4242 });
       const guard = prisoner(3);
       guard.job = JobType.PrisonGuard;
       guard.workerBuildingId = PRISON_ID;
@@ -101,7 +101,7 @@ describe('tickPrisonGuardDuty rolls per unguarded hour', () => {
   it('restores an escaped farm worker to the reserved workplace without a staffing pulse', () => {
     let escaped = false;
     for (let attempt = 0; attempt < 40 && !escaped; attempt++) {
-      const state = initGame({ seed: 4242 });
+      const state = initGame({ skipTerrain: true, seed: 4242 });
       const worker = prisoner(17);
       worker.job = JobType.Farmer;
       worker.workerBuildingId = 9002;

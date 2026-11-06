@@ -186,7 +186,8 @@ describe('90-day producer colony integration', () => {
         }
       }
     },
-    300_000,
+    // The full gate runs this file beside the year gate, so give it headroom for the shared cores.
+    600_000,
   );
 
 });

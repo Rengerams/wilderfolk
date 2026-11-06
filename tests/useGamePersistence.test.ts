@@ -25,8 +25,8 @@ describe('persistGame', () => {
   });
 
   it('saves the worker-authoritative world and preserves the manual-save feedback', async () => {
-    const displayWorld = initGame({ villageName: 'Display copy' });
-    const authoritativeWorld = initGame({ villageName: 'Authoritative world' });
+    const displayWorld = initGame({ skipTerrain: true, villageName: 'Display copy' });
+    const authoritativeWorld = initGame({ skipTerrain: true, villageName: 'Authoritative world' });
     const view = createInitialView(authoritativeWorld.width, authoritativeWorld.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -57,7 +57,7 @@ describe('persistGame', () => {
   });
 
   it('refuses a degraded worker export instead of overwriting upgraded buildings', async () => {
-    const staleWorld = initGame({ villageName: 'Stale copy' });
+    const staleWorld = initGame({ skipTerrain: true, villageName: 'Stale copy' });
     const view = createInitialView(staleWorld.width, staleWorld.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -80,7 +80,7 @@ describe('persistGame', () => {
   });
 
   it('does not save or report success when neither the loop nor display state supplies a view', async () => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
 
@@ -100,7 +100,7 @@ describe('persistGame', () => {
   });
 
   it('keeps a silent save from toasting while still saving the authoritative snapshot', async () => {
-    const authoritativeWorld = initGame({ villageName: 'Silent autosave' });
+    const authoritativeWorld = initGame({ skipTerrain: true, villageName: 'Silent autosave' });
     const view = createInitialView(authoritativeWorld.width, authoritativeWorld.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -115,7 +115,7 @@ describe('persistGame', () => {
     const saved = await persistGame(
       {
         getLoop: () => loop,
-        getWorld: () => initGame({ villageName: 'Stale display copy' }),
+        getWorld: () => initGame({ skipTerrain: true, villageName: 'Stale display copy' }),
         getView: () => view,
       },
       { markGameSaved, showToast },
@@ -130,7 +130,7 @@ describe('persistGame', () => {
   });
 
   it('the exit save writes the slot and never downloads (background path)', async () => {
-    const authoritativeWorld = initGame({ villageName: 'Exit save' });
+    const authoritativeWorld = initGame({ skipTerrain: true, villageName: 'Exit save' });
     const view = createInitialView(authoritativeWorld.width, authoritativeWorld.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -158,7 +158,7 @@ describe('persistGame', () => {
   });
 
   it('reports the existing error and leaves saved state unchanged when persistence fails', async () => {
-    const world = initGame();
+    const world = initGame({ skipTerrain: true });
     const view = createInitialView(world.width, world.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -184,7 +184,7 @@ describe('persistGame', () => {
    * `MAX_PIPELINE_DEPTH` ticks behind while reporting success. The second save now joins the first.
    */
   it('coalesces a second save onto the one already in flight', async () => {
-    const world = initGame({ villageName: 'Coalesced' });
+    const world = initGame({ skipTerrain: true, villageName: 'Coalesced' });
     const view = createInitialView(world.width, world.height);
     const showToast = vi.fn();
     const markGameSaved = vi.fn();
@@ -227,7 +227,7 @@ describe('persistGame', () => {
   });
 
   it('allows a later save after the in-flight one settles', async () => {
-    const world = initGame({ villageName: 'Sequential' });
+    const world = initGame({ skipTerrain: true, villageName: 'Sequential' });
     const view = createInitialView(world.width, world.height);
     saveGameMock.mockReturnValue({ success: true });
     const loop = {
@@ -250,7 +250,7 @@ describe('persistGame', () => {
   });
 
   it('allows a retry after a failed save', async () => {
-    const world = initGame({ villageName: 'Retry' });
+    const world = initGame({ skipTerrain: true, villageName: 'Retry' });
     const view = createInitialView(world.width, world.height);
     saveGameMock.mockReturnValueOnce({ success: false, error: 'Storage full' });
     saveGameMock.mockReturnValueOnce({ success: true });

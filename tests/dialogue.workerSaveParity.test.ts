@@ -64,7 +64,7 @@ describe('main/worker and old-save dialogue compatibility', () => {
   });
 
   it('reloads a real save without retaining an unrecoverable dialogue session lock', () => {
-    const world = initGame({ seed: 74211 });
+    const world = initGame({ skipTerrain: true, seed: 74211 });
     const speaker = world.entities.find((entity) => entity.alive && entity.type === 'human');
     expect(speaker).toBeDefined();
     if (!speaker) return;
@@ -104,7 +104,7 @@ describe('main/worker and old-save dialogue compatibility', () => {
   });
 
   it('keeps per-settler scene rotation after a real save and restore', () => {
-    const world = initGame({ seed: 74213 });
+    const world = initGame({ skipTerrain: true, seed: 74213 });
     const humans = world.entities.filter((entity) => entity.alive && entity.type === 'human');
     expect(humans.length).toBeGreaterThanOrEqual(2);
     if (humans.length < 2) return;
@@ -132,7 +132,7 @@ describe('main/worker and old-save dialogue compatibility', () => {
   });
 
   it('reclaims both partners after a real paired-dialogue save and load', () => {
-    const world = initGame({ seed: 74212 });
+    const world = initGame({ skipTerrain: true, seed: 74212 });
     const humans = world.entities.filter((entity) => entity.alive && entity.type === 'human');
     expect(humans.length).toBeGreaterThanOrEqual(2);
     if (humans.length < 2) return;

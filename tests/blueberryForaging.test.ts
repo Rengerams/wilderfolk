@@ -73,7 +73,7 @@ describe('blueberry foraging', () => {
   });
 
   it('picks one nearby ripe portion during free time and adds bounded food plus energy', () => {
-    const state = initGame();
+    const state = initGame({ size: MapSize.Medium });
     const human = state.entities.find((entity) => entity.type === EntityType.Human)!;
     human.energy = 80;
     human.maxEnergy = 400;
@@ -111,7 +111,7 @@ describe('blueberry foraging', () => {
     ];
 
     for (const options of cases) {
-      const state = initGame();
+      const state = initGame({ size: MapSize.Medium });
       const human = state.entities.find((entity) => entity.type === EntityType.Human)!;
       human.energy = 80;
       human.maxEnergy = 400;
@@ -127,7 +127,7 @@ describe('blueberry foraging', () => {
   });
 
   it('regrows one portion on schedule outside winter, never beyond its cap, and pauses in winter', () => {
-    const state = initGame();
+    const state = initGame({ size: MapSize.Medium });
     const tree = blueberryTrees(state)[0]!;
     tree.blueberryYield = 0;
     tree.blueberryNextRegrowthDay = 0;

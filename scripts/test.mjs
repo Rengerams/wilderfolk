@@ -55,6 +55,8 @@ const STEP = {
   unitAll: 'vitest run',
   invariantTest: 'vitest run tests/fullYear.integration.test.ts',
   colonyIntegrationTest: 'vitest run tests/longRunColony.integration.test.ts',
+  /** Both year-long gates are independent processes; running them together halves the wall time. */
+  integrationTests: 'vitest run tests/fullYear.integration.test.ts tests/longRunColony.integration.test.ts',
   types: 'tsc -p tsconfig.vitest.json --noEmit',
   /**
    * `scripts/` is deliberately NOT a lint target here, and the narrowing is
@@ -120,7 +122,7 @@ const STEP = {
 const GATE = {
   standard: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
   all: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit'],
-  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'invariantTest', 'colonyIntegrationTest', 'invariants'],
+  full: ['check', 'owners', 'semantic', 'semanticDup', 'cyclesStrict', 'dup', 'types', 'lint', 'unit', 'integrationTests', 'invariants'],
   audit: ['knip', 'owners', 'cycles'],
   accept: ['build', 'browser'],
 };
@@ -153,7 +155,7 @@ wilderfolk test runner - one entry point, choose with args
   npm test -- standard            same as above
   npm test -- standard --changed <sha>  standard checks; only affected unit tests
   npm test -- all                 same steps as standard
-  npm test -- full                standard + year and colony integration + invariants
+  npm test -- full                standard + the two year/colony integration files (together) + invariants
   npm test -- accept              build + the real-browser gate
 
   npm test -- unit [<pattern>]    vitest only; <pattern> filters by name/path

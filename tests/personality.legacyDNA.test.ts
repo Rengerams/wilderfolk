@@ -28,7 +28,7 @@ const FIXTURE_SEED = 20_261_030;
 
 /** A real save payload from the current build, with every settler's DNA removed. */
 function legacyPayload(mutate?: (humans: Record<string, unknown>[]) => void): Record<string, unknown> {
-  const world = initGame({ villageName: 'Legacy', size: 'medium', seed: FIXTURE_SEED });
+  const world = initGame({ skipTerrain: true, villageName: 'Legacy', size: 'medium', seed: FIXTURE_SEED });
   const raw = JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height)));
   const parsed = parseSaveJson(raw);
   expect(parsed.valid, 'fixture premise: the current build writes a loadable save').toBe(true);

@@ -190,7 +190,7 @@ function buildRemovalFixture(): RemovalFixture {
     occupants: [CONTROL_ID, CONTROL_CHILD_ID],
   });
 
-  const state = initGame({ seed: 20261005 });
+  const state = initGame({ skipTerrain: true, seed: 20261005 });
   state.tick = REMOVAL_TICK;
   state.villageLeaderId = null;
   state.entities = [

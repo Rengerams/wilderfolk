@@ -28,7 +28,7 @@ const arrivalCount = (state: WorldState): number =>
 
 describe('immigration cadence', () => {
   it('admits at most one family per colony day', () => {
-    const state = initGame({ seed: 11 });
+    const state = initGame({ skipTerrain: true, seed: 11 });
     // A high reputation plus standing housing puts the roll at its ceiling, so arrivals are the
     // norm rather than a rare event the assertion could pass without ever exercising.
     state.villageReputation = 120;

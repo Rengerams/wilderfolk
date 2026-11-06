@@ -59,7 +59,7 @@ describe('A16 — one raid-deadline renderer for both cards', () => {
 
 describe('v0.6.6.0 — explicit post-battle settlement fate', () => {
   function victoriousWorld() {
-    const world = initGame({ seed: 4242 });
+    const world = initGame({ skipTerrain: true, seed: 4242 });
     world.rivalSettlements = [{
       id: 'test-rival',
       name: 'Testford',

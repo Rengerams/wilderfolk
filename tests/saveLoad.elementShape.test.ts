@@ -17,12 +17,24 @@ import { createInitialView } from '../src/game/viewState';
 import { buildSaveData, loadGameFromParsed, loadGameFromParsedOutcome, describeSaveLoadOutcome } from '../src/game/saveLoad';
 import { resetSimRng } from '../src/game/simRng';
 import { nearestWalkableWorldPoint } from '../src/game/pathfinding';
-import { EntityType, type Entity, type WorldState } from '../src/game/gameTypes';
+import { EntityType, MapSize, type Entity, type WorldState } from '../src/game/gameTypes';
 
-/** A real, loadable payload with a couple of settlers and a building to corrupt. */
+let cachedPayload: Record<string, unknown> | null = null;
+
+/**
+ * A real, loadable payload with a couple of settlers and a building to corrupt.
+ *
+ * Built once and cloned per case: the shape scan does not depend on which size the world is, and
+ * rebuilding a Huge map per case spent most of this file's time on terrain the scan never reads.
+ */
 function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
   resetSimRng();
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ seed: 4242, size: MapSize.Medium });
   // `initGame` seeds wildlife but no settlers; one human + one building is enough to exercise both
   // element scans without inventing a shape the game never produces.
   const human = world.entities.find((e) => e.alive);

@@ -65,7 +65,7 @@ function settler(id: number, gender: 'male' | 'female', overrides: Partial<Entit
 }
 
 function fixture(entities: Entity[]): { state: WorldState; entityById: Map<number, Entity> } {
-  const state = initGame({ seed: 20260916 });
+  const state = initGame({ skipTerrain: true, seed: 20260916 });
   state.entities = entities;
   state.villageLeaderId = null;
   state.tick = TICKS_PER_DAY;

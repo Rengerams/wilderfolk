@@ -50,8 +50,8 @@ afterAll(() => {
   (globalThis as { document?: unknown }).document = realDocument;
 });
 
-const WORLD_W = 1280;
-const WORLD_H = 960;
+const WORLD_W = 800;
+const WORLD_H = 600;
 const SEED = 12345;
 
 /** Bake a map and hand back the pixels the bake wrote. */
@@ -59,10 +59,12 @@ async function bakeMap(
   map: WorldMap,
   view?: { x: number; y: number; width: number; height: number },
   worldStep?: number,
+  width: number = WORLD_W,
+  height: number = WORLD_H,
 ): Promise<CapturedImage> {
   const { bakeWhittakerGround } = await import('../src/game/renderer/whittakerTerrain');
   contexts.captured = null;
-  bakeWhittakerGround(map, WORLD_W, WORLD_H, map.seaLevel ?? 0.24, map.moistureBias ?? 0, view, undefined, worldStep);
+  bakeWhittakerGround(map, width, height, map.seaLevel ?? 0.24, map.moistureBias ?? 0, view, undefined, worldStep);
   if (!contexts.captured) throw new Error('the bake produced no image data');
   return contexts.captured;
 }
@@ -151,7 +153,9 @@ describe('the ground bake paints the classification it is drawn under', () => {
   }, 120_000);
 
   it('paints a cold crest as snow, which the absolute-height ramp could not reach', async () => {
-    const { img } = await bake(MapPreset.Scandinavia);
+    // A snow crest needs enough land range to exist, so this one bake keeps the original size.
+    const map = generateRawTerrain(1280, 960, SEED, MapSize.Medium, MapPreset.Scandinavia);
+    const img = await bakeMap(map, undefined, undefined, 1280, 960);
     let snow = 0;
     let bright = 0;
     const total = img.width * img.height;

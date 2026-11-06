@@ -17,7 +17,6 @@ import {
   HUMAN_STATUS_KINDS,
   resolveStatusBadgeKind,
   resolveSpeechBubbleRect,
-  shouldDrawHumanNameLabel,
   type HumanStatusFacts,
 } from '../src/game/renderer/overheadLayout';
 
@@ -102,11 +101,7 @@ describe('status badge draws a shape, not a font glyph', () => {
 });
 
 describe('speech bubbles reserve the name plates', () => {
-  it('draws a name plate at readable zoom whether or not the settler is talking', () => {
-    expect(shouldDrawHumanNameLabel(1.0, 0.45)).toBe(true);
-    expect(shouldDrawHumanNameLabel(0.44, 0.45)).toBe(false);
-  });
-
+  // The name-plate zoom rule itself is asserted once in `renderer.presentationLayout`.
   it('lifts a bubble clear of the speaker own plate instead of covering the name', () => {
     const plate = { x: 100, y: 80, width: 70, height: 13 };
     const desired = { x: 96, y: 92, width: 80, height: 30 };

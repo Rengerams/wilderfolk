@@ -139,7 +139,7 @@ describe('the crew multiplier prices the trade DNA once', () => {
  * progress and not only the multiplier in isolation.
  */
 function houseProgressAfterOneDay(traits: SettlerTrait[]): number {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   // A short day keeps the site unfinished, so its progress is still measurable after one tick.
   state.workSchedule = { startHour: 9, endHour: 12 };
   const cfg = BUILDING_CONFIGS[BuildingType.House];
@@ -198,7 +198,7 @@ const START_FOOD = 100;
  * integer the store records), zero when the point is the shift credit an unpractised crew earns.
  */
 function farmWorld(traits: SettlerTrait[], skill = MAX_SKILL): { state: WorldState; workers: Entity[] } {
-  const state = initGame({ seed: FIXTURE_SEED });
+  const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const cfg = BUILDING_CONFIGS[BuildingType.Farm];
   const farm: Building = {
     id: SITE_ID,
@@ -267,7 +267,7 @@ describe('the real production day pays the trade DNA', () => {
 describe('the apprenticeship training context reaches the real teaching path', () => {
   /** A blacksmith with a master at the forge and one bonded apprentice beside him. */
   function forge(traits: SettlerTrait[]): { state: WorldState; apprentice: Entity; master: Entity } {
-    const state = initGame({ seed: FIXTURE_SEED });
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
     const cfg = BUILDING_CONFIGS[BuildingType.Blacksmith];
     const blacksmith = building(SITE_ID, BuildingType.Blacksmith, {
       x: cfg.width,

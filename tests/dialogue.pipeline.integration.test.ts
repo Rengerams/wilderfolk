@@ -27,7 +27,7 @@ function runSoloLine(speaker: ChatSpeaker): void {
 
 describe('chat pipeline — trigger, session, line memory', () => {
   it('runs a real civic food petition through the full line and records the speaker line', () => {
-    const world = initGame({ seed: 83721 });
+    const world = initGame({ skipTerrain: true, seed: 83721 });
     const humans = adults(world);
     expect(humans.length).toBeGreaterThanOrEqual(2);
     if (humans.length < 2) return;
@@ -83,7 +83,7 @@ describe('chat pipeline — trigger, session, line memory', () => {
   });
 
   it('runs a real two-settler conversation, releases both, and persists both line histories', () => {
-    const world = initGame({ seed: 84111 });
+    const world = initGame({ skipTerrain: true, seed: 84111 });
     const humans = adults(world);
     expect(humans.length).toBeGreaterThanOrEqual(2);
     if (humans.length < 2) return;
@@ -129,7 +129,7 @@ describe('chat pipeline — trigger, session, line memory', () => {
   });
 
   it('keeps solo and pair routes separate: solo one settler, pair needs a partner', () => {
-    const world = initGame({ seed: 84112 });
+    const world = initGame({ skipTerrain: true, seed: 84112 });
     const humans = adults(world);
     expect(humans.length).toBeGreaterThanOrEqual(2);
     if (humans.length < 2) return;

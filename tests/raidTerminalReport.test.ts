@@ -10,7 +10,7 @@ import WarfareStatus from '../src/components/WarfareStatus';
 import RazeConfirmation from '../src/components/RazeConfirmation';
 
 function fallenVillage(): WorldState {
-  const world = initGame({ seed: 4242 });
+  const world = initGame({ skipTerrain: true, seed: 4242 });
   world.raidRecovery = {
     status: 'destroyed', raidId: 'final-raid', rivalName: 'Hillford',
     startedAtTick: 12, protectedUntilTick: 300, reason: 'The defenses fell.',
@@ -51,7 +51,7 @@ function saveRoundTrip(world: WorldState): WorldState {
 
 describe('terminal raid presentation and backward-compatible saves', () => {
   it('does not show a terminal report for active or recovering settlements', () => {
-    const world = initGame({ seed: 123 });
+    const world = initGame({ skipTerrain: true, seed: 123 });
     expect(buildRaidTerminalReport(world)).toBeNull();
     world.raidRecovery = { status: 'recovering', raidId: 'r1', rivalName: 'Hillford',
       startedAtTick: 1, protectedUntilTick: 500, reason: 'Rebuild',

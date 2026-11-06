@@ -63,7 +63,7 @@ describe('school.bonds.test.ts', () => {
   }
 
   function bondState(children: Entity[]) {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     state.entities = children;
     return state;
   }
@@ -138,7 +138,7 @@ describe('school.bonds.test.ts', () => {
  */
 describe('school.capacity.test.ts', () => {
   function schoolFixture(): { child: Entity; school: Building } {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const child: Entity = {
       ...state.entities.find((e) => e.type === EntityType.Human && e.alive)!,
       id: 9000,
@@ -264,7 +264,7 @@ describe('school.gossip.test.ts', () => {
   }
 
   function gossipFixture(parentProgress: number) {
-    const state = initGame();
+    const state = initGame({ skipTerrain: true });
     const parent = stubHuman(1, {
       name: 'Halvard', surname: 'Root', gender: 'male',
       relationshipStatus: 'married', partnerId: 4,
@@ -342,7 +342,7 @@ describe('school.roster.test.ts', () => {
   /** One generated world, shared by the fixtures — generating one per entity is slow. */
   let probeWorld: ReturnType<typeof initGame> | undefined;
   function probe(): ReturnType<typeof initGame> {
-    if (!probeWorld) probeWorld = initGame();
+    if (!probeWorld) probeWorld = initGame({ skipTerrain: true });
     return probeWorld;
   }
 
