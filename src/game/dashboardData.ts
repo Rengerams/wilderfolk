@@ -884,7 +884,7 @@ export function explainBuildingStaffing(
     });
   }
 
-  return { mode, capacity, workerCount, acceptsWorker, refusals, lines };
+  return { mode: 'auto', capacity, workerCount, acceptsWorker, refusals, lines };
 }
 
 export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
