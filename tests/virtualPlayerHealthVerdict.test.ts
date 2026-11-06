@@ -265,7 +265,7 @@ describe('the health verdict at the owner numbers', () => {
     }, {
       mills: 0, farms: 1,
       extraBuildings: [
-        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(77, BuildingType.Farm, { x: 340, y: 330 }),
         building(78, BuildingType.LumberMill, { x: 700, y: 420, occupants: [3, 4] }),
         building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [5] }),
       ],
@@ -288,7 +288,7 @@ describe('the health verdict at the owner numbers', () => {
       })),
     }, {
       mills: 1, farms: 1,
-      extraBuildings: [building(77, BuildingType.Farm, { x: 700, y: 350 })],
+      extraBuildings: [building(77, BuildingType.Farm, { x: 340, y: 330 })],
     });
     world.entities.forEach((entity) => { entity.lastAutoJobTransferTick = world.tick; });
     expect(world.entities.every((entity) => !canAutoChangeWorkplace(entity, world.tick))).toBe(true);
@@ -328,7 +328,7 @@ describe('the health verdict at the owner numbers', () => {
     }, {
       mills: 1, farms: 1,
       extraBuildings: [
-        building(77, BuildingType.Farm, { x: 700, y: 350 }),
+        building(77, BuildingType.Farm, { x: 340, y: 330 }),
         building(79, BuildingType.Quarry, { x: 770, y: 420, occupants: [6], staffingMode: 'manual' }),
       ],
     });
