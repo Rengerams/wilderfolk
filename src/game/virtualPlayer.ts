@@ -190,11 +190,12 @@ function spareBedReserve(state: WorldState): number {
   );
 }
 
-/** Food demand includes children (whose physiology consumes 85% of adult nutrition).
- * Industry demand continues to use the adult workforce, not all mouths.
+/** Bootstrap crop-footprint heuristic for colonies without measured food history.
+ * This is NOT a yield equivalence formula, and fishing/hunting do not count as crop capacity.
+ * Industry continues to use the adult workforce, not all mouths.
  */
-function wantedFoodProducerCount(state: WorldState, perProducer: number): number {
-  return Math.max(1, Math.ceil(playerHumanCount(state.entities) / perProducer));
+function wantedBootstrapCropSiteCount(state: WorldState, settlersPerCropSite: number): number {
+  return Math.max(1, Math.ceil(playerHumanCount(state.entities) / settlersPerCropSite));
 }
 
 /** Industrial production scales with the available adult labor pool. */
@@ -560,12 +561,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const unstaffedFoodProducer = (shortOnFood || measuredDeficit)
     ? firstUnstaffedFoodProducer(state)
     : undefined;
-  const target = wantedFoodProducerCount(
-    state,
-    measuredDeficit
-      ? VirtualPlayer.DEFICIT_SETTLERS_PER_FOOD_PRODUCER
-      : VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER,
-  );
+  const target = wantedBootstrapCropSiteCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
   const wantMore = measuredFlow === null && cropSites < target;
 
   // In a measured shortage, improve the output of existing farmhands before
