@@ -148,14 +148,13 @@ describe('A14 — one owner for "normalise a delta, set velocity, face it"', () 
   });
 });
 
-describe('A17 — the manual-staffing default is read from its owner', () => {
-  it('keeps the building panel on workforce.isManualStaffingBuilding', () => {
+describe('A17 — manual job assignment controls are retired', () => {
+  it('does not offer manual worker selection or staffing mode toggles', () => {
     const panel = read('src/components/SelectedBuildingPanel.tsx');
-    expect(panel, 'the manual-staffing default is inlined in the panel again').not.toMatch(
-      /staffingMode \?\?/,
-    );
-    expect(panel).toContain('isManualStaffingBuilding(building)');
-    expect(panel).toContain('effectiveStaffingMode === mode');
+    expect(panel).not.toContain('isManualStaffingBuilding');
+    expect(panel).not.toContain('onSetStaffingMode');
+    expect(panel).not.toContain('onAssignWorker');
+    expect(panel).toContain('Employment is automatic');
   });
 });
 
