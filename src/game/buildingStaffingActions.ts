@@ -232,7 +232,9 @@ export function autoStaffAllWorkers(
   const workplaces = state.buildings.filter((building) =>
     building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
   );
-  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
+  // An explicit colony or Virtual Player request is a staffing event even if
+  // the passive workforce fingerprint has not changed yet.
+  assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state, true);
   const after = countAssigned();
   const assigned = after - before;
 
