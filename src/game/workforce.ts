@@ -801,9 +801,10 @@ export function staffConstructionCrews(
   }
 }
 
-/** During a verified food deficit, reserve idle adults for reachable food vacancies
- * before the construction pass claims them as builders. Assignment eligibility stays
- * entirely inside assignWorkerInPlace; no existing job or crew is forcibly removed.
+/** Under the survival policy, reserve reachable unemployed adults for food
+ * production before builders take the same idle pool. Waiting for a deficit
+ * would make "feed the colony first" reactive rather than preventative.
+ * Established jobs/crews stay put; the normal job-transition owner is reused.
  */
 function staffFoodJobsBeforeConstruction(
   alive: Entity[],
@@ -811,8 +812,7 @@ function staffFoodJobsBeforeConstruction(
   world: WorldState | undefined,
   buildingById: ReadonlyMap<number, Building>,
 ): void {
-  if (!world || getWorkforcePolicy(world) !== 'survival'
-    || !isMeasuredFoodDeficit(world, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return;
+  if (!world || getWorkforcePolicy(world) !== 'survival') return;
   const foodJobs = completedJobBuildings(buildings, 'survival').filter((site) =>
     site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse
     || site.type === BuildingType.FishingSpot || site.type === BuildingType.HuntingSpot);
@@ -962,8 +962,8 @@ export function assignMissingWorkers(
       if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
     }
   }
-  // Reserve newly available workers for real food output before construction
-  // consumes the same idle pool; other jobs retain the ordinary assignment order.
+  // Survival prioritizes future food output before construction, even when the
+  // larder is still full; other presets retain the normal construction order.
   staffFoodJobsBeforeConstruction(alive, buildings, world, buildingById);
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
