@@ -122,6 +122,8 @@ export default function SpotlightLoreOverlay({
 
     const paint = (now: number) => {
       if (completed.current) return;
+      // Timeline bookkeeping created inside this effect, never read during render.
+      // oxlint-disable-next-line react/immutability
       if (startTime === null) startTime = now;
       const elapsed = now - startTime;
       const step = spotlightFrameAt(elapsed);

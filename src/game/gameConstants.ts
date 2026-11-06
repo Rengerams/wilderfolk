@@ -225,10 +225,10 @@ export const VirtualPlayer = {
    * raises the next House before the first settler is homeless rather than after.
    */
   SPARE_BED_RATIO: 0.25,
-  /** Six mouths per fully staffed Farm: 22 nominal food/day at 2 workers, less attendance losses. */
-  SETTLERS_PER_FOOD_PRODUCER: 6,
-  /** Five adults per partially staffed Farm when measured production is inadequate. */
-  DEFICIT_SETTLERS_PER_FOOD_PRODUCER: 5,
+  /** 5 = mouths one staffed Farm feeds at the measured yield (~11/day), not the nominal 22/day. */
+  SETTLERS_PER_FOOD_PRODUCER: 5,
+  /** 4 = break-even mouths per Farm when measured production is inadequate; no safety margin. */
+  DEFICIT_SETTLERS_PER_FOOD_PRODUCER: 4,
   /** Ignore daily food swings under 5% until a three-day history confirms them. */
   FOOD_DEFICIT_TOLERANCE_RATIO: 0.05,
   /**

@@ -283,6 +283,8 @@ export default function IntroScreen({ onContinue }: IntroScreenProps) {
     let height = window.innerHeight;
 
     const resize = () => {
+      // Canvas size created inside this effect, never read during render.
+      // oxlint-disable-next-line react/immutability
       width = window.innerWidth;
       height = window.innerHeight;
       // The canvas surface owner sizes every display canvas, so the ratio is computed in one place.

@@ -1,3 +1,5 @@
+// The sampler keeps its counters inside the effect, never in render state.
+// oxlint-disable react/immutability
 import { useEffect, useState } from 'react';
 
 /** Sampling window for one FPS reading — long enough to be steady, short enough to feel live. */

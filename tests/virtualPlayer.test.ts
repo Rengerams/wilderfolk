@@ -1560,9 +1560,9 @@ describe('virtual player remaining action surface', () => {
   it('raids a tense rival only with provisions to spare, and prefers peace when rich', () => {
     const ids = Array.from({ length: 12 }, (_, index) => index + 1);
     // Everyone is at home rather than at a workplace: this fixture is about rival
-    // policy, and no job building means no crew or road work can preempt it. It owns a
-    // second Farm because a dozen settlers are worth two producers to the food step
-    // (`SETTLERS_PER_FOOD_PRODUCER`), and adding one is food work, not rival policy.
+    // policy, and no job building means no crew or road work can preempt it. It owns the
+    // Farms a dozen settlers plan for the food step (`SETTLERS_PER_FOOD_PRODUCER`), and
+    // adding one is food work, not rival policy.
     const crowded = (food: number) => makeWorld(
       [
         ...ids.slice(0, 6).map((id) => human(id, { residenceBuildingId: 1, workerBuildingId: 1, job: JobType.Soldier })),
@@ -1572,6 +1572,7 @@ describe('virtual player remaining action surface', () => {
         building(1, BuildingType.House, { occupants: ids.slice(0, 6) }),
         building(2, BuildingType.House, { occupants: ids.slice(6) }),
         building(3, BuildingType.Farm),
+        building(4, BuildingType.Farm),
       ],
       {
         resources: { wood: 500, stone: 500, food, gold: 500, iron: 150 },

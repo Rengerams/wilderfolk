@@ -1,7 +1,7 @@
 # Virtual Player underplans food production and cannot recover a short-handed Farm
 
 - Bug: The Virtual Player plans a two-worker Farm for nine residents despite only 22 nominal daily food output and can leave a food site unstaffed while all other posts are occupied.
-- Status: investigating
+- Status: resolved
 - Severity: high
 - Date discovered: 2026-11-01
 - Version/build: PR #118 at be16be23478342c38101ad2e243b2e6b37c7ff16 (also reproduced on 3ac1fda02b9975f22a0efb4e92c3442144efc84e)
@@ -14,6 +14,7 @@
 - 2026-11-01 — open: GitHub CI independently reproduced identical starvation on the prior and current PR heads.
 - 2026-11-01 — investigating: policy and focused regressions committed; complete run and CI verification not established.
 - 2026-11-06 — investigating: reproduced locally through the Vitest 90-day colony gate on seed 12345; day-90 food exhausted with the same checkpoint economics as CI.
+- 2026-11-06 — resolved: full trace showed attendance-limited yield (~11 food/site/day, not 22) and a serial food-build gate that fell behind population growth. Capacity is now planned at 5 mouths/site (4 in a measured deficit), a measured deficit keeps two food sites rising, and the deficit switches the staffing preset before touching workers. Both the 90-day colony gate and the 100-day producers run finish healthy with food in store.
 
 ## Observed behavior
 The producers scenario ran without refilling stores and failed at day 90. Population rose from 50 on day 30 to 91 on day 60 and 124 on day 90. In the final 30 days, food produced was 5,429 and food consumed was 8,835, leaving zero food. Ten Farms had 20 assigned workers; 86 people were working with no idle workers. CI on 2026-10-29 and 2026-11-01 shows the same day-90 food, population, worker totals and output, so the GameLoop catalog work did not introduce this failure.
@@ -32,22 +33,28 @@ Auto-play should plan food capacity against achievable daily throughput, priorit
 `gameConstants.VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER` was 9, based on an obsolete 27-food fully staffed Farm assumption. `dailyBuildingEconomy.tickBuildingProduction` actually uses `12 + workers * 5` (22 with the Farm's two-worker cap), multiplied by real attendance and environmental effects. `workforce.rebalanceJobWorkers` can transfer only from overstaffed donors while respecting essential staffing and cooldowns, so an empty Farm cannot reliably draw a worker from a single-worker noncritical job. The long-run failure is deterministic in two independent GitHub CI runs.
 
 ## Root cause
-Verified: normal producer sizing uses a nominal output incompatible with the real production formula, while workforce recovery cannot fill a needed Farm if other auto-managed workplaces are each at minimum coverage. Further starvation causes (available placement space, actual attendance, and growth dynamics) require a new full simulation trace and are not yet ruled out.
+Verified by a full 90-day trace (seed 12345, producers scenario, bot active) rather than inference.
+- **The yield the plan assumed was not the yield the colony got.** `12 + workers × 5` is 22 food a day for a two-worker Farm only before attendance: `getWorkplacePresenceShare` pays the crew for hours actually spent on post, and the traced farms produced ~11 food a day, about `5.7` per food worker, while a settler eats ~2.7 a day. Break-even is therefore ~4 mouths per site, not the six the old `SETTLERS_PER_FOOD_PRODUCER` planned (and not the nine before that).
+- **Capacity grew slower than the mouths.** `decideFood` refused to start another food site while any food site was still under construction or below its crew cap, so the colony built roughly one site every five days while population grew ~1.5 a day. The trace shows the stores falling steadily from day 39 even though the bot wanted more capacity, and the plan target was reached at about six mouths per site while the real break-even was four.
+- **The deficit never re-prioritized staffing unless a site was already short.** The survival switch sat behind `firstUnstaffedFoodProducer`, so a colony whose sites were fully crewed but under-producing kept its old policy.
+- Placement space was **not** a limiter: a legal Farm spot stayed within search ring 7 of 8 for the whole run.
 
 ## Fix / proposed fix
-- Plan a Farm for no more than six residents under nominal throughput (not a promise of real yield); the deficit target remains stricter at five.
-- Treat partially staffed Farms as possible targets for the existing auto-staff pass.
-- During a genuine sustained food deficit, switch the automated staffing preset to survival before moving workers.
-- If no legal overstaffed donor exists and food stores are critically short, release one movable worker from a noncritical automatic job through the normal `removeWorker` command, which allows the workforce owner to refill food sites. Never reassign from a manual job.
-- Add focused tests for smaller producer capacity, staffing an empty Farm from a lower-priority job, preserving manual jobs, and restoring survival policy.
-- Keep the full-year producer-colony acceptance test and food exhaustion failure unchanged.
+- `VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER` is 5 and the measured-deficit target 4, matching the attendance-limited yield (and the four-mouth break-even) instead of the nominal 22-food Farm.
+- `decideFood` caps construction at the plan in every mode, so a shortage cannot build forever, but real hunger (`shortOnFood`) still outranks the plan.
+- During a measured deficit the bot keeps **two** food sites going up at once and no longer waits for an already-finished site to be crewed before raising the next one; outside a deficit the one-site-at-a-time rule is unchanged.
+- The survival-preset switch now runs on any measured deficit, not only when a food site is already short of a crew; it still precedes every worker move.
+- Existing rules kept: partially staffed Farms are auto-staffing targets, manual posts are never overridden, and a critically short larder releases one movable worker from a noncritical automatic job through the normal `removeWorker` command.
+- Focused tests added for parallel deficit building, the two-site cap, the plan cap, the unchanged one-at-a-time rule and the deficit policy switch; the producer-colony acceptance tests are unchanged.
 
 ## Save/migration impact
 No save schema changes. Only Virtual Player decisions and tuning are changed; ordinary gameplay economy/physiology are not altered.
 
 ## Verification result
-- PASS (source trace): production formula, farm cap, staffing and decision priorities inspected.
-- PASS (prior reproduction): 2026-10-29 and 2026-11-01 GitHub Actions both failed on day 90 with identical food economics.
-- PASS (local reproduction, 2026-11-06): `npx vitest run tests/longRunColony.integration.test.ts` — FAIL, day-90 `stalled(food-exhausted)`.
-- NOT RUN: new focused Vitest tests or the updated full-year seed since code changes (connected GitHub environment, no local test checkout).
-- NOT RUN: new head TypeScript, lint and build at documentation time.
+- PASS (local reproduction, 2026-11-06, before the fix): `npx vitest run tests/longRunColony.integration.test.ts` — FAIL, day-90 `stalled(food-exhausted)`, stored 0.
+- PASS (trace): seeded 90-day producers trace measured the real yield, the build gates and the policy order; placement stayed legal through ring 7 of 8.
+- PASS (90-day colony gate, after the fix): `npx vitest run tests/longRunColony.integration.test.ts` — PASS, `healthy`, day-90 stored 2293 with 102 settlers.
+- PASS (100-day producers run, after the fix): `npx tsx scripts/run-full-year.mts --scenario=producers --days=100 --bot` — PASS, `colony=healthy`, no food-exhaustion checkpoints; day 30/60/90/100 stored 3501/3436/2013/1589.
+- PASS (focused): `npx vitest run tests/virtualPlayer.test.ts tests/virtualPlayerHealthVerdict.test.ts` — 130 passed.
+- PASS (checks): `npm run test:types`, `npm run lint`, `npm run build:ci` — all clean.
+- Residual risk: the last 30 days still consume slightly more than they produce (day 100 net ≈ −38 a day against 1589 in store), so a materially longer or faster-growing run would need the same yield review again; the 100-day gate itself is met.

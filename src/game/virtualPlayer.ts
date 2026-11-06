@@ -481,14 +481,15 @@ function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision |
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
   if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !isMeasuredFoodDeficit(state)) return null;
-  const producer = firstUnstaffedFoodProducer(state);
-  if (!producer) return null;
+  // A measured deficit re-prioritizes every post, not only the ones already short of a crew.
   if (isMeasuredFoodDeficit(state) && getWorkforcePolicy(state) !== 'survival') {
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'setWorkforcePolicy', preset: 'survival' },
       reason: 'prioritize survival jobs — food production is falling behind',
     };
   }
+  const producer = firstUnstaffedFoodProducer(state);
+  if (!producer) return null;
   const humans = state.entities.filter((human) => human.alive && isPlayerHuman(human));
   const workplaces = state.buildings.filter((building) =>
     building.completed && building.faction !== 'rival'
@@ -624,8 +625,17 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   }
 
   if (!shortOnFood && !measuredDeficit && hasFoodProducer(state) && !wantMore) return null;
-  if (FOOD_PRODUCER_TYPES.some((type) => isUnderConstruction(state, type))) return null;
-  if (unstaffedFoodProducer) return null;
+  // The plan caps construction in every mode; a shortage is not a licence to build forever,
+  // but real hunger still outranks the plan.
+  if (built >= target && !shortOnFood) return null;
+  // One site at a time normally; a measured deficit keeps two going up so capacity grows
+  // faster than the mouths, and it never waits for an existing site to be crewing first.
+  const goingUp = state.buildings.filter(
+    (building) => building.faction !== 'rival' && !building.completed
+      && FOOD_PRODUCER_TYPES.includes(building.type),
+  ).length;
+  if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
+  if (unstaffedFoodProducer && !measuredDeficit) return null;
   const daysLeft = Math.max(0, Math.floor(food / needPerDay));
   // Diversify deficits into available food sites, gated by research, water and safe prey.
   // Farms remain the fallback; no fictitious food or wildlife is created.

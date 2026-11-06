@@ -431,6 +431,8 @@ export function useMapKeyboardCursor({
         // parent's origin for the frame between mounting and this write.
         marker.style.visibility = 'visible';
       }
+      // Loop handle created inside this effect, never read during render.
+      // oxlint-disable-next-line react/immutability
       frame = requestAnimationFrame(paint);
     };
     frame = requestAnimationFrame(paint);

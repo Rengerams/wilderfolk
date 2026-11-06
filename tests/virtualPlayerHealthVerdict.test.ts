@@ -348,6 +348,90 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.reason).toContain('food production');
   });
 
+  it('keeps a second food site going up while a measured deficit is running', () => {
+    // The deficit is real but the plan still wants capacity (8 mouths / 4 = 2 sites, one built), so the
+    // existing unfinished Farm must not stop the next one being raised while the stores fall.
+    const world = ownerColony(8, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 300, wood: 500, stone: 500, gold: 0, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 40 },
+      })),
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350, completed: false, constructionProgress: 20 }),
+      ],
+    });
+
+    expect(decideVirtualPlayerAction(world)?.command).toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('never puts a third food site up while two already stand unfinished', () => {
+    const world = ownerColony(8, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 300, wood: 500, stone: 500, gold: 0, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 40 },
+      })),
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350, completed: false, constructionProgress: 20 }),
+        building(78, BuildingType.Farm, { x: 780, y: 350, completed: false, constructionProgress: 20 }),
+      ],
+    });
+
+    expect(decideVirtualPlayerAction(world)?.command ?? null)
+      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('does not build food past the planned deficit capacity', () => {
+    // Four mouths plan one producer (4 / 4); three already stand, so no fourth may be started.
+    const world = ownerColony(4, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 300, wood: 500, stone: 500, gold: 0, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 8 }, consumed: { meals: 18 },
+      })),
+    }, { mills: 0, farms: 3 });
+
+    expect(decideVirtualPlayerAction(world)?.command ?? null)
+      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('still raises one food site at a time outside a measured deficit', () => {
+    // No food history means no measured deficit: the one-site-at-a-time rule stays as it was.
+    const world = ownerColony(10, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
+    }, {
+      mills: 1, farms: 1,
+      extraBuildings: [
+        building(77, BuildingType.Farm, { x: 700, y: 350, completed: false, constructionProgress: 20 }),
+      ],
+    });
+
+    expect(decideVirtualPlayerAction(world)?.command ?? null)
+      .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+  });
+
+  it('switches to survival for a measured deficit even when every food site is crewed', () => {
+    const world = ownerColony(4, {
+      tick: 4 * TICKS_PER_DAY,
+      workforcePolicy: 'growth',
+      resources: { food: 30, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { farms: 14 }, consumed: { meals: 40 },
+      })),
+    }, { mills: 0, farms: 1 });
+
+    expect(decideVirtualPlayerAction(world)?.command)
+      .toMatchObject({ op: 'setWorkforcePolicy', preset: 'survival' });
+  });
+
   it('never calls a zero-stone colony healthy, and staffs the Quarry nobody works', () => {
     // Owner report 1: ~18 settlers, 0 stone, wood and gold in store, beds free.
     const unmanned = ownerColony(18, {
@@ -749,12 +833,13 @@ describe('the storage buildings the owner reported missing', () => {
 
   it('builds a Barn when the wood shelf is nearly full, even on a lean larder', () => {
     // 12 settlers eat 36 a day, so 100 food is under the strict community reserve but over the
-    // general food buffer the storage entries wait on.
+    // general food buffer the storage entries wait on. Three Farms meet the 12/5 food plan, so the
+    // storage step is the one this case is about.
     const world = ownerColony(12, {
       resources: { food: 100, wood: 700, stone: 200, gold: 100, iron: 150 },
       storageMax: { wood: 900, stone: 300, food: 800, gold: 20000, iron: 300 },
     }, {
-      mills: 4, farms: 2,
+      mills: 4, farms: 3,
       extraBuildings: [
         building(12, BuildingType.Well, { x: 360, y: 260 }),
         building(13, BuildingType.Tavern, { x: 400, y: 250 }),

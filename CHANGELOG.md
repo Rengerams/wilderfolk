@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026):** Auto-play now plans food capacity at the measured farm yield and raises two food sites during a sustained deficit, so the seeded producer colony no longer starves.
+
 - **Changed (6 November 2026):** Test fixtures build a smaller or terrain-free world and reuse it across cases, roughly halving the unit suite; the two year-long integration gates now run together.
 
 - **Fixed (3 November 2026):** Food production now runs after the workday and uses verified on-post hours where recorded, falling back to scheduled hours for unobserved or legacy attendance.
