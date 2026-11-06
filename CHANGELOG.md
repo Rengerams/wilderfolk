@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Route-search budget deferrals keep staffing pending, so the next assignment pulse retries instead of caching an incomplete workforce for a week.
+
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Registered legacy staffing-mode writes; minimum-coverage rebalancing finishes before caching and retries alternate reachable donors.
 
 - **Changed (6 November 2026, PR #126; runtime unverified):** Food expansion uses measured yield instead of interchangeable producer counts. New colonies use a crop-only bootstrap estimate; shortages still prompt expansion.
