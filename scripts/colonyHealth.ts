@@ -23,8 +23,8 @@ import { createHash } from 'node:crypto';
 import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
-import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
-import { snapBuildingCenter } from '../src/game/buildingRotation';
+import { getBuildingFootprintForType, snapBuildingCenter } from '../src/game/buildingRotation';
+import { isFootprintWithinMapBounds, isFootprintOnBuildableTerrain, overlapsAnyBuilding } from '../src/game/placementUtils';
 import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
 import { setCurrentPathMap } from '../src/game/pathfinding';
 import { SPECIES_CONFIG } from '../src/game/speciesConfig';
@@ -184,8 +184,17 @@ function placeLegalStarterBuilding(
       for (let dy = -ring; dy <= ring; dy++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
         const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
-        if (!canPlaceBuilding(world, type, spot.x, spot.y, 0)) continue;
+        // The scenario pre-provisions a Prison before its research unlock.
+        // Preserve that explicit fixture rule; do not waive terrain or overlap.
+        const footprint = getBuildingFootprintForType(type, 0);
+        if (!isFootprintWithinMapBounds(footprint.width, footprint.height,
+          spot.x, spot.y, world.width, world.height)
+          || !isFootprintOnBuildableTerrain(world, footprint.width, footprint.height,
+            spot.x, spot.y, type)
+          || overlapsAnyBuilding(world.buildings, footprint.width, footprint.height,
+            spot.x, spot.y)) continue;
         if (fromHomes.length > 0) {
+          beginCommuteRoutePass();
           const candidate = createBuilding(type, spot.x, spot.y, -1);
           const reachable = fromHomes.every((home) =>
             isWithinAssignableCommute(
