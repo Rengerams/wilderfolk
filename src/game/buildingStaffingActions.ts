@@ -313,7 +313,6 @@ export function autoStaffAllWorkers(
   const workplaces = state.buildings.filter((building) =>
     building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type] != null,
   );
-  for (const building of workplaces) building.staffingMode = 'auto';
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   const after = countAssigned();
   const assigned = after - before;
@@ -330,7 +329,7 @@ export function autoStaffAllWorkers(
     addNotification(
       state,
       '⚒️ Auto-staff enabled',
-      'All workplaces are set to Auto-fill. No additional idle adults were assigned; existing workers may be redistributed.',
+      'Automatic staffing is active. No additional idle adults were assigned; existing workers may be redistributed.',
       'info',
     );
   }
@@ -355,8 +354,6 @@ export function removeStaffWorkerFromBuilding(
   // construction-crew occupant list is the assignment this action removes.
   if (human.workerBuildingId !== buildingId && !building.occupants.includes(humanId)) return state;
 
-  // Explicit removal opts this workplace out of immediate auto-refilling.
-  if (building.completed && BUILDING_JOB_TYPES[building.type]) building.staffingMode = 'manual';
   removeWorkerTransition(human, state.buildings);
   assignMissingWorkers(allPlayerHumans(state.entities), state.buildings, state);
   return state;
