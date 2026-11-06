@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Workforce cache now rechecks on 60-day transfer cooldown expiry and when unhoused applicants change path cells. Existing job stability remains.
+
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Route-search budget deferrals keep staffing pending, so the next assignment pulse retries instead of caching an incomplete workforce for a week.
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Registered legacy staffing-mode writes; minimum-coverage rebalancing finishes before caching and retries alternate reachable donors.
