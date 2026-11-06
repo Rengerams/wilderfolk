@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingType, JobType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import { assignMissingWorkers, assignWorkerInPlace, pickWorkerToTransfer } from '../src/game/workforce';
+import { AUTO_JOB_TRANSFER_COOLDOWN_TICKS, assignMissingWorkers, assignWorkerInPlace, pickWorkerToTransfer } from '../src/game/workforce';
 import { building, human } from '../src/test/factories';
 
 describe('persistent automatic employment and commute eligibility', () => {
@@ -50,4 +50,53 @@ describe('persistent automatic employment and commute eligibility', () => {
     expect(incumbent.workerBuildingId).toBe(20);
     expect(newcomer.workerBuildingId).toBe(20);
   });
+  it('rechecks transfers at the 60-day cooldown boundary even with no other colony changes', () => {
+    const quarry = building(30, BuildingType.Quarry, { x: 0, y: 0, occupants: [1, 2, 3] });
+    const farm = building(31, BuildingType.Farm, { x: 0, y: 0 });
+    const workers = [1, 2, 3].map((id) => human(id, {
+      x: 0, y: 0, workerBuildingId: quarry.id, lastAutoJobTransferTick: 100,
+    }));
+    const world = {
+      entities: workers, buildings: [quarry, farm],
+      tick: 100 + AUTO_JOB_TRANSFER_COOLDOWN_TICKS - 1,
+      resources: { wood: 100, stone: 100, food: 100, gold: 100, iron: 100 },
+      workforcePolicy: 'balanced',
+    } as unknown as WorldState;
+
+    assignMissingWorkers(workers, world.buildings, world);
+    expect(farm.occupants).toHaveLength(0);
+    expect(workers.every((worker) => worker.workerBuildingId === quarry.id)).toBe(true);
+
+    // Only time advanced: the signature must observe cooldown eligibility
+    // changing, even though lastAutoJobTransferTick itself is unchanged.
+    world.tick += 1;
+    assignMissingWorkers(workers, world.buildings, world);
+    expect(farm.occupants).toHaveLength(2);
+    expect(quarry.occupants).toHaveLength(1);
+    expect(workers.filter((worker) => worker.workerBuildingId === farm.id)).toHaveLength(2);
+  });
+
+  it('rechecks an unhoused applicant after moving into the workplace path cell', () => {
+    const farm = building(40, BuildingType.Farm, { x: 0, y: 0 });
+    const applicant = human(4, { x: 100_000, y: 100_000 });
+    const world = {
+      entities: [applicant], buildings: [farm], tick: 100,
+      resources: { wood: 100, stone: 100, food: 100, gold: 100, iron: 100 },
+      workforcePolicy: 'balanced',
+    } as unknown as WorldState;
+
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(applicant.workerBuildingId).toBeUndefined();
+    expect(farm.occupants).toHaveLength(0);
+
+    // No residence or other staffing changes; the current position is the
+    // canonical commute origin for this applicant.
+    applicant.x = farm.x;
+    applicant.y = farm.y;
+    world.tick += 1;
+    assignMissingWorkers(world.entities, world.buildings, world);
+    expect(applicant.workerBuildingId).toBe(farm.id);
+    expect(farm.occupants).toContain(applicant.id);
+  });
+
 });
