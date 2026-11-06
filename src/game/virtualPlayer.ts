@@ -27,7 +27,7 @@ import {
   pickWorkerToTransfer,
   isAcuteFoodStaffingEmergency,
 } from './workforce';
-import { getWorkforcePolicy, jobBuildingPriorityForPolicy } from './workforcePolicy';
+import { getWorkforcePolicy } from './workforcePolicy';
 import { readSkill } from './skills';
 import { getOpenPlayerBeds } from './populationGrowth';
 import { canHostTownFestival } from './townHall';
