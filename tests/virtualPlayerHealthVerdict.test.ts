@@ -250,7 +250,8 @@ describe('the health verdict at the owner numbers', () => {
 
     expect(colony.resources.food).toBeGreaterThan(20 * 3 * 2);
     const decision = decideVirtualPlayerAction(colony);
-    expect(decision?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    // Upgrade real, already employed farmhands before needing another crew.
+    expect(decision?.command).toMatchObject({ op: 'upgradeBuilding', buildingId: 300 });
     expect(decision?.reason).toContain('projected');
   });
 
@@ -864,6 +865,22 @@ describe('food-chain decisions under a recorded deficit', () => {
     const state = deficitVillage({ foodSpoilageRate: 0, ecosystemHealth: 90 });
     expect(decideVirtualPlayerAction(state)?.command).toMatchObject({
       op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('does not add speculative beds before the food forecast can feed new arrivals', () => {
+    const state = ownerColony(36, {
+      tick: 8 * TICKS_PER_DAY,
+      resources: { food: 1000, wood: 500, stone: 500, gold: 500, iron: 100 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1, produced: { farms: 150 },
+        consumed: { meals: 50 + 10 * index },
+      })),
+    }, { mills: 0, farms: 3, spareHouses: 0 });
+    expect(countHomelessSettlers(state)).toBe(0);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+    expect(decideVirtualPlayerAction(state)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.House,
     });
   });
 
