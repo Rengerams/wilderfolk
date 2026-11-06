@@ -6,7 +6,7 @@
 import { citizenGivenName, humanDisplayName } from './citizenId';
 import { EntityType, type Entity } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
-import { isMarriedOrExpecting } from './civilStatus';
+import { isMarriedOrExpecting } from './relationships';
 import { isAdult } from './housingModel';
 import { isWithinRemarriageBar } from './simulation/humanRelationships';
 

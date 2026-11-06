@@ -257,7 +257,7 @@ describe('A21 — renffrStar builds on the simRng Mulberry32 step', () => {
 });
 
 describe('A22 — the gestation jitter formula is rolled once', () => {
-  it('keeps the three conception paths on rollPregnancyDueProgress', () => {
+  it('keeps all three conception paths on one pregnancy writer', () => {
     const source = read('src/game/simulation/humanRelationships.ts');
     expect(
       source.match(/`pregnancy-due:\$\{entity\.id\}:\$\{/g) ?? [],
@@ -266,10 +266,19 @@ describe('A22 — the gestation jitter formula is rolled once', () => {
     expect(
       source.match(/rollPregnancyDueProgress\(/g) ?? [],
       'the jitter helper is gone',
-    ).toHaveLength(4);
+    ).toHaveLength(2);
     expect(
       source.match(/Math\.round\(PREGNANCY_TICKS \* \(0\.85 \+/g) ?? [],
       'the jitter formula is restated outside the helper',
+    ).toHaveLength(1);
+    // Married, youth and affair all start through the one writer; no per-path duplicate is left.
+    expect(
+      source.match(/beginPregnancy\(state, entity, /g) ?? [],
+      'a conception path bypasses the one pregnancy writer',
+    ).toHaveLength(3);
+    expect(
+      source.match(/function beginPregnancy\(/g) ?? [],
+      'a second pregnancy writer exists',
     ).toHaveLength(1);
   });
 });

@@ -42,7 +42,7 @@ import { dissolveMarriage, formatCaughtCheaterDivorceDetail, syncMarriageSurname
 import { dampScandalReputationLoss } from '../townHall';
 import { getLivingEntity, getHousemates } from '../simQueries';
 import { forEachAdaptiveInRadius, findClosestAdaptiveInRadius, socialAdaptiveOptions, SOCIAL_AFFAIR_RADIUS } from '../adaptiveSpatialQuery';
-import { startFeud } from '../relationships';
+import { isMarriedOrExpecting, startFeud } from '../relationships';
 import { logDeath, logEvent } from '../eventLog';
 import { isPlayerHuman } from '../playerHuman';
 import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
@@ -723,59 +723,62 @@ function rollPregnancyDueProgress(entity: Entity, tick: number): number {
   return Math.round(PREGNANCY_TICKS * (0.85 + seededRandomForRun(`pregnancy-due:${entity.id}:${tick}`) * 0.3));
 }
 
-function startMarriedPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
+type ConceptionKind = 'married' | 'youth' | 'affair';
+
+/** Per-kind presentation: who is recorded as the father, the pulse colour and the hearts. */
+const CONCEPTION_LOOK: Readonly<Record<ConceptionKind, {
+  readonly recordsFather: boolean;
+  readonly youthLove: boolean;
+  readonly flash: number;
+  readonly color: string;
+  readonly count: number;
+}>> = {
+  married: { recordsFather: false, youthLove: false, flash: 15, color: '#ffb6c1', count: 10 },
+  youth: { recordsFather: true, youthLove: true, flash: 12, color: '#f9a8d4', count: 7 },
+  affair: { recordsFather: true, youthLove: false, flash: 14, color: '#f472b6', count: 8 },
+};
+
+/** One writer for all three conception paths; the kind only changes the record and the wording. */
+function beginPregnancy(
+  state: WorldState,
+  entity: Entity,
+  partner: Entity,
+  kind: ConceptionKind,
+): void {
+  const look = CONCEPTION_LOOK[kind];
   entity.pregnant = true;
-  entity.pregnantById = undefined;
-  entity.pregnancyFromYouthLove = undefined;
+  entity.pregnantById = look.recordsFather ? partner.id : undefined;
+  entity.pregnancyFromYouthLove = look.youthLove ? true : undefined;
   entity.pregnancyProgress = 0;
   entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
-  entity.relationshipStatus = 'expecting';
-  if (partner.relationshipStatus === 'married' || partner.partnerId === entity.id) {
-    partner.relationshipStatus = 'expecting';
+  entity.flash = look.flash;
+  partner.flash = look.flash;
+  createDeathParticles(state, entity.x, entity.y - 8, look.color, look.count, 'heart');
+
+  if (kind === 'affair') {
+    entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
+    addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
+  } else {
+    if (kind === 'married') {
+      entity.relationshipStatus = 'expecting';
+      if (isMarriedOrExpecting(partner) || partner.partnerId === entity.id) {
+        partner.relationshipStatus = 'expecting';
+      }
+    }
+    addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
   }
-  entity.flash = 15;
-  partner.flash = 15;
-  createDeathParticles(state, entity.x, entity.y - 8, '#ffb6c1', 10, 'heart');
-  addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
+
   const mother = humanDisplayName(entity);
+  if (kind === 'affair') {
+    const line = `${mother} is secretly expecting a child`;
+    logEvent(state, 'scandal', line, mother);
+    addNotification(state, 'Secret pregnancy', line, 'warning', { x: entity.x, y: entity.y });
+    return;
+  }
   const father = humanDisplayName(partner);
   const line = `${mother} and ${father} are expecting a child`;
   logEvent(state, 'conception', line, mother);
   addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
-}
-
-function startYouthPregnancy(state: WorldState, entity: Entity, partner: Entity): void {
-  entity.pregnant = true;
-  entity.pregnantById = partner.id;
-  entity.pregnancyFromYouthLove = true;
-  entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
-  entity.flash = 12;
-  partner.flash = 12;
-  createDeathParticles(state, entity.x, entity.y - 8, '#f9a8d4', 7, 'heart');
-  addFloatingText(state, entity.x, entity.y - 20, 'Expecting!', '#ff69b4');
-  const mother = humanDisplayName(entity);
-  const father = humanDisplayName(partner);
-  const line = `${mother} and ${father} are expecting a child`;
-  logEvent(state, 'conception', line, mother);
-  addNotification(state, 'Expecting', line, 'success', { x: entity.x, y: entity.y });
-}
-
-function startAffairPregnancy(state: WorldState, entity: Entity, lover: Entity): void {
-  entity.pregnant = true;
-  entity.pregnantById = lover.id;
-  entity.pregnancyFromYouthLove = undefined;
-  entity.pregnancyProgress = 0;
-  entity.pregnancyDueProgress = rollPregnancyDueProgress(entity, state.tick);
-  entity.relationshipStatus = entity.partnerId != null ? 'married' : 'expecting';
-  entity.flash = 14;
-  lover.flash = 14;
-  createDeathParticles(state, entity.x, entity.y - 8, '#f472b6', 8, 'heart');
-  addFloatingText(state, entity.x, entity.y - 18, 'Secret…', '#c084fc', 'brief');
-  const mother = humanDisplayName(entity);
-  const line = `${mother} is secretly expecting a child`;
-  logEvent(state, 'scandal', line, mother);
-  addNotification(state, 'Secret pregnancy', line, 'warning', { x: entity.x, y: entity.y });
 }
 
 type ConceptionGateOutcome = 'eligibility' | 'energy' | 'proximity' | 'roll';
@@ -812,7 +815,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
   }
 
   if (
-    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+    isMarriedOrExpecting(entity) &&
     entity.partnerId &&
     entity.energy > config.reproductionEnergyThreshold * 0.75
   ) {
@@ -829,7 +832,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
         // Non-genetic: the conception activity carries only the acquired lucky mark.
         const conceptionFactor = evaluateAptitudeInfluence(entity, 'conception').factor;
         if (personDayRoll(entity.id, state.tick, 603) < baseChance * fertility * conceptionFactor) {
-          startMarriedPregnancy(state, entity, partner);
+          beginPregnancy(state, entity, partner, 'married');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
@@ -840,7 +843,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
     } else {
       outcome ??= 'proximity';
     }
-  } else if ((entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') && entity.partnerId) {
+  } else if (isMarriedOrExpecting(entity) && entity.partnerId) {
     outcome ??= 'energy';
   }
 
@@ -874,7 +877,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
         const chance =
           HUMAN_DAILY_PREGNANCY_CHANCE_NEAR * youthMultiplier * fertility * conceptionFactor;
         if (personDayRoll(entity.id, state.tick, 604) < chance) {
-          startYouthPregnancy(state, entity, youthPartner);
+          beginPregnancy(state, entity, youthPartner, 'youth');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
@@ -896,7 +899,7 @@ export function tryDailyConception(state: WorldState, ctx: TickContext, entity: 
       const fertility = getFemaleFertility(entity.age);
       if (tryst && fertility > 0) {
         if (personDayRoll(entity.id, state.tick, 605) < HUMAN_DAILY_AFFAIR_PREGNANCY_CHANCE * fertility) {
-          startAffairPregnancy(state, entity, lover);
+          beginPregnancy(state, entity, lover, 'affair');
           recordRelationshipDiagnostic('pregnanciesStartedThisInterval');
           return true;
         }
@@ -967,10 +970,10 @@ export function tryDailyAmicableDivorce(
   rng: () => number = getSimRng('humanRelationships'),
 ): void {
   if (!isPlayerHuman(entity) || !entity.alive) return;
-  const isMarriedOrExpecting =
-    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+  const hasActiveMarriage =
+    isMarriedOrExpecting(entity) &&
     entity.partnerId != null;
-  if (!isMarriedOrExpecting) return;
+  if (!hasActiveMarriage) return;
   if (entity.prisonBuildingId != null) return;
   const spouse = getLivingEntity(entity.partnerId!, entityById);
   if (!spouse || !isPlayerHuman(spouse) || !spouse.alive || spouse.prisonBuildingId != null) return;
@@ -1015,7 +1018,7 @@ function tryDivorceOnCaughtCheater(
   caughtInAct = false,
 ): void {
   const isCheaterMarried =
-    (cheater.relationshipStatus === 'married' || cheater.relationshipStatus === 'expecting') &&
+    isMarriedOrExpecting(cheater) &&
     cheater.partnerId != null;
   if (!isCheaterMarried) return;
   if (!caughtInAct && !isSpouseNearby(cheater, entityById, 40)) return;
@@ -1048,7 +1051,7 @@ function tryDivorceOnCaughtCheater(
   reassignDivorcedResidences(spouse, cheater, buildings, villagers, spouse);
 
   const isParamourMarried =
-    (paramour.relationshipStatus === 'married' || paramour.relationshipStatus === 'expecting') &&
+    isMarriedOrExpecting(paramour) &&
     paramour.partnerId != null;
   if (isParamourMarried) {
     const paramourSpouse = getLivingEntity(paramour.partnerId!, entityById);
@@ -1190,7 +1193,7 @@ function countPrisonersAt(state: WorldState, prisonId: number): number {
 
 function isMarriedScandalOffender(entity: Entity): boolean {
   return (
-    (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+    isMarriedOrExpecting(entity) &&
     entity.partnerId != null
   );
 }
@@ -1553,7 +1556,7 @@ export function tryDailyAffairEncounter(
   recordRelationshipDiagnostic('affairChecks');
   if (!isPlayerHuman(entity)) return;
   if (entity.prisonBuildingId != null) return;
-  if ((entity.relationshipStatus !== 'married' && entity.relationshipStatus !== 'expecting') || entity.isJuvenile) return;
+  if (!isMarriedOrExpecting(entity) || entity.isJuvenile) return;
   if (!entity.gender || isMinor(entity) || entity.age >= HUMAN_MAX_LIFESPAN_YEARS) return;
   if (entity.energy <= config.reproductionEnergyThreshold * 0.5) return;
   if (onScandalCooldown(entity, state.tick)) return;

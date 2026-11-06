@@ -6,7 +6,7 @@ import { summarizeFoodLedger } from './economyLedger';
 import { isFoodAlertAmount } from './resourceUtils';
 import { computeVillageStats } from './uiSimSummary';
 import { countHomelessSettlers } from './housingModel';
-import { isMarriedOrExpecting } from './civilStatus';
+import { isMarriedOrExpecting } from './relationships';
 import { AFFAIR_ESTABLISHED_LOG_PHRASE } from './simulation/humanRelationships';
 
 export type VillageMood =

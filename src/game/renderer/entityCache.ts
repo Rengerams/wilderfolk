@@ -1,4 +1,4 @@
-import { isMarriedOrExpecting } from '../civilStatus';
+import { isMarriedOrExpecting } from '../relationships';
 import type { Camera, Entity, EntityByType } from '../gameTypes';
 import { EntityType as EntityTypeEnum, UNCACHED_RENDER_TICK } from '../gameTypes';
 import type { RenderSnapshot } from '../renderSnapshot';

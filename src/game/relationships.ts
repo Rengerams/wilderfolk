@@ -7,6 +7,11 @@ import { getSimRng } from './simRng';
 import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
 import { RELATIONSHIP_REVISION, bumpRevision } from './entityRevision';
 
+/** True while the settler is in an active marriage: `'married'`, or `'expecting'` for a pregnancy. */
+export function isMarriedOrExpecting(entity: Pick<Entity, 'relationshipStatus'>): boolean {
+  return entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting';
+}
+
  const FRIEND_PREFIX = 'friend_';
 const FEUD_PREFIX = 'feud_';
 

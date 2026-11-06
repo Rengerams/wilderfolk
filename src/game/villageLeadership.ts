@@ -16,7 +16,7 @@ import { applyLeaderOccupation, syncLeaderHouseResidency } from './leaderHouse';
 import { findPlayerTownHall } from './playerTownHall';
 import { seededRandomForRun } from './simRng';
 import { humanDisplayName } from './citizenId';
-import { friendCount, MAX_CLOSE_FRIENDS_PER_SETTLER, startFeud } from './relationships';
+import { friendCount, isMarriedOrExpecting, MAX_CLOSE_FRIENDS_PER_SETTLER, startFeud } from './relationships';
 import { getEcosystemHealth } from './dailyEcology';
 import { computeDynasties } from './familyLegacy';
 
@@ -325,7 +325,7 @@ export function getLeadershipScoreBreakdown(
 
   const communityPoints =
     Math.min(friendCount(entity), MAX_CLOSE_FRIENDS_PER_SETTLER) * COMMUNITY_MERIT_PER_FRIEND +
-    (entity.relationshipStatus === 'married' ? COMMUNITY_MERIT_MARRIED : 0);
+    (isMarriedOrExpecting(entity) ? COMMUNITY_MERIT_MARRIED : 0);
   const titlePoints = entity.title ? TITLE_MERIT_BONUS : 0;
   const recordPoints = getIncumbentRecordPoints(state, entity);
   const battlePoints = Math.min(100, Math.max(-100, entity.battleLeadershipMerit ?? 0));

@@ -148,6 +148,7 @@ import {
   trySchoolyardGossip,
 } from './simulation/humanRelationships';
 import { flushRelationshipDiagnostics } from './relationshipDiagnostics';
+import { isMarriedOrExpecting } from './relationships';
 import { isVenueServiceHour, isVenueWorkerServiceHour } from './venueSchedule';
 import { isHospitalDoctorOnShift, isHospitalDoctorCommuteTime } from './hospitalShifts';
 import { recordPresentWorkTick, recordScheduleWorkTick } from './scheduleFatigue';
@@ -1357,7 +1358,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       socialTime &&
       isPlayerHuman(entity) &&
       entity.gender === 'female' &&
-      (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+      isMarriedOrExpecting(entity) &&
       !entity.pregnant &&
       entity.partnerId &&
       entity.reproductionCooldown <= 0
@@ -1378,8 +1379,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     }
 
     // Secret affairs: pregnancy or expecting status no longer blocks encounters or catching
-    const isMarriedOrExpecting =
-      (entity.relationshipStatus === 'married' || entity.relationshipStatus === 'expecting') &&
+    const hasActiveMarriage =
+      isMarriedOrExpecting(entity) &&
       entity.partnerId != null;
 
     if (
@@ -1391,7 +1392,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       isAdult(entity) &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
       entity.energy > config.reproductionEnergyThreshold * 0.5 &&
-      isMarriedOrExpecting &&
+      hasActiveMarriage &&
       // An empty marital home is a valid tryst site: only a spouse who is right there
       // blocks it (the same 22 px the affair gates use). The wider 55 px arrival window is
       // the walk-in that catches them, so the two radii must not be the same one.
@@ -1970,7 +1971,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const activePregnancies = activeHumans.filter((e) => e.pregnant).length;
     const activeMarriages = activeHumans.filter(
       (e) =>
-        (e.relationshipStatus === 'married' || e.relationshipStatus === 'expecting') &&
+        isMarriedOrExpecting(e) &&
         e.partnerId != null &&
         e.id < e.partnerId,
     ).length;

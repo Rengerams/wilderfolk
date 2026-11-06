@@ -29,7 +29,7 @@ import {
 import { getRaidChoiceEligibility, respondToRaidEvent } from '../src/game/frontierCombat';
 import { REPUTATION_MAX, addReputation } from '../src/game/simHelpers';
 import { humanDisplayName } from '../src/game/citizenId';
-import { isMarriedOrExpecting } from '../src/game/civilStatus';
+import { isMarriedOrExpecting } from '../src/game/relationships';
 import { getPlayerCampCenter, getPlayerCampCenterFromBuildings } from '../src/game/villageAnchor';
 import { loadGameFromParsedOutcome, buildSaveData } from '../src/game/saveLoad';
 import { createInitialView } from '../src/game/viewState';
@@ -325,9 +325,17 @@ describe('one definition of "in an active marriage"', () => {
     // The owner is the only module allowed to declare the predicate; the check is on the
     // *declaration*, because spelling the two statuses out at a call site is how the copies began.
     const offenders = srcFiles().filter(
-      (file) => file !== 'src/game/civilStatus.ts' && /function isActivelyMarried\s*\(/.test(read(file)),
+      (file) => file !== 'src/game/relationships.ts' && /function isActivelyMarried\s*\(/.test(read(file)),
     );
-    expect(offenders, 'a second marriage predicate is back outside civilStatus.ts').toEqual([]);
+    expect(offenders, 'a second marriage predicate is back outside relationships.ts').toEqual([]);
+  });
+
+  it('is the only marriage test: no caller compares the status against "married"', () => {
+    // The narrow comparison is how the yearly marriage count drifted; every reader asks the owner.
+    const offenders = srcFiles()
+      .filter((file) => file !== 'src/game/relationships.ts')
+      .filter((file) => /relationshipStatus\s*(===|!==|==|!=)\s*'married'/.test(read(file)));
+    expect(offenders, 'a caller compares relationshipStatus against "married" directly').toEqual([]);
   });
 });
 

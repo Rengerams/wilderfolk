@@ -4,6 +4,7 @@ import { moveResident } from './housingPipeline';
 import type { Building, Entity, WorldState } from './gameTypes';
 import type { GenealogyRegistry } from './genealogyTypes';
 import { EntityType } from './gameTypes';
+import { isMarriedOrExpecting } from './relationships';
 import { logEvent } from './eventLog';
 import { recordGenealogyDeath } from './genealogyRegistry';
 import { finalizeMoonHowlerDeath, isSettlerRelationshipEntity } from './moonHowlerForm';
@@ -70,7 +71,7 @@ export function finalizeHumanDeath(
   entity.prisonerUntilTick = undefined;
   entity.prisonSentenceCrime = undefined;
 
-  if (entity.relationshipStatus === 'married') {
+  if (isMarriedOrExpecting(entity)) {
     entity.relationshipStatus = statusAfterMarriageEnd(entity);
   }
   entity.partnerId = undefined;
@@ -96,7 +97,7 @@ export function finalizeHumanDeath(
         partner.partnerId = undefined;
         // A father's `'expecting'` is the dead partner's pregnancy — nothing will ever clear it, and
         // courtship refuses anything but `'single'`, so the widow or widower would never marry again.
-        if (partner.relationshipStatus === 'married' || partner.relationshipStatus === 'expecting') {
+        if (isMarriedOrExpecting(partner)) {
           partner.relationshipStatus = statusAfterMarriageEnd(partner);
         }
         // About a week of mourning when we know the tick — a faster recovery shortens it.
@@ -192,7 +193,7 @@ export function reconcileFamilyReferencesAfterRemoval(
     if (!survivor.alive) continue;
     if (survivor.partnerId === removedId) {
       survivor.partnerId = undefined;
-      if (survivor.relationshipStatus === 'married' || survivor.relationshipStatus === 'expecting') {
+      if (isMarriedOrExpecting(survivor)) {
         survivor.relationshipStatus = statusAfterMarriageEnd(survivor);
       }
     }
@@ -278,7 +279,7 @@ export function reconcileOrphanedMarriages(entities: readonly Entity[]): void {
     if (!human.alive || human.type !== EntityType.Human) continue;
     // A status that names a marriage cannot outlive the partner it names — including a father's
     // `'expecting'`, which only his partner's pregnancy clears, so nothing would ever free him.
-    if (human.relationshipStatus !== 'married' && human.relationshipStatus !== 'expecting') continue;
+    if (!isMarriedOrExpecting(human)) continue;
     const partner = human.partnerId != null ? byId.get(human.partnerId) : undefined;
     if (isSettlerRelationshipEntity(partner)) continue;
     human.partnerId = undefined;

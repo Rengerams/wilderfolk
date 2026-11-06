@@ -5,6 +5,8 @@
 - **Changed (6 November 2026):** Every settler now carries fourteen inherited aptitudes; one signed activity evaluator gives each person real strengths and real weaknesses, and no genome is universally best.
 - **Added (6 November 2026):** Settlers now carry personal marks — lucky, pretty, scarred and sickly — born once or earned by surviving a raid or a rare find. They are never inherited and are priced through the same activity factors as aptitudes, including a small lucky conception nudge.
 - **Removed (6 November 2026):** The three-label trait system and the Lucky conception bonus are retired; old saves receive a deterministic fourteen-dimension genome on load.
+- **Fixed (6 November 2026):** Every marriage check now uses one shared predicate, so a couple expecting a child keeps their marriage merit, spouse line, marriage marker and wedding sound instead of losing them for the pregnancy.
+
 - **Changed (6 November 2026):** The settler inspector shows all fourteen aptitudes, derived highlights and the same activity effects the simulation uses.
 
 - **Fixed (6 November 2026):** Trade caravans now spawn at a walkable hub door and route around rivers and buildings instead of walking into them, and caravan merchants are adults rather than children.

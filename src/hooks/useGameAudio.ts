@@ -3,6 +3,7 @@ import type { WorldState } from '../game/gameEngine';
 import { EntityType } from '../game/gameEngine';
 import { isNightHour, getHourOfDay } from '../game/dayCycle';
 import { isPlayerHuman } from '../game/playerHuman';
+import { isMarriedOrExpecting } from '../game/relationships';
 import { getWorkSchedule } from '../game/workSchedule';
 import { detectInteractionSounds } from '../audio/interactionDetect';
 import { detectWorkActivity, detectFootstepSurface } from '../audio/workDetect';
@@ -75,7 +76,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
       prevBuildingsRef.current = world.buildings;
       prevDisasterCountRef.current = world.disasters.length;
       prevMarriedCountRef.current = world.entities.filter(
-        e => e.alive && e.type === EntityType.Human && e.relationshipStatus === 'married',
+        e => e.alive && e.type === EntityType.Human && isMarriedOrExpecting(e),
       ).length;
       prevResearchedCountRef.current = world.researchNodes.filter(n => n.researched).length;
       prevPlayerHumanCountRef.current = world.entities.filter((e) => e.alive && isPlayerHuman(e)).length;
@@ -114,7 +115,7 @@ export function useGameAudio(world: WorldState, enabled: boolean) {
     prevPlayerHumanCountRef.current = playerHumanCount;
 
     const currentMarriedCount = currentEntities.filter(
-      e => e.alive && e.type === EntityType.Human && e.relationshipStatus === 'married',
+      e => e.alive && e.type === EntityType.Human && isMarriedOrExpecting(e),
     ).length;
     if (currentMarriedCount > prevMarriedCountRef.current) playMarriageSound();
     prevMarriedCountRef.current = currentMarriedCount;

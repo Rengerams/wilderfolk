@@ -1,6 +1,7 @@
 import { personDayRoll } from './simRng';
 import type { Building, Entity, WorldState } from './gameTypes';
 import { BuildingType, WeatherType } from './gameTypes';
+import { isMarriedOrExpecting } from './relationships';
 import {
   DAYS_PER_YEAR,
   EVENING_START,
@@ -15,7 +16,6 @@ import { hasResidenceAssignment, hasWorkAssignment } from './housingModel';
 import { isDialogueBusy } from './humanChat';
 import { requestDialogue, type DialogueEventKey } from './dialogueTrees';
 import { isOnWorkScheduleShift } from './workSchedule';
-import { isMarriedOrExpecting } from './civilStatus';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 
 /** Ordinary banter chance before the company activity's bounded modifier. */

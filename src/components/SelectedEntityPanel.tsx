@@ -12,6 +12,7 @@ import {
   isImprisoned,
 } from '../game/housingModel';
 import { PREGNANCY_TICKS, daysUntilTick, getBirthDateString } from '../game/dayCycle';
+import { isMarriedOrExpecting } from '../game/relationships';
 import { APTITUDE_DEFS, APTITUDE_IDS, expressAptitudes } from '../game/settlerTraits';
 import { getHumanVariantLabel } from '../game/humanSprites';
 import { getTameFoodCost } from '../game/settlerInteractionActions';
@@ -346,7 +347,7 @@ export default function SelectedEntityPanel({
                 🤰 Pregnant! ({Math.round(((entity.pregnancyProgress || 0) / PREGNANCY_TICKS) * 100)}%)
               </p>
             )}
-            {entity.partnerId && entity.relationshipStatus === 'married' && (() => {
+            {entity.partnerId && isMarriedOrExpecting(entity) && (() => {
               const spouse = allEntities.find((e) => e.id === entity.partnerId && e.alive);
               const spouseLabel = spouse
                 ? citizenFullName(spouse)

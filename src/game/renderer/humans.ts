@@ -1,6 +1,7 @@
 import { BuildingType, EntityType, type Entity } from '../gameTypes';
 import { shouldBeAtHomeFor } from '../humanSchedule';
 import { DEFAULT_WORK_SCHEDULE, isWorkScheduleHour } from '../workSchedule';
+import { isMarriedOrExpecting } from '../relationships';
 import { isChildAtSchool, isSchoolTime } from '../education';
 import {
   buildHumanCombatStatusFlags,
@@ -223,7 +224,7 @@ function getStatusFacts(human: Entity, ctx: HumanStatusIconContext): HumanStatus
     isCourting: !!human.courtshipProgress && human.courtshipProgress > 0 && !shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
     isAtHome: shouldBeAtHomeFor(ctx.workSchedule, ctx.hourOfDay),
     isWorking: isWorkScheduleHour(ctx.workSchedule ?? DEFAULT_WORK_SCHEDULE, ctx.hourOfDay) && !!(human.workerBuildingId || ctx.constructionWorkerIds.has(human.id)),
-    isMarried: human.relationshipStatus === 'married' && !!human.partnerId,
+    isMarried: isMarriedOrExpecting(human) && !!human.partnerId,
   };
 }
 
