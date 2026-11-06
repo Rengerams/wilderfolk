@@ -29,6 +29,10 @@ export const MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS = 256;
 
 /** Node cap per search: past it the leg keeps the straight-line estimate. */
 const MAX_COMMUTE_ROUTE_SEARCH_NODES = 4000;
+/** A single advanced search per pass prevents large colonies from multiplying expensive A* retries. */
+const ADVANCED_ROUTE_SEARCHES_PER_PASS = 1;
+/** Absolute terminal complexity bound for one commute; never spin indefinitely on one route. */
+const MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES = 131072;
 
 /** Route hours cached per grid generation; the cap bounds memory on a long-lived map. */
 const COMMUTE_ROUTE_CACHE_LIMIT = 4096;
@@ -107,13 +111,17 @@ function straightRouteCost(
 
 /** Searches left in the housing sweep's budget; a cached leg costs nothing. */
 let routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+let advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
 /** Unpriced routes due to this pass's search/node budget are still pending. */
 let commuteRouteChecksDeferred = false;
 const routeCostCache = new WeakMap<PathGrid, Map<string, number>>();
+/** Next A* node limit per unresolved leg; scoped to its grid generation and bounded in size. */
+const pendingNodeBudgets = new WeakMap<PathGrid, Map<string, number>>();
 
 /** Opens a housing sweep's route-search budget. */
 export function beginCommuteRoutePass(): void {
   routeSearchesLeft = MAX_COMMUTE_ROUTE_SEARCHES_PER_PASS;
+  advancedRouteSearchesLeft = ADVANCED_ROUTE_SEARCHES_PER_PASS;
   commuteRouteChecksDeferred = false;
 }
 
@@ -140,22 +148,43 @@ function routeCommuteHours(fromWorldX: number, fromWorldY: number, toWorldX: num
   }
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
-  if (routeSearchesLeft <= 0) {
+  const retries = pendingNodeBudgets.get(grid);
+  const nextBudget = retries?.get(key) ?? MAX_COMMUTE_ROUTE_SEARCH_NODES;
+  if (routeSearchesLeft <= 0 || (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES && advancedRouteSearchesLeft <= 0)) {
     commuteRouteChecksDeferred = true;
     return null;
   }
   routeSearchesLeft--;
-  const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, MAX_COMMUTE_ROUTE_SEARCH_NODES);
+  if (nextBudget > MAX_COMMUTE_ROUTE_SEARCH_NODES) advancedRouteSearchesLeft--;
+  const search = findRouteCostOutcome(grid, fromX, fromY, toX, toY, nextBudget);
   if (search.cost === null) {
-    // A spent budget leaves the leg unpriced; a finished search with no route proves the walk away.
     if (search.budgetExhausted) {
-      commuteRouteChecksDeferred = true;
-      return null;
+      // Repeating the same 4,000-node A* search makes no progress. Raise the
+      // bound on the NEXT assignment pulse, but let at most one expensive
+      // advanced search run per pass. Each generation owns its own attempts.
+      const terminalBudget = Math.min(MAX_PROGRESSIVE_COMMUTE_ROUTE_NODES,
+        Math.max(MAX_COMMUTE_ROUTE_SEARCH_NODES, grid.cols * grid.rows * 4));
+      if (nextBudget < terminalBudget) {
+        let pending = retries;
+        if (!pending) {
+          pending = new Map<string, number>();
+          pendingNodeBudgets.set(grid, pending);
+        }
+        if (pending.size >= COMMUTE_ROUTE_CACHE_LIMIT) pending.clear();
+        pending.set(key, Math.min(terminalBudget, nextBudget * 2));
+        commuteRouteChecksDeferred = true;
+        return null;
+      }
+      // Terminal safety policy: an unpriced, overly complex commute is not
+      // an acceptable new job. Cache that conservative refusal instead of
+      // repeating an unbounded search forever (not proof of disconnection).
     }
+    retries?.delete(key);
     if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
     cache.set(key, Infinity);
     return Infinity;
   }
+  retries?.delete(key);
   // A* steps are tile units, so the walk distance is the route's step cost in world px.
   const hours = commuteLeadHoursFor(search.cost * PATH_CELL, walkSpeed);
   if (cache.size >= COMMUTE_ROUTE_CACHE_LIMIT) cache.clear();
