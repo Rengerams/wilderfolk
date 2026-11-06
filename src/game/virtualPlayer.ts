@@ -36,6 +36,7 @@ import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeE
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
 import { Human, VirtualPlayer } from './gameConstants';
 import { getRecentFoodFlow } from './economyLedger';
+import { computeStorageMax } from './economy';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';
 import {
@@ -792,18 +793,27 @@ function decideUnstaffedProducer(state: WorldState): VirtualPlayerDecision | nul
   return null;
 }
 
+/** Store capacity is for wood, stone and iron; it never expands gold storage.
+ * Use completed-building capacities, not a possibly stale once-daily storageMax snapshot.
+ * Only one Store may be under construction, and the threshold is recalculated after completion.
+ */
+function needsAdditionalStore(state: WorldState): boolean {
+  const limits = computeStorageMax(state.buildings);
+  return (['wood', 'stone', 'iron'] as const).some(
+    (resource) => limits[resource] > 0 && state.resources[resource] >= limits[resource] * 0.85,
+  );
+}
+
 function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
   const underConstruction = INDUSTRY_BUILD_ORDER.some((entry) => isUnderConstruction(state, entry.type));
   const wanted = wantedProducerCount(state, VirtualPlayer.SETTLERS_PER_INDUSTRY_PRODUCER);
 
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = state.resources[entry.stock] ?? 0;
-    const short = stock < entry.minimumStock;
-    // The Store is storage rather than a producer, so it stays a first-copy answer. Past the first
-    // copy the step adds one per `SETTLERS_PER_INDUSTRY_PRODUCER` adults, so the shelves scale with
-    // the village instead of stopping at the shortfall that first demanded them.
+    const store = entry.type === BuildingType.Store;
+    const short = store ? needsAdditionalStore(state) : stock < entry.minimumStock;
     const built = completedProducerCount(state, entry.type);
-    const scaling = entry.type !== BuildingType.Store && built >= 1 && built < wanted;
+    const scaling = !store && built >= 1 && built < wanted;
     if (!short && !scaling) continue;
 
     const owned = state.buildings.filter(
@@ -811,18 +821,20 @@ function decideIndustry(state: WorldState): VirtualPlayerDecision | null {
     );
     if (owned.length > 0) {
       // A wanted extra copy falls through to the build; a stand-in for an existing producer does not.
-      if (!scaling) continue;
+      if (!scaling && !store) continue;
     }
 
     if (underConstruction) continue;
     if (!canAfford(state, BUILDING_CONFIGS[entry.type].cost)) continue;
-    if (scaling && !canSpendKeepingReserve(state, BUILDING_CONFIGS[entry.type].cost)) continue;
+    if ((scaling || store) && !canSpendKeepingReserve(state, BUILDING_CONFIGS[entry.type].cost)) continue;
     const spot = findPlacementSpot(state, entry.type, 0);
     if (!spot) continue;
 
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: entry.type, x: spot.x, y: spot.y, rotation: 0 },
-      reason: short
+      reason: store
+        ? 'build a Store — wood, stone or iron storage is nearing capacity'
+        : short
         ? `build a ${BUILDING_CONFIGS[entry.type].label} — only ${Math.floor(stock)} ${entry.stock} left`
         : `build a ${BUILDING_CONFIGS[entry.type].label} — ${owned.length} for ${adultSettlerCount(state)} settlers`,
     };
@@ -1984,8 +1996,9 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
   // cannot crew it without a rebalance, so the wait must name the building rather than a neighbour.
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = Math.floor(state.resources[entry.stock] ?? 0);
+    if (entry.type === BuildingType.Store) continue;
     const built = completedProducerCount(state, entry.type);
-    const scaling = entry.type !== BuildingType.Store && built >= 1 && built < wanted;
+    const scaling = built >= 1 && built < wanted;
     if (stock >= entry.minimumStock && !scaling) continue;
 
     const unmanned = state.buildings.find(
@@ -2002,10 +2015,10 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
 
   for (const entry of INDUSTRY_BUILD_ORDER) {
     const stock = Math.floor(state.resources[entry.stock] ?? 0);
-    const short = stock < entry.minimumStock;
+    const store = entry.type === BuildingType.Store;
+    const short = store ? needsAdditionalStore(state) : stock < entry.minimumStock;
     const built = completedProducerCount(state, entry.type);
-    // The Store is storage rather than a producer, so it stays a first-copy answer.
-    const scaling = entry.type !== BuildingType.Store && built >= 1 && built < wanted;
+    const scaling = !store && built >= 1 && built < wanted;
     if (!short && !scaling) continue;
 
     const label = BUILDING_CONFIGS[entry.type].label;
@@ -2018,6 +2031,7 @@ export function virtualPlayerWaitingReason(state: WorldState): string | null {
     const standing = owned.find((building) => building.completed);
     if (standing) {
       // No standing producer cannot "keep up": the ones that are missing are named by price below.
+      if (store) return `Storage is nearing capacity — ${buildingBlockReason(state, entry.type, true)}`;
       if (!scaling) return `${stock} ${entry.stock} left — the ${label} cannot keep up`;
       return `${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers — ${buildingBlockReason(state, entry.type, true)}`;
     }
