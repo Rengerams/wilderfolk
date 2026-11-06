@@ -85,9 +85,9 @@ export type DecisionKey =
 
 export const SIMULATION_DECISIONS = {
   virtualPlayer: {
-    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
+    owner: 'virtualPlayer.ts — decideVirtualPlayerAction, decideFood, decideUnstaffedFoodProducer, firstUnstaffedFoodProducer, wantedFoodProducerCount, needsAdditionalStore, decideIndustry, chooseRefugeeChoice, isMeasuredFoodDeficit (read-only policy proposals)',
     cadence: 'on-demand',
-    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Actual world writes remain with command and workforce owners. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell.',
+    cadenceNote: 'Once per in-game hour when auto-play is enabled; may propose a survival workforce preset, food producer build or release of a nonessential automatically staffed worker under a measured deficit. Store expansion uses economy.computeStorageMax material caps at 85% pressure, never low gold or a population-based Store count. Actual world writes remain with command and workforce owners. The headless scenario command adapter hydrates runtime caches if it adopts a cloned WorldState into the existing shell.',
     writes: [],
     scheduledFrom: 'useVirtualPlayer.shouldVirtualPlayerAct → virtualPlayer.decideVirtualPlayerAction → GameLoop.applyCommand or scripts/colonyHealth.applyColonyBotAction',
     testFile: 'tests/virtualPlayer.test.ts, tests/virtualPlayerHealthVerdict.test.ts, tests/colonyBotCacheHydration.test.ts',
@@ -198,9 +198,9 @@ export const SIMULATION_DECISIONS = {
     testFile: 'tests/school.test.ts, tests/schooling.explains.test.ts, tests/dashboardData.prisonAndCouncil.test.ts',
   },
   workforce: {
-    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
+    owner: 'workforce.ts — assignWorkerInPlace, transferWorkerBetweenBuildings, assignBuilderInPlace, workforceSignature, assignMissingWorkers, syncJobBuildingOccupants, prepareWorkforce, releasePrisoners; priority order: workforcePolicy.ts; player-command assignWorker limited to construction/residency',
     cadence: 'assignment',
-    cadenceNote: 'The idle-only assignWorkerInPlace choice fills vacancies while valid workerBuildingId jobs persist across daily pulses. Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase; auto-staff pulses 4×/day via tickLayerAssign, plus two extra assignMissingWorkers calls per day from dailyBuildingEconomy (already a no-op once staffed). releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
+    cadenceNote: 'The idle-only assignWorkerInPlace choice fills vacancies only after the canonical two-hour home-to-work route gate; transfers use the same reachability owner. Existing jobs persist despite blocked routes. Automatic staffing checks an O(player humans+buildings) fingerprint and skips unchanged pulses, plus a weekly repair run. Explicit autoStaffWorkers requests force reconciliation.  Legacy manual flags normalize to auto without dropping jobs; career/DNA fit breaks exact ties without changing transfer cooldown. Command/assignment phase: tickLayerAssign and dailyBuildingEconomy still call the shared owner, but unchanged input signatures return without expensive staffing. Only a forced or changed event triggers re-matching. releasePrisoners is NOT assignment-cadenced: it runs every realtime tick from tickLayerRealtime (O(state.entities)); only its assignMissingResidences/assignMissingWorkers tail is gated behind the `released` flag',
     writes: [
       'building.occupants',
       'human.workerBuildingId',
@@ -210,7 +210,7 @@ export const SIMULATION_DECISIONS = {
       'workforcePolicy',
     ],
     scheduledFrom: 'tickLayerAssign.assignMissingWorkers; tickLayerRealtime.releasePrisoners; commands.ts "autoStaffWorkers" (owned world in place, isolated calls copied); "assignWorker" retained for construction/residency only; buildingStaffingActions on place/recruit/death',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/workforce.persistentCommute.test.ts, tests/autoStaff.notify.test.ts, tests/commands.validation.test.ts',
   },
   housing: {
     owner: 'housingPipeline.ts — assignMissingResidences runs the single decision pipeline (HOUSING_PHASE_ORDER: leader, integrity, guardianship, capacity, homeless, adult-child, commute) over one HousingLedger, planRelocation answers move-or-stay for homeless, custody, custodian, capacity, surplus, leave-home, commute and couple, and applyRelocation writes a plan; the commute phase also swaps two occupied homes when both households improve; manor seating is event-driven (start/election) and never a housing-phase decision; relocateHousehold applies a whole-household decision; relocateFamily retries a destination the writer refused with the next-best home; moveResident stays the sole write; HousingReport carries the run stats; assignMissingResidences accepts an optional resume ledger; ranking lives in the same module; facts: housingModel.ts; immediate player entry: buildingResidencyActions.assignResidentToBuilding',
