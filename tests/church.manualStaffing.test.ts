@@ -3,7 +3,7 @@
  * church-save cleanup contract. No individual worker assignment is available.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType, JOB_LABELS, JobType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JOB_LABELS, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { assignMissingWorkers, rebalanceJobWorkers } from '../src/game/workforce';
 import { assignIdleWorkerToBuilding } from '../src/game/buildingActionRouting';
@@ -72,11 +72,11 @@ describe('Church automatic staffing and continuity', () => {
 describe('Church legacy save compatibility', () => {
   it('preserves an existing Priest post even without the retired manual-staffing migration marker', () => {
     const world = initGame({ skipTerrain: true });
-    const priest = world.entities.find((entity) => entity.alive && entity.type === 'human');
+    const priest = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
     expect(priest).toBeDefined();
     if (!priest) return;
 
-    const church = building(90001, BuildingType.Church, { occupants: [priest.id], staffingMode: 'manual' });
+    const church = building(world.nextBuildingId++, BuildingType.Church, { occupants: [priest.id], staffingMode: 'manual' });
     world.buildings.push(church);
     priest.workerBuildingId = church.id;
     priest.job = JobType.Priest;
