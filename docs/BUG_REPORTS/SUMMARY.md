@@ -1,5 +1,7 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Automatic staffing can select unreachable jobs](../bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md):** Assignment treats the two-hour pathfinding rule as a preference and transfers lack the reachability check. Open; source confirmed, runtime untested.
+
 **2026-11-06 — [Auto-play staffing policy inconsistency](../bug_report/2026-11-06-autoplay-staffing-policy-inconsistent.md):** Food and non-food proposals differ in manual-staffing handling; runtime effect unverified. Investigating; manual staffing is proposed for removal in favor of persistent automatic jobs.
 
 **2026-11-06 — [Virtual Player Store scaling unreachable](../bug_report/2026-11-06-virtual-player-store-scaling-unreachable.md):** The Store is excluded from the scaling branch despite its documented policy; open, static code evidence. Fix proposal is storage-pressure-based demand.
