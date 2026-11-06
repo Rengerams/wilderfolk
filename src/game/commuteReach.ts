@@ -193,21 +193,23 @@ export function isWithinAssignableCommute(
   walkSpeed: number,
   buildingById?: ReadonlyMap<number, Building>,
 ): boolean {
-  // workerBuildingId stores the JOB, not the residence. Commute always starts
-  // from the resident's home; fall back to their position if not housed.
+  // The residence, not a worker's present position or previous workplace, owns
+  // the commute origin. For an unhoused settler, use their current position.
   const home = entity.residenceBuildingId == null
     ? undefined
     : buildingById?.get(entity.residenceBuildingId)
       ?? buildings.find((candidate) => candidate.id === entity.residenceBuildingId);
   const from = home ?? entity;
-  const toX = building.x;
-  const toY = building.y;
-  if (home) {
-    return estimatedCommuteHours(home, building, buildings, walkSpeed) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
-  }
-  const routed = routeCommuteHours(from.x, from.y, toX, toY, walkSpeed);
+  const routed = routeCommuteHours(from.x, from.y, building.x, building.y, walkSpeed);
   if (routed !== null) return routed <= MAX_ASSIGNABLE_COMMUTE_HOURS;
-  // No route grid: credit only the actual paved portion of the direct leg.
-  return commuteLeadHoursFor(straightRouteCost(from.x, from.y, toX, toY, buildings), walkSpeed)
-    <= MAX_ASSIGNABLE_COMMUTE_HOURS;
+
+  // A failed/budget-exhausted route search is UNKNOWN, not a passable road.
+  // Defer new jobs rather than assigning a settler across unproven terrain.
+  // Without any navigation grid (e.g. world bootstrap), retain the existing
+  // direct-road estimate; the actual grid is authoritative once available.
+  if (getCurrentPathGrid()) return false;
+  return commuteLeadHoursFor(
+    straightRouteCost(from.x, from.y, building.x, building.y, buildings),
+    walkSpeed,
+  ) <= MAX_ASSIGNABLE_COMMUTE_HOURS;
 }
