@@ -2,6 +2,12 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126):** Loading an older save no longer runs the retired manual-Church migration and removes existing Priest jobs. Legacy manual flags normalize to automatic staffing without clearing valid assignments.
+
+- **Fixed (6 November 2026, PR #126):** Store construction is a late auto-play choice, so material-storage pressure no longer blocks research, repairs and recruitment. Capacity is derived only from completed player buildings; a new regression test covers stale snapshots, thresholds and rival or unfinished Stores.
+
+- **Tests (6 November 2026, PR #126):** Replaced retired manual-job command assumptions with construction-command transport and automatic staffing cases; repaired the diagnostic probe's missing log directory.
+
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Node-limited commute checks now retry with bounded increasing A* budgets. One expanded search is allowed per pass; unresolved terminal routes stop retrying.
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Workforce cache now rechecks on 60-day transfer cooldown expiry and when unhoused applicants change path cells. Existing job stability remains.
