@@ -25,6 +25,20 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build semantic-duplicate baseline from the preceding revision
+        env:
+          CHECK_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base_dir="$RUNNER_TEMP/wilderfolk-semantic-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          trap 'git worktree remove --force "$base_dir" >/dev/null 2>&1 || true' EXIT
+          git worktree add --detach "$base_dir" "$CHECK_BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$base_dir/node_modules"
+          (
+            cd "$base_dir"
+            node scripts/build-call-graph.mjs --json-only
+            node scripts/check-semantic-duplicates.mjs --update-baseline
+          )
+          cp "$base_dir/docs/tools/semantic-duplicates-baseline.json" docs/tools/semantic-duplicates-baseline.json
       - name: Run PR checks and affected tests
         if: github.event_name == 'pull_request'
         env:
