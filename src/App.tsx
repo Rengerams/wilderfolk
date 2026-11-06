@@ -16,7 +16,7 @@ import {
   formatRaidDeadline, formatRaidLootSummary, raidEventLoot,
   getRaidChoiceEligibility,
 } from './game/gameEngine';
-import { canAssignWorkerToBuilding, listAssignableWorkersForBuilding } from './game/buildingStaffingActions';
+import { canAssignWorkerToBuilding } from './game/buildingStaffingActions';
 import { getPlaceBuildingFailureReason } from './game/buildingPlacementActions';
 import {
   NIGHT_START, TICKS_PER_DAY, TICKS_PER_HOUR, getHourOfDay, isNightHour, getAbsoluteCalendarDay,
@@ -2058,39 +2058,12 @@ export default function App() {
               </>
             ) : selectedBuilding ? (
               <>
-                {(() => {
-                  const selectedSettlers = (view.selectedEntityIds ?? [])
-                    .map((id) => resolveEntity(world, id) ?? catalog?.get(id) ?? null)
-                    .filter((e): e is import('./game/gameTypes').Entity =>
-                      !!e && e.alive && isPlayerHuman(e) && !e.isJuvenile);
-                  if (selectedSettlers.length < 2) return null;
-                  return (
-                    <button
-                      onClick={() => {
-                        playClickSound();
-                        for (const s of selectedSettlers) {
-                          applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id, humanId: s.id });
-                        }
-                        loopRef.current?.patchView({ selectedEntityIds: [], selectedEntityId: null });
-                      }}
-                      className="mb-2 w-full rounded-xl border-2 border-amber-400/60 bg-amber-400/15 px-3 py-2 text-left text-sm font-semibold text-amber-200 shadow-lg backdrop-blur-md transition-colors hover:bg-amber-400/25"
-                    >
-                      👥 Assign {selectedSettlers.length} selected settlers here
-                    </button>
-                  );
-                })()}
+
               <SelectedBuildingPanel
                 key={selectedBuilding.id}
                 building={selectedBuilding}
                 state={world}
                 onAssign={() => applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id })}
-                onAutoStaffAll={() => applyGameAction({ proto: 1, op: 'autoStaffWorkers' })}
-                onAssignWorker={(humanId: number) => {
-                  playClickSound();
-                  applyGameAction({ proto: 1, op: 'assignWorker', buildingId: selectedBuilding.id, humanId });
-                }}
-                assignableWorkers={listAssignableWorkersForBuilding(world, selectedBuilding.id)}
-                onRemove={(humanId: number) => applyGameAction({ proto: 1, op: 'removeWorker', buildingId: selectedBuilding.id, humanId })}
                 onRepair={() => applyGameAction({ proto: 1, op: 'repairBuilding', buildingId: selectedBuilding.id })}
                 onUpgrade={() => applyGameAction({ proto: 1, op: 'upgradeBuilding', buildingId: selectedBuilding.id })}
                 onDemolish={() => applyGameAction({ proto: 1, op: 'demolishBuilding', buildingId: selectedBuilding.id })}
@@ -2106,10 +2079,6 @@ export default function App() {
                 onSetMineMode={(mode) => {
                   playClickSound();
                   applyGameAction({ proto: 1, op: 'setMineMode', buildingId: selectedBuilding.id, mode });
-                }}
-                onSetStaffingMode={(mode) => {
-                  playClickSound();
-                  applyGameAction({ proto: 1, op: 'setBuildingStaffingMode', buildingId: selectedBuilding.id, mode });
                 }}
                 onQueueForge={(orderId) => {
                   playClickSound();
