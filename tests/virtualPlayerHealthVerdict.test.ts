@@ -1026,9 +1026,9 @@ describe('the hunting spot is sited by the hunting owner', () => {
   });
 
   it('prefers a Farm over hunting while the larder is short and land is free', () => {
-    // An idle adult remains after the existing food posts: a second Farm has a real crew, so the
-    // Hunting Spot is the fallback it always was — and now also needs safe game in reach.
-    const world = ownerColony(11, {
+    // The existing Farm has two workers and four Lumber Mills have twelve, leaving
+    // one of these fifteen adults genuinely unemployed to staff a new Farm.
+    const world = ownerColony(15, {
       resources: { food: 20, wood: 300, stone: 200, gold: 100, iron: 30 },
     }, { mills: 4, farms: 1 });
     world.entities.push(human(900, { type: EntityType.Deer, x: 600, y: 450 }));
