@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Docs (6 November 2026):** Added pathfinding audit: new automatic staffing and worker transfers must obey the canonical two-hour reachable-commute rule, while existing jobs persist through transient route failures.
+
 - **Docs (6 November 2026):** Recorded two static-audit findings and proposed persistent automatic workforce assignment, removing individual manual staffing without daily job reshuffling; no gameplay behavior changed.
 
 - **Fixed (6 November 2026):** Auto-play now plans food capacity at the measured farm yield and raises two food sites during a sustained deficit, so the seeded producer colony no longer starves.
