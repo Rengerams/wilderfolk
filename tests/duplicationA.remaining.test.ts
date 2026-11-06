@@ -165,10 +165,16 @@ describe('A18 — the builder-eligibility rule is one predicate', () => {
       source.match(/isEligibleBuilderForBuilding\(/g) ?? [],
       'the builder predicate is gone or no longer shared',
     ).toHaveLength(3);
+    // The centralized eligibility predicate owns this check; the refusal
+    // reporter separately uses humanId to return the specific rejection.
     expect(
       source.match(/isOnConstructionCrew\(state\.buildings, entity\.id/g) ?? [],
-      'the builder chain is inlined again',
-    ).toHaveLength(2);
+      'the shared builder eligibility lost its construction-crew guard',
+    ).toHaveLength(1);
+    expect(
+      source.match(/isOnConstructionCrew\(state\.buildings, humanId, building\.id\)/g) ?? [],
+      'the refusal reporter stopped identifying an existing construction crew',
+    ).toHaveLength(1);
   });
 });
 
