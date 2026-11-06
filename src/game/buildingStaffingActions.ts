@@ -192,7 +192,10 @@ export function fillBuildingWorkers(
   preferredHumanId?: number,
 ): WorldState {
   const preview = originalState.buildings.find((building) => building.id === buildingId);
-  if (!preview || preview.faction === 'rival') return originalState;
+  // Bulk worker selection is only for unfinished construction crews.
+  // Completed workplaces use automatic reconciliation; a retired manual
+  // command must not clone the world or report a phantom state change.
+  if (!preview || preview.faction === 'rival' || preview.completed) return originalState;
 
   const cap = BUILDING_CONFIGS[preview.type].maxOccupants;
   
