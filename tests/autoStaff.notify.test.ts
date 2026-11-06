@@ -2,7 +2,7 @@ import { building, human } from '../src/test/factories';
 /**
  * Regression: the Auto-staff button worked silently — it assigned workers but
  * gave no confirmation, so it looked broken. It confirms real assignments,
- * but no-op passes should not nag about deliberately manual workplaces.
+ * but no-op passes should not nag when no workplaces need staffing.
  */
 import { describe, it, expect } from 'vitest';
 import { initGame } from '../src/game/worldGen';
@@ -68,8 +68,8 @@ describe('autoStaffAllWorkers feedback', () => {
   });
 });
 
-describe('colony-wide Auto-fill override', () => {
-  it('enables manual workplaces and assigns idle adults without changing the input or rivals', () => {
+describe('legacy staffing-mode normalization', () => {
+  it('normalizes legacy manual workplaces and assigns idle adults without changing rivals', () => {
     const world = initGame({ skipTerrain: true });
     world.entities = [human(1)];
     world.buildings = [
@@ -84,7 +84,7 @@ describe('colony-wide Auto-fill override', () => {
     expect(world.entities[0].workerBuildingId).toBeUndefined();
   });
 
-  it('confirms Auto-fill is enabled even when there are no idle adults', () => {
+  it('confirms automatic staffing when no adults are available', () => {
     const world = initGame({ skipTerrain: true });
     world.entities = [];
     world.buildings = [building(2, BuildingType.School, { staffingMode: 'manual' })];
