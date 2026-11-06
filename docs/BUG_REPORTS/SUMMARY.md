@@ -1,5 +1,9 @@
 # Bug report summary — one line per report
 
+**2026-11-06 — [Auto-play staffing policy inconsistency](../bug_report/2026-11-06-autoplay-staffing-policy-inconsistent.md):** Food and non-food proposals differ in manual-staffing handling; runtime effect unverified. Investigating; manual staffing is proposed for removal in favor of persistent automatic jobs.
+
+**2026-11-06 — [Virtual Player Store scaling unreachable](../bug_report/2026-11-06-virtual-player-store-scaling-unreachable.md):** The Store is excluded from the scaling branch despite its documented policy; open, static code evidence. Fix proposal is storage-pressure-based demand.
+
 **2026-11-03 — [Spotlight stage lands off the middle of the Village Square](../bug_report/2026-11-03-spotlight-stage-off-square-centre.md):** The stage point added half a footprint to a value that already was the centre, and the bottom-anchored plaza sprite puts its painted middle 34 px above that point, so the girl performed by the silos and then in front of the fountain. Staging now reads the centre from its canonical owner and lifts it to the painted middle; targeted tests, TypeScript, lint and build pass.
 
 **2026-11-03 — [Gameplay markers stay drawn over a running Spotlight performance](../bug_report/2026-11-03-spotlight-gameplay-markers-over-stage.md):** Name plates and purple status discs covered every performer, and gold level frames, pennants and "Lv3" tags stayed on neighbouring buildings during the paused show. The ready phase now hides all of them and the entity-layer key carries it; regression, renderer suites and a browser capture pass.
