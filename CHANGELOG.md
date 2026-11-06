@@ -2,6 +2,8 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Changed (6 November 2026, PR #126; runtime unverified):** Removed manual individual workplace assignment and Auto/Manual controls, preserving automatic jobs across normal schedule pulses. Legacy saved manual mode switches to auto on the workforce pass without discarding existing employment; builder and housing assignment commands remain separate. Updated related test sources without running them.
+
 - **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler transformation uses 22:00 on a full-moon day through 06:00 the next morning, not also the preceding 00:00–06:00 interval.
 
 - **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler dashboard and Population indicators distinguish a dormant curse from an actively transformed werewolf; correction of stale 20:00 nightfall text.
