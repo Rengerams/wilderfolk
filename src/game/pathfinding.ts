@@ -725,9 +725,6 @@ export function getNavigationQuote(
     || blocked[goal.y * cols + goal.x] !== 0) {
     return { status: 'unreachable' };
   }
-  if (!Number.isFinite(limits.maxNodes) || limits.maxNodes <= 0) {
-    return { status: 'pending', reason: 'search-budget' };
-  }
   let cache = sharedRouteCaches.get(grid);
   if (!cache) {
     cache = { entries: new Map(), tileCount: 0 };
@@ -739,6 +736,10 @@ export function getNavigationQuote(
     cache.entries.delete(key);
     cache.entries.set(key, existing);
     return existing;
+  }
+  if ((start.x !== goal.x || start.y !== goal.y)
+    && (!Number.isFinite(limits.maxNodes) || limits.maxNodes <= 0)) {
+    return { status: 'pending', reason: 'search-budget' };
   }
 
   let quote: Extract<NavigationQuote, { status: 'priced' | 'unreachable' }>;

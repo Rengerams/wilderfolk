@@ -32,6 +32,7 @@ describe('shared navigation route authority — checkpoint A', () => {
     setPathfindingMetricsEnabled(false);
     expect(first.status).toBe('priced');
     expect(second).toBe(first);
+    expect(getNavigationQuote(map, start, goal, { maxNodes: 0 })).toBe(first);
     if (first.status === 'priced') {
       expect(oldCost.cost).toBe(first.costTiles);
       expect(Object.isFrozen(first)).toBe(true);
