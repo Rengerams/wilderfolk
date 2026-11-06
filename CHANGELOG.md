@@ -2,6 +2,10 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler transformation uses 22:00 on a full-moon day through 06:00 the next morning, not also the preceding 00:00–06:00 interval.
+
+- **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler dashboard and Population indicators distinguish a dormant curse from an actively transformed werewolf; correction of stale 20:00 nightfall text.
+
 - **Docs (6 November 2026):** Added pathfinding audit: new automatic staffing and worker transfers must obey the canonical two-hour reachable-commute rule, while existing jobs persist through transient route failures.
 
 - **Docs (6 November 2026):** Recorded two static-audit findings and proposed persistent automatic workforce assignment, removing individual manual staffing without daily job reshuffling; no gameplay behavior changed.
