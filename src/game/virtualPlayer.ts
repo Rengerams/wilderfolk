@@ -36,7 +36,7 @@ import { canStartResearch } from './research';
 import { getRefugeeChoiceEligibility, getVisitorLeaderTalkMeta, getVisitorTradeEligibility, getVillageRequestEligibility, type RefugeeChoice, type VisitorTradeAction } from './groupEvents';
 import { getDiplomacyChoiceEligibility, getPeaceTreatyEligibility, getRivalGiftEligibility, getRivalTradePactEligibility, getShowStrengthEligibility } from './rivalDiplomacy';
 import { Human, VirtualPlayer } from './gameConstants';
-import { getRecentFoodFlow, isMeasuredFoodDeficit } from './economyLedger';
+import { getRecentFoodFlow, isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { computeStorageMax } from './economy';
 import { getStoryChoiceEligibility } from './storyEvents';
 import type { DiplomacyEvent, RaidEvent, StoryEvent } from './gameTypes';
@@ -486,9 +486,12 @@ function firstUnstaffedFoodProducer(state: WorldState): Building | undefined {
 function decideUnstaffedFoodProducer(state: WorldState): VirtualPlayerDecision | null {
   const settlers = playerHumanCount(state.entities);
   if (settlers <= 0) return null;
-  if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
-  // A measured deficit re-prioritizes every post, not only the ones already short of a crew.
-  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO) && getWorkforcePolicy(state) !== 'survival') {
+  const actualDeficit = isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+  const forecastRisk = isProjectedFoodShortfall(state, foodNeedPerDay(settlers),
+    VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+  if (hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS) && !actualDeficit && !forecastRisk) return null;
+  // Do not wait until an actual deficit: a forecast shortfall also prioritizes survival.
+  if ((actualDeficit || forecastRisk) && getWorkforcePolicy(state) !== 'survival') {
     return {
       command: { proto: WORKER_CMD_PROTO, op: 'setWorkforcePolicy', preset: 'survival' },
       reason: 'prioritize survival jobs — food production is falling behind',
@@ -542,6 +545,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // as a Farm-equivalent unit merely because both are food buildings.
   const measuredFlow = getRecentFoodFlow(state);
   const measuredDeficit = isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+  const forecastRisk = isProjectedFoodShortfall(state, needPerDay,
+    VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
   // No production history yet: use only crop sites for the conservative
   // bootstrap footprint target. Once measured history exists, this guess
   // yields to observed production versus actual consumption.
@@ -549,7 +554,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     + completedProducerCount(state, BuildingType.Greenhouse);
   // Consider staff-free output improvements even when the workforce cannot
   // yet crew an existing food site. Do not build another unstaffable farm.
-  const unstaffedFoodProducer = (shortOnFood || measuredDeficit)
+  const unstaffedFoodProducer = (shortOnFood || measuredDeficit || forecastRisk)
     ? firstUnstaffedFoodProducer(state)
     : undefined;
   const target = wantedBootstrapCropSiteCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
@@ -612,10 +617,10 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     }
   }
 
-  // With enough recorded days, the measured ledger replaces every type-count
-  // heuristic. A productive Fishery or Greenhouse can cover the colony without
-  // forcing extra farms; an unproductive Hunting Spot cannot masquerade as one.
-  if (measuredFlow !== null && !shortOnFood && !measuredDeficit) return null;
+  // Real harvested output determines whether the colony needs expansion, but
+  // forecast growth can request it BEFORE today's food balance turns negative.
+  // A productive Fishery may already cover the forecast; an empty Hunting Spot cannot.
+  if (measuredFlow !== null && !shortOnFood && !measuredDeficit && !forecastRisk) return null;
   if (measuredFlow === null && !shortOnFood && hasFoodProducer(state) && !wantMore) return null;
   // The bootstrap count is a temporary ceiling, NOT a hard ceiling during a
   // verified deficit. Actual production, not site count, determines shortage.
@@ -627,7 +632,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
       && FOOD_PRODUCER_TYPES.includes(building.type),
   ).length;
   if (measuredDeficit ? goingUp >= 2 : goingUp > 0) return null;
-  if (unstaffedFoodProducer && !measuredDeficit) return null;
+  if (unstaffedFoodProducer && !measuredDeficit && !forecastRisk) return null;
   // A new site needs at least one free adult after existing and incoming food posts are staffed.
   // The first producer remains buildable so an all-industrial bootstrap can recover.
   if (built > 0 || goingUp > 0) {
@@ -671,7 +676,8 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   for (const type of foodCandidates) {
     const requirement = BUILDING_CONFIGS[type].unlockRequirement;
     if (requirement && !isBuildingTechUnlocked(requirement, state.unlockedTechs, state.researchNodes)) continue;
-    if (!shortOnFood && !measuredDeficit && wantMore && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
+    if (!shortOnFood && !measuredDeficit && (wantMore || forecastRisk)
+      && !canSpendKeepingReserve(state, BUILDING_CONFIGS[type].cost)) continue;
     if (!canAfford(state, BUILDING_CONFIGS[type].cost)) continue;
     const spot = findPlacementSpot(state, type, 0, siteCondition(state, type));
     if (!spot) continue;
@@ -683,7 +689,9 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
           ? `build a ${BUILDING_CONFIGS[type].label} — the colony has no food producer`
           : measuredDeficit
             ? `build a ${BUILDING_CONFIGS[type].label} — actual food production trails consumption`
-            : `build a ${BUILDING_CONFIGS[type].label} — ${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers`,
+            : forecastRisk
+              ? `build a ${BUILDING_CONFIGS[type].label} — projected demand will overtake measured food production`
+              : `build a ${BUILDING_CONFIGS[type].label} — ${built} producer${built === 1 ? '' : 's'} for ${adultSettlerCount(state)} settlers`,
     };
   }
 
