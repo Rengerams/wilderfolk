@@ -289,7 +289,7 @@ unowned. Grouped rows keep this list readable; the owner cell is what the explor
 
 | Village challenges | `challenges.ts` + `dailyChallenges.ts` | daily (`tickLayerDaily`) | `tickDailyChallenges`, `isChallengeComplete`, `getChallengeProgress` |
 | Grass ecology day pulse | `dailyGrassEcology.ts` | daily (`tickLayerDaily`) | `tickGrassDaily` |
-| Daily population reconciliation | `dailyPopulation.ts` | daily (`tickLayerDaily`) | `tickDailyPopulation` |
+| Daily population reconciliation and food-safe immigration | `dailyPopulation.ts` | daily (`tickLayerDaily`) | `tickDailyPopulation`, `tickImmigration`, `canSupportImmigration` — checks actual and forecast food capacity for an incoming family before the seeded roll; missing history retains bootstrap arrivals, births stay independent |
 | Daily world events schedule | `dailyWorldEvents.ts` | daily (`tickLayerDaily`) | `tickDailyWorldEvents` |
 | Hunting behaviour and hunting-spot rules | `humanHuntingBehavior.ts` + `huntingSpots.ts` | realtime (`humanTick`) + command validation | `tickHumanHunting` (hunt range and chase speed carry the `danger`/hunting trait factor in place of the old Brave-only multiplier; free-roam yield is recorded in the food ledger), `isValidHuntingSpotPrey`, `getHuntingSpotPreyOption` |
 | Patrol and raider detection | `humanPatrolBehavior.ts` | realtime (`humanTick`) | `detectRaidersForPatrol` |
