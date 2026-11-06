@@ -12,6 +12,7 @@
 import type { Building, Entity, Season, WorldState } from './gameTypes';
 import { BUILDING_JOB_TYPES, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { countActiveMoonHowlerCurses, isActiveMoonHowler } from './moonHowler';
 import { TICKS_PER_DAY } from './dayCycle';
 import { getHourOfDay } from './dayCycleClock';
 import { isOnWorkScheduleShift } from './workSchedule';
@@ -219,11 +220,8 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
   const imprisoned = village.imprisoned;
   const idleAdults = village.idle;
   const homeless = countHomelessSettlers(state);
-  let howlerCursed = 0;
-  for (const e of state.entities) {
-    if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
-    if (e.moonHowlerCursed) howlerCursed++;
-  }
+  const howlerCursed = countActiveMoonHowlerCurses(state.entities);
+  const howlerTransformed = state.entities.filter(isActiveMoonHowler).length;
 
   if (food <= 0) {
     concerns.push({
@@ -279,9 +277,11 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
     concerns.push({
       id: 'howler',
       severity: 'warning',
-      title: 'Moon Howler curse active',
-      detail: `${howlerCursed} settler${howlerCursed === 1 ? '' : 's'} will hunt on the next full moon.`,
-      hint: 'Staff a Church and keep guards near on full-moon nights.',
+      title: howlerTransformed > 0 ? 'Moon Howler transformed — hunting tonight' : 'Moon Howler curse persists — dormant',
+      detail: howlerTransformed > 0
+        ? `${howlerTransformed} Moon Howler${howlerTransformed === 1 ? '' : 's'} currently transformed; ${howlerCursed} living curse${howlerCursed === 1 ? '' : 's'} remain.`
+        : `${howlerCursed} living settler${howlerCursed === 1 ? '' : 's'} cursed; human until the next full-moon night.`,
+      hint: 'Staff a Church for full-moon cures; Moon Howlers transform from 22:00 to 06:00.',
     });
   }
 
