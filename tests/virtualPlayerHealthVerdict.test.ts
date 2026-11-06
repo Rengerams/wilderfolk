@@ -255,6 +255,58 @@ describe('the health verdict at the owner numbers', () => {
     expect(decision?.reason).toContain('projected');
   });
 
+  it('plans a future Farm with a safe excess donor even when every adult already works', () => {
+    const world = ownerColony(5, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 1, mills: 1 });
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = world.tick; });
+    expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
+    const action = decideVirtualPlayerAction(world);
+    expect(action?.command).toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(action?.reason).toContain('projected');
+  });
+
+  it('never plans a future Farm using protected food crews as pretend spare labor', () => {
+    const world = ownerColony(4, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 2, mills: 0 });
+    expect(world.entities.every((human) => human.workerBuildingId != null)).toBe(true);
+    expect(decideVirtualPlayerAction(world)?.command).not.toMatchObject({
+      op: 'startBuilding', type: BuildingType.Farm,
+    });
+  });
+
+  it('transfers an excess lumber worker to a waiting Farm before food runs short', () => {
+    const world = ownerColony(5, {
+      tick: 8 * TICKS_PER_DAY,
+      workforcePolicy: 'survival',
+      resources: { food: 500, wood: 500, stone: 500, gold: 0, iron: 30 },
+      foodHistory: Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        produced: { farms: 80 }, consumed: { meals: 40 + index * 5 },
+      })),
+    }, { farms: 1, mills: 1,
+      extraBuildings: [building(77, BuildingType.Farm, { x: 340, y: 330 })] });
+    world.entities.forEach((human) => { human.lastAutoJobTransferTick = world.tick; });
+    const action = decideVirtualPlayerAction(world);
+    expect(action?.command).toMatchObject({ op: 'autoStaffWorkers' });
+    const after = applyWorkerCommand(world, action!.command);
+    expect(after.entities.filter((person) => person.workerBuildingId === 77)).toHaveLength(1);
+    expect(after.entities.filter((person) => person.workerBuildingId === 200)).toHaveLength(2);
+  });
+
   it('plans farms for all mouths, not just adults who can staff them', () => {
     // Eighteen working-age people and twelve children consume food, even though
     // only adults can take a Farm assignment. Three farms satisfy the old
