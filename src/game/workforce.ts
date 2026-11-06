@@ -254,6 +254,38 @@ function pickOverstaffedDonor(
   return best;
 }
 
+/**
+ * Read-only supply for one prospective food workplace: only genuinely movable
+ * staff above the same protected minimum that real transfers enforce.
+ * The Virtual Player uses this to avoid a new-workplace deadlock once every
+ * adult has a job, while the workforce owner still performs all transfers.
+ */
+export function prospectiveFoodTransferDonors(
+  humans: Entity[],
+  buildings: Building[],
+  currentTick: number,
+): { workers: Entity[]; spareSlots: number }[] {
+  const workersBySite = new Map<number, Entity[]>();
+  for (const human of humans) {
+    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile
+      || human.workerBuildingId == null
+      || !canAutoChangeWorkplace(human, currentTick, true)) continue;
+    const assigned = workersBySite.get(human.workerBuildingId) ?? [];
+    assigned.push(human);
+    workersBySite.set(human.workerBuildingId, assigned);
+  }
+  const counts = buildWorkforceAssignmentIndex(humans, currentTick, true).counts;
+  const donors: { workers: Entity[]; spareSlots: number }[] = [];
+  for (const site of completedJobBuildings(buildings, 'survival')) {
+    const spareSlots = Math.min(
+      Math.max(0, (counts.get(site.id) ?? 0) - minimumAutoCoverage(site)),
+      workersBySite.get(site.id)?.length ?? 0,
+    );
+    if (spareSlots > 0) donors.push({ workers: workersBySite.get(site.id)!, spareSlots });
+  }
+  return donors;
+}
+
 export function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   humans: Entity[],
