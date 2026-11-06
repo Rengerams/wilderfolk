@@ -811,7 +811,7 @@ function needsAdditionalStore(state: WorldState): boolean {
   const limits = computeStorageMax(state.buildings);
   return (['wood', 'stone', 'iron'] as const).some((resource) => {
     const recorded = state.storageMax?.[resource];
-    const capacity = Math.max(limits[resource], Number.isFinite(recorded) ? recorded : 0);
+    const capacity = Math.max(limits[resource], typeof recorded === 'number' && Number.isFinite(recorded) ? recorded : 0);
     return capacity > 0 && (state.resources[resource] ?? 0) >= capacity * 0.85;
   });
 }
