@@ -8,7 +8,7 @@ import { getRecentFoodFlow } from '../src/game/economyLedger';
 import { resetRelationshipDiagnostics, setRelationshipDiagnosticsEnabled } from '../src/game/relationshipDiagnostics';
 import { resetSimRng } from '../src/game/simRng';
 import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
-import { countWorkersAtBuilding, isManualStaffingBuilding } from '../src/game/workforce';
+import { countWorkersAtBuilding } from '../src/game/workforce';
 import { shouldVirtualPlayerAct } from '../src/hooks/useVirtualPlayer';
 import {
   applyColonyBotAction, captureConsoleVolume, createColonyObserver, livingHumans,
@@ -94,7 +94,7 @@ function run(): void {
       const idleAdults = humans.filter((e) => !e.isJuvenile && e.workerBuildingId == null).length;
       const flow = getRecentFoodFlow(world, 7);
       const foodSites = world.buildings.filter((b) => FOOD_TYPES.includes(b.type) && b.faction !== 'rival');
-      const understaffed = foodSites.filter((b) => b.completed && !isManualStaffingBuilding(b)
+      const understaffed = foodSites.filter((b) => b.completed
         && countWorkersAtBuilding(world.entities, b.id) < BUILDING_CONFIGS[b.type].maxOccupants).length;
       const incomplete = foodSites.filter((b) => !b.completed).length;
       const farms = foodSites.filter((b) => b.type === BuildingType.Farm && b.completed);
