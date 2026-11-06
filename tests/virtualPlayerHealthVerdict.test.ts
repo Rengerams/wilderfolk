@@ -539,19 +539,21 @@ describe('the health verdict at the owner numbers', () => {
   });
 
   it('stops unstaffable food expansion across repeated deficit days', () => {
-    const world = ownerColony(4, {
+    const world = ownerColony(3, {
       tick: 8 * TICKS_PER_DAY,
       resources: { food: 300, wood: 500, stone: 200, gold: 0, iron: 150 },
     }, {
       mills: 1, farms: 1,
       extraBuildings: [building(80, BuildingType.Mill)],
     });
+    // The Farm requires both workers; the one remaining Lumber Mill employee
+    // is its protected minimum. There is no idle or surplus donor for a new site.
     const farm = world.buildings.find((site) => site.type === BuildingType.Farm)!;
     farm.level = 3;
     for (let day = 8; day <= 14; day++) {
       world.tick = day * TICKS_PER_DAY;
       world.foodHistory = Array.from({ length: 7 }, (_, index) => ({
-        day: day - 7 + index, produced: { farms: 3 }, consumed: { meals: 18 },
+        day: day - 7 + index, produced: { farms: 3 }, consumed: { meals: 9 },
       }));
       const action = decideVirtualPlayerAction(world)?.command;
       if (action?.op === 'startBuilding') {
