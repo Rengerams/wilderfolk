@@ -568,6 +568,26 @@ describe('the ladder builds ahead of need, bounded by the owners', () => {
       .not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
   });
 
+  it('uses measured fish and hunting yield instead of counting them as Farm-equivalent sites', () => {
+    const producers = [
+      building(411, BuildingType.FishingSpot, { x: 700, y: 400 }),
+      building(412, BuildingType.HuntingSpot, { x: 800, y: 400 }),
+    ];
+    // These sites have produced more food than residents consumed for
+    // three consecutive days. No artificial Farm target is needed merely
+    // because the population has grown; all actual yield enters the ledger.
+    const healthy = ownerColony(24, {
+      tick: 4 * TICKS_PER_DAY,
+      resources: { food: 500, wood: 500, stone: 500, gold: 500, iron: 150 },
+      foodHistory: [1, 2, 3].map((day) => ({
+        day, produced: { fishing: 60, hunting: 30 }, consumed: { meals: 70 },
+      })),
+    }, { mills: 12, farms: 0, extraBuildings: producers });
+    const decision = decideVirtualPlayerAction(healthy);
+    expect(decision?.command).not.toMatchObject({ op: 'startBuilding', type: BuildingType.Farm });
+    expect(decision?.command).not.toMatchObject({ op: 'startBuilding', type: BuildingType.Greenhouse });
+  });
+
   it('keeps adding producers as the village grows instead of stopping at the first', () => {
     // One Lumber Mill for 24 settlers is under the ladder's own one-per-12 line, so the village has
     // outgrown what it built — the state the trigger-only ladder sat in.
