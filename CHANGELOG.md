@@ -8,6 +8,54 @@
 
 - **Fixed (6 November 2026):** Settlers now walk around completed farms, houses and other structures instead of cutting through their footprints; roads, bridges, the square and reinforced ground remain walkable.
 
+- **Fixed (6 November 2026, PR #126; CI verification pending):** Seeded colony starts with legal, reachable homes and food producers instead of impassable river sites; the unaltered 90-day food-survival gate remains authoritative.
+- **Changed (6 November 2026, PR #126; CI pending):** Food expansion uses safe surplus transfers; normal immigration now checks future food demand before accepting families. Commute A* retries occur once per staffing pulse.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Save-load reconciles vacancies using its restored navigation grid, with path-grid caches also keyed to the actual map identity; incumbent jobs remain unchanged.
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Auto-play no longer builds food sites without an available adult after pending food vacancies, while urgent verified food shortages bypass only the transfer cooldown and retain protected donor staffing.
+- **Changed (6 November 2026, PR #126; runtime unverified):** Unasserted 90-day diagnostic moved out of the unit suite into an explicit standalone runner; diagnostic globals are restored on exit.
+- **Tests (6 November 2026, PR #126; runtime unverified):** Added blocked-save-commute and seven-day no-free-worker regressions; retained checks for safe famine staffing and housing-dead-end action priority.
+
+- **CI (6 November 2026, PR #126):** Restored full PR quality gates; semantic-duplicate checks now compare against a baseline generated from the actual previous main revision instead of failing on a missing baseline file.
+
+- **Fixed (6 November 2026, PR #126):** Auto-play resolves blocked homeless housing by clearing eligible redundant outbuildings or expanding existing residences before optional food construction; the existing housing and demolition tests remain strict.
+
+- **Tests (6 November 2026, PR #126; runtime unverified):** The batch-repair fixture now supplies spare housing and checks the correct stone remainder against its 200-unit baseline; existing forge fixtures already avoid incidental Store-expansion decisions.
+
+- **Fixed (6 November 2026, PR #126):** Loading an older save no longer runs the retired manual-Church migration and removes existing Priest jobs. Legacy manual flags normalize to automatic staffing without clearing valid assignments.
+
+- **Fixed (6 November 2026, PR #126):** Store expansion runs late in auto-play, after research, repairs and recruitment. Capacity uses completed player buildings; regression tests cover stale snapshots, thresholds, rivals and unfinished Stores.
+
+- **Tests (6 November 2026, PR #126):** Replaced retired manual-job command assumptions with construction-command transport and automatic staffing cases; repaired the diagnostic probe's missing log directory.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Node-limited commute checks now retry with bounded increasing A* budgets. One expanded search is allowed per pass; unresolved terminal routes stop retrying.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Workforce cache now rechecks on 60-day transfer cooldown expiry and when unhoused applicants change path cells. Existing job stability remains.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Route-search budget deferrals keep staffing pending, so the next assignment pulse retries instead of caching an incomplete workforce for a week.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Registered legacy staffing-mode writes; minimum-coverage rebalancing finishes before caching and retries alternate reachable donors.
+
+- **Changed (6 November 2026, PR #126; runtime unverified):** Food expansion uses measured yield instead of interchangeable producer counts. New colonies use a crop-only bootstrap estimate; shortages still prompt expansion.
+
+- **Docs (6 November 2026, PR #126):** Housing buckets use current member IDs, not permanent household IDs. The final daily pulse revisits every unit; no migration was needed.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Hiring and transfers require a reachable commute of at most two hours. Unpriced routes defer assignments; existing jobs remain intact.
+
+- **Changed (6 November 2026, PR #126; runtime unverified):** Workforce reconciliation skips unchanged staffing states using a lightweight signature and weekly repair pass.
+
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Virtual Player Store expansion uses actual completed-building wood/stone/iron storage pressure, not the gold-stock or population producer-count condition; pending construction and resource reserve rules remain.
+
+- **Changed (6 November 2026, PR #126; runtime unverified):** Removed manual job controls. Existing jobs persist and legacy manual settings switch to automatic staffing; construction and housing remain separate.
+
+- **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler transformation uses 22:00 on a full-moon day through 06:00 the next morning, not also the preceding 00:00–06:00 interval.
+
+- **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler dashboard and Population indicators distinguish a dormant curse from an actively transformed werewolf; correction of stale 20:00 nightfall text.
+
+- **Docs (6 November 2026):** Added pathfinding audit: new automatic staffing and worker transfers must obey the canonical two-hour reachable-commute rule, while existing jobs persist through transient route failures.
+
+- **Docs (6 November 2026):** Recorded two static-audit findings and proposed persistent automatic workforce assignment, removing individual manual staffing without daily job reshuffling; no gameplay behavior changed.
+
 - **Fixed (6 November 2026):** Raid gold spoils now enter through the shared capped-resource path, so the configured gold storage maximum applies and the gain is recorded like every other resource.
 
 - **Fixed (6 November 2026):** A malformed or incompatible worker reply is now rejected before host bookkeeping and triggers worker recovery instead of leaving the displayed colony stale.

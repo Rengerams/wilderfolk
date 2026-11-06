@@ -30,7 +30,7 @@ import { canEatColonyMeal } from './simulation/humanNeeds';
 import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/humanMovement';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
+import { findHumanWorkplace } from './workforce';
 import { isImprisoned, isNearResidence } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
@@ -113,14 +113,13 @@ function resolveShift(
 
   const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
   const venueCount = workplace?.occupants.length ?? 0;
-  const autoVenueShifts = workplace?.staffingMode !== 'manual';
   const venueKind = workplace ? VENUE_BY_BUILDING[workplace.type] : undefined;
   const isVenueWorker = venueKind != null && (venueKind === 'tavern' ? isInnkeeper : isHotelier);
   if (venueKind != null && isVenueWorker) {
-    const onVenueShift = venueIndex >= 0 && autoVenueShifts
+    const onVenueShift = venueIndex >= 0
       ? isVenueWorkerServiceHour(state, venueKind, hour, venueIndex, venueCount)
       : isVenueServiceHour(state, venueKind, hour);
-    const startHour = venueIndex >= 0 && autoVenueShifts
+    const startHour = venueIndex >= 0
       ? getVenueWorkerServiceWindow(state, venueKind, venueIndex, venueCount).startHour
       : getVenueSchedule(state, venueKind).startHour;
     return { onShift: onVenueShift, next: { hour: startHour, kind: 'venue' } };
@@ -278,6 +277,5 @@ export function getWorkplaceRosterReasons(
 export function getUnstaffedPostNote(building: Building): string | null {
   if (!building.completed || building.occupants.length > 0) return null;
   if (BUILDING_CONFIGS[building.type].maxOccupants <= 0) return null;
-  if (!isManualStaffingBuilding(building)) return null;
-  return 'Workplace staffed manually — assign workers here yourself.';
+  return 'No workers assigned yet — workforce staffing will fill available posts.';
 }

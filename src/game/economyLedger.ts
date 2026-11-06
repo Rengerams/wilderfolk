@@ -8,7 +8,7 @@
  * `getEconomyLedger`.
  */
 import type { WorldState, DailyEconomyLedger } from './gameTypes';
-import { getAbsoluteCalendarDay } from './dayCycle';
+import { getAbsoluteCalendarDay } from './dayCycleClock';
 import { Human } from './gameConstants';
 import { deductResource } from './resourceUtils';
 
@@ -144,6 +144,59 @@ export function getRecentFoodFlow(
     consumedPerDay: consumed / days,
     netPerDay: (produced - consumed) / days,
   };
+}
+
+/** A verified negative production trend, with monthly persistence across a brief good week. */
+export function isMeasuredFoodDeficit(state: Pick<WorldState, 'foodHistory' | 'tick'>, toleranceRatio: number): boolean {
+  const recent = getRecentFoodFlow(state);
+  if (!recent) return false;
+  if (recent.consumedPerDay > 0 && recent.netPerDay < -recent.consumedPerDay * toleranceRatio) return true;
+  const month = getRecentFoodFlow(state, 30);
+  return month != null && month.days >= 14 && month.consumedPerDay > 0
+    && month.netPerDay < -month.consumedPerDay * toleranceRatio;
+}
+
+/**
+ * Seven-day production outlook. Uses real harvested/stored food, observed meal
+ * consumption and its recent upward slope, plus today's population demand.
+ * This warns before the *current* balance turns negative; it does not infer
+ * production from a building count or a theoretical full-attendance yield.
+ * Sparse or interrupted history remains unknown (the bot uses bootstrap rules).
+ */
+export function getProjectedFoodSupply(
+  state: Pick<WorldState, 'foodHistory' | 'tick'>,
+  currentDailyNeed: number,
+  horizonDays = 7,
+): { producedPerDay: number; projectedNeedPerDay: number; days: number } | null {
+  const flow = getRecentFoodFlow(state);
+  if (!flow || !Number.isFinite(currentDailyNeed) || currentDailyNeed < 0) return null;
+  const samples = (state.foodHistory ?? []).slice(-flow.days);
+  const size = Math.floor(flow.days / 2);
+  let slope = 0;
+  if (size >= 2) {
+    const dailyConsumption = (sample: typeof samples[number]): number =>
+      Object.values(sample.consumed).reduce((sum, amount) => sum + amount, 0);
+    const first = samples.slice(0, size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
+    const last = samples.slice(-size).reduce((sum, entry) => sum + dailyConsumption(entry), 0) / size;
+    slope = Math.max(0, (last - first) / Math.max(1, flow.days - size));
+  }
+  return {
+    producedPerDay: flow.producedPerDay,
+    projectedNeedPerDay: Math.max(currentDailyNeed, flow.consumedPerDay)
+      + slope * Math.max(0, horizonDays),
+    days: flow.days,
+  };
+}
+
+/** Whether staffed production is forecast to fall below near-future demand. */
+export function isProjectedFoodShortfall(
+  state: Pick<WorldState, 'foodHistory' | 'tick'>,
+  currentDailyNeed: number,
+  toleranceRatio: number,
+): boolean {
+  const outlook = getProjectedFoodSupply(state, currentDailyNeed);
+  return outlook != null && outlook.producedPerDay
+    < outlook.projectedNeedPerDay * (1 + toleranceRatio);
 }
 
 /** The current day's ledger, or null when nothing has happened yet today. */

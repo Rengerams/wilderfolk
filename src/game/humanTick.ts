@@ -618,20 +618,19 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
 
     const venueWorkerIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
     const venueWorkerCount = workplace?.occupants.length ?? 0;
-    const usesAutoVenueShifts = workplace?.staffingMode !== 'manual';
     // A festival keeps the Tavern open to visitors (`venueSchedule.isFestivalOverrideActive`) — and that
     // is venue availability, never the Innkeeper's duty: crediting it pays for all 24 hours of a
     // festival day and pins every innkeeper at maximum fatigue, which costs the tavern its output.
     const onTavernShift =
       isInnkeeper &&
-      (venueWorkerIndex >= 0 && usesAutoVenueShifts
+      (venueWorkerIndex >= 0
         ? isVenueWorkerServiceHour(state, 'tavern', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'tavern', hourOfDay));
 
     const isHotelier =
       entity.job === JobType.Hotelier && workplace?.type === BuildingType.Hotel && workplace.completed;
     const onHotelShift =
-      isHotelier && (venueWorkerIndex >= 0 && usesAutoVenueShifts
+      isHotelier && (venueWorkerIndex >= 0
         ? isVenueWorkerServiceHour(state, 'hotel', hourOfDay, venueWorkerIndex, venueWorkerCount)
         : isVenueServiceHour(state, 'hotel', hourOfDay));
 

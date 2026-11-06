@@ -6,10 +6,14 @@ import {
   BUILDING_JOB_TYPES,
   JobType,
   LEADER_OCCUPATION,
+  PATH_CELL,
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { isWithinAssignableCommute } from './commuteReach';
+import {
+  beginCommuteRoutePass, isWithinAssignableCommute, wereCommuteRouteChecksDeferred,
+  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS,
+} from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
@@ -18,6 +22,8 @@ import { prisonGuardCapacity } from './prisonShifts';
 import { logEvent } from './eventLog';
 import { addFloatingText, addNotification } from './simEffects';
 import { TICKS_PER_DAY } from './dayCycleClock';
+import { Human, VirtualPlayer } from './gameConstants';
+import { isMeasuredFoodDeficit, isProjectedFoodShortfall } from './economyLedger';
 import { evaluateWorkerFit } from './careers/workerFit';
 import { profileStart, profileEnd } from './performanceProfiler';
 import {
@@ -42,10 +48,6 @@ export function isOnConstructionCrew(
   return false;
 }
 
-/** Only an explicit `manual` keeps the player's own crew out of the auto pass. */
-export function isManualStaffingBuilding(building: Pick<Building, 'staffingMode'>): boolean {
-  return building.staffingMode === 'manual';
-}
 
 /**
  * Auto-staff rank of a job building. The ordering table itself lives in the policy owner
@@ -169,11 +171,34 @@ export function completedJobBuildings(
 /** Two 30-day in-game months. Existing saves with no timestamp stay eligible. */
 export const AUTO_JOB_TRANSFER_COOLDOWN_TICKS = 60 * TICKS_PER_DAY;
 
-export function canAutoChangeWorkplace(human: Entity, currentTick?: number): boolean {
+export function canAutoChangeWorkplace(human: Entity, currentTick?: number, foodEmergency = false): boolean {
   // A prisoner's post is reserved, not vacant: no automatic transfer may move it while they serve.
   if (isImprisoned(human)) return false;
+  if (foodEmergency) return true;
   if (currentTick == null || human.lastAutoJobTransferTick == null) return true;
   return currentTick - human.lastAutoJobTransferTick >= AUTO_JOB_TRANSFER_COOLDOWN_TICKS;
+}
+
+/** A verified falling food supply with fewer than six days in store warrants urgent staffing. */
+export function isAcuteFoodStaffingEmergency(state: WorldState): boolean {
+  if (!state.resources || !state.entities) return false;
+  const settlers = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
+  return settlers > 0
+    && state.resources.food < settlers * Human.DAILY_FOOD_CONSUMPTION * VirtualPlayer.FOOD_BUFFER_DAYS * 3
+    && isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO);
+}
+
+/**
+ * Read the same prospective food-demand verdict as auto-play. A food vacancy
+ * may borrow a nonessential, cooldown-locked employee BEFORE the larder
+ * collapses. Only food destinations can use this exception.
+ */
+export function hasFoodStaffingPressure(state: WorldState): boolean {
+  if (!state.entities || !state.resources) return false;
+  const mouths = state.entities.filter((entity) => entity.alive && isPlayerHuman(entity)).length;
+  return mouths > 0 && (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+    || isProjectedFoodShortfall(state, mouths * Human.DAILY_FOOD_CONSUMPTION,
+      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO));
 }
 
 interface WorkforceAssignmentIndex {
@@ -181,7 +206,7 @@ interface WorkforceAssignmentIndex {
   movable: Map<number, number>;
 }
 
-function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): WorkforceAssignmentIndex {
+function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number, foodEmergency = false): WorkforceAssignmentIndex {
   const counts = new Map<number, number>();
   const movable = new Map<number, number>();
   for (const human of humans) {
@@ -189,7 +214,7 @@ function buildWorkforceAssignmentIndex(humans: Entity[], currentTick?: number): 
     const id = human.workerBuildingId;
     if (id == null) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
-    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick)) {
+    if (!human.isJuvenile && canAutoChangeWorkplace(human, currentTick, foodEmergency)) {
       movable.set(id, (movable.get(id) ?? 0) + 1);
     }
   }
@@ -212,11 +237,12 @@ function pickOverstaffedDonor(
   index: WorkforceAssignmentIndex,
   excludeBuildingId: number,
   preserveEssentialCoverage = false,
+  rejectedDonors?: ReadonlySet<number>,
 ): Building | undefined {
   let best: Building | undefined;
   let smallestCount = Infinity;
   for (const building of jobBuildings) {
-    if (building.id === excludeBuildingId || isManualStaffingBuilding(building)) continue;
+    if (building.id === excludeBuildingId || rejectedDonors?.has(building.id)) continue;
     const count = index.counts.get(building.id) ?? 0;
     const keep = preserveEssentialCoverage ? minimumAutoCoverage(building) : 1;
     if (count <= keep || (index.movable.get(building.id) ?? 0) === 0) continue;
@@ -228,16 +254,50 @@ function pickOverstaffedDonor(
   return best;
 }
 
+/**
+ * Read-only supply for one prospective food workplace: only genuinely movable
+ * staff above the same protected minimum that real transfers enforce.
+ * The Virtual Player uses this to avoid a new-workplace deadlock once every
+ * adult has a job, while the workforce owner still performs all transfers.
+ */
+export function prospectiveFoodTransferDonors(
+  humans: Entity[],
+  buildings: Building[],
+  currentTick: number,
+): { workers: Entity[]; spareSlots: number }[] {
+  const workersBySite = new Map<number, Entity[]>();
+  for (const human of humans) {
+    if (!human.alive || !isPlayerHuman(human) || human.isJuvenile
+      || human.workerBuildingId == null
+      || !canAutoChangeWorkplace(human, currentTick, true)) continue;
+    const assigned = workersBySite.get(human.workerBuildingId) ?? [];
+    assigned.push(human);
+    workersBySite.set(human.workerBuildingId, assigned);
+  }
+  const counts = buildWorkforceAssignmentIndex(humans, currentTick, true).counts;
+  const donors: { workers: Entity[]; spareSlots: number }[] = [];
+  for (const site of completedJobBuildings(buildings, 'survival')) {
+    const spareSlots = Math.min(
+      Math.max(0, (counts.get(site.id) ?? 0) - minimumAutoCoverage(site)),
+      workersBySite.get(site.id)?.length ?? 0,
+    );
+    if (spareSlots > 0) donors.push({ workers: workersBySite.get(site.id)!, spareSlots });
+  }
+  return donors;
+}
+
 export function findOverstaffedDonorBuilding(
   jobBuildings: Building[],
   humans: Entity[],
   excludeBuildingId: number,
   currentTick?: number,
   preserveEssentialCoverage = false,
+  foodEmergency = false,
+  rejectedDonors?: ReadonlySet<number>,
 ): Building | undefined {
   return pickOverstaffedDonor(
-    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick),
-    excludeBuildingId, preserveEssentialCoverage,
+    jobBuildings, buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency),
+    excludeBuildingId, preserveEssentialCoverage, rejectedDonors,
   );
 }
 
@@ -246,6 +306,9 @@ export function pickWorkerToTransfer(
   fromBuilding: Building,
   toBuilding: Building,
   currentTick?: number,
+  buildings: readonly Building[] = [fromBuilding, toBuilding],
+  excludedWorkers?: ReadonlySet<number>,
+  foodEmergency = false,
 ): Entity | undefined {
   const toJob = BUILDING_JOB_TYPES[toBuilding.type];
   const fromJob = BUILDING_JOB_TYPES[fromBuilding.type];
@@ -257,7 +320,9 @@ export function pickWorkerToTransfer(
       h.alive &&
       !h.isJuvenile &&
       h.workerBuildingId === fromBuilding.id &&
-      canAutoChangeWorkplace(h, currentTick),
+      !excludedWorkers?.has(h.id) &&
+      canAutoChangeWorkplace(h, currentTick, foodEmergency) &&
+      isWithinAssignableCommute(h, toBuilding, buildings, SPECIES_CONFIG[EntityType.Human].speed),
   );
   if (workers.length === 0) return undefined;
 
@@ -269,11 +334,13 @@ export function pickWorkerToTransfer(
     const bFit = readSkill(b, toJob) - readSkill(b, fromJob);
     if (bFit !== aFit) return bFit - aFit;
 
-    const dxa = a.x - toX;
-    const dya = a.y - toY;
-    const dxb = b.x - toX;
-    const dyb = b.y - toY;
-    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb);
+    const aHome = buildings.find((site) => site.id === a.residenceBuildingId) ?? a;
+    const bHome = buildings.find((site) => site.id === b.residenceBuildingId) ?? b;
+    const dxa = aHome.x - toX;
+    const dya = aHome.y - toY;
+    const dxb = bHome.x - toX;
+    const dyb = bHome.y - toY;
+    return dxa * dxa + dya * dya - (dxb * dxb + dyb * dyb) || a.id - b.id;
   });
 
   return workers[0];
@@ -403,34 +470,49 @@ export function rebalanceJobWorkers(
   buildings: Building[],
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   currentTick?: number,
+  foodEmergency = false,
 ): void {
   const jobBuildings = completedJobBuildings(buildings, policy);
-  const index = buildWorkforceAssignmentIndex(humans, currentTick);
+  const index = buildWorkforceAssignmentIndex(humans, currentTick, foodEmergency);
+  const movedThisPass = new Set<number>();
 
-  // Fill empty posts once; established workers keep their job when it already has coverage.
-  for (let i = 0; i < jobBuildings.length; i++) {
-      const needy = jobBuildings[i];
-      if (isManualStaffingBuilding(needy)) continue;
-      if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
-      const staffed = index.counts.get(needy.id) ?? 0;
-      const capacity = staffingCapFor(needy, humans, staffed).cap;
-      if (staffed >= capacity) continue;
-      // Food production and guard coverage grow to three posts; other workplaces only start.
-      if (staffed >= minimumAutoCoverage(needy)) continue;
+  // Finish the bounded minimum-coverage rebalance in this invocation, BEFORE
+  // assignMissingWorkers caches the post-pass fingerprint. A newly transferred
+  // employee remains at their new post; we never rebuild the rest of the roster.
+  for (const needy of jobBuildings) {
+    if (BUILDING_CONFIGS[needy.type].maxOccupants <= 0) continue;
+    let staffed = index.counts.get(needy.id) ?? 0;
+    const capacity = staffingCapFor(needy, humans, staffed).cap;
+    const target = Math.min(capacity, minimumAutoCoverage(needy));
+    if (staffed >= target) continue;
 
-      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true);
-      if (!donor) continue;
-
-      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick);
-      if (!worker) continue;
+    // The cheapest donor may have no worker who can actually commute to this
+    // workplace. Try each other eligible donor before leaving the vacancy.
+    // A donor is skipped for THIS destination only; it can still serve others.
+    const rejectedDonors = new Set<number>();
+    while (staffed < target) {
+      const donor = pickOverstaffedDonor(jobBuildings, index, needy.id, true, rejectedDonors);
+      if (!donor) break;
+      const priorityFood = needy.type === BuildingType.Farm || needy.type === BuildingType.Greenhouse
+        || needy.type === BuildingType.FishingSpot || needy.type === BuildingType.HuntingSpot;
+      const worker = pickWorkerToTransfer(humans, donor, needy, currentTick, buildings,
+        movedThisPass, foodEmergency && priorityFood);
+      if (!worker) {
+        // A donor whose eligible roster has already moved cannot supply this
+        // vacancy again in the same reconciliation pass.
+        rejectedDonors.add(donor.id);
+        continue;
+      }
 
       transferWorkerBetweenBuildings(worker, donor, needy, currentTick);
+      movedThisPass.add(worker.id);
       index.counts.set(donor.id, (index.counts.get(donor.id) ?? 0) - 1);
-      index.counts.set(needy.id, staffed + 1);
+      index.counts.set(needy.id, ++staffed);
       index.movable.set(donor.id, (index.movable.get(donor.id) ?? 0) - 1);
-      if (canAutoChangeWorkplace(worker, currentTick)) {
-        index.movable.set(needy.id, (index.movable.get(needy.id) ?? 0) + 1);
-      }
+      // The new employee is not available as a donor during this pass,
+      // even when a unit-level caller has no tick to enforce the cooldown.
+      // Their existing coworkers remain eligible according to index.movable.
+    }
   }
 }
 
@@ -506,7 +588,6 @@ export function assignWorkerInPlace(
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
-  let bestNear = false;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
   const crewIds = constructionWorkerIds ?? new Set<number>();
@@ -519,22 +600,25 @@ export function assignWorkerInPlace(
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
       || crewIds.has(candidate.id)) continue;
-    const dx = candidate.x - buildingX;
-    const dy = candidate.y - buildingY;
+    const home = candidate.residenceBuildingId == null
+      ? undefined
+      : buildingById?.get(candidate.residenceBuildingId)
+        ?? buildings.find((site) => site.id === candidate.residenceBuildingId);
+    const origin = home ?? candidate;
+    const dx = origin.x - buildingX;
+    const dy = origin.y - buildingY;
     const distance = dx * dx + dy * dy;
-    const near = isWithinAssignableCommute(
-      candidate,
-      building,
-      buildings,
-      SPECIES_CONFIG[EntityType.Human].speed,
-      buildingById,
-    );
-    const skill = readSkill(candidate, job);
-    if (worker && (
-      (bestNear && !near)
-      || (bestNear === near && (distance > bestDistance || (distance === bestDistance && skill < bestSkill)))
+    // This bound can only EXCLUDE impossible commutes; the actual route
+    // remains the authoritative eligibility check. Avoid spending A* budget
+    // on distant applicants who cannot make a two-hour commute even by road.
+    if (straightLineCommuteLowerBoundHours(origin, building, SPECIES_CONFIG[EntityType.Human].speed)
+      > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (!isWithinAssignableCommute(
+      candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById,
     )) continue;
-    if (worker && bestNear === near && distance === bestDistance && skill === bestSkill) {
+    const skill = readSkill(candidate, job);
+    if (worker && (distance > bestDistance || (distance === bestDistance && skill < bestSkill))) continue;
+    if (worker && distance === bestDistance && skill === bestSkill) {
       const bestFit = evaluateWorkerFit(worker, job);
       const candidateFit = evaluateWorkerFit(candidate, job);
       if (candidateFit.creditedDays < bestFit.creditedDays
@@ -542,7 +626,6 @@ export function assignWorkerInPlace(
           && candidateFit.traitFactor <= bestFit.traitFactor)) continue;
     }
     worker = candidate;
-    bestNear = near;
     bestDistance = distance;
     bestSkill = skill;
   }
@@ -620,7 +703,7 @@ export function assignBuilderInPlace(
     })
     .find((h) => {
       const site = (buildingById?.get(h.workerBuildingId!) ?? allBuildings.find((b) => b.id === h.workerBuildingId));
-      if (!site || !site.completed || isManualStaffingBuilding(site)) return false;
+      if (!site || !site.completed) return false;
       const staffed = countWorkersAtBuilding(humans, site.id);
       // Construction must not strip the last ordinary producer or protected food/guard crew.
       // This is the same donor-coverage invariant that job rebalancing applies.
@@ -763,10 +846,42 @@ export function staffConstructionCrews(
   }
 }
 
+/** Under the survival policy, reserve reachable unemployed adults for food
+ * production before builders take the same idle pool. Waiting for a deficit
+ * would make "feed the colony first" reactive rather than preventative.
+ * Established jobs/crews stay put; the normal job-transition owner is reused.
+ */
+function staffFoodJobsBeforeConstruction(
+  alive: Entity[],
+  buildings: Building[],
+  world: WorldState | undefined,
+  buildingById: ReadonlyMap<number, Building>,
+): void {
+  if (!world || getWorkforcePolicy(world) !== 'survival') return;
+  const foodJobs = completedJobBuildings(buildings, 'survival').filter((site) =>
+    site.type === BuildingType.Farm || site.type === BuildingType.Greenhouse
+    || site.type === BuildingType.FishingSpot || site.type === BuildingType.HuntingSpot);
+  if (foodJobs.length === 0) return;
+  const constructionIds = new Set<number>();
+  for (const site of buildings) {
+    if (!site.completed) for (const id of site.occupants) constructionIds.add(id);
+  }
+  const workerCounts = new Map<number, number>();
+  for (const human of alive) {
+    if (human.workerBuildingId != null) {
+      workerCounts.set(human.workerBuildingId, (workerCounts.get(human.workerBuildingId) ?? 0) + 1);
+    }
+  }
+  for (const site of foodJobs) {
+    while (assignWorkerInPlace(site, alive, buildings, world, constructionIds, buildingById, workerCounts)) {
+      // Only unassigned, reachable adults; leave incumbent jobs untouched.
+    }
+  }
+}
+
 export function staffJobBuildings(
   alive: Entity[],
   buildings: Building[],
-  includeManualStaff: boolean,
   worldSlices?: Pick<WorldState, 'tavernSchedule' | 'hotelSchedule'> & Partial<Pick<WorldState, 'tick'>>,
   policy: WorkforcePolicy = DEFAULT_WORKFORCE_POLICY,
   buildingIndex?: ReadonlyMap<number, Building>,
@@ -788,21 +903,57 @@ export function staffJobBuildings(
   const staffStart = profileStart();
   for (let i = 0; i < jobBuildings.length; i++) {
     const building = jobBuildings[i];
-    if (!includeManualStaff && isManualStaffingBuilding(building)) continue;
     while (assignWorkerInPlace(building, alive, buildings, worldSlices, constructionWorkerIds, buildingById, workerCounts)) {
       // Fill job slots
     }
   }
   profileEnd('workforce.staff', staffStart);
 
-  if (!includeManualStaff) {
-    const rebalanceStart = profileStart();
-    rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick);
-    profileEnd('workforce.rebalance', rebalanceStart);
-  }
+  const rebalanceStart = profileStart();
+  const world = worldSlices as WorldState | undefined;
+  const urgentFood = world?.entities && world.resources && hasFoodStaffingPressure(world);
+  rebalanceJobWorkers(alive, buildings, policy, worldSlices?.tick, !!urgentFood);
+  profileEnd('workforce.rebalance', rebalanceStart);
   const syncStart = profileStart();
   syncJobBuildingOccupants(alive, buildings);
   profileEnd('workforce.syncOccupants', syncStart);
+}
+
+/**
+ * Cheap event fingerprint for automatic employment. Assignment reconciliation is NOT a
+ * daily job lottery: this only changes when a job, worker eligibility, home, building
+ * capacity or survival priority changes. A weekly repair pulse covers environmental
+ * route changes that do not mutate those fields. It is intentionally O(player humans + buildings), whereas
+ * filling/transfer candidate evaluation can involve bounded path searches.
+ */
+const lastWorkforceSignature = new WeakMap<WorldState, string>();
+function workforceSignature(world: WorldState, humans: readonly Entity[]): string {
+  const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
+  const priority = getWorkforcePolicy(world);
+  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}:${Number(isAcuteFoodStaffingEmergency(world))}:${Number(hasFoodStaffingPressure(world))}`;
+  const residenceIds = new Set(world.buildings
+    .filter((site) => site.completed && site.faction !== 'rival' && isResidenceBuildingType(site.type))
+    .map((site) => site.id));
+  const residents = humans.map((human) => {
+    // A timestamp alone cannot invalidate this cache when a 60-day transfer
+    // cooldown expires. Include the owner's current eligibility verdict,
+    // which flips exactly when the settler becomes transferable again.
+    const transferable = human.workerBuildingId != null
+      && canAutoChangeWorkplace(human, world.tick);
+    // Unhoused applicants use their CURRENT position as the commute origin.
+    // Invalidate on path-cell changes, not every animation step or tiny walk.
+    // An invalid saved residence is likewise absent from the resolved homes.
+    const unhousedApplicant = human.workerBuildingId == null
+      && (human.residenceBuildingId == null || !residenceIds.has(human.residenceBuildingId));
+    const originCell = unhousedApplicant
+      ? `${Math.floor(human.x / PATH_CELL)},${Math.floor(human.y / PATH_CELL)}`
+      : '';
+    return `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${transferable ? 1 : 0}:${originCell}:${human.faction ?? ''}`;
+  });
+  const sites = world.buildings.map((site) =>
+    `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.faction ?? ''}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
+  );
+  return `${week}|${priority}|${resourceNeeds}|${residents.join(';')}|${sites.join(';')}`;
 }
 
 /**
@@ -816,14 +967,33 @@ export function assignMissingWorkers(
     WorldState,
     'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
   > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
+  forceReconcile = false,
 ): void {
+  // A full WorldState is used by all production callers; the optional slices form
+  // keeps unit-level API callers backwards compatible without shared cache state.
+  const world = worldSlices as WorldState | undefined;
+  const cacheable = world?.entities != null && world.entities.length >= humans.length
+    && world.buildings === buildings && world.tick != null;
+  if (world && cacheable) {
+    const signature = workforceSignature(world, humans);
+    if (!forceReconcile && lastWorkforceSignature.get(world) === signature) return;
+  }
+
+  // Each actual staffing event has a bounded route-search budget, shared with
+  // the canonical commute owner and cached for the current path-grid generation.
+  beginCommuteRoutePass();
   const prepStart = profileStart();
+  // Old manual flags never displace established employees.
+  for (const building of buildings) {
+    if (building.faction !== 'rival' && BUILDING_JOB_TYPES[building.type]
+      && building.staffingMode === 'manual') building.staffingMode = 'auto';
+  }
   const alive = prepareWorkforce(humans, buildings);
   profileEnd('workforce.prepare', prepStart);
   const buildingById = new Map(buildings.map((building) => [building.id, building]));
   const policy = getWorkforcePolicy(worldSlices ?? {});
   // Reserve one idle producer when a core material is exhausted, before builders
-  // consume every free hand. Existing jobs and manual staffing are untouched.
+  // consume every free hand. Existing jobs remain assigned.
   if (worldSlices?.resources) {
     for (const [resource, type] of [
       ['wood', BuildingType.LumberMill],
@@ -832,17 +1002,32 @@ export function assignMissingWorkers(
       if (worldSlices.resources[resource] > 0) continue;
       const producer = buildings.find((site) =>
         site.completed && site.faction !== 'rival' && site.type === type
-        && !isManualStaffingBuilding(site) && countWorkersAtBuilding(alive, site.id) === 0,
+        && countWorkersAtBuilding(alive, site.id) === 0,
       );
       if (producer) assignWorkerInPlace(producer, alive, buildings, worldSlices, undefined, buildingById);
     }
   }
+  // Survival prioritizes future food output before construction, even when the
+  // larder is still full; other presets retain the normal construction order.
+  staffFoodJobsBeforeConstruction(alive, buildings, world, buildingById);
   const constructionStart = profileStart();
   staffConstructionCrews(alive, buildings, policy, worldSlices?.tick);
   profileEnd('workforce.construction', constructionStart);
   const jobsStart = profileStart();
-  staffJobBuildings(alive, buildings, false, worldSlices, policy, buildingById);
+  staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
+  if (world && cacheable) {
+    if (wereCommuteRouteChecksDeferred()) {
+      // No route was proved unreachable: we simply ran out of search budget.
+      // Discard even a previously cached signature so the next scheduled
+      // assignment pulse gets a fresh budget and retries these vacancies.
+      lastWorkforceSignature.delete(world);
+    } else {
+      // Only a fully priced pass may be cached. Unchanged future pulses can
+      // skip expensive matching without starving deferred applicants.
+      lastWorkforceSignature.set(world, workforceSignature(world, humans));
+    }
+  }
 }
 
 export function countWorkingAndIdleSettlers(

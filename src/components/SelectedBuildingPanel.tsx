@@ -39,9 +39,8 @@ import type { HuntingSpotPrey } from '../game/gameTypes';
 import { getBuildingConfig } from '../game/buildingConfig';
 import { getWorkSchedule, getWorkScheduleLabel } from '../game/workSchedule';
 import { formatRaidDeadline } from '../game/frontierCombat';
-import { isManualStaffingBuilding, staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
+import { staffingCapFor, SMITH_BONUS_PER_WORKER, SMITH_BONUS_CAP } from '../game/workforce';
 import { explainBuildingStaffing } from '../game/dashboardData';
-import { listAssignableWorkersForBuilding } from '../game/buildingStaffingActions';
 import { getSettlerWorkReason, getUnstaffedPostNote, workplaceDutyLabel } from '../game/workAbsence';
 import { playerHumansFrom } from '../game/playerHuman';
 import { getWorkerSkillMultiplier } from '../game/skills';
@@ -51,7 +50,7 @@ import { MILL_FOOD_PRODUCTION_MULT } from '../game/dailyBuildingEconomy';
 import { PRESERVE_HEALTH_BONUS } from '../game/dailyEcology';
 import { BARN_ADJACENCY_BONUS } from '../game/adjacencyIndex';
 import { siloFoodStorageForLevel, storehouseStorageForLevel } from '../game/economy';
-import type { Building, WorldState, Entity } from '../game/gameEngine';
+import type { Building, WorldState } from '../game/gameEngine';
 import type { ForgeOrderId, RaidChoice } from '../game/gameTypes';
 import type { RivalSettlement } from '../game/gameTypes';
 import type { WorkerCommand } from '../game/simWorker/commands';
@@ -170,10 +169,6 @@ export interface SelectedBuildingPanelProps {
   building: Building;
   state: WorldState;
   onAssign: () => void;
-  onAutoStaffAll: () => void;
-  onAssignWorker: (humanId: number) => void;
-  assignableWorkers: Entity[];
-  onRemove: (id: number) => void;
   onRepair: () => void;
   onUpgrade: () => void;
   onDemolish: () => void;
@@ -181,7 +176,6 @@ export interface SelectedBuildingPanelProps {
   onSetWorkshopRecipe?: (recipeId: string) => void;
   onSetHuntingPrey?: (prey: HuntingSpotPrey) => void;
   onSetMineMode?: (mode: MineMode) => void;
-  onSetStaffingMode?: (mode: 'auto' | 'manual') => void;
   onQueueForge?: (orderId: ForgeOrderId) => void;
   canAssignWorker: boolean;
   onDiplomacyAction?: (cmd: WorkerCommand) => void;
@@ -190,7 +184,7 @@ export interface SelectedBuildingPanelProps {
 }
 
 export default function SelectedBuildingPanel({
-  building, state, onAssign, onAutoStaffAll, onAssignWorker, assignableWorkers, onRemove, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onSetStaffingMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
+  building, state, onAssign, onRepair, onUpgrade, onDemolish, onToggleGate, onSetWorkshopRecipe, onSetHuntingPrey, onSetMineMode, onQueueForge, canAssignWorker, onDiplomacyAction, onTownHallAction, onFocusCamp,
 }: SelectedBuildingPanelProps) {
   // Demolish confirmation is armed for the current building only, so switching
   // to another building automatically resets it (no effect required).
@@ -403,14 +397,6 @@ export default function SelectedBuildingPanel({
 
   const config = getBuildingConfig(building.type);
   const isHousing = isResidenceBuildingType(building.type);
-  /**
-   * Whether this building staffs by hand. The rule (including the per-type default for a building that
-   * has never been set) is `workforce.isManualStaffingBuilding` — the panel used to restate it in two
-   * places, which is how the toggle and the worker list could disagree (audit C2).
-   */
-  const isManualStaffing = isManualStaffingBuilding(building);
-  /** The mode the buttons highlight: the owner's verdict, not a second reading of `staffingMode`. */
-  const effectiveStaffingMode: 'auto' | 'manual' = isManualStaffing ? 'manual' : 'auto';
   const residenceCap = isHousing ? getResidenceCapacity(building) : config.maxOccupants;
   /**
    * The staffing owner's cap and count for a finished workplace: a Prison's occupant list is guards ∪
@@ -527,7 +513,7 @@ export default function SelectedBuildingPanel({
             <p className="text-[10px] text-stone-300">Terrain + nearby buildings (not worker skill)</p>
           </>
         )}
-        {building.completed && BUILDING_JOB_TYPES[building.type] && !isManualStaffing && (
+        {building.completed && BUILDING_JOB_TYPES[building.type] && (
           <p className="text-[11px] text-sky-300">
             {building.type === BuildingType.Hospital
               ? 'Workers are assigned here automatically, with day, evening and night shifts.'
@@ -564,7 +550,7 @@ export default function SelectedBuildingPanel({
           </div>
         )}
         {building.completed && building.type === BuildingType.Church && (
-          <p className="text-[11px] text-violet-300">Priest is manual only — pick below, or leave empty (no curse cures).</p>
+          <p className="text-[11px] text-violet-300">Priests are assigned automatically when eligible workers are available.</p>
         )}
         {building.completed && building.type === BuildingType.Prison && (() => {
           const byId = ensureEntityByIdMap(state);
@@ -980,73 +966,16 @@ export default function SelectedBuildingPanel({
           {getUnstaffedPostNote(building) && (
             <p className="mb-1 text-[11px] text-amber-200">{getUnstaffedPostNote(building)}</p>
           )}
-          {building.completed && BUILDING_JOB_TYPES[building.type] && isManualStaffing && assignableWorkers.length > 0 && staffedWorkers < staffingCap && (
-            <div className="mb-1 max-h-28 space-y-1 overflow-y-auto">
-              <p className="text-[10px] text-stone-300">
-                {building.type === BuildingType.Church ? 'Choose priest:' : 'Choose worker:'}
-              </p>
-              {/* The picker arrives sliced to the owner's cap; the same owner list uncapped counts the rest. */}
-              {(() => {
-                const hidden = listAssignableWorkersForBuilding(state, building.id, state.entities.length).length
-                  - assignableWorkers.length;
-                if (hidden <= 0) return null;
-                return (
-                  <p className="text-[10px] text-stone-400">
-                    +{hidden} more settler{hidden === 1 ? '' : 's'} can take this job — assign one to see the rest.
-                  </p>
-                );
-              })()}
-              {assignableWorkers.map((h) => (
-                <button
-                  key={h.id}
-                  onClick={() => onAssignWorker(h.id)}
-                  className={`block w-full rounded px-2 py-1 text-left text-[11px] font-semibold text-white ${
-                    building.type === BuildingType.Church
-                      ? 'bg-violet-700/80 hover:bg-violet-600'
-                      : 'bg-emerald-700/80 hover:bg-emerald-600'
-                  }`}
-                >
-                  {building.type === BuildingType.Church ? '⛪ ' : '👷 '}
-                  {citizenFullName(h)}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="grid grid-cols-2 gap-1">
-          {canAssignWorker && staffedWorkers < staffingCap && assignableWorkers.length === 0 && (
+          {!building.completed && canAssignWorker && staffedWorkers < staffingCap && (
             <button onClick={onAssign} className="rounded bg-emerald-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500 transition-all">
               + {!building.completed ? 'Fill builders' : 'Fill workers'}
             </button>
           )}
           {building.completed && BUILDING_JOB_TYPES[building.type] && (
-            <>
-            <div className="col-span-2 rounded border border-sky-700/40 bg-sky-950/30 p-1.5">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-sky-300">Staffing</p>
-              <div className="grid grid-cols-2 gap-1">
-                {(['auto', 'manual'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => onSetStaffingMode?.(mode)}
-                    className={`rounded px-1.5 py-1 text-[10px] font-semibold ${
-                      effectiveStaffingMode === mode
-                        ? 'bg-sky-600 text-white ring-1 ring-sky-300'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >{mode === 'auto' ? 'Auto-fill' : 'Manual'}</button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onAutoStaffAll}
-              className="col-span-2 rounded border border-sky-600/50 bg-sky-900/40 px-2 py-1 text-[11px] font-semibold text-sky-200 hover:bg-sky-800/50"
-            >
-              Enable Auto-fill for all workplaces
-            </button>
-            </>
+            <p className="col-span-2 text-[11px] text-sky-300">Employment is automatic; existing jobs are retained.</p>
           )}
-          {!canAssignWorker && staffedWorkers < staffingCap && (
+          {!building.completed && !canAssignWorker && staffedWorkers < staffingCap && (
             <div className="col-span-2 space-y-0.5">
               <p className="text-[11px] text-stone-300">
                 No idle settlers — recruit or free up workers.
@@ -1068,33 +997,6 @@ export default function SelectedBuildingPanel({
               )}
             </div>
           )}
-          {!isHousing && isManualStaffing && (() => {
-            // A Prison's occupant list is guards ∪ prisoners (`workforce.syncJobBuildingOccupants`), so
-            // listing it here announced prisoners as its "Current workers" — the owner's eight-row
-            // roster of seven guards and a cellmate. Only the posts are staff.
-            if (staffRosterIds.length === 0) return null;
-            return (
-            <div className="col-span-2 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Assigned workers (not necessarily present)</p>
-              {staffRosterIds.map((occupantId) => {
-                const worker = state.entities.find((e) => e.id === occupantId);
-                return (
-                  <div key={occupantId} className="flex items-center justify-between gap-2 rounded bg-stone-700/40 px-2 py-1">
-                    <span className="truncate text-[11px] font-semibold text-white">
-                      {worker ? citizenFullName(worker) : SETTLER_NAME_FALLBACK}
-                    </span>
-                    <button
-                      onClick={() => onRemove(occupantId)}
-                      className="shrink-0 rounded bg-amber-600 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-amber-500"
-                    >
-                      − Remove
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            );
-          })()}
           </div>
         </CollapsibleSection>
       )}

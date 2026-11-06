@@ -57,7 +57,7 @@ export type WorkerCommand =
   | { proto: 1; op: 'setWorkshopRecipe'; buildingId: number; recipeId: string }
   | { proto: 1; op: 'setHuntingSpotPrey'; buildingId: number; prey: HuntingSpotPrey }
   | { proto: 1; op: 'setMineMode'; buildingId: number; mode: MineMode }
-  | { proto: 1; op: 'setBuildingStaffingMode'; buildingId: number; mode: 'auto' | 'manual' }
+  | { proto: 1; op: 'setBuildingStaffingMode'; buildingId: number; mode: 'auto' }
   | { proto: 1; op: 'queueForgeOrder'; buildingId: number; orderId: ForgeOrderId }
   | { proto: 1; op: 'recruitSettler' }
   | { proto: 1; op: 'tameEntity'; entityId: number; humanId: number }
@@ -254,7 +254,7 @@ function validateWorkerCommandShape(cmd: { op: WorkerCommand['op'] } & Record<st
         (MINE_ORES as readonly string[]).includes(cmd.mode)
       );
     case 'setBuildingStaffingMode':
-      return isFiniteNumber(cmd.buildingId) && (cmd.mode === 'auto' || cmd.mode === 'manual');
+      return isFiniteNumber(cmd.buildingId) && cmd.mode === 'auto';
     case 'queueForgeOrder':
       return isFiniteNumber(cmd.buildingId) && typeof cmd.orderId === 'string' && getForgeOrderIds().has(cmd.orderId);
     case 'recruitSettler':

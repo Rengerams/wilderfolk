@@ -1669,7 +1669,7 @@ function hasSinglesOnlyResidenceWithRoom(
   });
 }
 
-/** Lowest member id — a stable key that does not depend on the settler input order. */
+/** Lowest current member ID: deterministic regardless of input order, but not persistent across deaths or household splits. */
 function lowestMemberId(unit: readonly Entity[]): number {
   let lowest = Infinity;
   for (const member of unit) if (member.id < lowest) lowest = member.id;
@@ -1677,8 +1677,13 @@ function lowestMemberId(unit: readonly Entity[]): number {
 }
 
 /**
- * Which sweep bucket a housing unit belongs to, from its lowest member id — a stable key, so a unit
- * cannot drift between buckets as its members come and go.
+ * Deterministic CURRENT sweep bucket, not a persisted household identity. When the
+ * lowest-ID member leaves or dies, the remaining unit can move to another bucket.
+ * That is safe: each day's four pulses cover all buckets, and the final pulse
+ * revisits every housing unit against current occupancy. Mandatory homelessness,
+ * custody and capacity repairs are also handled independently of this hash.
+ * Persisting a separate household ID would create save/migration state without
+ * fixing any missed relocation in the existing bounded daily sweep.
  */
 export function housingUnitBucket(unit: Entity[], buckets: number): number {
   return lowestMemberId(unit) % buckets;

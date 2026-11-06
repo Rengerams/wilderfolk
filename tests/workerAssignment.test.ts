@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize, BuildingType, JobType } from '../src/game/gameTypes';
 import type { Building, Entity } from '../src/game/gameTypes';
-import { listAssignableWorkersForBuilding } from '../src/game/buildingStaffingActions';
+import { canAssignWorkerToBuilding } from '../src/game/buildingStaffingActions';
 import { setBuildingStaffingMode } from '../src/game/buildingConfigurationActions';
 import { assignWorkerInPlace } from '../src/game/workforce';
 import { building as buildingFixture, human } from '../src/test/factories';
@@ -35,20 +35,12 @@ function makeFarm(id: number): Building {
 }
 
 describe('B2 worker assignment panel truth', () => {
-  it('listAssignableWorkersForBuilding returns only unemployed adults', () => {
+  it('does not offer a manual selector for a completed Farm', () => {
     const state = initGame({ size: MapSize.Medium, seed: 1 });
     const farm = makeFarm(100);
     state.buildings.push(farm);
-    state.entities.push(
-      makeWorker(1, 100), // employed farmer
-      makeWorker(2, undefined), // unemployed
-      makeWorker(3, 101), // employed elsewhere; one farm post remains open
-    );
-    const assignable = listAssignableWorkersForBuilding(state, 100);
-    const ids = assignable.map((e) => e.id);
-    expect(ids).toContain(2);
-    expect(ids).not.toContain(1);
-    expect(ids).not.toContain(3);
+    state.entities.push(makeWorker(1, undefined));
+    expect(canAssignWorkerToBuilding(state, 100)).toBe(false);
   });
 
   it('assignWorkerInPlace prefers the closest available settler over a distant expert', () => {
@@ -71,12 +63,12 @@ describe('B2 worker assignment panel truth', () => {
     expect(far.workerBuildingId).toBeUndefined();
   });
 
-  it('setBuildingStaffingMode persists auto/manual mode', () => {
+  it('setBuildingStaffingMode rejects manual mode', () => {
     const state = initGame({ size: MapSize.Medium, seed: 1 });
     const farm = makeFarm(100);
     state.buildings.push(farm);
     const next = setBuildingStaffingMode(state, 100, 'manual');
-    expect(next.buildings.find((b) => b.id === 100)?.staffingMode).toBe('manual');
+    expect(next).toBe(state);
     const next2 = setBuildingStaffingMode(state, 100, 'auto');
     expect(next2.buildings.find((b) => b.id === 100)?.staffingMode).toBe('auto');
   });

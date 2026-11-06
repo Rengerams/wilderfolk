@@ -166,6 +166,17 @@ function parkBeforeDayBoundary(state: WorldState): WorldState {
 }
 
 describe('the residency sweep is spread across the day', () => {
+  it('uses the current membership hash without mistaking it for a persistent household ID', () => {
+    // When the lowest-ID family member leaves, a unit may move to another
+    // scheduled bucket. The daily pulse coverage and final all-units revisit,
+    // not a persisted ID, guarantee eventual reconciliation.
+    const first = { id: 1 } as Entity;
+    const remaining = { id: 2 } as Entity;
+    expect(housingUnitBucket([remaining, first], RESIDENCE_SWEEP_BUCKETS)).toBe(1);
+    expect(housingUnitBucket([remaining], RESIDENCE_SWEEP_BUCKETS)).toBe(2);
+    expect(DAY_PULSES.length).toBe(RESIDENCE_SWEEP_BUCKETS);
+  });
+
   it('pins the bucket count to the assignment layer cadence, so no bucket is unreachable', () => {
     expect(RESIDENCE_SWEEP_BUCKETS * LAYER_ASSIGN_INTERVAL).toBe(TICKS_PER_DAY);
   });

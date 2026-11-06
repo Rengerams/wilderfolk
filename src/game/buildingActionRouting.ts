@@ -22,8 +22,10 @@ export function assignIdleWorkerToBuilding(
   const building = originalState.buildings.find((candidate) => candidate.id === buildingId);
 
   // Unfinished buildings always take builders, never residents.
-  if (building?.completed && isResidenceBuildingType(building.type)) {
-    return assignResidentToBuilding(originalState, buildingId, ownership);
+  if (building?.completed) {
+    return isResidenceBuildingType(building.type)
+      ? assignResidentToBuilding(originalState, buildingId, ownership)
+      : originalState;
   }
 
   return assignStaffWorkerToBuilding(originalState, buildingId, preferredHumanId, ownership);

@@ -145,6 +145,7 @@ export interface PathGrid {
 
 let gridCache: PathGrid | null = null;
 let gridCacheSeed = '';
+let gridCacheMap: WorldMap | null = null;
 
 /**
  * The passability grid's cache identity. The seed alone does not identify the tiles: two maps can
@@ -219,12 +220,13 @@ function buildPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
 /** The simulation's grid. `setCurrentPathMap` swaps `currentGrid` and clears the waypoint cache. */
 export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cacheKey = pathGridCacheKey(map, buildings);
-  if (gridCache && gridCacheSeed === cacheKey) {
+  if (gridCache && gridCacheMap === map && gridCacheSeed === cacheKey) {
     return gridCache;
   }
   recordGridRebuild();
   gridCache = buildPathGrid(map, buildings);
   gridCacheSeed = cacheKey;
+  gridCacheMap = map;
   return gridCache;
 }
 
@@ -243,14 +245,16 @@ export function getPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
  */
 let readOnlyGridCache: PathGrid | null = null;
 let readOnlyGridCacheSeed = '';
+let readOnlyGridCacheMap: WorldMap | null = null;
 
 export function getReadOnlyPathGrid(map: WorldMap, buildings?: Building[]): PathGrid {
   const cacheKey = pathGridCacheKey(map, buildings);
-  if (readOnlyGridCache && readOnlyGridCacheSeed === cacheKey) {
+  if (readOnlyGridCache && readOnlyGridCacheMap === map && readOnlyGridCacheSeed === cacheKey) {
     return readOnlyGridCache;
   }
   readOnlyGridCache = buildPathGrid(map, buildings);
   readOnlyGridCacheSeed = cacheKey;
+  readOnlyGridCacheMap = map;
   return readOnlyGridCache;
 }
 
@@ -296,8 +300,10 @@ export function nearestWalkableWorldPoint(
 export function resetPathGridCaches(): void {
   gridCache = null;
   gridCacheSeed = '';
+  gridCacheMap = null;
   readOnlyGridCache = null;
   readOnlyGridCacheSeed = '';
+  readOnlyGridCacheMap = null;
   searchWorkspace = undefined;
 }
 

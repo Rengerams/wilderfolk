@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { WorldState, Entity } from './gameTypes';
 import { EntityType, BUILDING_CONFIGS } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { countActiveMoonHowlerCurses, isActiveMoonHowler } from './moonHowler';
 import { buildFamilyGroups, hasWorkAssignment, isImprisoned } from './housingModel';
 import { isVillageLeader } from './villageLeadership';
 import { getPopulationGrowthReport, resolvePopulationCap } from './populationGrowth';
@@ -106,12 +107,8 @@ export default function PopulationPanel({
   // of its own — adults, children, jailed, working and idle all come from `villageStats`, and the
   // immigration cap from `resolvePopulationCap`.
   const villageStats = computeVillageStats(state);
-  const moonHowlerCursed = state.entities.filter(
-    (e) => e.alive && isPlayerHuman(e) && e.moonHowlerCursed,
-  ).length
-    + state.entities.filter(
-      (e) => e.alive && e.type === EntityType.Werewolf && e.moonHowlerCursed && e.faction !== 'visitor' && e.faction !== 'rival',
-    ).length;
+  const moonHowlerCursed = countActiveMoonHowlerCurses(state.entities);
+  const moonHowlerTransformed = state.entities.filter(isActiveMoonHowler).length;
   const capacity = resolvePopulationCap(state);
   const beds = villageStats.beds;
 
@@ -178,9 +175,12 @@ export default function PopulationPanel({
 
       {moonHowlerCursed > 0 && (
         <div className="mb-3 rounded-lg border border-violet-500/35 bg-violet-950/35 px-2.5 py-2 text-[13px] text-violet-200">
-          <p className="font-bold">🌝 {moonHowlerCursed} Moon Howler curse{moonHowlerCursed === 1 ? '' : 's'} active</p>
+          <p className="font-bold">🌝 {moonHowlerTransformed > 0
+            ? `${moonHowlerTransformed} Moon Howler${moonHowlerTransformed === 1 ? '' : 's'} transformed — active`
+            : `${moonHowlerCursed} Moon Howler curse${moonHowlerCursed === 1 ? '' : 's'} — dormant`}</p>
           <p className="mt-0.5 text-[13px] text-violet-300/90">
-            Still cursed: 🌝 on name below · on full-moon nights (20:00–06:00), priests leave the Church to hunt the howler — the rite fires when they get close (guards can protect them) · Log: &quot;was cured of the Moon Howler curse&quot;
+            {moonHowlerTransformed > 0 ? 'Transformed and hunting now. ' : 'Cursed settlers are currently human. '}
+            The curse persists until cured; transformation occurs on full-moon nights (22:00–06:00). Priests can attempt a cure when close enough, with guards protecting them.
           </p>
         </div>
       )}

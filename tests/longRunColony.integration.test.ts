@@ -111,6 +111,20 @@ describe('90-day producer colony integration', () => {
       }
 
       const verdict = verdictFor(run);
+      const finalStaffing = {
+        adults: run.world.entities.filter((person) => person.alive && person.type === 'human' && !person.isJuvenile && person.faction !== 'rival').length,
+        idleAdults: run.world.entities.filter((person) => person.alive && person.type === 'human' && !person.isJuvenile
+          && person.faction !== 'rival' && person.workerBuildingId == null && person.prisonBuildingId == null).length,
+        constructionSites: run.world.buildings.filter((building) => !building.completed)
+          .map((building) => ({ id: building.id, type: building.type, crew: building.occupants.length })),
+        foodSites: run.world.buildings.filter((building) => building.completed
+          && ['farm', 'greenhouse', 'fishingSpot', 'huntingSpot'].includes(building.type))
+          .map((building) => ({
+            id: building.id, type: building.type, x: building.x, y: building.y,
+            assigned: run.world.entities.filter((person) => person.alive
+              && person.type === 'human' && person.workerBuildingId === building.id).length,
+          })),
+      };
 
       expect(
         formatColonyStallVerdict(verdict),
@@ -123,7 +137,7 @@ describe('90-day producer colony integration', () => {
             farmWorkers: checkpoint.workforce.assignedFarmWorkers,
             settlers: checkpoint.housing.occupiedBeds + checkpoint.housing.homelessPlayerHumans,
           })),
-        )}`,
+        )}; staffing=${JSON.stringify(finalStaffing)}`,
       ).toBe('healthy');
       expect(verdict.reasons).toEqual([]);
       const settlers =

@@ -28,7 +28,6 @@ import { createEntity } from '../src/game/entityFactory';
 import {
   assignBuilderToBuilding,
   canAssignWorkerToBuilding,
-  listAssignableWorkersForBuilding,
 } from '../src/game/buildingStaffingActions';
 
 const FIXTURE_SEED = 20_260_917;
@@ -59,16 +58,9 @@ function world(): WorldState {
 }
 
 describe('a pregnant settler is assignable to work (L4)', () => {
-  it('appears in the roster of assignable workers', () => {
+  it('does not offer individual job selection for a pregnant adult', () => {
     const state = world();
-
-    expect(listAssignableWorkersForBuilding(state, MILL_ID).map((e) => e.id)).toContain(HER_ID);
-  });
-
-  it('enables the assign button for a completed job building', () => {
-    const state = world();
-
-    expect(canAssignWorkerToBuilding(state, MILL_ID)).toBe(true);
+    expect(canAssignWorkerToBuilding(state, MILL_ID)).toBe(false);
   });
 
   it('enables the assign button for an unfinished site', () => {

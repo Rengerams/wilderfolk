@@ -9,9 +9,9 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  *
  * These tests exercise the named transitions (assignWorkerTransition /
  * removeWorkerTransition / transferWorkerBetweenBuildings / addToConstructionCrew)
- * and the manual command surface (assignIdleWorkerToBuilding /
- * removeWorkerFromBuilding), verifying duplicate prevention, leader
- * assignment, reassignment, removal, idle-worker counts, and that the
+ * and the compatibility command surface (removeWorkerFromBuilding),
+ * verifying duplicate prevention, leader auto-assignment, reassignment,
+ * removal, idle-worker counts, and that the
  * Objective 1 invariants hold after every transition.
  */
 import { describe, expect, it } from 'vitest';
@@ -26,6 +26,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import {
   addToConstructionCrew,
   assignWorkerInPlace,
+  assignMissingWorkers,
   staffConstructionCrews,
   staffJobBuildings,
   assignWorkerTransition,
@@ -37,7 +38,7 @@ import {
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
-import { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
+import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
@@ -277,7 +278,7 @@ describe('workforce named transitions', () => {
     const site = building(10, BuildingType.House, { completed: false, occupants: [builder.id] });
     const farm = building(20, BuildingType.Farm);
 
-    staffJobBuildings([builder, freeWorker], [site, farm], true);
+    staffJobBuildings([builder, freeWorker], [site, farm]);
 
     expect(site.occupants).toEqual([builder.id]);
     expect(farm.occupants).toEqual([freeWorker.id]);
@@ -298,7 +299,7 @@ describe('workforce named transitions', () => {
     expect(lumberMill.occupants).toEqual([settler.id]);
   });
 
-  it('assigns the leader via the manual command without losing office or manor residency', () => {
+  it('automatically assigns the leader without losing office or manor residency', () => {
     const leader = human(1, {
       occupation: LEADER_OCCUPATION,
       job: JobType.Settler,
@@ -308,15 +309,14 @@ describe('workforce named transitions', () => {
     const farm = building(2, BuildingType.Farm);
     const world = makeWorld([leader], [manor, farm]);
 
-    const next = assignIdleWorkerToBuilding(world, 2, 1);
-    const assigned = next.entities.find((e) => e.id === 1)!;
+    assignMissingWorkers(world.entities, world.buildings, world);
 
-    expect(assigned.workerBuildingId).toBe(2);
-    expect(assigned.occupation).toBe(LEADER_OCCUPATION); // office survives
-    expect(assigned.job).toBe(JobType.Farmer);
-    expect(next.buildings.find((b) => b.id === 2)!.occupants).toEqual([1]);
-    expect(assigned.residenceBuildingId).toBe(9); // manor residency intact
-    expect(collectSimulationInvariantErrors(next)).toEqual([]);
+    expect(leader.workerBuildingId).toBe(2);
+    expect(leader.occupation).toBe(LEADER_OCCUPATION);
+    expect(leader.job).toBe(JobType.Farmer);
+    expect(farm.occupants).toEqual([1]);
+    expect(leader.residenceBuildingId).toBe(9);
+    expect(collectSimulationInvariantErrors(world)).toEqual([]);
   });
 
   it('auto-staffs an idle leader like any other settler', () => {
@@ -426,7 +426,7 @@ describe('workforce named transitions', () => {
 });
 
 describe('workforce command surface', () => {
-  it('removeWorkerFromBuilding clears a manual-staff building (Church) without refill', () => {
+  it('immediately re-staffs an automatically managed Church after removing its only priest', () => {
     const priest = human(1, {
       workerBuildingId: 4,
       occupation: JOB_LABELS[JobType.Priest],
@@ -436,11 +436,12 @@ describe('workforce command surface', () => {
     const world = makeWorld([priest], [church]);
 
     const next = removeWorkerFromBuilding(world, 4, 1);
-    const removed = next.entities.find((e) => e.id === 1)!;
+    const reassigned = next.entities.find((e) => e.id === 1)!;
 
-    expect(removed.workerBuildingId).toBeUndefined();
-    expect(removed.occupation).toBe('settler');
-    expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([]);
+    expect(reassigned.workerBuildingId).toBe(4);
+    expect(reassigned.occupation).toBe(JOB_LABELS[JobType.Priest]);
+    expect(next.buildings.find((b) => b.id === 4)!.occupants).toEqual([1]);
+    expect(next.buildings.find((b) => b.id === 4)!.staffingMode).toBe('auto');
     expect(collectSimulationInvariantErrors(next)).toEqual([]);
   });
 });

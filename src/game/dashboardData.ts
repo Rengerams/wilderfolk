@@ -12,6 +12,7 @@
 import type { Building, Entity, Season, WorldState } from './gameTypes';
 import { BUILDING_JOB_TYPES, EntityType } from './gameTypes';
 import { isPlayerHuman } from './playerHuman';
+import { countActiveMoonHowlerCurses, isActiveMoonHowler } from './moonHowler';
 import { TICKS_PER_DAY } from './dayCycle';
 import { getHourOfDay } from './dayCycleClock';
 import { isOnWorkScheduleShift } from './workSchedule';
@@ -28,7 +29,7 @@ import {
   isHomelessSettler,
   isResidenceBuildingType,
 } from './housingModel';
-import { findHumanWorkplace, isManualStaffingBuilding, isOnConstructionCrew, staffingCapFor } from './workforce';
+import { findHumanWorkplace, isOnConstructionCrew, staffingCapFor } from './workforce';
 import { BUILDING_TYPE_CODES } from './buildings';
 import { getBuildingConfig } from './buildingConfig';
 import { formatCitizenName } from './citizenId';
@@ -229,11 +230,8 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
   const imprisoned = village.imprisoned;
   const idleAdults = village.idle;
   const homeless = countHomelessSettlers(state);
-  let howlerCursed = 0;
-  for (const e of state.entities) {
-    if (!e.alive || e.type !== EntityType.Human || !isPlayerHuman(e)) continue;
-    if (e.moonHowlerCursed) howlerCursed++;
-  }
+  const howlerCursed = countActiveMoonHowlerCurses(state.entities);
+  const howlerTransformed = state.entities.filter(isActiveMoonHowler).length;
 
   if (food <= 0) {
     concerns.push({
@@ -289,9 +287,11 @@ function deriveConcerns(state: WorldState, postAbsences: string | null = null): 
     concerns.push({
       id: 'howler',
       severity: 'warning',
-      title: 'Moon Howler curse active',
-      detail: `${howlerCursed} settler${howlerCursed === 1 ? '' : 's'} will hunt on the next full moon.`,
-      hint: 'Staff a Church and keep guards near on full-moon nights.',
+      title: howlerTransformed > 0 ? 'Moon Howler transformed — hunting tonight' : 'Moon Howler curse persists — dormant',
+      detail: howlerTransformed > 0
+        ? `${howlerTransformed} Moon Howler${howlerTransformed === 1 ? '' : 's'} currently transformed; ${howlerCursed} living curse${howlerCursed === 1 ? '' : 's'} remain.`
+        : `${howlerCursed} living settler${howlerCursed === 1 ? '' : 's'} cursed; human until the next full-moon night.`,
+      hint: 'Staff a Church for full-moon cures; Moon Howlers transform from 22:00 to 06:00.',
     });
   }
 
@@ -769,6 +769,7 @@ const STAFFING_REFUSAL_LABELS: Record<WorkerAssignmentRefusal, string> = {
   'residence-building': 'Homes fill themselves — build a House and people move in.',
   'building-full': 'Every slot here is taken.',
   'building-has-no-job': 'This building takes no workers.',
+  'automatic-job': 'Employment is automatic; individual worker selection is unavailable.',
   'not-a-settler': 'Only your own settlers take a job here.',
   'settler-dead': 'They are dead.',
   juvenile: 'Children do not take jobs.',
@@ -788,8 +789,8 @@ export interface StaffingRefusal {
 
 /** Read-only staffing answer for the selected building (`Roadmap_V0_6.4.1.MD` line 25). */
 export interface BuildingStaffingExplanation {
-  /** 'auto' when the daily staffing pass fills this building, 'manual' when only the player does. */
-  mode: 'auto' | 'manual';
+  /** Every workplace is automatically staffed; the field is retained for UI consumers. */
+  mode: 'auto';
   /** Worker/resident slots the cap applies to — the same number the staffing command checks. */
   capacity: number;
   workerCount: number;
@@ -820,10 +821,10 @@ function settlerName(state: WorldState, id: number): string {
 }
 
 /**
- * Read-only staffing explanation for one building: auto/manual mode, capacity, the current workers,
+ * Read-only staffing explanation for one building: automatic mode, capacity, the current workers,
  * and — for any settler the caller names — the staffing owner's own reason for refusing them.
  *
- * Every rule comes from its owner: the mode from `workforce.isManualStaffingBuilding`, the cap from
+ * Every rule comes from its owner: the cap from
  * `BUILDING_CONFIGS` / `housingModel.getResidenceCapacity`, the roster from
  * `housingModel` / the building's occupant list, and the refusals from
  * `buildingStaffingActions.getWorkerAssignmentRefusal`. The panel only renders {@link lines}.
@@ -847,7 +848,6 @@ export function explainBuildingStaffing(
 
   const isResidence = building.completed && isResidenceBuildingType(building.type);
   const takesStaff = !building.completed || BUILDING_JOB_TYPES[building.type] !== undefined;
-  const mode: 'auto' | 'manual' = isManualStaffingBuilding(building) ? 'manual' : 'auto';
   /**
    * A finished workplace's cap and count come from the staffing owner: a Prison's occupant list is
    * guards ∪ prisoners, so that list against the config cap counts cells as guard posts.
@@ -877,9 +877,7 @@ export function explainBuildingStaffing(
     label: 'Mode',
     value: isResidence
       ? 'Auto — residents move in on their own.'
-      : mode === 'manual'
-        ? 'Manual — only you assign workers here.'
-        : 'Auto — the daily staffing pass fills this building.',
+      : 'Auto — jobs persist and vacant posts are filled automatically.',
     tone: 'neutral',
   });
   lines.push({
@@ -900,7 +898,7 @@ export function explainBuildingStaffing(
   // The owner's "nobody can be taken" verdict, in the owner's terms: the building wants staff and has
   // an open slot, yet no settler is free for it.
   const acceptsWorker = canAssignWorkerToBuilding(state, buildingId);
-  if (takesStaff && !isResidence && workerCount < capacity && !acceptsWorker) {
+  if (takesStaff && !building.completed && !isResidence && workerCount < capacity && !acceptsWorker) {
     lines.push({
       label: 'Cannot add workers',
       value: 'No settler is free to take this post — recruit, or free someone from another job.',
@@ -908,7 +906,7 @@ export function explainBuildingStaffing(
     });
   }
 
-  return { mode, capacity, workerCount, acceptsWorker, refusals, lines };
+  return { mode: 'auto', capacity, workerCount, acceptsWorker, refusals, lines };
 }
 
 export type SettlerRouteStopKind = 'home' | 'workplace' | 'venue';
