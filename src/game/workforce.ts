@@ -805,15 +805,15 @@ export function staffJobBuildings(
  * Cheap event fingerprint for automatic employment. Assignment reconciliation is NOT a
  * daily job lottery: this only changes when a job, worker eligibility, home, building
  * capacity or survival priority changes. A weekly repair pulse covers environmental
- * route changes that do not mutate those fields. It is intentionally O(N+B), whereas
+ * route changes that do not mutate those fields. It is intentionally O(player humans + buildings), whereas
  * filling/transfer candidate evaluation can involve bounded path searches.
  */
 const lastWorkforceSignature = new WeakMap<WorldState, string>();
-function workforceSignature(world: WorldState): string {
+function workforceSignature(world: WorldState, humans: readonly Entity[]): string {
   const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
   const priority = getWorkforcePolicy(world);
   const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}`;
-  const residents = world.entities.map((human) =>
+  const residents = humans.map((human) =>
     `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${human.faction ?? ''}`,
   );
   const sites = world.buildings.map((site) =>
@@ -840,7 +840,7 @@ export function assignMissingWorkers(
   const cacheable = world?.entities != null && world.entities.length >= humans.length
     && world.buildings === buildings && world.tick != null;
   if (cacheable) {
-    const signature = workforceSignature(world);
+    const signature = workforceSignature(world, humans);
     if (lastWorkforceSignature.get(world) === signature) return;
   }
 
@@ -881,7 +881,7 @@ export function assignMissingWorkers(
   if (cacheable) {
     // Record POST-reconciliation state so new assignments don't force another
     // heavy pass on the next unchanged six-hour or daily economy pulse.
-    lastWorkforceSignature.set(world, workforceSignature(world));
+    lastWorkforceSignature.set(world, workforceSignature(world, humans));
   }
 }
 
