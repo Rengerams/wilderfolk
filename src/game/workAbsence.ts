@@ -30,7 +30,7 @@ import { canEatColonyMeal } from './simulation/humanNeeds';
 import { humanBuildingTarget, commuteDistanceToBuilding } from './simulation/humanMovement';
 import { commuteLeadHoursFor } from './commuteReach';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { findHumanWorkplace, isManualStaffingBuilding } from './workforce';
+import { findHumanWorkplace } from './workforce';
 import { isImprisoned, isNearResidence } from './housingModel';
 import { isPlayerHuman } from './playerHuman';
 import { getBuildingConfig } from './buildingConfig';
@@ -113,7 +113,7 @@ function resolveShift(
 
   const venueIndex = workplace ? workplace.occupants.indexOf(entity.id) : -1;
   const venueCount = workplace?.occupants.length ?? 0;
-  const autoVenueShifts = workplace?.staffingMode !== 'manual';
+  const autoVenueShifts = true;
   const venueKind = workplace ? VENUE_BY_BUILDING[workplace.type] : undefined;
   const isVenueWorker = venueKind != null && (venueKind === 'tavern' ? isInnkeeper : isHotelier);
   if (venueKind != null && isVenueWorker) {
@@ -278,6 +278,5 @@ export function getWorkplaceRosterReasons(
 export function getUnstaffedPostNote(building: Building): string | null {
   if (!building.completed || building.occupants.length > 0) return null;
   if (BUILDING_CONFIGS[building.type].maxOccupants <= 0) return null;
-  if (!isManualStaffingBuilding(building)) return null;
-  return 'Workplace staffed manually — assign workers here yourself.';
+  return 'No workers assigned yet — workforce staffing will fill available posts.';
 }
