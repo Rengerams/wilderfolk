@@ -218,7 +218,9 @@ function makeWorld(
     // A supplied colony: step 9 answers any resource above its own shortage line,
     // so the default world holds enough iron (the Mine's current line is 120) and tests
     // that care about a shortage set their own stores.
-    resources: { wood: 500, stone: 500, food: 500, gold: 500, iron: 150 },
+    // A settled baseline, not a storage-pressure test: stay below 85% of the
+    // authoritative 300-stone cap (500 stone falsely demands a Store first).
+    resources: { wood: 500, stone: 200, food: 500, gold: 500, iron: 150 },
     storageMax: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 300 },
     season: Season.Spring,
     weather: WeatherType.Clear,
