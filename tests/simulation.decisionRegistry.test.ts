@@ -32,6 +32,7 @@ const REQUIRED_DECISIONS = [
   'humanMeals',
   'workSchedule',
   'workforce',
+  'immigration',
   'school',
   'housing',
   'construction',
