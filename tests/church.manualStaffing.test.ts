@@ -7,8 +7,9 @@ import { BuildingType, JOB_LABELS, JobType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { assignMissingWorkers, rebalanceJobWorkers } from '../src/game/workforce';
 import { assignIdleWorkerToBuilding } from '../src/game/buildingActionRouting';
-import { clearAutoFilledChurches } from '../src/game/saveLoad';
-import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
+import { buildSaveData, loadGameFromParsedOutcome } from '../src/game/saveLoad';
+import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
 import { building, human } from '../src/test/factories';
 
 function makeWorld(entities: Entity[], buildings: Building[]): WorldState {
@@ -68,57 +69,30 @@ describe('Church automatic staffing and continuity', () => {
   });
 });
 
-describe('Church legacy-save migration', () => {
-  it('clears auto-filled Church seats and resets the workers', () => {
-    const priestA = human(1, {
-      workerBuildingId: 4,
-      occupation: JOB_LABELS[JobType.Priest],
-      job: JobType.Priest,
-    });
-    const priestB = human(2, {
-      workerBuildingId: 4,
-      occupation: JOB_LABELS[JobType.Priest],
-      job: JobType.Priest,
-    });
-    const church = building(4, BuildingType.Church, { occupants: [1, 2] });
-    const world = makeWorld([priestA, priestB], [church]);
+describe('Church legacy save compatibility', () => {
+  it('preserves an existing Priest post even without the retired manual-staffing migration marker', () => {
+    const world = initGame({ skipTerrain: true });
+    const priest = world.entities.find((entity) => entity.alive && entity.type === 'human');
+    expect(priest).toBeDefined();
+    if (!priest) return;
 
-    const cleared = clearAutoFilledChurches(world);
+    const church = building(90001, BuildingType.Church, { occupants: [priest.id], staffingMode: 'manual' });
+    world.buildings.push(church);
+    priest.workerBuildingId = church.id;
+    priest.job = JobType.Priest;
+    priest.occupation = JOB_LABELS[JobType.Priest];
+    world.appliedSaveMigrations = [];
 
-    expect(cleared).toBe(2);
-    expect(church.occupants).toEqual([]);
-    expect(priestA.workerBuildingId).toBeUndefined();
-    expect(priestA.occupation).toBe('settler');
-    expect(priestA.job).toBe(JobType.Settler);
-    expect(priestB.workerBuildingId).toBeUndefined();
-    expect(collectSimulationInvariantErrors(world)).toEqual([]);
-  });
+    const payload = structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
+    const restored = loadGameFromParsedOutcome(payload);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
 
-  it('is idempotent — a second run clears nothing', () => {
-    const priest = human(1, { workerBuildingId: 4 });
-    const church = building(4, BuildingType.Church, { occupants: [1] });
-    const world = makeWorld([priest], [church]);
-
-    expect(clearAutoFilledChurches(world)).toBe(1);
-    expect(clearAutoFilledChurches(world)).toBe(0);
-    expect(church.occupants).toEqual([]);
-  });
-
-  it('never touches a rival settlement Church', () => {
-    const rivalPriest = human(1, {
-      workerBuildingId: 7,
-      occupation: JOB_LABELS[JobType.Priest],
-      job: JobType.Priest,
-      faction: 'rival',
-    });
-    const rivalChurch = building(7, BuildingType.Church, {
-      occupants: [1],
-      faction: 'rival',
-    });
-    const world = makeWorld([rivalPriest], [rivalChurch]);
-
-    expect(clearAutoFilledChurches(world)).toBe(0);
-    expect(rivalChurch.occupants).toEqual([1]);
-    expect(rivalPriest.workerBuildingId).toBe(7);
+    const loadedPriest = restored.world.entities.find((entity) => entity.id === priest.id);
+    const loadedChurch = restored.world.buildings.find((site) => site.id === church.id);
+    expect(loadedPriest?.workerBuildingId).toBe(church.id);
+    expect(loadedPriest?.job).toBe(JobType.Priest);
+    expect(loadedChurch?.occupants).toContain(priest.id);
+    expect(loadedChurch?.staffingMode).toBe('auto');
   });
 });
