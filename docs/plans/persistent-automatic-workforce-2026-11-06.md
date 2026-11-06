@@ -1,6 +1,6 @@
 # Persistent automatic workforce and static-audit follow-ups — 2026-11-06
 
-**Status:** work instructions 1–3 implemented on draft PR #126 (runtime unverified); remaining instructions and related audit findings are planned. **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this implementation.**
+**Status:** work instructions 1–5, 7 and 9 implemented in source on draft PR #126 (runtime unverified); food-production and housing-bucket investigations remain open. **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this implementation.**
 
 ## Mini-RFC
 **Problem:** Manual and automated staffing paths overlap, risking inconsistent commands and unnecessary churn. The Virtual Player also contains a Store-scaling contradiction; food producer planning currently uses equal building counts despite differing production; housing bucket stability is overstated in a comment.
@@ -27,9 +27,9 @@
 - Implemented: legacy `staffingMode: 'manual'` is normalized to auto by workforce assignment, preserving valid jobs. Moon Howler transitions, prisoner-release and worker/main parity need local verification; no tests were run.
 - Update both `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` in the **implementation** change; every changed function has one owner and correct cadence/write set.
 
-### B. Fix Store scaling inconsistency (confirmed source defect)
+### B. Fix Store scaling inconsistency (source fix committed; unverified)
 - See `docs/bug_report/2026-11-06-virtual-player-store-scaling-unreachable.md`.
-- Choose an explicit storage-demand rule based on existing storage pressure and construction state. Keep Stores separate from production-per-adult targets, and remove the contradictory comment/condition.
+- Implemented: demand uses `computeStorageMax` for actual completed-building material caps (wood/stone/iron, 85% threshold), respects construction and reserves, and does not incorrectly use gold stock or per-adult Store targets.
 - Verify that the command owner validates funds, placement and capacity.
 
 ### C. Food-production capacity review (improvement, not a second starvation bug)
@@ -43,13 +43,13 @@
 - Reuse `housingPipeline.ts`; do not add another housing decision owner or rewrite the completed housing architecture.
 
 
-### E. Pathfinding contract for persistent jobs (confirmed staffing defect)
+### E. Pathfinding contract for persistent jobs (source fix committed; unverified)
 - See `docs/bug_report/2026-11-06-automatic-staffing-ignores-commute-reachability.md`.
 - `commuteReach.isWithinAssignableCommute` limits **new** work placements to two hours from the settler's home (or position when unhoused), priced on the existing path grid; a completed search returning no route is unreachable. Never substitute current-position straight-line distance for this eligibility.
-- `workforce.assignWorkerInPlace` currently ranks `near === false` candidates but still assigns one when none is reachable: make eligibility mandatory. `pickWorkerToTransfer` has no such check: enforce the same rule for transfers, using the existing owner rather than a second route search algorithm.
+- Implemented: `assignWorkerInPlace` makes route eligibility mandatory and cheaply rejects impossible straight-line lower bounds before A*; `pickWorkerToTransfer` uses the same route owner and ranks from actual home. Both preserve established employment.
 - Distinguish a route-search budget exhaustion/unknown route from a proven blocked route; use bounded defer/retry instead of silent eligibility or permanent exclusion.
 - **Keep a previously valid job when a later commute fails.** Let navigation recover/replan first; if permanently inaccessible, resolve housing/commute through its owner or make one justified transfer after cooldown, never daily reassignment and never blanket job clearing.
-- Only price routes for vacancy/transfer candidates on actual staffing events, not every worker on every tick. Respect the existing grid cache, routing budgets, blocked-waypoint behavior and save/worker parity.
+- Implemented: the workforce owner fingerprints relevant worker/building/policy inputs and skips unchanged pulses; a weekly safety recheck handles unknown environmental changes. Route work remains budgeted/cached, and no per-tick whole-population A* was added. The pulse still runs an O(humans+buildings) fingerprint, so this is change-gated, not a full event-queue rewrite.
 
 ## Acceptance criteria for implementation
 - Current jobs persist across multiple day boundaries without reassignment on each daily pulse; attendance varies independently.
@@ -63,7 +63,7 @@
 - Owners/decision registry/changelog are updated in the implementation PR, with precisely scoped regression tests chosen by the local maintainer.
 
 ## Verification policy for this documentation task
-**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Code changes are unverified; event-driven staffing optimization and unrelated Store/pathfinding fixes remain planned.
+**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Code changes are unverified. The event-fingerprint gate, new-job/transfers pathfinding, and Store capacity-pressure fixes are committed. Food yield and housing bucket remain to investigate.
 
 ## Report tracking
 - New: `2026-11-06-autoplay-staffing-policy-inconsistent.md`, `2026-11-06-virtual-player-store-scaling-unreachable.md`.
