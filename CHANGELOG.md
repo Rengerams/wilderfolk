@@ -2,17 +2,17 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Changed (6 November 2026, PR #126; runtime unverified):** Virtual Player food expansion uses completed-day ledger output where available instead of treating Farms, Greenhouses, Fishing Spots and Hunting Spots as interchangeable units. Before sufficient history, the bootstrap crop footprint excludes hunting/fishing. A measured deficit can exceed a nominal crop count; emergency larder response remains.
+- **Changed (6 November 2026, PR #126; runtime unverified):** Food expansion uses measured yield instead of interchangeable producer counts. New colonies use a crop-only bootstrap estimate; shortages still prompt expansion.
 
-- **Docs (6 November 2026, PR #126):** Clarified that housing sweep buckets are determined from current household members, not a persistent household identifier. Daily four-bucket coverage and the final all-unit sweep already handle membership churn; no new housing state or movement policy was added.
+- **Docs (6 November 2026, PR #126):** Housing buckets use current member IDs, not permanent household IDs. The final daily pulse revisits every unit; no migration was needed.
 
-- **Fixed (6 November 2026, PR #126; runtime unverified):** New job placements and automatic transfers now require a reachable home-to-work commute within two hours; unknown path searches defer assignment, and existing jobs are never dismissed for a temporary route issue. Same-cell and mapless startup commutes remain supported.
+- **Fixed (6 November 2026, PR #126; runtime unverified):** Hiring and transfers require a reachable commute of at most two hours. Unpriced routes defer assignments; existing jobs remain intact.
 
-- **Changed (6 November 2026, PR #126; runtime unverified):** Expensive workforce reconciliation runs on a player-worker/building/policy change signature, plus a weekly safety pass, rather than repeating full matching on unchanged six-hour/daily pulses. This is a fingerprint gate, not a new assignment owner.
+- **Changed (6 November 2026, PR #126; runtime unverified):** Workforce reconciliation skips unchanged staffing states using a lightweight signature and weekly repair pass.
 
 - **Fixed (6 November 2026, PR #126; runtime unverified):** Virtual Player Store expansion uses actual completed-building wood/stone/iron storage pressure, not the gold-stock or population producer-count condition; pending construction and resource reserve rules remain.
 
-- **Changed (6 November 2026, PR #126; runtime unverified):** Removed manual individual workplace assignment and Auto/Manual controls, preserving automatic jobs across normal schedule pulses. Legacy saved manual mode switches to auto on the workforce pass without discarding existing employment; builder and housing assignment commands remain separate. Updated related test sources without running them.
+- **Changed (6 November 2026, PR #126; runtime unverified):** Removed manual job controls. Existing jobs persist and legacy manual settings switch to automatic staffing; construction and housing remain separate.
 
 - **Fixed (6 November 2026, PR #126, unverified at runtime):** Moon Howler transformation uses 22:00 on a full-moon day through 06:00 the next morning, not also the preceding 00:00–06:00 interval.
 
