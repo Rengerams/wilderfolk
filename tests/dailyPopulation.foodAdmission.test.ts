@@ -21,7 +21,7 @@ describe('automatic immigration follows actual food capacity, not stocked reserv
   });
 
   it('permits a few founding families only when existing food covers a sixty-day shortfall and a reserve', () => {
-    const founders = stateFor(80, () => 50);
+    const founders = stateFor(60, () => 50);
     expect(getRecentFoodFlow(founders)?.netPerDay).toBeGreaterThan(0);
     const stocked = {
       ...founders,
