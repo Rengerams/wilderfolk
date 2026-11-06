@@ -16,10 +16,7 @@ export function isFullMoonDay(colonyDay: number): boolean {
 
 /** Full-moon night spans 22:00 on a full-moon day through 06:00 the next morning. */
 export function isFullMoonNight(colonyDay: number, hourOfDay: number): boolean {
-  if (hourOfDay < MOON_HOWLER_NIGHT_START && hourOfDay >= NIGHT_END) return false;
-  if (isFullMoonDay(colonyDay)) return true;
-  if (hourOfDay < NIGHT_END) {
-    return isFullMoonDay(colonyDay - 1);
-  }
+  if (hourOfDay >= MOON_HOWLER_NIGHT_START) return isFullMoonDay(colonyDay);
+  if (hourOfDay < NIGHT_END) return isFullMoonDay(colonyDay - 1);
   return false;
 }
