@@ -9,7 +9,10 @@ import {
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { beginCommuteRoutePass, isWithinAssignableCommute } from './commuteReach';
+import {
+  beginCommuteRoutePass, isWithinAssignableCommute,
+  straightLineCommuteLowerBoundHours, MAX_ASSIGNABLE_COMMUTE_HOURS,
+} from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
@@ -505,7 +508,6 @@ export function assignWorkerInPlace(
   const buildingX = building.x + building.width / 2;
   const buildingY = building.y + building.height / 2;
   let worker: Entity | undefined;
-  let bestNear = false;
   let bestDistance = Infinity;
   let bestSkill = -Infinity;
   const crewIds = constructionWorkerIds ?? new Set<number>();
@@ -518,23 +520,25 @@ export function assignWorkerInPlace(
     if (!isPlayerHuman(candidate) || !candidate.alive || candidate.isJuvenile
       || hasWorkAssignment(candidate) || isImprisoned(candidate)
       || crewIds.has(candidate.id)) continue;
-    const dx = candidate.x - buildingX;
-    const dy = candidate.y - buildingY;
+    const home = candidate.residenceBuildingId == null
+      ? undefined
+      : buildingById?.get(candidate.residenceBuildingId)
+        ?? buildings.find((site) => site.id === candidate.residenceBuildingId);
+    const origin = home ?? candidate;
+    const dx = origin.x - buildingX;
+    const dy = origin.y - buildingY;
     const distance = dx * dx + dy * dy;
-    const near = isWithinAssignableCommute(
-      candidate,
-      building,
-      buildings,
-      SPECIES_CONFIG[EntityType.Human].speed,
-      buildingById,
-    );
-    if (!near) continue;
-    const skill = readSkill(candidate, job);
-    if (worker && (
-      (bestNear && !near)
-      || (bestNear === near && (distance > bestDistance || (distance === bestDistance && skill < bestSkill)))
+    // This bound can only EXCLUDE impossible commutes; the actual route
+    // remains the authoritative eligibility check. Avoid spending A* budget
+    // on distant applicants who cannot make a two-hour commute even by road.
+    if (straightLineCommuteLowerBoundHours(origin, building, SPECIES_CONFIG[EntityType.Human].speed)
+      > MAX_ASSIGNABLE_COMMUTE_HOURS) continue;
+    if (!isWithinAssignableCommute(
+      candidate, building, buildings, SPECIES_CONFIG[EntityType.Human].speed, buildingById,
     )) continue;
-    if (worker && bestNear === near && distance === bestDistance && skill === bestSkill) {
+    const skill = readSkill(candidate, job);
+    if (worker && (distance > bestDistance || (distance === bestDistance && skill < bestSkill))) continue;
+    if (worker && distance === bestDistance && skill === bestSkill) {
       const bestFit = evaluateWorkerFit(worker, job);
       const candidateFit = evaluateWorkerFit(candidate, job);
       if (candidateFit.creditedDays < bestFit.creditedDays
@@ -542,7 +546,6 @@ export function assignWorkerInPlace(
           && candidateFit.traitFactor <= bestFit.traitFactor)) continue;
     }
     worker = candidate;
-    bestNear = near;
     bestDistance = distance;
     bestSkill = skill;
   }
