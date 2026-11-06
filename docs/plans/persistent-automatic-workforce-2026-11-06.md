@@ -1,6 +1,6 @@
 # Persistent automatic workforce and static-audit follow-ups — 2026-11-06
 
-**Status:** proposed; documentation only. **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this documentation.**
+**Status:** work instructions 1–3 implemented on draft PR #126 (runtime unverified); remaining instructions and related audit findings are planned. **Baseline:** `6e9dd6bfcd525cb1df3d8960a636069f5aa240c7`. **Target:** V.0.6.5.2. **Scope:** eliminate manual worker assignment, preserve stable jobs, fix the confirmed Store-policy contradiction, and resolve two review risks without inventing runtime failures. **No tests or CI executed for this implementation.**
 
 ## Mini-RFC
 **Problem:** Manual and automated staffing paths overlap, risking inconsistent commands and unnecessary churn. The Virtual Player also contains a Store-scaling contradiction; food producer planning currently uses equal building counts despite differing production; housing bucket stability is overstated in a comment.
@@ -19,12 +19,12 @@
 7. **Single pipeline:** all assignment writers and proposal paths use the one workforce owner. The Virtual Player supplies priorities or commands but never runs an independent assignment algorithm.
 
 ## Implementation sequence and ownership
-### A. Trace and remove manual staffing (primary task)
-- Search actual references to `isManualStaffingBuilding`, `assignWorker`, `removeWorker`, `autoStaffWorkers`, worker assignment UI, manual flags in saves, and command preview/worker fallback before deleting anything.
-- Name the one canonical assignment reconciliation entrypoint in `src/game/workforce.ts`; reuse existing helpers and policies where possible instead of adding a parallel matcher.
+### A. Trace and remove manual staffing (implemented; runtime unverified)
+- Implemented: removed per-person job controls and manual staffing toggles; existing typed `assignWorker` remains for construction and residency, and refuses completed-job individual assignment.
+- Implemented: reused `workforce.assignMissingWorkers` as the authoritative automatic staffing entrypoint. Existing `workerBuildingId` assignments persist; only eligible idle workers fill empty posts, with existing guarded transfers.
 - Make existing assignments the fixed starting roster. Process only vacancies and explicitly justified transfers; deterministic sorting, no daily mass reassignment.
 - Retire manual controls and manual-only code paths after migrating consumers; preserve any nonmanual uses of commands until proven obsolete.
-- Migrate legacy saved manual flags to automatic *without rewriting jobs*. Check Moon Howler transformations, pregnancy, prisoner release, worker/main parity and imports.
+- Implemented: legacy `staffingMode: 'manual'` is normalized to auto by workforce assignment, preserving valid jobs. Moon Howler transitions, prisoner-release and worker/main parity need local verification; no tests were run.
 - Update both `OWNERSHIP_OVERVIEW.md` and `src/game/simulation/decisionRegistry.ts` in the **implementation** change; every changed function has one owner and correct cadence/write set.
 
 ### B. Fix Store scaling inconsistency (confirmed source defect)
@@ -63,7 +63,7 @@
 - Owners/decision registry/changelog are updated in the implementation PR, with precisely scoped regression tests chosen by the local maintainer.
 
 ## Verification policy for this documentation task
-**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Implementation must not be labelled verified merely because a plan exists.
+**Not run:** tests, TS, lint, build, CI, performance probes or simulations — by explicit user instruction. Code changes are unverified; event-driven staffing optimization and unrelated Store/pathfinding fixes remain planned.
 
 ## Report tracking
 - New: `2026-11-06-autoplay-staffing-policy-inconsistent.md`, `2026-11-06-virtual-player-store-scaling-unreachable.md`.
