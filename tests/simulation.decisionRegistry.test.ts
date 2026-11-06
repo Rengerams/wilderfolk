@@ -149,6 +149,7 @@ describe('simulation decision registry', () => {
     expect(isPropertyWritePermitted('traitInfluence', 'human.skills')).toBe(false);
     expect(isPropertyWritePermitted('traitInfluence', 'human.traits')).toBe(false);
     expect(isPropertyWritePermitted('workforce', 'building.occupants')).toBe(true);
+    expect(isPropertyWritePermitted('workforce', 'building.staffingMode')).toBe(true);
     expect(isPropertyWritePermitted('workforce', 'human.job')).toBe(true);
     expect(isPropertyWritePermitted('workforce', 'job')).toBe(true);
     expect(isPropertyWritePermitted('workforce', 'human.occupants')).toBe(false);
