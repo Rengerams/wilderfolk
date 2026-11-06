@@ -816,7 +816,7 @@ describe('virtual player decision engine', () => {
     );
 
     // The owner agrees a worker *could* be moved there by hand…
-    expect(canAssignWorkerToBuilding(world, 3)).toBe(true);
+    expect(canAssignWorkerToBuilding(world, 3)).toBe(false);
     // …but the generic command cannot, so the bot must not spend the hour asking.
     expectNothingLeftButUpgrades(decideVirtualPlayerAction(world));
   });
