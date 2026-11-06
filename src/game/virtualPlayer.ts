@@ -429,7 +429,10 @@ function decideHousing(state: WorldState): VirtualPlayerDecision | null {
     if (collectHousingDiagnostics(state).housingPressure === 'comfortable') return null;
     // Empty beds attract arrivals. Stop speculative housing while residents
     // cannot eat; homeless villagers are still housed by the branch above.
-    if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO) || !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) return null;
+    if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+      || isProjectedFoodShortfall(state, foodNeedPerDay(playerHumanCount(state.entities)),
+        VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+      || !hasFoodMargin(state, VirtualPlayer.FOOD_BUFFER_DAYS)) return null;
     // Housing is survival, so the reserve applies to the *ahead-of-need* half only: a homeless
     // village still raises a House on its last 40 wood.
     if (!canSpendKeepingReserve(state, BUILDING_CONFIGS[BuildingType.House].cost)) return null;
@@ -562,11 +565,11 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   const target = wantedBootstrapCropSiteCount(state, VirtualPlayer.SETTLERS_PER_FOOD_PRODUCER);
   const wantMore = measuredFlow === null && cropSites < target;
 
-  // In a measured shortage, improve the output of existing farmhands before
-  // constructing another workplace that may have no eligible workers. Level
+  // Raise output from the existing workforce as soon as the forecast warns,
+  // not only when the ledger already reports a deficit. Level
   // multiplies actual farm production in dailyBuildingEconomy, and the normal
   // upgrade command retains ownership of costs, caps and validation.
-  if (measuredDeficit) {
+  if (measuredDeficit || forecastRisk) {
     const farm = state.buildings
       .filter((building) => building.type === BuildingType.Farm
         && building.completed && building.faction !== 'rival')
@@ -581,7 +584,9 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     if (farm) {
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'upgradeBuilding', buildingId: farm.id },
-        reason: 'upgrade a staffed Farm — measured food production does not cover consumption',
+        reason: measuredDeficit
+          ? 'upgrade a staffed Farm — measured food production does not cover consumption'
+          : 'upgrade a staffed Farm — projected food demand will exceed production',
       };
     }
   }
@@ -589,7 +594,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
   // Fix a structural food deficit with multipliers before adding more workplaces.
   // The Mill is a passive boost to *all* food producers. Its tech, materials
   // and placement still go through the respective game owners.
-  if (measuredDeficit && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
+  if ((measuredDeficit || forecastRisk) && built > 0 && !ownsBuildingOfType(state, BuildingType.Mill)
     && isBuildingTechUnlocked(
       BUILDING_CONFIGS[BuildingType.Mill].unlockRequirement!,
       state.unlockedTechs,
@@ -600,7 +605,7 @@ function decideFood(state: WorldState): VirtualPlayerDecision | null {
     if (spot) {
       return {
         command: { proto: WORKER_CMD_PROTO, op: 'startBuilding', type: BuildingType.Mill, x: spot.x, y: spot.y, rotation: 0 },
-        reason: 'build a Mill — improve existing food production without needing more farmhands',
+        reason: 'build a Mill — prevent a food supply gap without needing more farmhands',
       };
     }
   }
@@ -1071,7 +1076,10 @@ function decideRecruitment(state: WorldState): VirtualPlayerDecision | null {
   if (!hasFoodMargin(state, VirtualPlayer.RECRUIT_FOOD_RESERVE_DAYS)) return null;
   // A stocked larder is not proof of self-sufficiency. Do not grow voluntary
   // demand while a continuous series of real harvests fails to feed the village.
-  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
+  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+    || isProjectedFoodShortfall(state,
+      foodNeedPerDay(playerHumanCount(state.entities)),
+      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
 
   const openBeds = getOpenPlayerBeds(state);
   if (openBeds < VirtualPlayer.RECRUIT_MIN_OPEN_BEDS) return null;
@@ -1171,7 +1179,10 @@ function decideVisitorRelations(state: WorldState): VirtualPlayerDecision | null
  * own initiative. `getRefugeeChoiceEligibility` still prices each offer.
  */
 function chooseRefugeeChoice(state: WorldState, group: VisitorGroup): RefugeeChoice | null {
-  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
+  if (isMeasuredFoodDeficit(state, VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)
+    || isProjectedFoodShortfall(state,
+      foodNeedPerDay(playerHumanCount(state.entities)),
+      VirtualPlayer.FOOD_DEFICIT_TOLERANCE_RATIO)) return null;
   if (
     hasFoodMargin(state, VirtualPlayer.REFUGEE_FOOD_RESERVE_DAYS)
     && getOpenPlayerBeds(state) >= VirtualPlayer.REFUGEE_MIN_OPEN_BEDS
