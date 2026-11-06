@@ -23,6 +23,11 @@ import { createHash } from 'node:crypto';
 import { serialize } from 'node:v8';
 import { initGame } from '../src/game/gameEngine';
 import { createBuilding } from '../src/game/worldGen';
+import { canPlaceBuilding } from '../src/game/buildingPlacementActions';
+import { snapBuildingCenter } from '../src/game/buildingRotation';
+import { beginCommuteRoutePass, isWithinAssignableCommute } from '../src/game/commuteReach';
+import { setCurrentPathMap } from '../src/game/pathfinding';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { assignMissingResidences } from '../src/game/housingPipeline';
 import { BUILDING_CONFIGS, BUILDING_JOB_TYPES, BuildingType, EntityType, MapSize } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
@@ -154,16 +159,59 @@ export function createCompletedBuilding(
   return building;
 }
 
+/**
+ * The seeded harness must create the same legal, navigable settlement that a player
+ * could build. Hard-coded offsets previously put all four starter Farms in a river
+ * on seed 12345, so new farmhands were correctly refused by the commute owner.
+ *
+ * Search bounded rings around the scenario's preferred coordinates, using the
+ * production placement and commute owners. Never paint passable terrain into the
+ * map or bypass the two-hour work limit just to make the health test pass.
+ */
+function placeLegalStarterBuilding(
+  world: WorldState,
+  type: BuildingType,
+  preferred: { x: number; y: number },
+  fromHomes: readonly Building[] = [],
+): Building {
+  const step = Math.max(70, BUILDING_CONFIGS[type].width + 20, BUILDING_CONFIGS[type].height + 20);
+  const commuter = world.entities.find((entity) => entity.alive && entity.type === EntityType.Human);
+  if (fromHomes.length > 0 && !commuter) throw new Error('Starter colony has no human commuters');
+  setCurrentPathMap(world.worldMap, world.buildings);
+  beginCommuteRoutePass();
+  for (let ring = 0; ring <= 24; ring++) {
+    for (let dx = -ring; dx <= ring; dx++) {
+      for (let dy = -ring; dy <= ring; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const spot = snapBuildingCenter(type, preferred.x + dx * step, preferred.y + dy * step, 0);
+        if (!canPlaceBuilding(world, type, spot.x, spot.y, 0)) continue;
+        if (fromHomes.length > 0) {
+          const candidate = createBuilding(type, spot.x, spot.y, -1);
+          const reachable = fromHomes.every((home) =>
+            isWithinAssignableCommute(
+              { ...commuter!, residenceBuildingId: home.id },
+              candidate,
+              world.buildings,
+              SPECIES_CONFIG[EntityType.Human].speed,
+            ));
+          if (!reachable) continue;
+        }
+        return createCompletedBuilding(world, type, spot.x, spot.y);
+      }
+    }
+  }
+  throw new Error(`Seeded ${type} has no legal, commutable starter placement near ${preferred.x},${preferred.y}`);
+}
+
 function placeStarterHousing(world: WorldState, anchor: { x: number; y: number }): void {
   for (let index = 0; index < STARTER_HOUSE_COUNT; index += 1) {
     const column = index % 4;
     const row = Math.floor(index / 4);
-    createCompletedBuilding(
-      world,
-      BuildingType.House,
-      Math.max(0, anchor.x - 160 + column * 96),
-      Math.max(0, anchor.y - 96 + row * 128),
-    );
+    const firstHome = world.buildings.find((site) => site.type === BuildingType.House && site.completed);
+    placeLegalStarterBuilding(world, BuildingType.House, {
+      x: Math.max(0, anchor.x - 160 + column * 96),
+      y: Math.max(0, anchor.y - 96 + row * 128),
+    }, firstHome ? [firstHome] : []);
   }
 }
 
@@ -190,12 +238,10 @@ function placeStorage(world: WorldState, anchor: { x: number; y: number }, scena
       const row = Math.floor(index / 4);
       const type = index % 2 === 0 ? BuildingType.Barn : BuildingType.Silo;
       if (type === BuildingType.Silo) silos += 1;
-      createCompletedBuilding(
-        world,
-        type,
-        Math.max(0, anchor.x - 160 + column * 80),
-        Math.max(0, anchor.y + 160 + row * 80),
-      );
+      placeLegalStarterBuilding(world, type, {
+        x: Math.max(0, anchor.x - 160 + column * 80),
+        y: Math.max(0, anchor.y + 160 + row * 80),
+      });
     }
     return silos;
   }
@@ -203,15 +249,13 @@ function placeStorage(world: WorldState, anchor: { x: number; y: number }, scena
   // Producers plan: 3 Barns + 1 Silo → 2 600 food storage, 1 700 wood storage, spoilage 0.8 %/day.
   for (let index = 0; index < PRODUCERS_SILO_COUNT; index += 1) {
     silos += 1;
-    createCompletedBuilding(world, BuildingType.Silo, Math.max(0, anchor.x - 160), Math.max(0, anchor.y + 160));
+    placeLegalStarterBuilding(world, BuildingType.Silo, { x: Math.max(0, anchor.x - 160), y: Math.max(0, anchor.y + 160) });
   }
   for (let index = 0; index < PRODUCERS_BARN_COUNT; index += 1) {
-    createCompletedBuilding(
-      world,
-      BuildingType.Barn,
-      Math.max(0, anchor.x - 80 + index * 80),
-      Math.max(0, anchor.y + 160),
-    );
+    placeLegalStarterBuilding(world, BuildingType.Barn, {
+      x: Math.max(0, anchor.x - 80 + index * 80),
+      y: Math.max(0, anchor.y + 160),
+    });
   }
   return silos;
 }
@@ -226,12 +270,17 @@ function placeProducers(world: WorldState, anchor: { x: number; y: number }): Bu
   const producers: Building[] = [];
   for (let index = 0; index < PRODUCERS_FARM_COUNT; index += 1) {
     producers.push(
-      createCompletedBuilding(world, BuildingType.Farm, Math.max(0, anchor.x - 40 + index * 90), Math.max(0, anchor.y + 240)),
+      placeLegalStarterBuilding(world, BuildingType.Farm, {
+        x: Math.max(0, anchor.x - 40 + index * 90),
+        y: Math.max(0, anchor.y + 240),
+      }, world.buildings.filter((site) => site.type === BuildingType.House && site.completed)),
     );
   }
   for (let index = 0; index < PRODUCERS_LUMBER_MILL_COUNT; index += 1) {
     producers.push(
-      createCompletedBuilding(world, BuildingType.LumberMill, Math.max(0, anchor.x + 240), Math.max(0, anchor.y + 240)),
+      placeLegalStarterBuilding(world, BuildingType.LumberMill, {
+        x: Math.max(0, anchor.x + 240), y: Math.max(0, anchor.y + 240),
+      }),
     );
   }
   return producers;
@@ -252,8 +301,8 @@ export function prepareColonyWorld(options: ColonyScenarioOptions): ColonyScenar
   const anchor = founders[0] ?? { x: world.width / 2, y: world.height / 2 };
 
   placeStarterHousing(world, anchor);
-  createCompletedBuilding(world, BuildingType.Tavern, anchor.x + 180, anchor.y - 24);
-  const prison = createCompletedBuilding(world, BuildingType.Prison, anchor.x + 180, anchor.y + 88);
+  placeLegalStarterBuilding(world, BuildingType.Tavern, { x: anchor.x + 180, y: anchor.y - 24 });
+  const prison = placeLegalStarterBuilding(world, BuildingType.Prison, { x: anchor.x + 180, y: anchor.y + 88 });
   const silos = placeStorage(world, anchor, scenario);
   const producers = plan.producers ? placeProducers(world, anchor) : [];
   updateStorageCaps(world);
