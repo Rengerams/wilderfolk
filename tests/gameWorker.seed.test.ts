@@ -112,10 +112,10 @@ describe('worker copy boundaries', () => {
       if (result?.type !== 'tickResult') throw new Error('missing tick result');
       expect(result.delta).toHaveProperty('populationHistory');
       expect(result.delta).toHaveProperty('genealogyRegistry');
-      if (result.renderBuffer && result.bufferIndex !== undefined) {
+      if (result.renderBuffer && result.bufferIndex !== undefined && result.bufferLease !== undefined) {
         await shim.onmessage!({ data: {
           type: 'returnBuffer', proto: WORKER_PROTO,
-          bufferIndex: result.bufferIndex, buffer: result.renderBuffer,
+          bufferIndex: result.bufferIndex, bufferLease: result.bufferLease, buffer: result.renderBuffer,
         } });
       }
       const replacement = initGame({ size: MapSize.Medium, seed: 72 });

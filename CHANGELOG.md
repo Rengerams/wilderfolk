@@ -18,6 +18,22 @@
 
 - **Docs (6 November 2026):** Recorded two static-audit findings and proposed persistent automatic workforce assignment, removing individual manual staffing without daily job reshuffling; no gameplay behavior changed.
 
+- **Fixed (6 November 2026):** Raid gold spoils now enter through the shared capped-resource path, so the configured gold storage maximum applies and the gain is recorded like every other resource.
+
+- **Fixed (6 November 2026):** A malformed or incompatible worker reply is now rejected before host bookkeeping and triggers worker recovery instead of leaving the displayed colony stale.
+
+- **Fixed (6 November 2026):** Same-phase daily spawns are folded into the working population list before later daily systems read counts, migrations or ecology.
+
+- **Fixed (6 November 2026):** Free-roaming hunting now records the food that actually reaches storage in the daily food ledger, matching Hunting Spot production.
+
+- **Fixed (6 November 2026):** The population and bed snapshot now notices building level, type, completion and ownership changes instead of relying on callers to invalidate it.
+
+- **Fixed (6 November 2026):** Render-buffer returns now carry an acquisition lease, so a delayed duplicate cannot free a slot the worker has already reused.
+
+- **Fixed (6 November 2026):** A failed Node worker transfer no longer retries a message that may contain detached buffers; it reports a worker fault instead.
+
+- **Fixed (6 November 2026):** Worker initialization now rejects unsupported feature requests, and the host discards render data whose schema version does not match.
+
 - **Fixed (6 November 2026):** Auto-play now plans food capacity at the measured farm yield and raises two food sites during a sustained deficit, so the seeded producer colony no longer starves.
 
 - **Changed (6 November 2026):** Test fixtures build a smaller or terrain-free world and reuse it across cases, roughly halving the unit suite; the two year-long integration gates now run together.

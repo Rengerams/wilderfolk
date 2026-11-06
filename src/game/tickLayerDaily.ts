@@ -10,6 +10,7 @@ import type { Entity, WorldState } from './gameTypes';
 import { EntityType } from './gameTypes';
 import type { TickContext } from './simulation/simulationTypes';
 import { countLivingPopulation } from './entityCounts';
+import { mergeNewEntitiesIntoAlive } from './simulation/simulationEntities';
 
 import { addFloatingText } from './simEffects';
 import { playerHumansFrom } from './playerHuman';
@@ -120,6 +121,9 @@ export function tickLayerDaily(
   profileEnd('daily.tickDailyBuildingEconomy', stage11);
   }
   if (hour === DAILY_PHASE_HOURS.worldEvents) {
+  // Production may have queued spawns; fold them in before the point-of-use counts and before the
+  // systems that read the working alive list.
+  mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
   // The tail counts at the point of use, after this layer's own spawns and deaths: the tick's
   // pre-daily snapshot no longer describes the colony by the time these three read it.
   const countsStart = profileStart();
@@ -128,11 +132,13 @@ export function tickLayerDaily(
   const stage12 = profileStart();
   tickDailyPopulation(state, ctx, allAlive, counts);
   profileEnd('daily.tickDailyPopulation', stage12);
+  mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
   const stage13 = profileStart();
-  tickDailyWorldEvents(state, ctx, allAlive, counts);
+  tickDailyWorldEvents(state, ctx, allAlive, countLivingPopulation(allAlive, ctx.newEntities));
   profileEnd('daily.tickDailyWorldEvents', stage13);
+  mergeNewEntitiesIntoAlive(allAlive, ctx.newEntities);
   const stage14 = profileStart();
-  tickDailyChallenges(state, ctx, counts);
+  tickDailyChallenges(state, ctx, countLivingPopulation(allAlive, ctx.newEntities));
   profileEnd('daily.tickDailyChallenges', stage14);
   }
 }

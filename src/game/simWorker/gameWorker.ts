@@ -18,7 +18,7 @@ import type { Entity, WorldState } from '../gameTypes';
 
 /* Rendering & simulation helpers */
 import { packRenderSoA } from '../simBuffers/packRenderSoA';
-import { RenderBufferPool } from '../simBuffers/renderBufferPool';
+import { RenderBufferPool, type AcquiredRenderBuffer } from '../simBuffers/renderBufferPool';
 import { extractSimTickDelta, splitStaticProps, stripUnchangedProfile, stripUnchangedRelationships, type SimTickDelta } from '../simBuffers/simDelta';
 import { PROFILE_REVISION, RELATIONSHIP_REVISION, revisionOf } from '../entityRevision';
 import { getPerformanceSnapshot, maybeWorkerPerformanceSnapshot, profileEnd, profileStart, setPerformanceProfilingEnabled, type PerformanceSnapshot } from '../performanceProfiler';
@@ -38,9 +38,11 @@ import { applyWorkerUiPatch } from './uiPatch';
 
 /* Protocol contract */
 import {
+  assertWorkerFeatures,
   isWorkerProto,
   WORKER_PROTO,
   workerProtoMismatch,
+  type WorkerFeature,
   type WorkerRequest,
   type WorkerResponse,
 } from './protocol';
@@ -103,8 +105,8 @@ export function ensureNamePoolSettled(): Promise<void> {
 /* -------------------------------------------------------------------------- */
 /*  Buffer lifecycle helpers                                                */
 /* -------------------------------------------------------------------------- */
-function releaseAcquiredBuffer(acquired: { index: number; buffer: ArrayBuffer }): void {
-  bufferPool?.release(acquired.index, acquired.buffer);
+function releaseAcquiredBuffer(acquired: AcquiredRenderBuffer): void {
+  bufferPool?.release(acquired.index, acquired.lease, acquired.buffer);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -112,7 +114,7 @@ function releaseAcquiredBuffer(acquired: { index: number; buffer: ArrayBuffer })
 /* -------------------------------------------------------------------------- */
 function packAndPostTickResult(
   aliveNow: Entity[],
-  acquired: { index: number; buffer: ArrayBuffer },
+  acquired: AcquiredRenderBuffer,
 ): void {
   if (!world) {
     releaseAcquiredBuffer(acquired);
@@ -154,6 +156,7 @@ function packAndPostTickResult(
       performanceSnapshot: withPathfinderReport(maybeWorkerPerformanceSnapshot()),
       renderBuffer: pack.buffer,
       bufferIndex: acquired.index,
+      bufferLease: acquired.lease,
       schemaVersion: pack.schemaVersion,
       delta,
       scentBuffer,
@@ -238,6 +241,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     switch (msg.type) {
       case 'init': {
         headlessMode = msg.headless ?? false;
+        const offered: WorkerFeature[] = headlessMode
+          ? []
+          : USE_SCENT_GRID
+            ? ['renderSoA_v1', 'scentSidecar_v1']
+            : ['renderSoA_v1'];
+        try {
+          assertWorkerFeatures(msg.features ?? [], offered);
+        } catch (err) {
+          postError(err instanceof Error ? err.message : String(err));
+          break;
+        }
         resetWorkerSession(msg.world);
         bufferPool = headlessMode ? null : new RenderBufferPool();
 
@@ -245,11 +259,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           type: 'ready',
           proto: WORKER_PROTO,
           simVersion: GAME_VERSION,
-          buffers: headlessMode
-            ? []
-            : USE_SCENT_GRID
-              ? ['renderSoA_v1', 'scentSidecar_v1']
-              : ['renderSoA_v1'],
+          buffers: offered,
         };
         self.postMessage(ready);
         break;
@@ -335,6 +345,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
         let renderBuffer: ArrayBuffer | undefined;
         let bufferIndex: number | undefined;
+        let bufferLease: number | undefined;
         let schemaVersion: number | undefined;
         let scentBuffer: ArrayBuffer | undefined;
         const transferables: ArrayBuffer[] = [];
@@ -346,6 +357,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               const pack = packRenderSoA(world, acquired.buffer);
               renderBuffer = pack.buffer;
               bufferIndex = acquired.index;
+              bufferLease = acquired.lease;
               schemaVersion = pack.schemaVersion;
               transferables.push(renderBuffer);
 
@@ -368,6 +380,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           delta,
           renderBuffer,
           bufferIndex,
+          bufferLease,
           schemaVersion,
           scentBuffer,
         };
@@ -377,7 +390,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
       case 'returnBuffer': {
         if (!bufferPool) break;
-        bufferPool.release(msg.bufferIndex, msg.buffer);
+        bufferPool.release(msg.bufferIndex, msg.bufferLease, msg.buffer);
         break;
       }
 

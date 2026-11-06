@@ -94,6 +94,8 @@ export type WorkerRequest =
       type: 'returnBuffer';
       proto: typeof WORKER_PROTO;
       bufferIndex: number;
+      /** The acquisition lease the host is returning; prevents stale returns freeing a reused slot. */
+      bufferLease: number;
       buffer: ArrayBuffer;
     };
 
@@ -118,6 +120,8 @@ export type WorkerResponse =
       headless?: boolean;
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
+      /** Lease paired with `bufferIndex`; echoed back on returnBuffer. */
+      bufferLease?: number;
       schemaVersion?: number;
       /** Transferable wolf‑scent influence map for debug overlay (optional). */
       scentBuffer?: ArrayBuffer;
@@ -130,6 +134,8 @@ export type WorkerResponse =
       reason?: string;
       renderBuffer?: ArrayBuffer;
       bufferIndex?: number;
+      /** Lease paired with `bufferIndex`; echoed back on returnBuffer. */
+      bufferLease?: number;
       schemaVersion?: number;
       scentBuffer?: ArrayBuffer;
     }

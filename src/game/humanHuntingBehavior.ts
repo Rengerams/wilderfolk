@@ -5,6 +5,7 @@ import { EntityType, JobType } from './gameTypes';
 import { SPECIES_CONFIG } from './speciesConfig';
 import { getHumanHuntRange } from './combat';
 import { addResource } from './economy';
+import { recordFoodProduced } from './economyLedger';
 import { addFloatingText, createDeathParticles, impulseScreenShake } from './simEffects';
 import { addHuntVisual } from './huntvisuals';
 import { evaluateTraitInfluence } from './personality/traitEvaluation';
@@ -160,7 +161,8 @@ export function tickHumanHunting(
       entity.huntTargetId = undefined;
 
       const foodGain = freeHuntFoodGain(closestPrey.type, state);
-      addResource(state, 'food', foodGain);
+      const addedFood = addResource(state, 'food', foodGain);
+      recordFoodProduced(state, 'hunting', addedFood);
 
       const preyLabel =
         closestPrey.type === EntityType.Deer

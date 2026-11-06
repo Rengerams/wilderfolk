@@ -911,8 +911,8 @@ function grantRaidSpoils(state: WorldState, spoils: RaidLootBundle): RaidLootBun
   if (spoils.wood > 0) gained.wood = addCappedResource(state, 'wood', spoils.wood);
   if (spoils.stone > 0) gained.stone = addCappedResource(state, 'stone', spoils.stone);
   if (spoils.gold > 0) {
-    gained.gold = clampRaidGoldGain(state.resources.gold, spoils.gold);
-    state.resources.gold += gained.gold;
+    const capped = clampRaidGoldGain(state.resources.gold, spoils.gold);
+    gained.gold = addCappedResource(state, 'gold', capped);
   }
   return gained;
 }

@@ -1,8 +1,8 @@
 {
   "approvals": [
     {
-      "key": "src/game/simWorker/gameWorker.ts:216:installWorkerMessageHandlers@6907937aa56ec27cf27cba832183ee2b651441c8601d7f232d6fea7c7e99538f <-> src/game/simWorker/gameWorker.ts:229:onmessage@5c7dc4e98f448b1c9a7643e4b6efd0241c20d24e60eab33b3dd284143f76b97b",
-      "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
+      "key": "src/game/simWorker/gameWorker.ts:219:installWorkerMessageHandlers@43217f3085132604dc8f3a4f8e56f7675654b8cfad498957cbcaa11717afd0e0 <-> src/game/simWorker/gameWorker.ts:232:onmessage@204c5b5a9658aeba4540512b4367577fb428017d9d3f686d76ac505d7afa92b9",
+      "reason": "The installer binds error hooks and the one worker message receiver on the active self shim, including a fresh test realm; it does not execute requests. The receiver alone validates protocol and requested features, awaits the shared census gate, then synchronously dispatches the request and classifies failures by source. Folding them into one entry would remove the explicit reinstallation seam needed by existing worker tests or duplicate registration. They have distinct call/timing responsibilities and a single implementation of each in the same owner module.",
       "tests": [
         "tests/gameWorker.profilerStop.test.ts",
         "tests/gameWorker.seed.test.ts",

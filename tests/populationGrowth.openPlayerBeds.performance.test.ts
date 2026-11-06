@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingType } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
-import { getOpenPlayerBeds } from '../src/game/populationGrowth';
+import { getOpenPlayerBeds, snapshotPopulation } from '../src/game/populationGrowth';
 import { getResidenceCapacity } from '../src/game/housingModel';
 import { building, human } from '../src/test/factories';
 
@@ -42,5 +42,21 @@ describe('open player beds linear occupancy calculation', () => {
         getResidenceCapacity(b) - residents.filter((h) => h.alive && !h.faction && h.residenceBuildingId === b.id).length,
       ), 0);
     expect(getOpenPlayerBeds(state)).toBe(expected);
+  });
+
+  it('recomputes beds when a residence level changes inside the same tick', () => {
+    const house = building(1, BuildingType.House);
+    const state = {
+      tick: 12,
+      entities: [],
+      buildings: [house],
+      humanPopulation: 0,
+      totalBuildingsCompleted: 1,
+    } as unknown as WorldState;
+
+    const before = snapshotPopulation(state).beds;
+    house.level += 1;
+    // No invalidate call: the building signature alone must notice the level change.
+    expect(snapshotPopulation(state).beds).toBe(before + 2);
   });
 });

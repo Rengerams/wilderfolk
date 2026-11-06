@@ -11,6 +11,21 @@ import { snapshotSimRng, restoreSimRng, type SimRngSnapshot } from '../simRng';
 
 export const SIM_DELTA_PROTO = 6;
 
+/** Boundary guard for a delta that crossed the worker port; cheap enough to run before bookkeeping. */
+export function isSimTickDelta(value: unknown): value is SimTickDelta {
+  if (!value || typeof value !== 'object') return false;
+  const delta = value as Partial<SimTickDelta>;
+  return (
+    delta.proto === SIM_DELTA_PROTO
+    && typeof delta.tick === 'number'
+    && Number.isFinite(delta.tick)
+    && typeof delta.resources === 'object'
+    && delta.resources !== null
+    && typeof delta.storageMax === 'object'
+    && delta.storageMax !== null
+  );
+}
+
 /** Keep player-dismissed Big News across worker ticks (sim delta overwrites UI flags). */
 export function preserveBigNewsDismissals(
   prev: WorldState['bigNews'],

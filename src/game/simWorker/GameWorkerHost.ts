@@ -5,7 +5,8 @@ import type { SimulationFocus } from '../simFocus';
 import { createRenderSoAReader, type RenderSoAReaderV1 } from '../simBuffers/renderSoAReader';
 import type { EntityRenderMeta } from '../simBuffers/entityRenderMeta';
 import { packRenderMetaForSlots } from '../simBuffers/entityRenderMeta';
-import { applySimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
+import { applySimTickDelta, isSimTickDelta, type SimTickDelta } from '../simBuffers/simDelta';
+import { RENDER_SOA_VERSION } from '../simBuffers/schema';
 import { decideRepeatedError, type RepeatedErrorState } from '../repeatedErrorLog';
 import { RENDER_BUFFER_POOL_SIZE } from '../simBuffers/renderBufferPool';
 import { ScentGridReader } from '../scentGrid';
@@ -138,7 +139,7 @@ export class GameWorkerHost {
   private lastSpeedSent: number | null = null;
   private generation = 0;
   /** Latest render buffer kept on main for drawing — returned when superseded. */
-  private heldRenderBuffer: { index: number; buffer: ArrayBuffer } | null = null;
+  private heldRenderBuffer: { index: number; buffer: ArrayBuffer; lease: number } | null = null;
   private commandChain: Promise<void> = Promise.resolve();
   private uploadBarrier = false;
   private queuedUploads = 0;
@@ -412,7 +413,11 @@ export class GameWorkerHost {
   private releaseHeldRenderBuffer(): void {
     if (!this.heldRenderBuffer) return;
     if (this.worker) {
-      this.returnRenderBuffer(this.heldRenderBuffer.index, this.heldRenderBuffer.buffer);
+      this.returnRenderBuffer(
+        this.heldRenderBuffer.index,
+        this.heldRenderBuffer.buffer,
+        this.heldRenderBuffer.lease,
+      );
     }
     this.heldRenderBuffer = null;
   }
@@ -683,9 +688,15 @@ export class GameWorkerHost {
     return true;
   }
 
-  private returnRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
-    if (!this.worker || buffer.byteLength === 0) return;
-    const returnMsg: WorkerRequest = { type: 'returnBuffer', proto: WORKER_PROTO, bufferIndex, buffer };
+  private returnRenderBuffer(bufferIndex: number, buffer: ArrayBuffer, lease: number | undefined): void {
+    if (!this.worker || buffer.byteLength === 0 || lease == null) return;
+    const returnMsg: WorkerRequest = {
+      type: 'returnBuffer',
+      proto: WORKER_PROTO,
+      bufferIndex,
+      bufferLease: lease,
+      buffer,
+    };
     try {
       this.worker.postMessage(returnMsg, [buffer]);
     } catch (err) {
@@ -693,11 +704,15 @@ export class GameWorkerHost {
     }
   }
 
-  private adoptRenderBuffer(bufferIndex: number, buffer: ArrayBuffer): void {
+  private adoptRenderBuffer(bufferIndex: number, buffer: ArrayBuffer, lease: number | undefined): void {
     if (this.heldRenderBuffer) {
-      this.returnRenderBuffer(this.heldRenderBuffer.index, this.heldRenderBuffer.buffer);
+      this.returnRenderBuffer(
+        this.heldRenderBuffer.index,
+        this.heldRenderBuffer.buffer,
+        this.heldRenderBuffer.lease,
+      );
     }
-    this.heldRenderBuffer = { index: bufferIndex, buffer };
+    this.heldRenderBuffer = lease == null ? null : { index: bufferIndex, buffer, lease };
   }
 
   private buildRender(
@@ -806,9 +821,16 @@ export class GameWorkerHost {
     }
 
     if (msg.type === 'commandResult') {
-      // Bookkeeping first, and unconditionally: a result that cannot be applied must still settle its
-      // promise and clear the flag. Clearing it only on the path that applies the delta left the host
-      // permanently un-idle, which times out every save and reads as a stalled worker.
+      // Validate the envelope before touching bookkeeping: an unusable reply must still settle its
+      // promise and ask the loop to recover, not leave a stale replica marked ready.
+      if (!isSimTickDelta(msg.delta)) {
+        const err = new Error('Invalid command delta payload');
+        this.logWorkerFault(err.message);
+        this.settleCommand((pending) => pending.reject(err));
+        this.resolveIdleWaiters();
+        this.onWorkerFault?.('command', err.message);
+        return;
+      }
       const pendingCommand = this.pendingCommand;
       if (pendingCommand) clearTimeout(pendingCommand.deadline);
       this.pendingCommand = null;
@@ -817,30 +839,43 @@ export class GameWorkerHost {
         this.resolveIdleWaiters();
         return;
       }
-      const delta = msg.delta as SimTickDelta;
-      if (msg.ok === false) {
-        if (delta) {
+      const delta = msg.delta;
+      try {
+        if (msg.ok === false) {
           applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
           hydrateWorldRuntimeCaches(this.worldRef);
+          this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
+          pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
+          this.resolveIdleWaiters();
+          return;
         }
-        this.onCommandResult?.(this.worldRef, delta, null, false, msg.reason);
-        pendingCommand?.reject(new Error(msg.reason ?? 'Command failed'));
-        this.resolveIdleWaiters();
-        return;
+        const applyStart = profileStart();
+        applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+        profileEnd('main.applyCommandDelta', applyStart);
+        const hydrateStart = profileStart();
+        hydrateWorldRuntimeCaches(this.worldRef);
+        profileEnd('main.hydrateCommand', hydrateStart);
+        let render: WorkerTickRender | null = null;
+        if (msg.renderBuffer != null && msg.bufferIndex != null) {
+          if (msg.schemaVersion === RENDER_SOA_VERSION) {
+            this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer, msg.bufferLease);
+            render = this.buildRender(msg.renderBuffer, msg.scentBuffer);
+          } else {
+            this.logWorkerFault(
+              `Render schema mismatch: expected ${RENDER_SOA_VERSION}, got ${String(msg.schemaVersion)}`,
+            );
+            // The worker still expects this slot back; return it rather than leaking a lease.
+            this.returnRenderBuffer(msg.bufferIndex, msg.renderBuffer, msg.bufferLease);
+          }
+        }
+        this.onCommandResult?.(this.worldRef, delta, render, true, msg.reason);
+        pendingCommand?.resolve(delta);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        this.logWorkerFault(error.message);
+        pendingCommand?.reject(error);
+        this.onWorkerFault?.('command', error.message);
       }
-      const applyStart = profileStart();
-      applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
-      profileEnd('main.applyCommandDelta', applyStart);
-      const hydrateStart = profileStart();
-      hydrateWorldRuntimeCaches(this.worldRef);
-      profileEnd('main.hydrateCommand', hydrateStart);
-      let render: WorkerTickRender | null = null;
-      if (msg.renderBuffer != null && msg.bufferIndex != null) {
-        this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
-        render = this.buildRender(msg.renderBuffer, msg.scentBuffer);
-      }
-      this.onCommandResult?.(this.worldRef, delta, render, true, msg.reason);
-      pendingCommand?.resolve(delta);
       this.resolveIdleWaiters();
       return;
     }
@@ -854,6 +889,13 @@ export class GameWorkerHost {
     }
 
     if (msg.type !== 'tickResult') return;
+    if (!isSimTickDelta(msg.delta)) {
+      const err = new Error('Invalid tick delta payload');
+      this.logWorkerFault(err.message);
+      this.rejectInFlight(err, { resetAllTicks: true });
+      this.onWorkerFault?.('tick', err.message);
+      return;
+    }
     if (msg.performanceSnapshot) this.latestPerformanceSnapshot = msg.performanceSnapshot;
 
     // The counter drops whether or not the delta can be applied. A tick result that arrived with no
@@ -866,19 +908,34 @@ export class GameWorkerHost {
       this.resolveIdleWaiters();
       return;
     }
-    const delta = msg.delta as SimTickDelta;
-    const applyStart = profileStart();
-    applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
-    profileEnd('main.applySimDelta', applyStart);
-    const hydrateStart = profileStart();
-    const geometryUnchanged = delta.buildingGeometryChanged === false;
-    hydrateWorldRuntimeCaches(this.worldRef, geometryUnchanged);
-    profileEnd('main.hydrateCaches', hydrateStart);
+    const delta = msg.delta;
+    try {
+      const applyStart = profileStart();
+      applySimTickDelta(this.worldRef, delta, { cloneMode: 'transfer' });
+      profileEnd('main.applySimDelta', applyStart);
+      const hydrateStart = profileStart();
+      const geometryUnchanged = delta.buildingGeometryChanged === false;
+      hydrateWorldRuntimeCaches(this.worldRef, geometryUnchanged);
+      profileEnd('main.hydrateCaches', hydrateStart);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.logWorkerFault(error.message);
+      this.rejectInFlight(error, { resetAllTicks: true });
+      this.onWorkerFault?.('tick', error.message);
+      return;
+    }
 
     if (msg.headless || msg.renderBuffer == null || msg.bufferIndex == null) {
       this.onTickResult?.(this.worldRef, delta, null, true);
+    } else if (msg.schemaVersion !== RENDER_SOA_VERSION) {
+      this.logWorkerFault(
+        `Render schema mismatch: expected ${RENDER_SOA_VERSION}, got ${String(msg.schemaVersion)}`,
+      );
+      // The worker still expects this slot back; return it rather than leaking a lease.
+      this.returnRenderBuffer(msg.bufferIndex, msg.renderBuffer, msg.bufferLease);
+      this.onTickResult?.(this.worldRef, delta, null, true);
     } else {
-      this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer);
+      this.adoptRenderBuffer(msg.bufferIndex, msg.renderBuffer, msg.bufferLease);
       const render = this.buildRender(msg.renderBuffer, msg.scentBuffer);
       if (!render) {
         console.error('[GameWorker] Invalid render SoA buffer');
