@@ -9,7 +9,7 @@ import {
 } from './gameTypes';
 import { getOccupationForBuilding, ensureEntitySkills, readSkill } from './skills';
 import { SPECIES_CONFIG } from './speciesConfig';
-import { isWithinAssignableCommute } from './commuteReach';
+import { beginCommuteRoutePass, isWithinAssignableCommute } from './commuteReach';
 import { isPlayerHuman } from './playerHuman';
 import { humanDisplayName } from './citizenId';
 import { assignMissingResidences, reassignDivorcedResidences, restoreCustodyAfterRelease } from './housingPipeline';
@@ -802,6 +802,27 @@ export function staffJobBuildings(
 }
 
 /**
+ * Cheap event fingerprint for automatic employment. Assignment reconciliation is NOT a
+ * daily job lottery: this only changes when a job, worker eligibility, home, building
+ * capacity or survival priority changes. A weekly repair pulse covers environmental
+ * route changes that do not mutate those fields. It is intentionally O(N+B), whereas
+ * filling/transfer candidate evaluation can involve bounded path searches.
+ */
+const lastWorkforceSignature = new WeakMap<WorldState, string>();
+function workforceSignature(world: WorldState): string {
+  const week = Math.floor(world.tick / (7 * TICKS_PER_DAY));
+  const priority = getWorkforcePolicy(world);
+  const resourceNeeds = `${Number((world.resources?.wood ?? 1) <= 0)}:${Number((world.resources?.stone ?? 1) <= 0)}`;
+  const residents = world.entities.map((human) =>
+    `${human.id}:${human.alive ? 1 : 0}:${human.isJuvenile ? 1 : 0}:${human.workerBuildingId ?? ''}:${human.residenceBuildingId ?? ''}:${human.prisonBuildingId ?? ''}:${human.lastAutoJobTransferTick ?? ''}:${human.faction ?? ''}`,
+  );
+  const sites = world.buildings.map((site) =>
+    `${site.id}:${site.type}:${site.completed ? 1 : 0}:${site.faction ?? ''}:${site.level ?? 1}:${site.completed ? '' : site.occupants.join(',')}`,
+  );
+  return `${week}|${priority}|${resourceNeeds}|${residents.join(';')}|${sites.join(';')}`;
+}
+
+/**
  * The one automatic staffing pass. `worldSlices` supplies the venue auto-staff targets and the
  * colony's `workforcePolicy`; a caller holding a `WorldState` gets the player's preset for free.
  */
@@ -813,6 +834,19 @@ export function assignMissingWorkers(
     'tavernSchedule' | 'hotelSchedule' | 'workforcePolicy'
   > & Partial<Pick<WorldState, 'tick' | 'resources'>>,
 ): void {
+  // A full WorldState is used by all production callers; the optional slices form
+  // keeps unit-level API callers backwards compatible without shared cache state.
+  const world = worldSlices as WorldState | undefined;
+  const cacheable = world?.entities != null && world.entities.length >= humans.length
+    && world.buildings === buildings && world.tick != null;
+  if (cacheable) {
+    const signature = workforceSignature(world);
+    if (lastWorkforceSignature.get(world) === signature) return;
+  }
+
+  // Each actual staffing event has a bounded route-search budget, shared with
+  // the canonical commute owner and cached for the current path-grid generation.
+  beginCommuteRoutePass();
   const prepStart = profileStart();
   // Old manual flags never displace established employees.
   for (const building of buildings) {
@@ -844,6 +878,11 @@ export function assignMissingWorkers(
   const jobsStart = profileStart();
   staffJobBuildings(alive, buildings, worldSlices, policy, buildingById);
   profileEnd('workforce.jobs', jobsStart);
+  if (cacheable) {
+    // Record POST-reconciliation state so new assignments don't force another
+    // heavy pass on the next unchanged six-hour or daily economy pulse.
+    lastWorkforceSignature.set(world, workforceSignature(world));
+  }
 }
 
 export function countWorkingAndIdleSettlers(
