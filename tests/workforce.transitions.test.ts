@@ -9,9 +9,9 @@ import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycyc
  *
  * These tests exercise the named transitions (assignWorkerTransition /
  * removeWorkerTransition / transferWorkerBetweenBuildings / addToConstructionCrew)
- * and the manual command surface (assignIdleWorkerToBuilding /
- * removeWorkerFromBuilding), verifying duplicate prevention, leader
- * assignment, reassignment, removal, idle-worker counts, and that the
+ * and the compatibility command surface (removeWorkerFromBuilding),
+ * verifying duplicate prevention, leader auto-assignment, reassignment,
+ * removal, idle-worker counts, and that the
  * Objective 1 invariants hold after every transition.
  */
 import { describe, expect, it } from 'vitest';
@@ -38,7 +38,7 @@ import {
   syncJobBuildingOccupants,
   transferWorkerBetweenBuildings,
 } from '../src/game/workforce';
-import { assignIdleWorkerToBuilding, removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
+import { removeWorkerFromBuilding } from '../src/game/buildingActionRouting';
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { setHumanBirthFromAge } from '../src/game/dayCycle';
 import { recordScheduleWorkTick } from '../src/game/scheduleFatigue';
